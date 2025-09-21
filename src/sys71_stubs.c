@@ -492,11 +492,13 @@ void DisposeHandle(Handle h) {
     /* Stub */
 }
 
-Handle GetResource(ResType theType, SInt16 theID) {
+/* GetResource is now implemented in simple_resource_manager.c */
+/* Handle GetResource(ResType theType, SInt16 theID) {
     return NewHandle(4);
-}
+} */
 
 Handle Get1Resource(ResType theType, SInt16 theID) {
+    extern Handle GetResource(ResType type, short id);
     return GetResource(theType, theID);
 }
 
@@ -800,6 +802,17 @@ void* memset(void* s, int c, size_t n) {
     unsigned char* p = s;
     while (n--) *p++ = (unsigned char)c;
     return s;
+}
+
+int memcmp(const void* s1, const void* s2, size_t n) {
+    const unsigned char* p1 = (const unsigned char*)s1;
+    const unsigned char* p2 = (const unsigned char*)s2;
+
+    for (size_t i = 0; i < n; i++) {
+        if (p1[i] < p2[i]) return -1;
+        if (p1[i] > p2[i]) return 1;
+    }
+    return 0;
 }
 
 void* memmove(void* dest, const void* src, size_t n) {

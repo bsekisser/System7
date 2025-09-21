@@ -23,6 +23,8 @@ static struct {
     Pattern backPat;
     Handle  backPixPat;    /* Opaque PixPat; format handled inside QuickDraw */
     RGBColor backColor;
+    uint32_t colorPattern[64];  /* Decoded PPAT8 pixels */
+    bool hasColorPattern;
 } gPM;
 
 /* External QuickDraw globals */
@@ -70,16 +72,30 @@ void PM_SetBackPixPat(Handle pixPatHandle) {
 
     gPM.backPixPat = pixPatHandle; /* Caller transfers ownership to PM */
 
-    /* For now, we'll extract a simple pattern from PixPat for compatibility */
-    /* In full Color QuickDraw, this would use BackPixPat */
-    /* We'll just use the first 8 bytes as a pattern for now */
-    if (GetHandleSize(pixPatHandle) >= 8) {
-        HLock(pixPatHandle);
-        Pattern tmpPat;
-        memcpy(&tmpPat.pat, *pixPatHandle, 8);
-        HUnlock(pixPatHandle);
-        BackPat(&tmpPat);
+    /* Try to decode as PPAT8 */
+    Size sz = GetHandleSize(pixPatHandle);
+    HLock(pixPatHandle);
+    const uint8_t* data = (const uint8_t*)*pixPatHandle;
+
+    if (DecodePPAT8(data, sz, gPM.colorPattern)) {
+        gPM.hasColorPattern = true;
+        /* Set a neutral pattern so EraseRect knows to use color */
+        Pattern neutralPat;
+        memset(&neutralPat, 0xFF, sizeof(neutralPat));
+        BackPat(&neutralPat);
+        UpdateBackgroundPattern(&neutralPat);
+    } else {
+        /* Fall back to using first 8 bytes as pattern */
+        gPM.hasColorPattern = false;
+        if (sz >= 8) {
+            Pattern tmpPat;
+            memcpy(&tmpPat.pat, data, 8);
+            BackPat(&tmpPat);
+            UpdateBackgroundPattern(&tmpPat);
+        }
     }
+
+    HUnlock(pixPatHandle);
 }
 
 void PM_SetBackColor(const RGBColor *rgb) {
@@ -154,4 +170,13 @@ bool PM_LoadPAT(int16_t id, Pattern *out) {
 
 Handle PM_LoadPPAT(int16_t id) {
     return LoadPPATResource(id);
+}
+
+/* Get color pattern data if available */
+bool PM_GetColorPattern(uint32_t** patternData) {
+    if (gPM.hasColorPattern && patternData) {
+        *patternData = gPM.colorPattern;
+        return true;
+    }
+    return false;
 }

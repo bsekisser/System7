@@ -22,6 +22,10 @@ CFLAGS = -ffreestanding -fno-builtin -fno-stack-protector -nostdlib -w -g -O0 -I
 ASFLAGS = --32
 LDFLAGS = -melf_i386 -nostdlib
 
+# Resource files
+RSRC_JSON = patterns.json
+RSRC_BIN = Patterns.rsrc
+
 # Source files
 C_SOURCES = src/main.c \
             src/SystemInit.c \
@@ -48,7 +52,8 @@ C_SOURCES = src/main.c \
             src/simple_resource_manager.c \
             src/ControlManager/ControlManagerCore.c \
             src/ControlManager/ControlTracking.c \
-            src/control_stubs.c
+            src/control_stubs.c \
+            src/patterns_rsrc.c
 
 ASM_SOURCES = src/multiboot2.S
 
@@ -61,7 +66,21 @@ OBJECTS = $(ASM_OBJECTS) $(C_OBJECTS)
 $(shell mkdir -p $(BUILD_DIR) $(OBJ_DIR) $(BIN_DIR) $(ISO_DIR)/boot/grub)
 
 # Default target
-all: $(KERNEL)
+all: $(RSRC_BIN) $(KERNEL)
+
+# Build resource file
+$(RSRC_BIN): $(RSRC_JSON) gen_rsrc.py
+	@echo "GEN $(RSRC_BIN)"
+	@python3 gen_rsrc.py $(RSRC_JSON) $(RSRC_BIN)
+
+# Convert resource file to C source
+src/patterns_rsrc.c: $(RSRC_BIN)
+	@echo "XXDC $<"
+	@echo '/* Auto-generated from Patterns.rsrc */' > $@
+	@echo 'const unsigned char patterns_rsrc_data[] = {' >> $@
+	@xxd -i < $< >> $@
+	@echo '};' >> $@
+	@echo 'const unsigned int patterns_rsrc_size = sizeof(patterns_rsrc_data);' >> $@
 
 # Link kernel
 $(KERNEL): $(OBJECTS)
@@ -77,6 +96,12 @@ $(OBJ_DIR)/%.o: src/%.S
 $(OBJ_DIR)/%.o: src/%.c
 	@echo "CC $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/patterns_rsrc.o: src/patterns_rsrc.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+src/patterns_rsrc.c: $(RSRC_BIN)
 
 $(OBJ_DIR)/%.o: src/MemoryMgr/%.c
 	@echo "CC $<"

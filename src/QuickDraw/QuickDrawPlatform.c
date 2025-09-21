@@ -168,6 +168,9 @@ void QDPlatform_DrawLine(GrafPtr port, Point startPt, Point endPt,
     }
 }
 
+/* For Pattern Manager color patterns */
+extern bool PM_GetColorPattern(uint32_t** patternData);
+
 /* Draw a shape using platform capabilities - called from QuickDrawCore */
 void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
                          SInt16 shapeType, const Pattern* pat) {
@@ -229,11 +232,41 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
             QDPlatform_DrawLine(port, br, bl, pat, patCopy);
             QDPlatform_DrawLine(port, bl, tl, pat, patCopy);
         } else if (verb == erase) {
-            /* Fill rectangle with white */
-            UInt32 color = pack_color(255, 255, 255);
-            for (SInt32 y = rect->top; y < rect->bottom; y++) {
-                for (SInt32 x = rect->left; x < rect->right; x++) {
-                    QDPlatform_SetPixel(x, y, color);
+            /* Check for color pattern from Pattern Manager */
+            uint32_t* colorPattern = NULL;
+            if (PM_GetColorPattern(&colorPattern)) {
+                /* Use color pattern - tile 8x8 across rectangle */
+                for (SInt32 y = rect->top; y < rect->bottom; y++) {
+                    for (SInt32 x = rect->left; x < rect->right; x++) {
+                        /* Get pattern pixel (8x8 repeating) */
+                        SInt32 patY = y % 8;  /* Use absolute position for desktop tiling */
+                        SInt32 patX = x % 8;
+                        UInt32 color = colorPattern[patY * 8 + patX];
+                        QDPlatform_SetPixel(x, y, color);
+                    }
+                }
+            } else if (pat) {
+                /* Use 1-bit pattern with background color */
+                for (SInt32 y = rect->top; y < rect->bottom; y++) {
+                    for (SInt32 x = rect->left; x < rect->right; x++) {
+                        /* Get pattern bit (8x8 repeating) */
+                        SInt32 patY = y % 8;  /* Use absolute position for desktop pattern */
+                        SInt32 patX = x % 8;
+                        UInt8 patByte = pat->pat[patY];
+                        Boolean bit = (patByte >> (7 - patX)) & 1;
+
+                        /* Use black for 1 bits, white for 0 bits */
+                        UInt32 color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
+                        QDPlatform_SetPixel(x, y, color);
+                    }
+                }
+            } else {
+                /* No pattern - fill with white */
+                UInt32 color = pack_color(255, 255, 255);
+                for (SInt32 y = rect->top; y < rect->bottom; y++) {
+                    for (SInt32 x = rect->left; x < rect->right; x++) {
+                        QDPlatform_SetPixel(x, y, color);
+                    }
                 }
             }
         }

@@ -27,6 +27,9 @@ bool LoadPATResource(int16_t id, Pattern *outPat);
 /* Load a PixPat blob as a Handle (opaque to callers, interpreted by QuickDraw) */
 Handle LoadPPATResource(int16_t id);
 
+/* Decode PPAT8 format into RGBA pixels */
+bool DecodePPAT8(const uint8_t* p, size_t n, uint32_t outRGBA[64]);
+
 #ifdef __cplusplus
 }
 #endif
