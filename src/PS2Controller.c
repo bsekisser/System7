@@ -20,6 +20,12 @@
 #define PS2_STATUS_PORT  0x64
 #define PS2_COMMAND_PORT 0x64
 
+/* PIC ports for IRQ unmasking */
+#define PIC1_COMMAND     0x20
+#define PIC1_DATA        0x21
+#define PIC2_COMMAND     0xA0
+#define PIC2_DATA        0xA1
+
 /* PS/2 Controller status bits */
 #define PS2_STATUS_OUTPUT_FULL  0x01
 #define PS2_STATUS_INPUT_FULL   0x02
@@ -39,6 +45,12 @@
 #define PS2_CMD_DISABLE_PORT1   0xAD
 #define PS2_CMD_ENABLE_PORT1    0xAE
 #define PS2_CMD_WRITE_PORT2     0xD4
+
+/* PIC ports */
+#define PIC1_COMMAND    0x20
+#define PIC1_DATA       0x21
+#define PIC2_COMMAND    0xA0
+#define PIC2_DATA       0xA1
 
 /* PS/2 Device commands */
 #define PS2_DEV_RESET           0xFF
@@ -83,8 +95,8 @@ static Boolean g_keyboardEnabled = false;
 /* Global mouse position - shared with Event Manager */
 Point g_mousePos = {400, 300};
 
-/* Mouse state */
-static struct {
+/* Mouse state - exported for cursor drawing */
+struct {
     int16_t x;
     int16_t y;
     uint8_t buttons;
@@ -143,15 +155,19 @@ static uint8_t ps2_read_data(void) {
 
 /* Send command to mouse (via second PS/2 port) */
 static Boolean ps2_mouse_command(uint8_t cmd) {
-    /* Tell controller we're sending to mouse */
-    ps2_send_command(PS2_CMD_WRITE_PORT2);
-    ps2_send_data(cmd);
+    /* CRITICAL FIX: Use 0xD4 prefix for ALL mouse commands */
+    ps2_wait_input();
+    outb(PS2_COMMAND_PORT, 0xD4);  /* Write to aux port command */
+    ps2_wait_input();
+    outb(PS2_DATA_PORT, cmd);      /* The actual mouse command */
 
     /* Wait for ACK */
     if (ps2_wait_output()) {
         uint8_t response = ps2_read_data();
+        serial_printf("MOUSE CMD 0x%02x response: 0x%02x\n", cmd, response);
         return (response == 0xFA); /* ACK */
     }
+    serial_printf("MOUSE CMD 0x%02x: NO RESPONSE\n", cmd);
     return false;
 }
 
@@ -245,14 +261,32 @@ static void process_keyboard_scancode(uint8_t scancode) {
 /* Process mouse packet */
 static void process_mouse_packet(void) {
     uint8_t status = g_mouseState.packet[0];
+
+    serial_printf("MOUSE PACKET: [0x%02x, 0x%02x, 0x%02x]\n",
+                  g_mouseState.packet[0], g_mouseState.packet[1], g_mouseState.packet[2]);
+
+    /* Check sync bit (bit 3 must be 1) for proper packet alignment */
+    if (!(status & 0x08)) {
+        /* Lost sync - discard packet and resync */
+        g_mouseState.packet_index = 0;
+        serial_printf("Mouse packet lost sync, resetting\n");
+        return;
+    }
+
     int16_t dx = (int8_t)g_mouseState.packet[1];
     int16_t dy = (int8_t)g_mouseState.packet[2];
+
+    serial_printf("MOUSE DELTA: dx=%d, dy=%d\n", dx, dy);
 
     /* Check for overflow */
     if (status & 0x40 || status & 0x80) {
         g_mouseState.packet_index = 0;
+        serial_printf("MOUSE OVERFLOW detected\n");
         return;
     }
+
+    int16_t old_x = g_mouseState.x;
+    int16_t old_y = g_mouseState.y;
 
     /* Update mouse position */
     g_mouseState.x += dx;
@@ -263,6 +297,8 @@ static void process_mouse_packet(void) {
     if (g_mouseState.x > 799) g_mouseState.x = 799;
     if (g_mouseState.y < 0) g_mouseState.y = 0;
     if (g_mouseState.y > 599) g_mouseState.y = 599;
+
+    serial_printf("MOUSE POS: old=(%d,%d) new=(%d,%d)\n", old_x, old_y, g_mouseState.x, g_mouseState.y);
 
     /* Check button state changes */
     uint8_t new_buttons = status & 0x07;
@@ -333,42 +369,79 @@ static Boolean init_mouse(void) {
     serial_printf("Initializing PS/2 mouse...\n");
 
     /* Enable second PS/2 port for mouse */
+    serial_printf("MOUSE: Enabling port 2...\n");
     ps2_send_command(PS2_CMD_ENABLE_PORT2);
 
     /* Reset mouse */
+    serial_printf("MOUSE: Sending reset command (0xFF)...\n");
     if (!ps2_mouse_command(PS2_DEV_RESET)) {
-        serial_printf("Mouse reset failed\n");
+        serial_printf("MOUSE: Reset failed - no ACK\n");
         return false;
     }
+    serial_printf("MOUSE: Reset ACK received\n");
 
     /* Wait for self-test result */
+    serial_printf("MOUSE: Waiting for self-test result...\n");
     if (ps2_wait_output()) {
         uint8_t result = ps2_read_data();
+        serial_printf("MOUSE: Self-test result: 0x%02x\n", result);
         if (result != 0xAA) {
-            serial_printf("Mouse self-test failed: 0x%02x\n", result);
+            serial_printf("MOUSE: Self-test FAILED (expected 0xAA)\n");
             return false;
         }
+        serial_printf("MOUSE: Self-test PASSED\n");
+    } else {
+        serial_printf("MOUSE: Self-test timeout\n");
+        return false;
     }
 
     /* Read and discard mouse ID */
+    serial_printf("MOUSE: Reading mouse ID...\n");
     if (ps2_wait_output()) {
-        ps2_read_data();
+        uint8_t id = ps2_read_data();
+        serial_printf("MOUSE: Mouse ID: 0x%02x\n", id);
+    } else {
+        serial_printf("MOUSE: No mouse ID received\n");
     }
 
     /* Set defaults */
+    serial_printf("MOUSE: Setting defaults (0xF6)...\n");
     if (!ps2_mouse_command(PS2_MOUSE_SET_DEFAULTS)) {
-        serial_printf("Failed to set mouse defaults\n");
+        serial_printf("MOUSE: Failed to set defaults - no ACK\n");
         return false;
     }
+    serial_printf("MOUSE: Defaults set\n");
 
     /* Enable data reporting */
+    serial_printf("MOUSE: Enabling data reporting (0xF4)...\n");
     if (!ps2_mouse_command(PS2_MOUSE_ENABLE_DATA)) {
-        serial_printf("Failed to enable mouse data reporting\n");
+        serial_printf("MOUSE: Failed to enable data reporting - no ACK\n");
         return false;
+    }
+    serial_printf("MOUSE: Data reporting enabled\n");
+
+    /* Verify port 2 is enabled in controller configuration */
+    ps2_send_command(PS2_CMD_READ_CONFIG);
+    uint8_t final_config = ps2_read_data();
+    serial_printf("MOUSE: Final controller config: 0x%02x\n", final_config);
+    serial_printf("MOUSE: Port 2 enabled: %s\n", (final_config & 0x20) ? "NO (disabled!)" : "YES");
+    serial_printf("MOUSE: Port 2 interrupt (bit 1): %s\n", (final_config & 0x02) ? "YES" : "NO (PROBLEM!)");
+
+    /* If bit 1 is not set, try to set it again */
+    if (!(final_config & 0x02)) {
+        serial_printf("MOUSE: WARNING - IRQ12 not enabled! Attempting to fix...\n");
+        final_config |= 0x02;
+        ps2_send_command(PS2_CMD_WRITE_CONFIG);
+        ps2_send_data(final_config);
+
+        /* Verify again */
+        ps2_send_command(PS2_CMD_READ_CONFIG);
+        final_config = ps2_read_data();
+        serial_printf("MOUSE: Config after fix attempt: 0x%02x\n", final_config);
     }
 
     g_mouseEnabled = true;
-    serial_printf("PS/2 mouse initialized\n");
+    serial_printf("PS/2 mouse initialized successfully\n");
     return true;
 }
 
@@ -377,6 +450,22 @@ Boolean InitPS2Controller(void) {
     if (g_ps2Initialized) return true;
 
     serial_printf("Initializing PS/2 controller...\n");
+
+    /* CRITICAL FIX #1: Unmask IRQ12 and IRQ2 in PIC */
+    serial_printf("PS2: Unmasking IRQ12 and IRQ2 in PIC...\n");
+    uint8_t pic1_mask = inb(PIC1_DATA);
+    uint8_t pic2_mask = inb(PIC2_DATA);
+    serial_printf("PS2: PIC1 mask before: 0x%02x, PIC2 mask before: 0x%02x\n", pic1_mask, pic2_mask);
+
+    pic1_mask &= ~0x04;  /* Unmask IRQ2 (cascade) */
+    pic2_mask &= ~0x10;  /* Unmask IRQ12 (mouse) - bit 4 for IRQ12 */
+
+    outb(PIC1_DATA, pic1_mask);
+    outb(PIC2_DATA, pic2_mask);
+
+    pic1_mask = inb(PIC1_DATA);
+    pic2_mask = inb(PIC2_DATA);
+    serial_printf("PS2: PIC1 mask after: 0x%02x, PIC2 mask after: 0x%02x\n", pic1_mask, pic2_mask);
 
     /* Disable both PS/2 ports during initialization */
     ps2_send_command(PS2_CMD_DISABLE_PORT1);
@@ -390,10 +479,15 @@ Boolean InitPS2Controller(void) {
     /* Get controller configuration */
     ps2_send_command(PS2_CMD_READ_CONFIG);
     uint8_t config = ps2_read_data();
+    serial_printf("PS2: Initial config byte: 0x%02x\n", config);
 
-    /* Enable interrupts for both ports, disable translation */
-    config |= 0x03;  /* Enable interrupts */
+    /* CRITICAL FIX #2: Set bit 1 to enable IRQ12 for mouse */
+    config |= 0x02;  /* Enable mouse IRQ (bit 1) */
+    config |= 0x01;  /* Enable keyboard IRQ (bit 0) */
+    config &= ~0x20; /* Enable AUX port (clear bit 5) */
     config &= ~0x40; /* Disable translation */
+
+    serial_printf("PS2: New config byte: 0x%02x\n", config);
 
     /* Write configuration back */
     ps2_send_command(PS2_CMD_WRITE_CONFIG);
@@ -451,14 +545,42 @@ Boolean InitPS2Controller(void) {
 void PollPS2Input(void) {
     if (!g_ps2Initialized) return;
 
-    /* Check for available data */
-    while (inb(PS2_STATUS_PORT) & PS2_STATUS_OUTPUT_FULL) {
+    static int poll_count = 0;
+    static int mouse_byte_count = 0;
+    static int call_count = 0;
+
+    /* Log every 10 million calls to show it's being called */
+    if ((++call_count % 10000000) == 0) {
+        serial_printf("PS2: PollPS2Input called %d times\n", call_count);
+        call_count = 0;
+    }
+
+    /* Check for available data - non-blocking */
+    if (inb(PS2_STATUS_PORT) & PS2_STATUS_OUTPUT_FULL) {
+        uint8_t status = inb(PS2_STATUS_PORT);
         uint8_t data = inb(PS2_DATA_PORT);
 
+        poll_count++;
+
         /* Check if this is mouse data (bit 5 of status port) */
-        if (inb(PS2_STATUS_PORT) & 0x20) {
+        if (status & 0x20) {
             /* Mouse data */
+            mouse_byte_count++;
+            if ((mouse_byte_count % 100) == 1) {
+                serial_printf("POLL: Got mouse byte 0x%02x (status=0x%02x) idx=%d enabled=%d\n",
+                             data, status, g_mouseState.packet_index, g_mouseEnabled);
+            }
+
             if (g_mouseEnabled) {
+                /* First byte must have sync bit (bit 3) set */
+                if (g_mouseState.packet_index == 0) {
+                    if (!(data & 0x08)) {
+                        /* Not a valid first byte, skip it */
+                        serial_printf("POLL: Skipping invalid first byte 0x%02x\n", data);
+                        return;
+                    }
+                }
+
                 g_mouseState.packet[g_mouseState.packet_index++] = data;
                 if (g_mouseState.packet_index >= 3) {
                     process_mouse_packet();
