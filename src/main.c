@@ -6,6 +6,9 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+/* Debug flag for serial menu commands - set to 1 to enable, 0 to disable */
+#define DEBUG_SERIAL_MENU_COMMANDS 0
+
 /* Include actual System 7.1 headers */
 #include "../include/MacTypes.h"
 #include "../include/QuickDraw/QuickDraw.h"
@@ -170,6 +173,7 @@ char serial_getchar(void) {
 
 /* Process serial commands for menu testing */
 void process_serial_command(void) {
+#if DEBUG_SERIAL_MENU_COMMANDS
     if (!serial_data_ready()) return;
 
     char cmd = serial_getchar();
@@ -270,6 +274,7 @@ void process_serial_command(void) {
             serial_printf("Unknown command '%c' (0x%02x). Press 'h' for help.\n", cmd, cmd);
             break;
     }
+#endif /* DEBUG_SERIAL_MENU_COMMANDS */
 }
 
 /* VGA text mode for early output */
@@ -1804,7 +1809,9 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         serial_puts("F");  /* Debug: After SystemTask */
 
         /* Process serial commands for menu testing */
+#if DEBUG_SERIAL_MENU_COMMANDS
         process_serial_command();
+#endif
 
         /* Get and process events (only check for specific events to avoid blocking) */
         serial_puts("G");  /* Debug: Before GetNextEvent */
