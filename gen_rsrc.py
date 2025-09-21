@@ -156,6 +156,14 @@ def parse_ppat8_data(entry):
 
     return bytes(out)
 
+def parse_ppat_raw(entry):
+    """Parse raw ppat hex data"""
+    d = entry.get("data", {})
+    hex_str = d.get("hex", "")
+    # Remove any spaces and convert hex string to bytes
+    hex_str = hex_str.replace(" ", "")
+    return bytes.fromhex(hex_str)
+
 def parse_manifest(manifest):
     resources = []
     for ent in manifest.get("resources", []):
@@ -167,9 +175,15 @@ def parse_manifest(manifest):
         elif rtype == "ppat":
             if "ppat8" in ent.get("data", {}):
                 data = parse_ppat8_data(ent)
+            elif "hex" in ent.get("data", {}):
+                data = parse_ppat_raw(ent)
             else:
                 # Skip ppat entries with from_png for now
                 continue
+        elif rtype == "ppat_raw":
+            # Treat ppat_raw as ppat type
+            data = parse_ppat_raw(ent)
+            rtype = "ppat"  # Convert to standard ppat type
         else:
             raise NotImplementedError(f"Unsupported type: {rtype}")
         resources.append(Resource(FOURCC(rtype), rid, name, data))
