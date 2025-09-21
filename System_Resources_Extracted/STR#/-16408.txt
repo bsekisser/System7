@@ -1,0 +1,4 @@
+[0] Your system has been placed in AppleTalk zone “
+[1] ”.  To select a different zone, please click the Network icon in the Control Panel, then click the selected AppleTalk connection icon.
+[2] Access to your AppleTalk internet has now become available.  To use the internet, please click the Network icon in the Control Panel, then click the selected AppleTalk connection icon.
+[3] An unexpected change in your AppleTalk internet has interrupted network access.  To resume network use, please click the Network icon in the Control Panel, then click the selected AppleTalk connection icon.

@@ -1,0 +1,8 @@
+BSystem 7.1 Portable - Serial Console Initialized
+System 7.1 Portable - Iteration2
+================================
+
+No framebuffer available, continuing in text mode
+Initializing System 7.1...
+
+System ready. Entering main loop.

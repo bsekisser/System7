@@ -1,0 +1,260 @@
+CC src/QuickDraw/quickdraw_bitmap.c
+gcc -ffreestanding -fno-builtin -fno-stack-protector -nostdlib -w -g -O0 -I./include -std=c99 -m32 -c src/QuickDraw/quickdraw_bitmap.c -o build/obj/quickdraw_bitmap.o
+CC src/QuickDraw/quickdraw_core.c
+CC src/QuickDraw/QuickDrawCore.c
+gcc -ffreestanding -fno-builtin -fno-stack-protector -nostdlib -w -g -O0 -I./include -std=c99 -m32 -c src/QuickDraw/quickdraw_core.c -o build/obj/quickdraw_core.o
+gcc -ffreestanding -fno-builtin -fno-stack-protector -nostdlib -w -g -O0 -I./include -std=c99 -m32 -c src/QuickDraw/QuickDrawCore.c -o build/obj/QuickDrawCore.o
+CC src/QuickDraw/quickdraw_drawing.c
+gcc -ffreestanding -fno-builtin -fno-stack-protector -nostdlib -w -g -O0 -I./include -std=c99 -m32 -c src/QuickDraw/quickdraw_drawing.c -o build/obj/quickdraw_drawing.o
+src/QuickDraw/quickdraw_core.c: In function ‘InitGraf’:
+src/QuickDraw/quickdraw_core.c:46:11: error: ‘GrafPort’ has no member named ‘baseAddr’
+   46 |     (port)->baseAddr = NULL;
+      |           ^~
+src/QuickDraw/quickdraw_core.c:47:11: error: ‘GrafPort’ has no member named ‘rowBytes’
+   47 |     (port)->rowBytes = 0;
+      |           ^~
+src/QuickDraw/quickdraw_core.c:48:20: error: ‘GrafPort’ has no member named ‘bounds’
+   48 |     SetRect(&(port)->bounds, 0, 0, 0, 0);
+      |                    ^~
+src/QuickDraw/quickdraw_core.c:64:20: error: ‘srcCopy’ undeclared (first use in this function)
+   64 |     port->pnMode = srcCopy;
+      |                    ^~~~~~~
+src/QuickDraw/quickdraw_core.c:64:20: note: each undeclared identifier is reported only once for each function it appears in
+src/QuickDraw/quickdraw_core.c:70:20: error: ‘normal’ undeclared (first use in this function); did you mean ‘PenNormal’?
+   70 |     port->txFace = normal;
+      |                    ^~~~~~
+      |                    PenNormal
+src/QuickDraw/quickdraw_core.c: In function ‘PenNormal’:
+src/QuickDraw/quickdraw_core.c:182:23: error: ‘srcCopy’ undeclared (first use in this function)
+  182 |     thePort->pnMode = srcCopy;
+      |                       ^~~~~~~
+src/QuickDraw/quickdraw_drawing.c: In function ‘DrawString’:
+src/QuickDraw/quickdraw_drawing.c:75:14: error: ‘GrafPort’ has no member named ‘h’
+   75 |     (thePort)->h += totalWidth;
+      |              ^~
+src/QuickDraw/quickdraw_drawing.c: In function ‘DrawText’:
+src/QuickDraw/quickdraw_drawing.c:98:14: error: ‘GrafPort’ has no member named ‘h’
+   98 |     (thePort)->h += totalWidth;
+      |              ^~
+make: *** [Makefile:88: build/obj/quickdraw_core.o] Error 1
+make: *** Waiting for unfinished jobs....
+make: *** [Makefile:88: build/obj/quickdraw_drawing.o] Error 1
+src/QuickDraw/quickdraw_bitmap.c: In function ‘CopyBits’:
+src/QuickDraw/quickdraw_bitmap.c:92:22: error: ‘srcCopy’ undeclared (first use in this function)
+   92 |                 case srcCopy:
+      |                      ^~~~~~~
+src/QuickDraw/quickdraw_bitmap.c:92:22: note: each undeclared identifier is reported only once for each function it appears in
+src/QuickDraw/quickdraw_bitmap.c:97:22: error: ‘srcOr’ undeclared (first use in this function)
+   97 |                 case srcOr:
+      |                      ^~~~~
+src/QuickDraw/quickdraw_bitmap.c:102:22: error: ‘srcXor’ undeclared (first use in this function); did you mean ‘srcRow’?
+  102 |                 case srcXor:
+      |                      ^~~~~~
+      |                      srcRow
+src/QuickDraw/quickdraw_bitmap.c:107:22: error: ‘srcBic’ undeclared (first use in this function); did you mean ‘srcBits’?
+  107 |                 case srcBic:
+      |                      ^~~~~~
+      |                      srcBits
+src/QuickDraw/quickdraw_bitmap.c: In function ‘ScrollRect’:
+src/QuickDraw/quickdraw_bitmap.c:148:27: error: ‘srcCopy’ undeclared (first use in this function)
+  148 |              r, &dstRect, srcCopy, NULL);
+      |                           ^~~~~~~
+make: *** [Makefile:88: build/obj/quickdraw_bitmap.o] Error 1
+src/QuickDraw/QuickDrawCore.c: In function ‘InitPort’:
+src/QuickDraw/QuickDrawCore.c:114:23: error: ‘insufficientStackErr’ undeclared (first use in this function)
+  114 |         g_lastError = insufficientStackErr;
+      |                       ^~~~~~~~~~~~~~~~~~~~
+src/QuickDraw/QuickDrawCore.c:114:23: note: each undeclared identifier is reported only once for each function it appears in
+src/QuickDraw/QuickDrawCore.c:132:11: error: ‘GrafPort’ has no member named ‘h’
+  132 |     (port)->h = 0;
+      |           ^~
+src/QuickDraw/QuickDrawCore.c:133:11: error: ‘GrafPort’ has no member named ‘v’
+  133 |     (port)->v = 0;
+      |           ^~
+src/QuickDraw/QuickDrawCore.c:134:11: error: ‘GrafPort’ has no member named ‘h’
+  134 |     (port)->h = 1;
+      |           ^~
+src/QuickDraw/QuickDrawCore.c:135:11: error: ‘GrafPort’ has no member named ‘v’
+  135 |     (port)->v = 1;
+      |           ^~
+src/QuickDraw/QuickDrawCore.c:136:20: error: ‘patCopy’ undeclared (first use in this function)
+  136 |     port->pnMode = patCopy;
+      |                    ^~~~~~~
+src/QuickDraw/QuickDrawCore.c:141:20: error: ‘normal’ undeclared (first use in this function); did you mean ‘isnormal’?
+  141 |     port->txFace = normal;
+      |                    ^~~~~~
+      |                    isnormal
+src/QuickDraw/QuickDrawCore.c:142:20: error: ‘srcOr’ undeclared (first use in this function); did you mean ‘strchr’?
+  142 |     port->txMode = srcOr;
+      |                    ^~~~~
+      |                    strchr
+src/QuickDraw/QuickDrawCore.c:147:21: error: ‘blackColor’ undeclared (first use in this function); did you mean ‘BackColor’?
+  147 |     port->fgColor = blackColor;
+      |                     ^~~~~~~~~~
+      |                     BackColor
+src/QuickDraw/QuickDrawCore.c:148:21: error: ‘whiteColor’ undeclared (first use in this function)
+  148 |     port->bkColor = whiteColor;
+      |                     ^~~~~~~~~~
+src/QuickDraw/QuickDrawCore.c: In function ‘ClosePort’:
+src/QuickDraw/QuickDrawCore.c:179:20: error: request for member ‘thePort’ in something not a structure or union
+  179 |         g_currentQD->thePort = NULL;
+      |                    ^~
+src/QuickDraw/QuickDrawCore.c: In function ‘SetPort’:
+src/QuickDraw/QuickDrawCore.c:190:16: error: request for member ‘thePort’ in something not a structure or union
+  190 |     g_currentQD->thePort = port;
+      |                ^~
+src/QuickDraw/QuickDrawCore.c: In function ‘PortSize’:
+src/QuickDraw/QuickDrawCore.c:213:20: error: ‘GrafPort’ has no member named ‘right’
+  213 |     (g_currentPort)->right = (g_currentPort)->left + width;
+      |                    ^~
+src/QuickDraw/QuickDrawCore.c:213:45: error: ‘GrafPort’ has no member named ‘left’
+  213 |     (g_currentPort)->right = (g_currentPort)->left + width;
+      |                                             ^~
+src/QuickDraw/QuickDrawCore.c:214:20: error: ‘GrafPort’ has no member named ‘bottom’
+  214 |     (g_currentPort)->bottom = (g_currentPort)->top + height;
+      |                    ^~
+src/QuickDraw/QuickDrawCore.c:214:46: error: ‘GrafPort’ has no member named ‘top’
+  214 |     (g_currentPort)->bottom = (g_currentPort)->top + height;
+      |                                              ^~
+src/QuickDraw/QuickDrawCore.c: In function ‘MovePortTo’:
+src/QuickDraw/QuickDrawCore.c:220:35: error: ‘GrafPort’ has no member named ‘right’
+  220 |     SInt16 width = (g_currentPort)->right - (g_currentPort)->left;
+      |                                   ^~
+src/QuickDraw/QuickDrawCore.c:220:60: error: ‘GrafPort’ has no member named ‘left’
+  220 |     SInt16 width = (g_currentPort)->right - (g_currentPort)->left;
+      |                                                            ^~
+src/QuickDraw/QuickDrawCore.c:221:36: error: ‘GrafPort’ has no member named ‘bottom’
+  221 |     SInt16 height = (g_currentPort)->bottom - (g_currentPort)->top;
+      |                                    ^~
+src/QuickDraw/QuickDrawCore.c:221:62: error: ‘GrafPort’ has no member named ‘top’
+  221 |     SInt16 height = (g_currentPort)->bottom - (g_currentPort)->top;
+      |                                                              ^~
+src/QuickDraw/QuickDrawCore.c:223:20: error: ‘GrafPort’ has no member named ‘left’
+  223 |     (g_currentPort)->left = leftGlobal;
+      |                    ^~
+src/QuickDraw/QuickDrawCore.c:224:20: error: ‘GrafPort’ has no member named ‘top’
+  224 |     (g_currentPort)->top = topGlobal;
+      |                    ^~
+src/QuickDraw/QuickDrawCore.c:225:20: error: ‘GrafPort’ has no member named ‘right’
+  225 |     (g_currentPort)->right = leftGlobal + width;
+      |                    ^~
+src/QuickDraw/QuickDrawCore.c:226:20: error: ‘GrafPort’ has no member named ‘bottom’
+  226 |     (g_currentPort)->bottom = topGlobal + height;
+      |                    ^~
+src/QuickDraw/QuickDrawCore.c: In function ‘SetOrigin’:
+src/QuickDraw/QuickDrawCore.c:233:32: error: ‘GrafPort’ has no member named ‘bounds’
+  233 |     SInt16 dh = (g_currentPort)->bounds.left - h;
+      |                                ^~
+src/QuickDraw/QuickDrawCore.c:234:32: error: ‘GrafPort’ has no member named ‘bounds’
+  234 |     SInt16 dv = (g_currentPort)->bounds.top - v;
+      |                                ^~
+src/QuickDraw/QuickDrawCore.c:236:32: error: ‘GrafPort’ has no member named ‘bounds’
+  236 |     OffsetRect(&(g_currentPort)->bounds, dh, dv);
+      |                                ^~
+src/QuickDraw/QuickDrawCore.c: In function ‘PenNormal’:
+src/QuickDraw/QuickDrawCore.c:279:20: error: ‘GrafPort’ has no member named ‘h’
+  279 |     (g_currentPort)->h = 1;
+      |                    ^~
+src/QuickDraw/QuickDrawCore.c:280:20: error: ‘GrafPort’ has no member named ‘v’
+  280 |     (g_currentPort)->v = 1;
+      |                    ^~
+src/QuickDraw/QuickDrawCore.c:281:29: error: ‘patCopy’ undeclared (first use in this function)
+  281 |     g_currentPort->pnMode = patCopy;
+      |                             ^~~~~~~
+src/QuickDraw/QuickDrawCore.c: In function ‘PenSize’:
+src/QuickDraw/QuickDrawCore.c:287:20: error: ‘GrafPort’ has no member named ‘h’
+  287 |     (g_currentPort)->h = width;
+      |                    ^~
+src/QuickDraw/QuickDrawCore.c:288:20: error: ‘GrafPort’ has no member named ‘v’
+  288 |     (g_currentPort)->v = height;
+      |                    ^~
+src/QuickDraw/QuickDrawCore.c: In function ‘MoveTo’:
+src/QuickDraw/QuickDrawCore.c:334:20: error: ‘GrafPort’ has no member named ‘h’
+  334 |     (g_currentPort)->h = h;
+      |                    ^~
+src/QuickDraw/QuickDrawCore.c:335:20: error: ‘GrafPort’ has no member named ‘v’
+  335 |     (g_currentPort)->v = v;
+      |                    ^~
+src/QuickDraw/QuickDrawCore.c: In function ‘Move’:
+src/QuickDraw/QuickDrawCore.c:340:20: error: ‘GrafPort’ has no member named ‘h’
+  340 |     (g_currentPort)->h += dh;
+      |                    ^~
+src/QuickDraw/QuickDrawCore.c:341:20: error: ‘GrafPort’ has no member named ‘v’
+  341 |     (g_currentPort)->v += dv;
+      |                    ^~
+src/QuickDraw/QuickDrawCore.c: In function ‘LineTo’:
+src/QuickDraw/QuickDrawCore.c:352:25: error: ‘GrafPort’ has no member named ‘h’
+  352 |         ((g_currentPort)->h > 0 && (g_currentPort)->v > 0)) {
+      |                         ^~
+src/QuickDraw/QuickDrawCore.c:352:51: error: ‘GrafPort’ has no member named ‘v’
+  352 |         ((g_currentPort)->h > 0 && (g_currentPort)->v > 0)) {
+      |                                                   ^~
+src/QuickDraw/QuickDrawCore.c: In function ‘Line’:
+src/QuickDraw/QuickDrawCore.c:363:27: error: ‘GrafPort’ has no member named ‘h’
+  363 |     LineTo((g_currentPort)->h + dh, (g_currentPort)->v + dv);
+      |                           ^~
+src/QuickDraw/QuickDrawCore.c:363:52: error: ‘GrafPort’ has no member named ‘v’
+  363 |     LineTo((g_currentPort)->h + dh, (g_currentPort)->v + dv);
+      |                                                    ^~
+src/QuickDraw/QuickDrawCore.c: In function ‘FrameRect’:
+src/QuickDraw/QuickDrawCore.c:400:19: error: ‘frame’ undeclared (first use in this function)
+  400 |     DrawPrimitive(frame, r, 0, &g_currentPort->pnPat);
+      |                   ^~~~~
+src/QuickDraw/QuickDrawCore.c: In function ‘PaintRect’:
+src/QuickDraw/QuickDrawCore.c:408:19: error: ‘paint’ undeclared (first use in this function)
+  408 |     DrawPrimitive(paint, r, 0, &g_currentPort->pnPat);
+      |                   ^~~~~
+src/QuickDraw/QuickDrawCore.c: In function ‘EraseRect’:
+src/QuickDraw/QuickDrawCore.c:416:19: error: ‘erase’ undeclared (first use in this function)
+  416 |     DrawPrimitive(erase, r, 0, &g_currentPort->bkPat);
+      |                   ^~~~~
+src/QuickDraw/QuickDrawCore.c: In function ‘InvertRect’:
+src/QuickDraw/QuickDrawCore.c:424:19: error: ‘invert’ undeclared (first use in this function)
+  424 |     DrawPrimitive(invert, r, 0, NULL);
+      |                   ^~~~~~
+src/QuickDraw/QuickDrawCore.c: In function ‘FillRect’:
+src/QuickDraw/QuickDrawCore.c:433:19: error: ‘fill’ undeclared (first use in this function)
+  433 |     DrawPrimitive(fill, r, 0, pat);
+      |                   ^~~~
+src/QuickDraw/QuickDrawCore.c: In function ‘FrameOval’:
+src/QuickDraw/QuickDrawCore.c:445:19: error: ‘frame’ undeclared (first use in this function)
+  445 |     DrawPrimitive(frame, r, 1, &g_currentPort->pnPat);
+      |                   ^~~~~
+src/QuickDraw/QuickDrawCore.c: In function ‘PaintOval’:
+src/QuickDraw/QuickDrawCore.c:453:19: error: ‘paint’ undeclared (first use in this function)
+  453 |     DrawPrimitive(paint, r, 1, &g_currentPort->pnPat);
+      |                   ^~~~~
+src/QuickDraw/QuickDrawCore.c: In function ‘EraseOval’:
+src/QuickDraw/QuickDrawCore.c:461:19: error: ‘erase’ undeclared (first use in this function)
+  461 |     DrawPrimitive(erase, r, 1, &g_currentPort->bkPat);
+      |                   ^~~~~
+src/QuickDraw/QuickDrawCore.c: In function ‘InvertOval’:
+src/QuickDraw/QuickDrawCore.c:469:19: error: ‘invert’ undeclared (first use in this function)
+  469 |     DrawPrimitive(invert, r, 1, NULL);
+      |                   ^~~~~~
+src/QuickDraw/QuickDrawCore.c: In function ‘FillOval’:
+src/QuickDraw/QuickDrawCore.c:478:19: error: ‘fill’ undeclared (first use in this function)
+  478 |     DrawPrimitive(fill, r, 1, pat);
+      |                   ^~~~
+src/QuickDraw/QuickDrawCore.c: In function ‘DrawPrimitive’:
+src/QuickDraw/QuickDrawCore.c:516:17: error: ‘frame’ undeclared (first use in this function)
+  516 |     if (verb == frame) {
+      |                 ^~~~~
+src/QuickDraw/QuickDrawCore.c: In function ‘PrepareDrawing’:
+src/QuickDraw/QuickDrawCore.c:539:23: error: ‘insufficientStackErr’ undeclared (first use in this function)
+  539 |         g_lastError = insufficientStackErr;
+      |                       ^~~~~~~~~~~~~~~~~~~~
+src/QuickDraw/QuickDrawCore.c: In function ‘ApplyPenToRect’:
+src/QuickDraw/QuickDrawCore.c:549:15: error: ‘GrafPort’ has no member named ‘h’
+  549 |     if ((port)->h > 1) {
+      |               ^~
+src/QuickDraw/QuickDrawCore.c:550:30: error: ‘GrafPort’ has no member named ‘h’
+  550 |         rect->right += (port)->h - 1;
+      |                              ^~
+src/QuickDraw/QuickDrawCore.c:552:15: error: ‘GrafPort’ has no member named ‘v’
+  552 |     if ((port)->v > 1) {
+      |               ^~
+src/QuickDraw/QuickDrawCore.c:553:31: error: ‘GrafPort’ has no member named ‘v’
+  553 |         rect->bottom += (port)->v - 1;
+      |                               ^~
+make: *** [Makefile:88: build/obj/QuickDrawCore.o] Error 1

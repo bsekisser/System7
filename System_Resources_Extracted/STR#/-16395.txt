@@ -1,0 +1,19 @@
+[0] Macintosh
+[1] Macintosh XL
+[2] Macintosh 512Ke
+[3] Macintosh Plus
+[4] Macintosh SE
+[5] Macintosh II
+[6] Macintosh IIx
+[7] Macintosh IIcx
+[8] Macintosh SE/30
+[9] Macintosh Portable
+[10] Macintosh IIci
+[11] 
+[12] Macintosh IIfx
+[13] 
+[14] 
+[15] 
+[16] Macintosh Classic
+[17] Macintosh IIsi
+[18] Macintosh LC

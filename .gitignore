@@ -1,0 +1,42 @@
+# Build artifacts
+build/
+obj/
+*.o
+*.elf
+*.bin
+*.iso
+
+# ISO directory
+iso/
+
+# Log files
+*.log
+serial.log
+debug*.log
+
+# Editor files
+*.swp
+*.swo
+*~
+.DS_Store
+.vscode/
+.idea/
+
+# QEMU files
+*.qcow2
+*.img
+
+# Backup files
+*.bak
+*.old
+*.orig
+
+# Core dumps
+core
+core.*
+*.core
+
+# Temporary files
+/tmp/
+*.tmp
+*.temp

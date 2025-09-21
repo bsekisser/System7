@@ -1,0 +1,271 @@
+# System 7.1 Portable Makefile
+# Builds complete System 7.1 kernel
+
+# Directories
+BUILD_DIR = build
+OBJ_DIR = $(BUILD_DIR)/obj
+BIN_DIR = $(BUILD_DIR)/bin
+ISO_DIR = iso
+
+# Output files
+KERNEL = kernel.elf
+ISO = system71.iso
+
+# Tools
+CC = gcc
+AS = as
+LD = ld
+GRUB = grub-mkrescue
+
+# Flags
+CFLAGS = -ffreestanding -fno-builtin -fno-stack-protector -nostdlib -w -g -O0 -I./include -std=c99 -m32
+ASFLAGS = --32
+LDFLAGS = -melf_i386 -nostdlib
+
+# Source files
+C_SOURCES = src/main.c \
+            src/SystemInit.c \
+            src/sys71_stubs.c \
+            src/Finder/finder_main.c \
+            src/Finder/desktop_manager.c \
+            src/Finder/alias_manager.c \
+            src/Finder/trash_folder.c \
+            src/QuickDraw/QuickDrawCore.c \
+            src/QuickDraw/QuickDrawPlatform.c \
+            src/QuickDraw/Coordinates.c \
+            src/WindowManager/WindowManagerCore.c \
+            src/WindowManager/WindowDisplay.c \
+            src/Platform/WindowPlatform.c \
+            src/MenuManager/MenuManagerCore.c \
+            src/ChicagoRealFont.c \
+            src/chicago_font_data.c \
+            src/PS2Controller.c
+
+ASM_SOURCES = src/multiboot2.S
+
+# Object files
+C_OBJECTS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(notdir $(C_SOURCES)))
+ASM_OBJECTS = $(patsubst %.S,$(OBJ_DIR)/%.o,$(notdir $(ASM_SOURCES)))
+OBJECTS = $(ASM_OBJECTS) $(C_OBJECTS)
+
+# Create directories
+$(shell mkdir -p $(BUILD_DIR) $(OBJ_DIR) $(BIN_DIR) $(ISO_DIR)/boot/grub)
+
+# Default target
+all: $(KERNEL)
+
+# Link kernel
+$(KERNEL): $(OBJECTS)
+	@echo "LD $(KERNEL)"
+	@$(LD) $(LDFLAGS) -T linker_mb2.ld -o $(KERNEL) $(OBJECTS)
+
+# Compile source files
+$(OBJ_DIR)/%.o: src/%.S
+	@echo "AS $<"
+	@$(AS) $(ASFLAGS) $< -o $@
+
+# Pattern rules for each subdirectory
+$(OBJ_DIR)/%.o: src/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/MemoryMgr/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/ResourceMgr/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/FileMgr/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/QuickDraw/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/WindowManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/MenuManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/ControlManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/EventManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/DialogManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/TextEdit/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/ListManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/ScrapManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/ProcessMgr/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/TimeManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/SoundManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/PrintManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/HelpManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/ComponentManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/EditionManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/NotificationManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/PackageManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/NetworkExtension/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/ColorManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/CommunicationToolbox/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/FontManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/FontResources/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/GestaltManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/SpeechManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/BootLoader/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/SegmentLoader/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/DeviceManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/Finder/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/DeskManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/ControlPanels/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/Keyboard/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/Datetime/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/Calculator/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/Chooser/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/StartupScreen/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/Platform/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+# Special targets for stubs
+build/obj/universal_stubs.o: src/universal_stubs.c
+	@echo "CC src/universal_stubs.c"
+	@$(CC) $(CFLAGS) -c src/universal_stubs.c -o build/obj/universal_stubs.o
+
+build/obj/ultimate_stubs.o: src/ultimate_stubs.c
+	@echo "CC src/ultimate_stubs.c"
+	@$(CC) $(CFLAGS) -c src/ultimate_stubs.c -o build/obj/ultimate_stubs.o
+
+# ISO target
+iso: $(ISO)
+
+$(ISO): $(KERNEL)
+	@echo "Creating bootable ISO..."
+	@cp $(KERNEL) $(ISO_DIR)/boot/
+	@echo 'menuentry "System 7.1 Portable" {' > $(ISO_DIR)/boot/grub/grub.cfg
+	@echo '    multiboot2 /boot/$(KERNEL)' >> $(ISO_DIR)/boot/grub/grub.cfg
+	@echo '    boot' >> $(ISO_DIR)/boot/grub/grub.cfg
+	@echo '}' >> $(ISO_DIR)/boot/grub/grub.cfg
+	@$(GRUB) -o $(ISO) $(ISO_DIR)
+
+# Run with QEMU
+run: $(ISO)
+	qemu-system-i386 -cdrom $(ISO) -m 256 -vga std
+
+# Debug with QEMU
+debug: $(ISO)
+	qemu-system-i386 -cdrom $(ISO) -m 256 -vga std -s -S
+
+# Clean
+clean:
+	rm -rf $(BUILD_DIR)
+
+# Show compilation info
+info:
+	@echo "C Sources: $(words $(C_SOURCES)) files"
+	@echo "Source Files: $(words $(ASM_SOURCES)) files"
+	@echo "Total Objects: $(words $(OBJECTS)) files"
+
+.PHONY: all clean iso run debug info
