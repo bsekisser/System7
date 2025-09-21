@@ -386,6 +386,11 @@ void DrawMenuBar(void)
     MoveTo(0, 19);
     LineTo(qd.screenBits.bounds.right - 1, 19);
 
+    /* Initialize menu title tracking */
+    extern void InitMenuTitleTracking(void);
+    extern void AddMenuTitle(short menuID, short left, short width, const char* title);
+    InitMenuTitleTracking();
+
     /* Draw menu titles */
     short x = 10;
     serial_puts("DrawMenuBar: Checking menu state...\n");
@@ -423,13 +428,18 @@ void DrawMenuBar(void)
                     unsigned char alt_len = (**menu).menuData[1];
                     serial_printf("  Alt titleLen at [1]: %d\n", alt_len);
                     if (titleLen > 0 && titleLen < 50) { /* Sanity check title length */
+                        short menuWidth = 0;
+                        char titleText[256] = {0};
+
                         /* Check if this is the Apple menu - only draw icon for ID 128 */
                         /* ID 1 appears to be a duplicate that should be ignored */
                         if (mptr->menuID == 128) {
                             /* Draw Apple icon instead of text */
                             /* serial_printf("Drawing Apple icon for menu %d at x=%d\n", mptr->menuID, x); */
                             DrawAppleIcon(x, 2);
-                            x += 20;  /* Icon width + spacing */
+                            menuWidth = 20;  /* Icon width + spacing */
+                            AddMenuTitle(mptr->menuID, x, menuWidth, "Apple");
+                            x += menuWidth;
                         } else if (mptr->menuID == 1) {
                             /* Skip menu ID 1 - it's a duplicate Apple menu */
                             /* serial_printf("Skipping duplicate Apple menu (ID 1)\n"); */
@@ -440,7 +450,13 @@ void DrawMenuBar(void)
                             serial_puts("Calling DrawText with title...\n");
                             DrawText((char*)&(**menu).menuData[1], 0, titleLen);
                             serial_puts("DrawText returned\n");
-                            x += StringWidth(&(**menu).menuData) + 20;
+
+                            /* Track menu title position */
+                            menuWidth = StringWidth(&(**menu).menuData) + 20;
+                            memcpy(titleText, &(**menu).menuData[1], titleLen);
+                            titleText[titleLen] = '\0';
+                            AddMenuTitle(mptr->menuID, x, menuWidth, titleText);
+                            x += menuWidth;
                         }
                     }
                 }

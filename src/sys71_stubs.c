@@ -624,9 +624,7 @@ Boolean WaitNextEvent(SInt16 eventMask, EventRecord* theEvent, UInt32 sleep, Rgn
     return false;  /* No events */
 }
 
-long MenuSelect(Point startPt) {
-    return 0;  /* No menu selection */
-}
+/* MenuSelect now implemented in MenuSelection.c */
 
 void SystemClick(EventRecord* theEvent, WindowPtr window) {
     /* Stub */

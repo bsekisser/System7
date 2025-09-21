@@ -1,6 +1,5 @@
 /* #include "SystemTypes.h" */
 #include <string.h>
-#include <stdio.h>
 /*
  * MenuDisplay.c - Menu Drawing and Visual Management
  *
@@ -18,16 +17,33 @@
 
 #include "MenuManager/MenuManager.h"
 #include "MenuManager/MenuTypes.h"
+#include "MenuManager/MenuInternalTypes.h"
 #include "MenuManager/MenuDisplay.h"
 
 #include <math.h>
+
+/* Serial output */
+extern void serial_serial_printf(const char* format, ...);
+
+/* Menu item standard height */
+#define menuItemStdHeight 16
+
+/* Menu item flags */
+#define kMenuItemChecked    0x0001
+#define kMenuItemHasCmdKey  0x0002
+#define kMenuItemHasIcon    0x0004
+#define kMenuItemIsSeparator 0x0008
+#define kMenuItemDisabled   0x0010
+#define kMenuItemSelected   0x0020
+#define kMenuDrawNormal     0x0000
+#define kMenuItemNormal     0x0000
 
 
 /* ============================================================================
  * Display State and Context
  * ============================================================================ */
 
-static MenuDrawingContext gDrawingContext;
+static MenuDrawContext gDrawingContext;
 static Boolean gColorMode = false;
 static Boolean gAntiAlias = true;
 static Handle gCurrentSavedBits = NULL;
@@ -38,6 +54,10 @@ static Rect gCurrentMenuRect;
 extern void Platform_DrawMenuBar(const MenuBarDrawInfo* drawInfo);
 extern void Platform_DrawMenu(const MenuDrawInfo* drawInfo);
 extern void Platform_DrawMenuItem(const MenuItemDrawInfo* drawInfo);
+
+/* Forward declarations */
+Handle SaveMenuBits_Display(const Rect* menuRect);
+void RestoreMenuBits_Display(Handle savedBits, const Rect* menuRect);
 extern void Platform_HiliteMenuItem(MenuHandle theMenu, short item, Boolean hilite);
 extern void Platform_FlashMenuBar(short menuID);
 extern Handle Platform_SaveScreenBits(const Rect* rect);
@@ -45,7 +65,7 @@ extern void Platform_RestoreScreenBits(Handle savedBits, const Rect* rect);
 extern void Platform_DisposeScreenBits(Handle savedBits);
 
 /* Internal function prototypes */
-static void InitializeDrawingContext(MenuDrawingContext* context);
+static void InitializeDrawingContext(MenuDrawContext* context);
 static void SetupMenuDrawingColors(short menuID, short itemID);
 static void DrawMenuFrameInternal(const Rect* menuRect, Boolean selected);
 static void DrawMenuBackgroundInternal(const Rect* menuRect, short menuID);
@@ -81,7 +101,7 @@ void DrawMenuBarEx(const MenuBarDrawInfo* drawInfo)
     /* Use platform-specific drawing if available */
     Platform_DrawMenuBar(drawInfo);
 
-    printf("Drawing menu bar (mode: %d, hilite: %d)\n",
+    serial_printf("Drawing menu bar (mode: %d, hilite: %d)\n",
            drawInfo->drawMode, drawInfo->hiliteMenu);
 }
 
@@ -99,11 +119,11 @@ void EraseMenuBar(const Rect* menuBarRect)
         eraseRect.left = 0;
         eraseRect.top = 0;
         eraseRect.right = 640; /* Default screen width */
-        eraseRect.bottom = GetMBarHeight();
+        eraseRect.bottom = 20; /* Standard menu bar height */
     }
 
     /* Fill with background pattern */
-    printf("Erasing menu bar rect (%d,%d,%d,%d)\n",
+    serial_printf("Erasing menu bar rect (%d,%d,%d,%d)\n",
            eraseRect.left, eraseRect.top, eraseRect.right, eraseRect.bottom);
 
     /* TODO: Implement actual background fill */
@@ -143,10 +163,10 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
     }
 
     /* Get menu title */
-    short titleLen = (*theMenu)->menuData[0];
+    short titleLen = (*(MenuInfo**)theMenu)->menuData[0];
     if (titleLen > 255) titleLen = 255;
     titleText[0] = titleLen;
-    memcpy(&titleText[1], &(*theMenu)->menuData[1], titleLen);
+    memcpy(&titleText[1], &(*(MenuInfo**)theMenu)->menuData[1], titleLen);
 
     /* Set up text rectangle */
     textRect = *titleRect;
@@ -158,11 +178,11 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
     /* Set drawing colors based on hilite state */
     if (hilited) {
         /* Highlighted state - inverse colors */
-        printf("Drawing highlighted menu title: %.*s\n", titleLen, &titleText[1]);
+        serial_printf("Drawing highlighted menu title: %.*s\n", titleLen, &titleText[1]);
         /* TODO: Set highlight colors */
     } else {
         /* Normal state */
-        printf("Drawing normal menu title: %.*s\n", titleLen, &titleText[1]);
+        serial_printf("Drawing normal menu title: %.*s\n", titleLen, &titleText[1]);
         /* TODO: Set normal colors */
     }
 
@@ -236,7 +256,7 @@ void ShowMenu(MenuHandle theMenu, Point location, const MenuDrawInfo* drawInfo)
     if (gCurrentSavedBits != NULL) {
         DisposeMenuBits(gCurrentSavedBits);
     }
-    gCurrentSavedBits = SaveMenuBits(&menuRect);
+    gCurrentSavedBits = SaveMenuBits_Display(&menuRect);
 
     /* Draw the menu */
     DrawMenu(theMenu, &menuRect, 0);
@@ -245,8 +265,8 @@ void ShowMenu(MenuHandle theMenu, Point location, const MenuDrawInfo* drawInfo)
     gCurrentlyShownMenu = theMenu;
     gCurrentMenuRect = menuRect;
 
-    printf("Showing menu ID %d at (%d,%d)\n",
-           (*theMenu)->menuID, location.h, location.v);
+    serial_printf("Showing menu ID %d at (%d,%d)\n",
+           (*(MenuInfo**)theMenu)->menuID, location.h, location.v);
 }
 
 /*
@@ -260,12 +280,12 @@ void HideMenu(void)
 
     /* Restore screen bits */
     if (gCurrentSavedBits != NULL) {
-        RestoreMenuBits(gCurrentSavedBits, &gCurrentMenuRect);
+        RestoreMenuBits_Display(gCurrentSavedBits, &gCurrentMenuRect);
         DisposeMenuBits(gCurrentSavedBits);
         gCurrentSavedBits = NULL;
     }
 
-    printf("Hiding menu ID %d\n", (*gCurrentlyShownMenu)->menuID);
+    serial_printf("Hiding menu ID %d\n", (*(MenuInfo**)gCurrentlyShownMenu)->menuID);
 
     gCurrentlyShownMenu = NULL;
 }
@@ -297,7 +317,7 @@ void DrawMenu(MenuHandle theMenu, const Rect* menuRect, short hiliteItem)
     DrawMenuFrame(menuRect, false);
 
     /* Draw menu background */
-    DrawMenuBackground(menuRect, (*theMenu)->menuID);
+    DrawMenuBackground(menuRect, (*(MenuInfo**)theMenu)->menuID);
 
     /* Draw menu items */
     short itemCount = CountMItems(theMenu);
@@ -307,7 +327,7 @@ void DrawMenu(MenuHandle theMenu, const Rect* menuRect, short hiliteItem)
 
         MenuItemDrawInfo itemDrawInfo;
         itemDrawInfo.menu = theMenu;
-        itemDrawInfo.itemNumber = i;
+        itemDrawInfo.itemNum = i;
         itemDrawInfo.itemRect = itemRect;
         itemDrawInfo.itemFlags = kMenuItemNormal;
         if (i == hiliteItem) {
@@ -325,8 +345,8 @@ void DrawMenu(MenuHandle theMenu, const Rect* menuRect, short hiliteItem)
         DrawMenuItem(&itemDrawInfo);
     }
 
-    printf("Drew menu ID %d with %d items (hilite: %d)\n",
-           (*theMenu)->menuID, itemCount, hiliteItem);
+    serial_printf("Drew menu ID %d with %d items (hilite: %d)\n",
+           (*(MenuInfo**)theMenu)->menuID, itemCount, hiliteItem);
 }
 
 /*
@@ -373,19 +393,19 @@ void DrawMenuItem(const MenuItemDrawInfo* drawInfo)
     selected = (drawInfo->itemFlags & kMenuItemSelected) != 0;
 
     /* Calculate item component rectangles */
-    CalcMenuItemRects(drawInfo->menu, drawInfo->itemNumber, &drawInfo->itemRect,
+    CalcMenuItemRects(drawInfo->menu, drawInfo->itemNum, &drawInfo->itemRect,
                      &textRect, &iconRect, &markRect, &cmdRect);
 
     /* Check for separator */
     if (drawInfo->itemFlags & kMenuItemIsSeparator) {
-        DrawMenuSeparator(&drawInfo->itemRect, (*drawInfo->menu)->menuID);
+        DrawMenuSeparator(&drawInfo->itemRect, (*(MenuInfo**)(drawInfo->menu))->menuID);
         return;
     }
 
     /* Draw selection background if selected */
     if (selected) {
         /* TODO: Draw highlight background */
-        printf("Drawing selected background for item %d\n", drawInfo->itemNumber);
+        serial_printf("Drawing selected background for item %d\n", drawInfo->itemNum);
     }
 
     /* Draw item components */
@@ -475,7 +495,7 @@ void DrawMenuSeparator(const Rect* itemRect, short menuID)
     lineRect.top += (RectHeight(itemRect) / 2) - 1;
     lineRect.bottom = lineRect.top + 1;
 
-    printf("Drawing separator line in menu %d\n", menuID);
+    serial_printf("Drawing separator line in menu %d\n", menuID);
 
     /* TODO: Draw actual separator line */
 }
@@ -492,9 +512,9 @@ void HiliteMenuItem(MenuHandle theMenu, short item, Boolean hilite)
     /* Use platform-specific highlighting if available */
     Platform_HiliteMenuItem(theMenu, item, hilite);
 
-    printf("%s menu item %d in menu %d\n",
+    serial_printf("%s menu item %d in menu %d\n",
            hilite ? "Highlighting" : "Unhighlighting",
-           item, (*theMenu)->menuID);
+           item, (*(MenuInfo**)theMenu)->menuID);
 }
 
 /* ============================================================================
@@ -535,8 +555,8 @@ void CalcMenuRect(MenuHandle theMenu, Point location, Rect* menuRect)
     menuRect->bottom = menuRect->top + menuHeight;
 
     /* Update menu info */
-    (*theMenu)->menuWidth = menuWidth;
-    (*theMenu)->menuHeight = menuHeight;
+    (*(MenuInfo**)theMenu)->menuWidth = menuWidth;
+    (*(MenuInfo**)theMenu)->menuHeight = menuHeight;
 }
 
 /*
@@ -597,8 +617,8 @@ short GetMenuTitleWidth(MenuHandle theMenu)
         return 0;
     }
 
-    titleLen = (*theMenu)->menuData[0];
-    titleWidth = GetMenuItemTextWidth(&(*theMenu)->menuData[0], normal);
+    titleLen = (*(MenuInfo**)theMenu)->menuData[0];
+    titleWidth = GetMenuItemTextWidth(&(*(MenuInfo**)theMenu)->menuData[0], normal);
 
     return titleWidth + 16; /* Add margins */
 }
@@ -634,8 +654,8 @@ void AnimateMenuShow(MenuHandle theMenu, const Rect* startRect,
         return;
     }
 
-    printf("Animating menu show for menu %d (duration: %d)\n",
-           (*theMenu)->menuID, duration);
+    serial_printf("Animating menu show for menu %d (duration: %d)\n",
+           (*(MenuInfo**)theMenu)->menuID, duration);
 
     /* TODO: Implement animation */
 }
@@ -650,8 +670,8 @@ void AnimateMenuHide(MenuHandle theMenu, const Rect* startRect,
         return;
     }
 
-    printf("Animating menu hide for menu %d (duration: %d)\n",
-           (*theMenu)->menuID, duration);
+    serial_printf("Animating menu hide for menu %d (duration: %d)\n",
+           (*(MenuInfo**)theMenu)->menuID, duration);
 
     /* TODO: Implement animation */
 }
@@ -663,7 +683,7 @@ void AnimateMenuHide(MenuHandle theMenu, const Rect* startRect,
 /*
  * SaveMenuBits - Save screen bits under menu
  */
-Handle SaveMenuBits(const Rect* menuRect)
+Handle SaveMenuBits_Display(const Rect* menuRect)
 {
     if (menuRect == NULL) {
         return NULL;
@@ -676,7 +696,7 @@ Handle SaveMenuBits(const Rect* menuRect)
 /*
  * RestoreMenuBits - Restore saved screen bits
  */
-void RestoreMenuBits(Handle savedBits, const Rect* menuRect)
+void RestoreMenuBits_Display(Handle savedBits, const Rect* menuRect)
 {
     if (savedBits == NULL || menuRect == NULL) {
         return;
@@ -731,7 +751,7 @@ void SetMenuDrawingMode(Boolean useColor, Boolean antiAlias, Boolean usePatterns
     gColorMode = useColor;
     gAntiAlias = antiAlias;
 
-    printf("Set menu drawing mode: color=%s, antiAlias=%s, patterns=%s\n",
+    serial_printf("Set menu drawing mode: color=%s, antiAlias=%s, patterns=%s\n",
            useColor ? "Yes" : "No", antiAlias ? "Yes" : "No", usePatterns ? "Yes" : "No");
 }
 
@@ -742,13 +762,13 @@ void SetMenuDrawingMode(Boolean useColor, Boolean antiAlias, Boolean usePatterns
 /*
  * InitializeDrawingContext - Initialize drawing context
  */
-static void InitializeDrawingContext(MenuDrawingContext* context)
+static void InitializeDrawingContext(MenuDrawContext* context)
 {
     if (context == NULL) {
         return;
     }
 
-    memset(context, 0, sizeof(MenuDrawingContext));
+    memset(context, 0, sizeof(MenuDrawContext));
     context->textFont = 0; /* System font */
     context->textSize = 12; /* 12 point */
     context->textStyle = normal;
@@ -773,7 +793,7 @@ static void SetupMenuDrawingColors(short menuID, short itemID)
  */
 static void DrawMenuFrameInternal(const Rect* menuRect, Boolean selected)
 {
-    printf("Drawing menu frame (%d,%d,%d,%d) selected=%s\n",
+    serial_printf("Drawing menu frame (%d,%d,%d,%d) selected=%s\n",
            menuRect->left, menuRect->top, menuRect->right, menuRect->bottom,
            selected ? "Yes" : "No");
 
@@ -785,7 +805,7 @@ static void DrawMenuFrameInternal(const Rect* menuRect, Boolean selected)
  */
 static void DrawMenuBackgroundInternal(const Rect* menuRect, short menuID)
 {
-    printf("Drawing menu background for menu %d\n", menuID);
+    serial_printf("Drawing menu background for menu %d\n", menuID);
 
     /* TODO: Fill background */
 }
@@ -798,7 +818,7 @@ static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param item
 {
     short textLen = itemText[0];
 
-    printf("Drawing item text: %.*s (enabled=%s, selected=%s)\n",
+    serial_printf("Drawing item text: %.*s (enabled=%s, selected=%s)\n",
            textLen, &itemText[1], enabled ? "Yes" : "No", selected ? "Yes" : "No");
 
     /* TODO: Draw actual text */
@@ -810,7 +830,7 @@ static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param item
 static void DrawMenuItemIconInternal(const Rect* iconRect, short iconID,
                                    Boolean enabled, Boolean selected)
 {
-    printf("Drawing item icon %d (enabled=%s, selected=%s)\n",
+    serial_printf("Drawing item icon %d (enabled=%s, selected=%s)\n",
            iconID, enabled ? "Yes" : "No", selected ? "Yes" : "No");
 
     /* TODO: Draw actual icon */
@@ -822,7 +842,7 @@ static void DrawMenuItemIconInternal(const Rect* iconRect, short iconID,
 static void DrawMenuItemMarkInternal(const Rect* markRect, unsigned char markChar,
                                    Boolean enabled, Boolean selected)
 {
-    printf("Drawing item mark '%c' (enabled=%s, selected=%s)\n",
+    serial_printf("Drawing item mark '%c' (enabled=%s, selected=%s)\n",
            markChar, enabled ? "Yes" : "No", selected ? "Yes" : "No");
 
     /* TODO: Draw actual mark */
@@ -834,7 +854,7 @@ static void DrawMenuItemMarkInternal(const Rect* markRect, unsigned char markCha
 static void DrawMenuItemCmdKeyInternal(const Rect* cmdRect, unsigned char cmdChar,
                                      Boolean enabled, Boolean selected)
 {
-    printf("Drawing cmd key '%c' (enabled=%s, selected=%s)\n",
+    serial_printf("Drawing cmd key '%c' (enabled=%s, selected=%s)\n",
            cmdChar, enabled ? "Yes" : "No", selected ? "Yes" : "No");
 
     /* TODO: Draw actual command key */
@@ -924,17 +944,17 @@ static short GetMenuItemTextWidth(ConstStr255Param text, Style textStyle)
 #ifdef DEBUG
 void PrintMenuDisplayState(void)
 {
-    printf("=== Menu Display State ===\n");
-    printf("Color mode: %s\n", gColorMode ? "Yes" : "No");
-    printf("Anti-alias: %s\n", gAntiAlias ? "Yes" : "No");
-    printf("Current menu: %s\n", gCurrentlyShownMenu ? "Yes" : "No");
+    serial_printf("=== Menu Display State ===\n");
+    serial_printf("Color mode: %s\n", gColorMode ? "Yes" : "No");
+    serial_printf("Anti-alias: %s\n", gAntiAlias ? "Yes" : "No");
+    serial_printf("Current menu: %s\n", gCurrentlyShownMenu ? "Yes" : "No");
     if (gCurrentlyShownMenu != NULL) {
-        printf("  Menu ID: %d\n", (*gCurrentlyShownMenu)->menuID);
-        printf("  Menu rect: (%d,%d,%d,%d)\n",
+        serial_printf("  Menu ID: %d\n", (*gCurrentlyShownMenu)->menuID);
+        serial_printf("  Menu rect: (%d,%d,%d,%d)\n",
                gCurrentMenuRect.left, gCurrentMenuRect.top,
                gCurrentMenuRect.right, gCurrentMenuRect.bottom);
     }
-    printf("Saved bits: %s\n", gCurrentSavedBits ? "Yes" : "No");
-    printf("========================\n");
+    serial_printf("Saved bits: %s\n", gCurrentSavedBits ? "Yes" : "No");
+    serial_printf("========================\n");
 }
 #endif

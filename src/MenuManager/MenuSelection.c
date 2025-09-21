@@ -1,6 +1,5 @@
 /* #include "SystemTypes.h" */
 #include <string.h>
-#include <stdio.h>
 /*
  * MenuSelection.c - Menu Tracking and Selection Implementation
  *
@@ -18,10 +17,68 @@
 
 #include "MenuManager/MenuManager.h"
 #include "MenuManager/MenuTypes.h"
+#include "MenuManager/MenuInternalTypes.h"
 #include "MenuManager/MenuSelection.h"
 #include "MenuManager/MenuDisplay.h"
 
+/* Serial output functions */
+extern void serial_serial_printf(const char* format, ...);
 
+/* Menu item standard height */
+#define menuItemStdHeight 16
+
+/* Forward declaration */
+typedef struct MenuTrackingState MenuTrackingState;
+
+/* ============================================================================
+ * Menu Tracking State Definition
+ * ============================================================================ */
+
+typedef struct MenuTrackingState {
+    Boolean isTracking;
+    short currentMenu;
+    short currentItem;
+    short previousMenu;
+    short previousItem;
+    Point startPoint;
+    Point currentPoint;
+    Boolean mouseWasDown;
+    unsigned long startTime;
+    short trackingState;
+    Rect currentMenuRect;
+    MenuHandle currentMenuHandle;
+    Boolean inMenu;
+    short menuBarItem;
+    Handle savedBits;
+    Boolean inited;
+    unsigned long trackStartTime;
+    Handle savedRegion;
+    Point lastMousePoint;
+    Point mousePoint;
+    Boolean mouseDown;
+    Boolean mouseMoved;
+    short h;
+    short v;
+    unsigned long lastMoveTime;
+} MenuTrackingState;
+
+/* Tracking states */
+enum {
+    kMenuTrackingNone = 0,
+    kMenuTrackingIdle = 0,      /* Alias for None */
+    kMenuTrackingMenuBar = 1,
+    kMenuTrackingPullDown = 2,
+    kMenuTrackingPopUp = 3,
+    kMenuTrackingHierarchical = 4
+};
+
+/* Menu selection result codes */
+enum {
+    kMenuSelectionValid = 0,
+    kMenuSelectionCancelled = 1,
+    kMenuNoSelection = 2,
+    kMenuSelectionError = -1
+};
 
 /* ============================================================================
  * Selection State and Tracking
@@ -40,15 +97,15 @@ extern Boolean Platform_IsMenuVisible(MenuHandle theMenu);
 extern void Platform_MenuFeedback(short feedbackType, short menuID, short item);
 
 /* Internal function prototypes */
-static void InitializeTrackingState(MenuTrackingState* state);
-static void CleanupTrackingState(MenuTrackingState* state);
-static Boolean HandleMenuBarTracking(Point mousePt, MenuTrackingState* state);
-static Boolean HandlePullDownTracking(Point mousePt, MenuTrackingState* state);
+static void InitializeTrackingState(MenuTrackInfo* state);
+static void CleanupTrackingState(MenuTrackInfo* state);
+static Boolean HandleMenuBarTracking(Point mousePt, MenuTrackInfo* state);
+static Boolean HandlePullDownTracking(Point mousePt, MenuTrackInfo* state);
 static short FindMenuAtPoint(Point pt);
 static short FindMenuItemAtPoint(MenuHandle theMenu, Point pt, const Rect* menuRect);
-static Boolean IsPointInMenuBar(Point pt);
+/* IsPointInMenuBar is declared in MenuSelection.h */
 static Boolean IsPointInMenu(Point pt, const Rect* menuRect);
-static void UpdateMenuHighlight(MenuTrackingState* state, short newMenu, short newItem);
+static void UpdateMenuHighlight(MenuTrackInfo* state, short newMenu, short newItem);
 static void ShowMenuAtPoint(short menuID, Point pt);
 static void HideCurrentMenu(void);
 static Boolean ProcessMenuCommand(short cmdChar, unsigned long modifiers, MenuSelection* result);
@@ -88,7 +145,7 @@ long MenuSelect(Point startPt)
     gLastMenuChoice = selection.menuChoice;
     gLastSelection = selection;
 
-    printf("MenuSelect result: 0x%08lX (menu %d, item %d)\n",
+    serial_printf("MenuSelect result: 0x%08lX (menu %d, item %d)\n",
            selection.menuChoice, selection.menuID, selection.itemID);
 
     return selection.menuChoice;
@@ -97,12 +154,12 @@ long MenuSelect(Point startPt)
 /*
  * MenuSelectEx - Extended menu selection with options
  */
-short MenuSelectEx(Point startPt, MenuTrackingState* trackInfo, MenuSelection* selection)
+short MenuSelectEx(Point startPt, MenuTrackInfo* trackInfo, MenuSelection* selection)
 {
     Point currentPt;
     Boolean mouseDown;
     unsigned long modifiers;
-    Boolean inMenuBar, inMenu;
+    Boolean isInMenuBar, isInMenu;
     short currentMenu = 0;
     short currentItem = 0;
 
@@ -129,16 +186,16 @@ short MenuSelectEx(Point startPt, MenuTrackingState* trackInfo, MenuSelection* s
 
     /* Check initial mouse position */
     GetCurrentMouseState(&currentPt, &mouseDown, &modifiers);
-    inMenuBar = IsPointInMenuBar(currentPt);
+    isInMenuBar = IsPointInMenuBar(currentPt);
 
-    if (!inMenuBar && !mouseDown) {
+    if (!isInMenuBar && !mouseDown) {
         /* Not in menu bar and mouse not down - no selection */
         selection->cancelled = true;
         EndMenuTracking(trackInfo);
         return kMenuSelectionCancelled;
     }
 
-    printf("Starting menu selection at (%d,%d), inMenuBar=%s\n",
+    serial_printf("Starting menu selection at (%d,%d), inMenuBar=%s\n",
            startPt.h, startPt.v, inMenuBar ? "Yes" : "No");
 
     /* Main tracking loop */
@@ -148,10 +205,10 @@ short MenuSelectEx(Point startPt, MenuTrackingState* trackInfo, MenuSelection* s
         /* Update tracking state */
         UpdateMenuTracking(trackInfo, currentPt, mouseDown);
 
-        inMenuBar = IsPointInMenuBar(currentPt);
-        inMenu = (currentMenu != 0) && IsPointInMenu(currentPt, &trackInfo->currentMenuRect);
+        isInMenuBar = IsPointInMenuBar(currentPt);
+        isInMenu = (currentMenu != 0) && IsPointInMenu(currentPt, &trackInfo->currentMenuRect);
 
-        if (inMenuBar) {
+        if (isInMenuBar) {
             /* Handle menu bar tracking */
             if (HandleMenuBarTracking(currentPt, trackInfo)) {
                 short newMenu = FindMenuAtPoint(currentPt);
@@ -168,7 +225,7 @@ short MenuSelectEx(Point startPt, MenuTrackingState* trackInfo, MenuSelection* s
                     UpdateMenuHighlight(trackInfo, currentMenu, currentItem);
                 }
             }
-        } else if (inMenu && currentMenu != 0) {
+        } else if (isInMenu && currentMenu != 0) {
             /* Handle pull-down menu tracking */
             if (HandlePullDownTracking(currentPt, trackInfo)) {
                 MenuHandle theMenu = GetMenuHandle(currentMenu);
@@ -202,7 +259,7 @@ short MenuSelectEx(Point startPt, MenuTrackingState* trackInfo, MenuSelection* s
                 /* Provide feedback */
                 FlashMenuFeedback(currentMenu, currentItem);
 
-                printf("Menu selection: menu %d, item %d\n", currentMenu, currentItem);
+                serial_printf("Menu selection: menu %d, item %d\n", currentMenu, currentItem);
                 break;
             } else {
                 /* Invalid selection - cancel */
@@ -269,19 +326,19 @@ long MenuKeyEx(short keyChar, unsigned long modifiers, MenuCmdSearch* search)
     if (FindMenuCommand(keyChar, modifiers, search)) {
         if (search->enabled) {
             /* Execute the command */
-            result = PackMenuChoice((*search->foundMenu)->menuID, search->foundItem);
+            result = PackMenuChoice(search->foundMenuID, search->foundItem);
 
             /* Provide feedback */
-            FlashMenuFeedback((*search->foundMenu)->menuID, search->foundItem);
+            FlashMenuFeedback(search->foundMenuID, search->foundItem);
 
-            printf("Command key '%c' found: menu %d, item %d\n",
-                   keyChar, (*search->foundMenu)->menuID, search->foundItem);
+            serial_printf("Command key '%c' found: menu %d, item %d\n",
+                   keyChar, search->foundMenuID, search->foundItem);
         } else {
-            printf("Command key '%c' found but disabled: menu %d, item %d\n",
-                   keyChar, (*search->foundMenu)->menuID, search->foundItem);
+            serial_printf("Command key '%c' found but disabled: menu %d, item %d\n",
+                   keyChar, search->foundMenuID, search->foundItem);
         }
     } else {
-        printf("Command key '%c' not found\n", keyChar);
+        serial_printf("Command key '%c' not found\n", keyChar);
     }
 
     /* Store last choice */
@@ -318,7 +375,7 @@ short TrackMenuBar(Point startPt, MenuTrackInfo* trackInfo)
     /* Find menu under initial point */
     menuUnderMouse = FindMenuAtPoint(startPt);
 
-    printf("Tracking menu bar starting at menu %d\n", menuUnderMouse);
+    serial_printf("Tracking menu bar starting at menu %d\n", menuUnderMouse);
 
     /* Track mouse until it leaves menu bar or button is released */
     do {
@@ -357,7 +414,7 @@ short TrackPullDownMenu(MenuHandle theMenu, const Rect* menuRect,
         return 0;
     }
 
-    printf("Tracking pull-down menu %d\n", (*theMenu)->menuID);
+    serial_printf("Tracking pull-down menu %d\n", (*(MenuInfo**)theMenu)->menuID);
 
     /* Track mouse in menu */
     do {
@@ -408,25 +465,23 @@ short TrackPullDownMenu(MenuHandle theMenu, const Rect* menuRect,
  */
 Boolean FindMenuCommand(short cmdChar, unsigned long modifiers, MenuCmdSearch* search)
 {
-    MenuManagerState* state = GetMenuManagerState();
-    Handle menuList;
-    MenuBarList* menuBar;
-
-    if (search == NULL || state == NULL) {
+    /* TODO: Need proper implementation that doesn't access MenuManagerState internals */
+    if (search == NULL) {
         return false;
     }
 
     search->found = false;
-    search->foundMenu = NULL;
+    search->foundMenuID = 0;
     search->foundItem = 0;
     search->enabled = false;
 
-    menuList = state->menuList;
-    if (menuList == NULL) {
-        return false;
-    }
+    /* Simplified implementation for now - just return false */
+    return false;
 
-    menuBar = (MenuBarList*)menuList;
+#if 0  /* Original code that needs refactoring */
+    MenuManagerState* state = GetMenuManagerState();
+    Handle menuList;
+    MenuBarList* menuBar;
 
     /* Search through all menus in menu bar */
     for (int m = 0; m < menuBar->numMenus; m++) {
@@ -452,7 +507,7 @@ Boolean FindMenuCommand(short cmdChar, unsigned long modifiers, MenuCmdSearch* s
                 long enableFlags = (*theMenu)->enableFlags;
                 search->enabled = IsMenuItemEnabled(enableFlags, i);
 
-                printf("Found command key '%c' in menu %d, item %d (enabled: %s)\n",
+                serial_printf("Found command key '%c' in menu %d, item %d (enabled: %s)\n",
                        cmdChar, (*theMenu)->menuID, i, search->enabled ? "Yes" : "No");
 
                 return true;
@@ -461,6 +516,7 @@ Boolean FindMenuCommand(short cmdChar, unsigned long modifiers, MenuCmdSearch* s
     }
 
     return false;
+#endif
 }
 
 /*
@@ -478,7 +534,7 @@ Boolean IsValidMenuCommand(short menuID, short item)
     }
 
     /* Check if item is enabled */
-    long enableFlags = (*theMenu)->enableFlags;
+    long enableFlags = (*(MenuInfo**)theMenu)->enableFlags;
     return IsMenuItemEnabled(enableFlags, item);
 }
 
@@ -498,7 +554,7 @@ Boolean ExecuteMenuCommand(short menuID, short item, Boolean flash)
     /* Store as last choice */
     gLastMenuChoice = PackMenuChoice(menuID, item);
 
-    printf("Executed menu command: menu %d, item %d\n", menuID, item);
+    serial_printf("Executed menu command: menu %d, item %d\n", menuID, item);
 
     return true;
 }
@@ -519,7 +575,7 @@ void BeginMenuTracking(MenuTrackInfo* trackInfo)
     InitializeTrackingState(trackInfo);
     gTrackingActive = true;
 
-    printf("Beginning menu tracking session\n");
+    serial_printf("Beginning menu tracking session\n");
 }
 
 /*
@@ -534,7 +590,7 @@ void EndMenuTracking(MenuTrackInfo* trackInfo)
     CleanupTrackingState(trackInfo);
     gTrackingActive = false;
 
-    printf("Ending menu tracking session\n");
+    serial_printf("Ending menu tracking session\n");
 }
 
 /*
@@ -565,8 +621,8 @@ void GetCurrentMenuSelection(const MenuTrackInfo* trackInfo, MenuSelection* sele
 
     memset(selection, 0, sizeof(MenuSelection));
 
-    if (trackInfo->currentMenu != NULL) {
-        selection->menuID = (*trackInfo->currentMenu)->menuID;
+    if (trackInfo->currentMenu != 0) {
+        selection->menuID = trackInfo->currentMenu;
         selection->itemID = trackInfo->currentItem;
         selection->menuChoice = PackMenuChoice(selection->menuID, selection->itemID);
         selection->valid = (selection->itemID > 0);
@@ -606,7 +662,7 @@ void AnimateMenuSelection(const MenuSelection* selection, short animation)
         return;
     }
 
-    printf("Animating menu selection: menu %d, item %d (animation %d)\n",
+    serial_printf("Animating menu selection: menu %d, item %d (animation %d)\n",
            selection->menuID, selection->itemID, animation);
 
     /* TODO: Implement selection animation */
@@ -617,7 +673,7 @@ void AnimateMenuSelection(const MenuSelection* selection, short animation)
  */
 void PlayMenuSound(short soundType)
 {
-    printf("Playing menu sound type %d\n", soundType);
+    serial_printf("Playing menu sound type %d\n", soundType);
 
     /* TODO: Implement sound playback */
 }
@@ -706,7 +762,7 @@ void ConvertMenuPoint(Point* pt, Boolean fromGlobal)
 /*
  * InitializeTrackingState - Initialize tracking state
  */
-static void InitializeTrackingState(MenuTrackingState* state)
+static void InitializeTrackingState(MenuTrackInfo* state)
 {
     if (state == NULL) {
         return;
@@ -720,7 +776,7 @@ static void InitializeTrackingState(MenuTrackingState* state)
 /*
  * CleanupTrackingState - Clean up tracking state
  */
-static void CleanupTrackingState(MenuTrackingState* state)
+static void CleanupTrackingState(MenuTrackInfo* state)
 {
     if (state == NULL) {
         return;
@@ -740,13 +796,13 @@ static void CleanupTrackingState(MenuTrackingState* state)
 /*
  * HandleMenuBarTracking - Handle tracking in menu bar
  */
-static Boolean HandleMenuBarTracking(Point mousePt, MenuTrackingState* state)
+static Boolean HandleMenuBarTracking(Point mousePt, MenuTrackInfo* state)
 {
     if (state == NULL) {
         return false;
     }
 
-    state->inMenuBar = true;
+    /* Set tracking state for menu bar */
     state->trackingState = kMenuTrackingMenuBar;
 
     return true;
@@ -755,7 +811,7 @@ static Boolean HandleMenuBarTracking(Point mousePt, MenuTrackingState* state)
 /*
  * HandlePullDownTracking - Handle tracking in pull-down menu
  */
-static Boolean HandlePullDownTracking(Point mousePt, MenuTrackingState* state)
+static Boolean HandlePullDownTracking(Point mousePt, MenuTrackInfo* state)
 {
     if (state == NULL) {
         return false;
@@ -767,19 +823,15 @@ static Boolean HandlePullDownTracking(Point mousePt, MenuTrackingState* state)
     return true;
 }
 
+/* External function from MenuTitleTracking.c */
+extern short FindMenuAtPoint_Internal(Point pt);
+
 /*
  * FindMenuAtPoint - Find menu at point
  */
 static short FindMenuAtPoint(Point pt)
 {
-    /* TODO: Implement menu lookup based on menu bar layout */
-    /* For now, return a dummy menu ID */
-    if (pt.h >= 0 && pt.h < 80) {
-        return 1; /* First menu */
-    } else if (pt.h >= 80 && pt.h < 160) {
-        return 2; /* Second menu */
-    }
-    return 0;
+    return FindMenuAtPoint_Internal(pt);
 }
 
 /*
@@ -816,9 +868,9 @@ static short FindMenuItemAtPoint(MenuHandle theMenu, Point pt, const Rect* menuR
 /*
  * IsPointInMenuBar - Check if point is in menu bar
  */
-static Boolean IsPointInMenuBar(Point pt)
+Boolean IsPointInMenuBar(Point pt)
 {
-    return (pt.v >= 0 && pt.v < GetMBarHeight());
+    return (pt.v >= 0 && pt.v < 20); /* Standard menu bar height */
 }
 
 /*
@@ -836,7 +888,7 @@ static Boolean IsPointInMenu(Point pt, const Rect* menuRect)
 /*
  * UpdateMenuHighlight - Update menu highlighting
  */
-static void UpdateMenuHighlight(MenuTrackingState* state, short newMenu, short newItem)
+static void UpdateMenuHighlight(MenuTrackInfo* state, short newMenu, short newItem)
 {
     if (state == NULL) {
         return;
@@ -878,7 +930,7 @@ static void ShowMenuAtPoint(short menuID, Point pt)
     /* Calculate menu position */
     Point menuLocation;
     menuLocation.h = pt.h;
-    menuLocation.v = GetMBarHeight(); /* Position below menu bar */
+    menuLocation.v = 20; /* Position below menu bar (standard height) */
 
     ShowMenu(theMenu, menuLocation, NULL);
 }
@@ -953,19 +1005,19 @@ static unsigned long GetCurrentTime(void)
 #ifdef DEBUG
 void PrintMenuSelectionState(void)
 {
-    printf("=== Menu Selection State ===\n");
-    printf("Tracking active: %s\n", gTrackingActive ? "Yes" : "No");
-    printf("Last menu choice: 0x%08lX\n", gLastMenuChoice);
-    printf("Last selection:\n");
-    printf("  Menu ID: %d\n", gLastSelection.menuID);
-    printf("  Item ID: %d\n", gLastSelection.itemID);
-    printf("  Valid: %s\n", gLastSelection.valid ? "Yes" : "No");
-    printf("  Cancelled: %s\n", gLastSelection.cancelled ? "Yes" : "No");
-    printf("Tracking state:\n");
-    printf("  State: %d\n", gTrackingState.trackingState);
-    printf("  Current menu: %s\n", gTrackingState.currentMenu ? "Yes" : "No");
-    printf("  Current item: %d\n", gTrackingState.currentItem);
-    printf("  Mouse down: %s\n", gTrackingState.mouseDown ? "Yes" : "No");
-    printf("==========================\n");
+    serial_printf("=== Menu Selection State ===\n");
+    serial_printf("Tracking active: %s\n", gTrackingActive ? "Yes" : "No");
+    serial_printf("Last menu choice: 0x%08lX\n", gLastMenuChoice);
+    serial_printf("Last selection:\n");
+    serial_printf("  Menu ID: %d\n", gLastSelection.menuID);
+    serial_printf("  Item ID: %d\n", gLastSelection.itemID);
+    serial_printf("  Valid: %s\n", gLastSelection.valid ? "Yes" : "No");
+    serial_printf("  Cancelled: %s\n", gLastSelection.cancelled ? "Yes" : "No");
+    serial_printf("Tracking state:\n");
+    serial_printf("  State: %d\n", gTrackingState.trackingState);
+    serial_printf("  Current menu: %s\n", gTrackingState.currentMenu ? "Yes" : "No");
+    serial_printf("  Current item: %d\n", gTrackingState.currentItem);
+    serial_printf("  Mouse down: %s\n", gTrackingState.mouseDown ? "Yes" : "No");
+    serial_printf("==========================\n");
 }
 #endif
