@@ -1407,6 +1407,7 @@ extern void DrawMenuBar(void);
 
 /* Event Manager functions */
 extern Boolean GetNextEvent(short eventMask, EventRecord* theEvent);
+extern Boolean EventAvail(short eventMask, EventRecord* theEvent);
 extern void SystemTask(void);
 
 /* Finder functions */
@@ -1634,21 +1635,61 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     WM_Update();    /* Draw the desktop directly */
     serial_puts("Desktop drawn\n");
 
-    while (1) {
-        /* Poll PS/2 devices for keyboard and mouse input */
-        PollPS2Input();
+    /* Track mouse position for movement detection */
+    extern struct {
+        int16_t x;
+        int16_t y;
+        uint8_t buttons;
+        uint8_t packet[3];
+        uint8_t packet_index;
+    } g_mouseState;
 
-        /* Redraw periodically to keep visible */
-        static int update_counter = 0;
-        if (++update_counter % 10000000 == 0) {
-            WM_Update();  /* Redraw desktop */
+    int16_t last_mouse_x = g_mouseState.x;
+    int16_t last_mouse_y = g_mouseState.y;
+    volatile uint32_t debug_counter = 0;
+
+    serial_puts("Entering main event loop...\n");
+
+    /* Simple immediate test */
+    serial_puts("TEST: About to enter loop\n");
+
+    while (1) {
+        /* Simple alive message every 1 million iterations */
+        static uint32_t simple_counter = 0;
+        simple_counter++;
+        if ((simple_counter % 1000000) == 0) {
+            serial_puts(".");  /* Just print a dot to show we're alive */
+            if ((simple_counter % 10000000) == 0) {
+                serial_printf("\nLOOP: counter=%u\n", simple_counter);
+                simple_counter = 0;
+            }
+        }
+
+        /* Poll PS/2 devices for keyboard and mouse input */
+        serial_puts("A");  /* Debug: Before PollPS2Input */
+        PollPS2Input();
+        serial_puts("B");  /* Debug: After PollPS2Input */
+
+        /* Redraw if mouse moved */
+        if (g_mouseState.x != last_mouse_x || g_mouseState.y != last_mouse_y) {
+            serial_printf("MAIN: Movement detected! old=(%d,%d) new=(%d,%d)\n",
+                         last_mouse_x, last_mouse_y, g_mouseState.x, g_mouseState.y);
+            last_mouse_x = g_mouseState.x;
+            last_mouse_y = g_mouseState.y;
+            serial_puts("C");  /* Debug: Before WM_Update */
+            WM_Update();  /* Redraw desktop with cursor at new position */
+            serial_puts("D");  /* Debug: After WM_Update */
         }
 
         /* System 7.1 cooperative multitasking */
+        serial_puts("E");  /* Debug: Before SystemTask */
         SystemTask();
+        serial_puts("F");  /* Debug: After SystemTask */
 
-        /* Get and process events */
-        if (GetNextEvent(everyEvent, &event)) {
+        /* Get and process events (only check for specific events to avoid blocking) */
+        serial_puts("G");  /* Debug: Before GetNextEvent */
+        if (GetNextEvent(mouseDown | mouseUp | keyDown | autoKey, &event)) {
+            serial_puts("H");  /* Debug: Got event */
             switch (event.what) {
                 case mouseDown:
                     serial_puts("Mouse down event\n");
