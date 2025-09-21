@@ -1,6 +1,8 @@
-# System 7.1 Portable - Iteration 2
+# System 7.1 - Iteration 2
 
-A portable implementation of Apple Macintosh System 7.1 for modern x86 hardware, bootable via GRUB2/Multiboot2.
+<img width="801" height="664" alt="works" src="https://github.com/user-attachments/assets/8ff8d0e8-56a4-4a4e-bf8b-003d901079b6" />
+
+An open implementation of Apple Macintosh System 7.1 for modern hardware, bootable via GRUB2/Multiboot2.
 
 ## Features
 
