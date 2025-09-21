@@ -301,8 +301,23 @@ OSErr InitializeDesktopDB(void)
     /* Initialize Pattern Manager first */
     PM_Init();
 
-    /* Load and apply saved desktop pattern preference */
-    DesktopPref pref = PM_GetSavedDesktopPref();
+    /* Set default to use a color pattern */
+    DesktopPref pref;
+    extern bool PRAM_LoadDesktopPref(DesktopPref* pref);
+    if (!PRAM_LoadDesktopPref(&pref)) {
+        /* First boot - use color pattern as default */
+        pref.usePixPat = true;
+        pref.patID = 16;      /* Fallback PAT if ppat fails */
+        pref.ppatID = 300;    /* ColorGradient pattern */
+        pref.backColor.red = 0xC000;
+        pref.backColor.green = 0xC000;
+        pref.backColor.blue = 0xC000;
+
+        /* Save as default */
+        PM_SaveDesktopPref(&pref);
+    }
+
+    /* Apply the desktop preferences */
     PM_ApplyDesktopPref(&pref);
 
     /* Allocate desktop icons array */

@@ -51,6 +51,9 @@ bool PM_ApplyDesktopPref(const DesktopPref *p);
 bool PM_LoadPAT(int16_t id, Pattern *out);
 Handle PM_LoadPPAT(int16_t id);  /* Raw 'ppat' handle; ownership to caller */
 
+/* Get color pattern data if available */
+bool PM_GetColorPattern(uint32_t** patternData);
+
 #ifdef __cplusplus
 }
 #endif
