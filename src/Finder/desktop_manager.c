@@ -304,26 +304,44 @@ OSErr InitializeDesktopDB(void)
     /* Initialize Pattern Manager first */
     PM_Init();
 
-    /* Set default to use a color pattern */
+    /* Try different ppat IDs to see which ones work */
     DesktopPref pref;
-    extern bool PRAM_LoadDesktopPref(DesktopPref* pref);
-    if (!PRAM_LoadDesktopPref(&pref)) {
-        /* First boot - use authentic color pattern as default */
+    serial_puts("Desktop: Testing different ppat patterns\n");
+
+    /* Try custom PPAT8 patterns that we know have color data */
+    int16_t ppat_ids[] = {304}; /* Pattern 304 - BluePixel custom pattern */
+    int num_ppats = sizeof(ppat_ids) / sizeof(ppat_ids[0]);
+
+    bool found_working = false;
+    for (int i = 0; i < num_ppats; i++) {
+        char msg[80];
+        sprintf(msg, "Desktop: Trying ppat ID %d\n", ppat_ids[i]);
+        serial_puts(msg);
+
         pref.usePixPat = true;
         pref.patID = 16;      /* Fallback PAT if ppat fails */
-        pref.ppatID = 400;    /* Authentic4Color pattern */
+        pref.ppatID = ppat_ids[i];
         pref.backColor.red = 0xC000;
         pref.backColor.green = 0xC000;
         pref.backColor.blue = 0xC000;
 
-        /* Save as default */
-        PM_SaveDesktopPref(&pref);
+        if (PM_ApplyDesktopPref(&pref)) {
+            sprintf(msg, "Desktop: SUCCESS - ppat ID %d loaded!\n", ppat_ids[i]);
+            serial_puts(msg);
+            found_working = true;
+            break;  /* Use the first one that works */
+        } else {
+            sprintf(msg, "Desktop: Failed ppat ID %d\n", ppat_ids[i]);
+            serial_puts(msg);
+        }
     }
 
-    /* Apply the desktop preferences */
-    serial_puts("Desktop: Applying desktop pref\n");
-    PM_ApplyDesktopPref(&pref);
-    serial_puts("Desktop: Applied desktop pref\n");
+    if (!found_working) {
+        serial_puts("Desktop: No ppat patterns loaded successfully, using fallback\n");
+        pref.usePixPat = false;
+        pref.patID = 16;  /* Use dots pattern as fallback */
+        PM_ApplyDesktopPref(&pref);
+    }
 
     /* Allocate desktop icons array */
     err = AllocateDesktopIcons();

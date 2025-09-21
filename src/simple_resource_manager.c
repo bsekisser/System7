@@ -82,6 +82,18 @@ Handle GetResource(ResType type, short id) {
         uint16_t numRes = ReadBE16(typeList + i * 8 + 4) + 1;
         uint16_t refListOffset = ReadBE16(typeList + i * 8 + 6);
 
+        /* Debug: Show what types we found */
+        if (type == 0x70706174) {  /* 'ppat' */
+            extern void serial_puts(const char* str);
+            char msg[80];
+            sprintf(msg, "Resource type %d: 0x%08x (%c%c%c%c), %d resources\n",
+                    i, resType,
+                    (resType >> 24) & 0xFF, (resType >> 16) & 0xFF,
+                    (resType >> 8) & 0xFF, resType & 0xFF,
+                    numRes);
+            serial_puts(msg);
+        }
+
         if (resType == type) {
             /* Found the type, search for the ID */
             const uint8_t* refList = map + typeListOffset + refListOffset;

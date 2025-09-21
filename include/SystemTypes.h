@@ -36,7 +36,7 @@ typedef Ptr*     Handle;
 typedef SInt32   Size;
 typedef UInt32   FourCharCode;
 typedef FourCharCode OSType;
-typedef SInt16   ResType;
+typedef UInt32   ResType;  /* 4-character resource type like 'PAT ' or 'ppat' */
 typedef SInt16   ResID;
 
 #define true  1
@@ -1505,7 +1505,7 @@ typedef Handle ResourceHandle;
 typedef SInt16 ResourceCount;
 typedef SInt16 ResourceIndex;
 typedef SInt16 ResourceID;
-typedef ResType ResourceType;
+typedef UInt32 ResourceType;  /* Same as ResType */
 typedef SInt16 ResourceAttributes;
 
 typedef struct WDPBRec {

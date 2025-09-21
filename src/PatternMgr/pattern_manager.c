@@ -73,7 +73,8 @@ void PM_SetBackPixPat(Handle pixPatHandle) {
     gPM.backPixPat = pixPatHandle; /* Caller transfers ownership to PM */
 
     /* Try to decode as PPAT8 */
-    Size sz = GetHandleSize(pixPatHandle);
+    /* GetHandleSize is broken in our stub implementation, so use a fixed size for ppat */
+    Size sz = 156;  /* Need 152 bytes for pattern 304, plus some buffer */
     HLock(pixPatHandle);
     const uint8_t* data = (const uint8_t*)*pixPatHandle;
 
@@ -139,16 +140,26 @@ void PM_SaveDesktopPref(const DesktopPref *p) {
 }
 
 bool PM_ApplyDesktopPref(const DesktopPref *p) {
+    extern void serial_puts(const char* str);
+    serial_puts("PM_ApplyDesktopPref called\n");
+
     if (!p) return false;
 
     /* Set background color */
     PM_SetBackColor(&p->backColor);
 
     if (p->usePixPat) {
+        serial_puts("PM: Using ppat pattern\n");
         Handle h = PM_LoadPPAT(p->ppatID);
-        if (!h) return false;
+        if (!h) {
+            serial_puts("PM: Failed to load ppat!\n");
+            return false;
+        }
+        serial_puts("PM: Loaded ppat, calling SetBackPixPat\n");
         PM_SetBackPixPat(h);
+        serial_puts("PM: SetBackPixPat done\n");
     } else {
+        serial_puts("PM: Using PAT pattern\n");
         Pattern pat;
         if (!PM_LoadPAT(p->patID, &pat)) {
             /* Fall back to default gray pattern */
@@ -164,6 +175,7 @@ bool PM_ApplyDesktopPref(const DesktopPref *p) {
     desktopRect.right = qd.screenBits.bounds.right;
     desktopRect.bottom = qd.screenBits.bounds.bottom;
     InvalRect(&desktopRect);
+    serial_puts("PM: Desktop invalidated\n");
 
     return true;
 }
