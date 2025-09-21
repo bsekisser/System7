@@ -6,6 +6,7 @@
 #include "MacTypes.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDrawConstants.h"
+#include "PatternMgr/pattern_manager.h"
 #include <stdint.h>
 
 /* External framebuffer from main.c */
@@ -164,31 +165,60 @@ void PaintRect(const Rect* r) {
 void EraseRect(const Rect* r) {
     if (!framebuffer || !r) return;
 
-    /* Use background color */
-    uint32_t bgColor = pack_color(
-        backColor.red >> 8,
-        backColor.green >> 8,
-        backColor.blue >> 8
-    );
+    /* Check if we have a color pattern from Pattern Manager */
+    uint32_t* colorPattern = NULL;
+    if (PM_GetColorPattern(&colorPattern)) {
+        /* Use color pattern - it's an 8x8 array of 32-bit ARGB values */
+        /* Clip to screen bounds */
+        int left = (r->left < 0) ? 0 : r->left;
+        int top = (r->top < 0) ? 0 : r->top;
+        int right = (r->right > fb_width) ? fb_width : r->right;
+        int bottom = (r->bottom > fb_height) ? fb_height : r->bottom;
 
-    /* Clip to screen bounds */
-    int left = (r->left < 0) ? 0 : r->left;
-    int top = (r->top < 0) ? 0 : r->top;
-    int right = (r->right > fb_width) ? fb_width : r->right;
-    int bottom = (r->bottom > fb_height) ? fb_height : r->bottom;
+        for (int y = top; y < bottom; y++) {
+            for (int x = left; x < right; x++) {
+                /* Get pattern pixel (8x8 tile) */
+                int patRow = (y - r->top) & 7;  /* Wrap at 8 pixels */
+                int patCol = (x - r->left) & 7; /* Wrap at 8 pixels */
+                uint32_t patColor = colorPattern[patRow * 8 + patCol];
 
-    for (int y = top; y < bottom; y++) {
-        for (int x = left; x < right; x++) {
-            /* Check pattern bit for this pixel */
-            int patRow = (y - r->top) & 7;  /* Wrap at 8 pixels */
-            int patCol = (x - r->left) & 7; /* Wrap at 8 pixels */
-            int patBit = backPattern.pat[patRow] & (0x80 >> patCol);
+                /* Extract RGB from ARGB (ignore alpha) */
+                uint8_t red = (patColor >> 16) & 0xFF;
+                uint8_t green = (patColor >> 8) & 0xFF;
+                uint8_t blue = patColor & 0xFF;
 
-            /* Use foreground (black) for 1-bits, background color for 0-bits */
-            uint32_t color = patBit ? pack_color(0, 0, 0) : bgColor;
+                uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
+                *pixel = pack_color(red, green, blue);
+            }
+        }
+    } else {
+        /* Fall back to black/white pattern */
+        /* Use background color */
+        uint32_t bgColor = pack_color(
+            backColor.red >> 8,
+            backColor.green >> 8,
+            backColor.blue >> 8
+        );
 
-            uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
-            *pixel = color;
+        /* Clip to screen bounds */
+        int left = (r->left < 0) ? 0 : r->left;
+        int top = (r->top < 0) ? 0 : r->top;
+        int right = (r->right > fb_width) ? fb_width : r->right;
+        int bottom = (r->bottom > fb_height) ? fb_height : r->bottom;
+
+        for (int y = top; y < bottom; y++) {
+            for (int x = left; x < right; x++) {
+                /* Check pattern bit for this pixel */
+                int patRow = (y - r->top) & 7;  /* Wrap at 8 pixels */
+                int patCol = (x - r->left) & 7; /* Wrap at 8 pixels */
+                int patBit = backPattern.pat[patRow] & (0x80 >> patCol);
+
+                /* Use foreground (black) for 1-bits, background color for 0-bits */
+                uint32_t color = patBit ? pack_color(0, 0, 0) : bgColor;
+
+                uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
+                *pixel = color;
+            }
         }
     }
 }

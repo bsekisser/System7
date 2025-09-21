@@ -278,26 +278,26 @@ void ClearMenuBar(void)
     InvalidateMenuBar();
 }
 
-/* Classic Macintosh Apple logo icon (16x16) */
-/* This is a properly designed Apple logo for the menu bar */
-static const uint8_t g_appleIconData[32] = {
-    /* Row 0  */    0x00, 0x00,  /* ................ */
-    /* Row 1  */    0x01, 0x80,  /* .......##....... */
-    /* Row 2  */    0x01, 0x80,  /* .......##....... */
-    /* Row 3  */    0x03, 0x00,  /* ......##........ */
-    /* Row 4  */    0x07, 0x00,  /* .....###........ */
-    /* Row 5  */    0x1F, 0xE0,  /* ...########..... */
-    /* Row 6  */    0x3F, 0xF0,  /* ..##########.... */
-    /* Row 7  */    0x7F, 0xF8,  /* .############... */
-    /* Row 8  */    0x7F, 0xF8,  /* .############... */
-    /* Row 9  */    0x7F, 0xF8,  /* .############... */
-    /* Row 10 */    0x7F, 0xF8,  /* .############... */
-    /* Row 11 */    0x7F, 0xF8,  /* .############... */
-    /* Row 12 */    0x7F, 0xF8,  /* .############... */
-    /* Row 13 */    0x3F, 0xF0,  /* ..##########.... */
-    /* Row 14 */    0x1F, 0xE0,  /* ...########..... */
-    /* Row 15 */    0x00, 0x00   /* ................ */
+/* Apple menu glyph, 16×16, MSB-first, with bite */
+static const uint8_t kAppleMask16[32] = {
+    0x00,0x00,  /* ................ */
+    0x03,0x00,  /* ......##........ (leaf) */
+    0x03,0x80,  /* ......###....... */
+    0x07,0x80,  /* .....####....... */
+    0x0F,0xC0,  /* ....######...... */
+    0x1F,0xE0,  /* ...########..... */
+    0x3F,0xE0,  /* ..#########..... */
+    0x7F,0xC0,  /* .#########...... */
+    0x7F,0x80,  /* .########.......  <- start bite */
+    0x7F,0x00,  /* .######.........  <- deeper bite */
+    0x7F,0x80,  /* .########.......  -> bite taper */
+    0x3F,0xC0,  /* ..#########..... */
+    0x1F,0xE0,  /* ...########..... */
+    0x0F,0xE0,  /* ....#######.....  (scooped bottom) */
+    0x03,0x80,  /* ......###....... */
+    0x00,0x00   /* ................ */
 };
+
 
 /* Draw Apple icon at specified position */
 static void DrawAppleIcon(short x, short y) {
@@ -316,40 +316,36 @@ static void DrawAppleIcon(short x, short y) {
 
     uint32_t *fb = (uint32_t*)framebuffer;
 
-    /* Classic rainbow Apple logo colors (top to bottom) */
-    /* The classic 6-color Apple logo uses these colors in horizontal stripes */
-    uint32_t colors[6] = {
-        pack_color(97, 190, 61),    /* Green */
-        pack_color(251, 186, 18),   /* Yellow */
-        pack_color(255, 117, 20),   /* Orange */
-        pack_color(232, 40, 42),    /* Red */
-        pack_color(148, 36, 146),   /* Purple */
-        pack_color(29, 169, 226)    /* Blue */
-    };
+    /* Use native 16x16 Apple logo with perfect quality */
+    #include "apple16.h"
 
-    /* Draw 16x16 Apple icon with rainbow colors */
-    for (int row = 0; row < 16; row++) {
-        if (y + row >= fb_height) break;
+    /* Draw 16x16 Apple icon positioned in menu bar */
+    /* Adjust position: move up by 3px and left by 5px for better alignment */
+    int icon_size = 16;
+    int y_offset = -1;  /* Was 0, now -1 to move up more */
+    int x_offset = -5;  /* Move left by 5 pixels */
 
-        uint16_t row_data = (g_appleIconData[row*2] << 8) | g_appleIconData[row*2 + 1];
+    for (int dy = 0; dy < icon_size; dy++) {
+        if (y + y_offset + dy < 0) continue;  /* Skip if off top edge */
+        if (y + y_offset + dy >= fb_height) break;
 
-        /* Determine which color stripe this row belongs to */
-        /* Divide 16 rows into 6 color bands */
-        int color_index;
-        if (row < 3) color_index = 0;      /* Green: rows 0-2 */
-        else if (row < 6) color_index = 1; /* Yellow: rows 3-5 */
-        else if (row < 8) color_index = 2; /* Orange: rows 6-7 */
-        else if (row < 10) color_index = 3; /* Red: rows 8-9 */
-        else if (row < 13) color_index = 4; /* Purple: rows 10-12 */
-        else color_index = 5;               /* Blue: rows 13-15 */
+        for (int dx = 0; dx < icon_size; dx++) {
+            if (x + x_offset + dx < 0) continue;  /* Skip if off left edge */
+            if (x + x_offset + dx >= fb_width) break;
 
-        for (int col = 0; col < 16; col++) {
-            if (x + col >= fb_width) break;
+            /* Get pixel from native 16x16 logo with embedded colors */
+            int idx = (dy * APPLE16_W + dx) * 4;
+            int r = gApple16_RGBA8[idx + 0];
+            int g = gApple16_RGBA8[idx + 1];
+            int b = gApple16_RGBA8[idx + 2];
+            int alpha = gApple16_RGBA8[idx + 3];  /* Alpha channel */
 
-            if (row_data & (1 << (15 - col))) {
-                int fb_offset = (y + row) * (fb_pitch / 4) + (x + col);
-                fb[fb_offset] = colors[color_index];
-            }
+            /* Skip mostly transparent pixels */
+            if (alpha < 200) continue;
+
+            /* Use the actual color from the logo */
+            int fb_offset = (y + y_offset + dy) * (fb_pitch / 4) + (x + x_offset + dx);
+            fb[fb_offset] = pack_color(r, g, b);
         }
     }
 }
@@ -439,8 +435,8 @@ void DrawMenuBar(void)
                             /* serial_printf("Skipping duplicate Apple menu (ID 1)\n"); */
                             continue;
                         } else {
-                            /* Draw normal text title */
-                            MoveTo(x, 13);  /* Centered vertically in 20px menu bar */
+                            /* Draw normal text title - moved 4px right and 1px down */
+                            MoveTo(x + 4, 14);  /* Shifted right 4px and down 1px */
                             serial_puts("Calling DrawText with title...\n");
                             DrawText((char*)&(**menu).menuData[1], 0, titleLen);
                             serial_puts("DrawText returned\n");

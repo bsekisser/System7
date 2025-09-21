@@ -85,22 +85,30 @@ OSErr InitializeFinder(void)
         return noErr;
     }
 
-    /* Initialize Toolbox managers */
-    InitGraf(&qd.thePort);
-    InitFonts();
+    /* Toolbox managers already initialized by kernel */
+    /* InitGraf(&qd.thePort); -- already done */
+    /* InitFonts(); -- already done */
     FlushEvents(everyEvent, 0);
-    InitWindows();
-    InitMenus();
-    TEInit();
-    InitDialogs(nil);
+    /* InitWindows(); -- already done */
+    /* InitMenus(); -- already done */
+    /* TEInit(); -- already done */
+    /* InitDialogs(nil); -- already done */
     InitCursor();
 
     /* Set up menus - Evidence: Menu structure from string analysis */
+    extern void serial_puts(const char* str);
+    serial_puts("Finder: Before SetupMenus\n");
     err = SetupMenus();
-    if (err != noErr) return err;
+    serial_puts("Finder: After SetupMenus\n");
+    if (err != noErr) {
+        serial_puts("Finder: SetupMenus failed!\n");
+        return err;
+    }
 
     /* Initialize desktop database - Evidence: "Rebuilding the desktop file" */
+    serial_puts("Finder: About to call InitializeDesktopDB\n");
     err = InitializeDesktopDB();
+    serial_puts("Finder: InitializeDesktopDB returned\n");
     if (err != noErr) return err;
 
     /* Initialize window management */

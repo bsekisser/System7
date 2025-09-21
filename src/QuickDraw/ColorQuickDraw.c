@@ -18,6 +18,7 @@
 
 #include "QuickDraw/ColorQuickDraw.h"
 #include "QuickDraw/QDRegions.h"
+#include "PatternMgr/pattern_manager.h"
 #include <math.h>
 #include <assert.h>
 
@@ -362,11 +363,18 @@ void CopyPixPat(PixPatHandle srcPP, PixPatHandle dstPP) {
 }
 
 PixPatHandle GetPixPat(SInt16 patID) {
-    /* Load pattern from resources - simplified implementation */
+    /* Try to load actual ppat resource first */
+    Handle h = PM_LoadPPAT(patID);
+    if (h) {
+        /* We have a real ppat resource - return it as a PixPatHandle */
+        return (PixPatHandle)h;
+    }
+
+    /* Fallback: create a simple pattern */
     PixPatHandle pp = NewPixPat();
     if (!pp) return NULL;
 
-    /* For now, create a simple checkerboard pattern */
+    /* Create a simple checkerboard pattern as fallback */
     MakeRGBPat(pp, (patID % 2) ? &kRGBBlack : &kRGBWhite);
 
     return pp;
