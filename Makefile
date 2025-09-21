@@ -71,7 +71,7 @@ all: $(RSRC_BIN) $(KERNEL)
 # Build resource file
 $(RSRC_BIN): $(RSRC_JSON) gen_rsrc.py
 	@echo "GEN $(RSRC_BIN)"
-	@python3 gen_rsrc.py $(RSRC_JSON) $(RSRC_BIN)
+	@python3 gen_rsrc.py $(RSRC_JSON) /home/k/Documents/patterns_authentic_color.json $(RSRC_BIN)
 
 # Convert resource file to C source
 src/patterns_rsrc.c: $(RSRC_BIN)

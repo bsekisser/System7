@@ -65,7 +65,7 @@ LIMITATIONS
 
 (c) 2025 — Kelsi + helper
 """
-import sys, json, struct
+import sys, json, struct, os
 
 def be16(x): return struct.pack(">H", x & 0xFFFF)
 def be16s(x): return struct.pack(">h", x if -32768 <= x <= 32767 else ((x+0x8000)&0xFFFF)-0x8000)
@@ -177,6 +177,17 @@ def parse_manifest(manifest):
                 data = parse_ppat8_data(ent)
             elif "hex" in ent.get("data", {}):
                 data = parse_ppat_raw(ent)
+            elif "bytes" in ent.get("data", {}):
+                # Handle bytes format (list of hex strings)
+                bytes_list = ent.get("data", {}).get("bytes", [])
+                byte_values = []
+                for hex_str in bytes_list:
+                    # Convert "0x50" -> 80 (decimal)
+                    if hex_str.startswith("0x"):
+                        byte_values.append(int(hex_str, 16))
+                    else:
+                        byte_values.append(int(hex_str))
+                data = bytes(byte_values)
             else:
                 # Skip ppat entries with from_png for now
                 continue
@@ -323,14 +334,27 @@ def build_rsrc(resources):
     return file_bytes
 
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: gen_rsrc.py <manifest.json> <out.rsrc>")
+    if len(sys.argv) < 3:
+        print("Usage: gen_rsrc.py <manifest.json> [additional.json ...] <out.rsrc>")
         sys.exit(2)
-    manifest_path, out_path = sys.argv[1], sys.argv[2]
-    manifest = json.load(open(manifest_path, "r", encoding="utf-8"))
+
+    # Last arg is output file, rest are input JSON files
+    json_paths = sys.argv[1:-1]
+    out_path = sys.argv[-1]
+
+    # Merge all JSON files
+    merged_resources = []
+    for json_path in json_paths:
+        if os.path.exists(json_path):
+            manifest = json.load(open(json_path, "r", encoding="utf-8"))
+            merged_resources.extend(manifest.get("resources", []))
+            print(f"Loaded {len(manifest.get('resources', []))} resources from {json_path}")
+
+    # Create merged manifest
+    manifest = {"resources": merged_resources}
     resources = parse_manifest(manifest)
     if not resources:
-        print("No resources in manifest")
+        print("No resources in manifests")
         sys.exit(1)
     out = build_rsrc(resources)
     with open(out_path, "wb") as f:

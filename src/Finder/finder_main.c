@@ -40,7 +40,7 @@ static MenuHandle gAppleMenu, gFileMenu, gEditMenu, gViewMenu, gLabelMenu, gSpec
 /* Forward Declarations */
 OSErr InitializeFinder(void);  /* Made public for kernel integration */
 static OSErr SetupMenus(void);
-static OSErr InitializeDesktopDB(void);
+extern OSErr InitializeDesktopDB(void);  /* From desktop_manager.c */
 static OSErr InitializeWindowManager(void);
 static OSErr InitializeTrash(void);
 static void HandleMenuChoice(long menuChoice);
