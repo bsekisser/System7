@@ -166,7 +166,7 @@ OSErr SaveRestoreBitsDispatch(SInt16 selector, void *params) {
         }
 
         default:
-            return unimpErr;
+            return -1; /* unimplemented */
     }
 }
 

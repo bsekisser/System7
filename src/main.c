@@ -11,6 +11,9 @@
 #include "../include/QuickDraw/QuickDraw.h"
 #include "../include/ResourceManager.h"
 #include "../include/MenuManager/MenuManager.h"
+
+/* Menu command dispatcher */
+extern void DoMenuCommand(short menuID, short item);
 #include "../include/DialogManager/DialogManager.h"
 #include "../include/ControlManager/ControlManager.h"
 #include "../include/ListManager/ListManager.h"
@@ -152,6 +155,120 @@ void serial_puts(const char* str) {
             serial_putchar('\r');
         }
         serial_putchar(*str++);
+    }
+}
+
+/* Serial input functions */
+int serial_data_ready(void) {
+    return (inb(COM1 + 5) & 0x01) != 0;
+}
+
+char serial_getchar(void) {
+    while (!serial_data_ready());
+    return inb(COM1);
+}
+
+/* Process serial commands for menu testing */
+void process_serial_command(void) {
+    if (!serial_data_ready()) return;
+
+    char cmd = serial_getchar();
+
+    switch (cmd) {
+        case 'm':  /* Activate menu with mouse click */
+        case 'M':
+            {
+                serial_puts("\nSimulating menu click...\n");
+
+                /* Simulate a click on the File menu (at x=50, y=10) */
+                Point pt = {50, 10};
+                long menuChoice = MenuSelect(pt);
+                short menuID = (short)(menuChoice >> 16);
+                short item = (short)(menuChoice & 0xFFFF);
+
+                if (menuID && item) {
+                    serial_printf("Menu selection: menu %d, item %d\n", menuID, item);
+                    DoMenuCommand(menuID, item);
+                }
+                DrawMenuBar();
+            }
+            break;
+
+        case 'a':  /* Apple menu */
+        case 'A':
+            {
+                serial_puts("\nSimulating Apple menu click...\n");
+                Point pt = {20, 10};
+                long menuChoice = MenuSelect(pt);
+                short menuID = (short)(menuChoice >> 16);
+                short item = (short)(menuChoice & 0xFFFF);
+
+                if (menuID && item) {
+                    serial_printf("Menu selection: menu %d, item %d\n", menuID, item);
+                    DoMenuCommand(menuID, item);
+                }
+                DrawMenuBar();
+            }
+            break;
+
+        case 'f':  /* File menu */
+        case 'F':
+            {
+                serial_puts("\nSimulating File menu click...\n");
+                Point pt = {50, 10};
+                long menuChoice = MenuSelect(pt);
+                short menuID = (short)(menuChoice >> 16);
+                short item = (short)(menuChoice & 0xFFFF);
+
+                if (menuID && item) {
+                    serial_printf("Menu selection: menu %d, item %d\n", menuID, item);
+                    DoMenuCommand(menuID, item);
+                }
+                DrawMenuBar();
+            }
+            break;
+
+        case 'k':  /* Test MenuKey with various keys */
+        case 'K':
+            {
+                serial_puts("\nTesting MenuKey - enter command key: ");
+                char key = serial_getchar();
+                serial_putchar(key);
+                serial_puts("\n");
+
+                long menuChoice = MenuKey(key);
+                short menuID = (short)(menuChoice >> 16);
+                short item = (short)(menuChoice & 0xFFFF);
+
+                if (menuID && item) {
+                    serial_printf("MenuKey found: menu %d, item %d for key '%c'\n", menuID, item, key);
+                    DoMenuCommand(menuID, item);
+                } else {
+                    serial_printf("No menu command for key '%c'\n", key);
+                }
+            }
+            break;
+
+        case 'h':  /* Help */
+        case 'H':
+        case '?':
+            serial_puts("\n=== Serial Menu Test Commands ===\n");
+            serial_puts("m/M - Simulate click on File menu\n");
+            serial_puts("a/A - Simulate click on Apple menu\n");
+            serial_puts("f/F - Simulate click on File menu\n");
+            serial_puts("k/K - Test MenuKey (prompts for key)\n");
+            serial_puts("h/H/? - Show this help\n");
+            serial_puts("================================\n\n");
+            break;
+
+        case '\r':
+        case '\n':
+            /* Ignore newlines */
+            break;
+
+        default:
+            serial_printf("Unknown command '%c' (0x%02x). Press 'h' for help.\n", cmd, cmd);
+            break;
     }
 }
 
@@ -1686,17 +1803,64 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         SystemTask();
         serial_puts("F");  /* Debug: After SystemTask */
 
+        /* Process serial commands for menu testing */
+        process_serial_command();
+
         /* Get and process events (only check for specific events to avoid blocking) */
         serial_puts("G");  /* Debug: Before GetNextEvent */
         if (GetNextEvent(mouseDown | mouseUp | keyDown | autoKey, &event)) {
             serial_puts("H");  /* Debug: Got event */
             switch (event.what) {
                 case mouseDown:
-                    serial_puts("Mouse down event\n");
+                    {
+                        Point pt = {event.where.h, event.where.v};
+
+                        /* Check if click is in menu bar (top 20 pixels) */
+                        if (pt.v >= 0 && pt.v < 20) {
+                            serial_puts("Mouse in menu bar - calling MenuSelect\n");
+                            long menuChoice = MenuSelect(pt);
+                            short menuID = (short)(menuChoice >> 16);
+                            short item = (short)(menuChoice & 0xFFFF);
+
+                            if (menuID && item) {
+                                serial_printf("Menu selection: menu %d, item %d\n", menuID, item);
+                                DoMenuCommand(menuID, item);
+                            }
+
+                            /* Redraw menu bar after selection */
+                            DrawMenuBar();
+                        } else {
+                            serial_puts("Mouse down outside menu bar\n");
+                        }
+                    }
                     break;
                 case keyDown:
                 case autoKey:
-                    serial_puts("Key event\n");
+                    {
+                        char key = event.message & 0xFF;
+                        Boolean cmdDown = (event.modifiers & cmdKey) != 0;
+
+                        serial_printf("Key event: key='%c' (0x%02X), cmd=%s\n",
+                                     key, key, cmdDown ? "Yes" : "No");
+
+                        /* Check for menu keyboard shortcuts */
+                        if (cmdDown) {
+                            long menuChoice = MenuKey(key);
+                            short menuID = (short)(menuChoice >> 16);
+                            short item = (short)(menuChoice & 0xFFFF);
+
+                            if (menuID && item) {
+                                serial_printf("Menu key shortcut: menu %d, item %d\n", menuID, item);
+                                DoMenuCommand(menuID, item);
+
+                                /* Flash menu title briefly */
+                                HiliteMenu(menuID);
+                                /* Small delay for visual feedback */
+                                for (volatile int i = 0; i < 1000000; i++);
+                                HiliteMenu(0);
+                            }
+                        }
+                    }
                     break;
                 case updateEvt:
                     {

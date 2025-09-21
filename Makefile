@@ -41,6 +41,12 @@ C_SOURCES = src/main.c \
             src/WindowManager/WindowDisplay.c \
             src/Platform/WindowPlatform.c \
             src/MenuManager/MenuManagerCore.c \
+            src/MenuManager/MenuSelection.c \
+            src/MenuManager/MenuDisplay.c \
+            src/MenuManager/menu_savebits.c \
+            src/MenuManager/MenuTitleTracking.c \
+            src/MenuManager/platform_stubs.c \
+            src/MenuCommands.c \
             src/ChicagoRealFont.c \
             src/chicago_font_data.c \
             src/PS2Controller.c \
