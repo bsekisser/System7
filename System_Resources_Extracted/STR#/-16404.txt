@@ -1,0 +1,5 @@
+[0] Router
+[1] The Router could not run.  A driver for one of the AppleTalk connections can not be found.  The built-in LocalTalk port will be used for your AppleTalk connection.
+[2] The Router could not run.  An error occured while installing a driver for one of the AppleTalk connections.  The built-in LocalTalk port will be used for your AppleTalk connection.
+[3] The Router could not run.  The Router file was not found.  Please reinstall the Router.
+[4] The Router could not run.  The Router file is damaged.  Please reinstall the Router.

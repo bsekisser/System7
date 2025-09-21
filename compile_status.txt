@@ -1,0 +1,343 @@
+CC src/MemoryMgr/memory_manager_core.c
+make: *** [Makefile:83: build/obj/memory_manager_core.o] Error 1
+CC src/ResourceMgr/resource_manager.c
+make: *** [Makefile:84: build/obj/resource_manager.o] Error 1
+CC src/ResourceMgr/resource_traps.c
+make: *** [Makefile:84: build/obj/resource_traps.o] Error 1
+CC src/FileMgr/btree_services.c
+make: *** [Makefile:85: build/obj/btree_services.o] Error 1
+CC src/FileMgr/extent_manager.c
+make: *** [Makefile:85: build/obj/extent_manager.o] Error 1
+CC src/FileMgr/tfs_dispatch.c
+make: *** [Makefile:85: build/obj/tfs_dispatch.o] Error 1
+CC src/FileMgr/volume_manager.c
+make: *** [Makefile:85: build/obj/volume_manager.o] Error 1
+CC src/QuickDraw/Bitmaps.c
+  251 | QDErr QDError(void);
+./include/QuickDraw/QDRegions.h:193:1: error: unknown type name ‘RegionError’
+  193 | RegionError GetRegionError(void);
+make: *** [Makefile:86: build/obj/Bitmaps.o] Error 1
+CC src/QuickDraw/ColorQuickDraw.c
+  251 | QDErr QDError(void);
+./include/QuickDraw/QDRegions.h:193:1: error: unknown type name ‘RegionError’
+  193 | RegionError GetRegionError(void);
+make: *** [Makefile:86: build/obj/ColorQuickDraw.o] Error 1
+CC src/QuickDraw/Coordinates.c
+  251 | QDErr QDError(void);
+./include/QuickDraw/QDRegions.h:193:1: error: unknown type name ‘RegionError’
+  193 | RegionError GetRegionError(void);
+make: *** [Makefile:86: build/obj/Coordinates.o] Error 1
+CC src/QuickDraw/CursorManager.c
+  251 | QDErr QDError(void);
+./include/QuickDraw/QDRegions.h:193:1: error: unknown type name ‘RegionError’
+  193 | RegionError GetRegionError(void);
+make: *** [Makefile:86: build/obj/CursorManager.o] Error 1
+CC src/QuickDraw/PatternManager.c
+  251 | QDErr QDError(void);
+./include/QuickDraw/QDRegions.h:193:1: error: unknown type name ‘RegionError’
+  193 | RegionError GetRegionError(void);
+make: *** [Makefile:86: build/obj/PatternManager.o] Error 1
+CC src/QuickDraw/Patterns.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:86: build/obj/Patterns.o] Error 1
+CC src/QuickDraw/quickdraw_bitmap.c
+make: *** [Makefile:86: build/obj/quickdraw_bitmap.o] Error 1
+CC src/QuickDraw/quickdraw_core.c
+make: *** [Makefile:86: build/obj/quickdraw_core.o] Error 1
+CC src/QuickDraw/QuickDrawCore.c
+  251 | QDErr QDError(void);
+./include/QuickDraw/QDRegions.h:193:1: error: unknown type name ‘RegionError’
+  193 | RegionError GetRegionError(void);
+make: *** [Makefile:86: build/obj/QuickDrawCore.o] Error 1
+CC src/QuickDraw/quickdraw_drawing.c
+make: *** [Makefile:86: build/obj/quickdraw_drawing.o] Error 1
+CC src/QuickDraw/quickdraw_pictures.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:86: build/obj/quickdraw_pictures.o] Error 1
+CC src/QuickDraw/quickdraw_portable.c
+make: *** [Makefile:86: build/obj/quickdraw_portable.o] Error 1
+CC src/QuickDraw/quickdraw_shapes.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:86: build/obj/quickdraw_shapes.o] Error 1
+CC src/QuickDraw/Regions.c
+./include/QuickDraw/QDRegions.h:193:1: error: unknown type name ‘RegionError’
+  193 | RegionError GetRegionError(void);
+  251 | QDErr QDError(void);
+make: *** [Makefile:86: build/obj/Regions.o] Error 1
+CC src/QuickDraw/Text.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:86: build/obj/Text.o] Error 1
+CC src/WindowManager/WindowDisplay.c
+make: *** [Makefile:87: build/obj/WindowDisplay.o] Error 1
+CC src/WindowManager/WindowDragging.c
+make: *** [Makefile:87: build/obj/WindowDragging.o] Error 1
+CC src/WindowManager/WindowEvents.c
+make: *** [Makefile:87: build/obj/WindowEvents.o] Error 1
+CC src/WindowManager/WindowLayering.c
+make: *** [Makefile:87: build/obj/WindowLayering.o] Error 1
+CC src/WindowManager/window_manager.c
+make: *** [Makefile:87: build/obj/window_manager.o] Error 1
+CC src/WindowManager/WindowManagerCore.c
+make: *** [Makefile:87: build/obj/WindowManagerCore.o] Error 1
+CC src/WindowManager/WindowParts.c
+make: *** [Makefile:87: build/obj/WindowParts.o] Error 1
+CC src/WindowManager/WindowResizing.c
+make: *** [Makefile:87: build/obj/WindowResizing.o] Error 1
+CC src/EventManager/event_manager.c
+make: *** [Makefile:88: build/obj/event_manager.o] Error 1
+CC src/EventManager/EventManagerCore.c
+make: *** [Makefile:88: build/obj/EventManagerCore.o] Error 1
+CC src/EventManager/KeyboardEvents.c
+make: *** [Makefile:88: build/obj/KeyboardEvents.o] Error 1
+CC src/EventManager/MouseEvents.c
+make: *** [Makefile:88: build/obj/MouseEvents.o] Error 1
+CC src/EventManager/SystemEvents.c
+make: *** [Makefile:88: build/obj/SystemEvents.o] Error 1
+CC src/MenuManager/MenuBarManager.c
+make: *** [Makefile:89: build/obj/MenuBarManager.o] Error 1
+CC src/MenuManager/menu_dispatch.c
+make: *** [Makefile:89: build/obj/menu_dispatch.o] Error 1
+CC src/MenuManager/MenuDisplay.c
+make: *** [Makefile:89: build/obj/MenuDisplay.o] Error 1
+CC src/MenuManager/menu_geometry.c
+make: *** [Makefile:89: build/obj/menu_geometry.o] Error 1
+CC src/MenuManager/MenuItems.c
+make: *** [Makefile:89: build/obj/MenuItems.o] Error 1
+CC src/MenuManager/MenuManagerCore.c
+make: *** [Makefile:89: build/obj/MenuManagerCore.o] Error 1
+CC src/MenuManager/MenuResources.c
+make: *** [Makefile:89: build/obj/MenuResources.o] Error 1
+CC src/MenuManager/menu_savebits.c
+make: *** [Makefile:89: build/obj/menu_savebits.o] Error 1
+CC src/MenuManager/MenuSelection.c
+make: *** [Makefile:89: build/obj/MenuSelection.o] Error 1
+CC src/MenuManager/PopupMenus.c
+make: *** [Makefile:89: build/obj/PopupMenus.o] Error 1
+CC src/DialogManager/DialogItems.c
+   85 | void ErrorSound(SoundProcPtr soundProc);
+make: *** [Makefile:90: build/obj/DialogItems.o] Error 1
+CC src/DialogManager/dialog_manager_core.c
+  135 | void ErrorSound(SoundProcPtr soundProc);
+   97 | void ErrorSound(SoundProcPtr soundProc) {
+make: *** [Makefile:90: build/obj/dialog_manager_core.o] Error 1
+CC src/DialogManager/DialogManagerCore.c
+   85 | void ErrorSound(SoundProcPtr soundProc);
+  107 | void ErrorSound(SoundProcPtr soundProc)
+make: *** [Makefile:90: build/obj/DialogManagerCore.o] Error 1
+CC src/DialogManager/dialog_manager_dispatch.c
+  135 | void ErrorSound(SoundProcPtr soundProc);
+make: *** [Makefile:90: build/obj/dialog_manager_dispatch.o] Error 1
+CC src/DialogManager/dialog_manager_private.c
+make: *** [Makefile:90: build/obj/dialog_manager_private.o] Error 1
+CC src/DialogManager/ModalDialogs.c
+   85 | void ErrorSound(SoundProcPtr soundProc);
+make: *** [Makefile:90: build/obj/ModalDialogs.o] Error 1
+CC src/ControlManager/ControlDrawing.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:91: build/obj/ControlDrawing.o] Error 1
+CC src/ControlManager/ControlManagerCore.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:91: build/obj/ControlManagerCore.o] Error 1
+CC src/ControlManager/control_manager_sys7.c
+make: *** [Makefile:91: build/obj/control_manager_sys7.o] Error 1
+CC src/ControlManager/ControlManagerTest.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:91: build/obj/ControlManagerTest.o] Error 1
+CC src/ControlManager/ControlResources.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:91: build/obj/ControlResources.o] Error 1
+CC src/ControlManager/ControlTracking.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:91: build/obj/ControlTracking.o] Error 1
+CC src/ControlManager/control_trap_glue.c
+make: *** [Makefile:91: build/obj/control_trap_glue.o] Error 1
+CC src/ControlManager/PlatformControls.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:91: build/obj/PlatformControls.o] Error 1
+CC src/ControlManager/PopupControls.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:91: build/obj/PopupControls.o] Error 1
+CC src/ControlManager/ScrollbarControls.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:91: build/obj/ScrollbarControls.o] Error 1
+CC src/ControlManager/StandardControls.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:91: build/obj/StandardControls.o] Error 1
+CC src/ControlManager/string_conversion_stubs.c
+CC src/ControlManager/TextControls.c
+  251 | QDErr QDError(void);
+src/ControlManager/TextControls.c:307:17: warning: implicit declaration of function ‘MemError’ [-Wimplicit-function-declaration]
+  307 |             if (MemError() == noErr) {
+make: *** [Makefile:91: build/obj/TextControls.o] Error 1
+CC src/TextEdit/TextClipboard.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:92: build/obj/TextClipboard.o] Error 1
+CC src/TextEdit/TextDisplay.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:92: build/obj/TextDisplay.o] Error 1
+CC src/TextEdit/textedit_core.c
+make: *** [Makefile:92: build/obj/textedit_core.o] Error 1
+CC src/TextEdit/TextEditCore.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:92: build/obj/TextEditCore.o] Error 1
+CC src/TextEdit/TextFormatting.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:92: build/obj/TextFormatting.o] Error 1
+CC src/TextEdit/TextInput.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:92: build/obj/TextInput.o] Error 1
+CC src/TextEdit/TextSelection.c
+  251 | QDErr QDError(void);
+src/TextEdit/TextSelection.c:730:30: warning: implicit declaration of function ‘MemError’ [-Wimplicit-function-declaration]
+  730 |     if (!*textHandle) return MemError();
+make: *** [Makefile:92: build/obj/TextSelection.o] Error 1
+CC src/TextEdit/TextUndo.c
+  251 | QDErr QDError(void);
+src/TextEdit/TextUndo.c:529:29: warning: implicit declaration of function ‘MemError’ [-Wimplicit-function-declaration]
+  529 |     if (!textHandle) return MemError();
+make: *** [Makefile:92: build/obj/TextUndo.o] Error 1
+CC src/FontManager/BitmapFonts.c
+make: *** [Makefile:93: build/obj/BitmapFonts.o] Error 1
+CC src/FontManager/FontCache.c
+make: *** [Makefile:93: build/obj/FontCache.o] Error 1
+CC src/FontManager/FontManagerCore.c
+make: *** [Makefile:93: build/obj/FontManagerCore.o] Error 1
+CC src/FontManager/FontMetrics.c
+make: *** [Makefile:93: build/obj/FontMetrics.o] Error 1
+CC src/FontManager/FontPlatform.c
+make: *** [Makefile:93: build/obj/FontPlatform.o] Error 1
+CC src/FontManager/FontSubstitution.c
+make: *** [Makefile:93: build/obj/FontSubstitution.o] Error 1
+CC src/FontManager/ModernFontDetection.c
+make: *** [Makefile:93: build/obj/ModernFontDetection.o] Error 1
+CC src/FontManager/ModernFontSupport.c
+make: *** [Makefile:93: build/obj/ModernFontSupport.o] Error 1
+CC src/FontManager/TrueTypeFonts.c
+make: *** [Makefile:93: build/obj/TrueTypeFonts.o] Error 1
+CC src/FontManager/WebFontSupport.c
+make: *** [Makefile:93: build/obj/WebFontSupport.o] Error 1
+CC src/ScrapManager/InterAppScrap.c
+make: *** [Makefile:94: build/obj/InterAppScrap.o] Error 1
+CC src/ScrapManager/ModernClipboard.c
+src/ScrapManager/ModernClipboard.c:146:16: error: ‘scrapNoError’ undeclared (first use in this function)
+  146 |         return scrapNoError;
+src/ScrapManager/ModernClipboard.c:254:16: error: ‘scrapNoError’ undeclared (first use in this function)
+  254 |         return scrapNoError;
+src/ScrapManager/ModernClipboard.c:285:16: error: ‘scrapNoError’ undeclared (first use in this function)
+  285 |         return scrapNoError;
+src/ScrapManager/ModernClipboard.c:676:12: error: ‘scrapNoTypeError’ undeclared (first use in this function)
+  676 |     return scrapNoTypeError;
+make: *** [Makefile:94: build/obj/ModernClipboard.o] Error 1
+CC src/ScrapManager/ScrapConversion.c
+src/ScrapManager/ScrapConversion.c:117:16: error: ‘scrapConversionError’ undeclared (first use in this function)
+  117 |         return scrapConversionError;
+src/ScrapManager/ScrapConversion.c:318:12: error: ‘scrapConversionError’ undeclared (first use in this function)
+  318 |     return scrapConversionError;
+src/ScrapManager/ScrapConversion.c:397:12: error: ‘scrapConversionError’ undeclared (first use in this function)
+  397 |     return scrapConversionError;
+src/ScrapManager/ScrapConversion.c:730:12: error: ‘scrapConversionError’ undeclared (first use in this function)
+  730 |     return scrapConversionError;
+src/ScrapManager/ScrapConversion.c:737:12: error: ‘scrapConversionError’ undeclared (first use in this function)
+  737 |     return scrapConversionError;
+make: *** [Makefile:94: build/obj/ScrapConversion.o] Error 1
+CC src/ScrapManager/ScrapFile.c
+   19 | /* #include "ErrorCodes.h"
+src/ScrapManager/ScrapFile.c:270:16: error: ‘scrapCorruptError’ undeclared (first use in this function)
+  270 |         return scrapCorruptError;
+src/ScrapManager/ScrapFile.c:560:16: error: ‘scrapCorruptError’ undeclared (first use in this function)
+  560 |         return scrapCorruptError;
+make: *** [Makefile:94: build/obj/ScrapFile.o] Error 1
+CC src/ScrapManager/ScrapFormats.c
+src/ScrapManager/ScrapFormats.c:401:16: error: ‘scrapNoTypeError’ undeclared (first use in this function)
+  401 |         return scrapNoTypeError;
+src/ScrapManager/ScrapFormats.c:429:16: error: ‘scrapNoTypeError’ undeclared (first use in this function)
+  429 |         return scrapNoTypeError;
+make: *** [Makefile:94: build/obj/ScrapFormats.o] Error 1
+CC src/ScrapManager/scrap_manager.c
+make: *** [Makefile:94: build/obj/scrap_manager.o] Error 1
+CC src/ScrapManager/ScrapManagerCore.c
+   19 | /* #include "ErrorCodes.h"
+src/ScrapManager/ScrapManagerCore.c:432:12: error: ‘scrapNoTypeError’ undeclared (first use in this function)
+  432 |     return scrapNoTypeError;
+src/ScrapManager/ScrapManagerCore.c:460:16: error: ‘scrapCorruptError’ undeclared (first use in this function)
+  460 |         return scrapCorruptError;
+src/ScrapManager/ScrapManagerCore.c:546:20: error: ‘scrapCorruptError’ undeclared (first use in this function)
+  546 |             return scrapCorruptError;
+make: *** [Makefile:94: build/obj/ScrapManagerCore.o] Error 1
+CC src/ScrapManager/ScrapMemory.c
+   19 | /* #include "ErrorCodes.h"
+src/ScrapManager/ScrapMemory.c:263:9: warning: implicit declaration of function ‘MemError’ [-Wimplicit-function-declaration]
+  263 |     if (MemError() != noErr) {
+src/ScrapManager/ScrapMemory.c:616:16: error: ‘scrapCorruptError’ undeclared (first use in this function)
+  616 |         return scrapCorruptError;
+src/ScrapManager/ScrapMemory.c:689:12: error: ‘scrapNoTypeError’ undeclared (first use in this function)
+  689 |     return scrapNoTypeError;
+make: *** [Makefile:94: build/obj/ScrapMemory.o] Error 1
+CC src/ScrapManager/ScrapOperations.c
+src/ScrapManager/ScrapOperations.c:426:16: error: ‘scrapMemoryError’ undeclared (first use in this function)
+  426 |         return scrapMemoryError;
+src/ScrapManager/ScrapOperations.c:468:13: warning: implicit declaration of function ‘MemError’ [-Wimplicit-function-declaration]
+  468 |         if (MemError() != noErr) {
+   20 | /* #include "ErrorCodes.h"
+make: *** [Makefile:94: build/obj/ScrapOperations.o] Error 1
+CC src/ProcessMgr/CooperativeScheduler.c
+make: *** [Makefile:95: build/obj/CooperativeScheduler.o] Error 1
+CC src/ProcessMgr/EventIntegration.c
+  251 | QDErr QDError(void);
+./include/QuickDraw/QDRegions.h:193:1: error: unknown type name ‘RegionError’
+  193 | RegionError GetRegionError(void);
+make: *** [Makefile:95: build/obj/EventIntegration.o] Error 1
+CC src/ProcessMgr/ProcessManager.c
+make: *** [Makefile:95: build/obj/ProcessManager.o] Error 1
+CC src/ListManager/list_manager.c
+  251 | QDErr QDError(void);
+./include/QuickDraw/QDRegions.h:193:1: error: unknown type name ‘RegionError’
+  193 | RegionError GetRegionError(void);
+make: *** [Makefile:96: build/obj/list_manager.o] Error 1
+CC src/ListManager/ListManager.c
+make: *** [Makefile:96: build/obj/ListManager.o] Error 1
+CC src/GestaltManager/CapabilityTest.c
+make: *** [Makefile:97: build/obj/CapabilityTest.o] Error 1
+CC src/GestaltManager/SystemCapabilities.c
+make: *** [Makefile:97: build/obj/SystemCapabilities.o] Error 1
+CC src/Finder/alias_manager.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:98: build/obj/alias_manager.o] Error 1
+CC src/Finder/desktop_manager.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:98: build/obj/desktop_manager.o] Error 1
+CC src/Finder/finder_main.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:98: build/obj/finder_main.o] Error 1
+CC src/Finder/trash_folder.c
+  251 | QDErr QDError(void);
+make: *** [Makefile:98: build/obj/trash_folder.o] Error 1
+CC src/DeskManager/AlarmClock.c
+make: *** [Makefile:99: build/obj/AlarmClock.o] Error 1
+CC src/DeskManager/BuiltinDAs.c
+make: *** [Makefile:99: build/obj/BuiltinDAs.o] Error 1
+CC src/DeskManager/Calculator.c
+  251 | QDErr QDError(void);
+./include/QuickDraw/QDRegions.h:193:1: error: unknown type name ‘RegionError’
+  193 | RegionError GetRegionError(void);
+   31 | static void Calculator_SetError(Calculator *calc, int errorCode, const char *message);
+  839 | static void Calculator_SetError(Calculator *calc, int errorCode, const char *message)
+  848 |     strcpy((calc)->\2->display, "Error");
+make: *** [Makefile:99: build/obj/Calculator.o] Error 1
+CC src/DeskManager/Chooser.c
+make: *** [Makefile:99: build/obj/Chooser.o] Error 1
+CC src/DeskManager/DALoader.c
+make: *** [Makefile:99: build/obj/DALoader.o] Error 1
+CC src/DeskManager/DAWindows.c
+make: *** [Makefile:99: build/obj/DAWindows.o] Error 1
+CC src/DeskManager/DeskManagerCore.c
+make: *** [Makefile:99: build/obj/DeskManagerCore.o] Error 1
+CC src/DeskManager/KeyCaps.c
+make: *** [Makefile:99: build/obj/KeyCaps.o] Error 1
+CC src/DeskManager/Notepad.c
+  251 | QDErr QDError(void);
+src/DeskManager/Notepad.c:76:17: warning: implicit declaration of function ‘MemError’ [-Wimplicit-function-declaration]
+   76 |             if (MemError() == noErr) {
+make: *** [Makefile:99: build/obj/Notepad.o] Error 1
+CC src/DeskManager/SystemMenu.c
+make: *** [Makefile:99: build/obj/SystemMenu.o] Error 1
