@@ -105,7 +105,7 @@ void _CleanupControlManager(void) {
 
         /* Cleanup control type registry */
         while (gControlMgr.controlTypes) {
-            struct ControlTypeEntry *next = (gControlMgr)->next;
+            struct ControlTypeEntry *next = gControlMgr.controlTypes->next;
             free(gControlMgr.controlTypes);
             gControlMgr.controlTypes = next;
         }
@@ -313,6 +313,8 @@ void HideControl(ControlHandle theControl) {
 /**
  * Draw all controls in a window
  */
+/* DrawControls is already defined in sys71_stubs.c */
+#if 0
 void DrawControls(WindowPtr theWindow) {
     ControlHandle control;
     GrafPtr savePort;
@@ -337,6 +339,7 @@ void DrawControls(WindowPtr theWindow) {
     /* Restore port */
     SetPort(savePort);
 }
+#endif
 
 /**
  * Draw a single control

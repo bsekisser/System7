@@ -24,6 +24,7 @@
 /* Use local headers instead of system headers */
 #include "MemoryMgr/memory_manager_types.h"
 #include "ResourceManager.h"
+#include "PatternMgr/pattern_manager.h"
 
 
 /* Desktop Database Constants */
@@ -120,9 +121,9 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
     /* Clip to the invalid region */
     SetClip(invalidRgn);
 
-    /* Draw desktop pattern using QuickDraw */
-    /* Note: qd.gray should be the standard desktop pattern */
-    FillRgn(invalidRgn, &qd.gray);
+    /* Draw desktop pattern using current background pattern */
+    /* EraseRgn will use the BackPat/BackColor set by Pattern Manager */
+    EraseRgn(invalidRgn);
 
     /* Draw desktop icons in invalid region */
     for (int i = 0; i < gDesktopIconCount; i++) {
@@ -296,6 +297,13 @@ OSErr SetDesktopIconPosition(FSSpec *item, Point position)
 OSErr InitializeDesktopDB(void)
 {
     OSErr err;
+
+    /* Initialize Pattern Manager first */
+    PM_Init();
+
+    /* Load and apply saved desktop pattern preference */
+    DesktopPref pref = PM_GetSavedDesktopPref();
+    PM_ApplyDesktopPref(&pref);
 
     /* Allocate desktop icons array */
     err = AllocateDesktopIcons();

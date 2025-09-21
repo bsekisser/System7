@@ -1,0 +1,157 @@
+/*
+ * RE-AGENT-BANNER
+ * Pattern Manager Implementation
+ * System 7.1 Desktop Pattern Management
+ *
+ * Manages the desktop pattern state that QuickDraw uses for erasing.
+ * This mirrors the classic Mac OS architecture where the Pattern Manager
+ * owns the background state and QuickDraw consumes it.
+ */
+
+#include "PatternMgr/pattern_manager.h"
+#include "PatternMgr/pattern_resources.h"
+#include "PatternMgr/pram_prefs.h"
+#include "QuickDraw/QuickDraw.h"
+#include "WindowManager/window_manager.h"
+#include <string.h>
+#include <stdlib.h>
+
+/* Global Pattern Manager state */
+static struct {
+    bool initialized;
+    bool usePixPat;
+    Pattern backPat;
+    Handle  backPixPat;    /* Opaque PixPat; format handled inside QuickDraw */
+    RGBColor backColor;
+} gPM;
+
+/* External QuickDraw globals */
+extern QDGlobals qd;
+
+void PM_Init(void) {
+    if (gPM.initialized) return;
+    memset(&gPM, 0, sizeof(gPM));
+
+    /* Default classic platinum gray */
+    gPM.backColor.red   = 0xC000;
+    gPM.backColor.green = 0xC000;
+    gPM.backColor.blue  = 0xC000;
+
+    /* A simple 50% stipple pattern */
+    static const uint8_t dither[8] = {0xAA,0x55,0xAA,0x55,0xAA,0x55,0xAA,0x55};
+    memcpy(&gPM.backPat.pat, dither, 8);
+
+    gPM.initialized = true;
+}
+
+/* External function to update quickdraw_impl's pattern */
+extern void UpdateBackgroundPattern(const Pattern* pat);
+
+void PM_SetBackPat(const Pattern *pat) {
+    if (!pat) return;
+    gPM.usePixPat = false;
+    gPM.backPat = *pat;
+
+    /* Inform QuickDraw - update the global pattern */
+    BackPat(pat);
+    /* Also update our local copy for EraseRect */
+    UpdateBackgroundPattern(pat);
+}
+
+void PM_SetBackPixPat(Handle pixPatHandle) {
+    if (!pixPatHandle) return;
+
+    gPM.usePixPat = true;
+
+    /* Release old handle if we have one */
+    if (gPM.backPixPat) {
+        DisposeHandle(gPM.backPixPat);
+    }
+
+    gPM.backPixPat = pixPatHandle; /* Caller transfers ownership to PM */
+
+    /* For now, we'll extract a simple pattern from PixPat for compatibility */
+    /* In full Color QuickDraw, this would use BackPixPat */
+    /* We'll just use the first 8 bytes as a pattern for now */
+    if (GetHandleSize(pixPatHandle) >= 8) {
+        HLock(pixPatHandle);
+        Pattern tmpPat;
+        memcpy(&tmpPat.pat, *pixPatHandle, 8);
+        HUnlock(pixPatHandle);
+        BackPat(&tmpPat);
+    }
+}
+
+void PM_SetBackColor(const RGBColor *rgb) {
+    if (!rgb) return;
+    gPM.backColor = *rgb;
+    RGBBackColor(rgb);
+}
+
+void PM_GetBackPat(Pattern *pat) {
+    if (pat) *pat = gPM.backPat;
+}
+
+void PM_GetBackColor(RGBColor *rgb) {
+    if (rgb) *rgb = gPM.backColor;
+}
+
+bool PM_IsPixPatActive(void) {
+    return gPM.usePixPat;
+}
+
+DesktopPref PM_GetSavedDesktopPref(void) {
+    DesktopPref p = {0};
+    if (!PRAM_LoadDesktopPref(&p)) {
+        /* Fallback defaults */
+        p.usePixPat = false;
+        p.patID = 16; /* kDesktopPatternID from SystemTypes.h */
+        p.ppatID = 0;
+        p.backColor.red = p.backColor.green = p.backColor.blue = 0xC000;
+    }
+    return p;
+}
+
+void PM_SaveDesktopPref(const DesktopPref *p) {
+    if (!p) return;
+    PRAM_SaveDesktopPref(p);
+}
+
+bool PM_ApplyDesktopPref(const DesktopPref *p) {
+    if (!p) return false;
+
+    /* Set background color */
+    PM_SetBackColor(&p->backColor);
+
+    if (p->usePixPat) {
+        Handle h = PM_LoadPPAT(p->ppatID);
+        if (!h) return false;
+        PM_SetBackPixPat(h);
+    } else {
+        Pattern pat;
+        if (!PM_LoadPAT(p->patID, &pat)) {
+            /* Fall back to default gray pattern */
+            pat = qd.gray;
+        }
+        PM_SetBackPat(&pat);
+    }
+
+    /* Trigger a desktop redraw */
+    Rect desktopRect;
+    desktopRect.left = 0;
+    desktopRect.top = 0;
+    desktopRect.right = qd.screenBits.bounds.right;
+    desktopRect.bottom = qd.screenBits.bounds.bottom;
+    InvalRect(&desktopRect);
+
+    return true;
+}
+
+bool PM_LoadPAT(int16_t id, Pattern *out) {
+    if (!out) return false;
+    return LoadPATResource(id, out);
+}
+
+Handle PM_LoadPPAT(int16_t id) {
+    return LoadPPATResource(id);
+}

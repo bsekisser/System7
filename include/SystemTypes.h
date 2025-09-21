@@ -59,7 +59,8 @@ typedef struct GrafPort GrafPort;
 typedef GrafPort *GrafPtr;
 typedef struct WindowRecord* WindowPtr;
 typedef WindowPtr DialogPtr;
-typedef struct Control **ControlHandle;
+typedef struct ControlRecord Control;
+typedef Control **ControlHandle;
 typedef struct Menu **MenuHandle;
 typedef struct ListRec **ListHandle;
 
@@ -2408,6 +2409,15 @@ typedef enum {
 
 // Control Manager additional types
 typedef struct CCTab **CCTabHandle;
+
+typedef struct AuxCtlRec {
+    Handle         acNext;       /* Next auxiliary record */
+    ControlHandle  acOwner;      /* Control that owns this record */
+    CCTabHandle    acCTable;     /* Color table for control */
+    SInt16         acFlags;      /* Reserved flags */
+    SInt32         acReserved;   /* Reserved for future use */
+} AuxCtlRec;
+
 typedef struct AuxCtlRec **AuxCtlHandle;
 typedef SInt32 (*ControlDefProcPtr)(SInt16 varCode, ControlHandle theControl, SInt16 message, SInt32 param);
 typedef Boolean (*TextValidationProcPtr)(ControlHandle control, Str255 text, SInt32 refCon);

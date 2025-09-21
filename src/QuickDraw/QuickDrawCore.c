@@ -399,6 +399,14 @@ void BackPat(ConstPatternParam pat) {
     g_currentPort->bkPat = *pat;
 }
 
+/* Additional function for Pattern Manager integration */
+void UpdateBackgroundPattern(const Pattern* pat) {
+    if (!pat) return;
+    if (g_currentPort) {
+        g_currentPort->bkPat = *pat;
+    }
+}
+
 void BackColor(SInt32 color) {
     assert(g_currentPort != NULL);
     g_currentPort->bkColor = color;
