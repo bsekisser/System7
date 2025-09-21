@@ -77,8 +77,12 @@ void PM_SetBackPixPat(Handle pixPatHandle) {
     HLock(pixPatHandle);
     const uint8_t* data = (const uint8_t*)*pixPatHandle;
 
+    extern void serial_puts(const char* str);
+    serial_puts("PM_SetBackPixPat: called\n");
+
     if (DecodePPAT8(data, sz, gPM.colorPattern)) {
         gPM.hasColorPattern = true;
+        serial_puts("PM_SetBackPixPat: Successfully decoded color pattern\n");
         /* Set a neutral pattern so EraseRect knows to use color */
         Pattern neutralPat;
         memset(&neutralPat, 0xFF, sizeof(neutralPat));
@@ -87,6 +91,7 @@ void PM_SetBackPixPat(Handle pixPatHandle) {
     } else {
         /* Fall back to using first 8 bytes as pattern */
         gPM.hasColorPattern = false;
+        serial_puts("PM_SetBackPixPat: Failed to decode, using fallback\n");
         if (sz >= 8) {
             Pattern tmpPat;
             memcpy(&tmpPat.pat, data, 8);

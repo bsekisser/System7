@@ -298,6 +298,9 @@ OSErr InitializeDesktopDB(void)
 {
     OSErr err;
 
+    extern void serial_puts(const char* str);
+    serial_puts("Desktop: InitializeDesktopDB called\n");
+
     /* Initialize Pattern Manager first */
     PM_Init();
 
@@ -318,7 +321,9 @@ OSErr InitializeDesktopDB(void)
     }
 
     /* Apply the desktop preferences */
+    serial_puts("Desktop: Applying desktop pref\n");
     PM_ApplyDesktopPref(&pref);
+    serial_puts("Desktop: Applied desktop pref\n");
 
     /* Allocate desktop icons array */
     err = AllocateDesktopIcons();
