@@ -50,17 +50,27 @@ qemu-system-i386 -cdrom system71.iso -serial file:debug.log -display sdl -vga st
 iteration2/
 ├── src/                    # Source code
 │   ├── main.c             # Kernel entry point
+│   ├── boot.S             # Multiboot2 boot assembly
 │   ├── ChicagoRealFont.c  # Chicago font rendering
 │   ├── PS2Controller.c    # PS/2 input driver
 │   ├── Finder/            # Finder implementation
 │   ├── MenuManager/       # Menu system
 │   ├── WindowManager/     # Window management
-│   └── QuickDraw/         # Graphics primitives
+│   ├── QuickDraw/         # Graphics primitives
+│   ├── ResourceManager/   # Resource loading system
+│   ├── EventManager/      # Event handling
+│   ├── MemoryMgr/        # Memory management
+│   ├── PatternManager/    # Pattern resources
+│   └── [30+ managers]     # Various system managers
 ├── include/               # Header files
-├── System_Resources_Extracted/  # Original System 7.1 resources
+├── System_Resources_Extracted/  # Original System 7.1 resources (69 types)
 │   ├── SICN/             # Small icons
 │   ├── ICON/             # Icons
-│   └── ...               # Other resources
+│   ├── ppat/             # Pixel patterns
+│   ├── PAT/              # Patterns
+│   ├── MENU/             # Menu resources
+│   ├── CURS/             # Cursors
+│   └── [60+ folders]     # Other resource types
 ├── Makefile              # Build configuration
 └── linker_mb2.ld         # Linker script for Multiboot2
 ```
@@ -79,8 +89,11 @@ iteration2/
 ✅ Boots successfully via GRUB2
 ✅ Displays System 7.1 menu bar with rainbow Apple logo
 ✅ Chicago font rendering with proper spacing
-✅ PS/2 controller initialized
+✅ PS/2 keyboard and mouse support
 ✅ Event system framework in place
+✅ Pattern resources (PAT) loaded from JSON
+✅ Pixel pattern (ppat) backgrounds support
+✅ Small icons (SICN) rendering support
 
 ## Future Development
 
@@ -93,12 +106,11 @@ iteration2/
 - [ ] Sound Manager
 - [ ] AppleTalk networking
 
-## License
+## Legal
 
 This is a reimplementation project for educational and preservation purposes.
-Original System 7.1 components are property of Apple Inc.
+Original System 7.1 and apple trademarks property of Apple Inc.
 
 ## Acknowledgments
 
 Based on reverse engineering and analysis of original System 7.1 resources.
-Chicago font extracted from authentic System 7.1 font resources.
