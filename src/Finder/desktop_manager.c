@@ -305,10 +305,10 @@ OSErr InitializeDesktopDB(void)
     DesktopPref pref;
     extern bool PRAM_LoadDesktopPref(DesktopPref* pref);
     if (!PRAM_LoadDesktopPref(&pref)) {
-        /* First boot - use color pattern as default */
+        /* First boot - use authentic color pattern as default */
         pref.usePixPat = true;
         pref.patID = 16;      /* Fallback PAT if ppat fails */
-        pref.ppatID = 300;    /* ColorGradient pattern */
+        pref.ppatID = 400;    /* Authentic4Color pattern */
         pref.backColor.red = 0xC000;
         pref.backColor.green = 0xC000;
         pref.backColor.blue = 0xC000;
