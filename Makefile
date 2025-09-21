@@ -39,7 +39,16 @@ C_SOURCES = src/main.c \
             src/MenuManager/MenuManagerCore.c \
             src/ChicagoRealFont.c \
             src/chicago_font_data.c \
-            src/PS2Controller.c
+            src/PS2Controller.c \
+            src/PatternMgr/pattern_manager.c \
+            src/PatternMgr/pattern_resources.c \
+            src/PatternMgr/pram_prefs.c \
+            src/Resources/pattern_data.c \
+            src/ControlPanels/cdev_desktop.c \
+            src/simple_resource_manager.c \
+            src/ControlManager/ControlManagerCore.c \
+            src/ControlManager/ControlTracking.c \
+            src/control_stubs.c
 
 ASM_SOURCES = src/multiboot2.S
 
@@ -226,6 +235,18 @@ $(OBJ_DIR)/%.o: src/StartupScreen/%.c
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/%.o: src/Platform/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/PatternMgr/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/Resources/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/ControlPanels/%.c
 	@echo "CC $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
 

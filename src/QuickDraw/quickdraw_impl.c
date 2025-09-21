@@ -5,6 +5,7 @@
 
 #include "MacTypes.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDrawConstants.h"
 #include <stdint.h>
 
 /* External framebuffer from main.c */
@@ -25,26 +26,17 @@ static Point penLocation = {0, 0};
 static Pattern penPattern;
 static short penMode = patCopy;
 
+/* Current background state */
+static Pattern backPattern;
+static RGBColor backColor = {0xFFFF, 0xFFFF, 0xFFFF};
+
 /* Initialize QuickDraw */
 void InitGraf(void* globalPtr) {
     /* Initialize the QuickDraw globals */
     qd.thePort = NULL;
-    qd.white.red = 0xFFFF;
-    qd.white.green = 0xFFFF;
-    qd.white.blue = 0xFFFF;
-    qd.black.red = 0x0000;
-    qd.black.green = 0x0000;
-    qd.black.blue = 0x0000;
+
+    /* Initialize cursor */
     qd.arrow.data[0] = 0x0000;  /* Standard arrow cursor */
-    qd.dkGray.red = 0x4444;
-    qd.dkGray.green = 0x4444;
-    qd.dkGray.blue = 0x4444;
-    qd.ltGray.red = 0xCCCC;
-    qd.ltGray.green = 0xCCCC;
-    qd.ltGray.blue = 0xCCCC;
-    qd.gray.red = 0x8888;
-    qd.gray.green = 0x8888;
-    qd.gray.blue = 0x8888;
 
     /* Set screen bounds */
     qd.screenBits.bounds.left = 0;
@@ -168,11 +160,16 @@ void PaintRect(const Rect* r) {
     }
 }
 
-/* Fill a rectangle with white */
+/* Fill a rectangle with background pattern/color */
 void EraseRect(const Rect* r) {
     if (!framebuffer || !r) return;
 
-    uint32_t color = pack_color(255, 255, 255);  /* White */
+    /* Use background color */
+    uint32_t bgColor = pack_color(
+        backColor.red >> 8,
+        backColor.green >> 8,
+        backColor.blue >> 8
+    );
 
     /* Clip to screen bounds */
     int left = (r->left < 0) ? 0 : r->left;
@@ -182,6 +179,14 @@ void EraseRect(const Rect* r) {
 
     for (int y = top; y < bottom; y++) {
         for (int x = left; x < right; x++) {
+            /* Check pattern bit for this pixel */
+            int patRow = (y - r->top) & 7;  /* Wrap at 8 pixels */
+            int patCol = (x - r->left) & 7; /* Wrap at 8 pixels */
+            int patBit = backPattern.pat[patRow] & (0x80 >> patCol);
+
+            /* Use foreground (black) for 1-bits, background color for 0-bits */
+            uint32_t color = patBit ? pack_color(0, 0, 0) : bgColor;
+
             uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
             *pixel = color;
         }
@@ -266,13 +271,7 @@ void FrameOval(const Rect* r) {
     FrameRect(r);
 }
 
-/* Fill an oval */
-void PaintOval(const Rect* r) {
-    if (!r) return;
-
-    /* Simple approximation - fill a rectangle for now */
-    PaintRect(r);
-}
+/* PaintOval is already defined in QuickDrawCore.c */
 
 /* Draw a rounded rectangle */
 void FrameRoundRect(const Rect* r, short ovalWidth, short ovalHeight) {
@@ -302,73 +301,43 @@ void CopyBits(const BitMap* srcBits, const BitMap* dstBits,
     /* Complex operation - stub for now */
 }
 
-/* Set the clipping region */
-void SetClip(RgnHandle rgn) {
-    /* Clipping not implemented yet */
+/* SetClip, GetClip are already defined in QuickDrawCore.c */
+/* OffsetRect, SetRect are already defined in Coordinates.c */
+
+/* PtInRect is already defined in Coordinates.c */
+
+/* SectRect is already defined in Coordinates.c */
+/* NewRgn, DisposeRgn, RectRgn are already defined in sys71_stubs.c */
+
+/* BackPat is already defined in QuickDrawCore.c */
+/* Store pattern in our local state for EraseRect to use */
+void UpdateBackgroundPattern(const Pattern* pat) {
+    if (!pat) return;
+    backPattern = *pat;
 }
 
-/* Get the clipping region */
-void GetClip(RgnHandle rgn) {
-    /* Clipping not implemented yet */
+/* Get the background pattern */
+void GetBackPat(Pattern* pat) {
+    if (pat) *pat = backPattern;
 }
 
-/* Offset a rectangle */
-void OffsetRect(Rect* r, short dh, short dv) {
-    if (r) {
-        r->left += dh;
-        r->right += dh;
-        r->top += dv;
-        r->bottom += dv;
-    }
+/* Set the background color */
+void RGBBackColor(const RGBColor* color) {
+    if (!color) return;
+    backColor = *color;
 }
 
-/* Set a rectangle */
-void SetRect(Rect* r, short left, short top, short right, short bottom) {
-    if (r) {
-        r->left = left;
-        r->top = top;
-        r->right = right;
-        r->bottom = bottom;
-    }
+/* Get the background color */
+void GetBackColor(RGBColor* color) {
+    if (color) *color = backColor;
 }
 
-/* Check if a point is in a rectangle */
-Boolean PtInRect(Point pt, const Rect* r) {
-    if (!r) return false;
-    return (pt.h >= r->left && pt.h < r->right &&
-            pt.v >= r->top && pt.v < r->bottom);
+/* Erase a region using the background pattern */
+void EraseRgn(RgnHandle rgn) {
+    if (!rgn) return;
+    /* For now, just erase the bounding box */
+    Region* region = (Region*)*rgn;
+    EraseRect(&region->rgnBBox);
 }
 
-/* Check if two rectangles intersect */
-Boolean SectRect(const Rect* src1, const Rect* src2, Rect* dstRect) {
-    if (!src1 || !src2 || !dstRect) return false;
-
-    dstRect->left = (src1->left > src2->left) ? src1->left : src2->left;
-    dstRect->top = (src1->top > src2->top) ? src1->top : src2->top;
-    dstRect->right = (src1->right < src2->right) ? src1->right : src2->right;
-    dstRect->bottom = (src1->bottom < src2->bottom) ? src1->bottom : src2->bottom;
-
-    return (dstRect->left < dstRect->right && dstRect->top < dstRect->bottom);
-}
-
-/* Create a new region */
-RgnHandle NewRgn(void) {
-    /* Regions not fully implemented - return dummy handle */
-    static MacRegion dummyRegion;
-    dummyRegion.rgnSize = sizeof(MacRegion);
-    dummyRegion.rgnBBox.left = 0;
-    dummyRegion.rgnBBox.top = 0;
-    dummyRegion.rgnBBox.right = fb_width;
-    dummyRegion.rgnBBox.bottom = fb_height;
-    return (RgnHandle)&dummyRegion;
-}
-
-/* Dispose of a region */
-void DisposeRgn(RgnHandle rgn) {
-    /* Stub */
-}
-
-/* Set a region to a rectangle */
-void RectRgn(RgnHandle rgn, const Rect* r) {
-    /* Stub */
-}
+/* FillRgn is already defined in sys71_stubs.c */
