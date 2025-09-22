@@ -680,11 +680,12 @@ void DrawVolumeIcon(void)
     trashHandle.fam = Trash_IsEmptyAll() ? IconSys_TrashEmpty() : IconSys_TrashFull();
     trashHandle.selected = false;
 
-    /* Draw trash with label */
-    Icon_DrawWithLabel(&trashHandle, "Trash",
-                      trashPos.h + 16,    /* Center X */
-                      trashPos.v,         /* Top Y */
-                      false);             /* Not selected */
+    /* Draw trash with label - using custom offset for trash */
+    Icon_DrawWithLabelOffset(&trashHandle, "Trash",
+                            trashPos.h + 16,    /* Center X */
+                            trashPos.v,         /* Top Y */
+                            48,                 /* Label offset - moved down 1 more pixel */
+                            false);             /* Not selected */
 }
 
 /*

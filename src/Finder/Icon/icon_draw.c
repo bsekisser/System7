@@ -26,34 +26,42 @@ static void SetPixel(int x, int y, uint32_t color) {
     }
 }
 
-/* Draw 1-bit ICN# icon */
+/* Draw 1-bit ICN# icon
+ *
+ * Classic Mac icons use a two-layer system:
+ * 1. Mask layer: Defines which pixels are part of the icon (1 = opaque, 0 = transparent)
+ * 2. Image layer: Defines the color of opaque pixels (1 = black, 0 = white)
+ *
+ * This allows icons to have white bodies with black outlines and details.
+ * The mask creates the shape, while the image adds the black pixels for details.
+ *
+ * Example: A trash can icon would have:
+ * - Mask: All 1s for the entire trash can shape
+ * - Image: 1s only for the outline and vertical stripes, 0s for the white body
+ */
 static void DrawICN32(const IconBitmap* ib, int dx, int dy) {
     uint32_t black = 0xFF000000;
     uint32_t white = 0xFFFFFFFF;
 
-    /* First pass: Draw white fill where mask is set */
+    /* Draw the icon using proper Mac mask/image compositing:
+     * - Mask defines the shape (1 = opaque, 0 = transparent)
+     * - Image defines the colors (1 = black, 0 = white)
+     */
     for (int y = 0; y < 32; ++y) {
         if (dy + y >= 600) break;
         const uint8_t* mrow = ib->mask1b + y * 4;  /* 32px = 4 bytes */
-
-        for (int x = 0; x < 32; ++x) {
-            if (dx + x >= 800) break;
-            if (GetBit(mrow, x)) {
-                SetPixel(dx + x, dy + y, white);
-            }
-        }
-    }
-
-    /* Second pass: Draw black pixels where image is set */
-    for (int y = 0; y < 32; ++y) {
-        if (dy + y >= 600) break;
-        const uint8_t* mrow = ib->mask1b + y * 4;
         const uint8_t* irow = ib->img1b + y * 4;
 
         for (int x = 0; x < 32; ++x) {
             if (dx + x >= 800) break;
-            if (GetBit(mrow, x) && GetBit(irow, x)) {
-                SetPixel(dx + x, dy + y, black);
+            /* Only draw where mask bit is set (opaque area) */
+            if (GetBit(mrow, x)) {
+                /* If image bit is set, draw black; otherwise draw white */
+                if (GetBit(irow, x)) {
+                    SetPixel(dx + x, dy + y, black);
+                } else {
+                    SetPixel(dx + x, dy + y, white);
+                }
             }
         }
     }

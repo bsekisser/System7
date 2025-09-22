@@ -52,6 +52,7 @@ C_SOURCES = src/main.c \
             src/Finder/Icon/icon_resolver.c \
             src/Finder/Icon/icon_draw.c \
             src/Finder/Icon/icon_label.c \
+            src/trash_icons.c \
             src/ChicagoRealFont.c \
             src/chicago_font_data.c \
             src/PS2Controller.c \
