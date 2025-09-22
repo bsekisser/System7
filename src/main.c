@@ -693,7 +693,7 @@ void draw_system71_desktop_REMOVED(void) {
     #endif
 
     /* console_puts("Desktop drawn\n"); - disabled in graphics mode */
-    serial_puts("Desktop drawn\n");
+    /* serial_puts("Desktop drawn\n"); */
 }
 
 /* Include the Chicago font data */
@@ -1673,7 +1673,7 @@ void create_system71_windows(void) {
     WindowPtr window1, window2;
     MenuHandle appleMenu, fileMenu, editMenu;
 
-    serial_puts("Creating System 7.1 windows...\n");
+    /* serial_puts("Creating System 7.1 windows...\n"); */
 
     /* Create Apple menu */
     static unsigned char appleTitle[] = {1, 0x14};  /* Pascal string: length 1, Apple symbol */
@@ -1681,7 +1681,7 @@ void create_system71_windows(void) {
     if (appleMenu) {
         AppendMenu(appleMenu, "\pAbout System 7.1...");
         InsertMenu(appleMenu, 0);
-        serial_puts("  Apple menu created\n");
+        /* serial_puts("  Apple menu created\n"); */
     }
 
     /* Create File menu */
@@ -1690,7 +1690,7 @@ void create_system71_windows(void) {
     if (fileMenu) {
         AppendMenu(fileMenu, "\pNew/N;Open.../O;-;Close/W;Save/S;Save As...;-;Quit/Q");
         InsertMenu(fileMenu, 0);
-        serial_puts("  File menu created\n");
+        /* serial_puts("  File menu created\n"); */
     }
 
     /* Create Edit menu */
@@ -1699,12 +1699,12 @@ void create_system71_windows(void) {
     if (editMenu) {
         AppendMenu(editMenu, "\pUndo/Z;-;Cut/X;Copy/C;Paste/V;Clear");
         InsertMenu(editMenu, 0);
-        serial_puts("  Edit menu created\n");
+        /* serial_puts("  Edit menu created\n"); */
     }
 
     /* Draw the menu bar */
     DrawMenuBar();
-    serial_puts("  Menu bar drawn\n");
+    /* serial_puts("  Menu bar drawn\n"); */
 
     /* Create first window */
     windowBounds.top = 60;
@@ -1722,7 +1722,7 @@ void create_system71_windows(void) {
     if (window1) {
         SetPort((GrafPtr)window1);
         ShowWindow(window1);
-        serial_puts("  Window 1 created and shown\n");
+        /* serial_puts("  Window 1 created and shown\n"); */
     }
 
     /* Create second window */
@@ -1742,53 +1742,53 @@ void create_system71_windows(void) {
         SetPort((GrafPtr)window2);
         ShowWindow(window2);
         SelectWindow(window2);
-        serial_puts("  Window 2 created and shown\n");
+        /* serial_puts("  Window 2 created and shown\n"); */
     }
 
-    serial_puts("Windows created successfully\n");
+    /* serial_puts("Windows created successfully\n"); */
 }
 
 /* Kernel main entry point */
 void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     /* Initialize serial port for debugging */
     serial_init();
-    serial_puts("System 7.1 Portable - Serial Console Initialized\n");
+    /* serial_puts("System 7.1 Portable - Serial Console Initialized\n"); */
 
     /* Clear screen and show startup message */
     console_clear();
     /* console_puts("System 7.1 Portable - Iteration2\n");
     console_puts("================================\n\n"); - disabled in graphics mode */
 
-    serial_puts("System 7.1 Portable - Iteration2\n");
-    serial_puts("================================\n\n");
+    /* serial_puts("System 7.1 Portable - Iteration2\n");
+    serial_puts("================================\n\n"); */
 
     /* Parse Multiboot2 information */
     parse_multiboot2(magic, mb2_info);
 
     /* Framebuffer will be used by Finder if available */
     if (framebuffer) {
-        serial_puts("Framebuffer available for Finder desktop\n");
+        /* serial_puts("Framebuffer available for Finder desktop\n"); */
     } else {
-        console_puts("No framebuffer available, continuing in text mode\n");
-        serial_puts("No framebuffer available, continuing in text mode\n");
+        /* console_puts("No framebuffer available, continuing in text mode\n"); */
+        /* serial_puts("No framebuffer available, continuing in text mode\n"); */
     }
 
     /* Initialize System 7.1 */
-    serial_puts("Initializing System 7.1...\n");
+    /* serial_puts("Initializing System 7.1...\n"); */
     init_system71();
 
     /* Remove early test - let DrawDesktop do all the drawing */
     if (framebuffer) {
 
-        serial_puts("Setting up desktop port...\n");
+        /* serial_puts("Setting up desktop port...\n"); */
 
         /* Create and open the desktop port */
         static GrafPort desktopPort;
         OpenPort(&desktopPort);
 
-        serial_puts("Calling DrawDesktop...\n");
+        /* serial_puts("Calling DrawDesktop...\n"); */
         DrawDesktop();
-        serial_puts("DrawDesktop returned\n");
+        /* serial_puts("DrawDesktop returned\n"); */
     }
 
     /* Create windows and menus using real System 7.1 APIs */
@@ -1797,19 +1797,19 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     /* Main event loop using real Event Manager */
     /* Don't use console_puts after graphics mode - it overwrites framebuffer! */
     /* console_puts("\nSystem ready. Processing events...\n"); */
-    serial_puts("\nSystem ready. Entering event loop.\n");
+    /* serial_puts("\nSystem ready. Entering event loop.\n"); */
 
     EventRecord event;
 
     /* Initial desktop draw */
-    serial_puts("Drawing initial desktop...\n");
+    /* serial_puts("Drawing initial desktop...\n"); */
     WM_Update();    /* Draw the desktop directly */
 
     /* Draw the volume and trash icons */
     extern void DrawVolumeIcon(void);
     DrawVolumeIcon();
 
-    serial_puts("Desktop drawn\n");
+    /* serial_puts("Desktop drawn\n"); */
 
     /* Track mouse position for movement detection */
     extern struct {
@@ -1874,10 +1874,10 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     int16_t last_mouse_y = g_mouseState.y;
     volatile uint32_t debug_counter = 0;
 
-    serial_puts("Entering main event loop...\n");
+    /* serial_puts("Entering main event loop...\n"); */
 
     /* Simple immediate test */
-    serial_puts("TEST: About to enter loop\n");
+    /* serial_puts("TEST: About to enter loop\n"); */
 
     /* Add cursor update counter to throttle cursor redraws */
     static uint32_t cursor_update_counter = 0;

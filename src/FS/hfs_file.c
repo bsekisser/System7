@@ -111,7 +111,7 @@ static bool read_from_extents(HFS_Volume* vol, const HFS_Extent* extents,
 
     /* TODO: Handle overflow extents for large files */
     if (remaining > 0 && *bytesRead == 0) {
-        serial_printf("HFS File: Need overflow extents (not implemented)\n");
+        /* serial_printf("HFS File: Need overflow extents (not implemented)\n"); */
     }
 
     return true;
@@ -123,7 +123,7 @@ HFSFile* HFS_FileOpen(HFS_Catalog* cat, FileID id, bool resourceFork) {
     /* Find the file record */
     HFS_CatFileRec fileRec;
     if (!find_file_record(cat, id, &fileRec)) {
-        serial_printf("HFS File: File ID %u not found\n", id);
+        /* serial_printf("HFS File: File ID %u not found\n", id); */
         return NULL;
     }
 
@@ -162,7 +162,7 @@ HFSFile* HFS_FileOpenByPath(HFS_Catalog* cat, const char* path, bool resourceFor
 
     /* TODO: Implement path parsing without strtok */
     /* For now, just return NULL - path-based opening not critical for initial testing */
-    serial_printf("HFS File: Path-based opening not yet implemented\n");
+    /* serial_printf("HFS File: Path-based opening not yet implemented\n"); */
     return NULL;
 }
 
