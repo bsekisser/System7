@@ -87,7 +87,7 @@ Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
 SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
     /* Simple event posting - just log for now */
     extern void serial_printf(const char* fmt, ...);
-    serial_printf("PostEvent: type=%d msg=0x%08x\n", eventNum, eventMsg);
+    /* serial_printf("PostEvent: type=%d msg=0x%08x\n", eventNum, eventMsg); */
     return noErr;
 }
 
@@ -138,9 +138,11 @@ OSErr FindWindow(Point thePt, WindowPtr *window) {
     return noErr;
 }
 
+/* DragWindow is implemented in WindowManager/WindowDragging.c
 void DragWindow(WindowPtr window, Point startPt, const Rect* limitRect) {
-    /* Stub - would handle window dragging */
+    // Stub - would handle window dragging
 }
+*/
 
 /* Functions provided by other components:
  * ShowErrorDialog - finder_main.c
@@ -514,19 +516,23 @@ void WM_Update(void) {
     GetPort(&savePort);
     SetPort(qd.thePort);  /* Draw to screen port */
 
-    /* 1. Menu Manager draws the menu bar */
-    DrawMenuBar();  /* Menu Manager handles menu bar */
-
-    /* 2. Draw desktop pattern */
+    /* 1. Draw desktop pattern first */
     Rect desktopRect;
     SetRect(&desktopRect, 0, 20,
             qd.screenBits.bounds.right,
             qd.screenBits.bounds.bottom);
     FillRect(&desktopRect, &qd.gray);  /* Gray desktop pattern */
 
-    /* 3. Draw all visible windows */
+    /* 2. Draw all visible windows before menu bar */
     extern WindowManagerState* GetWindowManagerState(void);
     WindowManagerState* wmState = GetWindowManagerState();
+
+    /* Save pen position before window drawing */
+    Point savedPenPos = {0, 0};
+    if (qd.thePort) {
+        savedPenPos = qd.thePort->pnLoc;
+    }
+
     if (wmState && wmState->windowList) {
         /* Draw windows from back to front */
         WindowPtr window = wmState->windowList;
@@ -587,8 +593,13 @@ void WM_Update(void) {
 
                         /* Draw window title if present */
                         if (w->titleHandle && *(w->titleHandle)) {
+                            /* Save and restore pen position for title drawing */
+                            Point titlePenPos = qd.thePort ? qd.thePort->pnLoc : (Point){0, 0};
                             MoveTo(titleBar.left + 25, titleBar.top + 14);
                             DrawString(*(w->titleHandle));
+                            if (qd.thePort) {
+                                qd.thePort->pnLoc = titlePenPos;
+                            }
                         }
 
                         /* Draw close box if present */
@@ -607,6 +618,18 @@ void WM_Update(void) {
             }
         }
     }
+
+    /* Restore pen position after window drawing */
+    if (qd.thePort) {
+        qd.thePort->pnLoc = savedPenPos;
+    }
+
+    /* 3. Draw menu bar LAST with clean pen position to avoid corruption */
+    Point cleanPenPos = {0, 0};
+    if (qd.thePort) {
+        qd.thePort->pnLoc = cleanPenPos;  /* Reset pen position before menu bar */
+    }
+    DrawMenuBar();  /* Menu Manager handles menu bar */
 
     /* 4. Call DeskHook if registered for icons */
     if (g_deskHook) {

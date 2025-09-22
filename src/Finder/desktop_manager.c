@@ -714,7 +714,7 @@ OSErr HandleVolumeDoubleClick(Point clickPoint)
 
                 /* Open root directory window */
                 /* TODO: Create folder window for root directory */
-                serial_printf("Opening volume: %s (root ID=%d)\n", vcb.name, vcb.rootID);
+                /* serial_printf("Opening volume: %s (root ID=%d)\n", vcb.name, vcb.rootID); */
 
                 return noErr;
             }

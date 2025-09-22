@@ -27,14 +27,14 @@ struct VFSFile {
 
 bool VFS_Init(void) {
     if (g_vfs.initialized) {
-        serial_printf("VFS: Already initialized\n");
+        /* serial_printf("VFS: Already initialized\n"); */
         return true;
     }
 
     memset(&g_vfs, 0, sizeof(g_vfs));
     g_vfs.bootVRef = 1;  /* Boot volume is always vRef 1 */
 
-    serial_printf("VFS: Initialized\n");
+    /* serial_printf("VFS: Initialized\n"); */
     g_vfs.initialized = true;
     return true;
 }
@@ -49,12 +49,12 @@ void VFS_Shutdown(void) {
     HFS_VolumeUnmount(&g_vfs.bootVolume);
 
     g_vfs.initialized = false;
-    serial_printf("VFS: Shutdown complete\n");
+    /* serial_printf("VFS: Shutdown complete\n"); */
 }
 
 bool VFS_MountBootVolume(const char* volName) {
     if (!g_vfs.initialized) {
-        serial_printf("VFS: Not initialized\n");
+        /* serial_printf("VFS: Not initialized\n"); */
         return false;
     }
 
@@ -62,19 +62,19 @@ bool VFS_MountBootVolume(const char* volName) {
     uint64_t volumeSize = 4 * 1024 * 1024;  /* 4MB */
     void* volumeData = malloc(volumeSize);
     if (!volumeData) {
-        serial_printf("VFS: Failed to allocate volume memory\n");
+        /* serial_printf("VFS: Failed to allocate volume memory\n"); */
         return false;
     }
 
     /* Create blank HFS volume */
     if (!HFS_CreateBlankVolume(volumeData, volumeSize, volName)) {
-        serial_printf("VFS: Failed to create blank volume\n");
+        /* serial_printf("VFS: Failed to create blank volume\n"); */
         return false;
     }
 
     /* Mount the volume */
     if (!HFS_VolumeMountMemory(&g_vfs.bootVolume, volumeData, volumeSize, g_vfs.bootVRef)) {
-        serial_printf("VFS: Failed to mount volume\n");
+        /* serial_printf("VFS: Failed to mount volume\n"); */
         return false;
     }
 
@@ -82,11 +82,11 @@ bool VFS_MountBootVolume(const char* volName) {
     if (!HFS_CatalogInit(&g_vfs.bootCatalog, &g_vfs.bootVolume)) {
         HFS_VolumeUnmount(&g_vfs.bootVolume);
         free(volumeData);
-        serial_printf("VFS: Failed to initialize catalog\n");
+        /* serial_printf("VFS: Failed to initialize catalog\n"); */
         return false;
     }
 
-    serial_printf("VFS: Mounted boot volume successfully\n");
+    /* serial_printf("VFS: Mounted boot volume successfully\n"); */
 
     /* Create some default folders for testing */
     /* These would normally be created by the System installer */
@@ -222,25 +222,25 @@ uint32_t VFS_GetFilePosition(VFSFile* file) {
 /* Write operations - stubs for now */
 bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID) {
     /* TODO: Implement folder creation */
-    serial_printf("VFS: CreateFolder not implemented\n");
+    /* serial_printf("VFS: CreateFolder not implemented\n"); */
     return false;
 }
 
 bool VFS_CreateFile(VRefNum vref, DirID parent, const char* name,
                    uint32_t type, uint32_t creator, FileID* newID) {
     /* TODO: Implement file creation */
-    serial_printf("VFS: CreateFile not implemented\n");
+    /* serial_printf("VFS: CreateFile not implemented\n"); */
     return false;
 }
 
 bool VFS_Rename(VRefNum vref, FileID id, const char* newName) {
     /* TODO: Implement rename */
-    serial_printf("VFS: Rename not implemented\n");
+    /* serial_printf("VFS: Rename not implemented\n"); */
     return false;
 }
 
 bool VFS_Delete(VRefNum vref, FileID id) {
     /* TODO: Implement delete */
-    serial_printf("VFS: Delete not implemented\n");
+    /* serial_printf("VFS: Delete not implemented\n"); */
     return false;
 }

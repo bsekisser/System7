@@ -41,6 +41,7 @@ C_SOURCES = src/main.c \
             src/WindowManager/WindowManagerCore.c \
             src/WindowManager/WindowDisplay.c \
             src/WindowManager/WindowManagerHelpers.c \
+            src/WindowManager/WindowDragging.c \
             src/Platform/WindowPlatform.c \
             src/MenuManager/MenuManagerCore.c \
             src/MenuManager/MenuSelection.c \

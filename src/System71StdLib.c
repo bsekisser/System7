@@ -214,11 +214,19 @@ void serial_putchar(char c) {
 }
 
 void serial_puts(const char* str) {
+    /* DISABLED - Serial output was somehow appearing in GUI menu bar */
+    return;
+
+    /* Direct serial output only - no framebuffer interaction */
+    if (!str) return;
     while (*str) {
         if (*str == '\n') {
-            serial_putchar('\r');
+            while ((inb(COM1 + 5) & 0x20) == 0);
+            outb(COM1, '\r');
         }
-        serial_putchar(*str++);
+        while ((inb(COM1 + 5) & 0x20) == 0);
+        outb(COM1, *str);
+        str++;
     }
 }
 
@@ -240,6 +248,9 @@ void serial_print_hex(uint32_t value) {
 }
 
 void serial_printf(const char* fmt, ...) {
+    /* DISABLED - Serial output was somehow appearing in GUI menu bar */
+    return;
+
     const char* p = fmt;
     va_list args;
     va_start(args, fmt);

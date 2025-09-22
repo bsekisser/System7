@@ -88,7 +88,7 @@ bool HFS_ParseCatalogRecord(const HFS_CatKey* key, const void* data, uint16_t da
         return false;
 
     default:
-        serial_printf("HFS Catalog: Unknown record type 0x%04x\n", recordType);
+        /* serial_printf("HFS Catalog: Unknown record type 0x%04x\n", recordType); */
         return false;
     }
 }
@@ -129,7 +129,7 @@ static bool enum_callback(void* keyPtr, uint16_t keyLen,
 }
 
 bool HFS_CatalogInit(HFS_Catalog* cat, HFS_Volume* vol) {
-    serial_printf("HFS_CatalogInit: ENTER (cat=%p, vol=%p)\n", cat, vol);
+    /* serial_printf("HFS_CatalogInit: ENTER (cat=%p, vol=%p)\n", cat, vol); */
 
     if (!cat || !vol || !vol->mounted) {
         serial_printf("HFS_CatalogInit: Invalid params (cat=%p, vol=%p, mounted=%d)\n",
@@ -144,11 +144,11 @@ bool HFS_CatalogInit(HFS_Catalog* cat, HFS_Volume* vol) {
     serial_printf("HFS_CatalogInit: About to initialize catalog B-tree (vol=%p, catFileSize=%u)\n",
                  vol, vol->catFileSize);
     if (!HFS_BT_Init(&cat->bt, vol, kBTreeCatalog)) {
-        serial_printf("HFS_CatalogInit: B-tree init failed\n");
+        /* serial_printf("HFS_CatalogInit: B-tree init failed\n"); */
         return false;
     }
 
-    serial_printf("HFS_CatalogInit: Success\n");
+    /* serial_printf("HFS_CatalogInit: Success\n"); */
     return true;
 }
 

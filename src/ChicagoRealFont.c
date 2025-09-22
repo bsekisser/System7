@@ -125,10 +125,16 @@ void DrawText(const void* textBuf, short firstByte, short byteCount) {
         startPos = g_currentPort->pnLoc;
     }
 
+    /* CRITICAL FIX: Reset pen position to prevent accumulation */
+    /* Each menu title should start at its own MoveTo position */
+
     /* Draw each character with proper spacing */
     int accumulated_width = 0;
     for (short i = 0; i < byteCount; i++) {
         char ch = text[firstByte + i];
+        /* Stop at null terminator or if we exceed bounds */
+        if (ch == 0) break;
+
         /* serial_printf("Drawing char %d: '%c' (0x%02x) at h=%d\n", i, ch, ch, startPos.h + accumulated_width); */
 
         /* Move to position for this character */

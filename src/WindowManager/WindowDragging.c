@@ -28,9 +28,17 @@
 
 /* Forward declarations */
 Boolean WM_ValidateWindowPosition(WindowPtr window, const Rect* bounds);
-Point WM_ApplySnapToEdges(Point windowPos);
+static Point WM_ApplySnapToEdges(Point windowPos);
+void WM_ConstrainWindowPosition(WindowPtr window, Rect* bounds);
+void WM_UpdateWindowVisibility(WindowPtr window);
+void WM_OffsetRect(Rect* rect, short deltaH, short deltaV);
 static Point WM_ConstrainToRect(Point windowPos, const Rect* constraintRect);
 static Point WM_ConstrainToScreen(Point windowPos);
+static Point WM_CalculateConstrainedWindowPosition(Point mousePt);
+static void WM_EndDragFeedback(void);
+static void WM_UpdateDragFeedback(Point currentPt);
+static void WM_StartDragFeedback(void);
+static void WM_CleanupDragState(void);
 
 
 /* ============================================================================
@@ -268,13 +276,13 @@ static void WM_InitializeDragState(WindowPtr window, Point startPt, const Rect* 
     g_dragState.window = window;
     g_dragState.startPoint = startPt;
     g_dragState.currentPoint = startPt;
-    g_dragState.originalBounds = (window)->portRect;
+    g_dragState.originalBounds = window->port.portRect;
     g_dragState.active = true;
     g_dragState.hasMoved = false;
 
     /* Calculate offset from mouse to window origin */
-    g_dragState.windowOffset.h = startPt.h - (window)->portRect.left;
-    g_dragState.windowOffset.v = startPt.v - (window)->portRect.top;
+    g_dragState.windowOffset.h = startPt.h - window->port.portRect.left;
+    g_dragState.windowOffset.v = startPt.v - window->port.portRect.top;
 
     /* Set constraint rectangle */
     if (boundsRect) {
@@ -508,7 +516,7 @@ static Point WM_ConstrainToRect(Point windowPos, const Rect* constraintRect) {
     return windowPos;
 }
 
-Point WM_ApplySnapToEdges(Point windowPos) {
+static Point WM_ApplySnapToEdges(Point windowPos) {
     Rect screenBounds;
     Platform_GetScreenBounds(&screenBounds);
 
@@ -658,37 +666,4 @@ static void WM_InvalidateScreenRegion(RgnHandle rgn) {
     WM_DEBUG("WM_InvalidateScreenRegion: Invalidating screen region");
 }
 
-/* ============================================================================
- * Platform Abstraction Functions
- * ============================================================================ */
-
-DragFeedbackMode Platform_GetPreferredDragFeedback(void) {
-    /* TODO: Query platform for preferred drag feedback mode */
-    /* For now, return outline feedback as it's most compatible */
-    return kDragFeedbackOutline;
-}
-
-Boolean Platform_IsSnapToEdgesEnabled(void) {
-    /* TODO: Query platform/user preferences for snap-to-edges */
-    return true;
-}
-
-void Platform_ShowDragRect(const Rect* rect) {
-    /* TODO: Implement platform-specific solid drag rectangle display */
-    WM_DEBUG("Platform_ShowDragRect: Showing drag rectangle");
-}
-
-void Platform_UpdateDragRect(const Rect* rect) {
-    /* TODO: Implement platform-specific drag rectangle update */
-    WM_DEBUG("Platform_UpdateDragRect: Updating drag rectangle");
-}
-
-void Platform_HideDragRect(void) {
-    /* TODO: Implement platform-specific drag rectangle hiding */
-    WM_DEBUG("Platform_HideDragRect: Hiding drag rectangle");
-}
-
-void Platform_OffsetRgn(RgnHandle rgn, short dh, short dv) {
-    /* TODO: Implement platform-specific region offsetting */
-    WM_DEBUG("Platform_OffsetRgn: Offsetting region by (%d, %d)", dh, dv);
-}
+/* Platform functions are defined in Platform/WindowPlatform.c */
