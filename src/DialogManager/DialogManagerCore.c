@@ -1,7 +1,8 @@
 /* #include "SystemTypes.h" */
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
+/* #include <stdio.h> */
+#define printf(...) serial_printf(__VA_ARGS__)
 /*
  * DialogManagerCore.c - Core Dialog Manager Implementation
  *
@@ -19,6 +20,7 @@
 #include "DialogManager/DialogItems.h"
 #include "DialogManager/DialogResources.h"
 #include "DialogManager/DialogEvents.h"
+#include "DialogManager/DialogManagerStateExt.h"
 #include <assert.h>
 
 
@@ -27,10 +29,7 @@ static DialogManagerState gDialogManagerState = {0};
 static Boolean gDialogManagerInitialized = false;
 
 /* External dependencies that need to be linked */
-extern WindowPtr NewWindow(void* wStorage, const Rect* boundsRect,
-                          const unsigned char* title, Boolean visible,
-                          SInt16 procID, WindowPtr behind, Boolean goAwayFlag,
-                          SInt32 refCon);
+/* NewWindow is already declared in WindowManager.h */
 extern void DisposeWindow(WindowPtr window);
 extern void ShowWindow(WindowPtr window);
 extern void HideWindow(WindowPtr window);
@@ -158,15 +157,18 @@ DialogPtr NewDialog(void* wStorage, const Rect* boundsRect, const unsigned char*
     InitializeDialogRecord(dialog, boundsRect, title, visible, procID,
                           behind, goAwayFlag, refCon, itmLstHndl);
 
+    /* Cast to DialogRecord for access to extended fields */
+    DialogRecord* dialogRec = (DialogRecord*)dialog;
+
     /* Copy window data into dialog record */
-    memcpy(&dialog->window, window, sizeof(struct WindowRecord));
+    memcpy(&dialogRec->window, window, sizeof(struct WindowRecord));
 
     /* Set up dialog-specific data */
-    dialog->items = itmLstHndl;
-    dialog->textH = NULL; /* Will be created when needed */
-    dialog->editField = -1; /* No active edit field */
-    dialog->editOpen = 0;
-    dialog->aDefItem = 1; /* Default button is item 1 */
+    dialogRec->items = itmLstHndl;
+    dialogRec->textH = NULL; /* Will be created when needed */
+    dialogRec->editField = -1; /* No active edit field */
+    dialogRec->editOpen = 0;
+    dialogRec->aDefItem = 1; /* Default button is item 1 */
 
     /* Set up dialog defaults */
     SetupDialogDefaults(dialog);
@@ -474,12 +476,13 @@ static void InitializeDialogRecord(DialogPtr dialog, const Rect* bounds,
 {
     /* This function would initialize the dialog record with the given parameters */
     /* For now, we'll just set the basic fields that we've defined */
+    DialogRecord* dialogRec = (DialogRecord*)dialog;
 
-    dialog->items = itemList;
-    dialog->textH = NULL;
-    dialog->editField = -1;
-    dialog->editOpen = 0;
-    dialog->aDefItem = 1;
+    dialogRec->items = itemList;
+    dialogRec->textH = NULL;
+    dialogRec->editField = -1;
+    dialogRec->editOpen = 0;
+    dialogRec->aDefItem = 1;
 }
 
 static void DisposeDialogStructure(DialogPtr dialog, Boolean closeOnly)
@@ -489,15 +492,16 @@ static void DisposeDialogStructure(DialogPtr dialog, Boolean closeOnly)
     }
 
     /* Dispose of dialog items if not just closing */
-    if (!closeOnly && dialog->items) {
-        DisposeDialogItemList(dialog->items);
-        dialog->items = NULL;
+    DialogRecord* dialogRec = (DialogRecord*)dialog;
+    if (!closeOnly && dialogRec->items) {
+        DisposeDialogItemList(dialogRec->items);
+        dialogRec->items = NULL;
     }
 
     /* Dispose of TextEdit record if allocated */
-    if (!closeOnly && dialog->textH) {
-        /* TEDispose(dialog->textH); - would need TextEdit integration */
-        dialog->textH = NULL;
+    if (!closeOnly && dialogRec->textH) {
+        /* TEDispose(dialogRec->textH); - would need TextEdit integration */
+        dialogRec->textH = NULL;
     }
 
     /* Dispose of the underlying window */
@@ -530,16 +534,20 @@ static void SetupDialogDefaults(DialogPtr dialog)
     }
 
     /* Set up default dialog behavior */
-    dialog->aDefItem = 1; /* Default button is typically item 1 */
-    dialog->editField = -1; /* No edit field active initially */
-    dialog->editOpen = 0;
+    DialogRecord* dialogRec = (DialogRecord*)dialog;
+    dialogRec->aDefItem = 1; /* Default button is typically item 1 */
+    dialogRec->editField = -1; /* No edit field active initially */
+    dialogRec->editOpen = 0;
 }
 
 static void PlaySystemBeep(SInt16 soundType)
 {
     /* Play appropriate system sound */
     if (gDialogManagerState.globals.soundProc) {
-        gDialogManagerState.globals.soundProc(soundType);
+        /* Cast void* to function pointer and call it */
+        typedef void (*SoundProc)(SInt16);
+        SoundProc proc = (SoundProc)gDialogManagerState.globals.soundProc;
+        proc(soundType);
     } else {
         /* Default system beep */
         printf("BEEP (sound type %d)\n", soundType);
@@ -556,7 +564,7 @@ Handle GetDialogItemList(DialogPtr theDialog)
         return NULL;
     }
 
-    return theDialog->items;
+    return ((DialogRecord*)theDialog)->items;
 }
 
 void SetDialogItemList(DialogPtr theDialog, Handle itemList)
@@ -565,7 +573,7 @@ void SetDialogItemList(DialogPtr theDialog, Handle itemList)
         return;
     }
 
-    theDialog->items = itemList;
+    ((DialogRecord*)theDialog)->items = itemList;
 }
 
 SInt16 GetDialogDefaultItem(DialogPtr theDialog)
@@ -574,7 +582,7 @@ SInt16 GetDialogDefaultItem(DialogPtr theDialog)
         return 0;
     }
 
-    return theDialog->aDefItem;
+    return ((DialogRecord*)theDialog)->aDefItem;
 }
 
 SInt16 GetDialogCancelItem(DialogPtr theDialog)
