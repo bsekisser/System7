@@ -143,7 +143,7 @@ static void DrawChar(char ch, int x, int y, uint32_t color) {
     uint32_t* fb = (uint32_t*)framebuffer;
     ChicagoCharInfo info = chicago_ascii[ch - 32];
 
-    for (int row = 0; row < 16; row++) {  /* Chicago font height */
+    for (int row = 0; row < 15; row++) {  /* Chicago font actual height is 15 */
         const uint8_t* strike_row = chicago_bitmap + (row * 140);  /* 140 bytes per row */
 
         for (int col = 0; col < info.bit_width; col++) {
@@ -175,7 +175,7 @@ void IconLabel_Measure(const char* name, int* outWidth, int* outHeight) {
     }
 
     *outWidth = width;
-    *outHeight = 16;  /* Chicago font height */
+    *outHeight = 15;  /* Chicago font actual height */
 }
 
 /* Draw label with white background */
