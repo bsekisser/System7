@@ -25,6 +25,9 @@
 extern "C" {
 #endif
 
+/* Forward declarations */
+typedef struct MouseTrackingState MouseTrackingState;
+
 /* Mouse button identifiers */
 
 /* Mouse event subtypes */

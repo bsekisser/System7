@@ -22,6 +22,7 @@
 #include "SystemTypes.h"
 #include "FileMgr/file_manager.h"
 #include "QuickDraw/QuickDraw.h"
+#include "EventManager/EventTypes.h"  /* Include before WindowTypes.h to avoid activeFlag conflict */
 #include "WindowManager/WindowTypes.h"
 
 /* Finder Flag Constants - Evidence: Finder.h interface definitions */

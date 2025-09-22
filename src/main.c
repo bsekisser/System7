@@ -13,6 +13,8 @@
 #include "../include/MacTypes.h"
 #include "../include/QuickDraw/QuickDraw.h"
 #include "../include/ResourceManager.h"
+#include "../include/EventManager/EventTypes.h"  /* Include EventTypes first to define activeFlag */
+#include "../include/EventManager/EventManager.h"
 #include "../include/MenuManager/MenuManager.h"
 
 /* Menu command dispatcher */
@@ -21,7 +23,6 @@ extern void DoMenuCommand(short menuID, short item);
 #include "../include/ControlManager/ControlManager.h"
 #include "../include/ListManager/ListManager.h"
 #include "../include/WindowManager/WindowManager.h"
-#include "../include/EventManager/EventManager.h"
 #include "../include/TextEdit/TextEdit.h"
 #include "../include/FontManager/FontManager.h"
 #include "../include/PS2Controller.h"
@@ -1640,6 +1641,14 @@ void init_system71(void) {
     InitEvents(20);  /* Initialize with 20 event queue entries */
     serial_puts("  Event Manager initialized\n");
 
+    /* Initialize Modern Input System for PS/2 devices */
+    extern SInt16 InitModernInput(const char* platform);
+    if (InitModernInput("PS2") == noErr) {
+        serial_puts("  Modern Input System initialized for PS/2\n");
+    } else {
+        serial_puts("  WARNING: Modern Input System initialization failed\n");
+    }
+
     /* Initialize PS/2 input devices */
     if (InitPS2Controller()) {
         serial_puts("  PS/2 controller initialized\n");
@@ -1886,8 +1895,9 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
             }
         }
 
-        /* Poll PS/2 devices for keyboard and mouse input */
-        PollPS2Input();
+        /* Process modern input events (PS/2 keyboard and mouse) */
+        extern void ProcessModernInput(void);
+        ProcessModernInput();
 
         /* Throttle cursor updates to every 500 iterations for better responsiveness */
         cursor_update_counter++;

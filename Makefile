@@ -86,7 +86,12 @@ C_SOURCES = src/main.c \
             src/DialogManager/DialogManagerCore.c \
             src/DialogManager/DialogManagerStubs.c \
             src/FileManager.c \
-            src/FileManagerStubs.c
+            src/FileManagerStubs.c \
+            src/EventManager/ModernInput.c \
+            src/EventManager/EventDispatcher.c \
+            src/EventManager/MouseEvents.c \
+            src/EventManager/KeyboardEvents.c \
+            src/EventManager/SystemEvents.c
 
 ASM_SOURCES = src/multiboot2.S
 
