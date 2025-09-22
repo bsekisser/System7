@@ -686,17 +686,22 @@ void DrawVolumeIcon(void)
     }
 
     /* Draw volume name below icon - centered with white background */
-    /* Calculate text width to center it under icon */
-    int textWidth = StringWidth(pVolumeName);
-    int textHeight = 12;  /* Approximate height of Chicago font */
+    /* Calculate text width - use actual character count * approximate width */
+    int charWidth = 7;  /* Approximate width per character in Chicago 12 */
+    int textLen = pVolumeName[0];  /* Pascal string length is first byte */
+    int textWidth = textLen * charWidth;
+    int textHeight = 14;  /* Height of Chicago font including ascenders/descenders */
+    int padding = 4;  /* Padding around text */
+
+    /* Center text under icon */
     int textX = volumePos.h + 16 - (textWidth / 2);  /* Center under 32px icon */
     if (textX < 0) textX = 0;  /* Don't go off left edge */
     int textY = volumePos.v + 48;
 
-    /* Draw white background rectangle behind text */
+    /* Draw white background rectangle behind text - make it wider */
     Rect textBgRect;
-    SetRect(&textBgRect, textX - 2, textY - textHeight,
-            textX + textWidth + 2, textY + 2);
+    SetRect(&textBgRect, textX - padding, textY - textHeight + 2,
+            textX + textWidth + padding, textY + 3);
 
     /* Fill with white */
     for (int y = textBgRect.top; y < textBgRect.bottom; y++) {
