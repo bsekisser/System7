@@ -647,7 +647,26 @@ void DrawVolumeIcon(void)
     /* Draw the real Mac OS 7 HD icon directly to framebuffer */
     fb_pixels = (uint32_t*)framebuffer;
 
-    /* Draw icon bitmap - 32x32 pixels, 1 bit per pixel */
+    /* First, fill the icon area with white background */
+    for (y = 0; y < 32; y++) {
+        for (x = 0; x < 32; x++) {
+            /* Calculate which byte and bit we're looking at for the mask */
+            byte_index = (y * 4) + (x / 8);  /* 4 bytes per row */
+            bit = 7 - (x % 8);  /* Bits are stored high-bit first */
+
+            /* Check if this pixel is opaque in the mask */
+            if (g_HDIconMask[byte_index] & (1 << bit)) {
+                int fb_x = volumePos.h + x;
+                int fb_y = volumePos.v + y;
+                if (fb_x >= 0 && fb_x < fb_width && fb_y >= 0 && fb_y < fb_height) {
+                    /* Draw white background */
+                    fb_pixels[fb_y * (fb_pitch/4) + fb_x] = pack_color(255, 255, 255);
+                }
+            }
+        }
+    }
+
+    /* Now draw the black icon outline/details on top */
     for (y = 0; y < 32; y++) {
         for (x = 0; x < 32; x++) {
             /* Calculate which byte and bit we're looking at */
@@ -666,8 +685,13 @@ void DrawVolumeIcon(void)
         }
     }
 
-    /* Draw volume name below icon */
-    MoveTo(volumePos.h - 10, volumePos.v + 45);
+    /* Draw volume name below icon - centered */
+    /* Calculate text width to center it under icon */
+    int textWidth = StringWidth(pVolumeName);
+    int textX = volumePos.h + 16 - (textWidth / 2);  /* Center under 32px icon */
+    if (textX < 0) textX = 0;  /* Don't go off left edge */
+
+    MoveTo(textX, volumePos.v + 48);  /* Position text below icon */
     DrawString(pVolumeName);
 }
 
