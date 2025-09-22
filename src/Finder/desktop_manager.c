@@ -712,9 +712,15 @@ void DrawVolumeIcon(void)
         }
     }
 
-    /* Now draw the text */
-    MoveTo(textX, textY);
-    DrawString(pVolumeName);
+    /* Draw the text character by character with consistent spacing */
+    /* This avoids the kerning issues with DrawString */
+    int charX = textX;
+    for (int i = 1; i <= pVolumeName[0]; i++) {  /* Pascal string, skip length byte */
+        /* Draw each character individually */
+        MoveTo(charX, textY);
+        DrawChar(pVolumeName[i]);
+        charX += charWidth;  /* Fixed width advance for each character */
+    }
 }
 
 /*
