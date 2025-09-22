@@ -1795,6 +1795,11 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     /* Initial desktop draw */
     serial_puts("Drawing initial desktop...\n");
     WM_Update();    /* Draw the desktop directly */
+
+    /* Draw the volume and trash icons */
+    extern void DrawVolumeIcon(void);
+    DrawVolumeIcon();
+
     serial_puts("Desktop drawn\n");
 
     /* Track mouse position for movement detection */
@@ -1832,15 +1837,20 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         PollPS2Input();
         /* serial_puts("B"); */  /* Debug: After PollPS2Input */
 
-        /* Redraw if mouse moved */
+        /* Redraw if mouse moved - but only draw cursor, not entire desktop! */
         if (g_mouseState.x != last_mouse_x || g_mouseState.y != last_mouse_y) {
-            serial_printf("MAIN: Movement detected! old=(%d,%d) new=(%d,%d)\n",
-                         last_mouse_x, last_mouse_y, g_mouseState.x, g_mouseState.y);
+            /* Just update cursor position without full redraw */
             last_mouse_x = g_mouseState.x;
             last_mouse_y = g_mouseState.y;
-            /* serial_puts("C"); */  /* Debug: Before WM_Update */
-            WM_Update();  /* Redraw desktop with cursor at new position */
-            /* serial_puts("D"); */  /* Debug: After WM_Update */
+
+            /* Only redraw desktop every N movements to avoid performance issues */
+            static int movement_count = 0;
+            movement_count++;
+            if (movement_count > 20) {  /* Redraw desktop every 20 movements */
+                serial_printf("MAIN: Redrawing after %d movements\n", movement_count);
+                WM_Update();  /* Full redraw */
+                movement_count = 0;
+            }
         }
 
         /* System 7.1 cooperative multitasking */
