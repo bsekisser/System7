@@ -1,13 +1,13 @@
-# System 7.1 - Iteration 2
+# System 7 - Iteration 2
 
 <img width="799" height="663" alt="working2" src="https://github.com/user-attachments/assets/0ca835e6-815f-4135-ab01-d7009c8c0d1a" />
 
 
-An open implementation of Apple Macintosh System 7.1 for modern hardware, bootable via GRUB2/Multiboot2.
+An open implementation of Apple Macintosh System 7 for modern hardware, bootable via GRUB2/Multiboot2.
 
 ## Features
 
-- **Classic Mac OS Interface**: Authentic System 7.1 menu bar with rainbow Apple logo
+- **Classic Mac OS Interface**: Authentic System 7 menu bar with rainbow Apple logo
 - **Desktop Icons**: Authentic Mac OS 7 hard drive icon with proper text rendering
 - **Chicago Bitmap Font**: Pixel-perfect rendering of the classic Mac font
 - **QuickDraw Graphics**: Core 2D graphics system implementation
@@ -90,7 +90,7 @@ iteration2/
 ## Current Status
 
 ✅ Boots successfully via GRUB2
-✅ Displays System 7.1 menu bar with rainbow Apple logo
+✅ Displays System 7 menu bar with rainbow Apple logo
 ✅ Authentic Mac OS 7 HD icon on desktop
 ✅ Chicago font rendering with proper spacing and kerning
 ✅ Desktop icon text with white background
@@ -114,8 +114,8 @@ iteration2/
 ## Legal
 
 This is a reimplementation project for educational and preservation purposes.
-Original System 7.1 and apple trademarks property of Apple Inc.
+Original System 7 and apple trademarks property of Apple Inc.
 
 ## Acknowledgments
 
-Based on reverse engineering and analysis of original System 7.1 resources.
+Based on reverse engineering and analysis of original System 7 resources.
