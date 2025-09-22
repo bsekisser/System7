@@ -596,9 +596,11 @@ Ptr NewPtr(Size byteCount) {
 }
 #endif
 
+/* MemError moved to System71StdLib.c
 OSErr MemError(void) {
     return noErr;
 }
+*/
 
 void BlockMoveData(const void* srcPtr, void* destPtr, Size byteCount) {
     unsigned char* d = destPtr;
@@ -806,16 +808,20 @@ void __assert_fail(const char* expr, const char* file, int line, const char* fun
     /* In production, just ignore asserts */
 }
 
+/* strlen moved to System71StdLib.c
 size_t strlen(const char* s) {
     size_t len = 0;
     while (s[len]) len++;
     return len;
 }
+*/
 
 /* Math library minimal implementations */
+/* abs moved to System71StdLib.c
 int abs(int n) {
     return (n < 0) ? -n : n;
 }
+*/
 
 /* Minimal math functions for -nostdlib build */
 double atan2(double y, double x) {
@@ -853,19 +859,24 @@ long long __divdi3(long long a, long long b) {
 /* Standard library minimal implementations */
 #include <stddef.h>
 
+/* memcpy moved to System71StdLib.c
 void* memcpy(void* dest, const void* src, size_t n) {
     unsigned char* d = dest;
     const unsigned char* s = src;
     while (n--) *d++ = *s++;
     return dest;
 }
+*/
 
+/* memset moved to System71StdLib.c
 void* memset(void* s, int c, size_t n) {
     unsigned char* p = s;
     while (n--) *p++ = (unsigned char)c;
     return s;
 }
+*/
 
+/* memcmp moved to System71StdLib.c
 int memcmp(const void* s1, const void* s2, size_t n) {
     const unsigned char* p1 = (const unsigned char*)s1;
     const unsigned char* p2 = (const unsigned char*)s2;
@@ -876,22 +887,25 @@ int memcmp(const void* s1, const void* s2, size_t n) {
     }
     return 0;
 }
+*/
 
+/* memmove moved to System71StdLib.c
 void* memmove(void* dest, const void* src, size_t n) {
     unsigned char* d = dest;
     const unsigned char* s = src;
 
     if (d < s) {
-        /* Forward copy */
+        // Forward copy
         while (n--) *d++ = *s++;
     } else if (d > s) {
-        /* Backward copy */
+        // Backward copy
         d += n;
         s += n;
         while (n--) *--d = *--s;
     }
     return dest;
 }
+*/
 
 /* Memory allocation now handled by Memory Manager */
 #if 0
@@ -932,6 +946,7 @@ void free(void* ptr) {
 }
 #endif
 
+/* strncpy moved to System71StdLib.c
 char* strncpy(char* dest, const char* src, size_t n) {
     char* d = dest;
     while (n && *src) {
@@ -941,6 +956,7 @@ char* strncpy(char* dest, const char* src, size_t n) {
     while (n--) *d++ = '\0';
     return dest;
 }
+*/
 
 int snprintf(char* str, size_t size, const char* format, ...) {
     /* Minimal implementation - just copy format string */

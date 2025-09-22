@@ -182,21 +182,4 @@ long labs(long n) {
     return n < 0 ? -n : n;
 }
 
-/* Serial output stubs for kernel - defined in main.c */
-extern void serial_putchar(char c);
-
-void serial_puts(const char* str) {
-    while (*str) {
-        if (*str == '\n') {
-            serial_putchar('\r');
-        }
-        serial_putchar(*str++);
-    }
-}
-
-/* Simple printf for serial output */
-void serial_printf(const char* fmt, ...) {
-    /* For now, just output the format string */
-    /* TODO: Implement proper formatting */
-    serial_puts(fmt);
-}
+/* Serial output functions already defined in main.c and sys71_stubs.c */
