@@ -4,9 +4,10 @@
 #include "../include/QuickDraw/QDRegions.h"
 #include "../include/QuickDrawConstants.h"
 #include "../include/ResourceManager.h"
+#include "../include/EventManager/EventTypes.h"  /* Include EventTypes first to define activeFlag */
+#include "../include/EventManager/EventManager.h"
 #include "../include/WindowManager/WindowManager.h"
 #include "../include/MenuManager/MenuManager.h"
-#include "../include/EventManager/EventManager.h"
 #include "../include/DialogManager/DialogManager.h"
 #include "../include/ControlManager/ControlManager.h"
 #include "../include/ListManager/ListManager.h"
@@ -87,6 +88,13 @@ SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
     extern void serial_printf(const char* fmt, ...);
     serial_printf("PostEvent: type=%d msg=0x%08x\n", eventNum, eventMsg);
     return noErr;
+}
+
+/* GenerateSystemEvent - forward declaration to avoid header conflicts */
+void GenerateSystemEvent(short eventType, int message, Point where, short modifiers);
+void GenerateSystemEvent(short eventType, int message, Point where, short modifiers) {
+    /* Generate and post a system event */
+    PostEvent(eventType, message);
 }
 
 /* ExpandMem stubs for SystemInit */

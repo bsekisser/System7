@@ -21,15 +21,95 @@
 #include "EventManager/MouseEvents.h"
 #include "EventManager/EventManager.h"
 #include "EventManager/EventStructs.h"
-#include <math.h>
+/* Simple integer square root for distance calculations */
+static inline int isqrt(int n) {
+    if (n < 0) return -1;
+    if (n < 2) return n;
+    int x = n;
+    int y = (x + 1) / 2;
+    while (y < x) {
+        x = y;
+        y = (x + n / x) / 2;
+    }
+    return x;
+}
+#define sqrt(x) isqrt((int)(x))
 
 
 /*---------------------------------------------------------------------------
  * Global State
  *---------------------------------------------------------------------------*/
 
+/* MouseTrackingState definition */
+struct MouseTrackingState {
+    Point       currentPos;
+    Point       lastPos;
+    Point       startPos;
+    Point       lastClickPos;
+    UInt32      lastClickTime;
+    UInt32      startTime;
+    UInt32      lastMoveTime;
+    UInt16      clickCount;
+    UInt8       buttonState;
+    Boolean     tracking;
+    Boolean     dragging;
+    Boolean     isDragging;
+    Boolean     hasMovedSinceClick;
+    SInt16      dragType;
+    void*       dragData;
+};
+
+/* MultiClickState definition */
+typedef struct MultiClickState {
+    Point       position;
+    Point       clickLocation;
+    UInt32      time;
+    UInt32      clickTime;
+    UInt32      clickTimeThreshold;
+    UInt16      clickCount;
+    UInt16      maxClickCount;
+    SInt16      clickTolerance;
+} MultiClickState;
+
+/* MouseRegion definition */
+typedef struct MouseRegion {
+    struct MouseRegion* next;
+    Rect        bounds;
+    Boolean     trackingEnabled;
+    Boolean     mouseInside;
+    UInt16      regionID;
+    void*       userData;
+} MouseRegion;
+
+/* Mouse button constants */
+enum {
+    kMouseButtonLeft = 0,
+    kMouseButtonRight = 1,
+    kMouseButtonMiddle = 2
+};
+
+/* Drag type constants */
+enum {
+    kDragTypeNone = 0,
+    kDragTypeWindow = 1,
+    kDragTypeIcon = 2,
+    kDragTypeText = 3,
+    kDragTypeFile = 4,
+    kDragTypeContent = 5
+};
+
+/* Mouse constants */
+#define kDragStartThreshold 5      /* pixels */
+#define kDoubleClickTolerance 5    /* pixels */
+#define kMaxClickCount 3           /* triple-click max */
+#define kMouseMoveThreshold 2      /* pixels */
+#define kMaxMouseButtons 3         /* left, right, middle */
+
+/* Callback type for mouse tracking */
+typedef void (*MouseTrackingCallback)(Point mousePos, void* userData);
+
 /* Mouse tracking state */
-static MouseTrackingState g_mouseTracking = {0};
+static struct MouseTrackingState g_mouseTracking = {0};
 static MultiClickState g_multiClick = {0};
 static Boolean g_mouseInitialized = false;
 
@@ -315,15 +395,7 @@ SInt16 ProcessRawMouseEvent(SInt16 x, SInt16 y, SInt16 buttonMask,
     return eventsGenerated;
 }
 
-/**
- * Get current mouse position
- */
-void GetMouse(Point* mouseLoc)
-{
-    if (mouseLoc) {
-        *mouseLoc = g_mouseTracking.currentPos;
-    }
-}
+/* GetMouse is implemented in PS2Controller.c */
 
 /**
  * Get mouse position in local coordinates
@@ -335,13 +407,7 @@ void GetLocalMouse(WindowPtr window, Point* mouseLoc)
     }
 }
 
-/**
- * Check if mouse button is currently pressed
- */
-Boolean Button(void)
-{
-    return (g_currentButtonState & 1) != 0;
-}
+/* Button is implemented in PS2Controller.c */
 
 /**
  * Check if specific mouse button is pressed
@@ -356,13 +422,7 @@ Boolean ButtonState(SInt16 buttonID)
     return (g_currentButtonState & (1 << (mappedButton - 1))) != 0;
 }
 
-/**
- * Check if mouse is still down
- */
-Boolean StillDown(void)
-{
-    return Button() && (g_currentButtonState == g_lastButtonState);
-}
+/* StillDown is implemented in control_stubs.c */
 
 /**
  * Wait for mouse button release
@@ -374,7 +434,7 @@ Boolean WaitMouseUp(void)
         #ifdef PLATFORM_REMOVED_WIN32
         Sleep(1);
         #else
-        usleep(1000);
+        /* Brief delay - would use usleep(1000) in user space */
         #endif
     }
     return true;
@@ -534,15 +594,11 @@ Point TrackMouseInRect(const Rect* constraintRect, MouseTrackingCallback callbac
 
         /* Call callback if provided */
         if (callback) {
-            callback(currentPos, Button(), userData);
+            callback(currentPos, userData);
         }
 
-        /* Brief sleep */
-        #ifdef PLATFORM_REMOVED_WIN32
-        Sleep(1);
-        #else
-        usleep(1000);
-        #endif
+        /* Brief sleep - just yield CPU */
+        /* usleep not available in kernel context */
     }
 
     return currentPos;
@@ -759,25 +815,9 @@ EventRecord GenerateMouseMovedEvent(Point position, SInt16 modifiers)
  * Coordinate Conversion Utilities
  *---------------------------------------------------------------------------*/
 
-/**
- * Convert global to local coordinates
- */
-Point GlobalToLocal(WindowPtr window, Point globalPt)
-{
-    /* TODO: Implement proper window coordinate conversion */
-    /* For now, just return the global point */
-    return globalPt;
-}
+/* GlobalToLocal is implemented in QuickDraw/Coordinates.c */
 
-/**
- * Convert local to global coordinates
- */
-Point LocalToGlobal(WindowPtr window, Point localPt)
-{
-    /* TODO: Implement proper window coordinate conversion */
-    /* For now, just return the local point */
-    return localPt;
-}
+/* LocalToGlobal is implemented in QuickDraw/Coordinates.c */
 
 /*---------------------------------------------------------------------------
  * State Access Functions
@@ -796,6 +836,6 @@ MouseTrackingState* GetMouseTrackingState(void)
  */
 void ResetMouseTrackingState(void)
 {
-    memset(&g_mouseTracking, 0, sizeof(MouseTrackingState));
+    memset(&g_mouseTracking, 0, sizeof(struct MouseTrackingState));
     ResetClickSequence();
 }

@@ -26,6 +26,7 @@
 #include "SystemTypes.h"
 
 #include "SystemTypes.h"
+#include "EventManager/EventTypes.h"  /* Include before WindowTypes.h to avoid activeFlag conflict */
 #include "WindowManager/WindowTypes.h"
 
 #ifdef __cplusplus

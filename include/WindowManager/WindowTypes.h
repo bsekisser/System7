@@ -53,6 +53,9 @@ typedef struct WindowManagerState WindowManagerState;
 /* ============================================================================
  * Event Modifier Flags - Missing from SystemTypes.h
  * ============================================================================ */
+/* These are now defined in EventTypes.h as an enum, so only define as macros if not already defined */
+#ifndef EVENT_TYPES_H
+/* Only define these if EventTypes.h hasn't been included */
 #ifndef activeFlag
 #define activeFlag      0x0001   /* Window is active */
 #define btnState        0x0080   /* Mouse button state */
@@ -61,6 +64,7 @@ typedef struct WindowManagerState WindowManagerState;
 #define alphaLock       0x0400   /* Caps lock on */
 #define optionKey       0x0800   /* Option key down */
 #endif
+#endif /* EVENT_TYPES_H */
 
 /* ============================================================================
  * Geometry Types

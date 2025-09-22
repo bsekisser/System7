@@ -25,6 +25,14 @@
 extern "C" {
 #endif
 
+/* Forward type declarations to fix compilation */
+typedef struct AppStateInfo AppStateInfo;
+typedef void (*DiskEventCallback)(void*);
+typedef void (*SystemEventCallback)(void*);
+typedef void (*UpdateEventCallback)(void*);
+typedef void (*ActivateEventCallback)(void*);
+typedef void (*StateChangeCallback)(void*);
+
 /* System event priority levels */
 
 /* Update event types */
@@ -462,3 +470,10 @@ void ResetSystemEventState(void);
 #endif
 
 #endif /* SYSTEM_EVENTS_H */
+/* Missing type stubs */
+typedef struct AppStateInfo AppStateInfo;
+typedef void (*DiskEventCallback)(void*);
+typedef void (*SystemEventCallback)(void*);
+typedef void (*UpdateEventCallback)(void*);
+typedef void (*ActivateEventCallback)(void*);
+typedef void (*StateChangeCallback)(void*);

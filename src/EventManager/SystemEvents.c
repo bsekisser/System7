@@ -1,7 +1,6 @@
 /* #include "SystemTypes.h" */
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 /**
  * @file SystemEvents.c
  * @brief System Event Management Implementation for System 7.1
@@ -27,9 +26,93 @@
  * Global State
  *---------------------------------------------------------------------------*/
 
+/* System state constants */
+enum {
+    kSystemStateForeground = 1,
+    kSystemStateBackground = 2,
+    kSystemStateActive = 4,
+    kSystemStateInactive = 8,
+    kSystemStateVisible = 16,
+    kSystemStateHidden = 32,
+    kSystemStateSuspended = 64
+};
+
+/* Event priority constants */
+enum {
+    kSystemEventPriorityLow = 0,
+    kSystemEventPriorityNormal = 1,
+    kSystemEventPriorityHigh = 2,
+    kSystemEventPriorityImmediate = 3,
+    kSystemEventPriorityCritical = 4
+};
+
+/* OS Event subtypes */
+enum {
+    kOSEventSuspend = 1,
+    kOSEventResume = 2,
+    kOSEventMouseMoved = 3,
+    kOSEventClipboardChange = 4,
+    kOSEventMultiFinder = 5
+};
+
+/* Event window constants */
+enum {
+    kActivateEventWindow = 1,
+    kUpdateEventWindow = 2
+};
+
+/* Disk event constants */
+enum {
+    kDiskEventInserted = 1,
+    kDiskEventEjected = 2,
+    kDiskEventMounted = 3,
+    kDiskEventUnmounted = 4
+};
+
+/* DiskEventInfo definition */
+typedef struct DiskEventInfo {
+    SInt16 eventType;
+    SInt16 driveNumber;
+    UInt32 volumeRefNum;
+    SInt16 refNum;
+    UInt32 eventTime;
+    Str255 volumeName;
+} DiskEventInfo;
+
+/* AppStateInfo definition */
+struct AppStateInfo {
+    Boolean suspended;
+    Boolean active;
+    UInt32 suspendTime;
+    UInt32 resumeTime;
+    UInt32 currentState;
+    UInt32 previousState;
+    UInt32 stateChangeTime;
+};
+
+/* UpdateRegion definition */
+typedef struct UpdateRegion {
+    WindowPtr window;
+    RgnHandle updateRgn;
+    SInt16 updateType;
+    SInt16 priority;
+    UInt32 updateTime;
+    struct UpdateRegion* next;
+} UpdateRegion;
+
+/* SystemEventContext definition */
+typedef struct SystemEventContext {
+    SInt16 eventSubtype;
+    void* eventData;
+    WindowPtr targetWindow;
+    UInt32 timestamp;
+    EventRecord baseEvent;
+    Boolean consumed;
+} SystemEventContext;
+
 /* System event state */
 static Boolean g_systemEventsInitialized = false;
-static AppStateInfo g_appState = {0};
+static struct AppStateInfo g_appState = {0};
 static WindowPtr g_frontWindow = NULL;
 
 /* Update regions */
@@ -58,10 +141,23 @@ extern UInt32 TickCount(void);
  * Private Function Declarations
  *---------------------------------------------------------------------------*/
 
-static void ProcessPendingUpdates(void);
 static void NotifyCallbacks(SInt16 eventType, SystemEventContext* context);
+EventRecord GenerateOSEvent(SInt16 eventSubtype, SInt32 message);
 static UpdateRegion* FindUpdateRegion(WindowPtr window);
 static void RemoveUpdateRegion(UpdateRegion* region);
+
+/* ProcessPendingUpdates implementation */
+static void ProcessPendingUpdates(void)
+{
+    /* Process any pending update regions */
+    UpdateRegion* region = g_updateRegions;
+    while (region) {
+        /* Generate update event for each region */
+        Point where = {0, 0};
+        GenerateSystemEvent(updateEvt, (SInt32)region->window, where, 0);
+        region = region->next;
+    }
+}
 
 /*---------------------------------------------------------------------------
  * Core System Event API
@@ -137,8 +233,8 @@ void ProcessSystemEvents(void)
 /**
  * Generate system event
  */
-SInt16 GenerateSystemEvent(SInt16 eventType, SInt16 eventSubtype,
-                           void* eventData, WindowPtr targetWindow)
+SInt16 GenerateSystemEventEx(SInt16 eventType, SInt16 eventSubtype,
+                             void* eventData, WindowPtr targetWindow)
 {
     if (!g_systemEventsInitialized) {
         return noErr;
@@ -176,7 +272,7 @@ SInt16 GenerateSystemEvent(SInt16 eventType, SInt16 eventSubtype,
             break;
     }
 
-    context.baseEvent = &baseEvent;
+    context.baseEvent = baseEvent;
 
     /* Notify callbacks */
     NotifyCallbacks(eventType, &context);
@@ -219,7 +315,7 @@ SInt16 RequestWindowUpdate(WindowPtr window, RgnHandle updateRgn,
         /* Create new update region */
         region = (UpdateRegion*)malloc(sizeof(UpdateRegion));
         if (!region) {
-            return noMemErr;
+            return -1; /* Memory error */
         }
 
         memset(region, 0, sizeof(UpdateRegion));
@@ -236,7 +332,8 @@ SInt16 RequestWindowUpdate(WindowPtr window, RgnHandle updateRgn,
     /* For now, just mark that window needs update */
 
     /* Generate update event */
-    GenerateSystemEvent(updateEvt, updateType, NULL, window);
+    Point where = {0, 0};
+    GenerateSystemEvent(updateEvt, (SInt32)window, where, 0);
 
     return noErr;
 }
@@ -565,7 +662,7 @@ SInt16 ProcessDiskInsertion(SInt16 driveNumber, const char* volumeName)
 
     /* Notify callback */
     if (g_diskEventCallback) {
-        g_diskEventCallback(&diskInfo, g_diskEventUserData);
+        g_diskEventCallback(&diskInfo);
     }
 
     /* Generate disk event */
@@ -588,7 +685,7 @@ SInt16 ProcessDiskEjection(SInt16 driveNumber)
 
     /* Notify callback */
     if (g_diskEventCallback) {
-        g_diskEventCallback(&diskInfo, g_diskEventUserData);
+        g_diskEventCallback(&diskInfo);
     }
 
     /* Generate disk event */
@@ -674,7 +771,7 @@ SInt16 ProcessMultiFinderEvent(void* eventData)
  */
 SInt16 ProcessClipboardChangeEvent(void)
 {
-    EventRecord event = GenerateOSEvent(kOSEventClipboard, 0);
+    EventRecord event = GenerateOSEvent(kOSEventClipboardChange, 0);
     PostEvent(event.what, event.message);
 
     return noErr;
@@ -730,10 +827,8 @@ static void NotifyCallbacks(SInt16 eventType, SystemEventContext* context)
     EventCallback* callback = g_eventCallbacks;
     while (callback) {
         if (callback->eventType == eventType && callback->callback) {
-            Boolean consumed = callback->callback(context, callback->userData);
-            if (consumed) {
-                context->consumed = true;
-            }
+            callback->callback(callback->userData);
+            /* Callbacks don't return consumed status, so we can't set context->consumed */
         }
         callback = callback->next;
     }

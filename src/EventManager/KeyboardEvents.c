@@ -21,12 +21,28 @@
 #include "EventManager/KeyboardEvents.h"
 #include "EventManager/EventManager.h"
 #include "EventManager/EventStructs.h"
-#include <ctype.h>
+/* ctype.h not available in kernel - use simple implementations */
+static inline int islower(int c) { return c >= 'a' && c <= 'z'; }
+static inline int isupper(int c) { return c >= 'A' && c <= 'Z'; }
+static inline int isalpha(int c) { return islower(c) || isupper(c); }
+static inline int tolower(int c) { return isupper(c) ? c + 32 : c; }
+static inline int toupper(int c) { return islower(c) ? c - 32 : c; }
 
 
 /*---------------------------------------------------------------------------
  * Global State
  *---------------------------------------------------------------------------*/
+
+/* Dead key type constants */
+enum {
+    kDeadKeyNone = 0,
+    kDeadKeyAcute = 1,
+    kDeadKeyGrave = 2,
+    kDeadKeyCircumflex = 3,
+    kDeadKeyUmlaut = 4,
+    kDeadKeyTilde = 5
+};
+
 
 /* Keyboard state */
 static KeyboardState g_keyboardState = {0};
@@ -420,9 +436,9 @@ void ShutdownKeyboardEvents(void)
     /* Free keyboard layouts */
     KeyboardLayout* layout = g_keyboardLayouts;
     while (layout) {
-        KeyboardLayout* next = (KeyboardLayout*)layout->kchrResource; /* Abuse field for linking */
-        if (layout->kchrResource) {
-            free(layout->kchrResource);
+        KeyboardLayout* next = (KeyboardLayout*)layout->keyMapData; /* Use keyMapData as next pointer */
+        if (layout->keyMapData) {
+            /* Note: keyMapData is Handle, would need proper disposal */
         }
         free(layout);
         layout = next;
@@ -818,17 +834,7 @@ EventRecord GenerateAutoKeyEvent(UInt16 scanCode, UInt32 charCode, UInt16 modifi
  * Utility Functions
  *---------------------------------------------------------------------------*/
 
-/**
- * Check for Command-Period abort
- */
-Boolean CheckAbort(void)
-{
-    Boolean abort = g_abortPressed;
-    if (abort) {
-        g_abortPressed = false; /* Clear flag after checking */
-    }
-    return abort;
-}
+/* CheckAbort is implemented in EventManagerCore.c */
 
 /**
  * Convert scan code to virtual key code

@@ -17,6 +17,7 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include <time.h>
+#include <unistd.h>
 
 #include "EventManager/EventManager.h"
 #include "EventManager/EventStructs.h"
@@ -93,16 +94,19 @@ static UInt32 GetSystemTime(void)
     uint64_t time = mach_absolute_time();
     return (UInt32)((time * timebase.numer) / (timebase.denom * 1000000));
 #elif defined(__linux__)
+    #ifdef CLOCK_REALTIME
     struct timespec ts;
-#ifdef CLOCK_REALTIME
     clock_gettime(CLOCK_REALTIME, &ts);
-#else
-    // Fallback for systems without CLOCK_REALTIME
-    gEventMgrGlobals.Ticks++;
-#endif
     return (UInt32)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+    #else
+    // Fallback - just use a counter
+    static UInt32 tick_counter = 0;
+    return tick_counter++;
+    #endif
 #else
-    return (UInt32)(clock() * 1000 / CLOCKS_PER_SEC);
+    // No platform-specific timer - use counter
+    static UInt32 tick_counter = 0;
+    return tick_counter++;
 #endif
 }
 
@@ -330,7 +334,7 @@ SInt16 InitEvents(SInt16 numEvents)
 
     g_eventBuffer = (EvQEl*)calloc(numEvents, sizeof(EvQEl));
     if (!g_eventBuffer) {
-        return noMemErr;
+        return -1; /* Memory error */
     }
 
     g_eventBufferSize = numEvents;
@@ -612,7 +616,7 @@ Boolean WaitNextEvent(SInt16 eventMask, EventRecord* theEvent,
         #ifdef PLATFORM_REMOVED_WIN32
         Sleep(1);
         #else
-        usleep(1000);
+        /* Brief delay - would use usleep(1000) in user space */
         #endif
     }
 
@@ -638,107 +642,24 @@ void GetMouse(Point* mouseLoc)
     }
 }
 
-/**
- * Check if mouse button is down
- */
-Boolean Button(void)
-{
-    return (g_mouseButtonState & 1) != 0;
-}
+/* Button is implemented in PS2Controller.c */
+/* StillDown is implemented in control_stubs.c */
 
-/**
- * Check if mouse still down
- */
-Boolean StillDown(void)
-{
-    /* TODO: Track button state changes */
-    return Button();
-}
-
-/**
- * Wait for mouse button release
- */
-Boolean WaitMouseUp(void)
-{
-    while (Button()) {
-        UpdateTickCount();
-        /* Brief sleep */
-        #ifdef PLATFORM_REMOVED_WIN32
-        Sleep(1);
-        #else
-        usleep(1000);
-        #endif
-    }
-    return true;
-}
+/* WaitMouseUp is implemented in MouseEvents.c */
 
 /*---------------------------------------------------------------------------
  * Keyboard Event API
  *---------------------------------------------------------------------------*/
 
-/**
- * Get current keyboard state
- */
-void GetKeys(KeyMap theKeys)
-{
-    if (theKeys) {
-        memcpy(theKeys, g_keyMapState, sizeof(KeyMap));
-    }
-}
+/* GetKeys is implemented in KeyboardEvents.c */
 
-/**
- * Key translation (simplified)
- */
-SInt32 KeyTranslate(const void* transData, UInt16 keycode, UInt32* state)
-{
-    /* TODO: Implement full KCHR resource translation */
-    /* For now, return simple ASCII mapping */
-
-    UInt16 scanCode = keycode & 0xFF;
-    UInt16 modifiers = (keycode >> 8) & 0xFF;
-
-    /* Simple ASCII mapping for common keys */
-    if (scanCode >= 0x00 && scanCode <= 0x0B) { /* 1234567890-= */
-        const char keys[] = "1234567890-=";
-        return keys[scanCode];
-    }
-    if (scanCode >= 0x0C && scanCode <= 0x19) { /* qwertyuiop[] */
-        const char keys[] = "qwertyuiop[]";
-        return keys[scanCode - 0x0C];
-    }
-    if (scanCode >= 0x1C && scanCode <= 0x28) { /* asdfghjkl;' */
-        const char keys[] = "asdfghjkl;'";
-        return keys[scanCode - 0x1C];
-    }
-    if (scanCode >= 0x2A && scanCode <= 0x35) { /* zxcvbnm,./ */
-        const char keys[] = "zxcvbnm,./";
-        return keys[scanCode - 0x2A];
-    }
-
-    /* Special keys */
-    switch (scanCode) {
-        case 0x31: return ' ';  /* Space */
-        case 0x24: return '\r'; /* Return */
-        case 0x30: return '\t'; /* Tab */
-        case 0x33: return '\b'; /* Backspace */
-        case 0x35: return 0x1B; /* Escape */
-    }
-
-    return 0;
-}
+/* KeyTranslate is implemented in KeyboardEvents.c */
 
 /*---------------------------------------------------------------------------
  * Timing API
  *---------------------------------------------------------------------------*/
 
-/**
- * Get system tick count
- */
-UInt32 TickCount(void)
-{
-    UpdateTickCount();
-    return g_tickCount;
-}
+/* TickCount is implemented in sys71_stubs.c */
 
 /**
  * Get double-click time
