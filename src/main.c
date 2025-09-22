@@ -25,6 +25,7 @@ extern void DoMenuCommand(short menuID, short item);
 #include "../include/TextEdit/TextEdit.h"
 #include "../include/FontManager/FontManager.h"
 #include "../include/PS2Controller.h"
+#include "../include/FS/vfs.h"
 
 /* Simple 5x7 font for basic ASCII characters */
 static const uint8_t font5x7[][5] = {
@@ -1567,6 +1568,17 @@ void init_system71(void) {
     /* Menu Manager */
     InitMenus();
     serial_puts("  Menu Manager initialized\n");
+
+    /* Virtual File System */
+    VFS_Init();
+    serial_puts("  Virtual File System initialized\n");
+
+    /* Mount boot volume */
+    if (VFS_MountBootVolume("Macintosh HD")) {
+        serial_puts("  Boot volume 'Macintosh HD' mounted\n");
+    } else {
+        serial_puts("  WARNING: Failed to mount boot volume\n");
+    }
 
     /* Create standard menus */
     static unsigned char appleMenuTitle[] = {1, 0x14};  /* Pascal string: Apple symbol */

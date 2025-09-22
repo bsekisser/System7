@@ -59,7 +59,13 @@ C_SOURCES = src/main.c \
             src/ControlManager/ControlManagerCore.c \
             src/ControlManager/ControlTracking.c \
             src/control_stubs.c \
-            src/patterns_rsrc.c
+            src/patterns_rsrc.c \
+            src/FS/hfs_diskio.c \
+            src/FS/hfs_volume.c \
+            src/FS/hfs_btree.c \
+            src/FS/hfs_catalog.c \
+            src/FS/hfs_file.c \
+            src/FS/vfs.c
 
 ASM_SOURCES = src/multiboot2.S
 
@@ -234,6 +240,10 @@ $(OBJ_DIR)/%.o: src/DeviceManager/%.c
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/%.o: src/Finder/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/FS/%.c
 	@echo "CC $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
 

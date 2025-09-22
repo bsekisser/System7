@@ -17,6 +17,7 @@
 
 // #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
+#include <string.h>
 
 #include "Finder/finder.h"
 #include "Finder/finder_types.h"
@@ -25,6 +26,7 @@
 #include "MemoryMgr/memory_manager_types.h"
 #include "ResourceManager.h"
 #include "PatternMgr/pattern_manager.h"
+#include "FS/vfs.h"
 
 
 /* Desktop Database Constants */
@@ -45,6 +47,8 @@ extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 static IconPosition *gDesktopIcons = nil;   /* Array of desktop icon positions */
 static short gDesktopIconCount = 0;         /* Number of icons on desktop */
 static Boolean gDesktopNeedsCleanup = false; /* Desktop needs reorganization */
+static VRefNum gBootVolumeRef = 0;          /* Boot volume reference */
+static Boolean gVolumeIconVisible = false;   /* Is volume icon shown on desktop */
 
 /* Forward Declarations */
 static OSErr LoadDesktopDatabase(short vRefNum);
@@ -56,6 +60,7 @@ static OSErr ScanDirectoryForDesktopEntries(short vRefNum, long dirID, short dat
 
 /* Public function to draw the desktop */
 void DrawDesktop(void);
+void DrawVolumeIcon(void);
 
 /*
  * CleanUpDesktop - Arranges all desktop icons in a grid pattern
@@ -141,6 +146,11 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
             /* For now, draw a simple rect as placeholder */
             FrameRect(&iconRect);
         }
+    }
+
+    /* Draw volume icon if visible */
+    if (gVolumeIconVisible) {
+        DrawVolumeIcon();
     }
 
     SetPort(savePort);
@@ -567,3 +577,126 @@ static OSErr ScanDirectoryForDesktopEntries(short vRefNum, long dirID, short dat
  *   "implementation_status": "desktop_complete"
  * }
  */
+
+/*
+ * InitializeVolumeIcon - Initialize boot volume icon on desktop
+ * Integrates with VFS to show Macintosh HD
+ */
+OSErr InitializeVolumeIcon(void)
+{
+    OSErr err = noErr;
+    VolumeControlBlock vcb;
+
+    /* Get boot volume reference */
+    gBootVolumeRef = VFS_GetBootVRef();
+
+    /* Get volume info */
+    if (!VFS_GetVolumeInfo(gBootVolumeRef, &vcb)) {
+        return ioErr;
+    }
+
+    /* Ensure desktop icons array is allocated */
+    if (gDesktopIcons == nil) {
+        err = AllocateDesktopIcons();
+        if (err != noErr) return err;
+    }
+
+    /* Add volume icon to desktop */
+    if (gDesktopIconCount < kMaxDesktopIcons) {
+        /* Position at top-right of desktop */
+        gDesktopIcons[gDesktopIconCount].iconID = 0xFFFFFFFF; /* Special ID for volume */
+        gDesktopIcons[gDesktopIconCount].position.h = fb_width - 100;
+        gDesktopIcons[gDesktopIconCount].position.v = 60;
+        /* Volume doesn't have a fileSpec - it uses special ID */
+
+        gDesktopIconCount++;
+        gVolumeIconVisible = true;
+    }
+
+    return noErr;
+}
+
+/*
+ * DrawVolumeIcon - Draw the boot volume icon on desktop
+ */
+void DrawVolumeIcon(void)
+{
+    Rect iconRect;
+    Point volumePos = {0, 0};
+    VolumeControlBlock vcb;
+    Str255 pVolumeName;
+
+    if (!gVolumeIconVisible) return;
+
+    /* Find volume icon in desktop array */
+    for (int i = 0; i < gDesktopIconCount; i++) {
+        if (gDesktopIcons[i].iconID == 0xFFFFFFFF) {
+            volumePos = gDesktopIcons[i].position;
+            break;
+        }
+    }
+
+    /* Get volume name */
+    if (VFS_GetVolumeInfo(gBootVolumeRef, &vcb)) {
+        /* Convert C string to Pascal string */
+        size_t len = strlen(vcb.name);
+        if (len > 255) len = 255;
+        pVolumeName[0] = len;
+        memcpy(&pVolumeName[1], vcb.name, len);
+    } else {
+        /* Default name */
+        pVolumeName[0] = 12;
+        memcpy(&pVolumeName[1], "Macintosh HD", 12);
+    }
+
+    /* Draw disk icon (simplified for now) */
+    SetRect(&iconRect, volumePos.h, volumePos.v, volumePos.h + 32, volumePos.v + 32);
+
+    /* Draw disk shape */
+    PenNormal();
+    FrameRect(&iconRect);
+
+    /* Draw horizontal line for disk slot */
+    MoveTo(volumePos.h + 4, volumePos.v + 26);
+    LineTo(volumePos.h + 28, volumePos.v + 26);
+
+    /* Draw volume name below icon */
+    MoveTo(volumePos.h - 10, volumePos.v + 45);
+    DrawString(pVolumeName);
+}
+
+/*
+ * HandleVolumeDoubleClick - Open volume window on double-click
+ */
+OSErr HandleVolumeDoubleClick(Point clickPoint)
+{
+    Rect iconRect;
+    WindowPtr volumeWindow;
+    VolumeControlBlock vcb;
+
+    /* Check if click is on volume icon */
+    for (int i = 0; i < gDesktopIconCount; i++) {
+        if (gDesktopIcons[i].iconID == 0xFFFFFFFF) {
+            SetRect(&iconRect,
+                    gDesktopIcons[i].position.h,
+                    gDesktopIcons[i].position.v,
+                    gDesktopIcons[i].position.h + 32,
+                    gDesktopIcons[i].position.v + 32);
+
+            if (PtInRect(clickPoint, &iconRect)) {
+                /* Get volume info */
+                if (!VFS_GetVolumeInfo(gBootVolumeRef, &vcb)) {
+                    return ioErr;
+                }
+
+                /* Open root directory window */
+                /* TODO: Create folder window for root directory */
+                serial_printf("Opening volume: %s (root ID=%d)\n", vcb.name, vcb.rootID);
+
+                return noErr;
+            }
+        }
+    }
+
+    return fnfErr;
+}
