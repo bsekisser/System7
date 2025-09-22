@@ -699,13 +699,30 @@ void DrawVolumeIcon(void)
         }
     }
 
-    /* Draw volume name below icon - centered */
+    /* Draw volume name below icon - centered with white background */
     /* Calculate text width to center it under icon */
     int textWidth = StringWidth(pVolumeName);
+    int textHeight = 12;  /* Approximate height of Chicago font */
     int textX = volumePos.h + 16 - (textWidth / 2);  /* Center under 32px icon */
     if (textX < 0) textX = 0;  /* Don't go off left edge */
+    int textY = volumePos.v + 48;
 
-    MoveTo(textX, volumePos.v + 48);  /* Position text below icon */
+    /* Draw white background rectangle behind text */
+    Rect textBgRect;
+    SetRect(&textBgRect, textX - 2, textY - textHeight,
+            textX + textWidth + 2, textY + 2);
+
+    /* Fill with white */
+    for (int y = textBgRect.top; y < textBgRect.bottom; y++) {
+        for (int x = textBgRect.left; x < textBgRect.right; x++) {
+            if (x >= 0 && x < fb_width && y >= 0 && y < fb_height) {
+                fb_pixels[y * (fb_pitch/4) + x] = pack_color(255, 255, 255);
+            }
+        }
+    }
+
+    /* Now draw the text */
+    MoveTo(textX, textY);
     DrawString(pVolumeName);
 }
 
