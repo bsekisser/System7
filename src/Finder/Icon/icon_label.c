@@ -7,21 +7,25 @@
 #include <string.h>
 #include <stdint.h>
 
-/* Import Chicago font */
-extern const uint8_t chicago_bitmaps[][13];
+/* Import Chicago font - using the chicago_font_data structures */
+extern const uint8_t chicago_bitmap[];
 extern const uint8_t chicago_widths[];
-extern const uint8_t chicago_bit_widths[];
+#include "chicago_font.h"  /* For ChicagoCharInfo */
 
-/* Import framebuffer */
-extern uint32_t* g_vram;
-extern int g_screenWidth;
+/* Import framebuffer - using proper names */
+extern void* framebuffer;
+extern uint32_t fb_width;
+extern uint32_t fb_height;
+extern uint32_t fb_pitch;
+extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 
 /* Draw rectangle */
 static void FillRect(int left, int top, int right, int bottom, uint32_t color) {
-    for (int y = top; y < bottom && y < 600; y++) {
-        for (int x = left; x < right && x < 800; x++) {
+    uint32_t* fb = (uint32_t*)framebuffer;
+    for (int y = top; y < bottom && y < fb_height; y++) {
+        for (int x = left; x < right && x < fb_width; x++) {
             if (x >= 0 && y >= 0) {
-                g_vram[y * g_screenWidth + x] = color;
+                fb[y * (fb_pitch/4) + x] = color;
             }
         }
     }
@@ -31,15 +35,20 @@ static void FillRect(int left, int top, int right, int bottom, uint32_t color) {
 static void DrawChar(char ch, int x, int y, uint32_t color) {
     if (ch < 32 || ch > 126) return;
 
-    const uint8_t* bitmap = chicago_bitmaps[ch - 32];
-    int bit_width = chicago_bit_widths[ch - 32];
+    uint32_t* fb = (uint32_t*)framebuffer;
+    ChicagoCharInfo info = chicago_ascii[ch - 32];
 
-    for (int row = 0; row < 13; row++) {
-        uint16_t bits = (bitmap[row] << 8);
-        for (int col = 0; col < bit_width; col++) {
-            if (bits & (0x8000 >> col)) {
-                if (x + col < 800 && y + row < 600) {
-                    g_vram[(y + row) * g_screenWidth + (x + col)] = color;
+    for (int row = 0; row < 16; row++) {  /* Chicago font height */
+        const uint8_t* strike_row = chicago_bitmap + (row * 140);  /* 140 bytes per row */
+
+        for (int col = 0; col < info.bit_width; col++) {
+            int bit_position = info.bit_start + col;
+            int byte_index = bit_position >> 3;
+            int bit_offset = 7 - (bit_position & 7);
+
+            if (strike_row[byte_index] & (1 << bit_offset)) {
+                if (x + col < fb_width && y + row < fb_height) {
+                    fb[(y + row) * (fb_pitch/4) + (x + col)] = color;
                 }
             }
         }
@@ -54,13 +63,14 @@ void IconLabel_Measure(const char* name, int* outWidth, int* outHeight) {
     for (int i = 0; i < len; i++) {
         char ch = name[i];
         if (ch >= 32 && ch <= 126) {
-            width += chicago_bit_widths[ch - 32] + 1;  /* bit width + 1 for spacing */
+            ChicagoCharInfo info = chicago_ascii[ch - 32];
+            width += info.bit_width + 1;  /* bit width + 1 for spacing */
             if (ch == ' ') width += 3;  /* Extra space width (perfected value) */
         }
     }
 
     *outWidth = width;
-    *outHeight = 13;  /* Chicago font height */
+    *outHeight = 16;  /* Chicago font height */
 }
 
 /* Draw label with white background */
@@ -86,8 +96,9 @@ void IconLabel_Draw(const char* name, int cx, int topY, bool selected) {
     for (int i = 0; i < len; i++) {
         char ch = name[i];
         if (ch >= 32 && ch <= 126) {
+            ChicagoCharInfo info = chicago_ascii[ch - 32];
             DrawChar(ch, currentX, topY - textHeight + 3, fgColor);
-            currentX += chicago_bit_widths[ch - 32] + 1;
+            currentX += info.bit_width + 1;
             if (ch == ' ') currentX += 3;  /* Extra space between words */
         }
     }

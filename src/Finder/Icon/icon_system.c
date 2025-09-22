@@ -4,6 +4,7 @@
 
 #include "Finder/Icon/icon_types.h"
 #include <stdint.h>
+#include <stddef.h>
 
 /* Import existing HD icon data from hd_icon.c */
 extern const uint8_t g_HDIcon[128];

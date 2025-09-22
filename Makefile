@@ -67,7 +67,12 @@ C_SOURCES = src/main.c \
             src/FS/hfs_file.c \
             src/FS/vfs.c \
             src/MemoryMgr/MemoryManager.c \
-            src/Resources/Icons/hd_icon.c
+            src/Resources/Icons/hd_icon.c \
+            src/Finder/Icon/icon_system.c \
+            src/Finder/Icon/icon_resolver.c \
+            src/Finder/Icon/icon_resources.c \
+            src/Finder/Icon/icon_draw.c \
+            src/Finder/Icon/icon_label.c
 
 ASM_SOURCES = src/multiboot2.S
 
@@ -290,6 +295,10 @@ $(OBJ_DIR)/%.o: src/Resources/%.c
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/%.o: src/Resources/Icons/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/Finder/Icon/%.c
 	@echo "CC $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
 
