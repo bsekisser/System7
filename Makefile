@@ -84,7 +84,9 @@ C_SOURCES = src/main.c \
             src/DeskManager/DeskManagerCore.c \
             src/DeskManager/DeskManagerStubs.c \
             src/DialogManager/DialogManagerCore.c \
-            src/DialogManager/DialogManagerStubs.c
+            src/DialogManager/DialogManagerStubs.c \
+            src/FileManager.c \
+            src/FileManagerStubs.c
 
 ASM_SOURCES = src/multiboot2.S
 

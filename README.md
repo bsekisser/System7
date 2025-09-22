@@ -64,6 +64,8 @@ iteration2/
 │   ├── DeskManager/       # Desk accessories management
 │   ├── DialogManager/     # Dialog system implementation
 │   ├── ControlManager/    # Control management system
+│   ├── FileManager.c      # HFS File Manager implementation
+│   ├── FS/                # File system support (VFS, HFS)
 │   ├── ListManager/       # List management
 │   ├── TextEdit/          # Text editing system
 │   ├── PatternManager/    # Pattern resources
@@ -113,6 +115,7 @@ iteration2/
 ✅ Control Manager with tracking and drawing
 ✅ List Manager foundation
 ✅ TextEdit system ready
+✅ File Manager with full HFS support integrated
 
 ## Future Development
 
