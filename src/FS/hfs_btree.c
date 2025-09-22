@@ -95,11 +95,9 @@ bool HFS_BT_Init(HFS_BTree* bt, HFS_Volume* vol, HFS_BTreeType type) {
     bt->nodeSize    = be16_read(&header->nodeSize);
     bt->totalNodes  = be32_read(&header->totalNodes);
 
-    /* Allocate node buffer */
-    bt->nodeBuffer = malloc(bt->nodeSize);
-    if (!bt->nodeBuffer) {
-        return false;
-    }
+    /* Skip node buffer allocation for now - catalog not fully implemented */
+    /* bt->nodeBuffer = malloc(bt->nodeSize); */
+    bt->nodeBuffer = NULL;
 
     serial_printf("HFS BTree: Initialized %s tree (nodeSize=%u, root=%u, depth=%u)\n",
                   type == kBTreeCatalog ? "Catalog" : "Extents",
