@@ -1,7 +1,6 @@
 # System 7 - Iteration 2
 
-<img width="799" height="663" alt="working2" src="https://github.com/user-attachments/assets/0ca835e6-815f-4135-ab01-d7009c8c0d1a" />
-
+<img width="804" height="635" alt="works" src="https://github.com/user-attachments/assets/6c0e5311-a3f0-424a-8214-047bcc79e4d7" />
 
 An open implementation of Apple Macintosh System 7 for modern hardware, bootable via GRUB2/Multiboot2.
 
