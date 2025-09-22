@@ -708,17 +708,17 @@ void DrawVolumeIcon(void)
     }
 
     int textHeight = 14;  /* Height of Chicago font including ascenders/descenders */
-    int padding = 4;  /* Padding around text */
+    int padding = 2;  /* Reduced padding around text */
 
-    /* Center text under icon */
+    /* Center text under icon - properly spaced below actual icon content */
     int textX = volumePos.h + 16 - (textWidth / 2);  /* Center under 32px icon */
     if (textX < 0) textX = 0;  /* Don't go off left edge */
-    int textY = volumePos.v + 48;
+    int textY = volumePos.v + 25;  /* Final positioning */
 
-    /* Draw white background rectangle behind text */
+    /* Draw white background rectangle behind text - adjusted for better centering */
     Rect textBgRect;
     SetRect(&textBgRect, textX - padding, textY - textHeight + 2,
-            textX + textWidth + padding, textY + 3);
+            textX + textWidth - 2, textY + 3);  /* Reduced right padding by 4 pixels */
 
     /* Fill with white */
     for (int y = textBgRect.top; y < textBgRect.bottom; y++) {
@@ -764,7 +764,12 @@ void DrawVolumeIcon(void)
             }
 
             /* Advance by character width */
-            currentX += info.bit_width + 1;
+            /* Add extra spacing for space character */
+            if (ch == ' ') {
+                currentX += 4;  /* Space character gets more spacing */
+            } else {
+                currentX += info.bit_width + 1;
+            }
         }
     }
 
