@@ -2,6 +2,7 @@
 #define DESKACCESSORY_H
 
 #include "SystemTypes.h"
+#include "DeskManagerTypes.h"
 
 /* Forward declarations */
 
