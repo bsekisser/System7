@@ -27,6 +27,7 @@ extern void DoMenuCommand(short menuID, short item);
 #include "../include/PS2Controller.h"
 #include "../include/FS/vfs.h"
 #include "../include/MemoryMgr/MemoryManager.h"
+#include "../include/Resources/system7_resources.h"
 
 /* Simple 5x7 font for basic ASCII characters */
 static const uint8_t font5x7[][5] = {
@@ -1811,6 +1812,56 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         uint8_t packet_index;
     } g_mouseState;
 
+    /* Simple cursor drawing - directly to framebuffer for responsiveness */
+    static int16_t cursor_old_x = -1;
+    static int16_t cursor_old_y = -1;
+    static uint32_t cursor_saved_pixels[16][16];  /* Save area under cursor */
+    static bool cursor_saved = false;
+
+    /* Draw initial cursor */
+    {
+        int16_t x = g_mouseState.x;
+        int16_t y = g_mouseState.y;
+
+        /* Save pixels under cursor position */
+        for (int row = 0; row < 16; row++) {
+            for (int col = 0; col < 16; col++) {
+                int px = x + col;
+                int py = y + row;
+                if (px >= 0 && px < fb_width && py >= 0 && py < fb_height) {
+                    uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + py * fb_pitch + px * 4);
+                    cursor_saved_pixels[row][col] = *pixel;
+                }
+            }
+        }
+
+        /* Draw cursor using arrow_cursor and arrow_cursor_mask data */
+        for (int row = 0; row < 16; row++) {
+            uint16_t cursor_row = (arrow_cursor[row*2] << 8) | arrow_cursor[row*2 + 1];
+            uint16_t mask_row = (arrow_cursor_mask[row*2] << 8) | arrow_cursor_mask[row*2 + 1];
+
+            for (int col = 0; col < 16; col++) {
+                if (mask_row & (0x8000 >> col)) {  /* Check mask bit */
+                    int px = x + col;
+                    int py = y + row;
+                    if (px >= 0 && px < fb_width && py >= 0 && py < fb_height) {
+                        uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + py * fb_pitch + px * 4);
+                        /* Draw black for cursor bits, white for background */
+                        if (cursor_row & (0x8000 >> col)) {
+                            *pixel = 0xFF000000;  /* Black */
+                        } else {
+                            *pixel = 0xFFFFFFFF;  /* White */
+                        }
+                    }
+                }
+            }
+        }
+
+        cursor_old_x = x;
+        cursor_old_y = y;
+        cursor_saved = true;
+    }
+
     int16_t last_mouse_x = g_mouseState.x;
     int16_t last_mouse_y = g_mouseState.y;
     volatile uint32_t debug_counter = 0;
@@ -1819,6 +1870,9 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 
     /* Simple immediate test */
     serial_puts("TEST: About to enter loop\n");
+
+    /* Add cursor update counter to throttle cursor redraws */
+    static uint32_t cursor_update_counter = 0;
 
     while (1) {
         /* Simple alive message every 1 million iterations */
@@ -1833,30 +1887,97 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         }
 
         /* Poll PS/2 devices for keyboard and mouse input */
-        /* serial_puts("A"); */  /* Debug: Before PollPS2Input */
         PollPS2Input();
-        /* serial_puts("B"); */  /* Debug: After PollPS2Input */
 
-        /* Redraw if mouse moved - but only draw cursor, not entire desktop! */
+        /* Throttle cursor updates to every 1000 iterations to make it visible */
+        cursor_update_counter++;
+        if (cursor_update_counter < 1000) {
+            continue;
+        }
+        cursor_update_counter = 0;
+
+        /* Redraw cursor if mouse moved */
         if (g_mouseState.x != last_mouse_x || g_mouseState.y != last_mouse_y) {
-            /* Just update cursor position without full redraw */
+            /* Clamp mouse position to screen bounds */
+            int16_t x = g_mouseState.x;
+            int16_t y = g_mouseState.y;
+
+            if (x < 0) x = 0;
+            if (x >= fb_width) x = fb_width - 1;
+            if (y < 0) y = 0;
+            if (y >= fb_height) y = fb_height - 1;
+
+            /* Simple direct cursor drawing */
+            uint32_t* fb = (uint32_t*)framebuffer;
+            int pitch_dwords = fb_pitch / 4;
+
+            /* Erase old cursor */
+            if (cursor_saved) {
+                for (int row = 0; row < 16; row++) {
+                    int py = cursor_old_y + row;
+                    if (py >= 0 && py < fb_height) {
+                        for (int col = 0; col < 16; col++) {
+                            int px = cursor_old_x + col;
+                            if (px >= 0 && px < fb_width) {
+                                fb[py * pitch_dwords + px] = cursor_saved_pixels[row][col];
+                            }
+                        }
+                    }
+                }
+            }
+
+            /* Save and draw new cursor */
+            for (int row = 0; row < 16; row++) {
+                uint16_t cursor_row = (arrow_cursor[row*2] << 8) | arrow_cursor[row*2 + 1];
+                uint16_t mask_row = (arrow_cursor_mask[row*2] << 8) | arrow_cursor_mask[row*2 + 1];
+
+                int py = y + row;
+                if (py >= 0 && py < fb_height) {
+                    for (int col = 0; col < 16; col++) {
+                        int px = x + col;
+                        if (px >= 0 && px < fb_width) {
+                            int idx = py * pitch_dwords + px;
+
+                            /* Save pixel */
+                            cursor_saved_pixels[row][col] = fb[idx];
+
+                            /* Draw cursor */
+                            if (mask_row & (0x8000 >> col)) {
+                                if (cursor_row & (0x8000 >> col)) {
+                                    fb[idx] = 0xFF000000;  /* Black */
+                                } else {
+                                    fb[idx] = 0xFFFFFFFF;  /* White */
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            cursor_old_x = x;
+            cursor_old_y = y;
+            cursor_saved = true;
+
             last_mouse_x = g_mouseState.x;
             last_mouse_y = g_mouseState.y;
 
-            /* Only redraw desktop every N movements to avoid performance issues */
+            /* Only redraw desktop very rarely - the cursor handles its own drawing */
             static int movement_count = 0;
             movement_count++;
-            if (movement_count > 20) {  /* Redraw desktop every 20 movements */
-                serial_printf("MAIN: Redrawing after %d movements\n", movement_count);
+            if (movement_count > 10000) {  /* Redraw desktop every 10000 movements (basically never during normal use) */
+                serial_printf("MAIN: Full redraw after %d movements\n", movement_count);
                 WM_Update();  /* Full redraw */
+                /* Cursor will be redrawn on next movement */
                 movement_count = 0;
+                cursor_saved = false;  /* Force redraw after WM_Update */
             }
         }
 
+        /* Skip SystemTask and GetNextEvent which seem to be causing issues */
+        /* They're not critical for basic mouse functionality */
+#if 0
         /* System 7.1 cooperative multitasking */
-        /* serial_puts("E"); */  /* Debug: Before SystemTask */
         SystemTask();
-        /* serial_puts("F"); */  /* Debug: After SystemTask */
 
         /* Process serial commands for menu testing */
 #if DEBUG_SERIAL_MENU_COMMANDS
@@ -1864,9 +1985,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 #endif
 
         /* Get and process events (only check for specific events to avoid blocking) */
-        /* serial_puts("G"); */  /* Debug: Before GetNextEvent */
         if (GetNextEvent(mouseDown | mouseUp | keyDown | autoKey, &event)) {
-            serial_puts("H");  /* Debug: Got event */
             switch (event.what) {
                 case mouseDown:
                     {
@@ -1936,8 +2055,9 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
                     break;
             }
         }
+#endif /* Disabled SystemTask and GetNextEvent */
 
-        /* Yield CPU when no events */
-        __asm__ volatile ("hlt");
+        /* Yield CPU when no events - but don't halt, it blocks PS/2 polling! */
+        /* __asm__ volatile ("hlt"); */
     }
 }
