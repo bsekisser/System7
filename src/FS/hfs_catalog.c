@@ -1,8 +1,8 @@
 /* HFS Catalog Operations Implementation */
 #include "../../include/FS/hfs_catalog.h"
 #include "../../include/FS/hfs_endian.h"
+#include "../../include/MemoryMgr/MemoryManager.h"
 #include <string.h>
-#include <stdlib.h>
 
 /* Serial debug output */
 extern void serial_printf(const char* fmt, ...);

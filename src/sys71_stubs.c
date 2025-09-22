@@ -161,6 +161,22 @@ void serial_printf(const char* fmt, ...) {
                         buffer[buf_idx++] = num[--idx];
                     }
                 }
+            } else if (*p == 'u') {
+                /* Unsigned decimal number */
+                unsigned int val = va_arg(args, unsigned int);
+                char num[12];
+                int idx = 0;
+                if (val == 0) {
+                    buffer[buf_idx++] = '0';
+                } else {
+                    while (val > 0) {
+                        num[idx++] = '0' + (val % 10);
+                        val /= 10;
+                    }
+                    while (idx > 0) {
+                        buffer[buf_idx++] = num[--idx];
+                    }
+                }
             } else if (*p == '0' && *(p+1) == '2' && *(p+2) == 'x') {
                 /* Hex byte */
                 p += 2;
@@ -381,10 +397,12 @@ void DrawDesktop_Stub(void) {
 long sysconf(int name) { return -1; }
 
 /* Resource Manager - must come before other functions that use it */
+#if 0  /* Now provided by Memory Manager */
 Handle NewHandle(Size byteCount) {
     static char dummy[256];
     return (Handle)&dummy;
 }
+#endif
 
 /* Missing function implementations */
 void HandleKeyDown(EventRecord* event) {
@@ -407,9 +425,11 @@ OSErr NewAlias(const FSSpec* fromFile, const FSSpec* target, AliasHandle* alias)
     return noErr;
 }
 
+#if 0  /* Now provided by Memory Manager */
 SInt32 GetHandleSize(Handle h) {
     return sizeof(AliasRecord);
 }
+#endif
 
 OSErr FSpCreateResFile(const FSSpec* spec, OSType creator, OSType fileType, SInt16 scriptTag) {
     return noErr;
@@ -488,9 +508,11 @@ OSErr SetEOF(SInt16 refNum, SInt32 logEOF) {
 /* Resource Manager stubs */
 /* NewHandle is already defined above */
 
+#if 0  /* Now provided by Memory Manager */
 void DisposeHandle(Handle h) {
     /* Stub */
 }
+#endif
 
 /* GetResource is now implemented in simple_resource_manager.c */
 /* Handle GetResource(ResType theType, SInt16 theID) {
@@ -527,6 +549,7 @@ void AddResMenu(MenuHandle theMenu, ResType theType) {
 }
 
 /* Memory Manager stubs */
+#if 0  /* Now provided by Memory Manager */
 Ptr NewPtr(Size byteCount) {
     static unsigned char heap[65536];
     static size_t heap_ptr = 0;
@@ -535,6 +558,7 @@ Ptr NewPtr(Size byteCount) {
     heap_ptr += byteCount;
     return ptr;
 }
+#endif
 
 OSErr MemError(void) {
     return noErr;
@@ -829,6 +853,8 @@ void* memmove(void* dest, const void* src, size_t n) {
     return dest;
 }
 
+/* Memory allocation now handled by Memory Manager */
+#if 0
 void* calloc(size_t nmemb, size_t size) {
     size_t total = nmemb * size;
     static unsigned char heap[65536];
@@ -864,6 +890,7 @@ void* realloc(void* ptr, size_t size) {
 void free(void* ptr) {
     /* Simple allocator doesn't free */
 }
+#endif
 
 char* strncpy(char* dest, const char* src, size_t n) {
     char* d = dest;
