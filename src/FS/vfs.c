@@ -9,6 +9,9 @@
 /* Serial debug output */
 extern void serial_printf(const char* fmt, ...);
 
+/* Static volume buffer - avoid malloc in kernel */
+static uint8_t g_volumeBuffer[4 * 1024 * 1024];  /* 4MB static buffer */
+
 /* VFS state */
 static struct {
     bool         initialized;
@@ -56,38 +59,33 @@ bool VFS_MountBootVolume(const char* volName) {
         return false;
     }
 
-    /* Create a blank volume in memory for now */
-    /* In production, this would load from disk */
-    uint64_t volumeSize = 64 * 1024 * 1024;  /* 64MB */
-    void* volumeData = malloc(volumeSize);
-    if (!volumeData) {
-        serial_printf("VFS: Failed to allocate volume memory\n");
-        return false;
-    }
+    /* Use static buffer instead of malloc */
+    uint64_t volumeSize = sizeof(g_volumeBuffer);
+    void* volumeData = g_volumeBuffer;
 
     /* Create blank HFS volume */
     if (!HFS_CreateBlankVolume(volumeData, volumeSize, volName)) {
-        free(volumeData);
         serial_printf("VFS: Failed to create blank volume\n");
         return false;
     }
 
     /* Mount the volume */
     if (!HFS_VolumeMountMemory(&g_vfs.bootVolume, volumeData, volumeSize, g_vfs.bootVRef)) {
-        free(volumeData);
         serial_printf("VFS: Failed to mount volume\n");
         return false;
     }
 
-    /* Initialize catalog */
+    /* Skip catalog initialization for now - just show volume icon */
+    /* TODO: Fix malloc issues in B-tree before enabling catalog */
+    /*
     if (!HFS_CatalogInit(&g_vfs.bootCatalog, &g_vfs.bootVolume)) {
         HFS_VolumeUnmount(&g_vfs.bootVolume);
-        free(volumeData);
         serial_printf("VFS: Failed to initialize catalog\n");
         return false;
     }
+    */
 
-    serial_printf("VFS: Mounted boot volume '%s'\n", volName);
+    serial_printf("VFS: Mounted boot volume successfully\n");
 
     /* Create some default folders for testing */
     /* These would normally be created by the System installer */

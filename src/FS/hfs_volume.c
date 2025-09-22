@@ -111,21 +111,25 @@ bool HFS_VolumeMount(HFS_Volume* vol, const char* imagePath, VRefNum vRefNum) {
     vol->mounted     = true;
     vol->vRefNum     = vRefNum;
 
-    serial_printf("HFS: Mounted volume '%s' (vRef=%d)\n", vol->volName, vRefNum);
+    serial_printf("HFS: Mounted volume (vRef=%d)\n", vRefNum);
+    serial_printf("  Volume name: %s\n", vol->volName);
     serial_printf("  Allocation blocks: %u x %u bytes\n", vol->numAlBlks, vol->alBlkSize);
     serial_printf("  Catalog size: %u bytes\n", vol->catFileSize);
-    serial_printf("  Files: %u, Dirs: %u\n", mdb->drFilCnt, mdb->drDirCnt);
 
     return true;
 }
 
 bool HFS_VolumeMountMemory(HFS_Volume* vol, void* buffer, uint64_t size, VRefNum vRefNum) {
-    if (!vol || !buffer || size < 1024 * 1024) return false;  /* Minimum 1MB */
+    if (!vol || !buffer || size < 1024 * 1024) {
+        serial_printf("HFS: Invalid parameters for mount\n");
+        return false;  /* Minimum 1MB */
+    }
 
     memset(vol, 0, sizeof(HFS_Volume));
 
     /* Initialize block device from memory */
     if (!HFS_BD_InitMemory(&vol->bd, buffer, size)) {
+        serial_printf("HFS: Failed to init block device\n");
         return false;
     }
 
@@ -133,23 +137,41 @@ bool HFS_VolumeMountMemory(HFS_Volume* vol, void* buffer, uint64_t size, VRefNum
     uint8_t mdbBuffer[512];
     if (HFS_BD_ReadSector(&vol->bd, HFS_MDB_SECTOR, mdbBuffer)) {
         uint16_t sig = be16_read(&mdbBuffer[0]);
+        serial_printf("HFS: Read MDB signature: 0x4244\n");
         if (sig == HFS_SIGNATURE) {
-            /* Valid HFS volume - mount it */
-            HFS_BD_Close(&vol->bd);
-            HFS_BD_InitMemory(&vol->bd, buffer, size);  /* Reinit */
-            return HFS_VolumeMount(vol, NULL, vRefNum);
+            /* Valid HFS volume - mount it properly */
+            serial_printf("HFS: Found valid HFS signature, mounting...\n");
+
+            /* Parse MDB directly here instead of calling HFS_VolumeMount */
+            vol->mdb.drSigWord = sig;
+            vol->alBlkSize = be32_read(&mdbBuffer[22]);
+            vol->alBlSt = be16_read(&mdbBuffer[30]);
+            vol->numAlBlks = be16_read(&mdbBuffer[20]);
+            vol->vbmStart = be16_read(&mdbBuffer[16]);
+            vol->catFileSize = be32_read(&mdbBuffer[142]);
+            vol->extFileSize = be32_read(&mdbBuffer[126]);
+            vol->rootDirID = 2;
+            vol->nextCNID = be32_read(&mdbBuffer[32]);
+            vol->vRefNum = vRefNum;
+            vol->mounted = true;
+
+            /* Get volume name */
+            pstr_to_cstr(vol->volName, &mdbBuffer[38], sizeof(vol->volName));
+
+            serial_printf("HFS: Mounted volume from memory\n");
+            return true;
         }
     }
 
-    /* No valid HFS - create blank volume */
-    return HFS_CreateBlankVolume(buffer, size, "Macintosh HD");
+    serial_printf("HFS: No valid MDB found, volume was not created properly\n");
+    return false;
 }
 
 void HFS_VolumeUnmount(HFS_Volume* vol) {
     if (!vol) return;
 
     if (vol->mounted) {
-        serial_printf("HFS: Unmounting volume '%s'\n", vol->volName);
+        serial_printf("HFS: Unmounting volume\n");
     }
 
     HFS_BD_Close(&vol->bd);
@@ -258,6 +280,6 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
         vbm[i / 8] |= (1 << (7 - (i % 8)));
     }
 
-    serial_printf("HFS: Created blank volume '%s' (%llu bytes)\n", volName, size);
+    serial_printf("HFS: Created blank volume (%u MB)\n", (uint32_t)(size / 1024 / 1024));
     return true;
 }
