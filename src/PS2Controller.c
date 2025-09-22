@@ -532,6 +532,9 @@ Boolean InitPS2Controller(void) {
         serial_printf("Warning: Keyboard initialization failed\n");
     }
 
+    /* Enable second PS/2 port for mouse */
+    ps2_send_command(PS2_CMD_ENABLE_PORT2);
+
     /* Initialize mouse */
     if (!init_mouse()) {
         serial_printf("Warning: Mouse initialization failed\n");
@@ -549,10 +552,14 @@ void PollPS2Input(void) {
     static int mouse_byte_count = 0;
     static int call_count = 0;
 
+    /* First call notification */
+    if (call_count == 0) {
+        serial_printf("PS2: PollPS2Input first call!\n");
+    }
+
     /* Light heartbeat to confirm scheduling */
-    if ((++call_count % 10000000) == 0) {
+    if ((++call_count % 10000) == 0) {
         serial_printf("PS2: PollPS2Input called %d times\n", call_count);
-        call_count = 0;
     }
 
     /* Drain the controller completely this tick */
@@ -566,10 +573,9 @@ void PollPS2Input(void) {
 
         if (status & PS2_STATUS_AUX) {
             /* --- Mouse byte --- */
-            if ((++mouse_byte_count % 100) == 1) {
-                serial_printf("POLL: Got mouse byte 0x%02x (status=0x%02x) idx=%d enabled=%d\n",
-                              data, status, g_mouseState.packet_index, g_mouseEnabled);
-            }
+            mouse_byte_count++;
+            serial_printf("POLL: Got mouse byte 0x%02x (status=0x%02x) idx=%d enabled=%d count=%d\n",
+                          data, status, g_mouseState.packet_index, g_mouseEnabled, mouse_byte_count);
 
             if (!g_mouseEnabled) {
                 continue; /* ignore until fully enabled */

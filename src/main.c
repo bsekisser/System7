@@ -1809,9 +1809,9 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         }
 
         /* Poll PS/2 devices for keyboard and mouse input */
-        serial_puts("A");  /* Debug: Before PollPS2Input */
+        /* serial_puts("A"); */  /* Debug: Before PollPS2Input */
         PollPS2Input();
-        serial_puts("B");  /* Debug: After PollPS2Input */
+        /* serial_puts("B"); */  /* Debug: After PollPS2Input */
 
         /* Redraw if mouse moved */
         if (g_mouseState.x != last_mouse_x || g_mouseState.y != last_mouse_y) {
@@ -1819,15 +1819,15 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
                          last_mouse_x, last_mouse_y, g_mouseState.x, g_mouseState.y);
             last_mouse_x = g_mouseState.x;
             last_mouse_y = g_mouseState.y;
-            serial_puts("C");  /* Debug: Before WM_Update */
+            /* serial_puts("C"); */  /* Debug: Before WM_Update */
             WM_Update();  /* Redraw desktop with cursor at new position */
-            serial_puts("D");  /* Debug: After WM_Update */
+            /* serial_puts("D"); */  /* Debug: After WM_Update */
         }
 
         /* System 7.1 cooperative multitasking */
-        serial_puts("E");  /* Debug: Before SystemTask */
+        /* serial_puts("E"); */  /* Debug: Before SystemTask */
         SystemTask();
-        serial_puts("F");  /* Debug: After SystemTask */
+        /* serial_puts("F"); */  /* Debug: After SystemTask */
 
         /* Process serial commands for menu testing */
 #if DEBUG_SERIAL_MENU_COMMANDS
@@ -1835,7 +1835,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 #endif
 
         /* Get and process events (only check for specific events to avoid blocking) */
-        serial_puts("G");  /* Debug: Before GetNextEvent */
+        /* serial_puts("G"); */  /* Debug: Before GetNextEvent */
         if (GetNextEvent(mouseDown | mouseUp | keyDown | autoKey, &event)) {
             serial_puts("H");  /* Debug: Got event */
             switch (event.what) {

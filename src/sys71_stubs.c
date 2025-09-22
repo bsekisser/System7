@@ -102,7 +102,9 @@ Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
 }
 
 void SystemTask(void) {
-    /* Stub implementation */
+    /* Poll PS/2 input on each system task */
+    extern void PollPS2Input(void);
+    PollPS2Input();
 }
 
 SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
