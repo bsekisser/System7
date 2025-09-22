@@ -101,11 +101,13 @@ Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
     return false;
 }
 
+#ifndef DESKMANAGER_INCLUDED
 void SystemTask(void) {
     /* Poll PS/2 input on each system task */
     extern void PollPS2Input(void);
     PollPS2Input();
 }
+#endif
 
 SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
     /* Simple event posting - just log for now */
@@ -684,9 +686,11 @@ Boolean WaitNextEvent(SInt16 eventMask, EventRecord* theEvent, UInt32 sleep, Rgn
 
 /* MenuSelect now implemented in MenuSelection.c */
 
+#ifndef DESKMANAGER_INCLUDED
 void SystemClick(EventRecord* theEvent, WindowPtr window) {
     /* Stub */
 }
+#endif
 
 /* HiliteMenu now provided by MenuManagerCore.c */
 
@@ -737,9 +741,11 @@ void GetMenuItemText(MenuHandle menu, SInt16 item, Str255 itemString) {
     }
 }
 
+#ifndef DESKMANAGER_INCLUDED
 SInt16 OpenDeskAcc(ConstStr255Param name) {
     return 0;
 }
+#endif
 
 SInt16 HiWord(SInt32 x) {
     return (x >> 16) & 0xFFFF;

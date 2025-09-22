@@ -1,4 +1,5 @@
 // #include "CompatibilityFix.h" // Removed
+#define DESKMANAGER_INCLUDED
 #include <stdlib.h>
 #include <string.h>
 /*
@@ -187,8 +188,8 @@ Boolean SystemEvent(const EventRecord *event)
     }
 
     /* Route event to active DA */
-    if (g_deskMgr.activeDA && (g_deskMgr)->event) {
-        int result = (g_deskMgr)->event(g_deskMgr.activeDA, event);
+    if (g_deskMgr.activeDA && g_deskMgr.activeDA->event) {
+        int result = g_deskMgr.activeDA->event(g_deskMgr.activeDA, event);
         return (result == 0);
     }
 
@@ -226,6 +227,10 @@ void SystemClick(const EventRecord *event, WindowRecord *window)
  */
 void SystemTask(void)
 {
+    /* Poll PS/2 input on each system task */
+    extern void PollPS2Input(void);
+    PollPS2Input();
+
     if (!g_deskMgrInitialized) {
         return;
     }
@@ -257,8 +262,8 @@ void SystemMenu(SInt32 menuResult)
         /* Try to open the selected DA */
         /* Note: In real implementation, would need to map item to DA name */
         /* For now, just route to active DA */
-        if (g_deskMgr.activeDA && (g_deskMgr)->menu) {
-            (g_deskMgr)->menu(g_deskMgr.activeDA, menuID, itemID);
+        if (g_deskMgr.activeDA && g_deskMgr.activeDA->menu) {
+            g_deskMgr.activeDA->menu(g_deskMgr.activeDA, menuID, itemID);
         }
     }
 }
@@ -348,15 +353,15 @@ int DA_SetActive(DeskAccessory *da)
 
     /* Deactivate current DA */
     if (g_deskMgr.activeDA && g_deskMgr.activeDA != da) {
-        if ((g_deskMgr)->activate) {
-            (g_deskMgr)->activate(g_deskMgr.activeDA, false);
+        if (g_deskMgr.activeDA->activate) {
+            g_deskMgr.activeDA->activate(g_deskMgr.activeDA, false);
         }
     }
 
     /* Activate new DA */
     g_deskMgr.activeDA = da;
     if (da && da->activate) {
-        return da->activate(da, true);
+        da->activate(da, true);
     }
 
     return DESK_ERR_NONE;
@@ -382,7 +387,8 @@ int DA_SendMessage(DeskAccessory *da, DAMessage message,
 
         case DA_MSG_RUN:
             if (da->idle) {
-                return da->idle(da);
+                da->idle(da);
+                return DESK_ERR_NONE;
             }
             break;
 
@@ -518,7 +524,7 @@ static void DA_AddToList(DeskAccessory *da)
     da->prev = NULL;
 
     if (g_deskMgr.firstDA) {
-        (g_deskMgr)->prev = da;
+        g_deskMgr.firstDA->prev = da;
     }
 
     g_deskMgr.firstDA = da;

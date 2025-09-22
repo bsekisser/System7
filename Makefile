@@ -65,7 +65,6 @@ C_SOURCES = src/main.c \
             src/ControlManager/ControlManagerCore.c \
             src/ControlManager/ControlTracking.c \
             src/control_stubs.c \
-            src/DeskManager/DeskManagerCore.c \
             src/patterns_rsrc.c \
             src/FS/hfs_diskio.c \
             src/FS/hfs_volume.c \
