@@ -27,6 +27,7 @@
 #include "MenuManager/MenuTypes.h"
 #include "DialogManager/DialogTypes.h"
 #include "WindowManager/WindowTypes.h"
+#include "FS/vfs.h"
 
 
 /* External globals */
@@ -118,6 +119,16 @@ OSErr InitializeFinder(void)
     /* Initialize trash folder - Evidence: "Empty Trash" functionality */
     err = InitializeTrashFolder();
     if (err != noErr) return err;
+
+    /* Initialize volume icon on desktop */
+    extern OSErr InitializeVolumeIcon(void);
+    err = InitializeVolumeIcon();
+    if (err != noErr) {
+        serial_puts("Finder: Failed to initialize volume icon\n");
+        /* Non-fatal - continue */
+    } else {
+        serial_puts("Finder: Volume icon initialized\n");
+    }
 
     gFinderInitialized = true;
     return noErr;
