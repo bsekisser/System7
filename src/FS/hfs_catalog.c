@@ -129,16 +129,22 @@ static bool enum_callback(void* keyPtr, uint16_t keyLen,
 }
 
 bool HFS_CatalogInit(HFS_Catalog* cat, HFS_Volume* vol) {
-    if (!cat || !vol || !vol->mounted) return false;
+    if (!cat || !vol || !vol->mounted) {
+        serial_printf("HFS_CatalogInit: Invalid params or volume not mounted\n");
+        return false;
+    }
 
     memset(cat, 0, sizeof(HFS_Catalog));
     cat->vol = vol;
 
     /* Initialize B-tree */
+    serial_printf("HFS_CatalogInit: Initializing catalog B-tree\n");
     if (!HFS_BT_Init(&cat->bt, vol, kBTreeCatalog)) {
+        serial_printf("HFS_CatalogInit: B-tree init failed\n");
         return false;
     }
 
+    serial_printf("HFS_CatalogInit: Success\n");
     return true;
 }
 

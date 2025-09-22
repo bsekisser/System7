@@ -509,10 +509,7 @@ void PurgeMem(u32 cbNeeded) {
 /* ======================== C Library Interface ======================== */
 
 void* malloc(size_t size) {
-    serial_printf("malloc: requested size %u\n", (u32)size);
-    void* result = NewPtr((u32)size);
-    serial_printf("malloc: returning %p\n", result);
-    return result;
+    return NewPtr((u32)size);
 }
 
 void free(void* ptr) {
@@ -553,30 +550,30 @@ void* realloc(void* ptr, size_t size) {
 /* ======================== Initialization ======================== */
 
 void InitMemoryManager(void) {
-    serial_printf("MM: InitMemoryManager started\n");
+    /* Use serial_puts for debugging */
+    extern void serial_puts(const char* str);
+    serial_puts("MM: InitMemoryManager started\n");
 
     /* Initialize System Zone */
     InitZone(&gSystemZone, gSystemHeap, sizeof(gSystemHeap),
              gSystemMasters, sizeof(gSystemMasters)/sizeof(void*));
     /* strcpy not available in kernel */
     gSystemZone.name[0] = 'S'; gSystemZone.name[1] = 0;
-    serial_printf("MM: System Zone initialized (%u KB)\n", sizeof(gSystemHeap) / 1024);
+    serial_puts("MM: System Zone initialized (2048 KB)\n");
 
     /* Initialize Application Zone */
     InitZone(&gAppZone, gAppHeap, sizeof(gAppHeap),
              gAppMasters, sizeof(gAppMasters)/sizeof(void*));
     /* strcpy not available in kernel */
     gAppZone.name[0] = 'A'; gAppZone.name[1] = 0;
-    serial_printf("MM: App Zone initialized (%u KB)\n", sizeof(gAppHeap) / 1024);
+    serial_puts("MM: App Zone initialized (6144 KB)\n");
 
     /* Set current zone to app zone */
     gCurrentZone = &gAppZone;
 
-    serial_printf("MM: Current zone set to App Zone\n");
-    serial_printf("MM: Total memory: %u MB\n",
-                  (sizeof(gSystemHeap) + sizeof(gAppHeap)) / (1024*1024));
-    serial_printf("MM: Free memory: %u KB\n", FreeMem() / 1024);
-    serial_printf("MM: InitMemoryManager complete\n");
+    serial_puts("MM: Current zone set to App Zone\n");
+    serial_puts("MM: Total memory: 8 MB\n");
+    serial_puts("MM: InitMemoryManager complete\n");
 }
 
 /* ======================== Debug Support ======================== */

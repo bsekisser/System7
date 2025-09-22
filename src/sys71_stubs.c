@@ -177,13 +177,45 @@ void serial_printf(const char* fmt, ...) {
                         buffer[buf_idx++] = num[--idx];
                     }
                 }
+            } else if (*p == 'x' || (*p == '0' && *(p+1) && (*(p+1) == '4' || *(p+1) == '8') && *(p+2) == 'x')) {
+                /* Hex value - %x, %04x, %08x */
+                int digits = 8;  /* Default to 8 hex digits */
+                if (*p == '0') {
+                    if (*(p+1) == '4') {
+                        digits = 4;
+                        p += 2;  /* Skip "04" */
+                    } else if (*(p+1) == '8') {
+                        digits = 8;
+                        p += 2;  /* Skip "08" */
+                    }
+                }
+                unsigned int val = va_arg(args, unsigned int);
+                const char* hex = "0123456789abcdef";
+                for (int i = digits - 1; i >= 0; i--) {
+                    buffer[buf_idx++] = hex[(val >> (i*4)) & 0xF];
+                }
             } else if (*p == '0' && *(p+1) == '2' && *(p+2) == 'x') {
-                /* Hex byte */
+                /* Hex byte (legacy, keep for compatibility) */
                 p += 2;
                 unsigned int val = va_arg(args, unsigned int) & 0xFF;
                 const char* hex = "0123456789abcdef";
                 buffer[buf_idx++] = hex[(val >> 4) & 0xF];
                 buffer[buf_idx++] = hex[val & 0xF];
+            } else if (*p == 's') {
+                /* String */
+                const char* str = va_arg(args, const char*);
+                if (str) {
+                    while (*str && buf_idx < 250) {
+                        buffer[buf_idx++] = *str++;
+                    }
+                } else {
+                    buffer[buf_idx++] = '(';
+                    buffer[buf_idx++] = 'n';
+                    buffer[buf_idx++] = 'u';
+                    buffer[buf_idx++] = 'l';
+                    buffer[buf_idx++] = 'l';
+                    buffer[buf_idx++] = ')';
+                }
             } else if (*p == 'p') {
                 /* Pointer */
                 void* ptr = va_arg(args, void*);
