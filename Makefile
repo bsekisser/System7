@@ -66,7 +66,8 @@ C_SOURCES = src/main.c \
             src/FS/hfs_catalog.c \
             src/FS/hfs_file.c \
             src/FS/vfs.c \
-            src/MemoryMgr/MemoryManager.c
+            src/MemoryMgr/MemoryManager.c \
+            src/Resources/Icons/hd_icon.c
 
 ASM_SOURCES = src/multiboot2.S
 
@@ -285,6 +286,10 @@ $(OBJ_DIR)/%.o: src/PatternMgr/%.c
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/%.o: src/Resources/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/Resources/Icons/%.c
 	@echo "CC $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
 
