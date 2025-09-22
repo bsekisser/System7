@@ -31,6 +31,7 @@
 #define PS2_STATUS_INPUT_FULL   0x02
 #define PS2_STATUS_SYSTEM_FLAG  0x04
 #define PS2_STATUS_COMMAND      0x08
+#define PS2_STATUS_AUX          0x20  /* data from mouse (AUX) when set */
 #define PS2_STATUS_TIMEOUT_ERR  0x40
 #define PS2_STATUS_PARITY_ERR   0x80
 
@@ -545,49 +546,48 @@ Boolean InitPS2Controller(void) {
 void PollPS2Input(void) {
     if (!g_ps2Initialized) return;
 
-    static int poll_count = 0;
     static int mouse_byte_count = 0;
     static int call_count = 0;
 
-    /* Log every 10 million calls to show it's being called */
+    /* Light heartbeat to confirm scheduling */
     if ((++call_count % 10000000) == 0) {
         serial_printf("PS2: PollPS2Input called %d times\n", call_count);
         call_count = 0;
     }
 
-    /* Check for available data - non-blocking */
-    if (inb(PS2_STATUS_PORT) & PS2_STATUS_OUTPUT_FULL) {
+    /* Drain the controller completely this tick */
+    for (;;) {
         uint8_t status = inb(PS2_STATUS_PORT);
+        if (!(status & PS2_STATUS_OUTPUT_FULL)) {
+            break; /* nothing left to read */
+        }
+
         uint8_t data = inb(PS2_DATA_PORT);
 
-        poll_count++;
-
-        /* Check if this is mouse data (bit 5 of status port) */
-        if (status & 0x20) {
-            /* Mouse data */
-            mouse_byte_count++;
-            if ((mouse_byte_count % 100) == 1) {
+        if (status & PS2_STATUS_AUX) {
+            /* --- Mouse byte --- */
+            if ((++mouse_byte_count % 100) == 1) {
                 serial_printf("POLL: Got mouse byte 0x%02x (status=0x%02x) idx=%d enabled=%d\n",
-                             data, status, g_mouseState.packet_index, g_mouseEnabled);
+                              data, status, g_mouseState.packet_index, g_mouseEnabled);
             }
 
-            if (g_mouseEnabled) {
-                /* First byte must have sync bit (bit 3) set */
-                if (g_mouseState.packet_index == 0) {
-                    if (!(data & 0x08)) {
-                        /* Not a valid first byte, skip it */
-                        serial_printf("POLL: Skipping invalid first byte 0x%02x\n", data);
-                        return;
-                    }
-                }
+            if (!g_mouseEnabled) {
+                continue; /* ignore until fully enabled */
+            }
 
-                g_mouseState.packet[g_mouseState.packet_index++] = data;
-                if (g_mouseState.packet_index >= 3) {
-                    process_mouse_packet();
-                }
+            /* Enforce sync only when starting a new packet; don't exit polling */
+            if (g_mouseState.packet_index == 0 && !(data & 0x08)) {
+                /* Not a valid first byte; wait for one that has sync bit set */
+                continue; /* (was 'return' before; that aborted the drain) */
+            }
+
+            g_mouseState.packet[g_mouseState.packet_index++] = data;
+
+            if (g_mouseState.packet_index >= 3) {
+                process_mouse_packet(); /* resets packet_index to 0 */
             }
         } else {
-            /* Keyboard data */
+            /* --- Keyboard byte --- */
             if (g_keyboardEnabled) {
                 process_keyboard_scancode(data);
             }

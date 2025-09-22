@@ -1,10 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
-
-typedef uint32_t VRefNum;
-typedef uint32_t DirID;
-typedef uint32_t FileID;
+#include "FS/vfs.h"  /* Use existing types from VFS */
 
 typedef struct {
     VRefNum vref;

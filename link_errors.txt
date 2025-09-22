@@ -1,5 +1,0 @@
-ld: obj/nuclear_stubs.o: in function `__undefined_symbol':
-nuclear_stubs.c:(.text+0x711): multiple definition of `_start'; obj/multiboot2.o:(.text+0x0): first defined here
-ld: warning: obj/multiboot2.o: missing .note.GNU-stack section implies executable stack
-ld: NOTE: This behaviour is deprecated and will be removed in a future version of the linker
-ld: warning: kernel.elf has a LOAD segment with RWX permissions

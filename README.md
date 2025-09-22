@@ -93,11 +93,15 @@ iteration2/
 ✅ Authentic Mac OS 7 HD icon on desktop
 ✅ Chicago font rendering with proper spacing and kerning
 ✅ Desktop icon text with white background
-✅ PS/2 keyboard and mouse support
+✅ PS/2 keyboard and mouse support with improved polling
 ✅ Event system framework in place
 ✅ Pattern resources (PAT) loaded from JSON
 ✅ Pixel pattern (ppat) backgrounds support
 ✅ Small icons (SICN) rendering support
+✅ Color icon support (32-bit ARGB) for trash and HD icons
+✅ Fixed icon rendering with proper mask/image compositing
+✅ HFS virtual file system with B-tree implementation
+✅ Trash folder system integration
 
 ## Future Development
 
