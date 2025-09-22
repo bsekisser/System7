@@ -171,15 +171,7 @@ OSErr FSpCreateResFile(const FSSpec* spec, OSType creator, OSType fileType, SInt
     return noErr;
 }
 
-/* File Manager stubs */
-OSErr FSMakeFSSpec(SInt16 vRefNum, SInt32 dirID, ConstStr255Param fileName, FSSpec* spec) {
-    if (spec && fileName) {
-        spec->vRefNum = vRefNum;
-        spec->parID = dirID;
-        BlockMoveData(fileName, spec->name, fileName[0] + 1);
-    }
-    return noErr;
-}
+/* File Manager stubs - Core functions now implemented in FileManager.c */
 
 OSErr FSpCreate(const FSSpec* spec, OSType creator, OSType fileType, SInt16 scriptTag) {
     return noErr;
@@ -206,15 +198,6 @@ OSErr FSpCatMove(const FSSpec* source, const FSSpec* dest) {
     return noErr;
 }
 
-OSErr PBGetCatInfoSync(CInfoPBRec* pb) {
-    static int count = 0;
-    if (++count > 5) return fnfErr;  /* Return no more files after 5 */
-    return noErr;
-}
-
-OSErr PBSetCatInfoSync(CInfoPBRec* pb) {
-    return noErr;
-}
 
 OSErr PBHGetVInfoSync(HParamBlockRec* pb) {
     if (pb) {
@@ -224,18 +207,6 @@ OSErr PBHGetVInfoSync(HParamBlockRec* pb) {
     return noErr;
 }
 
-SInt16 FSRead(SInt16 refNum, SInt32* count, void* buffPtr) {
-    if (count) *count = 0;
-    return noErr;
-}
-
-SInt16 FSWrite(SInt16 refNum, SInt32* count, const void* buffPtr) {
-    return noErr;
-}
-
-SInt16 FSClose(SInt16 refNum) {
-    return noErr;
-}
 
 OSErr SetEOF(SInt16 refNum, SInt32 logEOF) {
     return noErr;

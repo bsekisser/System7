@@ -12,12 +12,45 @@
 
 #include "SystemTypes.h"
 
-#include "SystemTypes.h"
-
-#include "FileManager.h"
-
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+/* Unix error codes */
+#ifndef ENOMEM
+#define ENOMEM  12
+#define EIO     5
+#define EMFILE  24
+#define ENOENT  2
+#define EACCES  13
+#define EEXIST  17
+#define ENOTDIR 20
+#define EISDIR  21
+#define ENOSPC  28
+#define EROFS   30
+#endif
+
+/* Mac error codes not in SystemTypes.h */
+#ifndef ioErr
+#define ioErr           -36    /* I/O error */
+#define vLckdErr        -46    /* Volume is locked */
+#define fBsyErr         -47    /* File is busy */
+#define opWrErr         -49    /* File already open for writing */
+#define volOffLinErr    -53    /* Volume is offline */
+#define permErr         -54    /* Permission error */
+#define nsvErr          -35    /* No such volume */
+#define fnOpnErr        -38    /* File not open */
+#define eofErr          -39    /* End of file */
+#define posErr          -40    /* Bad positioning */
+#define mFulErr         -41    /* Memory full */
+#define tmfoErr         -42    /* Too many files open */
+#define wPrErr          -44    /* Disk is write-protected */
+#define fLckdErr        -45    /* File is locked */
+#define dskFulErr       -34    /* Disk full */
+#define dirNFErr        -120   /* Directory not found */
+#define tmwdoErr        -121   /* Too many working directories open */
+#define btNoErr         0      /* B-tree no error */
+#define btRecNotFnd     -1300  /* B-tree record not found */
 #endif
 
 /* HFS Constants */
@@ -81,6 +114,16 @@ extern "C" {
 #define VCB_WRITE_PROTECTED 0x0080      /* Volume is write-protected */
 #define VCB_UNMOUNTING      0x0040      /* Volume is being unmounted */
 #define VCB_BAD_BLOCKS      0x0200      /* Volume has bad blocks */
+
+/* Include extended types for File Manager */
+#include "FileManagerTypes.h"
+
+/* For compatibility, map extended types to base names */
+#define VCB VCBExt
+#define FCB FCBExt
+
+/* Now include FileManager.h which will see VCB/FCB as VCBExt/FCBExt */
+#include "FileManager.h"
 
 /* ============================================================================
  * HFS On-Disk Structures

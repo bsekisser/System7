@@ -1,8 +1,3 @@
-#include "SystemTypes.h"
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include "System71StdLib.h"
 /*
  * FileManager.c - Core File Manager Implementation
  *
@@ -13,7 +8,10 @@
  * Based on Apple System Software 7.1 architecture
  */
 
-#include "FileManager.h"
+#include "SystemTypes.h"
+#include <stdlib.h>
+#include <string.h>
+#include "System71StdLib.h"
 #include "FileManager_Internal.h"
 
 
@@ -113,7 +111,7 @@ OSErr FM_Shutdown(void)
 
     /* Close all open files */
     for (int i = 0; i < g_FSGlobals.fcbCount; i++) {
-        if (g_FSGlobals.fcbArray[i].fcbFlNm != 0) {
+        if (g_FSGlobals.fcbArray[i].base.fcbFlNm != 0) {
             FCB_Close(&g_FSGlobals.fcbArray[i]);
         }
     }
@@ -155,11 +153,11 @@ OSErr FSOpen(ConstStr255Param fileName, VolumeRefNum vRefNum, FileRefNum* refNum
     memset(&pb, 0, sizeof(pb));
     pb.ioNamePtr = (StringPtr)fileName;
     pb.ioVRefNum = vRefNum;
-    (pb)->ioParam.ioPermssn = fsRdWrPerm;
+    pb.u.ioParam.ioPermssn = fsRdWrPerm;
 
     OSErr err = PBOpenSync(&pb);
     if (err == noErr && refNum) {
-        *refNum = (pb)->ioParam.ioRefNum;
+        *refNum = pb.u.ioParam.ioRefNum;
     }
 
     return err;
@@ -170,7 +168,7 @@ OSErr FSClose(FileRefNum refNum)
     ParamBlockRec pb;
 
     memset(&pb, 0, sizeof(pb));
-    (pb)->ioParam.ioRefNum = refNum;
+    pb.u.ioParam.ioRefNum = refNum;
 
     return PBCloseSync(&pb);
 }
@@ -184,12 +182,12 @@ OSErr FSRead(FileRefNum refNum, UInt32* count, void* buffer)
     }
 
     memset(&pb, 0, sizeof(pb));
-    (pb)->ioParam.ioRefNum = refNum;
-    (pb)->ioParam.ioBuffer = buffer;
-    (pb)->ioParam.ioReqCount = *count;
+    pb.u.ioParam.ioRefNum = refNum;
+    pb.u.ioParam.ioBuffer = buffer;
+    pb.u.ioParam.ioReqCount = *count;
 
     OSErr err = PBReadSync(&pb);
-    *count = (pb)->ioParam.ioActCount;
+    *count = pb.u.ioParam.ioActCount;
 
     return err;
 }
@@ -203,12 +201,12 @@ OSErr FSWrite(FileRefNum refNum, UInt32* count, const void* buffer)
     }
 
     memset(&pb, 0, sizeof(pb));
-    (pb)->ioParam.ioRefNum = refNum;
-    (pb)->ioParam.ioBuffer = (void*)buffer;
-    (pb)->ioParam.ioReqCount = *count;
+    pb.u.ioParam.ioRefNum = refNum;
+    pb.u.ioParam.ioBuffer = (void*)buffer;
+    pb.u.ioParam.ioReqCount = *count;
 
     OSErr err = PBWriteSync(&pb);
-    *count = (pb)->ioParam.ioActCount;
+    *count = pb.u.ioParam.ioActCount;
 
     return err;
 }
@@ -224,12 +222,12 @@ OSErr FSOpenDF(ConstStr255Param fileName, VolumeRefNum vRefNum, FileRefNum* refN
     memset(&pb, 0, sizeof(pb));
     pb.ioNamePtr = (StringPtr)fileName;
     pb.ioVRefNum = vRefNum;
-    (pb)->ioParam.ioPermssn = fsRdWrPerm;
-    pb.u.fileParam.ioDirID = 0;  /* Use default directory */
+    pb.u.ioParam.ioPermssn = fsRdWrPerm;
+    /* pb.u.fileParam.ioDirID = 0; -- FileParam doesn't have ioDirID */  /* Use default directory */
 
     OSErr err = PBHOpenDFSync(&pb);
     if (err == noErr && refNum) {
-        *refNum = (pb)->ioParam.ioRefNum;
+        *refNum = pb.u.ioParam.ioRefNum;
     }
 
     return err;
@@ -242,12 +240,12 @@ OSErr FSOpenRF(ConstStr255Param fileName, VolumeRefNum vRefNum, FileRefNum* refN
     memset(&pb, 0, sizeof(pb));
     pb.ioNamePtr = (StringPtr)fileName;
     pb.ioVRefNum = vRefNum;
-    (pb)->ioParam.ioPermssn = fsRdWrPerm;
-    pb.u.fileParam.ioDirID = 0;
+    pb.u.ioParam.ioPermssn = fsRdWrPerm;
+    /* pb.u.fileParam.ioDirID = 0; -- FileParam doesn't have ioDirID */
 
     OSErr err = PBHOpenRFSync(&pb);
     if (err == noErr && refNum) {
-        *refNum = (pb)->ioParam.ioRefNum;
+        *refNum = pb.u.ioParam.ioRefNum;
     }
 
     return err;
@@ -261,7 +259,7 @@ OSErr FSCreate(ConstStr255Param fileName, VolumeRefNum vRefNum, UInt32 creator, 
     memset(&pb, 0, sizeof(pb));
     pb.ioNamePtr = (StringPtr)fileName;
     pb.ioVRefNum = vRefNum;
-    pb.u.fileParam.ioDirID = 0;
+    /* pb.u.fileParam.ioDirID = 0; -- FileParam doesn't have ioDirID */
 
     OSErr err = PBHCreateSync(&pb);
     if (err != noErr) {
@@ -287,7 +285,7 @@ OSErr FSDelete(ConstStr255Param fileName, VolumeRefNum vRefNum)
     memset(&pb, 0, sizeof(pb));
     pb.ioNamePtr = (StringPtr)fileName;
     pb.ioVRefNum = vRefNum;
-    pb.u.fileParam.ioDirID = 0;
+    /* pb.u.fileParam.ioDirID = 0; -- FileParam doesn't have ioDirID */
 
     return PBHDeleteSync(&pb);
 }
@@ -299,8 +297,8 @@ OSErr FSRename(ConstStr255Param oldName, ConstStr255Param newName, VolumeRefNum 
     memset(&pb, 0, sizeof(pb));
     pb.ioNamePtr = (StringPtr)oldName;
     pb.ioVRefNum = vRefNum;
-    pb.u.((IOParam*)ioParam)->ioMisc = (void*)newName;
-    pb.u.fileParam.ioDirID = 0;
+    pb.u.ioParam.ioMisc = (void*)newName;
+    /* pb.u.fileParam.ioDirID = 0; -- FileParam doesn't have ioDirID */
 
     return PBHRenameSync(&pb);
 }
@@ -323,7 +321,7 @@ OSErr FSGetFPos(FileRefNum refNum, UInt32* position)
     }
 
     FS_LockFCB(fcb);
-    *position = fcb->fcbCrPs;
+    *position = fcb->base.fcbCrPs;
     FS_UnlockFCB(fcb);
 
     return noErr;
@@ -352,20 +350,20 @@ OSErr FSSetFPos(FileRefNum refNum, UInt16 posMode, SInt32 posOffset)
             break;
 
         case fsFromLEOF:
-            if (posOffset > 0 || (UInt32)(-posOffset) > fcb->fcbEOF) {
+            if (posOffset > 0 || (UInt32)(-posOffset) > fcb->base.fcbEOF) {
                 FS_UnlockFCB(fcb);
                 return posErr;
             }
-            newPos = fcb->fcbEOF + posOffset;
+            newPos = fcb->base.fcbEOF + posOffset;
             break;
 
         case fsFromMark:
-            if ((posOffset < 0 && (UInt32)(-posOffset) > fcb->fcbCrPs) ||
-                (posOffset > 0 && fcb->fcbCrPs + posOffset > fcb->fcbEOF)) {
+            if ((posOffset < 0 && (UInt32)(-posOffset) > fcb->base.fcbCrPs) ||
+                (posOffset > 0 && fcb->base.fcbCrPs + posOffset > fcb->base.fcbEOF)) {
                 FS_UnlockFCB(fcb);
                 return posErr;
             }
-            newPos = fcb->fcbCrPs + posOffset;
+            newPos = fcb->base.fcbCrPs + posOffset;
             break;
 
         default:
@@ -374,12 +372,12 @@ OSErr FSSetFPos(FileRefNum refNum, UInt16 posMode, SInt32 posOffset)
     }
 
     /* Check bounds */
-    if (newPos > fcb->fcbEOF) {
+    if (newPos > fcb->base.fcbEOF) {
         FS_UnlockFCB(fcb);
         return eofErr;
     }
 
-    fcb->fcbCrPs = newPos;
+    fcb->base.fcbCrPs = newPos;
     FS_UnlockFCB(fcb);
 
     return noErr;
@@ -399,7 +397,7 @@ OSErr FSGetEOF(FileRefNum refNum, UInt32* eof)
     }
 
     FS_LockFCB(fcb);
-    *eof = fcb->fcbEOF;
+    *eof = fcb->base.fcbEOF;
     FS_UnlockFCB(fcb);
 
     return noErr;
@@ -418,27 +416,27 @@ OSErr FSSetEOF(FileRefNum refNum, UInt32 eof)
     FS_LockFCB(fcb);
 
     /* Check write permission */
-    if (!(fcb->fcbFlags & FCB_WRITE_PERM)) {
+    if (!(fcb->base.fcbFlags & FCB_WRITE_PERM)) {
         FS_UnlockFCB(fcb);
         return wrPermErr;
     }
 
     /* Extend or truncate as needed */
-    if (eof > fcb->fcbEOF) {
-        err = Ext_Extend(fcb->fcbVPtr, fcb, eof);
-    } else if (eof < fcb->fcbEOF) {
-        err = Ext_Truncate(fcb->fcbVPtr, fcb, eof);
+    if (eof > fcb->base.fcbEOF) {
+        err = Ext_Extend(fcb->base.fcbVPtr, fcb, eof);
+    } else if (eof < fcb->base.fcbEOF) {
+        err = Ext_Truncate(fcb->base.fcbVPtr, fcb, eof);
     } else {
         err = noErr;
     }
 
     if (err == noErr) {
-        fcb->fcbEOF = eof;
-        fcb->fcbFlags |= FCB_DIRTY;
+        fcb->base.fcbEOF = eof;
+        fcb->base.fcbFlags |= FCB_DIRTY;
 
         /* Adjust current position if beyond new EOF */
-        if (fcb->fcbCrPs > eof) {
-            fcb->fcbCrPs = eof;
+        if (fcb->base.fcbCrPs > eof) {
+            fcb->base.fcbCrPs = eof;
         }
     }
 
@@ -465,7 +463,7 @@ OSErr FSAllocate(FileRefNum refNum, UInt32* count)
     FS_LockFCB(fcb);
 
     /* Check write permission */
-    if (!(fcb->fcbFlags & FCB_WRITE_PERM)) {
+    if (!(fcb->base.fcbFlags & FCB_WRITE_PERM)) {
         FS_UnlockFCB(fcb);
         return wrPermErr;
     }
@@ -474,11 +472,11 @@ OSErr FSAllocate(FileRefNum refNum, UInt32* count)
     newSize = fcb->fcbPLen + *count;
 
     /* Try to allocate the space */
-    err = Ext_Extend(fcb->fcbVPtr, fcb, newSize);
+    err = Ext_Extend(fcb->base.fcbVPtr, fcb, newSize);
     if (err == noErr) {
         *count = newSize - fcb->fcbPLen;
         fcb->fcbPLen = newSize;
-        fcb->fcbFlags |= FCB_DIRTY;
+        fcb->base.fcbFlags |= FCB_DIRTY;
     } else {
         *count = 0;
     }
@@ -503,7 +501,7 @@ OSErr FSGetFInfo(ConstStr255Param fileName, VolumeRefNum vRefNum, FInfo* fndrInf
     memset(&pb, 0, sizeof(pb));
     pb.ioNamePtr = (StringPtr)fileName;
     pb.ioVRefNum = vRefNum;
-    pb.ioDirIndex = 0;
+    pb.u.hFileInfo.ioFDirIndex = 0;
 
     OSErr err = PBGetCatInfoSync(&pb);
     if (err == noErr) {
@@ -525,7 +523,7 @@ OSErr FSSetFInfo(ConstStr255Param fileName, VolumeRefNum vRefNum, const FInfo* f
     memset(&pb, 0, sizeof(pb));
     pb.ioNamePtr = (StringPtr)fileName;
     pb.ioVRefNum = vRefNum;
-    pb.ioDirIndex = 0;
+    pb.u.hFileInfo.ioFDirIndex = 0;
 
     OSErr err = PBGetCatInfoSync(&pb);
     if (err != noErr) {
@@ -592,7 +590,7 @@ OSErr FSMakeFSSpec(VolumeRefNum vRefNum, DirID dirID, ConstStr255Param fileName,
     pb.ioNamePtr = spec->name;
     pb.ioVRefNum = spec->vRefNum;
     pb.u.dirInfo.ioDrDirID = spec->parID;
-    pb.ioDirIndex = 0;
+    pb.u.hFileInfo.ioFDirIndex = 0;
 
     err = PBGetCatInfoSync(&pb);
 
@@ -635,7 +633,7 @@ OSErr FSCreateDir(ConstStr255Param dirName, VolumeRefNum vRefNum, DirID* created
     /* Update volume directory count */
     if (err == noErr) {
         vcb->vcbDirCnt++;
-        vcb->vcbFlags |= VCB_DIRTY;
+        vcb->base.vcbFlags |= VCB_DIRTY;
     }
 
     FS_UnlockVolume(vcb);
@@ -683,7 +681,7 @@ OSErr FSDeleteDir(ConstStr255Param dirName, VolumeRefNum vRefNum)
     /* Update volume directory count */
     if (err == noErr) {
         vcb->vcbDirCnt--;
-        vcb->vcbFlags |= VCB_DIRTY;
+        vcb->base.vcbFlags |= VCB_DIRTY;
     }
 
     FS_UnlockVolume(vcb);
@@ -701,7 +699,7 @@ OSErr FSGetWDInfo(WDRefNum wdRefNum, VolumeRefNum* vRefNum, DirID* dirID, UInt32
     }
 
     if (vRefNum) {
-        *vRefNum = wdcb->wdVCBPtr->vcbVRefNum;
+        *vRefNum = wdcb->wdVCBPtr->base.vcbVRefNum;
     }
 
     if (dirID) {
@@ -773,7 +771,7 @@ OSErr FSMount(UInt16 drvNum, void* buffer)
 
     /* Set as default volume if first mount */
     if (!g_FSGlobals.defVRefNum) {
-        g_FSGlobals.defVRefNum = vcb->vcbVRefNum;
+        g_FSGlobals.defVRefNum = vcb->base.vcbVRefNum;
     }
 
     return noErr;
@@ -793,7 +791,7 @@ OSErr FSUnmount(VolumeRefNum vRefNum)
     /* Close all files on this volume */
     for (int i = 0; i < g_FSGlobals.fcbCount; i++) {
         FCB* fcb = &g_FSGlobals.fcbArray[i];
-        if (fcb->fcbVPtr == vcb) {
+        if (fcb->base.fcbVPtr == vcb) {
             FCB_Close(fcb);
         }
     }
@@ -825,7 +823,7 @@ OSErr FSEject(VolumeRefNum vRefNum)
     }
 
     /* Mark as offline */
-    vcb->vcbAtrb |= kioVAtrbOffline;
+    vcb->base.vcbAtrb |= kioVAtrbOffline;
 
     return err;
 }
@@ -866,15 +864,15 @@ OSErr FSGetVInfo(VolumeRefNum vRefNum, StringPtr volName, UInt16* vRefNumOut, UI
     FS_LockVolume(vcb);
 
     if (volName) {
-        memcpy(volName, vcb->vcbVN, vcb->vcbVN[0] + 1);
+        memcpy(volName, vcb->base.vcbVN, vcb->base.vcbVN[0] + 1);
     }
 
     if (vRefNumOut) {
-        *vRefNumOut = vcb->vcbVRefNum;
+        *vRefNumOut = vcb->base.vcbVRefNum;
     }
 
     if (freeBytes) {
-        *freeBytes = (UInt32)vcb->vcbFreeBks * vcb->vcbAlBlkSiz;
+        *freeBytes = (UInt32)vcb->base.vcbFreeBks * vcb->base.vcbAlBlkSiz;
     }
 
     FS_UnlockVolume(vcb);
@@ -893,7 +891,7 @@ OSErr FSSetVol(ConstStr255Param volName, VolumeRefNum vRefNum)
         if (!vcb) {
             return nsvErr;
         }
-        g_FSGlobals.defVRefNum = vcb->vcbVRefNum;
+        g_FSGlobals.defVRefNum = vcb->base.vcbVRefNum;
     } else if (vRefNum != 0) {
         /* Find by reference number */
         err = FM_GetVolumeFromRefNum(vRefNum, &vcb);
@@ -924,7 +922,7 @@ OSErr FSGetVol(StringPtr volName, VolumeRefNum* vRefNum)
     *vRefNum = g_FSGlobals.defVRefNum;
 
     if (volName) {
-        memcpy(volName, vcb->vcbVN, vcb->vcbVN[0] + 1);
+        memcpy(volName, vcb->base.vcbVN, vcb->base.vcbVN[0] + 1);
     }
 
     return noErr;
@@ -953,10 +951,10 @@ OSErr PBOpenSync(ParmBlkPtr paramBlock)
 
     /* Open the file */
     err = FCB_Open(vcb, 2, paramBlock->ioNamePtr,
-                   (paramBlock)->ioParam.ioPermssn, &fcb);
+                   (paramBlock)->u.ioParam.ioPermssn, &fcb);
 
     if (err == noErr) {
-        (paramBlock)->ioParam.ioRefNum = fcb->fcbRefNum;
+        (paramBlock)->u.ioParam.ioRefNum = fcb->fcbRefNum;
     }
 
     paramBlock->ioResult = err;
@@ -972,7 +970,7 @@ OSErr PBCloseSync(ParmBlkPtr paramBlock)
         return paramErr;
     }
 
-    fcb = FCB_Find((paramBlock)->ioParam.ioRefNum);
+    fcb = FCB_Find((paramBlock)->u.ioParam.ioRefNum);
     if (!fcb) {
         err = rfNumErr;
     } else {
@@ -993,14 +991,14 @@ OSErr PBReadSync(ParmBlkPtr paramBlock)
         return paramErr;
     }
 
-    fcb = FCB_Find((paramBlock)->ioParam.ioRefNum);
+    fcb = FCB_Find((paramBlock)->u.ioParam.ioRefNum);
     if (!fcb) {
         err = rfNumErr;
     } else {
         /* Handle positioning */
-        if ((paramBlock)->ioParam.ioPosMode != fsAtMark) {
-            err = FSSetFPos(fcb->fcbRefNum, (paramBlock)->ioParam.ioPosMode,
-                          (paramBlock)->ioParam.ioPosOffset);
+        if ((paramBlock)->u.ioParam.ioPosMode != fsAtMark) {
+            err = FSSetFPos(fcb->fcbRefNum, (paramBlock)->u.ioParam.ioPosMode,
+                          (paramBlock)->u.ioParam.ioPosOffset);
             if (err != noErr) {
                 paramBlock->ioResult = err;
                 return err;
@@ -1008,11 +1006,11 @@ OSErr PBReadSync(ParmBlkPtr paramBlock)
         }
 
         /* Read the data */
-        err = IO_ReadFork(fcb, fcb->fcbCrPs, (paramBlock)->ioParam.ioReqCount,
-                         (paramBlock)->ioParam.ioBuffer, &actualCount);
+        err = IO_ReadFork(fcb, fcb->base.fcbCrPs, (paramBlock)->u.ioParam.ioReqCount,
+                         (paramBlock)->u.ioParam.ioBuffer, &actualCount);
 
-        (paramBlock)->ioParam.ioActCount = actualCount;
-        (paramBlock)->ioParam.ioPosOffset = fcb->fcbCrPs;
+        (paramBlock)->u.ioParam.ioActCount = actualCount;
+        (paramBlock)->u.ioParam.ioPosOffset = fcb->base.fcbCrPs;
 
         /* Update statistics */
         g_FSGlobals.bytesRead += actualCount;
@@ -1032,18 +1030,18 @@ OSErr PBWriteSync(ParmBlkPtr paramBlock)
         return paramErr;
     }
 
-    fcb = FCB_Find((paramBlock)->ioParam.ioRefNum);
+    fcb = FCB_Find((paramBlock)->u.ioParam.ioRefNum);
     if (!fcb) {
         err = rfNumErr;
     } else {
         /* Check write permission */
-        if (!(fcb->fcbFlags & FCB_WRITE_PERM)) {
+        if (!(fcb->base.fcbFlags & FCB_WRITE_PERM)) {
             err = wrPermErr;
         } else {
             /* Handle positioning */
-            if ((paramBlock)->ioParam.ioPosMode != fsAtMark) {
-                err = FSSetFPos(fcb->fcbRefNum, (paramBlock)->ioParam.ioPosMode,
-                              (paramBlock)->ioParam.ioPosOffset);
+            if ((paramBlock)->u.ioParam.ioPosMode != fsAtMark) {
+                err = FSSetFPos(fcb->fcbRefNum, (paramBlock)->u.ioParam.ioPosMode,
+                              (paramBlock)->u.ioParam.ioPosOffset);
                 if (err != noErr) {
                     paramBlock->ioResult = err;
                     return err;
@@ -1051,11 +1049,11 @@ OSErr PBWriteSync(ParmBlkPtr paramBlock)
             }
 
             /* Write the data */
-            err = IO_WriteFork(fcb, fcb->fcbCrPs, (paramBlock)->ioParam.ioReqCount,
-                             (paramBlock)->ioParam.ioBuffer, &actualCount);
+            err = IO_WriteFork(fcb, fcb->base.fcbCrPs, (paramBlock)->u.ioParam.ioReqCount,
+                             (paramBlock)->u.ioParam.ioBuffer, &actualCount);
 
-            (paramBlock)->ioParam.ioActCount = actualCount;
-            (paramBlock)->ioParam.ioPosOffset = fcb->fcbCrPs;
+            (paramBlock)->u.ioParam.ioActCount = actualCount;
+            (paramBlock)->u.ioParam.ioPosOffset = fcb->base.fcbCrPs;
 
             /* Update statistics */
             g_FSGlobals.bytesWritten += actualCount;
@@ -1170,13 +1168,13 @@ OSErr PBHOpenDFSync(ParmBlkPtr paramBlock)
     }
 
     /* Open data fork */
-    err = FCB_Open(vcb, (paramBlock)->fileParam.ioDirID,
+    err = FCB_Open(vcb, ((HParamBlockRec*)paramBlock)->u.hFileInfo.ioDirID,
                    paramBlock->ioNamePtr,
-                   (paramBlock)->ioParam.ioPermssn, &fcb);
+                   (paramBlock)->u.ioParam.ioPermssn, &fcb);
 
     if (err == noErr) {
-        fcb->fcbFlags &= ~FCB_RESOURCE;  /* Clear resource fork flag */
-        (paramBlock)->ioParam.ioRefNum = fcb->fcbRefNum;
+        fcb->base.fcbFlags &= ~FCB_RESOURCE;  /* Clear resource fork flag */
+        (paramBlock)->u.ioParam.ioRefNum = fcb->fcbRefNum;
     }
 
     paramBlock->ioResult = err;
@@ -1201,13 +1199,13 @@ OSErr PBHOpenRFSync(ParmBlkPtr paramBlock)
     }
 
     /* Open resource fork */
-    err = FCB_Open(vcb, (paramBlock)->fileParam.ioDirID,
+    err = FCB_Open(vcb, ((HParamBlockRec*)paramBlock)->u.hFileInfo.ioDirID,
                    paramBlock->ioNamePtr,
-                   (paramBlock)->ioParam.ioPermssn, &fcb);
+                   (paramBlock)->u.ioParam.ioPermssn, &fcb);
 
     if (err == noErr) {
-        fcb->fcbFlags |= FCB_RESOURCE;  /* Set resource fork flag */
-        (paramBlock)->ioParam.ioRefNum = fcb->fcbRefNum;
+        fcb->base.fcbFlags |= FCB_RESOURCE;  /* Set resource fork flag */
+        (paramBlock)->u.ioParam.ioRefNum = fcb->fcbRefNum;
     }
 
     paramBlock->ioResult = err;
@@ -1241,13 +1239,13 @@ OSErr PBHCreateSync(ParmBlkPtr paramBlock)
     fileRec.filMdDat = fileRec.filCrDat;
 
     /* Create the file in the catalog */
-    err = Cat_Create(vcb, (paramBlock)->fileParam.ioDirID,
+    err = Cat_Create(vcb, ((HParamBlockRec*)paramBlock)->u.hFileInfo.ioDirID,
                     paramBlock->ioNamePtr, REC_FIL, &fileRec);
 
     /* Update volume file count */
     if (err == noErr) {
         vcb->vcbFilCnt++;
-        vcb->vcbFlags |= VCB_DIRTY;
+        vcb->base.vcbFlags |= VCB_DIRTY;
     }
 
     FS_UnlockVolume(vcb);
@@ -1275,13 +1273,13 @@ OSErr PBHDeleteSync(ParmBlkPtr paramBlock)
     FS_LockVolume(vcb);
 
     /* Delete from catalog */
-    err = Cat_Delete(vcb, (paramBlock)->fileParam.ioDirID,
+    err = Cat_Delete(vcb, ((HParamBlockRec*)paramBlock)->u.hFileInfo.ioDirID,
                     paramBlock->ioNamePtr);
 
     /* Update volume file count */
     if (err == noErr) {
         vcb->vcbFilCnt--;
-        vcb->vcbFlags |= VCB_DIRTY;
+        vcb->base.vcbFlags |= VCB_DIRTY;
     }
 
     FS_UnlockVolume(vcb);
@@ -1309,9 +1307,9 @@ OSErr PBHRenameSync(ParmBlkPtr paramBlock)
     FS_LockVolume(vcb);
 
     /* Rename in catalog */
-    err = Cat_Rename(vcb, (paramBlock)->fileParam.ioDirID,
+    err = Cat_Rename(vcb, ((HParamBlockRec*)paramBlock)->u.hFileInfo.ioDirID,
                      paramBlock->ioNamePtr,
-                     (const UInt8*)(paramBlock)->((IOParam*)ioParam)->ioMisc);
+                     (const UInt8*)(paramBlock)->u.ioParam.ioMisc);
 
     FS_UnlockVolume(vcb);
 
@@ -1394,7 +1392,7 @@ Boolean FM_IsDirectory(const FSSpec* spec)
     pb.ioNamePtr = (StringPtr)spec->name;
     pb.ioVRefNum = spec->vRefNum;
     pb.u.dirInfo.ioDrDirID = spec->parID;
-    pb.ioDirIndex = 0;
+    pb.u.hFileInfo.ioFDirIndex = 0;
 
     if (PBGetCatInfoSync(&pb) != noErr) {
         return false;
@@ -1432,7 +1430,7 @@ OSErr FM_ReleaseProcessFiles(UInt32 processID)
     /* Close all files owned by this process */
     for (int i = 0; i < g_FSGlobals.fcbCount; i++) {
         FCB* fcb = &g_FSGlobals.fcbArray[i];
-        if (fcb->fcbFlNm != 0 && fcb->fcbProcessID == processID) {
+        if (fcb->base.fcbFlNm != 0 && fcb->fcbProcessID == processID) {
             FCB_Close(fcb);
             closedCount++;
         }
@@ -1492,7 +1490,7 @@ void FS_LockVolume(VCB* vcb)
     if (!vcb) return;
 
 #ifdef PLATFORM_REMOVED_WIN32
-    EnterCriticalSection(&vcb->vcbMutex);
+    EnterCriticalSection(&vcb->base.vcbMutex);
 #else
     pthread_mutex_lock(&vcb->vcbMutex);
 #endif
@@ -1503,7 +1501,7 @@ void FS_UnlockVolume(VCB* vcb)
     if (!vcb) return;
 
 #ifdef PLATFORM_REMOVED_WIN32
-    LeaveCriticalSection(&vcb->vcbMutex);
+    LeaveCriticalSection(&vcb->base.vcbMutex);
 #else
     pthread_mutex_unlock(&vcb->vcbMutex);
 #endif
@@ -1624,37 +1622,37 @@ void FM_DumpVolumeInfo(VolumeRefNum vRefNum)
 
     err = FM_GetVolumeFromRefNum(vRefNum, &vcb);
     if (err != noErr) {
-        printf("Volume not found: %d\n", vRefNum);
+        serial_printf("Volume not found: %d\n", vRefNum);
         return;
     }
 
-    printf("Volume Info:\n");
-    printf("  Name: %.*s\n", vcb->vcbVN[0], &vcb->vcbVN[1]);
-    printf("  VRefNum: %d\n", vcb->vcbVRefNum);
-    printf("  Signature: 0x%04X\n", vcb->vcbSigWord);
-    printf("  Files: %u\n", (unsigned)vcb->vcbFilCnt);
-    printf("  Directories: %u\n", (unsigned)vcb->vcbDirCnt);
-    printf("  Free blocks: %u\n", vcb->vcbFreeBks);
-    printf("  Block size: %u\n", (unsigned)vcb->vcbAlBlkSiz);
+    serial_printf("Volume Info:\n");
+    serial_printf("  Name: %.*s\n", vcb->base.vcbVN[0], &vcb->base.vcbVN[1]);
+    serial_printf("  VRefNum: %d\n", vcb->base.vcbVRefNum);
+    serial_printf("  Signature: 0x%04X\n", vcb->base.vcbSigWord);
+    serial_printf("  Files: %u\n", (unsigned)vcb->vcbFilCnt);
+    serial_printf("  Directories: %u\n", (unsigned)vcb->vcbDirCnt);
+    serial_printf("  Free blocks: %u\n", vcb->base.vcbFreeBks);
+    serial_printf("  Block size: %u\n", (unsigned)vcb->base.vcbAlBlkSiz);
 }
 
 void FM_DumpOpenFiles(void)
 {
     int openCount = 0;
 
-    printf("Open Files:\n");
+    serial_printf("Open Files:\n");
 
     for (int i = 0; i < g_FSGlobals.fcbCount; i++) {
         FCB* fcb = &g_FSGlobals.fcbArray[i];
-        if (fcb->fcbFlNm != 0) {
-            printf("  RefNum %d: File %u, Pos %u, EOF %u\n",
+        if (fcb->base.fcbFlNm != 0) {
+            serial_printf("  RefNum %d: File %u, Pos %u, EOF %u\n",
                    fcb->fcbRefNum,
-                   (unsigned)fcb->fcbFlNm,
-                   (unsigned)fcb->fcbCrPs,
-                   (unsigned)fcb->fcbEOF);
+                   (unsigned)fcb->base.fcbFlNm,
+                   (unsigned)fcb->base.fcbCrPs,
+                   (unsigned)fcb->base.fcbEOF);
             openCount++;
         }
     }
 
-    printf("Total open files: %d\n", openCount);
+    serial_printf("Total open files: %d\n", openCount);
 }
