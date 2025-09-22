@@ -26,6 +26,12 @@
 #include "WindowManager/WindowManagerInternal.h"
 #include <math.h>
 
+/* Forward declarations */
+Boolean WM_ValidateWindowPosition(WindowPtr window, const Rect* bounds);
+Point WM_ApplySnapToEdges(Point windowPos);
+static Point WM_ConstrainToRect(Point windowPos, const Rect* constraintRect);
+static Point WM_ConstrainToScreen(Point windowPos);
+
 
 /* ============================================================================
  * Dragging Constants and Configuration
@@ -502,7 +508,7 @@ static Point WM_ConstrainToRect(Point windowPos, const Rect* constraintRect) {
     return windowPos;
 }
 
-static Point WM_ApplySnapToEdges(Point windowPos) {
+Point WM_ApplySnapToEdges(Point windowPos) {
     Rect screenBounds;
     Platform_GetScreenBounds(&screenBounds);
 

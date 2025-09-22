@@ -410,7 +410,7 @@ static void WM_DisableWindowsBehindModal(WindowPtr modalWindow) {
     WM_DEBUG("WM_DisableWindowsBehindModal: Windows disabled");
 }
 
-static void WM_EnableAllWindows(void) {
+void WM_EnableAllWindows(void) {
     WM_DEBUG("WM_EnableAllWindows: Re-enabling all windows");
 
     WindowManagerState* wmState = GetWindowManagerState();
