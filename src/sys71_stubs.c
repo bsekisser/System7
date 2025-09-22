@@ -624,14 +624,7 @@ void WM_Update(void) {
         qd.thePort->pnLoc = savedPenPos;
     }
 
-    /* 3. Draw menu bar LAST with clean pen position to avoid corruption */
-    Point cleanPenPos = {0, 0};
-    if (qd.thePort) {
-        qd.thePort->pnLoc = cleanPenPos;  /* Reset pen position before menu bar */
-    }
-    DrawMenuBar();  /* Menu Manager handles menu bar */
-
-    /* 4. Call DeskHook if registered for icons */
+    /* 3. Call DeskHook if registered for icons */
     if (g_deskHook) {
         /* Create a region for the desktop */
         RgnHandle desktopRgn = NewRgn();
@@ -639,6 +632,10 @@ void WM_Update(void) {
         g_deskHook(desktopRgn);
         DisposeRgn(desktopRgn);
     }
+
+    /* Draw menu bar LAST to ensure clean pen position */
+    MoveTo(0, 0);  /* Reset pen position before drawing menu bar */
+    DrawMenuBar();  /* Menu Manager draws the menu bar */
 
     /* Mouse cursor is now drawn separately in main.c for better performance */
     /* Old cursor drawing code removed to prevent double cursor issue */
