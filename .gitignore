@@ -39,4 +39,4 @@ core.*
 # Temporary files
 /tmp/
 *.tmp
-*.temp
+*.tempold_stubs/
