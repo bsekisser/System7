@@ -75,7 +75,8 @@ C_SOURCES = src/main.c \
             src/FS/trash.c \
             src/FS/vfs_ops.c \
             src/MemoryMgr/MemoryManager.c \
-            src/Resources/Icons/hd_icon.c
+            src/Resources/Icons/hd_icon.c \
+            src/color_icons.c
 
 ASM_SOURCES = src/multiboot2.S
 

@@ -191,8 +191,8 @@ void IconLabel_Draw(const char* name, int cx, int topY, bool selected) {
     uint32_t fgColor = selected ? 0xFFFFFFFF : 0xFF000000;  /* White text if selected, black otherwise */
 
     /* Adjusted background rectangle (perfected from HD icon) */
-    FillRect(textX - padding, topY - textHeight + 2,
-             textX + textWidth + 1, topY + 3, bgColor);  /* Extended right by 1 pixel */
+    FillRect(textX - padding, topY - textHeight + 3,
+             textX + textWidth + 1, topY + 2, bgColor);  /* Reduced height by 2px */
 
     /* Draw text using direct bitmap rendering */
     int currentX = textX;
@@ -217,7 +217,37 @@ IconRect Icon_DrawWithLabel(const IconHandle* h, const char* name,
     Icon_Draw32(h, iconLeft, iconTopY);
 
     /* Draw label below icon (using perfected positioning from HD icon) */
-    int labelTop = iconTopY + 27;  /* Moved down 2 pixels to hide bottom text */
+    int labelTop = iconTopY + 27;  /* Original HD icon position */
+    IconLabel_Draw(name, centerX, labelTop, selected);
+
+    /* Return combined bounds for hit testing */
+    int textWidth, textHeight;
+    IconLabel_Measure(name, &textWidth, &textHeight);
+
+    IconRect bounds;
+    bounds.left = iconLeft;
+    bounds.top = iconTopY;
+    bounds.right = iconLeft + 32;
+    bounds.bottom = labelTop + 5;  /* Include label area with adjusted position */
+
+    /* Expand to include label width */
+    int labelLeft = centerX - (textWidth / 2) - 2;
+    int labelRight = centerX + (textWidth / 2) + 2;
+    if (labelLeft < bounds.left) bounds.left = labelLeft;
+    if (labelRight > bounds.right) bounds.right = labelRight;
+
+    return bounds;
+}
+
+/* Draw icon with label at custom offset - for special icons like Trash */
+IconRect Icon_DrawWithLabelOffset(const IconHandle* h, const char* name,
+                                  int centerX, int iconTopY, int labelOffset, bool selected) {
+    /* Draw icon centered at centerX */
+    int iconLeft = centerX - 16;  /* 32x32 icon */
+    Icon_Draw32(h, iconLeft, iconTopY);
+
+    /* Draw label with custom offset */
+    int labelTop = iconTopY + labelOffset;
     IconLabel_Draw(name, centerX, labelTop, selected);
 
     /* Return combined bounds for hit testing */

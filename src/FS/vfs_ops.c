@@ -3,9 +3,7 @@
  */
 
 #include "FS/vfs_ops.h"
-#include "FS/vfs.h"
 #include <string.h>
-#include <stdio.h>
 
 /* Stub implementations - will connect to actual HFS later */
 
@@ -41,13 +39,7 @@ bool VFS_DeleteTree(VRefNum vref, DirID parent, FileID id) {
     return true;
 }
 
-bool VFS_Enumerate(VRefNum vref, DirID dir, CatEntry* out, int max, int* outCount) {
-    /* In real implementation:
-     * Walk catalog B-tree for entries with parent=dir
-     */
-    *outCount = 0;
-    return true;
-}
+/* VFS_Enumerate is already defined in vfs.c */
 
 bool VFS_GetDirItemCount(VRefNum vref, DirID dir, uint32_t* outCount, bool recursive) {
     /* Count items in directory */
@@ -79,8 +71,28 @@ bool VFS_GenerateUniqueName(VRefNum vref, DirID dir, const char* base, char* out
     }
 
     for (int i = 2; i < 1000; i++) {
+        /* Manual string formatting to avoid stdio dependency */
         char tmp[40];
-        snprintf(tmp, sizeof(tmp), "%s %d", base, i);
+        int base_len = strlen(base);
+        if (base_len > 25) base_len = 25;  /* Leave room for " NNN" */
+        memcpy(tmp, base, base_len);
+        tmp[base_len] = ' ';
+
+        /* Convert number to string manually */
+        int num = i;
+        int digits = 0;
+        char numbuf[10];
+        do {
+            numbuf[digits++] = '0' + (num % 10);
+            num /= 10;
+        } while (num > 0);
+
+        /* Copy digits in reverse order */
+        for (int d = 0; d < digits; d++) {
+            tmp[base_len + 1 + d] = numbuf[digits - 1 - d];
+        }
+        tmp[base_len + 1 + digits] = 0;
+
         if (!VFS_Exists(vref, dir, tmp)) {
             strncpy(out, tmp, 31);
             out[31] = 0;

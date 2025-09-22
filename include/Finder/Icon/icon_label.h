@@ -14,3 +14,6 @@ void IconLabel_Draw(const char* name, int cx, int topY, bool selected);
 
 /* Complete icon+label drawing helper */
 IconRect Icon_DrawWithLabel(const IconHandle* h, const char* name, int centerX, int iconTopY, bool selected);
+
+/* Draw icon with label at custom offset - for special icons like Trash */
+IconRect Icon_DrawWithLabelOffset(const IconHandle* h, const char* name, int centerX, int iconTopY, int labelOffset, bool selected);

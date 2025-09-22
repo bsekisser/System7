@@ -16,6 +16,11 @@ extern const uint8_t icon_TrashEmpty_image[128];
 extern const uint8_t icon_TrashFull_mask[128];
 extern const uint8_t icon_TrashFull_image[128];
 
+/* Import color icon data from color_icons.c */
+extern const uint32_t icon_TrashEmpty_color[1024];
+extern const uint32_t icon_TrashFull_color[1024];
+extern const uint32_t icon_HD_color[1024];
+
 /* Generic folder icon (System 7 style) - 32x32 bitmap */
 static const uint8_t gFolderMask32[128] = {
     /* Row 0-3: Folder tab */
@@ -219,7 +224,7 @@ static const uint8_t gTrashFullImg32[128] = {
 
 /* Icon families */
 static IconFamily gVolumeIF = {
-    .large = {32, 32, kIconDepth1, g_HDIconMask, g_HDIcon, NULL},
+    .large = {32, 32, kIconColor32, g_HDIconMask, g_HDIcon, icon_HD_color},
     .hasSmall = false
 };
 
@@ -234,12 +239,12 @@ static IconFamily gDocIF = {
 };
 
 static IconFamily gTrashEmptyIF = {
-    .large = {32, 32, kIconDepth1, (uint8_t*)icon_TrashEmpty_mask, (uint8_t*)icon_TrashEmpty_image, NULL},
+    .large = {32, 32, kIconColor32, (uint8_t*)icon_TrashEmpty_mask, (uint8_t*)icon_TrashEmpty_image, icon_TrashEmpty_color},
     .hasSmall = false
 };
 
 static IconFamily gTrashFullIF = {
-    .large = {32, 32, kIconDepth1, (uint8_t*)icon_TrashFull_mask, (uint8_t*)icon_TrashFull_image, NULL},
+    .large = {32, 32, kIconColor32, (uint8_t*)icon_TrashFull_mask, (uint8_t*)icon_TrashFull_image, icon_TrashFull_color},
     .hasSmall = false
 };
 
