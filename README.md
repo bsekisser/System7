@@ -8,13 +8,14 @@ An open implementation of Apple Macintosh System 7.1 for modern hardware, bootab
 ## Features
 
 - **Classic Mac OS Interface**: Authentic System 7.1 menu bar with rainbow Apple logo
+- **Desktop Icons**: Authentic Mac OS 7 hard drive icon with proper text rendering
 - **Chicago Bitmap Font**: Pixel-perfect rendering of the classic Mac font
 - **QuickDraw Graphics**: Core 2D graphics system implementation
 - **Window Manager**: Foundation for classic Mac windowing system
 - **Menu Manager**: Fully functional menu bar with File, Edit, View, and Label menus
 - **PS/2 Input Support**: Keyboard and mouse input via PS/2 controller
 - **Event Manager**: Classic Mac event handling system
-- **Finder Integration**: Basic Finder desktop functionality
+- **Finder Integration**: Desktop functionality with volume icons
 
 ## Building
 
@@ -62,6 +63,7 @@ iteration2/
 │   ├── EventManager/      # Event handling
 │   ├── MemoryMgr/        # Memory management
 │   ├── PatternManager/    # Pattern resources
+│   ├── Resources/Icons/   # Icon resources (HD icon)
 │   └── [30+ managers]     # Various system managers
 ├── include/               # Header files
 ├── System_Resources_Extracted/  # Original System 7.1 resources (69 types)
@@ -89,7 +91,9 @@ iteration2/
 
 ✅ Boots successfully via GRUB2
 ✅ Displays System 7.1 menu bar with rainbow Apple logo
-✅ Chicago font rendering with proper spacing
+✅ Authentic Mac OS 7 HD icon on desktop
+✅ Chicago font rendering with proper spacing and kerning
+✅ Desktop icon text with white background
 ✅ PS/2 keyboard and mouse support
 ✅ Event system framework in place
 ✅ Pattern resources (PAT) loaded from JSON
