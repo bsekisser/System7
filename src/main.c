@@ -1904,6 +1904,10 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 
         EventRecord evt;
         if (GetNextEvent(everyEvent, &evt)) {
+            /* Debug: show what events we're getting */
+            if (evt.what == mouseDown) {
+                serial_printf("MAIN: Got mouseDown at (%d,%d)\n", evt.where.h, evt.where.v);
+            }
             DispatchEvent(&evt);
         }
 
@@ -2046,9 +2050,8 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
             }
         }
 
-        /* Skip SystemTask and GetNextEvent which seem to be causing issues */
-        /* They're not critical for basic mouse functionality */
-#if 0
+        /* Re-enable SystemTask and GetNextEvent for event processing */
+#if 1
         /* System 7.1 cooperative multitasking */
         SystemTask();
 

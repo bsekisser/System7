@@ -77,17 +77,94 @@ SInt16 InitEvents(SInt16 numEvents) {
     return 0;  /* Success */
 }
 
+/* Simple event queue implementation */
+#define MAX_EVENTS 32
+static struct {
+    EventRecord events[MAX_EVENTS];
+    int head;
+    int tail;
+    int count;
+} g_eventQueue = {0};
+
 Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
-    /* Always return no event */
+    /* Check if queue has events */
+    if (g_eventQueue.count == 0) {
+        return false;
+    }
+
+    /* Find the next event matching the mask */
+    int index = g_eventQueue.head;
+    int checked = 0;
+
+    while (checked < g_eventQueue.count) {
+        EventRecord* evt = &g_eventQueue.events[index];
+
+        /* Check if event matches mask */
+        if ((1 << evt->what) & eventMask) {
+            /* Copy event to caller */
+            if (theEvent) {
+                *theEvent = *evt;
+            }
+
+            /* Remove event from queue */
+            if (index == g_eventQueue.head) {
+                /* Easy case - removing from head */
+                g_eventQueue.head = (g_eventQueue.head + 1) % MAX_EVENTS;
+                g_eventQueue.count--;
+            } else {
+                /* Need to shift events to fill the gap */
+                int next = (index + 1) % MAX_EVENTS;
+                while (next != (g_eventQueue.tail)) {
+                    g_eventQueue.events[index] = g_eventQueue.events[next];
+                    index = next;
+                    next = (next + 1) % MAX_EVENTS;
+                }
+                g_eventQueue.tail = (g_eventQueue.tail - 1 + MAX_EVENTS) % MAX_EVENTS;
+                g_eventQueue.count--;
+            }
+
+            extern void serial_printf(const char* fmt, ...);
+            if (evt->what == mouseDown) {
+                serial_printf("GetNextEvent: Returning mouseDown at (%d,%d)\n",
+                             theEvent->where.h, theEvent->where.v);
+            }
+
+            return true;
+        }
+
+        index = (index + 1) % MAX_EVENTS;
+        checked++;
+    }
+
     return false;
 }
 
-/* SystemTask provided by DeskManagerCore.c */
-
 SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
-    /* Simple event posting - just log for now */
     extern void serial_printf(const char* fmt, ...);
-    /* serial_printf("PostEvent: type=%d msg=0x%08x\n", eventNum, eventMsg); */
+    extern void GetMouse(Point* mouseLoc);
+
+    /* Check if queue is full */
+    if (g_eventQueue.count >= MAX_EVENTS) {
+        serial_printf("PostEvent: Event queue full!\n");
+        return queueFull;
+    }
+
+    /* Add event to queue */
+    EventRecord* evt = &g_eventQueue.events[g_eventQueue.tail];
+    evt->what = eventNum;
+    evt->message = eventMsg;
+    evt->when = TickCount();
+    GetMouse(&evt->where);  /* Get current mouse position */
+    evt->modifiers = 0;  /* TODO: Get keyboard modifiers */
+
+    g_eventQueue.tail = (g_eventQueue.tail + 1) % MAX_EVENTS;
+    g_eventQueue.count++;
+
+    if (eventNum == mouseDown) {
+        serial_printf("PostEvent: Added mouseDown at (%d,%d) to queue (count=%d)\n",
+                     evt->where.h, evt->where.v, g_eventQueue.count);
+    }
+
     return noErr;
 }
 
@@ -97,6 +174,8 @@ void GenerateSystemEvent(short eventType, int message, Point where, short modifi
     /* Generate and post a system event */
     PostEvent(eventType, message);
 }
+
+/* SystemTask provided by DeskManagerCore.c */
 
 /* ExpandMem stubs for SystemInit */
 void ExpandMemInit(void) {}
@@ -125,8 +204,15 @@ void FinderEventLoop(void) {
 }
 
 /* Additional Finder support functions */
-void FlushEvents(short whichMask, short stopMask) {
-    /* Stub - would flush event queue */
+/* FlushEvents - clear events from queue */
+void FlushEvents(short eventMask, short stopMask) {
+    /* Clear matching events from our queue */
+    if (eventMask == everyEvent && stopMask == 0) {
+        /* Clear all events */
+        g_eventQueue.head = 0;
+        g_eventQueue.tail = 0;
+        g_eventQueue.count = 0;
+    }
 }
 
 void TEInit(void) {
@@ -337,10 +423,10 @@ void DoBackgroundTasks(void) {
     /* Stub */
 }
 
-Boolean WaitNextEvent(SInt16 eventMask, EventRecord* theEvent, UInt32 sleep, RgnHandle mouseRgn) {
-    static int count = 0;
-    if (++count > 10) return false;  /* Exit after 10 iterations */
-    return false;  /* No events */
+/* WaitNextEvent - get next event with sleep support */
+Boolean WaitNextEvent(short eventMask, EventRecord* theEvent, UInt32 sleep, RgnHandle mouseRgn) {
+    /* For now, just call GetNextEvent */
+    return GetNextEvent(eventMask, theEvent);
 }
 
 /* Menu and Window functions provided by their respective managers:
