@@ -76,6 +76,9 @@ C_SOURCES = src/main.c \
             src/FS/trash.c \
             src/FS/vfs_ops.c \
             src/MemoryMgr/MemoryManager.c \
+            src/MemoryMgr/memory_manager_core.c \
+            src/MemoryMgr/heap_compaction.c \
+            src/MemoryMgr/blockmove_optimization.c \
             src/Resources/Icons/hd_icon.c \
             src/color_icons.c \
             src/DeskManager/DeskManagerCore.c \
