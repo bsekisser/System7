@@ -7,8 +7,11 @@
 #include <stddef.h>
 
 /* Import framebuffer access */
-extern uint32_t* g_vram;
-extern int g_screenWidth;
+extern void* framebuffer;
+extern uint32_t fb_width;
+extern uint32_t fb_height;
+extern uint32_t fb_pitch;
+extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 
 /* Helper: Get bit from bitmap */
 static inline uint8_t GetBit(const uint8_t* row, int x) {
@@ -17,8 +20,9 @@ static inline uint8_t GetBit(const uint8_t* row, int x) {
 
 /* Draw pixel to framebuffer */
 static void SetPixel(int x, int y, uint32_t color) {
-    if (x >= 0 && x < 800 && y >= 0 && y < 600) {
-        g_vram[y * g_screenWidth + x] = color;
+    uint32_t* fb = (uint32_t*)framebuffer;
+    if (x >= 0 && x < fb_width && y >= 0 && y < fb_height) {
+        fb[y * (fb_pitch/4) + x] = color;
     }
 }
 

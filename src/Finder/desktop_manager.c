@@ -28,8 +28,11 @@
 #include "PatternMgr/pattern_manager.h"
 #include "FS/vfs.h"
 #include "chicago_font.h"  /* For ChicagoCharInfo */
+#include "Finder/Icon/icon_types.h"
+#include "Finder/Icon/icon_label.h"
+#include "Finder/Icon/icon_system.h"
 
-/* HD Icon data */
+/* HD Icon data - still needed by icon_system.c */
 extern const uint8_t g_HDIcon[128];
 extern const uint8_t g_HDIconMask[128];
 
@@ -615,16 +618,15 @@ OSErr InitializeVolumeIcon(void)
 }
 
 /*
- * DrawVolumeIcon - Draw the boot volume icon on desktop
+ * DrawVolumeIcon - Draw the boot volume icon on desktop using universal icon system
  */
 void DrawVolumeIcon(void)
 {
-    Rect iconRect;
     Point volumePos = {0, 0};
     VolumeControlBlock vcb;
-    Str255 pVolumeName;
-    int x, y, byte_index, bit;
-    uint32_t* fb_pixels;
+    char volumeName[256];
+    IconHandle iconHandle;
+    FileKind fk = {0};
 
     if (!gVolumeIconVisible) return;
 
@@ -638,143 +640,31 @@ void DrawVolumeIcon(void)
 
     /* Get volume name */
     if (VFS_GetVolumeInfo(gBootVolumeRef, &vcb)) {
-        /* Convert C string to Pascal string */
         size_t len = strlen(vcb.name);
         if (len > 255) len = 255;
-        pVolumeName[0] = len;
-        memcpy(&pVolumeName[1], vcb.name, len);
+        memcpy(volumeName, vcb.name, len);
+        volumeName[len] = '\0';
     } else {
-        /* Default name */
-        pVolumeName[0] = 12;
-        memcpy(&pVolumeName[1], "Macintosh HD", 12);
+        memcpy(volumeName, "Macintosh HD", 13);
     }
 
-    /* Setup icon rectangle */
-    SetRect(&iconRect, volumePos.h, volumePos.v, volumePos.h + 32, volumePos.v + 32);
+    /* Setup FileKind for volume */
+    fk.isVolume = true;
+    fk.isFolder = false;
+    fk.type = 0;
+    fk.creator = 0;
+    fk.hasCustomIcon = false;
+    fk.path = NULL;
 
-    /* Draw the real Mac OS 7 HD icon directly to framebuffer */
-    fb_pixels = (uint32_t*)framebuffer;
+    /* Get icon handle for volume - this will use the default HD icon */
+    iconHandle.fam = IconSys_DefaultVolume();
+    iconHandle.selected = false;
 
-    /* First, fill the icon area with white background */
-    for (y = 0; y < 32; y++) {
-        for (x = 0; x < 32; x++) {
-            /* Calculate which byte and bit we're looking at for the mask */
-            byte_index = (y * 4) + (x / 8);  /* 4 bytes per row */
-            bit = 7 - (x % 8);  /* Bits are stored high-bit first */
-
-            /* Check if this pixel is opaque in the mask */
-            if (g_HDIconMask[byte_index] & (1 << bit)) {
-                int fb_x = volumePos.h + x;
-                int fb_y = volumePos.v + y;
-                if (fb_x >= 0 && fb_x < fb_width && fb_y >= 0 && fb_y < fb_height) {
-                    /* Draw white background */
-                    fb_pixels[fb_y * (fb_pitch/4) + fb_x] = pack_color(255, 255, 255);
-                }
-            }
-        }
-    }
-
-    /* Now draw the black icon outline/details on top */
-    for (y = 0; y < 32; y++) {
-        for (x = 0; x < 32; x++) {
-            /* Calculate which byte and bit we're looking at */
-            byte_index = (y * 4) + (x / 8);  /* 4 bytes per row */
-            bit = 7 - (x % 8);  /* Bits are stored high-bit first */
-
-            /* Check if this pixel is set in the icon data */
-            if (g_HDIcon[byte_index] & (1 << bit)) {
-                /* Draw black pixel */
-                int fb_x = volumePos.h + x;
-                int fb_y = volumePos.v + y;
-                if (fb_x >= 0 && fb_x < fb_width && fb_y >= 0 && fb_y < fb_height) {
-                    fb_pixels[fb_y * (fb_pitch/4) + fb_x] = pack_color(0, 0, 0);
-                }
-            }
-        }
-    }
-
-    /* Draw volume name below icon - centered with white background */
-    /* Calculate actual text width using Chicago font metrics */
-    /* chicago_ascii is already defined in chicago_font.h */
-    int textWidth = 0;
-    int textLen = pVolumeName[0];  /* Pascal string length is first byte */
-
-    /* Calculate actual width using font advance values */
-    for (int i = 1; i <= textLen; i++) {
-        char ch = pVolumeName[i];
-        if (ch >= 32 && ch <= 126) {
-            textWidth += chicago_ascii[ch - 32].advance;
-        }
-    }
-
-    int textHeight = 14;  /* Height of Chicago font including ascenders/descenders */
-    int padding = 2;  /* Reduced padding around text */
-
-    /* Center text under icon - properly spaced below actual icon content */
-    int textX = volumePos.h + 16 - (textWidth / 2);  /* Center under 32px icon */
-    if (textX < 0) textX = 0;  /* Don't go off left edge */
-    int textY = volumePos.v + 25;  /* Final positioning */
-
-    /* Draw white background rectangle behind text - adjusted for better centering */
-    Rect textBgRect;
-    SetRect(&textBgRect, textX - padding, textY - textHeight + 2,
-            textX + textWidth - 2, textY + 3);  /* Reduced right padding by 4 pixels */
-
-    /* Fill with white */
-    for (int y = textBgRect.top; y < textBgRect.bottom; y++) {
-        for (int x = textBgRect.left; x < textBgRect.right; x++) {
-            if (x >= 0 && x < fb_width && y >= 0 && y < fb_height) {
-                fb_pixels[y * (fb_pitch/4) + x] = pack_color(255, 255, 255);
-            }
-        }
-    }
-
-    /* Draw text with manual character placement to fix spacing issues */
-    /* Save current port state */
-    GrafPtr savePort = g_currentPort;
-    g_currentPort = NULL;  /* Temporarily disable port so DrawChar doesn't auto-advance */
-
-    int currentX = textX;
-    for (int i = 1; i <= textLen; i++) {
-        char ch = pVolumeName[i];
-
-        /* Draw character directly to framebuffer at specific position */
-        if (ch >= 32 && ch <= 126) {
-            /* Get character info */
-            ChicagoCharInfo info = chicago_ascii[ch - 32];
-
-            /* Draw the character bitmap directly */
-            for (int row = 0; row < CHICAGO_HEIGHT; row++) {
-                const uint8_t *strike_row = chicago_bitmap + (row * CHICAGO_ROW_BYTES);
-
-                for (int col = 0; col < info.bit_width; col++) {
-                    int bit_position = info.bit_start + col;
-                    int byte_index = bit_position >> 3;
-                    int bit_offset = 7 - (bit_position & 7);
-
-                    if (strike_row[byte_index] & (1 << bit_offset)) {
-                        int px = currentX + col;
-                        int py = textY - CHICAGO_ASCENT + row;
-
-                        if (px >= 0 && px < fb_width && py >= 0 && py < fb_height) {
-                            fb_pixels[py * (fb_pitch/4) + px] = pack_color(0, 0, 0);
-                        }
-                    }
-                }
-            }
-
-            /* Advance by character width */
-            /* Add extra spacing for space character */
-            if (ch == ' ') {
-                currentX += 4;  /* Space character gets more spacing */
-            } else {
-                currentX += info.bit_width + 1;
-            }
-        }
-    }
-
-    /* Restore port state */
-    g_currentPort = savePort;
+    /* Draw icon with label using universal system */
+    Icon_DrawWithLabel(&iconHandle, volumeName,
+                      volumePos.h + 16,  /* Center X (icon is 32px wide) */
+                      volumePos.v,        /* Top Y */
+                      false);             /* Not selected */
 }
 
 /*
