@@ -1578,6 +1578,13 @@ void init_system71(void) {
     /* Mount boot volume */
     if (VFS_MountBootVolume("Macintosh HD")) {
         serial_puts("  Boot volume 'Macintosh HD' mounted\n");
+
+        /* Initialize trash system for boot volume */
+        extern bool Trash_Init(void);
+        extern bool Trash_OnVolumeMount(uint32_t vref);
+        Trash_Init();
+        Trash_OnVolumeMount(1);  /* Boot volume is always vRef 1 */
+        serial_puts("  Trash system initialized\n");
     } else {
         serial_puts("  WARNING: Failed to mount boot volume\n");
     }
