@@ -74,6 +74,17 @@ int main(void)
 #endif
 
 /*
+ * InitializeWindowManager - Initialize window management for Finder
+
+ */
+static OSErr InitializeWindowManager(void)
+{
+    /* Window Manager is already initialized by the kernel */
+    /* This would set up Finder-specific windows like desktop */
+    return noErr;
+}
+
+/*
  * InitializeFinder - Initialize all Finder subsystems
 
  * Made non-static for kernel integration
@@ -118,7 +129,10 @@ OSErr InitializeFinder(void)
 
     /* Initialize trash folder - Evidence: "Empty Trash" functionality */
     err = InitializeTrashFolder();
-    if (err != noErr) return err;
+    if (err != noErr) {
+        serial_puts("Finder: Failed to initialize trash folder (non-fatal)\n");
+        /* Non-fatal - continue without trash */
+    }
 
     /* Initialize volume icon on desktop */
     extern OSErr InitializeVolumeIcon(void);
