@@ -192,7 +192,7 @@ void IconLabel_Draw(const char* name, int cx, int topY, bool selected) {
 
     /* Adjusted background rectangle (perfected from HD icon) */
     FillRect(textX - padding, topY - textHeight + 2,
-             textX + textWidth - 2, topY + 3, bgColor);  /* Reduced right padding by 4 pixels */
+             textX + textWidth + 1, topY + 3, bgColor);  /* Extended right by 1 pixel */
 
     /* Draw text using direct bitmap rendering */
     int currentX = textX;
@@ -217,7 +217,7 @@ IconRect Icon_DrawWithLabel(const IconHandle* h, const char* name,
     Icon_Draw32(h, iconLeft, iconTopY);
 
     /* Draw label below icon (using perfected positioning from HD icon) */
-    int labelTop = iconTopY + 25;  /* Final positioning from HD icon */
+    int labelTop = iconTopY + 27;  /* Moved down 2 pixels to hide bottom text */
     IconLabel_Draw(name, centerX, labelTop, selected);
 
     /* Return combined bounds for hit testing */
@@ -228,7 +228,7 @@ IconRect Icon_DrawWithLabel(const IconHandle* h, const char* name,
     bounds.left = iconLeft;
     bounds.top = iconTopY;
     bounds.right = iconLeft + 32;
-    bounds.bottom = labelTop + 3;  /* Include label area */
+    bounds.bottom = labelTop + 5;  /* Include label area with adjusted position */
 
     /* Expand to include label width */
     int labelLeft = centerX - (textWidth / 2) - 2;
