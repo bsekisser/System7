@@ -45,3 +45,5 @@ core.*
 old_stubs/
 old_scripts/
 old_tests/
+old_docs/
+old_builds/
