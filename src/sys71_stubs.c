@@ -7,6 +7,7 @@
 #include "../include/EventManager/EventTypes.h"  /* Include EventTypes first to define activeFlag */
 #include "../include/EventManager/EventManager.h"
 #include "../include/WindowManager/WindowManager.h"
+#include "../include/WindowManager/WindowManagerInternal.h"  /* For WindowManagerState */
 #include "../include/MenuManager/MenuManager.h"
 #include "../include/DialogManager/DialogManager.h"
 #include "../include/ControlManager/ControlManager.h"
@@ -523,7 +524,91 @@ void WM_Update(void) {
             qd.screenBits.bounds.bottom);
     FillRect(&desktopRect, &qd.gray);  /* Gray desktop pattern */
 
-    /* 3. Call DeskHook if registered for icons */
+    /* 3. Draw all visible windows */
+    extern WindowManagerState* GetWindowManagerState(void);
+    WindowManagerState* wmState = GetWindowManagerState();
+    if (wmState && wmState->windowList) {
+        /* Draw windows from back to front */
+        WindowPtr window = wmState->windowList;
+        WindowPtr* windowStack = NULL;
+        int windowCount = 0;
+
+        /* Count windows and build stack */
+        while (window) {
+            windowCount++;
+            window = window->nextWindow;
+        }
+
+        if (windowCount > 0) {
+            windowStack = (WindowPtr*)malloc(windowCount * sizeof(WindowPtr));
+            if (windowStack) {
+                /* Fill stack */
+                window = wmState->windowList;
+                for (int i = 0; i < windowCount && window; i++) {
+                    windowStack[i] = window;
+                    window = window->nextWindow;
+                }
+
+                /* Draw windows from back to front */
+                for (int i = windowCount - 1; i >= 0; i--) {
+                    WindowPtr w = windowStack[i];
+                    if (w && w->visible) {
+                        /* Draw window frame */
+                        Rect frameRect = w->port.portRect;
+
+                        /* Draw window shadow */
+                        Rect shadowRect = frameRect;
+                        OffsetRect(&shadowRect, 2, 2);
+                        PenPat(&qd.black);
+                        FrameRect(&shadowRect);
+
+                        /* Draw window background */
+                        PenPat(&qd.white);
+                        PaintRect(&frameRect);
+
+                        /* Draw window frame */
+                        PenPat(&qd.black);
+                        FrameRect(&frameRect);
+
+                        /* Draw title bar */
+                        Rect titleBar = frameRect;
+                        titleBar.bottom = titleBar.top + 20;
+
+                        if (w->hilited) {
+                            /* Active window - draw with stripes */
+                            for (int y = titleBar.top; y < titleBar.bottom; y += 2) {
+                                MoveTo(titleBar.left, y);
+                                LineTo(titleBar.right - 1, y);
+                            }
+                        } else {
+                            /* Inactive window - solid gray */
+                            FillRect(&titleBar, &qd.gray);
+                        }
+
+                        /* Draw window title if present */
+                        if (w->titleHandle && *(w->titleHandle)) {
+                            MoveTo(titleBar.left + 25, titleBar.top + 14);
+                            DrawString(*(w->titleHandle));
+                        }
+
+                        /* Draw close box if present */
+                        if (w->goAwayFlag) {
+                            Rect closeBox;
+                            closeBox.left = frameRect.left + 2;
+                            closeBox.top = frameRect.top + 2;
+                            closeBox.right = closeBox.left + 16;
+                            closeBox.bottom = closeBox.top + 16;
+                            FrameRect(&closeBox);
+                        }
+                    }
+                }
+
+                free(windowStack);
+            }
+        }
+    }
+
+    /* 4. Call DeskHook if registered for icons */
     if (g_deskHook) {
         /* Create a region for the desktop */
         RgnHandle desktopRgn = NewRgn();

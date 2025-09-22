@@ -177,9 +177,7 @@ Handle Platform_GetWindowDefProc(short procID) {
 
 /* WM_ScheduleWindowUpdate is now in WindowDisplay.c */
 
-/* Debug/error logging stubs */
-void WM_DEBUG(const char* fmt, ...) { }
-void WM_ERROR(const char* fmt, ...) { }
+/* Debug/error logging defined in WindowManagerHelpers.c */
 
 /* CopyPascalString is defined in WindowManagerCore.c */
 
@@ -260,4 +258,382 @@ void WM_InvalidateWindowsBelow(WindowPtr window) {
 
 void Platform_BringNativeWindowToFront(WindowPtr window) {
     /* No native window system - ordering handled by Window Manager */
+}
+
+/* Mouse and window tracking functions */
+Boolean Platform_IsMouseDown(void) {
+    extern Boolean Button(void);
+    return Button();
+}
+
+void Platform_GetMousePosition(Point* pt) {
+    extern void GetMouse(Point* mouseLoc);
+    if (pt) {
+        GetMouse(pt);
+    }
+}
+
+/* Window part hit testing */
+short Platform_WindowHitTest(WindowPtr window, Point pt) {
+    if (!window) return wNoHit;
+
+    Rect titleBar, closeBox, zoomBox, growBox, content;
+
+    /* Get window rectangles */
+    Platform_GetWindowTitleBarRect(window, &titleBar);
+    Platform_GetWindowContentRect(window, &content);
+
+    /* Check close box */
+    if (window->goAwayFlag) {
+        Platform_GetWindowCloseBoxRect(window, &closeBox);
+        if (PtInRect(pt, &closeBox)) return wInGoAway;
+    }
+
+    /* Check zoom box */
+    Platform_GetWindowZoomBoxRect(window, &zoomBox);
+    if (PtInRect(pt, &zoomBox)) return wInZoomIn;
+
+    /* Check grow box */
+    Platform_GetWindowGrowBoxRect(window, &growBox);
+    if (PtInRect(pt, &growBox)) return wInGrow;
+
+    /* Check title bar */
+    if (PtInRect(pt, &titleBar)) return wInDrag;
+
+    /* Check content */
+    if (PtInRect(pt, &content)) return wInContent;
+
+    return wNoHit;
+}
+
+/* Window rectangle calculations */
+void Platform_GetWindowTitleBarRect(WindowPtr window, Rect* rect) {
+    if (!window || !rect) return;
+
+    /* Title bar is at top of window structure */
+    *rect = window->port.portRect;
+    rect->bottom = rect->top + 20;  /* Standard title bar height */
+}
+
+void Platform_GetWindowContentRect(WindowPtr window, Rect* rect) {
+    if (!window || !rect) return;
+
+    /* Content is below title bar */
+    *rect = window->port.portRect;
+    rect->top += 20;  /* Skip title bar */
+}
+
+void Platform_GetWindowCloseBoxRect(WindowPtr window, Rect* rect) {
+    if (!window || !rect) return;
+
+    /* Close box is in left side of title bar */
+    Platform_GetWindowTitleBarRect(window, rect);
+    rect->right = rect->left + 20;
+    rect->top += 2;
+    rect->bottom -= 2;
+    rect->left += 2;
+}
+
+void Platform_GetWindowZoomBoxRect(WindowPtr window, Rect* rect) {
+    if (!window || !rect) return;
+
+    /* Zoom box is in right side of title bar */
+    Platform_GetWindowTitleBarRect(window, rect);
+    rect->left = rect->right - 20;
+    rect->top += 2;
+    rect->bottom -= 2;
+    rect->right -= 2;
+}
+
+void Platform_GetWindowFrameRect(WindowPtr window, Rect* rect) {
+    if (!window || !rect) return;
+
+    /* Frame is the entire window structure */
+    *rect = window->port.portRect;
+}
+
+/* Window highlighting */
+void Platform_HighlightWindowPart(WindowPtr window, short partCode, Boolean highlight) {
+    /* Draw highlight feedback for window parts */
+    if (!window) return;
+
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort(&window->port);
+
+    Rect partRect;
+    Boolean hasRect = false;
+
+    switch (partCode) {
+        case inGoAway:
+            Platform_GetWindowCloseBoxRect(window, &partRect);
+            hasRect = true;
+            break;
+        case inZoomIn:
+        case inZoomOut:
+            Platform_GetWindowZoomBoxRect(window, &partRect);
+            hasRect = true;
+            break;
+    }
+
+    if (hasRect) {
+        if (highlight) {
+            InvertRect(&partRect);
+        } else {
+            InvertRect(&partRect);  /* Invert again to unhighlight */
+        }
+    }
+
+    SetPort(savePort);
+}
+
+/* Wait functions */
+void Platform_WaitTicks(short ticks) {
+    extern UInt32 TickCount(void);
+    UInt32 start = TickCount();
+    while (TickCount() - start < ticks) {
+        /* Wait */
+    }
+}
+
+/* Port management */
+GrafPtr Platform_GetCurrentPort(void) {
+    extern GrafPtr g_currentPort;
+    return g_currentPort;
+}
+
+void Platform_SetCurrentPort(GrafPtr port) {
+    extern GrafPtr g_currentPort;
+    g_currentPort = port;
+}
+
+GrafPtr Platform_GetUpdatePort(WindowPtr window) {
+    return window ? &window->port : NULL;
+}
+
+void Platform_SetUpdatePort(GrafPtr port) {
+    SetPort(port);
+}
+
+/* Region operations */
+void Platform_CopyRgn(RgnHandle src, RgnHandle dst) {
+    if (src && dst && *src && *dst) {
+        **dst = **src;
+    }
+}
+
+void Platform_SetRectRgn(RgnHandle rgn, short left, short top, short right, short bottom) {
+    if (rgn && *rgn) {
+        Rect r;
+        SetRect(&r, left, top, right, bottom);
+        RectRgn(rgn, &r);
+    }
+}
+
+void Platform_SetEmptyRgn(RgnHandle rgn) {
+    if (rgn && *rgn) {
+        SetEmptyRgn(rgn);
+    }
+}
+
+void Platform_UnionRgn(RgnHandle src1, RgnHandle src2, RgnHandle dst) {
+    /* Simple union - just copy src1 for now */
+    if (dst) {
+        if (src1) {
+            Platform_CopyRgn(src1, dst);
+        } else if (src2) {
+            Platform_CopyRgn(src2, dst);
+        }
+    }
+}
+
+void Platform_DiffRgn(RgnHandle src1, RgnHandle src2, RgnHandle dst) {
+    /* Simple difference - just copy src1 for now */
+    if (dst && src1) {
+        Platform_CopyRgn(src1, dst);
+    }
+}
+
+void Platform_OffsetRgn(RgnHandle rgn, short dh, short dv) {
+    if (rgn && *rgn) {
+        (*rgn)->rgnBBox.left += dh;
+        (*rgn)->rgnBBox.right += dh;
+        (*rgn)->rgnBBox.top += dv;
+        (*rgn)->rgnBBox.bottom += dv;
+    }
+}
+
+void Platform_SetClipRgn(GrafPtr port, RgnHandle rgn) {
+    if (port && rgn) {
+        Platform_CopyRgn(rgn, port->clipRgn);
+    }
+}
+
+void Platform_GetRegionBounds(RgnHandle rgn, Rect* bounds) {
+    if (rgn && *rgn && bounds) {
+        *bounds = (*rgn)->rgnBBox;
+    }
+}
+
+/* Window movement and sizing */
+void Platform_MoveNativeWindow(WindowPtr window, short h, short v) {
+    if (window) {
+        short dh = h - window->port.portRect.left;
+        short dv = v - window->port.portRect.top;
+        OffsetRect(&window->port.portRect, dh, dv);
+        Platform_CalculateWindowRegions(window);
+    }
+}
+
+void Platform_SizeNativeWindow(WindowPtr window, short width, short height) {
+    if (window) {
+        window->port.portRect.right = window->port.portRect.left + width;
+        window->port.portRect.bottom = window->port.portRect.top + height;
+        Platform_CalculateWindowRegions(window);
+    }
+}
+
+/* Drag feedback */
+void Platform_ShowDragOutline(const Rect* rect) {
+    /* Draw drag outline */
+    GrafPtr savePort;
+    GetPort(&savePort);
+
+    extern QDGlobals qd;
+    SetPort(qd.thePort);
+
+    /* Use XOR mode for drag outline */
+    /* patXor = 10, patCopy = 8 in QuickDraw */
+    PenMode(10);  /* patXor */
+    FrameRect(rect);
+    PenMode(8);   /* patCopy */
+
+    SetPort(savePort);
+}
+
+void Platform_HideDragOutline(const Rect* rect) {
+    /* Erase drag outline by drawing again in XOR mode */
+    Platform_ShowDragOutline(rect);
+}
+
+void Platform_UpdateDragOutline(const Rect* oldRect, const Rect* newRect) {
+    if (oldRect) Platform_HideDragOutline(oldRect);
+    if (newRect) Platform_ShowDragOutline(newRect);
+}
+
+void Platform_ShowDragRect(const Rect* rect) {
+    Platform_ShowDragOutline(rect);
+}
+
+void Platform_HideDragRect(const Rect* rect) {
+    Platform_HideDragOutline(rect);
+}
+
+void Platform_UpdateDragRect(const Rect* oldRect, const Rect* newRect) {
+    Platform_UpdateDragOutline(oldRect, newRect);
+}
+
+/* Size feedback */
+void Platform_ShowSizeFeedback(const Rect* rect) {
+    Platform_ShowDragOutline(rect);
+}
+
+void Platform_HideSizeFeedback(const Rect* rect) {
+    Platform_HideDragOutline(rect);
+}
+
+void Platform_UpdateSizeFeedback(const Rect* oldRect, const Rect* newRect) {
+    Platform_UpdateDragOutline(oldRect, newRect);
+}
+
+/* Zoom animation */
+void Platform_ShowZoomFrame(const Rect* rect) {
+    Platform_ShowDragOutline(rect);
+}
+
+void Platform_HideZoomFrame(const Rect* rect) {
+    Platform_HideDragOutline(rect);
+}
+
+/* Window state */
+void Platform_DisableWindow(WindowPtr window) {
+    if (window) {
+        window->hilited = false;
+    }
+}
+
+void Platform_EnableWindow(WindowPtr window) {
+    if (window) {
+        window->hilited = true;
+    }
+}
+
+/* Preferences */
+Boolean Platform_GetPreferredDragFeedback(void) {
+    return true;  /* Use outline feedback */
+}
+
+Boolean Platform_IsResizeFeedbackEnabled(void) {
+    return true;
+}
+
+Boolean Platform_IsSnapToEdgesEnabled(void) {
+    return false;
+}
+
+Boolean Platform_IsSnapToSizeEnabled(void) {
+    return false;
+}
+
+Boolean Platform_IsZoomAnimationEnabled(void) {
+    return false;
+}
+
+/* Window ordering */
+void Platform_UpdateNativeWindowOrder(void) {
+    /* No native window system */
+}
+
+/* Window invalidation */
+void Platform_InvalidateWindowRect(WindowPtr window, const Rect* rect) {
+    if (window && rect) {
+        /* Add rect to update region */
+        if (!window->updateRgn) {
+            window->updateRgn = NewRgn();
+        }
+        RgnHandle tempRgn = NewRgn();
+        RectRgn(tempRgn, rect);
+        Platform_UnionRgn(window->updateRgn, tempRgn, window->updateRgn);
+        DisposeRgn(tempRgn);
+    }
+}
+
+/* Pattern creation - removed duplicate, see line 162 */
+
+/* Window definition procedure - removed duplicate, see line 172 */
+
+/* Point testing */
+Boolean Platform_PointInWindowPart(WindowPtr window, Point pt, short partCode) {
+    if (!window) return false;
+
+    Rect partRect;
+    switch (partCode) {
+        case inGoAway:
+            Platform_GetWindowCloseBoxRect(window, &partRect);
+            return PtInRect(pt, &partRect);
+        case inZoomIn:
+        case inZoomOut:
+            Platform_GetWindowZoomBoxRect(window, &partRect);
+            return PtInRect(pt, &partRect);
+        case inGrow:
+            Platform_GetWindowGrowBoxRect(window, &partRect);
+            return PtInRect(pt, &partRect);
+        case inDrag:
+            Platform_GetWindowTitleBarRect(window, &partRect);
+            return PtInRect(pt, &partRect);
+        case inContent:
+            Platform_GetWindowContentRect(window, &partRect);
+            return PtInRect(pt, &partRect);
+    }
+    return false;
 }

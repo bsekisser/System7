@@ -1792,8 +1792,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     }
 
     /* Create windows and menus using real System 7.1 APIs */
-    /* TEMPORARILY DISABLED to test desktop rendering */
-    /* create_system71_windows(); */
+    create_system71_windows();
 
     /* Main event loop using real Event Manager */
     /* Don't use console_puts after graphics mode - it overwrites framebuffer! */
@@ -1898,6 +1897,15 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         /* Process modern input events (PS/2 keyboard and mouse) */
         extern void ProcessModernInput(void);
         ProcessModernInput();
+
+        /* Check for events and dispatch them */
+        extern Boolean GetNextEvent(short eventMask, EventRecord* theEvent);
+        extern Boolean DispatchEvent(EventRecord* event);
+
+        EventRecord evt;
+        if (GetNextEvent(everyEvent, &evt)) {
+            DispatchEvent(&evt);
+        }
 
         /* Throttle cursor updates to every 500 iterations for better responsiveness */
         cursor_update_counter++;

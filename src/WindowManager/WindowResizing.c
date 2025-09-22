@@ -108,8 +108,8 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
     }
 
     /* Update window's port rectangle */
-    (theWindow)->portRect.right = (theWindow)->portRect.left + w;
-    (theWindow)->portRect.bottom = (theWindow)->portRect.top + h;
+    (theWindow)->port.portRect.right = (theWindow)->port.portRect.left + w;
+    (theWindow)->port.portRect.bottom = (theWindow)->port.portRect.top + h;
 
     /* Recalculate window regions */
     Platform_CalculateWindowRegions(theWindow);
@@ -648,10 +648,10 @@ static void WM_GenerateResizeUpdateEvents(WindowPtr window, short oldWidth, shor
         /* Right edge exposed */
         Rect rightRect;
         WM_SetRect(&rightRect,
-                  (window)->portRect.left + oldWidth,
-                  (window)->portRect.top,
-                  (window)->portRect.right,
-                  (window)->portRect.bottom);
+                  (window)->port.portRect.left + oldWidth,
+                  (window)->port.portRect.top,
+                  (window)->port.portRect.right,
+                  (window)->port.portRect.bottom);
 
         RgnHandle rightRgn = Platform_NewRgn();
         if (rightRgn) {
@@ -665,10 +665,10 @@ static void WM_GenerateResizeUpdateEvents(WindowPtr window, short oldWidth, shor
         /* Bottom edge exposed */
         Rect bottomRect;
         WM_SetRect(&bottomRect,
-                  (window)->portRect.left,
-                  (window)->portRect.top + oldHeight,
-                  (window)->portRect.left + oldWidth, /* Don't double-count corner */
-                  (window)->portRect.bottom);
+                  (window)->port.portRect.left,
+                  (window)->port.portRect.top + oldHeight,
+                  (window)->port.portRect.left + oldWidth, /* Don't double-count corner */
+                  (window)->port.portRect.bottom);
 
         RgnHandle bottomRgn = Platform_NewRgn();
         if (bottomRgn) {
@@ -681,46 +681,6 @@ static void WM_GenerateResizeUpdateEvents(WindowPtr window, short oldWidth, shor
     WM_DEBUG("WM_GenerateResizeUpdateEvents: Update events generated");
 }
 
-/* ============================================================================
- * Platform Abstraction Functions
- * ============================================================================ */
+/* Platform functions are in WindowPlatform.c */
 
-Boolean Platform_IsResizeFeedbackEnabled(void) {
-    /* TODO: Query platform/user preferences for resize feedback */
-    return true;
-}
-
-Boolean Platform_IsZoomAnimationEnabled(void) {
-    /* TODO: Query platform/user preferences for zoom animation */
-    return true;
-}
-
-Boolean Platform_IsSnapToSizeEnabled(void) {
-    /* TODO: Query platform/user preferences for snap-to-size */
-    return true;
-}
-
-void Platform_ShowSizeFeedback(short width, short height, const Rect* bounds) {
-    /* TODO: Implement platform-specific size feedback display */
-    WM_DEBUG("Platform_ShowSizeFeedback: Showing size %dx%d", width, height);
-}
-
-void Platform_UpdateSizeFeedback(short width, short height, const Rect* bounds) {
-    /* TODO: Implement platform-specific size feedback update */
-    WM_DEBUG("Platform_UpdateSizeFeedback: Updating size %dx%d", width, height);
-}
-
-void Platform_HideSizeFeedback(void) {
-    /* TODO: Implement platform-specific size feedback hiding */
-    WM_DEBUG("Platform_HideSizeFeedback: Hiding size feedback");
-}
-
-void Platform_ShowZoomFrame(const Rect* bounds) {
-    /* TODO: Implement platform-specific zoom animation frame */
-    WM_DEBUG("Platform_ShowZoomFrame: Showing zoom frame");
-}
-
-void Platform_HideZoomFrame(void) {
-    /* TODO: Implement platform-specific zoom animation cleanup */
-    WM_DEBUG("Platform_HideZoomFrame: Hiding zoom frame");
-}
+/* Size feedback and zoom frame functions moved to WindowPlatform.c */
