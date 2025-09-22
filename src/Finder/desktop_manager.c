@@ -28,6 +28,10 @@
 #include "PatternMgr/pattern_manager.h"
 #include "FS/vfs.h"
 
+/* HD Icon data */
+extern const uint8_t g_HDIcon[128];
+extern const uint8_t g_HDIconMask[128];
+
 
 /* Desktop Database Constants */
 #define kDesktopDatabaseName    "\pDesktop DB"
@@ -611,6 +615,8 @@ void DrawVolumeIcon(void)
     Point volumePos = {0, 0};
     VolumeControlBlock vcb;
     Str255 pVolumeName;
+    int x, y, byte_index, bit;
+    uint32_t* fb_pixels;
 
     if (!gVolumeIconVisible) return;
 
@@ -635,16 +641,30 @@ void DrawVolumeIcon(void)
         memcpy(&pVolumeName[1], "Macintosh HD", 12);
     }
 
-    /* Draw disk icon (simplified for now) */
+    /* Setup icon rectangle */
     SetRect(&iconRect, volumePos.h, volumePos.v, volumePos.h + 32, volumePos.v + 32);
 
-    /* Draw disk shape */
-    PenNormal();
-    FrameRect(&iconRect);
+    /* Draw the real Mac OS 7 HD icon directly to framebuffer */
+    fb_pixels = (uint32_t*)framebuffer;
 
-    /* Draw horizontal line for disk slot */
-    MoveTo(volumePos.h + 4, volumePos.v + 26);
-    LineTo(volumePos.h + 28, volumePos.v + 26);
+    /* Draw icon bitmap - 32x32 pixels, 1 bit per pixel */
+    for (y = 0; y < 32; y++) {
+        for (x = 0; x < 32; x++) {
+            /* Calculate which byte and bit we're looking at */
+            byte_index = (y * 4) + (x / 8);  /* 4 bytes per row */
+            bit = 7 - (x % 8);  /* Bits are stored high-bit first */
+
+            /* Check if this pixel is set in the icon data */
+            if (g_HDIcon[byte_index] & (1 << bit)) {
+                /* Draw black pixel */
+                int fb_x = volumePos.h + x;
+                int fb_y = volumePos.v + y;
+                if (fb_x >= 0 && fb_x < fb_width && fb_y >= 0 && fb_y < fb_height) {
+                    fb_pixels[fb_y * (fb_pitch/4) + fb_x] = pack_color(0, 0, 0);
+                }
+            }
+        }
+    }
 
     /* Draw volume name below icon */
     MoveTo(volumePos.h - 10, volumePos.v + 45);
