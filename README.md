@@ -49,39 +49,38 @@ qemu-system-i386 -cdrom system71.iso -serial file:debug.log -display sdl -vga st
 
 ```
 iteration2/
-├── src/                    # Source code
-│   ├── main.c             # Kernel entry point
-│   ├── boot.S             # Multiboot2 boot assembly
-│   ├── ChicagoRealFont.c  # Chicago font rendering
-│   ├── PS2Controller.c    # PS/2 input driver
-│   ├── Finder/            # Finder implementation
-│   ├── MenuManager/       # Menu system
-│   ├── WindowManager/     # Window management
-│   ├── QuickDraw/         # Graphics primitives
-│   ├── ResourceManager/   # Resource loading system
-│   ├── EventManager/      # Event handling
-│   ├── MemoryMgr/         # Full memory management with zones
-│   ├── DeskManager/       # Desk accessories management
-│   ├── DialogManager/     # Dialog system implementation
-│   ├── ControlManager/    # Control management system
-│   ├── FileManager.c      # HFS File Manager implementation
-│   ├── FS/                # File system support (VFS, HFS)
-│   ├── ListManager/       # List management
-│   ├── TextEdit/          # Text editing system
-│   ├── PatternManager/    # Pattern resources
-│   ├── Resources/Icons/   # Icon resources (HD icon)
-│   └── [30+ managers]     # Various system managers
-├── include/               # Header files
-├── System_Resources_Extracted/  # Original System 7.1 resources (69 types)
-│   ├── SICN/             # Small icons
-│   ├── ICON/             # Icons
-│   ├── ppat/             # Pixel patterns
-│   ├── PAT/              # Patterns
-│   ├── MENU/             # Menu resources
-│   ├── CURS/             # Cursors
-│   └── [60+ folders]     # Other resource types
-├── Makefile              # Build configuration
-└── linker_mb2.ld         # Linker script for Multiboot2
+├── src/                        # Source code
+│   ├── main.c                 # Kernel entry point
+│   ├── multiboot2.S           # Multiboot2 boot assembly
+│   ├── ChicagoRealFont.c      # Chicago font rendering
+│   ├── PS2Controller.c        # PS/2 input driver
+│   ├── FileManager.c          # HFS File Manager implementation
+│   ├── FileManagerStubs.c     # File Manager stub implementations
+│   ├── Finder/                # Finder implementation
+│   ├── MenuManager/           # Menu system
+│   ├── WindowManager/         # Window management
+│   ├── QuickDraw/             # Graphics primitives
+│   ├── MemoryMgr/             # Full memory management with zones
+│   ├── DeskManager/           # Desk accessories management
+│   ├── DialogManager/         # Dialog system implementation
+│   ├── ControlManager/        # Control management system
+│   ├── FS/                    # File system support (VFS, HFS)
+│   ├── PatternMgr/            # Pattern resources
+│   └── Resources/Icons/       # Icon resources (HD icon)
+├── include/                    # Header files
+│   ├── FileManager.h          # File Manager API
+│   ├── FileManager_Internal.h # Internal File Manager structures
+│   └── FileManagerTypes.h     # Extended File Manager types
+├── System_Resources_Extracted/ # Original System 7.1 resources (69 types)
+│   ├── SICN/                  # Small icons
+│   ├── ICON/                  # Icons
+│   ├── ppat/                  # Pixel patterns
+│   ├── PAT/                   # Patterns
+│   ├── MENU/                  # Menu resources
+│   ├── CURS/                  # Cursors
+│   └── [60+ folders]          # Other resource types
+├── Makefile                   # Build configuration
+└── linker_mb2.ld              # Linker script for Multiboot2
 ```
 
 ## Technical Details
