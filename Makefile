@@ -30,6 +30,7 @@ RSRC_BIN = Patterns.rsrc
 C_SOURCES = src/main.c \
             src/SystemInit.c \
             src/sys71_stubs.c \
+            src/System71StdLib.c \
             src/Finder/finder_main.c \
             src/Finder/desktop_manager.c \
             src/Finder/alias_manager.c \
