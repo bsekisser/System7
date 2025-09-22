@@ -33,6 +33,13 @@
 extern const uint8_t g_HDIcon[128];
 extern const uint8_t g_HDIconMask[128];
 
+/* Chicago font data */
+extern const uint8_t chicago_bitmap[];
+extern GrafPtr g_currentPort;
+#define CHICAGO_HEIGHT 16
+#define CHICAGO_ASCENT 12
+#define CHICAGO_ROW_BYTES 140
+
 
 /* Desktop Database Constants */
 #define kDesktopDatabaseName    "\pDesktop DB"
@@ -722,9 +729,47 @@ void DrawVolumeIcon(void)
         }
     }
 
-    /* Now draw the text using DrawString which should use proper advance widths */
-    MoveTo(textX, textY);
-    DrawString(pVolumeName);
+    /* Draw text with manual character placement to fix spacing issues */
+    /* Save current port state */
+    GrafPtr savePort = g_currentPort;
+    g_currentPort = NULL;  /* Temporarily disable port so DrawChar doesn't auto-advance */
+
+    int currentX = textX;
+    for (int i = 1; i <= textLen; i++) {
+        char ch = pVolumeName[i];
+
+        /* Draw character directly to framebuffer at specific position */
+        if (ch >= 32 && ch <= 126) {
+            /* Get character info */
+            ChicagoCharInfo info = chicago_ascii[ch - 32];
+
+            /* Draw the character bitmap directly */
+            for (int row = 0; row < CHICAGO_HEIGHT; row++) {
+                const uint8_t *strike_row = chicago_bitmap + (row * CHICAGO_ROW_BYTES);
+
+                for (int col = 0; col < info.bit_width; col++) {
+                    int bit_position = info.bit_start + col;
+                    int byte_index = bit_position >> 3;
+                    int bit_offset = 7 - (bit_position & 7);
+
+                    if (strike_row[byte_index] & (1 << bit_offset)) {
+                        int px = currentX + col;
+                        int py = textY - CHICAGO_ASCENT + row;
+
+                        if (px >= 0 && px < fb_width && py >= 0 && py < fb_height) {
+                            fb_pixels[py * (fb_pitch/4) + px] = pack_color(0, 0, 0);
+                        }
+                    }
+                }
+            }
+
+            /* Advance by character width */
+            currentX += info.bit_width + 1;
+        }
+    }
+
+    /* Restore port state */
+    g_currentPort = savePort;
 }
 
 /*
