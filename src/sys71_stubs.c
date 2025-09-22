@@ -77,9 +77,11 @@ void InitTE(void) {
 }
 
 /* Dialog Manager */
+/* Now provided by DialogManagerCore.c
 void InitDialogs(ResumeProcPtr resumeProc) {
-    /* Stub implementation */
+    // Stub implementation
 }
+*/
 
 /* Control Manager */
 void InitControlManager_Sys7(void) {
@@ -101,13 +103,13 @@ Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
     return false;
 }
 
-#ifndef DESKMANAGER_INCLUDED
+/* Now provided by DeskManagerCore.c
 void SystemTask(void) {
-    /* Poll PS/2 input on each system task */
+    // Poll PS/2 input on each system task
     extern void PollPS2Input(void);
     PollPS2Input();
 }
-#endif
+*/
 
 SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
     /* Simple event posting - just log for now */
@@ -690,11 +692,11 @@ Boolean WaitNextEvent(SInt16 eventMask, EventRecord* theEvent, UInt32 sleep, Rgn
 
 /* MenuSelect now implemented in MenuSelection.c */
 
-#ifndef DESKMANAGER_INCLUDED
+/* Now provided by DeskManagerCore.c
 void SystemClick(EventRecord* theEvent, WindowPtr window) {
-    /* Stub */
+    // Stub
 }
-#endif
+*/
 
 /* HiliteMenu now provided by MenuManagerCore.c */
 
@@ -726,9 +728,11 @@ OSErr CleanUpWindow(WindowPtr window, SInt16 cleanupType) {
     return noErr;
 }
 
+/* Now provided by DialogManagerCore.c
 void ParamText(const unsigned char* param0, const unsigned char* param1, const unsigned char* param2, const unsigned char* param3) {
-    /* Stub */
+    // Stub
 }
+*/
 
 SInt16 Alert(SInt16 alertID, ModalFilterProcPtr filterProc) {
     return 1;  /* OK button */
@@ -745,11 +749,11 @@ void GetMenuItemText(MenuHandle menu, SInt16 item, Str255 itemString) {
     }
 }
 
-#ifndef DESKMANAGER_INCLUDED
+/* Now provided by DeskManagerCore.c
 SInt16 OpenDeskAcc(ConstStr255Param name) {
     return 0;
 }
-#endif
+*/
 
 SInt16 HiWord(SInt32 x) {
     return (x >> 16) & 0xFFFF;
