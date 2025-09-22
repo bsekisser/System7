@@ -27,6 +27,7 @@
 #include "ResourceManager.h"
 #include "PatternMgr/pattern_manager.h"
 #include "FS/vfs.h"
+#include "chicago_font.h"  /* For ChicagoCharInfo */
 
 /* HD Icon data */
 extern const uint8_t g_HDIcon[128];
@@ -700,10 +701,19 @@ void DrawVolumeIcon(void)
     }
 
     /* Draw volume name below icon - centered with white background */
-    /* Calculate text width - use actual character count * approximate width */
-    int charWidth = 7;  /* Approximate width per character in Chicago 12 */
+    /* Calculate actual text width using Chicago font metrics */
+    /* chicago_ascii is already defined in chicago_font.h */
+    int textWidth = 0;
     int textLen = pVolumeName[0];  /* Pascal string length is first byte */
-    int textWidth = textLen * charWidth;
+
+    /* Calculate actual width using font advance values */
+    for (int i = 1; i <= textLen; i++) {
+        char ch = pVolumeName[i];
+        if (ch >= 32 && ch <= 126) {
+            textWidth += chicago_ascii[ch - 32].advance;
+        }
+    }
+
     int textHeight = 14;  /* Height of Chicago font including ascenders/descenders */
     int padding = 4;  /* Padding around text */
 
@@ -712,7 +722,7 @@ void DrawVolumeIcon(void)
     if (textX < 0) textX = 0;  /* Don't go off left edge */
     int textY = volumePos.v + 48;
 
-    /* Draw white background rectangle behind text - make it wider */
+    /* Draw white background rectangle behind text */
     Rect textBgRect;
     SetRect(&textBgRect, textX - padding, textY - textHeight + 2,
             textX + textWidth + padding, textY + 3);
@@ -726,15 +736,9 @@ void DrawVolumeIcon(void)
         }
     }
 
-    /* Draw the text character by character with consistent spacing */
-    /* This avoids the kerning issues with DrawString */
-    int charX = textX;
-    for (int i = 1; i <= pVolumeName[0]; i++) {  /* Pascal string, skip length byte */
-        /* Draw each character individually */
-        MoveTo(charX, textY);
-        DrawChar(pVolumeName[i]);
-        charX += charWidth;  /* Fixed width advance for each character */
-    }
+    /* Now draw the text using DrawString which should use proper advance widths */
+    MoveTo(textX, textY);
+    DrawString(pVolumeName);
 }
 
 /*
