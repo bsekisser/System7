@@ -1889,9 +1889,9 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         /* Poll PS/2 devices for keyboard and mouse input */
         PollPS2Input();
 
-        /* Throttle cursor updates to every 1000 iterations to make it visible */
+        /* Throttle cursor updates to every 500 iterations for better responsiveness */
         cursor_update_counter++;
-        if (cursor_update_counter < 1000) {
+        if (cursor_update_counter < 500) {
             continue;
         }
         cursor_update_counter = 0;
@@ -1970,6 +1970,61 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
                 /* Cursor will be redrawn on next movement */
                 movement_count = 0;
                 cursor_saved = false;  /* Force redraw after WM_Update */
+            }
+        }
+
+        /* Check for mouse button clicks - only check every 10th update to reduce overhead */
+        static uint8_t last_buttons = 0;
+        static int click_check_counter = 0;
+        click_check_counter++;
+
+        if (click_check_counter >= 10) {
+            click_check_counter = 0;
+
+            if (g_mouseState.buttons != last_buttons) {
+                /* Left button was pressed */
+                if ((g_mouseState.buttons & 0x01) && !(last_buttons & 0x01)) {
+                    int16_t x = g_mouseState.x;
+                    int16_t y = g_mouseState.y;
+
+                    serial_printf("Mouse click at (%d, %d)\n", x, y);
+
+                    /* Check if click is in menu bar (top 20 pixels) */
+                    if (y >= 0 && y < 20) {
+                        serial_puts("Click in menu bar!\n");
+
+                        /* Simple menu detection based on X position */
+                        if (x < 40) {
+                            serial_puts("Apple menu clicked\n");
+                            /* TODO: Show Apple menu */
+                        } else if (x < 80) {
+                            serial_puts("File menu clicked\n");
+                            /* TODO: Show File menu */
+                        } else if (x < 120) {
+                            serial_puts("Edit menu clicked\n");
+                            /* TODO: Show Edit menu */
+                        } else if (x < 160) {
+                            serial_puts("View menu clicked\n");
+                            /* TODO: Show View menu */
+                        }
+
+                    }
+                    /* Check if click is on desktop icons */
+                    else {
+                        /* Check HD icon (positioned around 700,50) */
+                        if (x >= 680 && x <= 750 && y >= 30 && y <= 100) {
+                            serial_puts("Hard Drive icon clicked!\n");
+                            /* TODO: Open HD window */
+                        }
+                        /* Check Trash icon (positioned around 700,500) */
+                        else if (x >= 680 && x <= 750 && y >= 480 && y <= 550) {
+                            serial_puts("Trash icon clicked!\n");
+                            /* TODO: Open Trash window */
+                        }
+                    }
+                }
+
+                last_buttons = g_mouseState.buttons;
             }
         }
 
