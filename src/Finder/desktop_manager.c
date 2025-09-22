@@ -679,6 +679,26 @@ void DrawVolumeIcon(void)
                       volumePos.h + 16,  /* Center X (icon is 32px wide) */
                       volumePos.v,        /* Top Y */
                       false);             /* Not selected */
+
+    /* Draw Trash icon in bottom-right corner */
+    Point trashPos;
+    trashPos.h = 700;  /* Near right edge */
+    trashPos.v = 500;  /* Near bottom */
+
+    /* Get appropriate trash icon */
+    extern const IconFamily* IconSys_TrashEmpty(void);
+    extern const IconFamily* IconSys_TrashFull(void);
+    extern bool Trash_IsEmptyAll(void);
+
+    IconHandle trashHandle;
+    trashHandle.fam = Trash_IsEmptyAll() ? IconSys_TrashEmpty() : IconSys_TrashFull();
+    trashHandle.selected = false;
+
+    /* Draw trash with label */
+    Icon_DrawWithLabel(&trashHandle, "Trash",
+                      trashPos.h + 16,    /* Center X */
+                      trashPos.v,         /* Top Y */
+                      false);             /* Not selected */
 }
 
 /*

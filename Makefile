@@ -71,6 +71,8 @@ C_SOURCES = src/main.c \
             src/FS/hfs_catalog.c \
             src/FS/hfs_file.c \
             src/FS/vfs.c \
+            src/FS/trash.c \
+            src/FS/vfs_ops.c \
             src/MemoryMgr/MemoryManager.c \
             src/Resources/Icons/hd_icon.c
 
