@@ -39,4 +39,9 @@ core.*
 # Temporary files
 /tmp/
 *.tmp
-*.tempold_stubs/
+*.temp
+
+# Old/unused files moved during cleanup
+old_stubs/
+old_scripts/
+old_tests/
