@@ -350,6 +350,8 @@ SInt16 ProcessRawMouseEvent(SInt16 x, SInt16 y, SInt16 buttonMask,
                 /* Generate mouse down event */
                 SInt32 message = 0;
                 if (mappedButton == kMouseButtonLeft) {
+                    extern void serial_printf(const char* fmt, ...);
+                    serial_printf("MouseEvents: Posting mouseDown event at (%d,%d)\n", newPos.h, newPos.v);
                     PostEvent(mouseDown, message);
                     eventsGenerated++;
                 }
