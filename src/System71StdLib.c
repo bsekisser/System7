@@ -182,4 +182,192 @@ long labs(long n) {
     return n < 0 ? -n : n;
 }
 
-/* Serial output functions already defined in main.c and sys71_stubs.c */
+/* Serial I/O functions */
+#include <stdint.h>
+#include <stdarg.h>
+
+#define COM1 0x3F8
+
+static inline void outb(uint16_t port, uint8_t value) {
+    __asm__ volatile ("outb %0, %1" : : "a"(value), "Nd"(port));
+}
+
+static inline uint8_t inb(uint16_t port) {
+    uint8_t value;
+    __asm__ volatile ("inb %1, %0" : "=a"(value) : "Nd"(port));
+    return value;
+}
+
+void serial_init(void) {
+    outb(COM1 + 1, 0x00);    // Disable all interrupts
+    outb(COM1 + 3, 0x80);    // Enable DLAB (set baud rate divisor)
+    outb(COM1 + 0, 0x03);    // Set divisor to 3 (lo byte) 38400 baud
+    outb(COM1 + 1, 0x00);    //                  (hi byte)
+    outb(COM1 + 3, 0x03);    // 8 bits, no parity, one stop bit
+    outb(COM1 + 2, 0xC7);    // Enable FIFO, clear them, with 14-byte threshold
+    outb(COM1 + 4, 0x0B);    // IRQs enabled, RTS/DSR set
+}
+
+void serial_putchar(char c) {
+    while ((inb(COM1 + 5) & 0x20) == 0);
+    outb(COM1, c);
+}
+
+void serial_puts(const char* str) {
+    while (*str) {
+        if (*str == '\n') {
+            serial_putchar('\r');
+        }
+        serial_putchar(*str++);
+    }
+}
+
+int serial_data_ready(void) {
+    return (inb(COM1 + 5) & 0x01) != 0;
+}
+
+char serial_getchar(void) {
+    while (!serial_data_ready());
+    return inb(COM1);
+}
+
+void serial_print_hex(uint32_t value) {
+    const char* hex = "0123456789ABCDEF";
+    serial_puts("0x");
+    for (int i = 7; i >= 0; i--) {
+        serial_putchar(hex[(value >> (i * 4)) & 0xF]);
+    }
+}
+
+void serial_printf(const char* fmt, ...) {
+    const char* p = fmt;
+    va_list args;
+    va_start(args, fmt);
+
+    char buffer[256];
+    int buf_idx = 0;
+
+    while (*p && buf_idx < 255) {
+        if (*p == '%') {
+            p++;
+
+            /* Handle %02x format for hex bytes */
+            if (*p == '0' && *(p+1) == '2' && *(p+2) == 'x') {
+                unsigned int val = va_arg(args, unsigned int);
+                const char* hex_digits = "0123456789abcdef";
+                buffer[buf_idx++] = hex_digits[(val >> 4) & 0xF];
+                if (buf_idx < 255) buffer[buf_idx++] = hex_digits[val & 0xF];
+                p += 3;
+            }
+            /* Handle %d for signed integers */
+            else if (*p == 'd') {
+                int val = va_arg(args, int);
+                char num_buf[12];
+                int i = 0;
+
+                if (val < 0) {
+                    if (buf_idx < 255) buffer[buf_idx++] = '-';
+                    val = -val;
+                }
+
+                if (val == 0) {
+                    if (buf_idx < 255) buffer[buf_idx++] = '0';
+                } else {
+                    while (val > 0 && i < 11) {
+                        num_buf[i++] = '0' + (val % 10);
+                        val /= 10;
+                    }
+                    while (i > 0 && buf_idx < 255) {
+                        buffer[buf_idx++] = num_buf[--i];
+                    }
+                }
+                p++;
+            }
+            /* Handle %x for hex without leading zeros */
+            else if (*p == 'x') {
+                unsigned int val = va_arg(args, unsigned int);
+                char hex_buf[9];
+                int i = 0;
+                const char* hex_digits = "0123456789abcdef";
+
+                if (val == 0) {
+                    if (buf_idx < 255) buffer[buf_idx++] = '0';
+                } else {
+                    while (val > 0 && i < 8) {
+                        hex_buf[i++] = hex_digits[val & 0xF];
+                        val >>= 4;
+                    }
+                    while (i > 0 && buf_idx < 255) {
+                        buffer[buf_idx++] = hex_buf[--i];
+                    }
+                }
+                p++;
+            }
+            /* Handle %08x for hex with leading zeros */
+            else if (*p == '0' && *(p+1) == '8' && *(p+2) == 'x') {
+                unsigned int val = va_arg(args, unsigned int);
+                const char* hex_digits = "0123456789abcdef";
+                for (int i = 7; i >= 0 && buf_idx < 255; i--) {
+                    buffer[buf_idx++] = hex_digits[(val >> (i * 4)) & 0xF];
+                }
+                p += 3;
+            }
+            /* Handle %s for strings */
+            else if (*p == 's') {
+                const char* s = va_arg(args, const char*);
+                while (*s && buf_idx < 255) {
+                    buffer[buf_idx++] = *s++;
+                }
+                p++;
+            }
+            /* Handle %c for characters */
+            else if (*p == 'c') {
+                int ch = va_arg(args, int);
+                if (buf_idx < 255) buffer[buf_idx++] = (char)ch;
+                p++;
+            }
+            /* Handle %% for literal % */
+            else if (*p == '%') {
+                if (buf_idx < 255) buffer[buf_idx++] = '%';
+                p++;
+            }
+            /* Unknown format, just print % and continue */
+            else {
+                if (buf_idx < 255) buffer[buf_idx++] = '%';
+            }
+        } else {
+            if (buf_idx < 255) buffer[buf_idx++] = *p;
+            p++;
+        }
+    }
+
+    buffer[buf_idx] = '\0';
+    va_end(args);
+
+    serial_puts(buffer);
+}
+
+/* Standard I/O functions */
+int sprintf(char* str, const char* format, ...) {
+    /* TODO: Implement properly */
+    if (str) str[0] = 0;
+    return 0;
+}
+
+int snprintf(char* str, size_t size, const char* format, ...) {
+    /* Minimal implementation - just copy format string */
+    if (size == 0) return 0;
+    size_t i = 0;
+    while (format[i] && i < size - 1) {
+        str[i] = format[i];
+        i++;
+    }
+    str[i] = '\0';
+    return i;
+}
+
+/* Assert implementation */
+void __assert_fail(const char* expr, const char* file, int line, const char* func) {
+    serial_printf("Assertion failed: %s at %s:%d in %s\n", expr, file, line, func);
+    /* In production, could halt or reset system */
+}

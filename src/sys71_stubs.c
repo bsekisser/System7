@@ -131,8 +131,9 @@ Boolean ExpandMemValidate(void) { return true; }
 /* Serial stubs */
 #include <stdarg.h>
 
+/* serial_printf moved to System71StdLib.c
 void serial_printf(const char* fmt, ...) {
-    /* Simple implementation that only handles %d and %02x */
+    // Simple implementation that only handles %d and %02x
     extern void serial_puts(const char* str);
 
     const char* p = fmt;
@@ -146,7 +147,7 @@ void serial_printf(const char* fmt, ...) {
         if (*p == '%' && *(p+1)) {
             p++;
             if (*p == 'd') {
-                /* Decimal number */
+                // Decimal number
                 int val = va_arg(args, int);
                 char num[12];
                 int idx = 0;
@@ -166,7 +167,7 @@ void serial_printf(const char* fmt, ...) {
                     }
                 }
             } else if (*p == 'u') {
-                /* Unsigned decimal number */
+                // Unsigned decimal number
                 unsigned int val = va_arg(args, unsigned int);
                 char num[12];
                 int idx = 0;
@@ -182,15 +183,15 @@ void serial_printf(const char* fmt, ...) {
                     }
                 }
             } else if (*p == 'x' || (*p == '0' && *(p+1) && (*(p+1) == '4' || *(p+1) == '8') && *(p+2) == 'x')) {
-                /* Hex value - %x, %04x, %08x */
-                int digits = 8;  /* Default to 8 hex digits */
+                // Hex value - %x, %04x, %08x
+                int digits = 8;  // Default to 8 hex digits
                 if (*p == '0') {
                     if (*(p+1) == '4') {
                         digits = 4;
-                        p += 2;  /* Skip "04" */
+                        p += 2;  // Skip "04"
                     } else if (*(p+1) == '8') {
                         digits = 8;
-                        p += 2;  /* Skip "08" */
+                        p += 2;  // Skip "08"
                     }
                 }
                 unsigned int val = va_arg(args, unsigned int);
@@ -199,14 +200,14 @@ void serial_printf(const char* fmt, ...) {
                     buffer[buf_idx++] = hex[(val >> (i*4)) & 0xF];
                 }
             } else if (*p == '0' && *(p+1) == '2' && *(p+2) == 'x') {
-                /* Hex byte (legacy, keep for compatibility) */
+                // Hex byte (legacy, keep for compatibility)
                 p += 2;
                 unsigned int val = va_arg(args, unsigned int) & 0xFF;
                 const char* hex = "0123456789abcdef";
                 buffer[buf_idx++] = hex[(val >> 4) & 0xF];
                 buffer[buf_idx++] = hex[val & 0xF];
             } else if (*p == 's') {
-                /* String */
+                // String
                 const char* str = va_arg(args, const char*);
                 if (str) {
                     while (*str && buf_idx < 250) {
@@ -221,7 +222,7 @@ void serial_printf(const char* fmt, ...) {
                     buffer[buf_idx++] = ')';
                 }
             } else if (*p == 'p') {
-                /* Pointer */
+                // Pointer
                 void* ptr = va_arg(args, void*);
                 buffer[buf_idx++] = '0';
                 buffer[buf_idx++] = 'x';
@@ -244,6 +245,7 @@ void serial_printf(const char* fmt, ...) {
     serial_puts(buffer);
     va_end(args);
 }
+*/
 
 /* Finder InitializeFinder is now provided by finder_main.c */
 
@@ -797,16 +799,18 @@ void SetEmptyRgn(RgnHandle rgn) {
     }
 }
 
-/* Standard library stubs */
+/* Standard library stubs - moved to System71StdLib.c
 int sprintf(char* str, const char* format, ...) {
     if (str) str[0] = 0;
     return 0;
 }
+*/
 
-/* Assert implementation */
+/* Assert implementation - moved to System71StdLib.c
 void __assert_fail(const char* expr, const char* file, int line, const char* func) {
-    /* In production, just ignore asserts */
+    // In production, just ignore asserts
 }
+*/
 
 /* strlen moved to System71StdLib.c
 size_t strlen(const char* s) {
@@ -958,8 +962,9 @@ char* strncpy(char* dest, const char* src, size_t n) {
 }
 */
 
+/* snprintf moved to System71StdLib.c
 int snprintf(char* str, size_t size, const char* format, ...) {
-    /* Minimal implementation - just copy format string */
+    // Minimal implementation - just copy format string
     if (size == 0) return 0;
     size_t i = 0;
     while (format[i] && i < size - 1) {
@@ -969,6 +974,7 @@ int snprintf(char* str, size_t size, const char* format, ...) {
     str[i] = '\0';
     return i;
 }
+*/
 
 /* External globals from main.c */
 extern void* framebuffer;

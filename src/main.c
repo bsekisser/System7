@@ -139,6 +139,15 @@ static inline uint8_t inb(uint16_t port) {
     return ret;
 }
 
+/* Serial functions moved to System71StdLib.c */
+extern void serial_init(void);
+extern void serial_putchar(char c);
+extern void serial_puts(const char* str);
+extern int serial_data_ready(void);
+extern char serial_getchar(void);
+extern void serial_print_hex(uint32_t value);
+
+/* Commented out - moved to System71StdLib.c
 void serial_init(void) {
     outb(COM1 + 1, 0x00);    // Disable all interrupts
     outb(COM1 + 3, 0x80);    // Enable DLAB (set baud rate divisor)
@@ -148,12 +157,16 @@ void serial_init(void) {
     outb(COM1 + 2, 0xC7);    // Enable FIFO, clear them, with 14-byte threshold
     outb(COM1 + 4, 0x0B);    // IRQs enabled, RTS/DSR set
 }
+*/
 
+/* serial_putchar moved to System71StdLib.c
 void serial_putchar(char c) {
     while ((inb(COM1 + 5) & 0x20) == 0);
     outb(COM1, c);
 }
+*/
 
+/* serial_puts moved to System71StdLib.c
 void serial_puts(const char* str) {
     while (*str) {
         if (*str == '\n') {
@@ -162,16 +175,20 @@ void serial_puts(const char* str) {
         serial_putchar(*str++);
     }
 }
+*/
 
-/* Serial input functions */
+/* serial_data_ready moved to System71StdLib.c
 int serial_data_ready(void) {
     return (inb(COM1 + 5) & 0x01) != 0;
 }
+*/
 
+/* serial_getchar moved to System71StdLib.c
 char serial_getchar(void) {
     while (!serial_data_ready());
     return inb(COM1);
 }
+*/
 
 /* Process serial commands for menu testing */
 void process_serial_command(void) {
@@ -390,6 +407,7 @@ void print_hex(uint32_t value) {
     }
 }
 
+/* serial_print_hex moved to System71StdLib.c
 void serial_print_hex(uint32_t value) {
     const char* hex = "0123456789ABCDEF";
     serial_puts("0x");
@@ -397,6 +415,7 @@ void serial_print_hex(uint32_t value) {
         serial_putchar(hex[(value >> (i * 4)) & 0xF]);
     }
 }
+*/
 
 /* Parse Multiboot2 info */
 void parse_multiboot2(uint32_t magic, uint32_t* mb2_info) {
