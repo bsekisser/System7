@@ -1,7 +1,7 @@
 /* HFS B-Tree Implementation */
 #include "../../include/FS/hfs_btree.h"
 #include "../../include/FS/hfs_endian.h"
-#include <stdlib.h>
+#include "../../include/MemoryMgr/MemoryManager.h"
 #include <string.h>
 
 /* Serial debug output */
@@ -95,9 +95,12 @@ bool HFS_BT_Init(HFS_BTree* bt, HFS_Volume* vol, HFS_BTreeType type) {
     bt->nodeSize    = be16_read(&header->nodeSize);
     bt->totalNodes  = be32_read(&header->totalNodes);
 
-    /* Skip node buffer allocation for now - catalog not fully implemented */
-    /* bt->nodeBuffer = malloc(bt->nodeSize); */
-    bt->nodeBuffer = NULL;
+    /* Allocate node buffer */
+    bt->nodeBuffer = malloc(bt->nodeSize);
+    if (!bt->nodeBuffer) {
+        serial_printf("HFS BTree: Failed to allocate node buffer\n");
+        return false;
+    }
 
     serial_printf("HFS BTree: Initialized %s tree (nodeSize=%u, root=%u, depth=%u)\n",
                   type == kBTreeCatalog ? "Catalog" : "Extents",

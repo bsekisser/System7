@@ -1,7 +1,7 @@
 /* HFS File Operations Implementation */
 #include "../../include/FS/hfs_file.h"
 #include "../../include/FS/hfs_endian.h"
-#include <stdlib.h>
+#include "../../include/MemoryMgr/MemoryManager.h"
 #include <string.h>
 
 /* Serial debug output */

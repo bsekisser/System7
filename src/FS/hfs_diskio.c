@@ -1,7 +1,7 @@
 /* HFS Disk I/O Implementation */
 #include "../../include/FS/hfs_diskio.h"
+#include "../../include/MemoryMgr/MemoryManager.h"
 #include <string.h>
-#include <stdlib.h>
 
 /* For now, we'll use memory-based implementation */
 /* Later this can be extended to use real file I/O */
@@ -17,12 +17,12 @@ bool HFS_BD_InitMemory(HFS_BlockDev* bd, void* buffer, uint64_t size) {
 }
 
 bool HFS_BD_InitFile(HFS_BlockDev* bd, const char* path, bool readonly) {
-    /* For kernel implementation, we'll use a static buffer */
+    /* For kernel implementation, we'll allocate from heap */
     /* In a real implementation, this would open a file */
     if (!bd) return false;
 
-    /* Stub: allocate a 64MB disk image in memory */
-    bd->size = 64 * 1024 * 1024;
+    /* Allocate a 4MB disk image from heap */
+    bd->size = 4 * 1024 * 1024;
     bd->data = malloc(bd->size);
     if (!bd->data) return false;
 

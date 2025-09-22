@@ -65,7 +65,8 @@ C_SOURCES = src/main.c \
             src/FS/hfs_btree.c \
             src/FS/hfs_catalog.c \
             src/FS/hfs_file.c \
-            src/FS/vfs.c
+            src/FS/vfs.c \
+            src/MemoryMgr/MemoryManager.c
 
 ASM_SOURCES = src/multiboot2.S
 

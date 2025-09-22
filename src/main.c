@@ -26,6 +26,7 @@ extern void DoMenuCommand(short menuID, short item);
 #include "../include/FontManager/FontManager.h"
 #include "../include/PS2Controller.h"
 #include "../include/FS/vfs.h"
+#include "../include/MemoryMgr/MemoryManager.h"
 
 /* Simple 5x7 font for basic ASCII characters */
 static const uint8_t font5x7[][5] = {
@@ -1547,7 +1548,8 @@ void init_system71(void) {
     /* Initialize in proper System 7.1 order per Inside Macintosh */
 
     /* Memory Manager - foundation of everything */
-    // InitMemoryManager();  /* TODO: Implement if available */
+    InitMemoryManager();
+    serial_puts("  Memory Manager initialized\n");
 
     /* Resource Manager - needed for loading resources */
     InitResourceManager();

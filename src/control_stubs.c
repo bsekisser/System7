@@ -12,6 +12,7 @@
 #include <stdint.h>
 
 /* Simple memory management stubs */
+#if 0  /* Now provided by Memory Manager */
 void HLock(Handle h) {
     /* In a kernel environment, handles don't move, so this is a no-op */
     (void)h;
@@ -21,7 +22,9 @@ void HUnlock(Handle h) {
     /* In a kernel environment, handles don't move, so this is a no-op */
     (void)h;
 }
+#endif
 
+#if 0  /* Now provided by Memory Manager */
 /* Memory Manager stub */
 Handle NewHandleClear(Size byteCount) {
     /* Allocate and clear memory */
@@ -31,6 +34,7 @@ Handle NewHandleClear(Size byteCount) {
     }
     return h;
 }
+#endif
 
 /* Event Manager stub */
 Boolean StillDown(void) {
