@@ -1,6 +1,7 @@
 /* HFS Volume Management Implementation */
 #include "../../include/FS/hfs_volume.h"
 #include "../../include/FS/hfs_endian.h"
+#include "../../include/FS/hfs_btree.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -137,7 +138,7 @@ bool HFS_VolumeMountMemory(HFS_Volume* vol, void* buffer, uint64_t size, VRefNum
     uint8_t mdbBuffer[512];
     if (HFS_BD_ReadSector(&vol->bd, HFS_MDB_SECTOR, mdbBuffer)) {
         uint16_t sig = be16_read(&mdbBuffer[0]);
-        serial_printf("HFS: Read MDB signature: 0x4244\n");
+        serial_printf("HFS: Read MDB signature: 0x%04x (expected 0x%04x)\n", sig, HFS_SIGNATURE);
         if (sig == HFS_SIGNATURE) {
             /* Valid HFS volume - mount it properly */
             serial_printf("HFS: Found valid HFS signature, mounting...\n");
@@ -150,6 +151,19 @@ bool HFS_VolumeMountMemory(HFS_Volume* vol, void* buffer, uint64_t size, VRefNum
             vol->vbmStart = be16_read(&mdbBuffer[16]);
             vol->catFileSize = be32_read(&mdbBuffer[142]);
             vol->extFileSize = be32_read(&mdbBuffer[126]);
+
+            /* Copy catalog extents */
+            for (int i = 0; i < 3; i++) {
+                vol->catExtents[i].startBlock = be16_read(&mdbBuffer[146 + i*4]);
+                vol->catExtents[i].blockCount = be16_read(&mdbBuffer[148 + i*4]);
+            }
+
+            /* Copy extents extents */
+            for (int i = 0; i < 3; i++) {
+                vol->extExtents[i].startBlock = be16_read(&mdbBuffer[130 + i*4]);
+                vol->extExtents[i].blockCount = be16_read(&mdbBuffer[132 + i*4]);
+            }
+
             vol->rootDirID = 2;
             vol->nextCNID = be32_read(&mdbBuffer[32]);
             vol->vRefNum = vRefNum;
@@ -160,7 +174,11 @@ bool HFS_VolumeMountMemory(HFS_Volume* vol, void* buffer, uint64_t size, VRefNum
 
             serial_printf("HFS: Mounted volume from memory\n");
             return true;
+        } else {
+            serial_printf("HFS: MDB signature mismatch: got 0x%04x\n", sig);
         }
+    } else {
+        serial_printf("HFS: Failed to read MDB sector %d\n", HFS_MDB_SECTOR);
     }
 
     serial_printf("HFS: No valid MDB found, volume was not created properly\n");
@@ -271,6 +289,11 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
     /* Write MDB */
     memcpy((uint8_t*)buffer + (HFS_MDB_SECTOR * 512), mdb, sizeof(mdb));
 
+    /* Debug: verify MDB was written correctly */
+    uint16_t check_sig = be16_read((uint8_t*)buffer + (HFS_MDB_SECTOR * 512));
+    serial_printf("HFS: Created blank volume, MDB signature at sector %d: 0x%04x\n",
+                 HFS_MDB_SECTOR, check_sig);
+
     /* Initialize Volume Bitmap */
     uint8_t* vbm = (uint8_t*)buffer + (vbmStart * alBlkSize);
     memset(vbm, 0, vbmBlocks * alBlkSize);
@@ -280,6 +303,58 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
         vbm[i / 8] |= (1 << (7 - (i % 8)));
     }
 
-    serial_printf("HFS: Created blank volume (%u MB)\n", (uint32_t)(size / 1024 / 1024));
+    /* Initialize Catalog B-tree */
+    /* Catalog starts AFTER system area (at first allocation block) */
+    uint8_t* catData = (uint8_t*)buffer + (alBlSt * alBlkSize);  /* Catalog at first alloc block */
+    memset(catData, 0, 10 * alBlkSize);  /* Clear all catalog blocks */
+
+    /* Create catalog B-tree header node at first block of catalog file */
+    HFS_BTNodeDesc* catNodeDesc = (HFS_BTNodeDesc*)catData;
+    catNodeDesc->fLink = 0;
+    catNodeDesc->bLink = 0;
+    catNodeDesc->kind = kBTHeaderNode;
+    catNodeDesc->height = 1;
+    be16_write(&catNodeDesc->numRecords, 3);  /* Header has 3 records */
+    catNodeDesc->reserved = 0;
+
+    /* Create catalog B-tree header record */
+    HFS_BTHeaderRec* catHeader = (HFS_BTHeaderRec*)(catData + sizeof(HFS_BTNodeDesc));
+    be16_write(&catHeader->depth, 0);           /* Empty tree */
+    be32_write(&catHeader->rootNode, 0);        /* No root yet */
+    be32_write(&catHeader->leafRecords, 0);
+    be32_write(&catHeader->firstLeafNode, 0);
+    be32_write(&catHeader->lastLeafNode, 0);
+    be16_write(&catHeader->nodeSize, 512);      /* 512-byte nodes */
+    be16_write(&catHeader->keyCompareType, 0); /* Case-insensitive compare */
+    be32_write(&catHeader->totalNodes, 20);     /* 10 blocks * 512 / 512 */
+    be32_write(&catHeader->freeNodes, 19);      /* All but header free */
+
+    /* Initialize Extents B-tree */
+    /* Extents start at allocation block 10 (after catalog's 10 blocks) */
+    uint8_t* extData = (uint8_t*)buffer + ((alBlSt + 10) * alBlkSize);  /* Extents after catalog */
+    memset(extData, 0, 3 * alBlkSize);  /* Clear all extent blocks */
+
+    /* Create extents B-tree header node */
+    HFS_BTNodeDesc* extNodeDesc = (HFS_BTNodeDesc*)extData;
+    extNodeDesc->fLink = 0;
+    extNodeDesc->bLink = 0;
+    extNodeDesc->kind = kBTHeaderNode;
+    extNodeDesc->height = 1;
+    be16_write(&extNodeDesc->numRecords, 3);
+    extNodeDesc->reserved = 0;
+
+    /* Create extents B-tree header record */
+    HFS_BTHeaderRec* extHeader = (HFS_BTHeaderRec*)(extData + sizeof(HFS_BTNodeDesc));
+    be16_write(&extHeader->depth, 0);           /* Empty tree */
+    be32_write(&extHeader->rootNode, 0);        /* No root yet */
+    be32_write(&extHeader->leafRecords, 0);
+    be32_write(&extHeader->firstLeafNode, 0);
+    be32_write(&extHeader->lastLeafNode, 0);
+    be16_write(&extHeader->nodeSize, 512);      /* 512-byte nodes */
+    be16_write(&extHeader->keyCompareType, 0);  /* Binary compare */
+    be32_write(&extHeader->totalNodes, 6);      /* 3 blocks * 512 / 512 */
+    be32_write(&extHeader->freeNodes, 5);       /* All but header free */
+
+    serial_printf("HFS: Created blank volume (%u MB) with B-trees\n", (uint32_t)(size / 1024 / 1024));
     return true;
 }
