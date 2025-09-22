@@ -1,1 +1,0 @@
-No battery reserve power remains.  The Macintosh will go to sleep within 10 seconds to preserve the contents of memory.  Good Night.

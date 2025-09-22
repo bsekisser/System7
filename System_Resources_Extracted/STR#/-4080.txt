@@ -1,4 +1,0 @@
-[0] You will reserve an additional 
-[1] K of memory for built-in video upon restart.
-[2] You will gain an additional 
-[3] K of memory for applications upon restart.

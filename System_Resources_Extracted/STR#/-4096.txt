@@ -1,8 +1,0 @@
-[0] Macintosh IIci Built-In Video
-[1] Macintosh II Built-In Video
-[2] Macintosh A Built-In Video
-[3] Macintosh II Built-In Video
-[4] Macintosh B Built-In Video
-[5] Macintosh Built-In Video
-[6] Macintosh C Built-In Video
-[7] Macintosh Built-In Video
