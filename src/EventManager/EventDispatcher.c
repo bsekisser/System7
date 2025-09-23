@@ -135,7 +135,7 @@ Boolean HandleMouseDown(EventRecord* event)
     windowPart = FindWindow(event->where, &whichWindow);
 
     serial_printf("HandleMouseDown: part=%d, window=%p at (%d,%d)\n",
-                 windowPart, whichWindow, event->where.h, event->where.v);
+                 windowPart, whichWindow, (int)event->where.h, (int)event->where.v);
 
     switch (windowPart) {
         case inMenuBar:
