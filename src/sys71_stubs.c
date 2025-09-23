@@ -174,8 +174,8 @@ SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
     /* For mouse events, unpack coordinates from message */
     if (eventNum == mouseDown || eventNum == mouseUp) {
         /* Message contains packed coordinates: h in high word, v in low word */
-        evt->where.h = (eventMsg >> 16) & 0xFFFF;
-        evt->where.v = eventMsg & 0xFFFF;
+        evt->where.h = (SInt16)((eventMsg >> 16) & 0xFFFF);
+        evt->where.v = (SInt16)(eventMsg & 0xFFFF);
 
         /* Debug: show the unpacking process */
         serial_printf("PostEvent: Unpacking msg=0x%08x -> h=%d (0x%04x), v=%d (0x%04x)\n",
