@@ -15,6 +15,7 @@
 #include "EventManager/EventManager.h"
 #include "WindowManager/WindowManager.h"
 #include "MenuManager/MenuManager.h"
+#include <stdlib.h>  /* For abs() */
 
 /* External functions */
 extern void serial_printf(const char* fmt, ...);
@@ -206,9 +207,33 @@ Boolean HandleMouseDown(EventRecord* event)
             return true;
 
         case inDesk:
-            /* Click on desktop */
-            /* Could be used to deselect all, show desktop menu, etc. */
-            serial_printf("Click on desktop\n");
+            /* Click on desktop - check if it's on an icon */
+            {
+                /* Check for double-click (simple time-based detection) */
+                static UInt32 lastClickTime = 0;
+                static Point lastClickPoint = {0, 0};
+                Boolean doubleClick = false;
+
+                UInt32 currentTime = event->when;
+                if (currentTime - lastClickTime < 30 &&  /* Within 30 ticks (about 500ms) */
+                    abs(event->where.h - lastClickPoint.h) < 5 &&
+                    abs(event->where.v - lastClickPoint.v) < 5) {
+                    doubleClick = true;
+                }
+
+                lastClickTime = currentTime;
+                lastClickPoint = event->where;
+
+                /* Check if click was on a desktop icon */
+                extern Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick);
+                if (HandleDesktopClick(event->where, doubleClick)) {
+                    serial_printf("Desktop icon clicked\n");
+                    return true;
+                }
+
+                /* Otherwise just a desktop click */
+                serial_printf("Click on desktop (no icon)\n");
+            }
             return true;
 
         default:

@@ -73,6 +73,7 @@ OSErr CleanUpDesktop(void);
 OSErr RebuildDesktopFile(short vRefNum);
 OSErr GetDesktopIconPosition(FSSpec *item, Point *position);
 OSErr SetDesktopIconPosition(FSSpec *item, Point position);
+Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick);
 
 /* File Manager API - Evidence: "Do you want to copy", "Items from ^1 disks cannot be moved" */
 OSErr CopyItems(FSSpec *source, FSSpec *dest, Boolean askUser);

@@ -689,6 +689,113 @@ void DrawVolumeIcon(void)
 }
 
 /*
+ * HandleDesktopClick - Check if a click is on a desktop icon and handle it
+ * Returns true if click was on an icon, false otherwise
+ */
+Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
+{
+    Rect iconRect;
+    Rect labelRect;
+
+    extern void serial_printf(const char* fmt, ...);
+
+    /* Check volume icon first */
+    for (int i = 0; i < gDesktopIconCount; i++) {
+        if (gDesktopIcons[i].iconID == 0xFFFFFFFF) {
+            /* Volume icon - check both icon and label area */
+            SetRect(&iconRect,
+                    gDesktopIcons[i].position.h,
+                    gDesktopIcons[i].position.v,
+                    gDesktopIcons[i].position.h + 32,
+                    gDesktopIcons[i].position.v + 32);
+
+            /* Label area is below icon */
+            SetRect(&labelRect,
+                    gDesktopIcons[i].position.h - 20,  /* Wider for label */
+                    gDesktopIcons[i].position.v + 32,
+                    gDesktopIcons[i].position.h + 52,
+                    gDesktopIcons[i].position.v + 48);
+
+            if (PtInRect(clickPoint, &iconRect) || PtInRect(clickPoint, &labelRect)) {
+                serial_printf("Desktop: Click on volume icon at (%d,%d)\n",
+                            clickPoint.h, clickPoint.v);
+
+                if (doubleClick) {
+                    /* Open volume window */
+                    serial_printf("Desktop: Double-click on volume - opening window\n");
+
+                    /* Create a simple test window for the volume */
+                    Rect windowBounds;
+                    SetRect(&windowBounds, 150, 80, 550, 380);
+
+                    WindowPtr volumeWindow = NewWindow(NULL, &windowBounds,
+                                                      "\pMacintosh HD",
+                                                      true,  /* visible */
+                                                      0,     /* documentProc */
+                                                      (WindowPtr)-1L,  /* frontmost */
+                                                      true,  /* goAway box */
+                                                      0);    /* refCon */
+
+                    if (volumeWindow) {
+                        ShowWindow(volumeWindow);
+                        SelectWindow(volumeWindow);
+                        serial_printf("Desktop: Volume window created successfully\n");
+                    }
+                }
+                return true;
+            }
+        }
+    }
+
+    /* Check trash icon */
+    Point trashPos;
+    trashPos.h = 700;
+    trashPos.v = 500;
+
+    SetRect(&iconRect,
+            trashPos.h,
+            trashPos.v,
+            trashPos.h + 32,
+            trashPos.v + 32);
+
+    SetRect(&labelRect,
+            trashPos.h - 20,
+            trashPos.v + 48,  /* Trash label is lower */
+            trashPos.h + 52,
+            trashPos.v + 64);
+
+    if (PtInRect(clickPoint, &iconRect) || PtInRect(clickPoint, &labelRect)) {
+        serial_printf("Desktop: Click on trash icon at (%d,%d)\n",
+                     clickPoint.h, clickPoint.v);
+
+        if (doubleClick) {
+            /* Open trash window */
+            serial_printf("Desktop: Double-click on trash - opening window\n");
+
+            Rect windowBounds;
+            SetRect(&windowBounds, 200, 120, 600, 420);
+
+            WindowPtr trashWindow = NewWindow(NULL, &windowBounds,
+                                            "\pTrash",
+                                            true,  /* visible */
+                                            0,     /* documentProc */
+                                            (WindowPtr)-1L,  /* frontmost */
+                                            true,  /* goAway box */
+                                            0);    /* refCon */
+
+            if (trashWindow) {
+                ShowWindow(trashWindow);
+                SelectWindow(trashWindow);
+                serial_printf("Desktop: Trash window created successfully\n");
+            }
+        }
+        return true;
+    }
+
+    return false;
+}
+
+/*
  * HandleVolumeDoubleClick - Open volume window on double-click
  */
 OSErr HandleVolumeDoubleClick(Point clickPoint)
