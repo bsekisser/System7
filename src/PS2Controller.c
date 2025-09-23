@@ -315,20 +315,20 @@ static void process_mouse_packet(void) {
     if (new_buttons != g_mouseState.buttons) {
         /* Left button */
         if ((new_buttons & 0x01) != (g_mouseState.buttons & 0x01)) {
-            /* Message contains mouse position in low word */
-            UInt32 message = ((UInt32)g_mouseState.y << 16) | g_mouseState.x;
+            /* Pack mouse position using PACK_POINT macro: h in high word, v in low word */
+            UInt32 message = PACK_POINT(g_mouseState.x, g_mouseState.y);
 
             PostEvent((new_buttons & 0x01) ? mouseDown : mouseUp, message);
 
-            serial_printf("Mouse %s at (%d, %d)\n",
+            /* serial_printf("Mouse %s at (%d, %d)\n",
                          (new_buttons & 0x01) ? "down" : "up",
-                         g_mouseState.x, g_mouseState.y);
+                         g_mouseState.x, g_mouseState.y); */
         }
 
         g_mouseState.buttons = new_buttons;
     }
 
-    /* Also update global mouse position for tracking */
+    /* Update global mouse position for GetMouse() */
     g_mousePos.h = g_mouseState.x;
     g_mousePos.v = g_mouseState.y;
 
