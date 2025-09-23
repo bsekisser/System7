@@ -1,536 +1,560 @@
 /* #include "SystemTypes.h" */
-#include <stdlib.h>
-#include <string.h>
-// #include "CompatibilityFix.h" // Removed
-/*
- * WindowDisplay.c - Window Display and Visibility Management
- *
- * This file implements window display functions including showing/hiding,
- * window activation, title management, front/back ordering, and window
- * drawing coordination. These functions control how windows appear and
- * interact visually on the desktop.
- *
- * Key functions implemented:
- * - Window visibility (ShowWindow, HideWindow, ShowHide)
- * - Window activation (SelectWindow, HiliteWindow)
- * - Window ordering (BringToFront, SendBehind, FrontWindow)
- * - Window titles (SetWTitle, GetWTitle)
- * - Window drawing coordination
- * - Update region management
- *
- * Copyright (c) 2025 - System 7.1 Portable Project
- * Based on Apple Macintosh System Software 7.1 Window Manager
- */
 
-#include "SystemTypes.h"
-#include "System71StdLib.h"
+#include "WindowManager/WindowManager.h"
+/* #include "WindowManager/WindowManagerPrivate.h" */
+#include "QuickDraw/QuickDraw.h"
+/* #include "QuickDraw/QuickDrawPrivate.h" */
+#include "Platform/WindowPlatform.h"
+#include "WindowManager/ControlManagerTypes.h"
 
-#include "WindowManager/WindowManagerInternal.h"
+/* Debug macros */
+#ifdef DEBUG_WINDOW_MANAGER
+    #define WM_DEBUG(...) serial_printf("WM: " __VA_ARGS__)
+#else
+    #define WM_DEBUG(...)
+#endif
 
+/* External functions */
+extern void serial_printf(const char* fmt, ...);
+extern void DrawString(const unsigned char* str);
+extern void LineTo(short h, short v);
+extern void MoveTo(short h, short v);
+extern void FrameRect(const Rect* r);
+extern void PaintRect(const Rect* r);
+extern void EraseRect(const Rect* r);
+extern void InsetRect(Rect* r, short dh, short dv);
+extern void SetRect(Rect* r, short left, short top, short right, short bottom);
+extern Boolean PtInRect(Point pt, const Rect* r);
+extern Boolean EqualRect(const Rect* rect1, const Rect* rect2);
+extern void UnionRect(const Rect* src1, const Rect* src2, Rect* dstRect);
+extern Boolean EmptyRect(const Rect* r);
+extern void CopyRgn(RgnHandle srcRgn, RgnHandle dstRgn);
+extern void SetRectRgn(RgnHandle rgn, short left, short top, short right, short bottom);
+extern void OffsetRgn(RgnHandle rgn, short dh, short dv);
+extern void GetPort(GrafPtr* port);
+extern void SetPort(GrafPtr port);
+extern void ClipRect(const Rect* r);
+extern void SetClip(RgnHandle rgn);
+extern RgnHandle GetClip(void);
+extern RgnHandle NewRgn(void);
+extern void DisposeRgn(RgnHandle rgn);
 
-/* ============================================================================
- * Window Title Management
- * ============================================================================ */
+/*-----------------------------------------------------------------------*/
+/* Window Display Functions                                             */
+/*-----------------------------------------------------------------------*/
 
-void SetWTitle(WindowPtr theWindow, ConstStr255Param title) {
-    if (theWindow == NULL) return;
+/* Internal helper to draw window frame */
+static void DrawWindowFrame(WindowPtr window);
 
-    WM_DEBUG("SetWTitle: Setting window title");
+/* Internal helper to draw window controls */
+static void DrawWindowControls(WindowPtr window);
 
-    /* Allocate title handle if it doesn't exist */
-    if (theWindow->titleHandle == NULL) {
-        theWindow->titleHandle = (StringHandle)malloc(sizeof(StringHandle));
-        if (theWindow->titleHandle == NULL) {
-            WM_ERROR("SetWTitle: Failed to allocate title handle");
-            return;
-        }
-        *(theWindow->titleHandle) = NULL;
-    }
+/* Internal helper to draw window content area */
+static void DrawWindowContent(WindowPtr window);
 
-    /* Calculate title length */
-    short titleLen = (title && title[0] > 0) ? title[0] + 1 : 1;
+void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
+    if (!window || !window->visible) return;
 
-    /* Allocate or reallocate title storage */
-    if (*(theWindow->titleHandle) == NULL) {
-        *(theWindow->titleHandle) = (unsigned char*)malloc(titleLen);
-    } else {
-        *(theWindow->titleHandle) = (unsigned char*)realloc(*(theWindow->titleHandle), titleLen);
-    }
+    WM_DEBUG("PaintOne: Painting window");
 
-    if (*(theWindow->titleHandle) == NULL) {
-        WM_ERROR("SetWTitle: Failed to allocate title storage");
-        return;
-    }
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort(&window->port);
 
-    /* Copy the title */
-    if (title && title[0] > 0) {
-        memcpy(*(theWindow->titleHandle), title, titleLen);
-    } else {
-        /* Empty title */
-        (*(theWindow->titleHandle))[0] = 0;
-    }
+    /* Draw window frame */
+    DrawWindowFrame(window);
 
-    /* Calculate title width for display */
-    /* TODO: Use actual font metrics when text rendering is available */
-    theWindow->titleWidth = (title && title[0] > 0) ? title[0] * 6 : 0;
+    /* Draw window controls */
+    DrawWindowControls(window);
 
-    /* Update native window title */
-    Platform_SetNativeWindowTitle(theWindow, title);
+    /* Draw window content */
+    DrawWindowContent(window);
 
-    /* Redraw title bar if window is visible */
-    if (theWindow->visible) {
-        WM_ScheduleWindowUpdate(theWindow, kUpdateTitle);
-    }
-
-    WM_DEBUG("SetWTitle: Title set successfully, width = %d", theWindow->titleWidth);
+    SetPort(savePort);
 }
 
-void GetWTitle(WindowPtr theWindow, Str255 title) {
-    if (theWindow == NULL || title == NULL) {
-        if (title) title[0] = 0; /* Empty string */
-        return;
-    }
-
-    if (theWindow->titleHandle && *(theWindow->titleHandle)) {
-        short len = (*(theWindow->titleHandle))[0];
-        if (len > 255) len = 255;
-        memcpy(title, *(theWindow->titleHandle), len + 1);
-    } else {
-        title[0] = 0; /* Empty string */
-    }
-
-    WM_DEBUG("GetWTitle: Retrieved title, length = %d", title[0]);
-}
-
-/* ============================================================================
- * Window Visibility Management
- * ============================================================================ */
-
-void ShowWindow(WindowPtr theWindow) {
-    if (theWindow == NULL) return;
-    if (theWindow->visible) return; /* Already visible */
-
-    WM_DEBUG("ShowWindow: Showing window");
-
-    /* Mark window as visible */
-    theWindow->visible = true;
-
-    /* Show native platform window */
-    Platform_ShowNativeWindow(theWindow, true);
-
-    /* Recalculate window regions */
-    Platform_CalculateWindowRegions(theWindow);
-
-    /* Update visibility for all windows */
-    WM_UpdateWindowVisibility(theWindow);
-
-    /* If no window is currently active, activate this one */
+void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn) {
     WindowManagerState* wmState = GetWindowManagerState();
-    if (wmState->activeWindow == NULL) {
-        SelectWindow(theWindow);
+    if (!wmState) return;
+
+    WM_DEBUG("PaintBehind: Starting paint");
+
+    /* Find start position in window list */
+    WindowPtr window = startWindow;
+    if (!window) {
+        window = wmState->windowList;
     }
 
-    /* Schedule complete redraw */
-    WM_ScheduleWindowUpdate(theWindow, kUpdateAll);
-
-    WM_DEBUG("ShowWindow: Window is now visible");
+    /* Paint windows from back to front */
+    while (window) {
+        if (window->visible) {
+            PaintOne(window, clobberedRgn);
+        }
+        window = window->nextWindow;
+    }
 }
 
-void HideWindow(WindowPtr theWindow) {
-    if (theWindow == NULL) return;
-    if (!theWindow->visible) return; /* Already hidden */
+void CalcVis(WindowPtr window) {
+    if (!window) return;
 
-    WM_DEBUG("HideWindow: Hiding window");
+    WM_DEBUG("CalcVis: Calculating visible region");
 
+    /* Start with the window's content region */
+    if (window->contRgn && window->visRgn) {
+        CopyRgn(window->contRgn, window->visRgn);
+
+        /* Subtract regions of windows in front */
+        WindowPtr frontWindow = FrontWindow();
+        while (frontWindow && frontWindow != window) {
+            if (frontWindow->visible && frontWindow->strucRgn) {
+                /* Would subtract frontWindow->strucRgn from window->visRgn */
+                /* For now, simplified implementation */
+            }
+            frontWindow = frontWindow->nextWindow;
+        }
+    }
+}
+
+void CalcVisBehind(WindowPtr startWindow, RgnHandle clobberedRgn) {
     WindowManagerState* wmState = GetWindowManagerState();
+    if (!wmState) return;
 
-    /* Mark window as invisible */
-    theWindow->visible = false;
+    WM_DEBUG("CalcVisBehind: Recalculating visible regions");
 
-    /* Hide native platform window */
-    Platform_ShowNativeWindow(theWindow, false);
-
-    /* Invalidate the area the window was occupying */
-    if (theWindow->strucRgn) {
-        /* TODO: Invalidate screen area for redrawing windows below */
-        WM_InvalidateWindowsBelow(theWindow, &(theWindow->port.portRect));
+    /* Find start position in window list */
+    WindowPtr window = startWindow;
+    if (!window) {
+        window = wmState->windowList;
     }
 
-    /* If this was the active window, activate next visible window */
-    if (wmState->activeWindow == theWindow) {
-        wmState->activeWindow = NULL;
-
-        /* Find next visible window to activate */
-        WindowPtr nextWindow = WM_GetNextVisibleWindow(theWindow);
-        if (nextWindow) {
-            SelectWindow(nextWindow);
-        }
-    }
-
-    /* Update visibility for all windows */
-    WM_UpdateWindowVisibility(theWindow);
-
-    WM_DEBUG("HideWindow: Window is now hidden");
-}
-
-void ShowHide(WindowPtr theWindow, Boolean showFlag) {
-    if (showFlag) {
-        ShowWindow(theWindow);
-    } else {
-        HideWindow(theWindow);
+    /* Recalculate visible regions for all windows */
+    while (window) {
+        CalcVis(window);
+        window = window->nextWindow;
     }
 }
 
-/* ============================================================================
- * Window Activation and Highlighting
- * ============================================================================ */
+void ClipAbove(WindowPtr window) {
+    if (!window) return;
 
-void SelectWindow(WindowPtr theWindow) {
-    if (theWindow == NULL) return;
+    WM_DEBUG("ClipAbove: Setting clip region");
 
-    WindowManagerState* wmState = GetWindowManagerState();
-    if (wmState->activeWindow == theWindow) return; /* Already active */
+    /* Create a region that excludes all windows above this one */
+    RgnHandle clipRgn = NewRgn();
+    if (clipRgn) {
+        /* Start with full screen */
+        SetRectRgn(clipRgn, 0, 0, 1024, 768);
 
-    WM_DEBUG("SelectWindow: Activating window");
-
-    /* Deactivate current window */
-    if (wmState->activeWindow) {
-        wmState->activeWindow->hilited = false;
-        WM_ScheduleWindowUpdate(wmState->activeWindow, kUpdateFrame);
-        WM_DEBUG("SelectWindow: Deactivated previous window");
-    }
-
-    /* Bring window to front */
-    BringToFront(theWindow);
-
-    /* Activate new window */
-    wmState->activeWindow = theWindow;
-    theWindow->hilited = true;
-
-    /* Update Window Manager port reference */
-    if (wmState->wMgrPort) {
-        /* wmState->wMgrPort->activeWindow = theWindow; -- wMgrPort doesn't have activeWindow */
-    }
-
-    /* Schedule frame redraw for highlight change */
-    WM_ScheduleWindowUpdate(theWindow, kUpdateFrame);
-
-    /* Post activation event */
-    Platform_PostWindowEvent(theWindow, 1 /* activate */, 1);
-
-    WM_DEBUG("SelectWindow: Window activated successfully");
-}
-
-void HiliteWindow(WindowPtr theWindow, Boolean fHilite) {
-    if (theWindow == NULL) return;
-    if (theWindow->hilited == fHilite) return; /* No change */
-
-    WM_DEBUG("HiliteWindow: %s window", fHilite ? "Highlighting" : "Unhighlighting");
-
-    theWindow->hilited = fHilite;
-
-    /* Schedule frame redraw */
-    WM_ScheduleWindowUpdate(theWindow, kUpdateFrame);
-
-    /* Update active window state if needed */
-    WindowManagerState* wmState = GetWindowManagerState();
-    if (fHilite && wmState->activeWindow != theWindow) {
-        wmState->activeWindow = theWindow;
-        if (wmState->wMgrPort) {
-            /* wmState->wMgrPort->activeWindow = theWindow; -- wMgrPort doesn't have activeWindow */
+        /* Subtract regions of windows in front */
+        WindowPtr frontWindow = FrontWindow();
+        while (frontWindow && frontWindow != window) {
+            if (frontWindow->visible && frontWindow->strucRgn) {
+                /* Would subtract frontWindow->strucRgn from clipRgn */
+                /* For now, simplified implementation */
+            }
+            frontWindow = frontWindow->nextWindow;
         }
-    } else if (!fHilite && wmState->activeWindow == theWindow) {
-        wmState->activeWindow = NULL;
-        if (wmState->wMgrPort) {
-            /* wmState->wMgrPort->activeWindow = NULL; -- wMgrPort doesn't have activeWindow */
-        }
+
+        SetClip(clipRgn);
+        DisposeRgn(clipRgn);
     }
 }
 
-/* ============================================================================
- * Window Ordering and Layering
- * ============================================================================ */
+void SaveOld(WindowPtr window) {
+    if (!window) return;
 
-void BringToFront(WindowPtr theWindow) {
-    if (theWindow == NULL) return;
+    WM_DEBUG("SaveOld: Saving window bits");
 
-    WindowManagerState* wmState = GetWindowManagerState();
-    if (wmState->windowList == theWindow) return; /* Already at front */
-
-    WM_DEBUG("BringToFront: Moving window to front");
-
-    /* Remove from current position in list */
-    if (wmState->windowList == theWindow) {
-        wmState->windowList = theWindow->nextWindow;
-    } else {
-        WindowPtr current = wmState->windowList;
-        while (current && current->nextWindow != theWindow) {
-            current = current->nextWindow;
-        }
-        if (current) {
-            current->nextWindow = theWindow->nextWindow;
-        }
-    }
-
-    /* Add to front of list */
-    theWindow->nextWindow = wmState->windowList;
-    wmState->windowList = theWindow;
-
-    /* Update Window Manager port reference */
-    /* Note: wMgrPort doesn't have a windowList member */
-
-    /* Bring native window to front */
-    Platform_BringNativeWindowToFront(theWindow);
-
-    /* Recalculate window order and visibility */
-    WM_RecalculateWindowOrder();
-
-    /* Schedule redraw if visible */
-    if (theWindow->visible) {
-        WM_ScheduleWindowUpdate(theWindow, kUpdateAll);
-    }
-
-    WM_DEBUG("BringToFront: Window moved to front successfully");
+    /* Save the bits behind the window */
+    /* This would typically copy screen bits to an offscreen buffer */
+    /* For now, simplified implementation */
 }
 
-void SendBehind(WindowPtr theWindow, WindowPtr behindWindow) {
-    if (theWindow == NULL) return;
+void DrawNew(WindowPtr window, Boolean update) {
+    if (!window) return;
 
-    WM_DEBUG("SendBehind: Moving window behind another");
+    WM_DEBUG("DrawNew: Drawing window");
 
-    WindowManagerState* wmState = GetWindowManagerState();
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort(&window->port);
 
-    /* Remove from current position */
-    if (wmState->windowList == theWindow) {
-        wmState->windowList = theWindow->nextWindow;
-    } else {
-        WindowPtr current = wmState->windowList;
-        while (current && current->nextWindow != theWindow) {
-            current = current->nextWindow;
-        }
-        if (current) {
-            current->nextWindow = theWindow->nextWindow;
-        }
+    if (update && window->updateRgn) {
+        /* Only draw the update region */
+        SetClip(window->updateRgn);
     }
 
-    /* Insert behind specified window */
-    if (behindWindow == NULL) {
-        /* Move to front */
-        theWindow->nextWindow = wmState->windowList;
-        wmState->windowList = theWindow;
-    } else {
-        theWindow->nextWindow = behindWindow->nextWindow;
-        behindWindow->nextWindow = theWindow;
+    DrawWindowFrame(window);
+    DrawWindowControls(window);
+    DrawWindowContent(window);
+
+    if (update && window->updateRgn) {
+        /* Clear the update region */
+        SetRectRgn(window->updateRgn, 0, 0, 0, 0);
     }
 
-    /* Update Window Manager port reference */
-    /* Note: wMgrPort doesn't have a windowList member */
-
-    /* Update native window ordering */
-    Platform_SendNativeWindowBehind(theWindow, behindWindow);
-
-    /* Recalculate window order and visibility */
-    WM_RecalculateWindowOrder();
-
-    /* Schedule redraw if visible */
-    if (theWindow->visible) {
-        WM_ScheduleWindowUpdate(theWindow, kUpdateAll);
-    }
-
-    WM_DEBUG("SendBehind: Window reordered successfully");
+    SetPort(savePort);
 }
 
-WindowPtr FrontWindow(void) {
-    WindowManagerState* wmState = GetWindowManagerState();
+static void DrawWindowFrame(WindowPtr window) {
+    if (!window || !window->visible) return;
 
-    /* Find first visible window */
-    WindowPtr current = wmState->windowList;
-    while (current) {
-        if (current->visible) {
-            WM_DEBUG("FrontWindow: Found front window");
-            return current;
+    /* Draw window frame based on window definition */
+    Rect frame = window->port.portRect;
+
+    /* Draw outer frame */
+    FrameRect(&frame);
+
+    /* Draw title bar */
+    if (window->titleWidth > 0) {
+        Rect titleBar = frame;
+        titleBar.bottom = titleBar.top + 20;
+
+        if (window->hilited) {
+            /* Active window - draw with pattern */
+            Pattern stripes = {0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55};
+            /* Would use FillRect with pattern */
+            PaintRect(&titleBar);
+        } else {
+            /* Inactive window - solid white */
+            EraseRect(&titleBar);
         }
-        current = current->nextWindow;
-    }
 
-    WM_DEBUG("FrontWindow: No visible windows found");
-    return NULL;
+        /* Draw title bar separator */
+        MoveTo(frame.left, frame.top + 20);
+        LineTo(frame.right - 1, frame.top + 20);
+
+        /* Draw window title */
+        if (window->titleHandle) {
+            MoveTo(frame.left + 20, frame.top + 15);
+            DrawString((unsigned char*)*window->titleHandle);
+        }
+    }
 }
 
-/* ============================================================================
- * Window Drawing Functions
- * ============================================================================ */
+static void DrawWindowControls(WindowPtr window) {
+    if (!window || !window->visible) return;
 
-void DrawGrowIcon(WindowPtr theWindow) {
-    if (theWindow == NULL || !theWindow->visible) return;
+    Rect frame = window->port.portRect;
+
+    /* Draw close box */
+    if (window->goAwayFlag) {
+        Rect closeBox;
+        SetRect(&closeBox, frame.left + 8, frame.top + 4,
+                frame.left + 20, frame.top + 16);
+        FrameRect(&closeBox);
+
+        if (window->hilited) {
+            /* Draw close box X */
+            MoveTo(closeBox.left + 2, closeBox.top + 2);
+            LineTo(closeBox.right - 3, closeBox.bottom - 3);
+            MoveTo(closeBox.right - 3, closeBox.top + 2);
+            LineTo(closeBox.left + 2, closeBox.bottom - 3);
+        }
+    }
+
+    /* Draw zoom box */
+    if (window->spareFlag) {
+        Rect zoomBox;
+        SetRect(&zoomBox, frame.right - 20, frame.top + 4,
+                frame.right - 8, frame.top + 16);
+        FrameRect(&zoomBox);
+
+        if (window->hilited) {
+            /* Draw zoom box lines */
+            Rect innerBox = zoomBox;
+            InsetRect(&innerBox, 2, 2);
+            FrameRect(&innerBox);
+        }
+    }
+
+    /* Draw grow box */
+    if (window->windowKind >= 0) {  /* Document window */
+        /* Grow box in bottom-right corner */
+        Rect growBox;
+        SetRect(&growBox, frame.right - 16, frame.bottom - 16,
+                frame.right, frame.bottom);
+
+        /* Draw grow lines */
+        MoveTo(growBox.left, growBox.bottom - 1);
+        LineTo(growBox.right - 1, growBox.top);
+        MoveTo(growBox.left + 4, growBox.bottom - 1);
+        LineTo(growBox.right - 1, growBox.top + 4);
+        MoveTo(growBox.left + 8, growBox.bottom - 1);
+        LineTo(growBox.right - 1, growBox.top + 8);
+    }
+
+    /* Draw scroll bars if present */
+    ControlHandle control = window->controlList;
+    while (control) {
+        if ((*control)->contrlVis) {
+            /* Would call Draw1Control(control) */
+            /* For now, simplified implementation */
+        }
+        control = (*control)->nextControl;
+    }
+}
+
+static void DrawWindowContent(WindowPtr window) {
+    if (!window || !window->visible) return;
+
+    /* Content drawing is handled by the application */
+    /* Here we just ensure the content area is clipped properly */
+
+    if (window->contRgn) {
+        SetClip(window->contRgn);
+    }
+
+    /* The actual content drawing happens via update events */
+}
+
+void DrawGrowIcon(WindowPtr window) {
+    if (!window || !window->visible || window->windowKind < 0) return;
 
     WM_DEBUG("DrawGrowIcon: Drawing grow icon");
 
-    /* Calculate grow box rectangle */
-    Rect growRect;
-    Platform_GetWindowGrowBoxRect(theWindow, &growRect);
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort(&window->port);
 
-    /* Begin drawing in window */
-    Platform_BeginWindowDraw(theWindow);
+    /* Draw grow icon in bottom-right corner */
+    Rect frame = window->port.portRect;
+    Rect growBox;
+    SetRect(&growBox, frame.right - 16, frame.bottom - 16,
+            frame.right, frame.bottom);
 
-    /* Draw the grow icon (diagonal lines pattern) */
-    /* TODO: Implement actual grow icon drawing when graphics system is available */
-    /* For now, this is a placeholder that coordinates with the platform layer */
+    /* Clear the grow box area first */
+    EraseRect(&growBox);
 
-    Platform_EndWindowDraw(theWindow);
+    /* Draw the grow lines */
+    MoveTo(growBox.left, growBox.bottom - 1);
+    LineTo(growBox.right - 1, growBox.top);
+    MoveTo(growBox.left + 4, growBox.bottom - 1);
+    LineTo(growBox.right - 1, growBox.top + 4);
+    MoveTo(growBox.left + 8, growBox.bottom - 1);
+    LineTo(growBox.right - 1, growBox.top + 8);
 
-    WM_DEBUG("DrawGrowIcon: Grow icon drawn");
+    SetPort(savePort);
 }
 
-void DrawNew(WindowPeek window, Boolean update) {
-    if (window == NULL || !window->visible) return;
+/*-----------------------------------------------------------------------*/
+/* Window Visibility Functions                                          */
+/*-----------------------------------------------------------------------*/
 
-    WM_DEBUG("DrawNew: Drawing newly created/shown window");
+void ShowWindow(WindowPtr window) {
+    if (!window || window->visible) return;
 
-    /* Calculate all window regions */
-    Platform_CalculateWindowRegions((WindowPtr)window);
+    WM_DEBUG("ShowWindow: Making window visible");
 
-    /* Draw window frame */
-    WM_DrawWindowFrame((WindowPtr)window);
+    window->visible = true;
 
-    /* Draw window content if update requested */
-    if (update) {
-        WM_DrawWindowContent((WindowPtr)window);
+    /* Calculate visible region */
+    CalcVis(window);
+
+    /* Paint the window */
+    PaintOne(window, NULL);
+
+    /* Recalculate regions for windows behind */
+    CalcVisBehind(window->nextWindow, window->strucRgn);
+}
+
+void HideWindow(WindowPtr window) {
+    if (!window || !window->visible) return;
+
+    WM_DEBUG("HideWindow: Hiding window");
+
+    window->visible = false;
+
+    /* Save the region that needs repainting */
+    RgnHandle clobberedRgn = NULL;
+    if (window->strucRgn) {
+        clobberedRgn = NewRgn();
+        if (clobberedRgn) {
+            CopyRgn(window->strucRgn, clobberedRgn);
+        }
     }
 
-    WM_DEBUG("DrawNew: New window drawn");
+    /* Recalculate visible regions */
+    CalcVisBehind(window->nextWindow, clobberedRgn);
+
+    /* Repaint windows behind */
+    PaintBehind(window->nextWindow, clobberedRgn);
+
+    if (clobberedRgn) {
+        DisposeRgn(clobberedRgn);
+    }
 }
 
-void PaintOne(WindowPeek window, RgnHandle clobberedRgn) {
-    if (window == NULL || !window->visible) return;
-
-    WM_DEBUG("PaintOne: Painting single window");
-
-    /* Check if window intersects with clobbered region */
-    if (clobberedRgn && window->strucRgn) {
-        RgnHandle intersectRgn = Platform_NewRgn();
-        if (intersectRgn) {
-            Platform_IntersectRgn(window->strucRgn, clobberedRgn, intersectRgn);
-
-            /* Only redraw if there's an intersection */
-            if (!Platform_EmptyRgn(intersectRgn)) {
-                WM_DrawWindowFrame((WindowPtr)window);
-                WM_DrawWindowContent((WindowPtr)window);
-            }
-
-            Platform_DisposeRgn(intersectRgn);
-        }
+void ShowHide(WindowPtr window, Boolean showFlag) {
+    if (showFlag) {
+        ShowWindow(window);
     } else {
-        /* Redraw entire window */
-        WM_DrawWindowFrame((WindowPtr)window);
-        WM_DrawWindowContent((WindowPtr)window);
+        HideWindow(window);
     }
-
-    WM_DEBUG("PaintOne: Window painted");
 }
 
-void PaintBehind(WindowPeek startWindow, RgnHandle clobberedRgn) {
-    if (startWindow == NULL) return;
+/*-----------------------------------------------------------------------*/
+/* Window Highlighting Functions                                        */
+/*-----------------------------------------------------------------------*/
 
-    WM_DEBUG("PaintBehind: Painting windows behind specified window");
+void HiliteWindow(WindowPtr window, Boolean fHilite) {
+    if (!window || window->hilited == fHilite) return;
 
-    /* Paint all windows behind the start window */
-    WindowPtr current = startWindow->nextWindow;
-    while (current) {
-        if (current->visible) {
-            PaintOne((WindowPeek)current, clobberedRgn);
-        }
-        current = current->nextWindow;
-    }
+    WM_DEBUG("HiliteWindow: Setting hilite to %d", fHilite);
 
-    WM_DEBUG("PaintBehind: Background windows painted");
+    window->hilited = fHilite;
+
+    /* Redraw the window frame to show highlight state */
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort(&window->port);
+
+    DrawWindowFrame(window);
+    DrawWindowControls(window);
+
+    SetPort(savePort);
 }
 
-void CalcVis(WindowPeek window) {
-    if (window == NULL) return;
+/*-----------------------------------------------------------------------*/
+/* Window Ordering Functions                                            */
+/*-----------------------------------------------------------------------*/
 
-    WM_DEBUG("CalcVis: Calculating visible region for window");
-
-    /* This would calculate the visible region by subtracting
-     * overlapping windows from the window's structure region */
-    Platform_CalculateWindowRegions((WindowPtr)window);
-
-    WM_DEBUG("CalcVis: Visible region calculated");
-}
-
-void CalcVisBehind(WindowPeek startWindow, RgnHandle clobberedRgn) {
-    if (startWindow == NULL) return;
-
-    WM_DEBUG("CalcVisBehind: Calculating visible regions for background windows");
-
-    /* Recalculate visible regions for all windows behind the start window */
-    WindowPtr current = startWindow->nextWindow;
-    while (current) {
-        if (current->visible) {
-            CalcVis((WindowPeek)current);
-        }
-        current = current->nextWindow;
-    }
-
-    WM_DEBUG("CalcVisBehind: Background visible regions calculated");
-}
-
-void ClipAbove(WindowPeek window) {
-    if (window == NULL) return;
-
-    WM_DEBUG("ClipAbove: Setting clip region to exclude windows above");
-
-    /* Set current port's clip region to exclude all windows
-     * above the specified window */
-    /* TODO: Implement when graphics system is available */
-
-    WM_DEBUG("ClipAbove: Clip region set");
-}
-
-void SaveOld(WindowPeek window) {
-    if (window == NULL) return;
-
-    WM_DEBUG("SaveOld: Saving old window state");
-
-    /* Save the old visible region before making changes */
-    /* TODO: Implement old region saving when needed */
-
-    WM_DEBUG("SaveOld: Old state saved");
-}
-
-/* ============================================================================
- * Internal Helper Functions
- * ============================================================================ */
-
-void WM_RecalculateWindowOrder(void) {
-    WM_DEBUG("WM_RecalculateWindowOrder: Recalculating window order");
+void BringToFront(WindowPtr window) {
+    if (!window) return;
 
     WindowManagerState* wmState = GetWindowManagerState();
+    if (!wmState || wmState->windowList == window) return;
 
-    /* Recalculate visibility for all windows */
+    WM_DEBUG("BringToFront: Moving window to front");
+
+    /* Remove window from current position */
+    WindowPtr prev = NULL;
     WindowPtr current = wmState->windowList;
-    while (current) {
-        if (current->visible) {
-            CalcVis((WindowPeek)current);
-        }
+
+    while (current && current != window) {
+        prev = current;
         current = current->nextWindow;
     }
 
-    WM_DEBUG("WM_RecalculateWindowOrder: Window order recalculated");
+    if (!current) return;  /* Window not in list */
+
+    /* Remove from list */
+    if (prev) {
+        prev->nextWindow = window->nextWindow;
+    }
+
+    /* Add to front */
+    window->nextWindow = wmState->windowList;
+    wmState->windowList = window;
+
+    /* Update highlight state */
+    HiliteWindow(window, true);
+
+    /* Unhighlight previous front window */
+    if (window->nextWindow) {
+        HiliteWindow(window->nextWindow, false);
+    }
+
+    /* Recalculate visible regions */
+    CalcVisBehind(window, NULL);
+
+    /* Redraw if needed */
+    PaintOne(window, NULL);
 }
 
-void WM_UpdateWindowVisibility(WindowPtr window) {
-    if (window == NULL) return;
+void SendBehind(WindowPtr window, WindowPtr behindWindow) {
+    if (!window) return;
 
-    WM_DEBUG("WM_UpdateWindowVisibility: Updating window visibility");
+    WindowManagerState* wmState = GetWindowManagerState();
+    if (!wmState) return;
 
-    /* Update visibility regions for this window and affected windows */
-    CalcVis((WindowPeek)window);
+    WM_DEBUG("SendBehind: Moving window behind another");
 
-    /* Update windows behind this one */
-    CalcVisBehind((WindowPeek)window, window->strucRgn);
+    /* Remove window from current position */
+    WindowPtr prev = NULL;
+    WindowPtr current = wmState->windowList;
 
-    WM_DEBUG("WM_UpdateWindowVisibility: Visibility updated");
+    while (current && current != window) {
+        prev = current;
+        current = current->nextWindow;
+    }
+
+    if (!current) return;  /* Window not in list */
+
+    /* Remove from list */
+    if (prev) {
+        prev->nextWindow = window->nextWindow;
+    } else {
+        wmState->windowList = window->nextWindow;
+    }
+
+    /* Insert after behindWindow */
+    if (behindWindow) {
+        window->nextWindow = behindWindow->nextWindow;
+        behindWindow->nextWindow = window;
+    } else {
+        /* Send to back */
+        current = wmState->windowList;
+        while (current && current->nextWindow) {
+            current = current->nextWindow;
+        }
+        if (current) {
+            current->nextWindow = window;
+        } else {
+            wmState->windowList = window;
+        }
+        window->nextWindow = NULL;
+    }
+
+    /* Update highlight states */
+    WindowPtr front = FrontWindow();
+    current = wmState->windowList;
+    while (current) {
+        HiliteWindow(current, current == front);
+        current = current->nextWindow;
+    }
+
+    /* Recalculate visible regions */
+    CalcVisBehind(window, NULL);
+
+    /* Repaint affected windows */
+    PaintBehind(window, window->strucRgn);
+}
+
+/*-----------------------------------------------------------------------*/
+/* Window Selection Functions                                           */
+/*-----------------------------------------------------------------------*/
+
+void SelectWindow(WindowPtr window) {
+    if (!window) return;
+
+    WM_DEBUG("SelectWindow: Selecting window");
+
+    /* Bring window to front */
+    BringToFront(window);
+
+    /* Generate activate event */
+    /* This would post an activateEvt to the event queue */
+}
+
+/*-----------------------------------------------------------------------*/
+/* Window Query Functions                                               */
+/*-----------------------------------------------------------------------*/
+
+WindowPtr FrontWindow(void) {
+    WindowManagerState* wmState = GetWindowManagerState();
+    if (!wmState) return NULL;
+
+    /* Find first visible window */
+    WindowPtr window = wmState->windowList;
+    while (window) {
+        if (window->visible) {
+            return window;
+        }
+        window = window->nextWindow;
+    }
+
+    return NULL;
 }
 
 WindowPtr WM_FindWindowAt(Point pt) {
@@ -582,67 +606,31 @@ WindowPtr WM_GetPreviousWindow(WindowPtr window) {
     return current;
 }
 
-void WM_DrawWindowFrame(WindowPtr window) {
-    if (window == NULL || !window->visible) return;
+/* FindWindow - Determine which part of the screen was clicked */
+short FindWindow(Point thePoint, WindowPtr* theWindow) {
+    extern void serial_printf(const char* fmt, ...);
 
-    WM_DEBUG("WM_DrawWindowFrame: Drawing window frame");
-
-    /* Begin drawing */
-    Platform_BeginWindowDraw(window);
-
-    /* Call window definition procedure to draw frame */
-    if (window->windowDefProc) {
-        WindowDefProcPtr wdef = (WindowDefProcPtr)(window->windowDefProc);
-        wdef(0, window, wDraw, 0);
+    if (theWindow) {
+        *theWindow = NULL;
     }
 
-    /* End drawing */
-    Platform_EndWindowDraw(window);
-
-    WM_DEBUG("WM_DrawWindowFrame: Frame drawn");
-}
-
-void WM_DrawWindowContent(WindowPtr window) {
-    if (window == NULL || !window->visible) return;
-
-    WM_DEBUG("WM_DrawWindowContent: Drawing window content");
-
-    /* Begin drawing */
-    Platform_BeginWindowDraw(window);
-
-    /* Draw window picture if present */
-    if (window->windowPic) {
-        /* TODO: Draw picture when graphics system is available */
+    /* Check menu bar first (top 20 pixels) */
+    if (thePoint.v >= 0 && thePoint.v < 20) {
+        serial_printf("FindWindow: Click in menu bar area at v=%d\n", thePoint.v);
+        return inMenuBar;
     }
 
-    /* Post update event to application */
-    Platform_PostWindowEvent(window, 6 /* update */, 0);
+    /* Check for window hits */
+    WindowPtr window = WM_FindWindowAt(thePoint);
+    if (window) {
+        if (theWindow) {
+            *theWindow = window;
+        }
 
-    /* End drawing */
-    Platform_EndWindowDraw(window);
-
-    WM_DEBUG("WM_DrawWindowContent: Content drawn");
-}
-
-void WM_ScheduleWindowUpdate(WindowPtr window, WindowUpdateFlags flags) {
-    if (window == NULL) return;
-
-    WM_DEBUG("WM_ScheduleWindowUpdate: Scheduling update flags 0x%x", flags);
-
-    /* For now, immediately process the update */
-    /* In a full implementation, this would queue the update */
-
-    if (flags & kUpdateFrame) {
-        Platform_InvalidateWindowFrame(window);
+        /* For now, assume all window clicks are in content */
+        return inContent;
     }
 
-    if (flags & kUpdateContent) {
-        Platform_InvalidateWindowContent(window);
-    }
-
-    if (flags & kUpdateTitle) {
-        Platform_InvalidateWindowFrame(window); /* Title is part of frame */
-    }
-
-    WM_DEBUG("WM_ScheduleWindowUpdate: Update scheduled");
+    /* Default to desktop */
+    return inDesk;
 }

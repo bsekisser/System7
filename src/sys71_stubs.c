@@ -7,7 +7,7 @@
 #include "../include/EventManager/EventTypes.h"  /* Include EventTypes first to define activeFlag */
 #include "../include/EventManager/EventManager.h"
 #include "../include/WindowManager/WindowManager.h"
-#include "../include/WindowManager/WindowManagerInternal.h"  /* For WindowManagerState */
+/* #include "../include/WindowManager/WindowManagerInternal.h" -- removed, has conflicts */
 #include "../include/MenuManager/MenuManager.h"
 #include "../include/DialogManager/DialogManager.h"
 #include "../include/ControlManager/ControlManager.h"
@@ -242,9 +242,41 @@ void TEInit(void) {
     /* TextEdit initialization stub */
 }
 
-OSErr FindWindow(Point thePt, WindowPtr *window) {
-    /* Stub - would find which window contains point */
-    return noErr;
+/* Window stubs for functions not yet implemented elsewhere */
+void InitWindows(void) {}
+WindowPtr NewWindow(void* storage, const Rect* boundsRect, ConstStr255Param title,
+                    Boolean visible, short procID, WindowPtr behind, Boolean goAwayFlag,
+                    long refCon) {
+    return NULL;
+}
+void DisposeWindow(WindowPtr window) {}
+void DragWindow(WindowPtr window, Point startPt, const Rect* boundsRect) {}
+void CloseWindow(WindowPtr window) {}
+void ShowWindow(WindowPtr window) {}
+void HideWindow(WindowPtr window) {}
+void SelectWindow(WindowPtr window) {}
+WindowPtr FrontWindow(void) { return NULL; }
+void SetWTitle(WindowPtr window, ConstStr255Param title) {}
+void DrawGrowIcon(WindowPtr window) {}
+void WM_UpdateWindowVisibility(WindowPtr window) {}
+
+short FindWindow(Point thePt, WindowPtr *window) {
+    extern void serial_printf(const char* fmt, ...);
+
+    if (window) {
+        *window = NULL;
+    }
+
+    /* Check if click is in menu bar (top 20 pixels) */
+    if (thePt.v >= 0 && thePt.v < 20) {
+        serial_printf("FindWindow: Click in menu bar at v=%d\n", thePt.v);
+        return inMenuBar;
+    }
+
+    /* TODO: Check for actual window hits when window manager is fully implemented */
+
+    /* Default to desktop */
+    return inDesk;
 }
 
 /* DragWindow is implemented in WindowManager/WindowDragging.c
@@ -633,6 +665,8 @@ void WM_Update(void) {
     FillRect(&desktopRect, &qd.gray);  /* Gray desktop pattern */
 
     /* 2. Draw all visible windows before menu bar */
+    /* TODO: Window drawing disabled until WindowManagerState is properly available */
+    #if 0
     extern WindowManagerState* GetWindowManagerState(void);
     WindowManagerState* wmState = GetWindowManagerState();
 
@@ -732,6 +766,7 @@ void WM_Update(void) {
     if (qd.thePort) {
         qd.thePort->pnLoc = savedPenPos;
     }
+    #endif /* Window drawing disabled */
 
     /* 3. Call DeskHook if registered for icons */
     if (g_deskHook) {
