@@ -96,6 +96,9 @@ extern void Platform_SetMenuCursor(short cursorType);
 extern Boolean Platform_IsMenuVisible(MenuHandle theMenu);
 extern void Platform_MenuFeedback(short feedbackType, short menuID, short item);
 
+/* External function from MenuTitleTracking.c */
+extern short FindMenuAtPoint_Internal(Point pt);
+
 /* Internal function prototypes */
 static void InitializeTrackingState(MenuTrackInfo* state);
 static void CleanupTrackingState(MenuTrackInfo* state);
@@ -126,32 +129,33 @@ static unsigned long GetCurrentTime(void);
  */
 long MenuSelect(Point startPt)
 {
-    serial_puts("MenuSelect: Entering function\n");
     serial_printf("MenuSelect: startPt = (%d, %d)\n", startPt.h, startPt.v);
 
-    MenuSelection selection;
-    MenuTrackingState trackInfo;
-    short result;
+    /* Simple implementation - just detect which menu was clicked */
+    /* Check if click is in menu bar */
+    if (startPt.v < 0 || startPt.v >= 20) {
+        serial_printf("MenuSelect: Not in menu bar (v=%d)\n", startPt.v);
+        return 0;
+    }
 
-    /* Initialize tracking */
-    InitializeTrackingState(&trackInfo);
-    memset(&selection, 0, sizeof(selection));
-    selection.clickPoint = startPt;
+    /* Find which menu was clicked using the tracking system */
+    short menuID = FindMenuAtPoint_Internal(startPt);
 
-    /* Perform extended menu selection */
-    result = MenuSelectEx(startPt, &trackInfo, &selection);
+    if (menuID != 0) {
+        serial_printf("MenuSelect: Found menu ID %d at (%d,%d)\n",
+                     menuID, startPt.h, startPt.v);
 
-    /* Clean up tracking state */
-    CleanupTrackingState(&trackInfo);
+        /* Return menuID in high word, item 0 for now (no dropdown yet) */
+        long result = ((long)menuID << 16);
+        gLastMenuChoice = result;
 
-    /* Store last choice */
-    gLastMenuChoice = selection.menuChoice;
-    gLastSelection = selection;
+        /* TODO: Show dropdown and track item selection */
+        serial_printf("MenuSelect: Returning 0x%08lX\n", result);
+        return result;
+    }
 
-    serial_printf("MenuSelect result: 0x%08lX (menu %d, item %d)\n",
-           selection.menuChoice, selection.menuID, selection.itemID);
-
-    return selection.menuChoice;
+    serial_printf("MenuSelect: No menu found at (%d,%d)\n", startPt.h, startPt.v);
+    return 0;
 }
 
 /*
@@ -831,9 +835,6 @@ static Boolean HandlePullDownTracking(Point mousePt, MenuTrackInfo* state)
 
     return true;
 }
-
-/* External function from MenuTitleTracking.c */
-extern short FindMenuAtPoint_Internal(Point pt);
 
 /*
  * FindMenuAtPoint - Find menu at point
