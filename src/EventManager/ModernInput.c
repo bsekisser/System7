@@ -216,10 +216,12 @@ void ProcessModernInput(void)
                 g_modernInput.clickCount = 1;
             }
 
-            /* Generate mouse down event */
-            SInt32 message = ((SInt32)g_modernInput.clickCount << 16) |
-                           ((currentMousePos.v & 0xFF) << 8) |
-                           (currentMousePos.h & 0xFF);
+            /* Update Event Manager mouse position BEFORE posting event */
+            UpdateMouseState(currentMousePos, currentButtonState);
+
+            /* Generate mouse down event - don't truncate coordinates! */
+            /* Click count in high word, full position preserved elsewhere */
+            SInt32 message = ((SInt32)g_modernInput.clickCount << 16);
             PostEvent(mouseDown, message);
 
             g_modernInput.lastClickTime = currentTime;
@@ -227,11 +229,11 @@ void ProcessModernInput(void)
 
         } else if (!(currentButtonState & 1) && (g_modernInput.lastButtonState & 1)) {
             /* Mouse button released */
+            /* Update position before posting event */
+            UpdateMouseState(currentMousePos, currentButtonState);
             PostEvent(mouseUp, 0);
         }
 
-        /* Update Event Manager button state */
-        UpdateMouseState(currentMousePos, currentButtonState);
         g_modernInput.lastButtonState = currentButtonState;
     }
 
