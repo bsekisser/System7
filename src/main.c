@@ -1610,12 +1610,7 @@ void init_system71(void) {
         serial_puts("  WARNING: Failed to mount boot volume\n");
     }
 
-    /* Create standard menus */
-    static unsigned char appleMenuTitle[] = {1, 0x14};  /* Pascal string: Apple symbol */
-    MenuHandle appleMenu = NewMenu(1, appleMenuTitle);
-    InsertMenu(appleMenu, 0);
-
-    /* Menus will be created below after other initialization */
+    /* Menus will be created by Finder after other initialization */
 
     /* TextEdit */
     InitTE();
