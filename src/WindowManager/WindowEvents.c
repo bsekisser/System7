@@ -1,4 +1,3 @@
-/* #include "SystemTypes.h" */
 /*
  * WindowEvents.c - Window Event Handling and Hit Testing
  *
@@ -17,14 +16,10 @@
  * Derived from System 7 ROM analysis 7.1 Window Manager
  */
 
-// #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
-
+#include "QuickDraw/QuickDraw.h"
+#include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowManagerInternal.h"
-
-/* Forward declarations for platform functions */
-GrafPtr Platform_GetUpdatePort(WindowPtr theWindow);
-Boolean Platform_EmptyRgn(RgnHandle rgn);
 
 
 /* ============================================================================
@@ -40,8 +35,8 @@ short FindWindow(Point thePoint, WindowPtr* theWindow) {
 
     WindowManagerState* wmState = GetWindowManagerState();
 
-    /* Check menu bar first (assuming menu bar height of 20) */
-    if (thePoint.v < 20) {
+    /* Check menu bar first */
+    if (wmState->wMgrPort && thePoint.v < wmState->wMgrPort->menuBarHeight) {
         WM_DEBUG("FindWindow: Hit in menu bar");
         return inMenuBar;
     }
@@ -311,10 +306,10 @@ void BeginUpdate(WindowPtr theWindow) {
     Platform_BeginWindowDraw(theWindow);
 
     /* Set clip region to intersection of visible and update regions */
-    if ((theWindow)->visRgn && theWindow->updateRgn) {
+    if ((theWindow)->\2->visRgn && theWindow->updateRgn) {
         RgnHandle updateClip = Platform_NewRgn();
         if (updateClip) {
-            Platform_IntersectRgn((theWindow)->visRgn, theWindow->updateRgn, updateClip);
+            Platform_IntersectRgn((theWindow)->\2->visRgn, theWindow->updateRgn, updateClip);
             Platform_SetClipRgn(updateClip);
             Platform_DisposeRgn(updateClip);
         }
@@ -337,8 +332,8 @@ void EndUpdate(WindowPtr theWindow) {
     Platform_EndWindowDraw(theWindow);
 
     /* Restore normal clipping */
-    if ((theWindow)->visRgn) {
-        Platform_SetClipRgn((theWindow)->visRgn);
+    if ((theWindow)->\2->visRgn) {
+        Platform_SetClipRgn((theWindow)->\2->visRgn);
     }
 
     /* Restore previous port */
