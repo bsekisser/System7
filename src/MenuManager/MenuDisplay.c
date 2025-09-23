@@ -287,6 +287,10 @@ void HideMenu(void)
 
     /* serial_printf("Hiding menu ID %d\n", (*(MenuInfo**)gCurrentlyShownMenu)->menuID); */
 
+    /* TODO: Show cursor again after menu is hidden */
+    /* extern void ShowCursor(void); */
+    /* ShowCursor(); */
+
     gCurrentlyShownMenu = NULL;
 }
 
@@ -312,6 +316,10 @@ void DrawMenu(MenuHandle theMenu, const Rect* menuRect, short hiliteItem)
 
     /* Initialize drawing context */
     InitializeDrawingContext(&gDrawingContext);
+
+    /* TODO: Hide cursor while drawing menu to prevent Z-ordering issues */
+    /* extern void HideCursor(void); */
+    /* HideCursor(); */
 
     /* Draw menu frame */
     DrawMenuFrame(menuRect, false);

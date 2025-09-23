@@ -189,10 +189,10 @@ short MenuSelectEx(Point startPt, MenuTrackInfo* trackInfo, MenuSelection* selec
 
     /* Check initial mouse position */
     GetCurrentMouseState(&currentPt, &mouseDown, &modifiers);
-    isInMenuBar = IsPointInMenuBar(currentPt);
+    isInMenuBar = IsPointInMenuBar(startPt); /* Use startPt, not currentPt for initial check */
 
-    if (!isInMenuBar && !mouseDown) {
-        /* Not in menu bar and mouse not down - no selection */
+    if (!isInMenuBar) {
+        /* Click was not in menu bar - no selection */
         selection->cancelled = true;
         EndMenuTracking(trackInfo);
         return kMenuSelectionCancelled;
