@@ -256,6 +256,14 @@ static void process_keyboard_scancode(uint8_t scancode) {
 
     PostEvent(keyDown, message);
 
+    /* SPACEBAR WORKAROUND: Simulate mouse click when spacebar pressed */
+    if (scancode == 0x39 && ascii == ' ') {
+        serial_printf("SPACEBAR WORKAROUND: Simulating mouse click at (%d, %d)\n",
+                     g_mouseState.x, g_mouseState.y);
+        UInt32 mouseMsg = ((UInt32)g_mouseState.y << 16) | g_mouseState.x;
+        PostEvent(mouseDown, (SInt32)mouseMsg);
+    }
+
     /* serial_printf("Key pressed: '%c' (scancode 0x%02x)\n", ascii, scancode); */
 }
 
@@ -575,8 +583,8 @@ void PollPS2Input(void) {
         if (status & PS2_STATUS_AUX) {
             /* --- Mouse byte --- */
             mouse_byte_count++;
-            serial_printf("POLL: Got mouse byte 0x%02x (status=0x%02x) idx=%d enabled=%d count=%d\n",
-                          data, status, g_mouseState.packet_index, g_mouseEnabled, mouse_byte_count);
+            /* serial_printf("POLL: Got mouse byte 0x%02x (status=0x%02x) idx=%d enabled=%d count=%d\n",
+                          data, status, g_mouseState.packet_index, g_mouseEnabled, mouse_byte_count); */
 
             if (!g_mouseEnabled) {
                 continue; /* ignore until fully enabled */

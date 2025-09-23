@@ -1641,6 +1641,11 @@ void init_system71(void) {
     InitEvents(20);  /* Initialize with 20 event queue entries */
     serial_puts("  Event Manager initialized\n");
 
+    /* Event Dispatcher */
+    extern void InitEventDispatcher(void);
+    InitEventDispatcher();
+    serial_puts("  Event Dispatcher initialized\n");
+
     /* Initialize Modern Input System for PS/2 devices */
     extern SInt16 InitModernInput(const char* platform);
     if (InitModernInput("PS2") == noErr) {
@@ -1898,7 +1903,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         extern void ProcessModernInput(void);
         ProcessModernInput();
 
-        /* Check for events and dispatch them */
+        /* Check for events and dispatch them - MUST happen on every iteration */
         extern Boolean GetNextEvent(short eventMask, EventRecord* theEvent);
         extern Boolean DispatchEvent(EventRecord* event);
 
@@ -1911,10 +1916,11 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
             DispatchEvent(&evt);
         }
 
-        /* Throttle cursor updates to every 500 iterations for better responsiveness */
+        /* Throttle ONLY cursor drawing, not event processing */
         cursor_update_counter++;
         if (cursor_update_counter < 500) {
-            continue;
+            /* Skip only the cursor drawing, but continue to process events below */
+            goto skip_cursor_drawing;
         }
         cursor_update_counter = 0;
 
@@ -1995,61 +2001,9 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
             }
         }
 
-        /* Check for mouse button clicks - only check every 10th update to reduce overhead */
-        static uint8_t last_buttons = 0;
-        static int click_check_counter = 0;
-        click_check_counter++;
+        /* Mouse button tracking moved to EventManager - events are properly dispatched now */
 
-        if (click_check_counter >= 10) {
-            click_check_counter = 0;
-
-            if (g_mouseState.buttons != last_buttons) {
-                /* Left button was pressed */
-                if ((g_mouseState.buttons & 0x01) && !(last_buttons & 0x01)) {
-                    int16_t x = g_mouseState.x;
-                    int16_t y = g_mouseState.y;
-
-                    serial_printf("Mouse click at (%d, %d)\n", x, y);
-
-                    /* Check if click is in menu bar (top 20 pixels) */
-                    if (y >= 0 && y < 20) {
-                        serial_puts("Click in menu bar!\n");
-
-                        /* Simple menu detection based on X position */
-                        if (x < 40) {
-                            serial_puts("Apple menu clicked\n");
-                            /* TODO: Show Apple menu */
-                        } else if (x < 80) {
-                            serial_puts("File menu clicked\n");
-                            /* TODO: Show File menu */
-                        } else if (x < 120) {
-                            serial_puts("Edit menu clicked\n");
-                            /* TODO: Show Edit menu */
-                        } else if (x < 160) {
-                            serial_puts("View menu clicked\n");
-                            /* TODO: Show View menu */
-                        }
-
-                    }
-                    /* Check if click is on desktop icons */
-                    else {
-                        /* Check HD icon (positioned around 700,50) */
-                        if (x >= 680 && x <= 750 && y >= 30 && y <= 100) {
-                            serial_puts("Hard Drive icon clicked!\n");
-                            /* TODO: Open HD window */
-                        }
-                        /* Check Trash icon (positioned around 700,500) */
-                        else if (x >= 680 && x <= 750 && y >= 480 && y <= 550) {
-                            serial_puts("Trash icon clicked!\n");
-                            /* TODO: Open Trash window */
-                        }
-                    }
-                }
-
-                last_buttons = g_mouseState.buttons;
-            }
-        }
-
+skip_cursor_drawing:
         /* Re-enable SystemTask and GetNextEvent for event processing */
 #if 1
         /* System 7.1 cooperative multitasking */
@@ -2061,6 +2015,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 #endif
 
         /* Get and process events (only check for specific events to avoid blocking) */
+        serial_printf("MAIN: About to call GetNextEvent (second call)\n");
         if (GetNextEvent(mouseDown | mouseUp | keyDown | autoKey, &event)) {
             switch (event.what) {
                 case mouseDown:
@@ -2069,7 +2024,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 
                         /* Check if click is in menu bar (top 20 pixels) */
                         if (pt.v >= 0 && pt.v < 20) {
-                            serial_puts("Mouse in menu bar - calling MenuSelect\n");
+                            serial_printf("MAIN: mouseDown at (%d,%d) in menu bar - calling MenuSelect\n", pt.h, pt.v);
                             long menuChoice = MenuSelect(pt);
                             short menuID = (short)(menuChoice >> 16);
                             short item = (short)(menuChoice & 0xFFFF);

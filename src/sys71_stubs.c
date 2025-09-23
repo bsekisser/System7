@@ -87,8 +87,15 @@ static struct {
 } g_eventQueue = {0};
 
 Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
+    extern void serial_printf(const char* fmt, ...);
+
+    /* Debug: log every call */
+    serial_printf("GetNextEvent: Called with mask=0x%04x, queue count=%d\n",
+                  eventMask, g_eventQueue.count);
+
     /* Check if queue has events */
     if (g_eventQueue.count == 0) {
+        serial_printf("GetNextEvent: Queue empty, returning false\n");
         return false;
     }
 
@@ -142,6 +149,8 @@ Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
 SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
     extern void serial_printf(const char* fmt, ...);
     extern void GetMouse(Point* mouseLoc);
+
+    serial_printf("PostEvent: eventNum=%d, eventMsg=0x%08x\n", eventNum, eventMsg);
 
     /* Check if queue is full */
     if (g_eventQueue.count >= MAX_EVENTS) {
