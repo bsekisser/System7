@@ -173,17 +173,26 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
 
 /*
  * DrawDesktop - Initial desktop drawing (called once at startup)
- * This now just triggers the proper repaint through Window Manager
+ * Also used to redraw desktop after menus or dialogs
  */
 void DrawDesktop(void)
 {
+    RgnHandle desktopRgn;
+
     /* Register our DeskHook with Window Manager */
     SetDeskHook(Finder_DeskHook);
 
-    /* Invalidate entire screen to trigger repaint */
+    /* Create a region for the entire screen */
+    desktopRgn = NewRgn();
+    RectRgn(desktopRgn, &qd.screenBits.bounds);
+
+    /* Directly call our DeskHook to paint the desktop with the proper pattern */
+    Finder_DeskHook(desktopRgn);  /* Pass the desktop region to paint */
+
+    /* Invalidate entire screen to trigger any window repaints */
     InvalRect(&qd.screenBits.bounds);
 
-    /* Window Manager will call our DeskHook during next WM_Update */
+    DisposeRgn(desktopRgn);
 }
 
 /*

@@ -100,7 +100,7 @@ extern void Platform_MenuFeedback(short feedbackType, short menuID, short item);
 extern short FindMenuAtPoint_Internal(Point pt);
 
 /* External function from MenuTrack.c */
-extern short TrackMenu(short menuID, Point startPt);
+extern long TrackMenu(short menuID, Point startPt);
 
 /* Internal function prototypes */
 static void InitializeTrackingState(MenuTrackInfo* state);
@@ -149,12 +149,13 @@ long MenuSelect(Point startPt)
                      menuID, startPt.h, startPt.v);
 
         /* Show dropdown and track item selection */
-        short item = TrackMenu(menuID, startPt);
+        long trackResult = TrackMenu(menuID, startPt);
 
         long result;
-        if (item != 0) {
-            /* User selected an item */
-            result = ((long)menuID << 16) | item;
+        if (trackResult != 0) {
+            /* User selected an item - TrackMenu already returns packed format */
+            result = trackResult;
+            short item = trackResult & 0xFFFF;
             serial_printf("MenuSelect: User selected item %d from menu %d\n", item, menuID);
         } else {
             /* User cancelled or clicked outside */
