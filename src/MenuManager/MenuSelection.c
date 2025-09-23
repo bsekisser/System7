@@ -126,6 +126,9 @@ static unsigned long GetCurrentTime(void);
  */
 long MenuSelect(Point startPt)
 {
+    serial_puts("MenuSelect: Entering function\n");
+    serial_printf("MenuSelect: startPt = (%d, %d)\n", startPt.h, startPt.v);
+
     MenuSelection selection;
     MenuTrackingState trackInfo;
     short result;
@@ -196,7 +199,7 @@ short MenuSelectEx(Point startPt, MenuTrackInfo* trackInfo, MenuSelection* selec
     }
 
     serial_printf("Starting menu selection at (%d,%d), inMenuBar=%s\n",
-           startPt.h, startPt.v, inMenuBar ? "Yes" : "No");
+           startPt.h, startPt.v, isInMenuBar ? "Yes" : "No");
 
     /* Main tracking loop */
     while (mouseDown || currentMenu != 0) {
@@ -964,15 +967,17 @@ static void FlashMenuFeedback(short menuID, short item)
  */
 static void GetCurrentMouseState(Point* mousePt, Boolean* mouseDown, unsigned long* modifiers)
 {
+    extern void GetMouse(Point* mouseLoc);
+    extern Boolean Button(void);
+
     if (mousePt != NULL) {
-        /* TODO: Get actual mouse position */
-        mousePt->h = 0;
-        mousePt->v = 0;
+        /* Get actual mouse position */
+        GetMouse(mousePt);
     }
 
     if (mouseDown != NULL) {
-        /* TODO: Get actual mouse button state */
-        *mouseDown = false;
+        /* Get actual mouse button state */
+        *mouseDown = Button();
     }
 
     if (modifiers != NULL) {
