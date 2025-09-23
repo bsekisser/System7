@@ -209,25 +209,14 @@ Boolean HandleMouseDown(EventRecord* event)
         case inDesk:
             /* Click on desktop - check if it's on an icon */
             {
-                /* Check for double-click (simple time-based detection) */
-                static UInt32 lastClickTime = 0;
-                static Point lastClickPoint = {0, 0};
-                Boolean doubleClick = false;
-
-                UInt32 currentTime = event->when;
-                if (currentTime - lastClickTime < 30 &&  /* Within 30 ticks (about 500ms) */
-                    abs(event->where.h - lastClickPoint.h) < 5 &&
-                    abs(event->where.v - lastClickPoint.v) < 5) {
-                    doubleClick = true;
-                }
-
-                lastClickTime = currentTime;
-                lastClickPoint = event->where;
+                /* Extract click count from high word of message */
+                UInt16 clickCount = (event->message >> 16) & 0xFFFF;
+                Boolean doubleClick = (clickCount >= 2);
 
                 /* Check if click was on a desktop icon */
                 extern Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick);
                 if (HandleDesktopClick(event->where, doubleClick)) {
-                    serial_printf("Desktop icon clicked\n");
+                    serial_printf("Desktop icon clicked (count=%d)\n", clickCount);
                     return true;
                 }
 
