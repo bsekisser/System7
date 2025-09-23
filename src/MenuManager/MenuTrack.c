@@ -14,6 +14,11 @@
 extern int serial_printf(const char* format, ...);
 extern void serial_puts(const char* str);
 extern QDGlobals qd;
+extern void DrawDesktop(void);
+extern void DrawText(const void* textBuf, short firstByte, short byteCount);
+extern void DrawVolumeIcon(void);
+extern Boolean Button(void);  /* Check if mouse button is pressed */
+extern void PollPS2Input(void);  /* Poll PS/2 devices for input */
 
 /* Global framebuffer from main.c */
 extern void* framebuffer;
@@ -23,6 +28,8 @@ extern uint32_t fb_pitch;
 
 /* Get title tracking data */
 extern Boolean GetMenuTitleRectByID(short menuID, Rect* outRect);
+extern void SetRect(Rect* rect, short left, short top, short right, short bottom);
+extern void InvalRect(const Rect* rect);
 
 /* Simple rectangle fill helper - renamed to avoid conflict */
 static void DrawMenuRect(short left, short top, short right, short bottom, uint32_t color) {
@@ -53,9 +60,18 @@ static void DrawMenuRect(short left, short top, short right, short bottom, uint3
 
 /* Draw text at current pen position */
 static void DrawMenuItemText(const char* text, short x, short y) {
-    /* Simple text drawing - would use DrawString in real implementation */
+    /* Move to position and draw text using QuickDraw */
     MoveTo(x, y);
-    /* For now just log it */
+
+    /* Calculate text length */
+    short len = 0;
+    while (text[len] != 0) len++;
+
+    /* Draw the text using the real Chicago font */
+    if (len > 0) {
+        DrawText(text, 0, len);
+    }
+
     serial_printf("Drawing menu item: %s at (%d,%d)\n", text, x, y);
 }
 
@@ -157,23 +173,38 @@ short TrackMenu(short menuID, Point startPt) {
     DrawMenuItems(menu, left, top);
     serial_printf("TrackMenu: Finished drawing menu\n");
 
-    /* For now, just wait for any mouse event then close */
-    /* This simplification will help identify if the crash is in tracking or drawing */
-    EventRecord evt;
-
-    /* Wait for mouse up */
+    /* Wait for mouse button release */
     serial_printf("TrackMenu: Waiting for mouse up...\n");
 
-    /* Simple delay to see the menu */
-    for (volatile int i = 0; i < 10000000; i++) {
-        /* Just delay */
+    /* Poll until mouse button is released */
+    while (Button()) {
+        /* Poll PS/2 to update mouse state */
+        PollPS2Input();
+
+        /* Small delay to avoid hogging CPU */
+        for (volatile int i = 0; i < 10000; i++) {
+            /* Brief delay */
+        }
     }
 
-    /* Erase menu by redrawing background */
+    serial_printf("TrackMenu: Done waiting\n");
+
+    /* Erase menu and redraw desktop to avoid corruption */
     short itemCount = CountMenuItems(menu);
     short lineHeight = 16;
     short menuWidth = 120;
-    DrawMenuRect(left, top, left + menuWidth, top + itemCount * lineHeight + 4, 0xFF808080);
+
+    /* Properly redraw the desktop area where the menu was */
+    /* First, we need to invalidate the menu area so it gets redrawn with the pattern */
+    Rect menuRect;
+    SetRect(&menuRect, left, top, left + menuWidth, top + itemCount * lineHeight + 4);
+
+    /* Invalidate the menu area to trigger a proper redraw */
+    InvalRect(&menuRect);
+
+    /* Trigger desktop redraw which will use the pattern */
+    DrawDesktop();
+    DrawVolumeIcon();  /* Redraw the volume icon as well */
 
     serial_puts("TrackMenu: Returning 0 (test mode)\n");
     return 0;
