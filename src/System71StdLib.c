@@ -214,8 +214,8 @@ void serial_putchar(char c) {
 }
 
 void serial_puts(const char* str) {
-    /* DISABLED - Serial output was somehow appearing in GUI menu bar */
-    return;
+    /* Serial output enabled for debugging */
+    /* return; */
 
     /* Direct serial output only - no framebuffer interaction */
     if (!str) return;
@@ -251,8 +251,8 @@ void serial_print_hex(uint32_t value) {
 }
 
 void serial_printf(const char* fmt, ...) {
-    /* DISABLED - Serial output was somehow appearing in GUI menu bar */
-    return;
+    /* Serial output enabled for debugging */
+    /* return; */
 
     const char* p = fmt;
     va_list args;
