@@ -202,7 +202,11 @@ short MenuSelectEx(Point startPt, MenuTrackInfo* trackInfo, MenuSelection* selec
            startPt.h, startPt.v, isInMenuBar ? "Yes" : "No");
 
     /* Main tracking loop */
-    while (mouseDown || currentMenu != 0) {
+    int loopCount = 0; /* Add loop counter to prevent infinite loops */
+    const int MAX_LOOPS = 1000; /* Prevent infinite loops */
+
+    while ((mouseDown || currentMenu != 0) && loopCount < MAX_LOOPS) {
+        loopCount++;
         GetCurrentMouseState(&currentPt, &mouseDown, &modifiers);
 
         /* Update tracking state */
@@ -240,10 +244,12 @@ short MenuSelectEx(Point startPt, MenuTrackInfo* trackInfo, MenuSelection* selec
                     }
                 }
             }
-        } else if (!mouseDown && currentMenu != 0) {
-            /* Mouse released outside menu - cancel selection */
-            HideCurrentMenu();
-            currentMenu = 0;
+        } else if (!mouseDown && !isInMenuBar && !isInMenu) {
+            /* Mouse released outside menu AND menu bar - cancel selection */
+            if (currentMenu != 0) {
+                HideCurrentMenu();
+                currentMenu = 0;
+            }
             currentItem = 0;
             break;
         }
