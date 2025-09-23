@@ -99,6 +99,9 @@ extern void Platform_MenuFeedback(short feedbackType, short menuID, short item);
 /* External function from MenuTitleTracking.c */
 extern short FindMenuAtPoint_Internal(Point pt);
 
+/* External function from MenuTrack.c */
+extern short TrackMenu(short menuID, Point startPt);
+
 /* Internal function prototypes */
 static void InitializeTrackingState(MenuTrackInfo* state);
 static void CleanupTrackingState(MenuTrackInfo* state);
@@ -129,7 +132,7 @@ static unsigned long GetCurrentTime(void);
  */
 long MenuSelect(Point startPt)
 {
-    serial_printf("MenuSelect: startPt = (%d, %d)\n", startPt.h, startPt.v);
+    serial_printf("MenuSelect: startPt = (h=%d, v=%d)\n", startPt.h, startPt.v);
 
     /* Simple implementation - just detect which menu was clicked */
     /* Check if click is in menu bar */
@@ -142,19 +145,29 @@ long MenuSelect(Point startPt)
     short menuID = FindMenuAtPoint_Internal(startPt);
 
     if (menuID != 0) {
-        serial_printf("MenuSelect: Found menu ID %d at (%d,%d)\n",
+        serial_printf("MenuSelect: Found menu ID %d at (h=%d,v=%d)\n",
                      menuID, startPt.h, startPt.v);
 
-        /* Return menuID in high word, item 0 for now (no dropdown yet) */
-        long result = ((long)menuID << 16);
-        gLastMenuChoice = result;
+        /* Show dropdown and track item selection */
+        short item = TrackMenu(menuID, startPt);
 
-        /* TODO: Show dropdown and track item selection */
+        long result;
+        if (item != 0) {
+            /* User selected an item */
+            result = ((long)menuID << 16) | item;
+            serial_printf("MenuSelect: User selected item %d from menu %d\n", item, menuID);
+        } else {
+            /* User cancelled or clicked outside */
+            result = 0;
+            serial_printf("MenuSelect: User cancelled menu selection\n");
+        }
+
+        gLastMenuChoice = result;
         serial_printf("MenuSelect: Returning 0x%08lX\n", result);
         return result;
     }
 
-    serial_printf("MenuSelect: No menu found at (%d,%d)\n", startPt.h, startPt.v);
+    serial_printf("MenuSelect: No menu found at (h=%d,v=%d)\n", startPt.h, startPt.v);
     return 0;
 }
 
