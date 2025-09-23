@@ -169,6 +169,10 @@ SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
         /* Message contains packed coordinates: h in high word, v in low word */
         evt->where.h = (eventMsg >> 16) & 0xFFFF;
         evt->where.v = eventMsg & 0xFFFF;
+
+        /* Debug: show the unpacking process */
+        serial_printf("PostEvent: Unpacking msg=0x%08x -> h=%d (0x%04x), v=%d (0x%04x)\n",
+                     eventMsg, evt->where.h, evt->where.h, evt->where.v, evt->where.v);
     } else {
         /* For non-mouse events, get current mouse position */
         GetMouse(&evt->where);

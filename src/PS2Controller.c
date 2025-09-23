@@ -260,7 +260,8 @@ static void process_keyboard_scancode(uint8_t scancode) {
     if (scancode == 0x39 && ascii == ' ') {
         serial_printf("SPACEBAR WORKAROUND: Simulating mouse click at (%d, %d)\n",
                      g_mouseState.x, g_mouseState.y);
-        UInt32 mouseMsg = ((UInt32)g_mouseState.y << 16) | g_mouseState.x;
+        /* Use PACK_POINT to pack coordinates correctly: h in high word, v in low word */
+        UInt32 mouseMsg = PACK_POINT(g_mouseState.x, g_mouseState.y);
         PostEvent(mouseDown, (SInt32)mouseMsg);
     }
 
@@ -318,11 +319,12 @@ static void process_mouse_packet(void) {
             /* Pack mouse position using PACK_POINT macro: h in high word, v in low word */
             UInt32 message = PACK_POINT(g_mouseState.x, g_mouseState.y);
 
-            PostEvent((new_buttons & 0x01) ? mouseDown : mouseUp, message);
-
-            /* serial_printf("Mouse %s at (%d, %d)\n",
+            /* Debug: Show what we're packing */
+            serial_printf("PS2: Mouse %s at x=%d, y=%d, packed=0x%08x\n",
                          (new_buttons & 0x01) ? "down" : "up",
-                         g_mouseState.x, g_mouseState.y); */
+                         g_mouseState.x, g_mouseState.y, message);
+
+            PostEvent((new_buttons & 0x01) ? mouseDown : mouseUp, message);
         }
 
         g_mouseState.buttons = new_buttons;
