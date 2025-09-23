@@ -75,6 +75,7 @@ static struct {
     Boolean multiTouchEnabled;
     Boolean gesturesEnabled;
     Boolean accessibilityEnabled;
+    UInt32 pollCounter;  /* PS/2 poll throttling */
 } g_modernInput = {
     false,
     NULL,
@@ -86,7 +87,8 @@ static struct {
     0,
     false,
     false,
-    false
+    false,
+    0
 };
 
 /* Mouse button tracking for click detection */

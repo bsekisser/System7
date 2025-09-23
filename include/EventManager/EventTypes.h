@@ -28,6 +28,11 @@ extern "C" {
 
 /* Rect type defined in MacTypes.h */
 
+/* Pack/unpack Point into/from a 32-bit message */
+#define PACK_POINT(h, v)   (((UInt32)(h) << 16) | ((UInt16)(v)))
+#define UNPACK_H(msg)      ((SInt16)((msg) >> 16))
+#define UNPACK_V(msg)      ((SInt16)((msg) & 0xFFFF))
+
 /* Event types - exact Mac OS System 7.1 values */
 /* These are already defined in SystemTypes.h
 enum {

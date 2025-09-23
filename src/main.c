@@ -2014,8 +2014,15 @@ skip_cursor_drawing:
         process_serial_command();
 #endif
 
-        /* Get and process events (only check for specific events to avoid blocking) */
-        serial_printf("MAIN: About to call GetNextEvent (second call)\n");
+        /* Get and process events via DispatchEvent */
+        if (GetNextEvent(everyEvent, &event)) {
+            /* Let DispatchEvent handle all events instead of duplicating here */
+            DispatchEvent(&event);
+        }
+#endif /* #if 1 */
+
+#if 0
+        /* OLD CODE: Direct event handling - removed to avoid duplication */
         if (GetNextEvent(mouseDown | mouseUp | keyDown | autoKey, &event)) {
             switch (event.what) {
                 case mouseDown:

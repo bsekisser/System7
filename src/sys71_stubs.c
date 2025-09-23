@@ -163,8 +163,22 @@ SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
     evt->what = eventNum;
     evt->message = eventMsg;
     evt->when = TickCount();
-    GetMouse(&evt->where);  /* Get current mouse position */
+
+    /* For mouse events, unpack coordinates from message */
+    if (eventNum == mouseDown || eventNum == mouseUp) {
+        /* Message contains packed coordinates: h in high word, v in low word */
+        evt->where.h = (eventMsg >> 16) & 0xFFFF;
+        evt->where.v = eventMsg & 0xFFFF;
+    } else {
+        /* For non-mouse events, get current mouse position */
+        GetMouse(&evt->where);
+    }
+
     evt->modifiers = 0;  /* TODO: Get keyboard modifiers */
+
+    /* Debug: Print actual coordinates we're storing */
+    serial_printf("PostEvent: Stored event with where=(%d,%d)\n",
+                 evt->where.h, evt->where.v);
 
     g_eventQueue.tail = (g_eventQueue.tail + 1) % MAX_EVENTS;
     g_eventQueue.count++;

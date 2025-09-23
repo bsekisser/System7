@@ -126,6 +126,27 @@ char* strchr(const char* s, int c) {
     return NULL;
 }
 
+char* strstr(const char* haystack, const char* needle) {
+    if (!needle || !*needle) return (char*)haystack;
+
+    while (*haystack) {
+        const char* h = haystack;
+        const char* n = needle;
+
+        while (*h && *n && (*h == *n)) {
+            h++;
+            n++;
+        }
+
+        if (!*n) {
+            return (char*)haystack;
+        }
+
+        haystack++;
+    }
+    return NULL;
+}
+
 /* Conversion functions */
 int atoi(const char* str) {
     int result = 0;
@@ -214,8 +235,7 @@ void serial_putchar(char c) {
 }
 
 void serial_puts(const char* str) {
-    /* Serial output enabled for debugging */
-    /* return; */
+    /* Direct serial output only - no framebuffer interaction */
 
     /* Direct serial output only - no framebuffer interaction */
     if (!str) return;
@@ -251,12 +271,21 @@ void serial_print_hex(uint32_t value) {
 }
 
 void serial_printf(const char* fmt, ...) {
-    /* Serial output enabled for debugging */
-    /* return; */
+    /* Only output critical debug messages to avoid lag */
+    if (!fmt) return;
 
-    const char* p = fmt;
+    /* Only output HandleMouseDown, MenuSelect, PostEvent, and HandleDesktopClick messages */
+    if (strstr(fmt, "HandleMouseDown") == NULL &&
+        strstr(fmt, "MenuSelect") == NULL &&
+        strstr(fmt, "PostEvent") == NULL &&
+        strstr(fmt, "HandleDesktopClick") == NULL &&
+        strstr(fmt, "Desktop icon") == NULL) {
+        return;
+    }
+
     va_list args;
     va_start(args, fmt);
+    const char* p = fmt;
 
     char buffer[256];
     int buf_idx = 0;

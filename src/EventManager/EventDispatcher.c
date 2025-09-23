@@ -134,6 +134,9 @@ Boolean HandleMouseDown(EventRecord* event)
     /* Find which window part was clicked */
     windowPart = FindWindow(event->where, &whichWindow);
 
+    /* Debug with explicit cast to ensure correct values */
+    serial_printf("HandleMouseDown: event=%p, where={v=%d,h=%d}, modifiers=0x%04x\n",
+                 event, (int)event->where.v, (int)event->where.h, event->modifiers);
     serial_printf("HandleMouseDown: part=%d, window=%p at (%d,%d)\n",
                  windowPart, whichWindow, (int)event->where.h, (int)event->where.v);
 
