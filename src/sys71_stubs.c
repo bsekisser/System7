@@ -108,9 +108,16 @@ Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
 
         /* Check if event matches mask */
         if ((1 << evt->what) & eventMask) {
+            /* Debug: Show what we're retrieving */
+            serial_printf("GetNextEvent: Found matching event type=%d at index=%d\n", evt->what, index);
+            serial_printf("GetNextEvent: Event where={v=%d,h=%d}, msg=0x%08x\n",
+                         evt->where.v, evt->where.h, evt->message);
+
             /* Copy event to caller */
             if (theEvent) {
                 *theEvent = *evt;
+                serial_printf("GetNextEvent: Copied to caller, where={v=%d,h=%d}\n",
+                             theEvent->where.v, theEvent->where.h);
             }
 
             /* Remove event from queue */
