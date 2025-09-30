@@ -33,10 +33,10 @@ extern "C" {
  * Internal TextEdit Constants
  ************************************************************/
 
-/* Private offsets into TEDispatchRec */
-#define newTEFlags          16    /* teFAutoScr, teFTextBuffering, teFOutlineHilite */
-#define TwoByteCharBuffer   20    /* storage for buffered double-byte character */
-#define lastScript          22    /* keep last script for split/single caret display */
+/* Private offsets into TEDispatchRec - commented out to avoid conflicts with struct fields */
+/* #define newTEFlags          16 */   /* teFAutoScr, teFTextBuffering, teFOutlineHilite */
+/* #define TwoByteCharBuffer   20 */   /* storage for buffered double-byte character */
+/* #define lastScript          22 */   /* keep last script for split/single caret display */
 
 /* Text measure overflow flag */
 #define measOverFlow        0     /* text measure overflow (00000001b) */
@@ -73,8 +73,23 @@ extern "C" {
  * Internal Data Structures
  ************************************************************/
 
+/* Style run structure */
+typedef struct StyleRun {
+    short startChar;            /* Start offset of this style run */
+    short styleIndex;           /* Index into style table */
+} StyleRun;
+
+/* Style table structure */
+typedef struct TEStyleRec {
+    short nRuns;                /* Number of style runs */
+    short nStyles;              /* Number of styles */
+    StyleRun runs[1];           /* Array of style runs (variable length) */
+} TEStyleRec, *TEStylePtr;
+/* Note: TEStyleHandle already defined as Handle in SystemTypes.h */
+
 /* TEDispatchRec structure - internal dispatch table */
-            /* End of line hook */
+typedef struct TEDispatchRec {
+    ProcPtr EOLHook;            /* End of line hook */
     ProcPtr DRAWHook;           /* Drawing hook */
     ProcPtr WIDTHHook;          /* Width calculation hook */
     ProcPtr HITTESTHook;        /* Hit testing hook */

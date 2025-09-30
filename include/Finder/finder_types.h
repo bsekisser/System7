@@ -54,7 +54,8 @@ typedef enum {
     kDesktopItemTrash = 1,   /* Trash can */
     kDesktopItemFile = 2,    /* File */
     kDesktopItemFolder = 3,  /* Folder */
-    kDesktopItemAlias = 4    /* Alias/shortcut */
+    kDesktopItemAlias = 4,   /* Alias/shortcut */
+    kDesktopItemApplication = 5  /* Application */
 } DesktopItemType;
 
 /* Desktop Item - Universal structure for all desktop icons */

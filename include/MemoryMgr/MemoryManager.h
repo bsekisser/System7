@@ -23,6 +23,8 @@ enum {
 };
 
 /* Block header - precedes every allocation */
+#ifndef BLOCKHEADER_DEFINED
+#define BLOCKHEADER_DEFINED
 typedef struct BlockHeader {
     u32     size;           /* Total size including header (aligned) */
     u16     flags;          /* BF_* flags */
@@ -31,6 +33,7 @@ typedef struct BlockHeader {
     Handle  masterPtr;      /* For handles: backpointer to master pointer */
     /* Data follows immediately after */
 } BlockHeader;
+#endif
 
 /* Free list node - lives in data area of free blocks */
 typedef struct FreeNode {

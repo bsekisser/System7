@@ -1,5 +1,11 @@
 #include "SystemTypes.h"
 #include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+
+/* Type aliases */
+typedef uint32_t u32;
+
 /*
  * RE-AGENT-BANNER: reimplementation
  *
@@ -22,7 +28,6 @@
 // #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include "System71StdLib.h"
-
 #include "MemoryMgr/memory_manager_types.h"
 #include <assert.h>
 
@@ -423,6 +428,18 @@ static BlockPtr find_free_block(ZonePtr zone, Size minSize) {
     }
 
     return NULL;
+}
+
+/*
+ * SetHandleSize - Resize a handle
+ * Stub implementation - returns true (success) for now
+ */
+bool SetHandleSize(Handle h, u32 newSize)
+{
+    /* TODO: Implement proper handle resizing */
+    (void)h;
+    (void)newSize;
+    return true;
 }
 
 /*

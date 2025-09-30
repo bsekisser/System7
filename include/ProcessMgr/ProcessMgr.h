@@ -42,42 +42,84 @@ extern "C" {
  * Process States for Cooperative Multitasking
 
  */
+typedef enum {
+    kProcessTerminated = 0,
+    kProcessSuspended = 1,
+    kProcessRunning = 2,
+    kProcessBackground = 3
+} ProcessState;
 
 /*
  * Process Mode Flags
 
  */
+enum {
+    kProcessModeCooperative = 0x0001,
+    kProcessModeCanBackground = 0x0002,
+    kProcessModeNeedsActivate = 0x0004
+};
 
 /*
  * Launch Control Flags
 
  */
+enum {
+    kLaunchDontSwitch = 0x0001,
+    kLaunchNoFileFlags = 0x0002,
+    kLaunchContinue = 0x0004
+};
 
 /*
- * Process Serial Number
+ * Process Context Save Area for 68k Context Switching
 
  */
+typedef struct ProcessContext {
+    UInt32 savedA5;
+    UInt32 savedStackPointer;
+    /* Additional 68k registers would be saved here */
+} ProcessContext;
 
 /*
  * Process Control Block - Core data structure for each process
 
  * Size: 256 bytes, aligned to 4 bytes
  */
+struct ProcessControlBlock {
+    ProcessSerialNumber processID;
+    OSType processSignature;
+    OSType processType;
+    ProcessState processState;
+    UInt32 processMode;
+    Ptr processLocation;
+    Size processSize;
+    THz processHeapZone;
+    Ptr processStackBase;
+    Size processStackSize;
+    Ptr processA5World;
+    UInt32 processCreationTime;
+    UInt32 processLastEventTime;
+    EventMask processEventMask;
+    short processPriority;
+    Ptr processContextSave;
+    struct ProcessControlBlock* processNextProcess;
+};
 
 /*
  * Launch Parameter Block for starting new processes
 
+ * (Defined in SystemTypes.h)
  */
 
 /*
  * Process Queue for Cooperative Scheduling
 
  */
-
-/*
- * Process Context Save Area for 68k Context Switching
-
- */
+struct ProcessQueue {
+    ProcessControlBlock* queueHead;
+    ProcessControlBlock* queueTail;
+    short queueSize;
+    ProcessControlBlock* currentProcess;
+};
 
 /*
  * Process Manager Function Prototypes
@@ -86,7 +128,7 @@ extern "C" {
 
 /* Process Lifecycle Management */
 OSErr ProcessManager_Initialize(void);
-OSErr Process_Create(const FSSpec* appSpec, Size memorySize, LaunchFlags flags);
+OSErr Process_Create(const void* appSpec, Size memorySize, LaunchFlags flags);
 OSErr Process_Cleanup(ProcessSerialNumber* psn);
 OSErr LaunchApplication(LaunchParamBlockRec* launchParams);
 OSErr ExitToShell(void);

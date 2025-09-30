@@ -198,7 +198,8 @@ pascal void SetWordBreak(WordBreakProcPtr wBrkProc, TEHandle hTE); /* synonym */
 
 /* Scrap Functions */
 #define TEScrapHandle() (* (Handle*) 0xAB4)
-#define TEGetScrapLength() ((long) * (unsigned short *) 0x0AB0)
+/* Note: TEGetScrapLength is implemented as function in ScrapManager.h */
+/* #define TEGetScrapLength() ((long) * (unsigned short *) 0x0AB0) */
 #define TEGetScrapLen() ((long) * (unsigned short *) 0x0AB0)
 pascal void TESetScrapLength(long length);
 pascal void TESetScrapLen(long length);

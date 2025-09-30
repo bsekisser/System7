@@ -76,6 +76,8 @@
  * PROVENANCE: Inferred from CompactHp and block management functions
  * Used by: a24/a32MakeBkF, a24/a32MakeFree, block scanning algorithms
  */
+#ifndef BLOCKHEADER_DEFINED
+#define BLOCKHEADER_DEFINED
 typedef struct BlockHeader {
     UInt32 blkSize;    /* Block size */
     union {
@@ -92,6 +94,7 @@ typedef struct BlockHeader {
         } allocated;
     } u;
 } BlockHeader, *BlockPtr;
+#endif
 
 /*
  * Master Pointer Entry

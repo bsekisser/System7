@@ -353,9 +353,7 @@ void FlushEvents_DISABLED(short eventMask, short stopMask) {
 }
 #endif /* DISABLED FlushEvents */
 
-void TEInit(void) {
-    /* TextEdit initialization stub */
-}
+/* TEInit now implemented in TextEditCore.c */
 
 /* Window stubs for functions not yet implemented elsewhere */
 #if !defined(SYS71_STUBS_DISABLED)

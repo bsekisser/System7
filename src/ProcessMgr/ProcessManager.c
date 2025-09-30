@@ -31,8 +31,8 @@
 #include "System71StdLib.h"
 
 #include "ProcessMgr/ProcessMgr.h"
-#include <Traps.h>
-#include <ToolUtils.h>
+/* #include <Traps.h> - not available */
+/* #include <ToolUtils.h> - not available */
 
 
 /*
@@ -93,7 +93,7 @@ OSErr ProcessManager_Initialize(void)
 
  * Three-argument function for creating process control blocks
  */
-OSErr Process_Create(const FSSpec* appSpec, Size memorySize, LaunchFlags flags)
+OSErr Process_Create(const void* appSpec, Size memorySize, LaunchFlags flags)
 {
     ProcessControlBlock* newProcess = NULL;
     int freeSlot = -1;
@@ -107,14 +107,14 @@ OSErr Process_Create(const FSSpec* appSpec, Size memorySize, LaunchFlags flags)
     }
 
     if (freeSlot == -1) {
-        return procNotFound; /* No free process slots */
+        return memFullErr; /* No free process slots */
     }
 
     newProcess = &gProcessTable[freeSlot];
 
     /* Initialize process control block */
-    (newProcess)->highLongOfPSN = 0;
-    (newProcess)->lowLongOfPSN = gNextProcessID++;
+    newProcess->processID.highLongOfPSN = 0;
+    newProcess->processID.lowLongOfPSN = gNextProcessID++;
     newProcess->processSignature = 'APPL'; /* Default application signature */
     newProcess->processType = 'APPL';
     newProcess->processState = kProcessSuspended;
@@ -280,8 +280,8 @@ OSErr LaunchApplication(LaunchParamBlockRec* launchParams)
     }
 
     /* Create new process */
-    err = Process_Create(&launchParams->launchAppSpec,
-                        launchParams->launchPrefSize,
+    err = Process_Create(launchParams->launchAppSpec,
+                        launchParams->launchPreferredSize,
                         launchParams->launchControlFlags);
     if (err != noErr) {
         return err;
@@ -305,60 +305,7 @@ OSErr LaunchApplication(LaunchParamBlockRec* launchParams)
     return err;
 }
 
-/*
- * WaitNextEvent - Core of cooperative multitasking
- * Applications call this to yield control and allow other processes to run
- */
-Boolean WaitNextEvent(EventMask eventMask, EventRecord* theEvent,
-                     UInt32 sleep, RgnHandle mouseRgn)
-{
-    Boolean eventAvailable = false;
-    UInt32 startTime = TickCount();
-    ProcessControlBlock* nextProcess;
-
-    /* Check for immediate events */
-    eventAvailable = GetNextEvent(eventMask, theEvent);
-    if (eventAvailable) {
-        return true;
-    }
-
-    /* Cooperative yield - give other processes a chance to run */
-    if (gMultiFinderActive) {
-        OSErr err = Scheduler_GetNextProcess(&nextProcess);
-        if (err == noErr && nextProcess != gCurrentProcess) {
-            Context_Switch(nextProcess);
-        }
-    }
-
-    /* Wait for events or timeout */
-    do {
-        eventAvailable = GetNextEvent(eventMask, theEvent);
-        if (eventAvailable) {
-            break;
-        }
-
-        /* Yield to other processes during wait */
-        if (gMultiFinderActive) {
-            Scheduler_GetNextProcess(&nextProcess);
-            if (nextProcess != gCurrentProcess) {
-                Context_Switch(nextProcess);
-            }
-        }
-
-    } while ((TickCount() - startTime) < sleep);
-
-    /* Generate null event if no real event occurred */
-    if (!eventAvailable) {
-        theEvent->what = nullEvent;
-        theEvent->message = 0;
-        theEvent->when = TickCount();
-        theEvent->modifiers = 0;
-        GetMouse(&theEvent->where);
-        eventAvailable = true;
-    }
-
-    return eventAvailable;
-}
+/* WaitNextEvent is defined in sys71_stubs.c - no need to redefine it here */
 
 /*
  * MultiFinder Integration
@@ -366,14 +313,10 @@ Boolean WaitNextEvent(EventMask eventMask, EventRecord* theEvent,
  */
 OSErr MultiFinder_Init(void)
 {
-    /* Check if MultiFinder is available */
-    if (Gestalt('mfdr', NULL) == noErr) {
-        gMultiFinderActive = true;
-        return noErr;
-    }
-
-    gMultiFinderActive = false;
-    return fnfErr;
+    /* For now, just enable MultiFinder */
+    /* In real System 7, we'd check Gestalt('mfdr', NULL) */
+    gMultiFinderActive = true;
+    return noErr;
 }
 
 /*
@@ -395,7 +338,7 @@ OSErr Process_Cleanup(ProcessSerialNumber* psn)
     }
 
     if (!process) {
-        return procNotFound;
+        return paramErr;
     }
 
     /* Clean up process resources */

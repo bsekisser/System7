@@ -19,10 +19,46 @@
 // #include "CompatibilityFix.h" // Removed
 #include "TextEdit/TextEdit.h"
 #include "TextEdit/TextTypes.h"
-#include "MemoryMgr/memory_manager_types.h"
-#include "Scrap.h"
-#include "Fonts.h"
+#include "MemoryMgr/MemoryManager.h"
+#include "ScrapManager/ScrapManager.h"
+#include "ErrorCodes.h"
+#include "EventManager/EventManager.h"
+/* #include "Fonts.h" - not available yet */
 
+
+/************************************************************
+ * Type Definitions
+ ************************************************************/
+
+/* TEGlobals - System-wide TextEdit state */
+typedef struct {
+    Handle TEScrapHandle;
+    long TEScrapLength;
+    short TELastScript;
+    long TEDefaultEncoding;
+    Boolean TEAccessibilityMode;
+    Boolean TEInited;
+    Boolean TEPlatformInited;
+    Boolean TEUnicodeSupport;
+} TEGlobals;
+
+/* Error codes */
+#define unimpErr -4  /* Unimplemented feature */
+
+/* TextEdit justification constants */
+#define teJustLeft 0
+#define teJustCenter 1
+#define teJustRight -1
+#define teFlushDefault 0
+#define teFlushLeft 0
+#define teFlushRight -1
+#define teFlushCenter 1
+
+/* QuickDraw transfer modes */
+#define srcOr 1
+#define srcXor 2
+#define srcBic 3
+#define srcCopy 8
 
 /************************************************************
  * Global TextEdit State
@@ -91,7 +127,7 @@ static void TERecalculateLines(TEHandle hTE)
     HUnlock((**teRec).hText);
 }
 
-static TEDispatchHandle TECreateDispatchRec(void)
+TEDispatchHandle TECreateDispatchRec(void)
 {
     TEDispatchHandle hDispatch;
     TEDispatchRec **dispatch;
@@ -728,4 +764,19 @@ OSErr TESetAccessibilityEnabled(TEHandle hTE, Boolean enabled)
 Boolean TEGetAccessibilityEnabled(TEHandle hTE)
 {
     return gTEGlobals.TEAccessibilityMode;
+}
+
+/************************************************************
+ * Platform Input Stubs
+ ************************************************************/
+
+OSErr TEInitPlatformInput(void)
+{
+    /* Platform-specific initialization - currently stubbed */
+    return noErr;
+}
+
+void TECleanupPlatformInput(void)
+{
+    /* Platform-specific cleanup - currently stubbed */
 }

@@ -102,6 +102,9 @@ C_SOURCES = src/main.c \
             src/EventManager/MouseEvents.c \
             src/EventManager/KeyboardEvents.c \
             src/EventManager/SystemEvents.c \
+            src/ProcessMgr/ProcessManager.c \
+            src/TextEdit/TextEditApp.c \
+            src/TextEdit/TextEditCore.c \
             src/WindowManager/WindowDisplay.c \
             src/WindowManager/WindowEvents.c \
             src/WindowManager/WindowManagerCore.c \

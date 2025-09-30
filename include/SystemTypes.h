@@ -8,6 +8,9 @@
 #include <stdlib.h>
 /* #include <stdio.h> - not included for bare metal */
 
+/* Pascal calling convention keyword - not used in x86 reimplementation */
+#define pascal
+
 // Stub FILE type for bare metal compatibility
 #ifndef _FILE_DEFINED
 #define _FILE_DEFINED
@@ -620,6 +623,8 @@ typedef struct TERec {
     SInt16   clikStuff;
     SInt16   crOnly;
     SInt16   txFont;
+    UInt8    filler;        /* Padding byte */
+    void*    wordBreak;     /* Word break hook */
     UInt8    txFace;
     SInt16   txMode;
     SInt16   txSize;

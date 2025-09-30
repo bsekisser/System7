@@ -1648,6 +1648,14 @@ void init_system71(void) {
     InitEventDispatcher();
     serial_puts("  Event Dispatcher initialized\n");
 
+    /* Process Manager - for application launching */
+    extern OSErr ProcessManager_Initialize(void);
+    if (ProcessManager_Initialize() == noErr) {
+        serial_puts("  Process Manager initialized\n");
+    } else {
+        serial_puts("  WARNING: Process Manager initialization failed\n");
+    }
+
     /* Initialize Modern Input System for PS/2 devices */
     extern SInt16 InitModernInput(const char* platform);
     if (InitModernInput("PS2") == noErr) {
