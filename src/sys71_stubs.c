@@ -975,11 +975,7 @@ void DoBackgroundTasks(void) {
     /* Stub */
 }
 
-/* WaitNextEvent - get next event with sleep support */
-Boolean WaitNextEvent(short eventMask, EventRecord* theEvent, UInt32 sleep, RgnHandle mouseRgn) {
-    /* For now, just call GetNextEvent */
-    return GetNextEvent(eventMask, theEvent);
-}
+/* WaitNextEvent now implemented in EventManager/event_manager.c */
 
 #if 0  /* DISABLED - EventAvail now provided by EventManager/event_manager.c */
 /* EventAvail - check if an event is available without removing it */

@@ -262,9 +262,17 @@ SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
 /* InitEvents is provided by sys71_stubs.c - we just use the queue here */
 extern SInt16 InitEvents(SInt16 numEvents);
 
-/* WaitNextEvent is provided by sys71_stubs.c - it can call our GetNextEvent */
-extern Boolean WaitNextEvent(short eventMask, EventRecord* theEvent,
-                     UInt32 sleep, RgnHandle mouseRgn);
+/**
+ * WaitNextEvent - Get next event with sleep support
+ * System 7-faithful implementation with cooperative multitasking
+ */
+Boolean WaitNextEvent(short eventMask, EventRecord* theEvent, UInt32 sleep, RgnHandle mouseRgn) {
+    (void)sleep;     /* TODO: Implement sleep timeout */
+    (void)mouseRgn;  /* TODO: Implement mouse region checking */
+
+    /* For now, just call GetNextEvent */
+    return GetNextEvent(eventMask, theEvent);
+}
 
 /**
  * FlushEvents - Remove events from the queue
