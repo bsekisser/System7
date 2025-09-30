@@ -147,11 +147,8 @@ OSErr GetNextProcess(ProcessSerialNumber* psn);
 OSErr SetFrontProcess(ProcessSerialNumber* psn);
 
 /* Event Integration for Cooperative Multitasking */
-Boolean WaitNextEvent(EventMask eventMask, EventRecord* theEvent,
-                     UInt32 sleep, RgnHandle mouseRgn);
-Boolean GetNextEvent(EventMask eventMask, EventRecord* theEvent);
-OSErr PostEvent(EventKind eventNum, UInt32 eventMsg);
-void FlushEvents(EventMask eventMask, EventMask stopMask);
+/* Note: Event functions are declared in EventManager/EventManager.h */
+/* ProcessMgr uses these functions but doesn't declare them to avoid conflicts */
 
 /* Memory Management Integration */
 OSErr Process_AllocateMemory(ProcessSerialNumber* psn, Size blockSize, Ptr* block);

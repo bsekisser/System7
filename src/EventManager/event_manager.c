@@ -13,6 +13,7 @@
 #include "../../include/MacTypes.h"
 #include "../../include/EventManager/EventTypes.h"
 #include "../../include/EventManager/EventManager.h"
+#include "../../include/ProcessMgr/ProcessMgr.h"
 
 /* External serial print for debug logging */
 extern void serial_printf(const char* fmt, ...);
@@ -263,15 +264,62 @@ SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
 extern SInt16 InitEvents(SInt16 numEvents);
 
 /**
- * WaitNextEvent - Get next event with sleep support
- * System 7-faithful implementation with cooperative multitasking
+ * WaitNextEvent - Core of cooperative multitasking
+ * Applications call this to yield control and allow other processes to run
+ *
+ * This is the heart of System 7's cooperative multitasking. Applications
+ * call WaitNextEvent in their event loop, which allows the Process Manager
+ * to switch to other processes while waiting for events.
  */
 Boolean WaitNextEvent(short eventMask, EventRecord* theEvent, UInt32 sleep, RgnHandle mouseRgn) {
-    (void)sleep;     /* TODO: Implement sleep timeout */
+    Boolean eventAvailable = false;
+    UInt32 startTime = TickCount();
+    ProcessControlBlock* nextProcess;
+
     (void)mouseRgn;  /* TODO: Implement mouse region checking */
 
-    /* For now, just call GetNextEvent */
-    return GetNextEvent(eventMask, theEvent);
+    /* Check for immediate events */
+    eventAvailable = GetNextEvent(eventMask, theEvent);
+    if (eventAvailable) {
+        return true;
+    }
+
+    /* Cooperative yield - give other processes a chance to run */
+    if (gMultiFinderActive) {
+        OSErr err = Scheduler_GetNextProcess(&nextProcess);
+        if (err == noErr && nextProcess != gCurrentProcess) {
+            Context_Switch(nextProcess);
+        }
+    }
+
+    /* Wait for events or timeout */
+    do {
+        eventAvailable = GetNextEvent(eventMask, theEvent);
+        if (eventAvailable) {
+            break;
+        }
+
+        /* Yield to other processes during wait */
+        if (gMultiFinderActive) {
+            Scheduler_GetNextProcess(&nextProcess);
+            if (nextProcess != gCurrentProcess) {
+                Context_Switch(nextProcess);
+            }
+        }
+
+    } while (sleep > 0 && (TickCount() - startTime) < sleep);
+
+    /* Generate null event if no real event occurred */
+    if (!eventAvailable) {
+        theEvent->what = nullEvent;
+        theEvent->message = 0;
+        theEvent->when = TickCount();
+        theEvent->modifiers = 0;
+        GetMouse(&theEvent->where);
+        eventAvailable = true;
+    }
+
+    return eventAvailable;
 }
 
 /**
