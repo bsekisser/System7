@@ -258,7 +258,8 @@ static void process_keyboard_scancode(uint8_t scancode) {
 
     /* SPACEBAR WORKAROUND: Simulate mouse click when spacebar pressed */
 
-    /* serial_printf("Key pressed: '%c' (scancode 0x%02x)\n", ascii, scancode); */
+    serial_printf("KBD: scancode 0x%02x → vk=0x%02x, ch='%c' (0x%02x), mods=0x%04x\n",
+                  scancode, scancode, (ascii >= 32 && ascii < 127) ? ascii : '?', ascii, modifiers);
 }
 
 /* Process mouse packet */
@@ -321,7 +322,7 @@ static void process_mouse_packet(void) {
 
 /* Initialize PS/2 keyboard */
 static Boolean init_keyboard(void) {
-    /* serial_printf("Initializing PS/2 keyboard...\n"); */
+    serial_printf("Initializing PS/2 keyboard...\n");
 
     /* Reset keyboard */
     ps2_send_data(PS2_DEV_RESET);
@@ -353,7 +354,7 @@ static Boolean init_keyboard(void) {
     }
 
     g_keyboardEnabled = true;
-    /* serial_printf("PS/2 keyboard initialized\n"); */
+    serial_printf("PS/2 keyboard initialized\n");
     return true;
 }
 
@@ -521,7 +522,7 @@ Boolean InitPS2Controller(void) {
 
     /* Initialize keyboard */
     if (!init_keyboard()) {
-        /* serial_printf("Warning: Keyboard initialization failed\n"); */
+        serial_printf("Warning: Keyboard initialization failed\n");
     }
 
     /* Enable second PS/2 port for mouse */
@@ -546,7 +547,7 @@ void PollPS2Input(void) {
 
     /* First call notification */
     if (call_count == 0) {
-        /* serial_printf("PS2: PollPS2Input first call!\n"); */
+        serial_printf("PS2: PollPS2Input first call!\n");
     }
 
     /* Light heartbeat to confirm scheduling */

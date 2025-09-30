@@ -393,8 +393,19 @@ Boolean HandleKeyDownEvent(EventRecord* event)
     /* Pass to active window or application */
     WindowPtr frontWindow = FrontWindow();
     if (frontWindow) {
-        /* Application would handle this */
-        serial_printf("Key '%c' to window 0x%08x\n", key, (unsigned int)frontWindow);
+        /* Check if this is the TextEdit window and forward to TEKey */
+        extern Boolean TextEdit_IsRunning(void);
+        extern void TextEdit_HandleEvent(EventRecord* event);
+
+        if (TextEdit_IsRunning()) {
+            serial_printf("Key '%c' (0x%02x) → TextEdit window 0x%08x\n",
+                         (key >= 32 && key < 127) ? key : '?', key, (unsigned int)frontWindow);
+            TextEdit_HandleEvent(event);
+            return true;
+        }
+
+        /* Other applications would handle their own keys */
+        serial_printf("Key '%c' to window 0x%08x (no handler)\n", key, (unsigned int)frontWindow);
     }
 
     return true;

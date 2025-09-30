@@ -2010,6 +2010,10 @@ skip_cursor_drawing:
         /* System 7.1 cooperative multitasking */
         SystemTask();
 
+        /* Poll PS/2 hardware for keyboard/mouse input */
+        extern void PollPS2Input(void);
+        PollPS2Input();
+
         /* Process serial commands for menu testing */
 #if DEBUG_SERIAL_MENU_COMMANDS
         process_serial_command();
