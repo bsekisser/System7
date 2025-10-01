@@ -99,7 +99,9 @@ static OSErr ScanDirectoryForDesktopEntries(short vRefNum, long dirID, short dat
 static Point SnapToGrid(Point p);
 static void UpdateIconRect(short iconIndex, Rect *outRect);
 static short IconAtPoint(Point where);
-static void InvertIconOutline(const Rect *r);
+static void GhostXOR(const Rect* r);
+static void GhostEraseIf(void);
+static void GhostShowAt(const Rect* r);
 static void DesktopYield(void);
 static void TrackIconDragSync(short iconIndex, Point startPt);
 
@@ -190,8 +192,8 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
             /* Draw icon using QuickDraw */
             /* PlotIcon(&iconRect, gDesktopIcons[i].icon); */
 
-            /* For now, draw a simple rect as placeholder */
-            FrameRect(&iconRect);
+            /* Never draw a border during regular paints. Ghost outline is handled
+               exclusively by InvertIconOutline() inside TrackIconDragSync(). */
         }
     }
 
@@ -240,6 +242,9 @@ void DrawDesktop(void)
 {
     static Boolean gInDesktopPaint = false;
     RgnHandle desktopRgn;
+
+    /* Erase any active ghost outline before desktop redraw */
+    GhostEraseIf();
 
     /* Re-entrancy guard: prevent recursive painting */
     if (gInDesktopPaint) {
@@ -533,8 +538,18 @@ static Boolean IsPositionOccupied(Point position)
  */
 static Point SnapToGrid(Point p)
 {
+    extern QDGlobals qd;
+
+    /* Round to nearest grid */
     p.h = ((p.h + kGridW / 2) / kGridW) * kGridW;
     p.v = ((p.v + kGridH / 2) / kGridH) * kGridH;
+
+    /* Clamp to screen bounds (leave room for 32x32 icon) */
+    if (p.h < 0) p.h = 0;
+    if (p.v < 20) p.v = 20;  /* Below menu bar */
+    if (p.h > qd.screenBits.bounds.right - 32) p.h = qd.screenBits.bounds.right - 32;
+    if (p.v > qd.screenBits.bounds.bottom - 32) p.v = qd.screenBits.bounds.bottom - 32;
+
     return p;
 }
 
@@ -597,28 +612,93 @@ static short IconAtPoint(Point where)
 }
 
 /*
- * InvertIconOutline - Draw XOR outline (System 7 style)
+ * Ghost outline state for drag tracking
  */
-static void InvertIconOutline(const Rect *r)
+static Boolean sGhostActive = false;
+static Rect    sGhostRect   = {0,0,0,0};
+
+/*
+ * GhostXOR - Low-level XOR rect drawing using screen port directly
+ */
+static void GhostXOR(const Rect* r)
 {
-    PenState save;
-    GetPenState(&save);
+    /* Direct XOR rectangle drawing to framebuffer for immediate visibility */
+    extern void* framebuffer;
+    extern uint32_t fb_width, fb_height, fb_pitch;
+    extern void serial_printf(const char* fmt, ...);
 
-    /* Draw thick XOR outline for visibility */
-    PenMode(patXor);
-    PenSize(2, 2);
-    FrameRect(r);
+    if (!framebuffer || !r) return;
 
-    /* Draw inner rect for emphasis */
-    Rect inner = *r;
-    InsetRect(&inner, 1, 1);
-    FrameRect(&inner);
+    uint32_t* fb = (uint32_t*)framebuffer;
+    int pitch = fb_pitch / 4;
 
-    SetPenState(&save);
+    /* Clip to screen bounds */
+    short left = (r->left >= 0) ? r->left : 0;
+    short top = (r->top >= 0) ? r->top : 0;
+    short right = (r->right <= (short)fb_width) ? r->right : fb_width;
+    short bottom = (r->bottom <= (short)fb_height) ? r->bottom : fb_height;
 
-    /* Lightweight display update - just update the outline region */
+    if (left >= right || top >= bottom) return;
+
+    /* XOR color: white (inverts on blue desktop) */
+    uint32_t xor_color = 0xFFFFFFFF;
+
+    /* Draw thick (2px) XOR rectangle frame */
+    /* Top edge (2 pixels thick) */
+    for (int y = top; y < top + 2 && y < bottom; y++) {
+        for (int x = left; x < right; x++) {
+            fb[y * pitch + x] ^= xor_color;
+        }
+    }
+
+    /* Bottom edge (2 pixels thick) */
+    for (int y = bottom - 2; y < bottom && y >= top; y++) {
+        for (int x = left; x < right; x++) {
+            fb[y * pitch + x] ^= xor_color;
+        }
+    }
+
+    /* Left edge (2 pixels thick, avoiding corners already drawn) */
+    for (int y = top + 2; y < bottom - 2; y++) {
+        for (int x = left; x < left + 2 && x < right; x++) {
+            fb[y * pitch + x] ^= xor_color;
+        }
+    }
+
+    /* Right edge (2 pixels thick, avoiding corners already drawn) */
+    for (int y = top + 2; y < bottom - 2; y++) {
+        for (int x = right - 2; x < right && x >= left; x++) {
+            fb[y * pitch + x] ^= xor_color;
+        }
+    }
+
+    /* Force immediate display update */
     extern void QDPlatform_UpdateScreen(SInt32 left, SInt32 top, SInt32 right, SInt32 bottom);
-    QDPlatform_UpdateScreen(r->left - 2, r->top - 2, r->right + 2, r->bottom + 2);
+    QDPlatform_UpdateScreen(left, top, right, bottom);
+
+    serial_printf("GhostXOR: Drew XOR rect (%d,%d,%d,%d)\n", left, top, right, bottom);
+}
+
+/*
+ * GhostEraseIf - Erase ghost if active
+ */
+static inline void GhostEraseIf(void)
+{
+    if (sGhostActive) {
+        GhostXOR(&sGhostRect);  /* XOR twice = erase */
+        sGhostActive = false;
+    }
+}
+
+/*
+ * GhostShowAt - Show ghost at new position
+ */
+static inline void GhostShowAt(const Rect* r)
+{
+    GhostEraseIf();  /* Erase old first */
+    sGhostRect = *r;
+    GhostXOR(&sGhostRect);
+    sGhostActive = true;
 }
 
 /*
@@ -635,7 +715,7 @@ static void DesktopYield(void)
     }
 
     SystemTask();
-    EventPumpYield();  /* Pump input so Button()/StillDown() see updates */
+    EventPumpYield();  /* Pump input so Button()/StillDown() see updates and cursor moves */
     /* PollPS2Input() is now called inside ProcessModernInput() via EventPumpYield() */
 }
 
@@ -670,139 +750,82 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     ghost.right += 20;
     ghost.bottom += 16;
 
-    /* Wait to see if this becomes a drag (threshold check) */
-    GetMouse(&p);
-    while (StillDown()) {
-        GetMouse(&p);
-        if (abs(p.h - startPt.h) > kDragThreshold || abs(p.v - startPt.v) > kDragThreshold) {
-            serial_printf("TrackIconDragSync: threshold exceeded at (%d,%d)\n", p.h, p.v);
-            break;
+    /* Threshold using current button state (PS/2/USB safe) */
+    Point last = startPt, cur;
+    extern volatile UInt8 gCurrentButtons;
+
+    while ((gCurrentButtons & 1) != 0) {
+        GetMouse(&cur);
+        if (abs(cur.h - startPt.h) >= kDragThreshold || abs(cur.v - startPt.v) >= kDragThreshold) {
+            last = cur;
+            serial_printf("TrackIconDragSync: threshold exceeded, starting drag\n");
+            break;  /* start drag */
         }
         DesktopYield();
     }
 
-    /* If not moved enough, treat as simple click */
-    GetMouse(&p);
-    if (!(abs(p.h - startPt.h) > kDragThreshold || abs(p.v - startPt.v) > kDragThreshold)) {
-        serial_printf("TrackIconDragSync: no drag, threshold not exceeded\n");
+    if ((gCurrentButtons & 1) == 0) {  /* released before threshold */
+        serial_printf("TrackIconDragSync: button released before threshold\n");
         gDraggingIconIndex = -1;
         gInMouseTracking = false;
         return;
     }
 
-    /* Enter drag: draw translucent icon following cursor (QEMU-compatible) */
+    /* Enter drag: draw XOR ghost outline following cursor */
     GetPort(&savePort);
-    SetPort(qd.thePort);  /* FIX: qd.thePort is already a GrafPtr */
+    SetPort(qd.thePort);  /* use screen port */
+    ClipRect(&qd.screenBits.bounds);
+    GhostShowAt(&ghost);  /* visible immediately */
+    serial_printf("TrackIconDragSync: ghost visible, entering drag loop\n");
 
-    /* Draw initial ghost outline */
-    InvertIconOutline(&ghost);
-    ghostOn = true;
-    serial_printf("TrackIconDragSync: drag started, ghost visible\n");
-
-    Rect prevGhost = ghost;
-
-    int loopCount = 0;
-    const int kMaxDragLoops = 300;  /* Safety timeout: ~0.5 seconds at 60Hz */
-    extern volatile UInt8 gCurrentButtons;
-
-    /* DISABLED: No-movement detection was triggering false positives during legitimate drags */
-    /* Point lastMovedPos = p; */
-    /* int noMoveCount = 0; */
-    /* const int kMaxNoMove = 20; */
-    /* int dx, dy; */
-
-    while (loopCount < kMaxDragLoops) {
-        Point cur;
-        DesktopYield();  /* Pump input each iteration */
-        loopCount++;
-
-        /* Check button state directly - immediate exit on release */
-        if (gCurrentButtons == 0) {
-            serial_printf("TrackIconDragSync: Button released (loop=%d)\n", loopCount);
-            break;
-        }
-
+    while ((gCurrentButtons & 1) != 0) {
+        DesktopYield();  /* keeps input flowing but we don't paint desktop */
         GetMouse(&cur);
 
-        if (cur.h != p.h || cur.v != p.v) {
-            /* Erase old ghost outline */
-            if (ghostOn) InvertIconOutline(&ghost);
+        if (cur.h | cur.v) {  /* cheap branch predictor nudge */
+            if (cur.h != last.h || cur.v != last.v) {
+                /* Move by per-frame delta (cur - last, not cur - start) */
+                OffsetRect(&ghost, cur.h - last.h, cur.v - last.v);
 
-            /* Calculate dirty rect (union of old and new positions) */
-            Rect dirtyRect = prevGhost;
-            UnionRect(&dirtyRect, &ghost, &dirtyRect);
-            InsetRect(&dirtyRect, -4, -4);  /* Expand for outline */
+                /* Constrain to desktop bounds */
+                Rect desk = qd.screenBits.bounds;
+                desk.top = 20;  /* Below menu bar */
 
-            /* Move by delta */
-            OffsetRect(&ghost, cur.h - p.h, cur.v - p.v);
+                if (ghost.left < desk.left)     OffsetRect(&ghost, desk.left - ghost.left, 0);
+                if (ghost.top < desk.top)       OffsetRect(&ghost, 0, desk.top - ghost.top);
+                if (ghost.right > desk.right)   OffsetRect(&ghost, desk.right - ghost.right, 0);
+                if (ghost.bottom > desk.bottom) OffsetRect(&ghost, 0, desk.bottom - ghost.bottom);
 
-            /* Constrain to desktop bounds */
-            Rect desk = qd.screenBits.bounds;
-            desk.top = 20;  /* Below menu bar */
-
-            if (ghost.left < desk.left)     OffsetRect(&ghost, desk.left - ghost.left, 0);
-            if (ghost.top < desk.top)       OffsetRect(&ghost, 0, desk.top - ghost.top);
-            if (ghost.right > desk.right)   OffsetRect(&ghost, desk.right - ghost.right, 0);
-            if (ghost.bottom > desk.bottom) OffsetRect(&ghost, 0, desk.bottom - ghost.bottom);
-
-            /* Expand dirty rect to include new position */
-            UnionRect(&dirtyRect, &ghost, &dirtyRect);
-            InsetRect(&dirtyRect, -4, -4);
-
-            /* DISABLED: Full desktop redraw during drag is too slow and causes freeze */
-            #if 0
-            /* Erase dirty region - just redraw desktop for now */
-            DrawDesktop();
-
-            /* Draw dragged icon at new ghost position (adjust for label margins) */
-            Point savedPos = gDesktopIcons[iconIndex].position;
-            gDesktopIcons[iconIndex].position.h = ghost.left + 20;
-            gDesktopIcons[iconIndex].position.v = ghost.top;
-            DrawVolumeIcon();
-            gDesktopIcons[iconIndex].position = savedPos;
-
-            /* Force display update for smoother dragging */
-            extern void QDPlatform_FlushScreen(void);
-            QDPlatform_FlushScreen();
-            #endif
-
-            /* Draw new ghost outline on top */
-            InvertIconOutline(&ghost);
-            ghostOn = true;
-
-            prevGhost = ghost;
-            p = cur;
+                GhostShowAt(&ghost);  /* erase old, draw new */
+                last = cur;
+            }
         }
-        DesktopYield();
     }
 
-    /* Button released: erase ghost */
-    if (ghostOn) {
-        serial_printf("TrackIconDragSync: erasing final ghost outline\n");
-        InvertIconOutline(&ghost);
-    }
-
-    /* Commit new position (snap to grid) - only for movable items */
-    if (gDesktopIcons[iconIndex].movable) {
-        Point snapped;
-        snapped.h = ghost.left;
-        snapped.v = ghost.top;
-        snapped = SnapToGrid(snapped);
-
-        gDesktopIcons[iconIndex].position = snapped;
-
-        serial_printf("TrackIconDragSync: drag complete, new position (%d,%d)\n", snapped.h, snapped.v);
-    } else {
-        serial_printf("TrackIconDragSync: drag complete (non-movable item - no position save)\n");
-    }
-
-    /* Redraw entire desktop to clear old position */
+    /* Button released: erase ghost, restore port */
+    GhostEraseIf();
     SetPort(savePort);
+    serial_printf("TrackIconDragSync: drag complete, ghost erased\n");
 
-    /* Post updateEvt to defer desktop redraw to event loop (avoids re-entrancy freeze) */
+    /* Commit new position (ghost matches icon bounds, +20 label inset) */
+    if (gDesktopIcons[iconIndex].movable) {
+        /* Ghost rect is expanded 20px left for label, so add 20 to get icon left edge */
+        /* NOTE: Point struct is {v, h} in Classic Mac OS! */
+        Point snapped = (Point){ .h = ghost.left + 20, .v = ghost.top };
+        snapped = SnapToGrid(snapped);
+        serial_printf("TrackIconDragSync: ghost final=(%d,%d,%d,%d), icon pos before snap=(%d,%d), after snap=(%d,%d)\n",
+                     ghost.left, ghost.top, ghost.right, ghost.bottom,
+                     ghost.left + 20, ghost.top, snapped.h, snapped.v);
+        gDesktopIcons[iconIndex].position = snapped;
+        serial_printf("TrackIconDragSync: committed position (%d,%d)\n", snapped.h, snapped.v);
+    } else {
+        serial_printf("TrackIconDragSync: non-movable item, no position save\n");
+    }
+
+    /* Post updateEvt to defer desktop redraw (no reentrancy) */
     extern OSErr PostEvent(EventKind eventNum, UInt32 eventMsg);
-    PostEvent(updateEvt, 0);  /* NULL window = desktop/background */
-    serial_printf("TrackIconDragSync: posted updateEvt for deferred desktop redraw\n");
+    PostEvent(updateEvt, 0);  /* desktop repaint */
+    serial_printf("TrackIconDragSync: posted updateEvt\n");
 
     /* Clear tracking guard and drag flag */
     serial_printf("TrackIconDragSync: clearing tracking flags\n");
@@ -1023,6 +1046,9 @@ void DrawVolumeIcon(void)
     extern void serial_printf(const char* fmt, ...);
     serial_printf("DrawVolumeIcon: ENTRY\n");
 
+    /* Erase any active ghost outline before icon redraw */
+    GhostEraseIf();
+
     /* Re-entrancy guard: prevent recursive painting */
     if (gInVolumeIconPaint) {
         serial_printf("DrawVolumeIcon: re-entry detected, skipping to avoid freeze\n");
@@ -1153,17 +1179,11 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
 
     serial_printf("Hit icon index %d, doubleClick=%d\n", hitIcon, doubleClick);
 
-    /* DEBUG: Print condition components */
-    serial_printf("[PRE-IF] dbl=%d, hit=%d, count=%d, (hit>=0)=%d, (hit<count)=%d\n",
-                  doubleClick, hitIcon, gDesktopIconCount,
-                  (hitIcon >= 0), (hitIcon < gDesktopIconCount));
-
-    /* Handle double-click IMMEDIATELY after detection - no debug calls in between */
+    /* Double-click: open, never drag */
     if (doubleClick && hitIcon >= 0 && hitIcon < gDesktopIconCount) {
-        serial_printf("[DBLCLK-IF] dbl=%d hit=%d count=%d\n", doubleClick, hitIcon, gDesktopIconCount);
+        serial_printf("[DBLCLK] Opening icon %d\n", hitIcon);
         extern WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title);
         DesktopItem *it = &gDesktopIcons[hitIcon];
-        serial_printf("[DBLCLK-ITEM] type=%d\n", it->type);
 
         if (it->type == kDesktopItemVolume) {
             Finder_OpenDesktopItem(false, "\pMacintosh HD");
@@ -1172,24 +1192,23 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
             Finder_OpenDesktopItem(true, "\pTrash");
             return true;
         }
+        return true;
     }
 
-    /* Single click - select and potentially drag */
-    serial_printf("Single-click handler: prevSelected=%d, hitIcon=%d\n", prevSelected, hitIcon);
-    gSelectedIcon = hitIcon;
-
-    if (prevSelected != gSelectedIcon) {
-        serial_printf("Selection changed %d → %d, posting updateEvt for deferred redraw\n",
-                     prevSelected, gSelectedIcon);
-        /* Post updateEvt to defer redraw to event loop (avoids re-entrancy freeze) */
+    /* Single click: select first, then arm for drag only while button still down */
+    if (hitIcon >= 0 && hitIcon < gDesktopIconCount) {
+        gSelectedIcon = hitIcon;
         extern OSErr PostEvent(EventKind eventNum, UInt32 eventMsg);
-        PostEvent(updateEvt, 0);  /* NULL window = desktop/background */
-    }
+        PostEvent(updateEvt, 0);  /* selection redraw deferred */
 
-    /* Start synchronous modal drag tracking immediately (only for single clicks) */
-    if (!doubleClick && hitIcon >= 0 && hitIcon < gDesktopIconCount) {
-        serial_printf("Starting TrackIconDragSync for icon %d\n", hitIcon);
-        TrackIconDragSync(hitIcon, clickPoint);
+        extern volatile UInt8 gCurrentButtons;
+        if ((gCurrentButtons & 1) != 0) {  /* mouse still down? arm drag */
+            serial_printf("Single-click: button still down, starting drag tracking\n");
+            TrackIconDragSync(hitIcon, clickPoint);
+        } else {
+            serial_printf("Single-click: button released, no drag\n");
+        }
+        return true;
     }
 
     return true;
