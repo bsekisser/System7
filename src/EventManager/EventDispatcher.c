@@ -261,14 +261,14 @@ Boolean HandleMouseDown(EventRecord* event)
         case inDesk:
             /* Click on desktop - check if it's on an icon */
             {
-                /* Extract click count from high word of message */
+                /* Classic System 7: click count in high word of message */
                 UInt16 clickCount = (event->message >> 16) & 0xFFFF;
                 Boolean doubleClick = (clickCount >= 2);
 
                 /* Check if click was on a desktop icon */
                 extern Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick);
                 if (HandleDesktopClick(event->where, doubleClick)) {
-                    serial_printf("Desktop icon clicked (doubleClick=%d)\n", doubleClick);
+                    serial_printf("Desktop icon clicked (clickCount=%d)\n", clickCount);
                     /* Start tracking for potential drag */
                     g_dispatcher.trackingDesktop = true;
                     return true;
