@@ -255,12 +255,47 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     Boolean moved = false;
     Rect oldBounds = frameG;
 
+    /* XOR outline state */
+    Rect dragOutline = frameG;
+    Boolean outlineDrawn = false;
+
+    /* QuickDraw functions for XOR outline */
+    extern void PenMode(SInt16 mode);
+    extern void PenPat(const Pattern* pattern);
+    extern void FrameRect(const Rect* rect);
+    extern void QDPlatform_FlushScreen(void);
+    extern void GetWMgrPort(GrafPtr* port);
+    extern void SetPort(GrafPtr port);
+
+    /* Set graphics port to Window Manager port for XOR drawing */
+    GrafPtr wmPort;
+    GetWMgrPort(&wmPort);
+    if (wmPort) {
+        SetPort(wmPort);
+    }
+
+    /* Gray pattern for drag outline (50% stipple) */
+    static const Pattern grayPattern = {0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55};
+
     /* Main modal drag loop - System 7 idiom */
+    extern void EventPumpYield(void);
+    serial_printf("DragWindow: Entering modal loop at start=(%d,%d)\n", startPt.h, startPt.v);
     while (StillDown()) {
+        /* Poll hardware for new input events (mouse button state) */
+        EventPumpYield();
+
         GetMouse(&ptG);  /* Returns GLOBAL coords */
+
+        static int loopCount = 0;
+        if (++loopCount % 100 == 0) {
+            serial_printf("DragWindow: Loop iteration %d, mouse=(%d,%d), last=(%d,%d)\n",
+                         loopCount, ptG.h, ptG.v, lastPos.h, lastPos.v);
+        }
 
         /* Only process if mouse moved */
         if (ptG.h != lastPos.h || ptG.v != lastPos.v) {
+            serial_printf("DragWindow: Mouse moved from (%d,%d) to (%d,%d)\n",
+                         lastPos.h, lastPos.v, ptG.h, ptG.v);
             /* Calculate new window position */
             short newLeft = ptG.h - offset.h;
             short newTop = ptG.v - offset.v;
@@ -278,16 +313,30 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
             if (newTop + winHeight > dragBounds.bottom)
                 newTop = dragBounds.bottom - winHeight;
 
-            /* Live move for now (outline feedback would be better) */
-            if (newLeft != frameG.left || newTop != frameG.top) {
-                serial_printf("DragWindow: MoveWindow to (%d,%d)\n", newLeft, newTop);
-                MoveWindow(theWindow, newLeft, newTop, false);
+            /* XOR outline feedback (authentic Mac OS behavior) */
+            if (newLeft != dragOutline.left || newTop != dragOutline.top) {
+                /* Erase old outline if it exists (XOR erases by redrawing) */
+                if (outlineDrawn) {
+                    extern void InvertRect(const Rect* rect);
+                    serial_printf("DragWindow: Erasing old outline at (%d,%d,%d,%d)\n",
+                                 dragOutline.left, dragOutline.top, dragOutline.right, dragOutline.bottom);
+                    InvertRect(&dragOutline);  /* Use InvertRect for simple XOR */
+                    QDPlatform_FlushScreen();  /* Force screen update */
+                }
 
-                /* Update our tracking of frame position */
-                frameG.right = newLeft + winWidth;
-                frameG.bottom = newTop + winHeight;
-                frameG.left = newLeft;
-                frameG.top = newTop;
+                /* Calculate new outline position */
+                dragOutline.left = newLeft;
+                dragOutline.top = newTop;
+                dragOutline.right = newLeft + winWidth;
+                dragOutline.bottom = newTop + winHeight;
+
+                /* Draw new outline */
+                extern void InvertRect(const Rect* rect);
+                serial_printf("DragWindow: Drawing new outline at (%d,%d,%d,%d)\n",
+                             dragOutline.left, dragOutline.top, dragOutline.right, dragOutline.bottom);
+                InvertRect(&dragOutline);  /* Use InvertRect for simple XOR */
+                QDPlatform_FlushScreen();  /* Force screen update */
+                outlineDrawn = true;
 
                 moved = true;
             }
@@ -296,13 +345,54 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         }
     }
 
-    /* If window moved, invalidate both old and new regions for updates */
+    /* Erase final outline before moving window (XOR erases by redrawing) */
+    if (outlineDrawn) {
+        extern void InvertRect(const Rect* rect);
+        serial_printf("DragWindow: Erasing final outline\n");
+        InvertRect(&dragOutline);
+        QDPlatform_FlushScreen();  /* Force screen update */
+    }
+
+    /* Move window to final position if it changed */
     if (moved) {
-        InvalRect(&oldBounds);
-        if (theWindow->strucRgn && *(theWindow->strucRgn)) {
-            Rect newBounds = (*(theWindow->strucRgn))->rgnBBox;
-            InvalRect(&newBounds);
-        }
+        serial_printf("DragWindow: Final MoveWindow to (%d,%d)\n", dragOutline.left, dragOutline.top);
+
+        /* Create a region for the old window position to invalidate */
+        extern RgnHandle NewRgn(void);
+        extern void RectRgn(RgnHandle rgn, const Rect* r);
+        extern void DisposeRgn(RgnHandle rgn);
+        extern void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn);
+        extern void PaintOne(WindowPtr window, RgnHandle clobberedRgn);
+        extern void CalcVis(WindowPtr window);
+
+        RgnHandle oldRgn = NewRgn();
+        RectRgn(oldRgn, &oldBounds);
+
+        serial_printf("DragWindow: Created oldRgn for bounds (%d,%d,%d,%d)\n",
+                     oldBounds.left, oldBounds.top, oldBounds.right, oldBounds.bottom);
+
+        /* Move the window to new position */
+        MoveWindow(theWindow, dragOutline.left, dragOutline.top, false);
+
+        /* Recalculate window visibility */
+        CalcVis(theWindow);
+
+        /* Repaint everything behind the window in the old region */
+        PaintBehind(theWindow, oldRgn);
+        serial_printf("DragWindow: PaintBehind called for old region\n");
+
+        /* Repaint the window itself at new position */
+        PaintOne(theWindow, NULL);
+        serial_printf("DragWindow: PaintOne called for window at new position\n");
+
+        /* Clean up */
+        serial_printf("DragWindow: About to DisposeRgn\n");
+        DisposeRgn(oldRgn);
+        serial_printf("DragWindow: DisposeRgn completed\n");
+
+        /* Force screen update */
+        extern void QDPlatform_FlushScreen(void);
+        QDPlatform_FlushScreen();
     }
 
     serial_printf("DragWindow EXIT: moved=%d\n", moved);

@@ -485,77 +485,7 @@ void DisposeWindow(WindowPtr window) {
     /* For now just mark it invalid */
     window->windowKind = 0;
 }
-void DragWindow(WindowPtr window, Point startPt, const Rect* boundsRect) {
-    if (!window) {
-        serial_printf("DragWindow: NULL window\n");
-        return;
-    }
-
-    serial_printf("DragWindow: Starting drag at (%d,%d)\n", startPt.h, startPt.v);
-
-    /* FIXED: Remove direct polling loop that bypasses event system */
-    /* This function should NOT poll directly - it should return and let */
-    /* the main event loop handle tracking via mouseUp/mouseMoved events */
-
-    /* For now, just move window to click point as stub */
-    /* Proper implementation will track via event system */
-    serial_printf("DragWindow: STUB - moving window to click point\n");
-    MoveWindow(window, startPt.h, startPt.v, false);
-    return;
-
-#if 0  /* DISABLED - This bypasses the event system! */
-    /* Track mouse while button held */
-    extern Boolean Button(void);
-    extern void GetMouse(Point* mouseLoc);
-    extern void PollPS2Input(void);
-
-    Point lastPt = startPt;
-    Point currentPt;
-
-    while (Button()) {
-        PollPS2Input();
-        GetMouse(&currentPt);
-
-        if (currentPt.h != lastPt.h || currentPt.v != lastPt.v) {
-            /* Calculate offset */
-            short dh = currentPt.h - lastPt.h;
-            short dv = currentPt.v - lastPt.v;
-
-            /* Move window */
-            GrafPort* port = (GrafPort*)window;
-            port->portRect.left += dh;
-            port->portRect.right += dh;
-            port->portRect.top += dv;
-            port->portRect.bottom += dv;
-
-            /* Constrain to bounds if provided */
-            if (boundsRect) {
-                if (port->portRect.left < boundsRect->left) {
-                    short adjust = boundsRect->left - port->portRect.left;
-                    port->portRect.left += adjust;
-                    port->portRect.right += adjust;
-                }
-                if (port->portRect.top < boundsRect->top) {
-                    short adjust = boundsRect->top - port->portRect.top;
-                    port->portRect.top += adjust;
-                    port->portRect.bottom += adjust;
-                }
-            }
-
-            lastPt = currentPt;
-
-            /* Redraw desktop and window */
-            extern void DrawDesktop(void);
-            DrawDesktop();
-        }
-
-        /* Small delay */
-        for (volatile int i = 0; i < 1000; i++) {}
-    }
-
-    serial_printf("DragWindow: Ended at (%d,%d)\n", currentPt.h, currentPt.v);
-#endif /* End of disabled polling loop */
-}
+/* DragWindow is implemented in src/WindowManager/WindowDragging.c */
 
 void MoveWindow(WindowPtr window, short h, short v, Boolean front) {
     if (!window) return;

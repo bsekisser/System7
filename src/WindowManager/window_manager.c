@@ -448,10 +448,13 @@ void SizeWindow(WindowPtr window, SInt16 w, SInt16 h, Boolean fUpdate) {
     (window)->portRect.bottom = (window)->portRect.top + h;
 }
 
+/* DragWindow is implemented in src/WindowManager/WindowDragging.c */
+/*
 void DragWindow(WindowPtr window, Point startPt, const Rect* boundsRect) {
-    /* Stub - would implement interactive dragging */
+    // Stub - would implement interactive dragging
     (void)window; (void)startPt; (void)boundsRect;
 }
+*/
 
 SInt32 GrowWindow(WindowPtr window, Point startPt, const Rect* bBox) {
     /* Stub - would implement interactive resizing */
