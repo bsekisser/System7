@@ -350,22 +350,7 @@ void SelectWindow(WindowPtr window) {
 
 /* Additional Window Manager functions */
 
-void MoveWindow(WindowPtr window, SInt16 hGlobal, SInt16 vGlobal, Boolean front) {
-    if (!window) return;
-
-    /*
-    SInt16 width = (window)->portRect.right - (window)->portRect.left;
-    SInt16 height = (window)->portRect.bottom - (window)->portRect.top;
-
-    (window)->portRect.left = hGlobal;
-    (window)->portRect.top = vGlobal;
-    (window)->portRect.right = hGlobal + width;
-    (window)->portRect.bottom = vGlobal + height;
-
-    if (front) {
-        BringToFront(window);
-    }
-}
+/* MoveWindow removed - real implementation is in WindowDragging.c */
 
 void BringToFront(WindowPtr window) {
     if (!window || g_frontWindow == window) {

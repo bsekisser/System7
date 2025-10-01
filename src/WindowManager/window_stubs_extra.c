@@ -28,7 +28,7 @@ void SelectWindow(WindowPtr window) {}
 void BringToFront(WindowPtr window) {}
 void SendBehind(WindowPtr window, WindowPtr behindWindow) {}
 void DrawGrowIcon(WindowPtr window) {}
-void MoveWindow(WindowPtr window, short h, short v, Boolean bringToFront) {}
+/* MoveWindow removed - real implementation is in WindowDragging.c */
 void SizeWindow(WindowPtr window, short w, short h, Boolean fUpdate) {}
 void SetWTitle(WindowPtr window, const unsigned char* title) {}
 void GetWTitle(WindowPtr window, unsigned char* title) {}
