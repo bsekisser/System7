@@ -86,6 +86,31 @@ extern "C" {
 
 /* Function pointer types for callbacks */
 
+/* Scrap item structure */
+typedef struct ScrapItem {
+    ResType type;
+    Handle data;
+} ScrapItem;
+
+/* ScrapManager API - MVP functions (prefixed to avoid conflicts) */
+void   Scrap_Zero(void);
+Size   Scrap_Get(void* dest, ResType type);
+OSErr  Scrap_Put(Size size, ResType type, const void* src);
+void   Scrap_Info(short* count, short* state);
+void   Scrap_Unload(void);
+
+/* Process-aware extensions */
+#ifdef ENABLE_PROCESS_COOP
+#include "ProcessMgr/ProcessTypes.h"  /* Get ProcessID type */
+#else
+typedef short ProcessID;  /* Fallback if ProcessMgr not enabled */
+#endif
+ProcessID Scrap_GetOwner(void);
+
+/* Standard scrap types for MVP */
+#define kScrapTypeTEXT 'TEXT'
+#define kScrapTypePICT 'PICT'
+
 #ifdef __cplusplus
 }
 #endif

@@ -1637,6 +1637,19 @@ void init_system71(void) {
         serial_puts("  ProcessMgr (coop) + Event queue initialized\n");
 #endif
 
+#ifdef ENABLE_SCRAP
+        /* Initialize ScrapManager after ProcessMgr */
+        extern void Scrap_Zero(void);
+        Scrap_Zero();
+        serial_puts("  ScrapManager initialized\n");
+#ifdef SCRAP_SELFTEST
+        serial_puts("  About to run Scrap self-test\n");
+        extern void Scrap_RunSelfTest(void);
+        Scrap_RunSelfTest();
+        serial_puts("  Scrap self-test complete\n");
+#endif
+#endif
+
         /* Smoke test: schedule a timer */
         #ifdef TM_SMOKE_TEST
         InsTime(&gHelloTimer);
@@ -2390,9 +2403,8 @@ skip_cursor_drawing:
         /* System 7.1 cooperative multitasking */
         SystemTask();
 
-        /* Poll PS/2 hardware for keyboard/mouse input */
-        extern void PollPS2Input(void);
-        PollPS2Input();
+        /* PS/2 polling is now done inside ProcessModernInput() above.
+         * Do NOT call PollPS2Input() here - it would consume events twice! */
 
         /* Process serial commands for menu testing */
 #if DEBUG_SERIAL_MENU_COMMANDS
