@@ -105,7 +105,8 @@ WindowPtr NewWindow(void* wStorage, const Rect* boundsRect, ConstStr255Param tit
 
         /* CRITICAL: Initialize portBits.bounds to GLOBAL window position!
          * This maps local coordinates to global screen coordinates.
-         * portRect is LOCAL (0,0,w,h), portBits.bounds is GLOBAL (left,top,right,bottom) */
+         * portRect is LOCAL (0,0,w,h), portBits.bounds is GLOBAL (left,top,right,bottom)
+         * Both cover the ENTIRE window including title bar */
         SetRect(&(newWindow)->port.portBits.bounds,
                 boundsRect->left, boundsRect->top,
                 boundsRect->right, boundsRect->bottom);
