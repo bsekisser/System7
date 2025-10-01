@@ -260,9 +260,6 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     Boolean outlineDrawn = false;
 
     /* QuickDraw functions for XOR outline */
-    extern void PenMode(SInt16 mode);
-    extern void PenPat(const Pattern* pattern);
-    extern void FrameRect(const Rect* rect);
     extern void QDPlatform_FlushScreen(void);
     extern void GetWMgrPort(GrafPtr* port);
     extern void SetPort(GrafPtr port);
@@ -274,10 +271,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         SetPort(wmPort);
     }
 
-    /* Gray pattern for drag outline (50% stipple) */
-    static const Pattern grayPattern = {0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55};
-
-    /* Main modal drag loop - System 7 idiom */
+    /* Main modal drag loop - System 7 idiom with XOR outline feedback */
     extern void EventPumpYield(void);
     serial_printf("DragWindow: Entering modal loop at start=(%d,%d)\n", startPt.h, startPt.v);
     while (StillDown()) {
