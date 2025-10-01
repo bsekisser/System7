@@ -170,21 +170,23 @@ void GetMenuItemText(MenuHandle theMenu, short item, Str255 itemString) {
             break;
 
         default:
+        {
             /* Create a simple text for unknown menus */
-        const char* defaultText = "Item ";
-        short len = strlen(defaultText);
-        memcpy(&itemString[1], defaultText, len);
-        /* Add item number */
-        if (item < 10) {
-            itemString[len + 1] = '0' + item;
-            itemString[0] = len + 1;
-        } else {
-            itemString[len + 1] = '0' + (item / 10);
-            itemString[len + 2] = '0' + (item % 10);
-            itemString[0] = len + 2;
-        }
+            const char* defaultText = "Item ";
+            short len = strlen(defaultText);
+            memcpy(&itemString[1], defaultText, len);
+            /* Add item number */
+            if (item < 10) {
+                itemString[len + 1] = '0' + item;
+                itemString[0] = len + 1;
+            } else {
+                itemString[len + 1] = '0' + (item / 10);
+                itemString[len + 2] = '0' + (item % 10);
+                itemString[0] = len + 2;
+            }
             itemString[0] = strlen((char*)&itemString[1]);
             return;
+        }
     }
 
     if (text) {
