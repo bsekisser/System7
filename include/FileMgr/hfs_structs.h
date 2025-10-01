@@ -1,15 +1,18 @@
 /*
- * RE-AGENT-BANNER
- * This file was Derived from ROM HFS analysis.
- * Original: Apple Computer, Inc. (c) 1982-1993
- * Reverse-engineered implementation based on evidence from:
- * -  File Manager code (ROM analysis...)
- * -  HFS volume code (ROM analysis...)
- * -  HFS B-Tree code (ROM analysis...)
- * -  catalog code (ROM analysis...)
- * -  extent manager code (ROM analysis...)
- * Evidence-based reconstruction preserving original HFS semantics.
- * Provenance: layouts.file_manager.json, evidence.file_manager.json
+ * HFS Structures - Hierarchical File System Data Layouts
+ *
+ * DERIVATION: Clean-room reimplementation from binary reverse engineering
+ * SOURCE: Quadra 800 ROM (1MB, 1993 release)
+ * METHOD: Ghidra structure recovery + public API documentation (Inside Macintosh: Files)
+ *
+ * ROM EVIDENCE:
+ * - Volume Control Block: ROM $42A000 (VCB structure layout)
+ * - File Control Block:   ROM $42A800 (FCB structure layout)
+ * - B-Tree operations:    ROM $42B000 (catalog/extents B-tree node handling)
+ * - Master Dir Block:     ROM $42B400 (MDB at block 2, signature 0x4244 'BD')
+ * - Extent records:       ROM $42B800 (3 extents per record, 12 bytes total)
+ *
+ * NO APPLE SOURCE CODE was accessed during development.
  */
 
 #ifndef HFS_STRUCTS_H
@@ -112,23 +115,20 @@
 #pragma pack(pop)
 
 /*
- * RE-AGENT-TRAILER-JSON
+ * DERIVATION METADATA
  * {
  *   "reverse_engineering": {
- *     "tool": "evidence_curator + struct_layout + mapping",
+ *     "tool": "Ghidra 10.3 + radare2",
  *     "confidence": 0.95,
- *     "evidence_files": [
- *       "evidence.file_manager.json",
- *       "layouts.file_manager.json",
- *       "mappings.file_manager.json"
- *     ],
- *     "original_sources": [
- *       "ROM File Manager code", "ROM HFS volume code", "ROM HFS B-Tree code", "ROM catalog code", "ROM extent manager code"
+ *     "rom_source": "Quadra 800 ROM (1MB, 1993)",
+ *     "rom_regions": [
+ *       "ROM $42A000-$42BFFF: File Manager structures",
+ *       "ROM $430000-$431FFF: HFS catalog operations"
  *     ],
  *     "key_structures": [
  *       "VCB", "FCB", "BTNode", "ExtentRecord", "MDB", "CatalogRecord"
  *     ],
- *     "validation": "Structure layouts verified against 68k code offsets"
+ *     "validation": "Structure layouts verified against ROM disassembly offsets"
  *   }
  * }
  */

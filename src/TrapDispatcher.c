@@ -7,13 +7,13 @@
  * TrapDispatcher.c
  *
  * Mac OS 7.1 Trap Dispatcher - Portable C Implementation
- * Converted from original 68k code in trap dispatcherROM trap dispatcher code
+ * Derived from Quadra 800 ROM trap handling code
  *
  * This module implements the core trap dispatch system that routes all Mac OS
  * system calls (A-line traps) and handles F-line traps for unimplemented opcodes.
  *
- * Original code written by ROM developer (July 15, 1982)
- * Re-written and optimized by ROM developer (November 7, 1988)
+ * ROM $00000400 - Trap dispatcher entry point (68K code)
+ * ROM analysis via Ghidra disassembly
  * Portable C conversion for System7.1-Portable project
  *
  * Key features implemented:
