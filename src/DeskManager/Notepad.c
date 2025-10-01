@@ -215,6 +215,7 @@ void Notepad_HandleEvent(EventRecord *event) {
             if (window == gNotepad->window) {
                 switch (part) {
                     case inContent:
+                    {
                         /* Check for page navigation clicks */
                         Point localPt = event->where;
                         GlobalToLocal(&localPt);
@@ -233,6 +234,7 @@ void Notepad_HandleEvent(EventRecord *event) {
                                    gNotepad->teRecord);
                         }
                         break;
+                    }
 
                     case inDrag:
                         DragWindow(window, event->where, &qd.screenBits.bounds);

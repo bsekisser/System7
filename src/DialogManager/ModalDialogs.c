@@ -518,10 +518,12 @@ static Boolean ProcessModalEvent(DialogPtr theDialog, EventRecord* theEvent, SIn
             break;
 
         default:
+        {
             /* Let dialog events module handle other events */
             SInt16 result = ProcessDialogEvent(theDialog, theEvent, &hit);
             handled = (result != kDialogEventResult_NotHandled);
             break;
+        }
     }
 
     if (itemHit) *itemHit = hit;
