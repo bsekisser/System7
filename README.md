@@ -10,6 +10,13 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 **Current State**: Active development, core functionality partially working
 
+### Recent Updates
+
+- ✅ **Fixed keyboard input pipeline**: PS/2 polling and event forwarding now fully functional
+- ✅ **Implemented cooperative multitasking**: Full WaitNextEvent implementation with sleep/idle support
+- ✅ **Added TextEdit integration**: Basic text editor with event handling and compilation fixes
+- ✅ **Clean-room Time Manager**: Microsecond precision timer scheduler based only on Inside Macintosh
+
 This is a proof-of-concept implementation focused on understanding and recreating System 7's architecture. Many features are incomplete, stubbed, or in various stages of development.
 
 ### What Works ✅
@@ -22,14 +29,19 @@ This is a proof-of-concept implementation focused on understanding and recreatin
   - Hard drive icon with proper rendering and compositing
   - Trash icon support
 - **Typography**: Chicago bitmap font with pixel-perfect rendering and proper kerning
-- **Input System**: PS/2 keyboard and mouse support with event handling
-- **Event Manager**: Unified event queue with mouse/keyboard event dispatching
+- **Input System**: PS/2 keyboard and mouse support with full event forwarding pipeline
+- **Event Manager**:
+  - Cooperative multitasking via WaitNextEvent
+  - Unified event queue with mouse/keyboard event dispatching
+  - Proper event mask filtering and sleep/idle support
 - **Resource System**: Pattern (PAT) and pixel pattern (ppat) resources from JSON
 - **Icon System**: Small icons (SICN) and 32-bit color icons (ARGB) with mask compositing
 - **Memory Manager**: Zone-based memory management (8MB total: System and App zones)
 - **Menu System**: Menu bar rendering with File, Edit, View, and Label menus
 - **File System**: HFS virtual file system with B-tree implementation and trash folder integration
 - **Window Manager Core**: Window structure, basic display, and event handling (see limitations below)
+- **Time Manager**: Clean-room implementation with microsecond precision timers
+- **TextEdit**: Basic text editor integration with event handling
 
 ### Partially Working ⚠️
 
@@ -76,7 +88,8 @@ This is a proof-of-concept implementation focused on understanding and recreatin
 - **Graphics**: VESA framebuffer, 800x600 @ 32-bit color
 - **Memory Layout**: Kernel loads at 1MB physical address
 - **Font Rendering**: Custom bitmap renderer with authentic Chicago font data
-- **Input**: PS/2 keyboard and mouse via port I/O
+- **Input**: PS/2 keyboard and mouse via port I/O with full event pipeline
+- **Timing**: RDTSC-based microsecond precision with Time Manager scheduler
 - **Toolbox Managers**: Modular implementation matching Inside Macintosh specifications
 
 ### Codebase Statistics
@@ -96,7 +109,7 @@ iteration2/
 │   ├── QuickDraw/              # 2D graphics primitives
 │   ├── WindowManager/          # Window management (8 modules)
 │   ├── MenuManager/            # Menu system (7 modules)
-│   ├── EventManager/           # Event handling (6 modules)
+│   ├── EventManager/           # Event handling & cooperative multitasking
 │   ├── MemoryMgr/              # Zone-based memory management
 │   ├── Finder/                 # Desktop & Finder implementation
 │   │   └── Icon/               # Icon system (5 modules)
@@ -105,6 +118,8 @@ iteration2/
 │   ├── DialogManager/          # Dialog boxes
 │   ├── DeskManager/            # Desk accessories
 │   ├── PatternMgr/             # Pattern resources
+│   ├── TimeManager/            # Clean-room timer scheduler (6 modules)
+│   ├── TextEdit/               # Text editing subsystem
 │   ├── FileManager.c           # File Manager API
 │   └── PS2Controller.c         # Hardware input driver
 ├── include/                    # Public headers (Inside Mac API)
