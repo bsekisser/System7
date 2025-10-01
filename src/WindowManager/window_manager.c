@@ -53,9 +53,10 @@ void InitWindows(void) {
     /* Initialize global state */
     g_windowList = NULL;
     g_frontWindow = NULL;
-    g_wMgrPort = NULL;
 
-    /*
+    /* CRITICAL: Initialize WMgrPort for menu/chrome drawing in global screen coordinates!
+     * portRect is local (0,0,width,height) and portBits.bounds is global (0,0,width,height).
+     * portBits.baseAddr = NULL means draw directly to screen framebuffer. */
     g_wMgrPort = (GrafPtr)malloc(sizeof(GrafPort));
     if (g_wMgrPort) {
         memset(g_wMgrPort, 0, sizeof(GrafPort));

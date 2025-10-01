@@ -132,12 +132,29 @@ static unsigned long GetCurrentTime(void);
  */
 long MenuSelect(Point startPt)
 {
+    /* CRITICAL: Menu drawing must use WMgrPort, NOT the current port!
+     * If a window port is active, its portBits.bounds offset will cause menus to render offset.
+     * The WMgrPort has portBits.bounds at screen coordinates (0,0,width,height). */
+    extern void GetPort(GrafPtr* port);
+    extern void SetPort(GrafPtr port);
+    extern void GetWMgrPort(GrafPtr* wmgrPort);
+
+    GrafPtr savedPort, wmgrPort;
+    GetPort(&savedPort);
+    GetWMgrPort(&wmgrPort);
+    /* MUST use WMgrPort for all menu drawing */
+    if (wmgrPort) {
+        SetPort(wmgrPort);
+    }
+
     serial_printf("MenuSelect: startPt = (h=%d, v=%d)\n", startPt.h, startPt.v);
 
     /* Simple implementation - just detect which menu was clicked */
     /* Check if click is in menu bar */
     if (startPt.v < 0 || startPt.v >= 20) {
         serial_printf("MenuSelect: Not in menu bar (v=%d)\n", startPt.v);
+        /* Restore port before returning */
+        if (savedPort) SetPort(savedPort);
         return 0;
     }
 
@@ -188,10 +205,15 @@ long MenuSelect(Point startPt)
 
         gLastMenuChoice = result;
         serial_printf("MenuSelect: Returning 0x%08lX\n", result);
+
+        /* Restore saved port before returning */
+        if (savedPort) SetPort(savedPort);
         return result;
     }
 
     serial_printf("MenuSelect: No menu found at (h=%d,v=%d)\n", startPt.h, startPt.v);
+    /* Restore saved port before returning */
+    if (savedPort) SetPort(savedPort);
     return 0;
 }
 
