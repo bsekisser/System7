@@ -69,11 +69,16 @@ static struct {
  */
 void InitEventDispatcher(void)
 {
+    extern void serial_puts(const char* s);
+    serial_puts("[INIT_DISP] InitEventDispatcher ENTRY\n");
+
     /* Zero entire structure to prevent partial-init regressions */
     memset(&g_dispatcher, 0, sizeof(g_dispatcher));
 
     /* Set non-zero initial values */
     g_dispatcher.initialized = true;
+
+    serial_puts("[INIT_DISP] InitEventDispatcher EXIT\n");
 }
 
 /**
@@ -83,13 +88,15 @@ void InitEventDispatcher(void)
  */
 Boolean DispatchEvent(EventRecord* event)
 {
+    extern void serial_puts(const char* s);
+
     if (!event || !g_dispatcher.initialized) {
+        serial_puts("[DISP] Early return\n");
         return false;
     }
 
     /* Entry log for all events */
-    serial_printf("DispatchEvent: type=%d at (%d,%d)\n",
-                  event->what, event->where.h, event->where.v);
+    serial_puts("[DISP] DispatchEvent called\n");
 
     switch (event->what) {
         case nullEvent:

@@ -262,6 +262,11 @@ void InvalRgn(RgnHandle badRgn) {
         Rect regionBounds;
         Platform_GetRegionBounds(badRgn, &regionBounds);
         Platform_InvalidateWindowRect(window, &regionBounds);
+
+        /* Post update event to Event Manager so application can redraw */
+        extern SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg);
+        PostEvent(6 /* updateEvt */, (SInt32)window);
+        serial_printf("WindowManager: InvalRgn - Posted updateEvt for window=0x%08x\n", (unsigned int)window);
     } else {
         serial_printf("WindowManager: InvalRgn - window has NULL updateRgn!\n");
     }
