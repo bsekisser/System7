@@ -602,10 +602,7 @@ void GetMouse(Point* mouseLoc) {
     }
 }
 
-/* Check if mouse button is pressed */
-Boolean Button(void) {
-    return (g_mouseState.buttons & 0x01) != 0;
-}
+/* Button() moved to MouseEvents.c - reads gCurrentButtons instead of hardware */
 
 /* Get keyboard state for Event Manager */
 Boolean GetPS2KeyboardState(KeyMap keyMap) {

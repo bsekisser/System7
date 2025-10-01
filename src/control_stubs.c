@@ -41,11 +41,7 @@ Handle NewHandleClear(Size byteCount) {
 }
 #endif
 
-/* Event Manager stub */
-Boolean StillDown(void) {
-    extern Boolean Button(void);
-    return Button();
-}
+/* StillDown() moved to MouseEvents.c - reads gCurrentButtons */
 
 /* Window Manager stubs */
 ControlHandle _GetFirstControl(WindowPtr window) {

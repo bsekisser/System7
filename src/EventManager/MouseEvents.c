@@ -301,10 +301,13 @@ void ShutdownMouseEvents(void)
 
 /**
  * Process raw mouse event
+ * DISABLED when MODERN_INPUT_ONLY=1 (ModernInput is the sole producer)
  */
 SInt16 ProcessRawMouseEvent(SInt16 x, SInt16 y, SInt16 buttonMask,
                             SInt16 modifiers, UInt32 timestamp)
 {
+#if !MODERN_INPUT_ONLY
+    /* Legacy producer - only active when MODERN_INPUT_ONLY is not defined */
     if (!g_mouseInitialized) {
         return 0;
     }
@@ -395,9 +398,33 @@ SInt16 ProcessRawMouseEvent(SInt16 x, SInt16 y, SInt16 buttonMask,
     }
 
     return eventsGenerated;
+#else
+    /* MODERN_INPUT_ONLY: ModernInput.c is the sole producer */
+    (void)x; (void)y; (void)buttonMask; (void)modifiers; (void)timestamp;
+    return 0;
+#endif
 }
 
 /* GetMouse is implemented in PS2Controller.c */
+
+/**
+ * Button - Check if primary mouse button is currently pressed
+ * Reads ModernInput's gCurrentButtons state (not hardware)
+ */
+Boolean Button(void)
+{
+    extern volatile UInt8 gCurrentButtons;
+    return (gCurrentButtons & 1) != 0;
+}
+
+/**
+ * StillDown - Check if mouse button is still pressed
+ * Same as Button() - reads ModernInput's state
+ */
+Boolean StillDown(void)
+{
+    return Button();
+}
 
 /**
  * Get mouse position in local coordinates
