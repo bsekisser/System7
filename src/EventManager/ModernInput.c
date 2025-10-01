@@ -14,6 +14,7 @@
 #include "EventManager/EventManager.h"
 #include "EventManager/EventTypes.h"
 #include "EventManager/EventStructs.h"
+#include "EventManager/EventGlobals.h"
 #include "EventManager/MouseEvents.h"
 #include "EventManager/KeyboardEvents.h"
 #include <string.h>
@@ -34,7 +35,6 @@ extern void PollPS2Input(void);
 static Point g_mousePos = {0, 0};
 static UInt8 g_mouseButtonState = 0;
 static KeyMap g_keyMapState = {0};
-static UInt32 g_doubleTime = 30;  /* Default double-click time in ticks */
 static EventMgrGlobals g_eventGlobals = {0};
 
 /**
@@ -57,13 +57,7 @@ void UpdateKeyboardState(const KeyMap newKeyMap)
     memcpy(g_eventGlobals.KeyMapState, newKeyMap, sizeof(KeyMap));
 }
 
-/**
- * Get double-click time
- */
-UInt32 GetDblTime(void)
-{
-    return g_doubleTime;
-}
+/* GetDblTime() is now provided by EventGlobals.c */
 
 /* Global input state */
 static struct {
@@ -94,12 +88,9 @@ static struct {
     0
 };
 
-/* Mouse button tracking for click detection */
-#define DOUBLE_CLICK_TIME 30  /* ticks (0.5 seconds) */
-#define DOUBLE_CLICK_RADIUS 5 /* pixels */
-
 /**
  * Check if two points are within double-click distance
+ * Uses global gDoubleClickSlop setting
  */
 static Boolean PointsNearby(Point p1, Point p2)
 {
@@ -109,7 +100,7 @@ static Boolean PointsNearby(Point p1, Point p2)
     if (dx < 0) dx = -dx;
     if (dy < 0) dy = -dy;
 
-    return (dx <= DOUBLE_CLICK_RADIUS && dy <= DOUBLE_CLICK_RADIUS);
+    return (dx <= gDoubleClickSlop && dy <= gDoubleClickSlop);
 }
 
 /**
@@ -152,17 +143,35 @@ SInt16 InitModernInput(const char* platform)
 }
 
 /**
+ * EventPumpYield - Pump input events in modal loops
+ * Call this in modal tracking loops (drag, resize, etc.) to ensure
+ * mouse button transitions are not missed
+ */
+void EventPumpYield(void)
+{
+    ProcessModernInput();
+}
+
+/**
  * Process modern input events
  * Should be called regularly from main event loop
  */
 void ProcessModernInput(void)
 {
+    static int entryCount = 0;
+    entryCount++;
+
+    /* ALWAYS log first 5 calls and every 60th */
+    if (entryCount <= 5 || entryCount % 60 == 0) {
+        serial_printf("[MI] ProcessModernInput ENTRY #%d\n", entryCount);
+    }
+
     Point currentMousePos;
     UInt8 currentButtonState;
     KeyMap currentKeyMap;
-    EventRecord newEvent;
 
     if (!g_modernInput.initialized) {
+        serial_printf("[MI] NOT INITIALIZED, returning early!\n");
         return;
     }
 
@@ -185,6 +194,18 @@ void ProcessModernInput(void)
     currentMousePos = g_mousePos;
     currentButtonState = g_mouseState.buttons;
 
+    /* Update global button state for Button()/StillDown() */
+    extern volatile UInt8 gCurrentButtons;
+    gCurrentButtons = currentButtonState;
+
+    /* Debug: Log button states on every call */
+    static int pollCount = 0;
+    pollCount++;
+    if (pollCount % 60 == 0) {  /* Every ~1 second at 60Hz */
+        serial_printf("[MI] Poll #%d: curr=%d, last=%d\n",
+                     pollCount, currentButtonState, g_modernInput.lastButtonState);
+    }
+
     /* Get keyboard state from PS2Controller */
     extern Boolean GetPS2KeyboardState(KeyMap keyMap);
     if (!GetPS2KeyboardState(currentKeyMap)) {
@@ -203,43 +224,63 @@ void ProcessModernInput(void)
     }
 
     /* Check for mouse button changes */
+    static int btnChangeCount = 0;
     if (currentButtonState != g_modernInput.lastButtonState) {
+        btnChangeCount++;
+        serial_printf("[MI] Button change #%d: curr=%d, last=%d\n",
+                     btnChangeCount, currentButtonState, g_modernInput.lastButtonState);
+
         UInt32 currentTime = TickCount();
 
         if ((currentButtonState & 1) && !(g_modernInput.lastButtonState & 1)) {
-            /* Mouse button pressed */
+            /* Mouse button pressed - down transition */
 
-            /* Check for double/triple click */
-            if ((currentTime - g_modernInput.lastClickTime) <= DOUBLE_CLICK_TIME &&
-                PointsNearby(currentMousePos, g_modernInput.lastClickPos)) {
-                g_modernInput.clickCount++;
-                if (g_modernInput.clickCount > 3) {
-                    g_modernInput.clickCount = 1;
-                }
+            /* Check for multi-click using GetDblTime() and gDoubleClickSlop */
+            UInt32 dt = currentTime - g_modernInput.lastClickTime;
+            UInt32 threshold = GetDblTime();
+            SInt16 dx = currentMousePos.h - g_modernInput.lastClickPos.h;
+            SInt16 dy = currentMousePos.v - g_modernInput.lastClickPos.v;
+            if (dx < 0) dx = -dx;
+            if (dy < 0) dy = -dy;
+
+            if (dt <= threshold && dx <= gDoubleClickSlop && dy <= gDoubleClickSlop) {
+                /* Within time and distance - increment click count (cap at 3) */
+                g_modernInput.clickCount = (g_modernInput.clickCount < 3)
+                    ? (g_modernInput.clickCount + 1) : 3;
             } else {
+                /* Outside window - reset to single click */
                 g_modernInput.clickCount = 1;
             }
 
             /* Update Event Manager mouse position BEFORE posting event */
             UpdateMouseState(currentMousePos, currentButtonState);
 
-            /* Generate mouse down event - don't truncate coordinates! */
-            /* Click count in high word, full position preserved elsewhere */
+            /* Generate mouseDown event with classic System 7 encoding:
+             * message = (clickCount << 16) | (SInt16)partCode
+             * High word: click count (1, 2, or 3)
+             * Low word: part code (0 for desktop by default)
+             */
             if (!gInMouseTracking) {
-                SInt32 message = ((SInt32)g_modernInput.clickCount << 16);
+                SInt16 partCode = 0;  /* Desktop default; FindWindow may update later */
+                SInt32 message = ((SInt32)g_modernInput.clickCount << 16) | (SInt16)partCode;
                 PostEvent(mouseDown, message);
             }
 
+            /* Update last click time and position */
             g_modernInput.lastClickTime = currentTime;
             g_modernInput.lastClickPos = currentMousePos;
 
         } else if (!(currentButtonState & 1) && (g_modernInput.lastButtonState & 1)) {
-            /* Mouse button released */
+            /* Mouse button released - up transition */
             /* Update position before posting event */
             UpdateMouseState(currentMousePos, currentButtonState);
             if (!gInMouseTracking) {
-                PostEvent(mouseUp, 0);
+                /* mouseUp: same encoding as mouseDown - high word = click count */
+                SInt16 partCode = 0;
+                SInt32 message = ((SInt32)g_modernInput.clickCount << 16) | (SInt16)partCode;
+                PostEvent(mouseUp, message);
             }
+            /* Do NOT reset clickCount on mouseUp - next mouseDown decides based on time+slop */
         }
 
         g_modernInput.lastButtonState = currentButtonState;
