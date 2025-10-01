@@ -692,12 +692,21 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     Rect prevGhost = ghost;
 
     int loopCount = 0;
-    const int kMaxDragLoops = 3000;  /* Safety timeout: ~5 seconds at 60Hz */
-    while (StillDown() && loopCount < kMaxDragLoops) {
+    const int kMaxDragLoops = 300;  /* Safety timeout: ~0.5 seconds at 60Hz */
+    extern volatile UInt8 gCurrentButtons;
+
+    while (loopCount < kMaxDragLoops) {
         Point cur;
         DesktopYield();  /* Pump input each iteration */
-        if (++loopCount % 100 == 0) {
-            extern volatile UInt8 gCurrentButtons;
+        loopCount++;
+
+        /* Check button state directly to work around PS/2 emulation issues */
+        if (gCurrentButtons == 0) {
+            serial_printf("TrackIconDragSync: Button released (loop=%d)\n", loopCount);
+            break;
+        }
+
+        if (loopCount % 100 == 0) {
             serial_printf("TrackIconDragSync: loop %d, gCurrentButtons=0x%02x\n", loopCount, gCurrentButtons);
         }
         GetMouse(&cur);
