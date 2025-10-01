@@ -166,7 +166,7 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
 {
     GrafPtr savePort;
     GetPort(&savePort);
-    SetPort(&qd.thePort);  /* Draw to screen port */
+    SetPort(qd.thePort);  /* Draw to screen port - FIX: qd.thePort is already a GrafPtr */
 
     /* Clip to the invalid region */
     SetClip(invalidRgn);
@@ -238,7 +238,16 @@ void ArrangeDesktopIcons(void)
  */
 void DrawDesktop(void)
 {
+    static Boolean gInDesktopPaint = false;
     RgnHandle desktopRgn;
+
+    /* Re-entrancy guard: prevent recursive painting */
+    if (gInDesktopPaint) {
+        extern void serial_printf(const char* fmt, ...);
+        serial_printf("DrawDesktop: re-entry detected, skipping to avoid freeze\n");
+        return;
+    }
+    gInDesktopPaint = true;
 
     /* Register our DeskHook with Window Manager */
     SetDeskHook(Finder_DeskHook);
@@ -256,6 +265,7 @@ void DrawDesktop(void)
     InvalRect(&qd.screenBits.bounds);
 
     DisposeRgn(desktopRgn);
+    gInDesktopPaint = false;
 }
 
 /*
@@ -682,7 +692,7 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
 
     /* Enter drag: draw translucent icon following cursor (QEMU-compatible) */
     GetPort(&savePort);
-    SetPort(&qd.thePort);
+    SetPort(qd.thePort);  /* FIX: qd.thePort is already a GrafPtr */
 
     /* Draw initial ghost outline */
     InvertIconOutline(&ghost);
@@ -695,41 +705,24 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     const int kMaxDragLoops = 300;  /* Safety timeout: ~0.5 seconds at 60Hz */
     extern volatile UInt8 gCurrentButtons;
 
-    /* No-movement detection for PS/2 stall recovery */
-    Point lastMovedPos = p;
-    int noMoveCount = 0;
-    const int kMaxNoMove = 20;  /* Force exit if no movement for 20 iterations */
-    int dx, dy;  /* Declare outside loop to avoid repeated stack allocation */
+    /* DISABLED: No-movement detection was triggering false positives during legitimate drags */
+    /* Point lastMovedPos = p; */
+    /* int noMoveCount = 0; */
+    /* const int kMaxNoMove = 20; */
+    /* int dx, dy; */
 
     while (loopCount < kMaxDragLoops) {
         Point cur;
         DesktopYield();  /* Pump input each iteration */
         loopCount++;
 
-        /* Check button state directly to work around PS/2 emulation issues */
+        /* Check button state directly - immediate exit on release */
         if (gCurrentButtons == 0) {
             serial_printf("TrackIconDragSync: Button released (loop=%d)\n", loopCount);
             break;
         }
 
         GetMouse(&cur);
-
-        /* Check for movement stall */
-        dx = cur.h - lastMovedPos.h;
-        dy = cur.v - lastMovedPos.v;
-        if (dx < 0) dx = -dx;
-        if (dy < 0) dy = -dy;
-
-        if (dx < 1 && dy < 1) {
-            noMoveCount++;
-            if (noMoveCount >= kMaxNoMove) {
-                serial_printf("TrackIconDragSync: cancelled (no-release / no-move)\n");
-                break;
-            }
-        } else {
-            noMoveCount = 0;
-            lastMovedPos = cur;
-        }
 
         if (cur.h != p.h || cur.v != p.v) {
             /* Erase old ghost outline */
@@ -756,6 +749,8 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
             UnionRect(&dirtyRect, &ghost, &dirtyRect);
             InsetRect(&dirtyRect, -4, -4);
 
+            /* DISABLED: Full desktop redraw during drag is too slow and causes freeze */
+            #if 0
             /* Erase dirty region - just redraw desktop for now */
             DrawDesktop();
 
@@ -769,6 +764,7 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
             /* Force display update for smoother dragging */
             extern void QDPlatform_FlushScreen(void);
             QDPlatform_FlushScreen();
+            #endif
 
             /* Draw new ghost outline on top */
             InvertIconOutline(&ghost);
@@ -799,19 +795,26 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
 
     /* Redraw entire desktop to clear old position */
     SetPort(savePort);
-    DrawDesktop();
-    DrawVolumeIcon();
+
+    /* Post updateEvt to defer desktop redraw to event loop (avoids re-entrancy freeze) */
+    extern OSErr PostEvent(EventKind eventNum, UInt32 eventMsg);
+    PostEvent(updateEvt, 0);  /* NULL window = desktop/background */
+    serial_printf("TrackIconDragSync: posted updateEvt for deferred desktop redraw\n");
 
     /* Clear tracking guard and drag flag */
+    serial_printf("TrackIconDragSync: clearing tracking flags\n");
     gDraggingIconIndex = -1;
     gInMouseTracking = false;
 
     /* Drain any queued mouseUp that may have been posted anyway */
+    serial_printf("TrackIconDragSync: checking for queued mouseUp\n");
     EventRecord e;
     if (EventAvail(mUpMask, &e)) {
+        serial_printf("TrackIconDragSync: draining mouseUp event\n");
         EventRecord dump;
         GetNextEvent(mUpMask, &dump);
     }
+    serial_printf("TrackIconDragSync: EXIT\n");
 }
 
 /*
@@ -1007,6 +1010,7 @@ OSErr InitializeVolumeIcon(void)
  */
 void DrawVolumeIcon(void)
 {
+    static Boolean gInVolumeIconPaint = false;
     Point volumePos = {0, 0};
     VolumeControlBlock vcb;
     char volumeName[256];
@@ -1016,8 +1020,16 @@ void DrawVolumeIcon(void)
     extern void serial_printf(const char* fmt, ...);
     serial_printf("DrawVolumeIcon: ENTRY\n");
 
+    /* Re-entrancy guard: prevent recursive painting */
+    if (gInVolumeIconPaint) {
+        serial_printf("DrawVolumeIcon: re-entry detected, skipping to avoid freeze\n");
+        return;
+    }
+    gInVolumeIconPaint = true;
+
     if (!gVolumeIconVisible) {
         serial_printf("DrawVolumeIcon: not visible, returning\n");
+        gInVolumeIconPaint = false;
         return;
     }
 
@@ -1094,8 +1106,11 @@ void DrawVolumeIcon(void)
         }
         /* Future: handle kDesktopItemFile, kDesktopItemFolder, etc. */
     }
-    serial_printf("DrawVolumeIcon: EXIT\n");
+    serial_printf("DrawVolumeIcon: about to return\n");
+    gInVolumeIconPaint = false;
+    return;  /* Explicit return for debugging */
 }
+/* DrawVolumeIcon function ends here */
 
 /*
  * HandleDesktopClick - Check if a click is on a desktop icon and handle it
@@ -1161,19 +1176,11 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
     gSelectedIcon = hitIcon;
 
     if (prevSelected != gSelectedIcon) {
-        serial_printf("Selection changed, invalidating icon regions\n");
-        /* Invalidate only the affected icon regions instead of redrawing entire desktop */
-        if (prevSelected >= 0 && prevSelected < gDesktopIconCount) {
-            Rect prevRect;
-            UpdateIconRect(prevSelected, &prevRect);
-            InvalRect(&prevRect);
-        }
-        if (gSelectedIcon >= 0 && gSelectedIcon < gDesktopIconCount) {
-            Rect newRect;
-            UpdateIconRect(gSelectedIcon, &newRect);
-            InvalRect(&newRect);
-        }
-        serial_printf("Icon regions invalidated\n");
+        serial_printf("Selection changed %d → %d, posting updateEvt for deferred redraw\n",
+                     prevSelected, gSelectedIcon);
+        /* Post updateEvt to defer redraw to event loop (avoids re-entrancy freeze) */
+        extern OSErr PostEvent(EventKind eventNum, UInt32 eventMsg);
+        PostEvent(updateEvt, 0);  /* NULL window = desktop/background */
     }
 
     /* Start synchronous modal drag tracking immediately (only for single clicks) */
@@ -1327,19 +1334,12 @@ void SelectNextDesktopIcon(void)
     short prevSelected = gSelectedIcon;
     gSelectedIcon = (gSelectedIcon + 1) % gDesktopIconCount;
 
-    serial_printf("SelectNextDesktopIcon: selected icon %d\n", gSelectedIcon);
+    serial_printf("SelectNextDesktopIcon: selected %d → %d, posting updateEvt\n",
+                 prevSelected, gSelectedIcon);
 
-    /* Invalidate icon regions to show selection change */
-    if (prevSelected >= 0 && prevSelected < gDesktopIconCount) {
-        Rect prevRect;
-        UpdateIconRect(prevSelected, &prevRect);
-        InvalRect(&prevRect);
-    }
-    if (gSelectedIcon >= 0 && gSelectedIcon < gDesktopIconCount) {
-        Rect newRect;
-        UpdateIconRect(gSelectedIcon, &newRect);
-        InvalRect(&newRect);
-    }
+    /* Post updateEvt to defer redraw to event loop (avoids re-entrancy freeze) */
+    extern OSErr PostEvent(EventKind eventNum, UInt32 eventMsg);
+    PostEvent(updateEvt, 0);  /* NULL window = desktop/background */
 }
 
 /*
