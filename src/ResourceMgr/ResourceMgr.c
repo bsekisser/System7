@@ -17,6 +17,50 @@ extern void HUnlock(Handle h);
 extern void BlockMove(const void* srcPtr, void* destPtr, Size byteCount);
 extern void serial_puts(const char* s);
 
+/* Resource index for fast lookups */
+typedef struct {
+    ResType type;
+    UInt16 firstRefIndex;
+    UInt16 count;
+} TypeIndex;
+
+typedef struct {
+    ResType type;
+    ResID id;
+    UInt32 refOffset;  /* Offset of RefListEntry in map */
+    UInt16 nameOffset;  /* For named resource lookups */
+} RefIndex;
+
+static TypeIndex *gTypeIdx = NULL;
+static UInt32 gTypeIdxCount = 0;
+static RefIndex *gRefIdx = NULL;
+static UInt32 gRefIdxCount = 0;
+
+/* Resource cache to avoid duplicate loads */
+#define RM_CACHE_CAP 256
+typedef struct {
+    ResType type;
+    ResID id;
+    Handle h;
+} CacheEntry;
+
+static CacheEntry gCache[RM_CACHE_CAP];
+static UInt32 gCacheCount = 0;
+
+/* Side-table for handle metadata */
+#define RM_HANDLE_CAP 512
+typedef struct {
+    Handle h;
+    ResType type;
+    ResID id;
+    UInt16 nameOffset;
+    UInt32 dataLen;
+    SInt16 homeFile;
+} HandleInfo;
+
+static HandleInfo gHandleInfo[RM_HANDLE_CAP];
+static UInt32 gHandleCount = 0;
+
 /* Global state */
 static ResourceMgrGlobals gResMgr = {
     .curResFile = -1,
@@ -45,6 +89,139 @@ void write_be32(UInt8* p, UInt32 val) {
     p[1] = (val >> 16) & 0xFF;
     p[2] = (val >> 8) & 0xFF;
     p[3] = val & 0xFF;
+}
+
+/* Shell sort for resource index (no qsort in freestanding) */
+static void SortRefIndex(RefIndex* arr, UInt32 n) {
+    UInt32 gap, i, j;
+    RefIndex temp;
+
+    for (gap = n/2; gap > 0; gap /= 2) {
+        for (i = gap; i < n; i++) {
+            temp = arr[i];
+            for (j = i; j >= gap; j -= gap) {
+                /* Compare (type,id) pairs */
+                if (arr[j-gap].type > temp.type ||
+                    (arr[j-gap].type == temp.type && arr[j-gap].id > temp.id)) {
+                    arr[j] = arr[j-gap];
+                } else {
+                    break;
+                }
+            }
+            arr[j] = temp;
+        }
+    }
+}
+
+/* Binary search for type in index */
+static SInt32 FindTypeIndex(ResType type) {
+    SInt32 left = 0, right = gTypeIdxCount - 1;
+
+    while (left <= right) {
+        SInt32 mid = (left + right) / 2;
+        if (gTypeIdx[mid].type == type) {
+            return mid;
+        } else if (gTypeIdx[mid].type < type) {
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
+    }
+    return -1;  /* Not found */
+}
+
+/* Binary search for resource in index */
+static SInt32 FindRefIndex(ResType type, ResID id) {
+    SInt32 left = 0, right = gRefIdxCount - 1;
+
+    while (left <= right) {
+        SInt32 mid = (left + right) / 2;
+        if (gRefIdx[mid].type < type ||
+            (gRefIdx[mid].type == type && gRefIdx[mid].id < id)) {
+            left = mid + 1;
+        } else if (gRefIdx[mid].type > type ||
+                   (gRefIdx[mid].type == type && gRefIdx[mid].id > id)) {
+            right = mid - 1;
+        } else {
+            return mid;  /* Found */
+        }
+    }
+    return -1;  /* Not found */
+}
+
+/* Cache operations */
+static Handle CacheLookup(ResType type, ResID id) {
+    /* Simple hash with linear probing */
+    UInt32 hash = ((type << 16) ^ id) % RM_CACHE_CAP;
+    UInt32 i;
+
+    for (i = 0; i < RM_CACHE_CAP; i++) {
+        UInt32 idx = (hash + i) % RM_CACHE_CAP;
+        if (gCache[idx].h && gCache[idx].type == type && gCache[idx].id == id) {
+            return gCache[idx].h;
+        }
+        if (!gCache[idx].h) {
+            break;  /* Empty slot, not found */
+        }
+    }
+    return NULL;
+}
+
+static void CacheInsert(ResType type, ResID id, Handle h) {
+    if (gCacheCount >= RM_CACHE_CAP) return;  /* Cache full */
+
+    UInt32 hash = ((type << 16) ^ id) % RM_CACHE_CAP;
+    UInt32 i;
+
+    for (i = 0; i < RM_CACHE_CAP; i++) {
+        UInt32 idx = (hash + i) % RM_CACHE_CAP;
+        if (!gCache[idx].h) {
+            gCache[idx].type = type;
+            gCache[idx].id = id;
+            gCache[idx].h = h;
+            gCacheCount++;
+            break;
+        }
+    }
+}
+
+/* Handle info operations */
+static void RecordHandleInfo(Handle h, ResType type, ResID id, UInt16 nameOff, UInt32 dataLen, SInt16 homeFile) {
+    if (gHandleCount >= RM_HANDLE_CAP) return;
+
+    /* Linear probe hash table */
+    UInt32 hash = ((UInt32)(uintptr_t)h >> 4) % RM_HANDLE_CAP;
+    UInt32 i;
+
+    for (i = 0; i < RM_HANDLE_CAP; i++) {
+        UInt32 idx = (hash + i) % RM_HANDLE_CAP;
+        if (!gHandleInfo[idx].h) {
+            gHandleInfo[idx].h = h;
+            gHandleInfo[idx].type = type;
+            gHandleInfo[idx].id = id;
+            gHandleInfo[idx].nameOffset = nameOff;
+            gHandleInfo[idx].dataLen = dataLen;
+            gHandleInfo[idx].homeFile = homeFile;
+            gHandleCount++;
+            break;
+        }
+    }
+}
+
+static HandleInfo* FindHandleInfo(Handle h) {
+    UInt32 hash = ((UInt32)(uintptr_t)h >> 4) % RM_HANDLE_CAP;
+    UInt32 i;
+
+    for (i = 0; i < RM_HANDLE_CAP; i++) {
+        UInt32 idx = (hash + i) % RM_HANDLE_CAP;
+        if (gHandleInfo[idx].h == h) {
+            return &gHandleInfo[idx];
+        }
+        if (!gHandleInfo[idx].h) {
+            break;
+        }
+    }
+    return NULL;
 }
 
 /* Initialize Resource Manager */
@@ -77,9 +254,120 @@ void InitResourceManager(void) {
         ResourceHeader* hdr = (ResourceHeader*)gResMgr.resFiles[0].data;
         UInt32 mapOffset = read_be32((UInt8*)&hdr->mapOffset);
 
+        /* Bounds check map offset */
         if (mapOffset + sizeof(ResMapHeader) <= gResMgr.resFiles[0].dataSize) {
-            gResMgr.resFiles[0].map = (ResMapHeader*)(gResMgr.resFiles[0].data + mapOffset);
+            ResMapHeader* map = (ResMapHeader*)(gResMgr.resFiles[0].data + mapOffset);
+            gResMgr.resFiles[0].map = map;
             serial_puts("[ResourceMgr] Resource map loaded successfully\n");
+
+            /* Build index for fast lookups */
+            UInt16 typeListOff = read_be16((UInt8*)&map->typeListOffset);
+            UInt16 nameListOff = read_be16((UInt8*)&map->nameListOffset);
+            UInt32 mapSize = gResMgr.resFiles[0].dataSize - mapOffset;
+            gResMgr.resFiles[0].mapSize = mapSize;
+
+            /* Validate offsets - Inside Macintosh: offsets are from map start */
+            if (typeListOff != 0xFFFF && typeListOff + 2 <= mapSize &&
+                (nameListOff == 0xFFFF || nameListOff < mapSize)) {
+
+                UInt8* typeList = (UInt8*)map + typeListOff;
+                UInt16 numTypes = read_be16(typeList) + 1;
+
+                /* Bounds check: ensure type list fits in map */
+                UInt32 typeListSize = 2 + (numTypes * sizeof(TypeListEntry));
+                if (typeListOff + typeListSize > mapSize) {
+                    serial_puts("[ResourceMgr] Warning: Type list exceeds map bounds\n");
+                    gResMgr.resError = mapReadErr;
+                    return;
+                }
+
+                typeList += 2;
+
+                /* Count total resources for index allocation */
+                UInt32 totalRefs = 0;
+                for (i = 0; i < numTypes; i++) {
+                    TypeListEntry* te = (TypeListEntry*)(typeList + i * sizeof(TypeListEntry));
+                    UInt16 count = read_be16((UInt8*)&te->count) + 1;
+                    UInt16 refListOff = read_be16((UInt8*)&te->refListOffset);
+
+                    /* Bounds check reference list */
+                    UInt32 refListStart = typeListOff + refListOff;
+                    UInt32 refListSize = count * sizeof(RefListEntry);
+                    if (refListStart + refListSize > mapSize) {
+                        serial_puts("[ResourceMgr] Warning: Reference list exceeds map bounds\n");
+                        continue;
+                    }
+
+                    totalRefs += count;
+                }
+
+                /* Allocate index arrays */
+                Handle typeIdxH = NewHandle(numTypes * sizeof(TypeIndex));
+                Handle refIdxH = NewHandle(totalRefs * sizeof(RefIndex));
+
+                if (typeIdxH && refIdxH) {
+                    HLock(typeIdxH);
+                    HLock(refIdxH);
+                    gTypeIdx = (TypeIndex*)*typeIdxH;
+                    gRefIdx = (RefIndex*)*refIdxH;
+                    gTypeIdxCount = numTypes;
+                    gRefIdxCount = 0;
+
+                    /* Build index */
+                    for (i = 0; i < numTypes; i++) {
+                        TypeListEntry* te = (TypeListEntry*)(typeList + i * sizeof(TypeListEntry));
+                        ResType resType = read_be32((UInt8*)&te->resType);
+                        UInt16 count = read_be16((UInt8*)&te->count) + 1;
+                        UInt16 refListOff = read_be16((UInt8*)&te->refListOffset);
+
+                        gTypeIdx[i].type = resType;
+                        gTypeIdx[i].firstRefIndex = gRefIdxCount;
+                        gTypeIdx[i].count = count;
+
+                        /* Index all resources of this type */
+                        /* Reference list offset is from start of type list (Inside Macintosh rule) */
+                        UInt32 refListStart = typeListOff + refListOff;
+
+                        /* Skip if reference list is out of bounds */
+                        if (refListStart + count * sizeof(RefListEntry) > mapSize) {
+                            continue;
+                        }
+
+                        UInt8* refList = (UInt8*)map + refListStart;
+
+                        for (int j = 0; j < count; j++) {
+                            RefListEntry* ref = (RefListEntry*)(refList + j * sizeof(RefListEntry));
+                            ResID id = (ResID)read_be16((UInt8*)&ref->resID);
+                            UInt16 nameOff = read_be16((UInt8*)&ref->nameOffset);
+
+                            /* Validate name offset */
+                            if (nameOff != 0xFFFF && nameListOff != 0xFFFF) {
+                                UInt32 actualNameOff = nameListOff + nameOff;
+                                if (actualNameOff >= mapSize) {
+                                    nameOff = 0xFFFF;  /* Invalid name, mark as none */
+                                }
+                            }
+
+                            gRefIdx[gRefIdxCount].type = resType;
+                            gRefIdx[gRefIdxCount].id = id;
+                            gRefIdx[gRefIdxCount].refOffset = (UInt8*)ref - (UInt8*)map;
+                            gRefIdx[gRefIdxCount].nameOffset = nameOff;
+                            gRefIdxCount++;
+                        }
+                    }
+
+                    /* Sort reference index for binary search */
+                    SortRefIndex(gRefIdx, gRefIdxCount);
+
+                    serial_puts("[ResourceMgr] Built index for ");
+                    /* Would print count but no printf in freestanding */
+                    serial_puts(" resources\n");
+                } else {
+                    serial_puts("[ResourceMgr] Warning: Could not allocate index\n");
+                }
+            } else {
+                serial_puts("[ResourceMgr] Warning: Invalid type/name list offsets\n");
+            }
         } else {
             serial_puts("[ResourceMgr] Warning: Invalid resource map offset\n");
         }
@@ -129,17 +417,36 @@ TypeListEntry* ResMap_FindType(ResFile* file, ResType type) {
     UInt8* typeList;
     int i;
 
-    if (!file || !file->map) return NULL;
+    if (!file || !file->map) {
+        gResMgr.resError = mapReadErr;
+        return NULL;
+    }
 
     map = file->map;
     typeListOff = read_be16((UInt8*)&map->typeListOffset);
 
-    if (typeListOff == 0 || typeListOff >= gResMgr.resFiles[0].dataSize) {
+    /* Bounds check: validate type list offset */
+    if (typeListOff == 0xFFFF || typeListOff >= file->mapSize) {
+        gResMgr.resError = mapReadErr;
+        return NULL;
+    }
+
+    /* Bounds check: ensure we can read the count */
+    if (typeListOff + 2 > file->mapSize) {
+        gResMgr.resError = mapReadErr;
         return NULL;
     }
 
     typeList = (UInt8*)map + typeListOff;
     numTypes = read_be16(typeList) + 1;  /* Count is stored as n-1 */
+
+    /* Bounds check: ensure type list entries fit in map */
+    UInt32 typeListSize = 2 + (numTypes * sizeof(TypeListEntry));
+    if (typeListOff + typeListSize > file->mapSize) {
+        gResMgr.resError = mapReadErr;
+        return NULL;
+    }
+
     typeList += 2;  /* Skip count */
 
     for (i = 0; i < numTypes; i++) {
@@ -161,6 +468,11 @@ RefListEntry* ResMap_FindResource(ResFile* file, ResType type, ResID id) {
     UInt8* refList;
     int i;
 
+    if (!file || !file->map) {
+        gResMgr.resError = mapReadErr;
+        return NULL;
+    }
+
     typeEntry = ResMap_FindType(file, type);
     if (!typeEntry) return NULL;
 
@@ -170,7 +482,22 @@ RefListEntry* ResMap_FindResource(ResFile* file, ResType type, ResID id) {
     /* Reference list offset is from start of type list */
     ResMapHeader* map = file->map;
     UInt16 typeListOff = read_be16((UInt8*)&map->typeListOffset);
-    refList = (UInt8*)map + typeListOff + refListOff;
+
+    /* Bounds check: ensure type list offset is valid */
+    if (typeListOff == 0xFFFF || typeListOff >= file->mapSize) {
+        gResMgr.resError = mapReadErr;
+        return NULL;
+    }
+
+    /* Bounds check: ensure reference list is within map */
+    UInt32 refListStart = typeListOff + refListOff;
+    UInt32 refListSize = count * sizeof(RefListEntry);
+    if (refListStart >= file->mapSize || refListStart + refListSize > file->mapSize) {
+        gResMgr.resError = mapReadErr;
+        return NULL;
+    }
+
+    refList = (UInt8*)map + refListStart;
 
     for (i = 0; i < count; i++) {
         RefListEntry* ref = (RefListEntry*)(refList + i * sizeof(RefListEntry));
@@ -199,9 +526,17 @@ Handle ResFile_LoadResource(ResFile* file, RefListEntry* ref) {
     /* Offset is from start of resource data section */
     ResourceHeader* hdr = (ResourceHeader*)file->data;
     UInt32 dataBase = read_be32((UInt8*)&hdr->dataOffset);
+
+    /* Validate dataBase first */
+    if (dataBase >= file->dataSize || dataBase + 4 > file->dataSize) {
+        gResMgr.resError = mapReadErr;
+        return NULL;
+    }
+
     UInt32 actualOffset = dataBase + dataOffset;
 
-    if (actualOffset + sizeof(ResourceDataEntry) > file->dataSize) {
+    /* Check for overflow and bounds */
+    if (actualOffset < dataBase || actualOffset + sizeof(ResourceDataEntry) > file->dataSize) {
         gResMgr.resError = mapReadErr;
         return NULL;
     }
@@ -235,26 +570,54 @@ Handle GetResource(ResType theType, ResID theID) {
     RefListEntry* ref = NULL;
     ResFile* file = NULL;
 
-    /* Search all open resource files, starting with current */
-    for (i = gResMgr.curResFile; i >= 0; i--) {
-        if (!gResMgr.resFiles[i].inUse) continue;
+    /* Check cache first for fast hit */
+    Handle cached = CacheLookup(theType, theID);
+    if (cached) {
+        gResMgr.resError = noErr;
+        return cached;
+    }
 
-        ref = ResMap_FindResource(&gResMgr.resFiles[i], theType, theID);
-        if (ref) {
-            file = &gResMgr.resFiles[i];
-            break;
+    /* Try using index for O(log n) lookup if available */
+    if (gRefIdxCount > 0) {
+        SInt32 idx = FindRefIndex(theType, theID);
+        if (idx >= 0) {
+            /* Found in index - get the resource from any open file */
+            for (i = gResMgr.curResFile; i >= 0; i--) {
+                if (!gResMgr.resFiles[i].inUse) continue;
+
+                /* Check if this file has the resource at the indexed offset */
+                ref = ResMap_FindResource(&gResMgr.resFiles[i], theType, theID);
+                if (ref) {
+                    file = &gResMgr.resFiles[i];
+                    break;
+                }
+            }
         }
     }
 
-    /* If not found in current chain, search other files */
+    /* Fall back to linear search if not found via index */
     if (!ref) {
-        for (i = 0; i < MAX_RES_FILES; i++) {
-            if (!gResMgr.resFiles[i].inUse || i == gResMgr.curResFile) continue;
+        /* Search all open resource files, starting with current */
+        for (i = gResMgr.curResFile; i >= 0; i--) {
+            if (!gResMgr.resFiles[i].inUse) continue;
 
             ref = ResMap_FindResource(&gResMgr.resFiles[i], theType, theID);
             if (ref) {
                 file = &gResMgr.resFiles[i];
                 break;
+            }
+        }
+
+        /* If not found in current chain, search other files */
+        if (!ref) {
+            for (i = 0; i < MAX_RES_FILES; i++) {
+                if (!gResMgr.resFiles[i].inUse || i == gResMgr.curResFile) continue;
+
+                ref = ResMap_FindResource(&gResMgr.resFiles[i], theType, theID);
+                if (ref) {
+                    file = &gResMgr.resFiles[i];
+                    break;
+                }
             }
         }
     }
@@ -268,6 +631,8 @@ Handle GetResource(ResType theType, ResID theID) {
     Handle h = (Handle)(uintptr_t)ref->reserved;
     if (h) {
         gResMgr.resError = noErr;
+        /* Update cache for next lookup */
+        CacheInsert(theType, theID, h);
         return h;
     }
 
@@ -277,6 +642,23 @@ Handle GetResource(ResType theType, ResID theID) {
         if (h) {
             /* Cache the handle (cast through uintptr_t for safety) */
             ref->reserved = (UInt32)(uintptr_t)h;
+
+            /* Get data length and name offset for metadata */
+            UInt32 dataOffset = ((UInt32)ref->dataOffsetHi << 16) |
+                               read_be16((UInt8*)&ref->dataOffsetLo);
+            ResourceHeader* hdr = (ResourceHeader*)file->data;
+            UInt32 dataBase = read_be32((UInt8*)&hdr->dataOffset);
+            UInt32 actualOffset = dataBase + dataOffset;
+            ResourceDataEntry* dataEntry = (ResourceDataEntry*)(file->data + actualOffset);
+            UInt32 dataLength = read_be32((UInt8*)&dataEntry->length);
+
+            /* Get name offset if resource has a name */
+            UInt16 nameOff = ref->nameOffset != 0xFFFF ?
+                            read_be16((UInt8*)&ref->nameOffset) : 0;
+
+            /* Insert into cache and record handle info */
+            CacheInsert(theType, theID, h);
+            RecordHandleInfo(h, theType, theID, nameOff, dataLength, file->refNum);
         }
         return h;
     }
@@ -323,10 +705,77 @@ Handle Get1Resource(ResType theType, ResID theID) {
     return NULL;
 }
 
-/* Get named resource (stub for now) */
+/* Get named resource */
 Handle GetNamedResource(ResType theType, ConstStr255Param name) {
-    (void)theType;
-    (void)name;
+    if (!name || name[0] == 0) {
+        gResMgr.resError = resNotFound;
+        return NULL;
+    }
+
+    /* Search through all resources of this type for matching name */
+    for (int i = gResMgr.curResFile; i >= 0; i--) {
+        if (!gResMgr.resFiles[i].inUse) continue;
+
+        ResFile* file = &gResMgr.resFiles[i];
+        if (!file->map) continue;
+
+        UInt8* mapData = (UInt8*)file->map;
+
+        /* Get type list */
+        ResMapHeader* map = file->map;
+        UInt16 typeListOffset = read_be16((UInt8*)&map->typeListOffset);
+        if (typeListOffset == 0xFFFF) continue;
+
+        UInt8* typeList = mapData + typeListOffset;
+        UInt16 typeCount = read_be16(typeList);  /* Count is n-1 */
+        typeList += 2;  /* Skip count */
+
+        /* Find matching type */
+        for (UInt16 t = 0; t <= typeCount; t++) {
+            TypeListEntry* typeEntry = (TypeListEntry*)(typeList + t * sizeof(TypeListEntry));
+            if (read_be32((UInt8*)&typeEntry->resType) != theType) continue;
+
+            /* Get reference list for this type */
+            UInt16 refListOffset = read_be16((UInt8*)&typeEntry->refListOffset);
+            UInt16 resCount = read_be16((UInt8*)&typeEntry->count);  /* Count is n-1 */
+
+            RefListEntry* refList = (RefListEntry*)(mapData + typeListOffset + refListOffset);
+
+            /* Check each resource of this type */
+            for (UInt16 r = 0; r <= resCount; r++) {
+                RefListEntry* ref = &refList[r];
+
+                /* Check if resource has a name */
+                UInt16 nameOffset = read_be16((UInt8*)&ref->nameOffset);
+                if (nameOffset == 0xFFFF) continue;
+
+                /* Get name list offset from map */
+                UInt16 nameListOffset = read_be16((UInt8*)&map->nameListOffset);
+                if (nameListOffset == 0xFFFF) continue;
+
+                /* Get the resource name */
+                UInt8* resName = mapData + nameListOffset + nameOffset;
+                UInt8 nameLen = resName[0];
+
+                /* Compare names (Pascal string comparison) */
+                if (nameLen == name[0]) {
+                    Boolean match = true;
+                    for (UInt8 c = 1; c <= nameLen; c++) {
+                        if (resName[c] != name[c]) {
+                            match = false;
+                            break;
+                        }
+                    }
+                    if (match) {
+                        /* Found it - get the resource ID and load it */
+                        ResID id = (ResID)read_be16((UInt8*)&ref->resID);
+                        return GetResource(theType, id);
+                    }
+                }
+            }
+        }
+    }
+
     gResMgr.resError = resNotFound;
     return NULL;
 }
@@ -349,20 +798,64 @@ void ReleaseResource(Handle theResource) {
 
 /* Get resource info */
 void GetResInfo(Handle theResource, ResID *theID, ResType *theType, char* name) {
-    /* Stub - would need to track handle->resource mapping */
-    (void)theResource;
-    if (theID) *theID = 0;
-    if (theType) *theType = 0;
-    if (name) name[0] = 0;
-    gResMgr.resError = resNotFound;
+    if (!theResource) {
+        gResMgr.resError = resNotFound;
+        return;
+    }
+
+    /* Look up in handle metadata */
+    HandleInfo* info = FindHandleInfo(theResource);
+    if (!info) {
+        gResMgr.resError = resNotFound;
+        if (theID) *theID = 0;
+        if (theType) *theType = 0;
+        if (name) name[0] = 0;
+        return;
+    }
+
+    /* Return resource information */
+    if (theID) *theID = info->id;
+    if (theType) *theType = info->type;
+
+    /* Get name if requested and available */
+    if (name) {
+        if (info->nameOffset && info->homeFile >= 0) {
+            ResFile* file = &gResMgr.resFiles[info->homeFile];
+            if (file->map) {
+                UInt8* nameData = ((UInt8*)file->map) + info->nameOffset;
+                UInt8 nameLen = nameData[0];
+                if (nameLen > 0 && nameLen < 255) {
+                    BlockMove(nameData, name, nameLen + 1);
+                } else {
+                    name[0] = 0;
+                }
+            } else {
+                name[0] = 0;
+            }
+        } else {
+            name[0] = 0;
+        }
+    }
+
+    gResMgr.resError = noErr;
 }
 
 /* Get resource size on disk */
 Size GetResourceSizeOnDisk(Handle theResource) {
-    /* Stub - would need to track handle->resource mapping */
-    (void)theResource;
-    gResMgr.resError = resNotFound;
-    return 0;
+    if (!theResource) {
+        gResMgr.resError = resNotFound;
+        return 0;
+    }
+
+    /* Look up in handle metadata */
+    HandleInfo* info = FindHandleInfo(theResource);
+    if (!info) {
+        gResMgr.resError = resNotFound;
+        return 0;
+    }
+
+    gResMgr.resError = noErr;
+    return info->dataLen;
 }
 
 /* Get maximum resource size */

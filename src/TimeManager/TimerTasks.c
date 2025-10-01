@@ -68,12 +68,14 @@ void TimeManager_DrainDeferred(UInt32 maxTasks, UInt32 maxMicros) {
         /* Dequeue entry */
         DeferredEntry entry = gDeferredQueue[gDeferredTail];
         gDeferredTail = (gDeferredTail + 1) % TM_DEFERRED_QUEUE_SIZE;
-        
-        /* Invoke callback if still valid */
-        if (entry.task && entry.task->tmAddr) {
-            /* In real implementation, would check generation */
+
+        /* Check generation to prevent stale callbacks */
+        UInt32 currentGen = Core_GetTaskGeneration(entry.task);
+        if (entry.task && entry.task->tmAddr && entry.gen == currentGen) {
+            /* Generation matches, safe to invoke */
             ((void(*)(TMTask*))entry.task->tmAddr)(entry.task);
         }
+        /* else: task was cancelled or reused, skip callback */
         
         count++;
     }

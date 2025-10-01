@@ -1751,6 +1751,126 @@ void init_system71(void) {
     /* console_puts("System 7.1 initialization complete\n"); - disabled in graphics mode */
 }
 
+#if 1  /* Performance tests always available */
+/* Performance measurement helpers */
+static inline uint64_t rdtsc_now(void) {
+#ifdef __i386__
+    uint32_t lo, hi;
+    __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
+    return ((uint64_t)hi << 32) | lo;
+#else
+    return 0;  /* Not supported on this platform */
+#endif
+}
+
+/* Simple 64-bit division helper (duplicated for freestanding) */
+static uint64_t udiv64(uint64_t num, uint64_t den) {
+    if (den == 0) return 0;
+    uint64_t quot = 0;
+    uint64_t bit = 1ULL << 63;
+    while (bit && !(den & bit)) bit >>= 1;
+    while (bit) {
+        if (num >= den) {
+            num -= den;
+            quot |= bit;
+        }
+        den >>= 1;
+        bit >>= 1;
+    }
+    return quot;
+}
+
+/* Resource Manager performance benchmark */
+static void bench_getresource(void) {
+    const int N = 100;
+    uint64_t cold_start, cold_end, warm_start, warm_end;
+    uint64_t tsc_hz = 2000000000ULL;  /* Default 2GHz if not available */
+
+    /* Try to get actual frequency from TimeBase */
+    /* For now, use default 2GHz - would need to expose TimeBase info properly */
+    /* This would need to be exposed from TimeBase.c in a real implementation */
+
+    /* Cold misses - first access */
+    cold_start = rdtsc_now();
+    for (int i = 0; i < N; i++) {
+        Handle h = GetResource('PAT ', 1 + (i % 10));
+        if (h) ReleaseResource(h);
+    }
+    cold_end = rdtsc_now();
+
+    /* Warm hits - cached access */
+    warm_start = rdtsc_now();
+    for (int i = 0; i < N; i++) {
+        Handle h = GetResource('PAT ', 1 + (i % 10));
+        if (h) ReleaseResource(h);
+    }
+    warm_end = rdtsc_now();
+
+    /* Convert cycles to microseconds */
+    uint64_t cold_cycles = cold_end - cold_start;
+    uint64_t warm_cycles = warm_end - warm_start;
+    uint64_t cold_us = udiv64(cold_cycles * 1000000ULL, tsc_hz);
+    uint64_t warm_us = udiv64(warm_cycles * 1000000ULL, tsc_hz);
+    uint64_t cold_per = udiv64(cold_us, N);
+    uint64_t warm_per = udiv64(warm_us, N);
+
+    serial_puts("[RM PERF] ");
+    print_hex((uint32_t)cold_per);
+    serial_puts(" us/cold, ");
+    print_hex((uint32_t)warm_per);
+    serial_puts(" us/warm\n");
+}
+
+/* Time Manager stale callback test */
+static volatile int tm_test_called = 0;
+static void tm_test_cb(TMTask *t) {
+    (void)t;
+    tm_test_called++;
+}
+
+static void test_cancel_stale(void) {
+    TMTask t = {0};
+
+    /* Insert and prime task */
+    InsTime(&t);
+    t.tmAddr = (void*)tm_test_cb;
+    PrimeTime(&t, 1000);  /* 1ms */
+
+    /* Simulate ISR enqueue by calling TimerISR */
+    TimeManager_TimerISR();
+
+    /* Cancel the task */
+    CancelTime(&t);
+
+    /* Drain deferred queue */
+    TimeManager_DrainDeferred(16, 2000);
+
+    /* Check if callback fired */
+    if (tm_test_called != 0) {
+        serial_puts("[TM TEST] stale callback FIRED (BUG)\n");
+    } else {
+        serial_puts("[TM TEST] stale callback suppressed (OK)\n");
+    }
+
+    /* Clean up */
+    RmvTime(&t);
+    tm_test_called = 0;
+}
+
+/* Run all performance tests */
+void run_performance_tests(void) {
+    serial_puts("\n=== Running Performance Tests ===\n");
+
+#ifdef ENABLE_RESOURCES
+    bench_getresource();
+#endif
+
+    test_cancel_stale();
+
+    serial_puts("=== Performance Tests Complete ===\n\n");
+}
+#endif /* Performance tests */
+
 /* Create System 7.1 windows using real Window Manager */
 void create_system71_windows(void) {
     MenuHandle appleMenu, fileMenu, editMenu;
@@ -1839,6 +1959,11 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     serial_puts("MAIN: About to call create_system71_windows\n");
     create_system71_windows();
     serial_puts("MAIN: create_system71_windows returned\n");
+
+    /* Always run performance tests after initialization for debugging */
+    #if 1  /* Enable performance tests */
+    run_performance_tests();
+    #endif
 
     /* Main event loop using real Event Manager */
     /* Don't use console_puts after graphics mode - it overwrites framebuffer! */
@@ -1937,6 +2062,10 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     serial_printf("MAIN: Entering main event loop NOW!\n");
 
     while (1) {
+        /* IMPORTANT: Call TimerISR each iteration for high-cadence timer checking */
+        TimeManager_TimerISR();  /* Poll timer (simulated ISR) - must be called each loop */
+        TimeManager_DrainDeferred(16, 1000);  /* Process up to 16 tasks, max 1ms */
+
         /* Simple alive message every 1 million iterations */
         static uint32_t simple_counter = 0;
         simple_counter++;
@@ -2097,9 +2226,12 @@ skip_cursor_drawing:
             DispatchEvent(&event);
         }
 
-        /* Process deferred Time Manager tasks */
+        /* Process deferred Time Manager tasks
+         * IMPORTANT: Call TimerISR each iteration for high-cadence timer checking.
+         * This simulates hardware timer interrupts in our freestanding environment.
+         */
         TimeManager_DrainDeferred(16, 1000); /* up to 16 callbacks or 1ms of work */
-        TimeManager_TimerISR(); /* Poll timer (simulated ISR) */
+        TimeManager_TimerISR(); /* Poll timer (simulated ISR) - must be called each loop */
 #endif /* #if 1 */
 
 #if 0

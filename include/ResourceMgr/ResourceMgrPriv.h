@@ -66,6 +66,7 @@ typedef struct ResFile {
     UInt8*      data;           /* Memory-mapped resource fork or buffer */
     UInt32      dataSize;       /* Size of resource fork */
     ResMapHeader* map;          /* Pointer to resource map in memory */
+    UInt32      mapSize;        /* Size of resource map */
     Handle      mapHandle;      /* Handle to map if loaded separately */
     Str255      fileName;       /* File name for debugging */
 } ResFile;

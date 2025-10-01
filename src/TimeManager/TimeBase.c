@@ -35,32 +35,181 @@ static struct {
     Boolean  initialized;
 } gTimeBase = {0};
 
+/* External functions */
+extern UInt32 TickCount(void);
+extern void serial_puts(const char* s);
+
+#ifdef __i386__
+/* x86 CPUID support for frequency detection */
+static inline void cpuid(uint32_t leaf, uint32_t subleaf,
+                        uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx) {
+    __asm__ __volatile__(
+        "cpuid"
+        : "=a"(*eax), "=b"(*ebx), "=c"(*ecx), "=d"(*edx)
+        : "a"(leaf), "c"(subleaf)
+    );
+}
+#endif
+
+/* Accurate frequency calibration */
+static void CalibrateFrequencyAccurate(void) {
+    uint64_t freq = 0;
+
+#ifdef __i386__
+    /* Try CPUID leaf 0x15 for TSC frequency */
+    uint32_t max_leaf, eax, ebx, ecx, edx;
+    cpuid(0, 0, &max_leaf, &ebx, &ecx, &edx);
+
+    if (max_leaf >= 0x15) {
+        cpuid(0x15, 0, &eax, &ebx, &ecx, &edx);
+        if (eax != 0 && ebx != 0) {
+            /* TSC frequency = core_crystal_hz * ebx / eax */
+            if (ecx != 0) {
+                freq = udiv64(((uint64_t)ecx * ebx), eax);
+                serial_puts("[TimeBase] TSC frequency from CPUID 0x15\n");
+            }
+        }
+    }
+
+    /* Fallback to CPUID leaf 0x16 */
+    if (freq == 0 && max_leaf >= 0x16) {
+        cpuid(0x16, 0, &eax, &ebx, &ecx, &edx);
+        if (eax != 0) {
+            freq = (uint64_t)eax * 1000000; /* Base MHz to Hz */
+            serial_puts("[TimeBase] TSC frequency from CPUID 0x16\n");
+        }
+    }
+#endif
+
+#ifdef __aarch64__
+    /* Read CNTFRQ_EL0 for timer frequency */
+    uint64_t cntfrq;
+    __asm__ __volatile__("mrs %0, cntfrq_el0" : "=r"(cntfrq));
+    if (cntfrq != 0) {
+        freq = cntfrq;
+        serial_puts("[TimeBase] Timer frequency from CNTFRQ_EL0\n");
+    }
+#endif
+
+    /* Last resort: calibrate against TickCount (60 Hz) */
+    if (freq == 0) {
+        serial_puts("[TimeBase] Calibrating against TickCount...\n");
+
+        /* Wait for tick boundary with timeout */
+        UInt32 startTick = TickCount();
+        uint64_t timeoutStart = PlatformCounterNow();
+        const uint64_t TIMEOUT_CYCLES = 1000000000;  /* ~1s at 1GHz */
+
+        while (TickCount() == startTick) {
+            if (PlatformCounterNow() - timeoutStart > TIMEOUT_CYCLES) {
+                serial_puts("[TimeBase] TickCount boundary timeout\n");
+                freq = 1000000;  /* Default 1MHz */
+                break;
+            }
+        }
+
+        if (freq == 0) {
+            startTick = TickCount();
+            uint64_t startCounter = PlatformCounterNow();
+
+            /* Wait N ticks (30 = ~500ms) with timeout */
+            const UInt32 N = 30;
+            UInt32 endTick = startTick + N;
+            while (TickCount() < endTick) {
+                if (PlatformCounterNow() - startCounter > TIMEOUT_CYCLES * 2) {
+                    serial_puts("[TimeBase] TickCount wait timeout\n");
+                    freq = 1000000;  /* Default 1MHz */
+                    break;
+                }
+            }
+
+            if (freq == 0) {
+                uint64_t endCounter = PlatformCounterNow();
+                uint64_t deltaCounter = endCounter - startCounter;
+
+                /* Sanity check: at least some cycles passed */
+                if (deltaCounter > 0) {
+                    freq = udiv64((deltaCounter * 60), N);
+                    serial_puts("[TimeBase] Calibrated frequency from TickCount\n");
+                } else {
+                    freq = 1000000;  /* Default if no cycles measured */
+                }
+            }
+        }
+    }
+
+    /* Validate and clamp frequency */
+    if (freq < 1000000) {
+        freq = 1000000;  /* Min 1MHz */
+        serial_puts("[TimeBase] Clamped to minimum 1MHz\n");
+    } else if (freq > 10000000000ULL) {
+        freq = 10000000000ULL;  /* Max 10GHz */
+        serial_puts("[TimeBase] Clamped to maximum 10GHz\n");
+    }
+
+    gTimeBase.counterFreq = freq;
+}
+
 OSErr InitTimeBase(void) {
     OSErr err = InitPlatformTimer();
     if (err != noErr) return err;
-    
-    /* Calibration: measure counter over ~10ms */
-    uint64_t start = PlatformCounterNow();
-    volatile uint32_t delay = 0;
-    for (uint32_t i = 0; i < 10000000; i++) {
-        delay++;
-    }
-    uint64_t end = PlatformCounterNow();
-    uint64_t delta = end - start;
-    
-    /* Estimate frequency (assume ~10ms elapsed) */
-    gTimeBase.counterFreq = delta * 100; /* Hz */
-    if (gTimeBase.counterFreq < 1000000) {
-        gTimeBase.counterFreq = 1000000; /* Min 1MHz */
-    }
+
+    /* Get boot counter early */
+    gTimeBase.bootCounter = PlatformCounterNow();
+
+    /* Accurate frequency calibration */
+    CalibrateFrequencyAccurate();
     
     /* Compute conversion factors using software division */
     gTimeBase.nsPerCount_32_32 = udiv64((NANOSECONDS_PER_SECOND << 32), gTimeBase.counterFreq);
     gTimeBase.usPerCount_16_16 = (uint32_t)udiv64((MICROSECONDS_PER_SECOND << 16), gTimeBase.counterFreq);
 
-    gTimeBase.bootCounter = start;
-    gTimeBase.resolutionNs = (uint32_t)udiv64(NANOSECONDS_PER_SECOND, gTimeBase.counterFreq);
-    gTimeBase.overheadUs = 1; /* Estimated call overhead */
+    /* Resolution is max of 1ns or actual timer resolution */
+    uint32_t actualRes = (uint32_t)udiv64(NANOSECONDS_PER_SECOND, gTimeBase.counterFreq);
+    gTimeBase.resolutionNs = actualRes > 0 ? actualRes : 1;
+
+    /* Measure overhead empirically */
+    {
+        UnsignedWide times[16];
+        uint32_t deltas[15];
+        const int K = 16;
+
+        /* Warm up */
+        for (int i = 0; i < 4; i++) {
+            Microseconds(&times[0]);
+        }
+
+        /* Measure K consecutive calls */
+        for (int i = 0; i < K; i++) {
+            Microseconds(&times[i]);
+        }
+
+        /* Calculate deltas */
+        uint32_t sum = 0;
+        for (int i = 1; i < K; i++) {
+            uint32_t delta = times[i].lo - times[i-1].lo;
+            deltas[i-1] = delta;
+            sum += delta;
+        }
+
+        /* Use median to reduce outliers */
+        /* Simple selection sort to find median */
+        for (int i = 0; i < K-2; i++) {
+            for (int j = i+1; j < K-1; j++) {
+                if (deltas[i] > deltas[j]) {
+                    uint32_t tmp = deltas[i];
+                    deltas[i] = deltas[j];
+                    deltas[j] = tmp;
+                }
+            }
+        }
+
+        gTimeBase.overheadUs = deltas[(K-1)/2]; /* Median */
+        if (gTimeBase.overheadUs == 0) {
+            gTimeBase.overheadUs = 1; /* Minimum 1us */
+        }
+    }
+
     gTimeBase.initialized = true;
     
     return noErr;

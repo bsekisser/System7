@@ -271,6 +271,16 @@ UInt32 Core_GetActiveCount(void) {
     return gHeapSize;
 }
 
+/* Get task generation for validation */
+UInt32 Core_GetTaskGeneration(TMTask *task) {
+    if (!task) return 0;
+
+    TMEntry* entry = FindEntry(task);
+    if (!entry) return 0;
+
+    return entry->gen;
+}
+
 /* ISR callback - expire all due tasks */
 void Core_ExpireDue(UInt64 nowUS) {
     UInt32 irq = DisableInterrupts();
@@ -291,7 +301,17 @@ void Core_ExpireDue(UInt64 nowUS) {
         
         /* Reschedule if periodic */
         if (entry->periodUS > 0) {
-            entry->absDeadlineUS += entry->periodUS;
+            /* Limit catch-up to prevent runaway loops */
+            const UInt32 MAX_CATCHUP = 4;
+            UInt64 nextDeadline = entry->absDeadlineUS + entry->periodUS;
+
+            /* If we're way behind, cap the catch-up */
+            if ((int64_t)(nowUS - nextDeadline) > (int64_t)(entry->periodUS * MAX_CATCHUP)) {
+                /* Skip to current time + period */
+                nextDeadline = nowUS + entry->periodUS;
+            }
+
+            entry->absDeadlineUS = nextDeadline;
             entry->gen++;
             HeapPush(entry);
         }
