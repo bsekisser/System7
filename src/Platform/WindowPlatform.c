@@ -590,17 +590,35 @@ void Platform_GetRegionBounds(RgnHandle rgn, Rect* bounds) {
 /* Window movement and sizing */
 void Platform_MoveNativeWindow(WindowPtr window, short h, short v) {
     if (window) {
-        short dh = h - window->port.portRect.left;
-        short dv = v - window->port.portRect.top;
-        OffsetRect(&window->port.portRect, dh, dv);
+        /* CRITICAL: portRect must ALWAYS stay in LOCAL coordinates (0,0,width,height)!
+         * Only update portBits.bounds to map local coords to new global screen position */
+        short width = window->port.portRect.right - window->port.portRect.left;
+        short height = window->port.portRect.bottom - window->port.portRect.top;
+
+        /* portRect stays local - DO NOT modify it! */
+        /* Only update portBits.bounds to new global position */
+        window->port.portBits.bounds.left = h;
+        window->port.portBits.bounds.top = v;
+        window->port.portBits.bounds.right = h + width;
+        window->port.portBits.bounds.bottom = v + height;
+
         Platform_CalculateWindowRegions(window);
     }
 }
 
 void Platform_SizeNativeWindow(WindowPtr window, short width, short height) {
     if (window) {
-        window->port.portRect.right = window->port.portRect.left + width;
-        window->port.portRect.bottom = window->port.portRect.top + height;
+        /* CRITICAL: portRect must ALWAYS stay in LOCAL coordinates!
+         * When resizing, keep portRect at (0,0,width,height) and update portBits.bounds */
+        window->port.portRect.left = 0;
+        window->port.portRect.top = 0;
+        window->port.portRect.right = width;
+        window->port.portRect.bottom = height;
+
+        /* Update portBits.bounds to match new size at current global position */
+        window->port.portBits.bounds.right = window->port.portBits.bounds.left + width;
+        window->port.portBits.bounds.bottom = window->port.portBits.bounds.top + height;
+
         Platform_CalculateWindowRegions(window);
     }
 }
