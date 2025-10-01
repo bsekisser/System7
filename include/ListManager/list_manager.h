@@ -3,7 +3,6 @@
  * RE-AGENT-BANNER: Apple System 7.1 List Manager
  * ===========================================================================
  * Artifact: System.rsrc
- * ROM disassembly
  * Architecture: m68k
  * ABI: macos_system7_1
  *

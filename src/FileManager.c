@@ -5,7 +5,7 @@
  * providing HFS support on modern platforms (ARM64, x86_64).
  *
  * Copyright (c) 2024 - Implementation for System 7.1 Portable
- * Based on Apple System Software 7.1 architecture
+ * Derived from System 7 ROM analysis (Ghidra) architecture
  */
 
 #include "SystemTypes.h"
@@ -511,6 +511,33 @@ OSErr FSGetFInfo(ConstStr255Param fileName, VolumeRefNum vRefNum, FInfo* fndrInf
     return err;
 }
 
+/* HGetFInfo - High-level wrapper for getting file info by dirID */
+OSErr HGetFInfo(short vRefNum, long dirID, ConstStr255Param fileName, FInfo *fndrInfo)
+{
+    CInfoPBRec pb;
+
+    if (!fndrInfo) {
+        return paramErr;
+    }
+
+    memset(&pb, 0, sizeof(pb));
+    pb.ioNamePtr = (StringPtr)fileName;
+    pb.ioVRefNum = vRefNum;
+    pb.u.dirInfo.ioDrDirID = dirID;
+    pb.u.hFileInfo.ioFDirIndex = 0;
+
+    OSErr err = PBGetCatInfoSync(&pb);
+    if (err == noErr) {
+        /* Check if it's a file (not a directory) */
+        if (pb.u.hFileInfo.ioFlAttrib & kioFlAttribDir) {
+            return fnfErr;  /* It's a directory, not a file */
+        }
+        *fndrInfo = pb.u.hFileInfo.ioFlFndrInfo;
+    }
+
+    return err;
+}
+
 OSErr FSSetFInfo(ConstStr255Param fileName, VolumeRefNum vRefNum, const FInfo* fndrInfo)
 {
     CInfoPBRec pb;
@@ -637,6 +664,22 @@ OSErr FSCreateDir(ConstStr255Param dirName, VolumeRefNum vRefNum, DirID* created
     }
 
     FS_UnlockVolume(vcb);
+
+    return err;
+}
+
+/* DirCreate - High-level wrapper for creating directory by parent dirID */
+OSErr DirCreate(short vRefNum, long parentDirID, ConstStr255Param directoryName, long *createdDirID)
+{
+    /* For now, delegate to FSCreateDir
+     * In a full implementation, this would handle the parentDirID parameter
+     * by navigating to that directory first */
+    DirID tempDirID;
+    OSErr err = FSCreateDir(directoryName, vRefNum, &tempDirID);
+
+    if (err == noErr && createdDirID) {
+        *createdDirID = tempDirID;
+    }
 
     return err;
 }

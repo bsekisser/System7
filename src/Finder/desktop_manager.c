@@ -5,7 +5,6 @@
  *
  * Reverse-engineered from System 7 Finder.rsrc
  * Source:  3_resources/Finder.rsrc
- * ROM disassembly
  *
  * Evidence sources:
  * - String analysis: "Clean Up Desktop", "Rebuilding the desktop file"
@@ -482,15 +481,6 @@ static OSErr AllocateDesktopIcons(void)
     strcpy(gDesktopIcons[0].name, "Trash");
     gDesktopIcons[0].movable = false;  /* Trash stays in place */
     gDesktopIconCount = 1;  /* Start with trash */
-
-    /* Add TextEdit application icon */
-    gDesktopIcons[1].type = kDesktopItemApplication;
-    gDesktopIcons[1].iconID = 0xFFFFFFFE;  /* TextEdit app ID */
-    gDesktopIcons[1].position.h = kDesktopMargin + 80;
-    gDesktopIcons[1].position.v = fb_height - 80;
-    strcpy(gDesktopIcons[1].name, "TextEdit");
-    gDesktopIcons[1].movable = true;
-    gDesktopIconCount = 2;
 
     return noErr;
 }
@@ -1058,16 +1048,6 @@ void DrawVolumeIcon(void)
                                     gDesktopIcons[i].position.v,        /* Top Y */
                                     48,                                 /* Label offset */
                                     trashHandle.selected);
-        } else if (gDesktopIcons[i].type == kDesktopItemApplication) {
-            /* Draw application icon - use HD icon as placeholder */
-            IconHandle appHandle;
-            appHandle.fam = IconSys_HardDisk();
-            appHandle.selected = (gSelectedIcon == i);
-
-            Icon_DrawWithLabel(&appHandle, gDesktopIcons[i].name,
-                              gDesktopIcons[i].position.h + 16,  /* Center X */
-                              gDesktopIcons[i].position.v,        /* Top Y */
-                              appHandle.selected);
         }
         /* Future: handle kDesktopItemFile, kDesktopItemFolder, etc. */
     }
@@ -1129,17 +1109,6 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
             return true;
         } else if (it->type == kDesktopItemTrash) {
             Finder_OpenDesktopItem(true, "\pTrash");
-            return true;
-        } else if (it->type == kDesktopItemApplication) {
-            /* Launch application via Process Manager */
-            extern OSErr TextEdit_InitApp(void);
-            serial_printf("[DBLCLK] Launching TextEdit application\n");
-            OSErr err = TextEdit_InitApp();
-            if (err == noErr) {
-                serial_printf("[DBLCLK] TextEdit launched successfully\n");
-            } else {
-                serial_printf("[DBLCLK] TextEdit launch failed: %d\n", err);
-            }
             return true;
         }
     }

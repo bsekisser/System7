@@ -14,7 +14,7 @@
  * shared resources. Allows users to browse available devices, configure
  * connections, and manage device preferences.
  *
- * Based on Apple's Chooser DA from System 7.1
+ * Derived from ROM analysis (System 7)
  */
 
 #include "DeskAccessory.h"

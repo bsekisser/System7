@@ -2,7 +2,7 @@
  * FontTypes.h - Font Manager Type Definitions
  *
  * Defines all data structures, constants, and types used by the Font Manager.
- * Based on Apple's Mac OS 7.1 Font Manager interfaces.
+ * Derived from ROM Font Manager analysis.
  */
 
 #ifndef FONT_TYPES_H

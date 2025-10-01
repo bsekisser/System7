@@ -8,7 +8,7 @@
  * driver resources (DRVR), window templates, and other DA-specific resources.
  * Provides abstraction for resource loading across different platforms.
  *
- * Based on Apple's Macintosh desk accessory resource model
+ * Derived from ROM desk accessory patterns
  */
 
 #include "SystemTypes.h"

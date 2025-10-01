@@ -6,14 +6,11 @@
  * Apple System 7.1 Resource Manager - Core Implementation
  *
  * implemented based on System.rsrc
- * ROM disassembly
  *
  * Evidence source: 
  * Mappings source: 
  * Layout source: 
  *
- * 
- * Reimplemented for System 7.1 decompilation project
  */
 
 // #include "CompatibilityFix.h" // Removed

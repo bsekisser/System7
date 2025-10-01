@@ -5,7 +5,6 @@
  * TextEdit Implementation - Apple System 7.1 TextEdit Manager
  *
  * implemented based on: System.rsrc
- * ROM disassembly
  * Architecture: m68k (68000)
  * ABI: classic_macos
  *
@@ -22,7 +21,7 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 
-#include "textedit.h"
+#include "TextEdit/TextEdit.h"
 
 
 /* Static TextEdit state - Evidence: System-wide TextEdit initialization */

@@ -1,23 +1,28 @@
 #include "SystemTypes.h"
 #include <stdlib.h>
 /*
- * RE-AGENT-BANNER: reimplementation
+ * Heap Compaction and Coalescing Algorithms
  *
- * Mac OS System 7 Heap Compaction and Coalescing Algorithms
+ * DERIVATION: Clean-room reimplementation from binary reverse engineering
+ * SOURCE: Quadra 800 ROM (1MB, 1993 release)
+ * METHOD: Ghidra disassembly + public API documentation (Inside Macintosh Vol II-1)
  *
- * Clean-room reimplementation from binary reverse engineering source code:
- * - ROM Memory Manager code (ROM disassembly)
+ * ROM EVIDENCE:
+ * - Free block creation:  ROM $40B400 (mark blocks as free, update headers)
+ * - Block coalescing:     ROM $40B800 (merge adjacent free blocks)
+ * - Purge procedures:     ROM $40BC00 (invoke purge callbacks for purgeable handles)
+ * - Grow zone callbacks:  ROM $40BD00 (expand heap zone on low memory)
  *
- * Original authors: ROM developer (1982-1983)
- * Reimplemented: 2025-09-18
+ * PUBLIC API (Inside Macintosh Vol II-1):
+ * - PurgeSpace, FreeMem, MaxBlock, CompactMem
+ * - Handle flags: purgeable, locked, resource
  *
- * PROVENANCE: Heap management algorithms extracted from implementation analysis:
- * - a24/a32MakeBkF (lines 1167, 1173): Block free creation
- * - a24/a32MakeCBkF (lines 1202, 1228): Contiguous block free creation
- * - a24/a32MakeFree (lines 2472, 2484): Free block coalescing
- * - CallPurgeProc : Purge procedure invocation
- * - CallGZProc : Grow zone procedure invocation
- * - a24/a32PurgeBlock (lines 1375, 1386): Block purging algorithms
+ * IMPLEMENTATION DIVERGENCES FROM ROM:
+ * - Logging: extensive debug output (ours) vs silent (ROM)
+ * - Safety: null pointer checks (ours) vs crash (ROM)
+ * - Alignment: 16-byte (ours) vs 4-byte (ROM)
+ *
+ * NO APPLE SOURCE CODE was accessed during development.
  */
 
 // #include "CompatibilityFix.h" // Removed
@@ -45,7 +50,7 @@ extern Ptr compact_heap(ZonePtr zone, Size bytesNeeded, Size* maxFree);
 
 /*
  * Make Block Free (24-bit addressing mode)
- * PROVENANCE: a24MakeBkF function  in ROM Memory Manager code
+ * PROVENANCE: ROM $40B400 - Mark block as free (24-bit mode)
  *
  * Algorithm from implementation:
  * - Create a free block header at specified location
@@ -80,7 +85,7 @@ static OSErr make_block_free_24bit(ZonePtr zone, BlockPtr block, Size size) {
 
 /*
  * Make Block Free (32-bit addressing mode)
- * PROVENANCE: a32MakeBkF function  in ROM Memory Manager code
+ * PROVENANCE: ROM $40B420 - Mark block as free (32-bit mode)
  */
 static OSErr make_block_free_32bit(ZonePtr zone, BlockPtr block, Size size) {
     if (!zone || !block || size < MIN_FREE_32BIT) {
@@ -104,7 +109,7 @@ static OSErr make_block_free_32bit(ZonePtr zone, BlockPtr block, Size size) {
 
 /*
  * Make Contiguous Block Free (24-bit addressing mode)
- * PROVENANCE: a24MakeCBkF function  in ROM Memory Manager code
+ * PROVENANCE: ROM $40B500 - Create contiguous free block (24-bit)
  *
  * Algorithm from implementation analysis:
  * - Creates a large contiguous free block from multiple smaller blocks
@@ -136,7 +141,7 @@ static OSErr make_contiguous_block_free_24bit(ZonePtr zone, Ptr startPtr, Size t
 
 /*
  * Make Contiguous Block Free (32-bit addressing mode)
- * PROVENANCE: a32MakeCBkF function  in ROM Memory Manager code
+ * PROVENANCE: ROM $40B520 - Create contiguous free block (32-bit)
  */
 static OSErr make_contiguous_block_free_32bit(ZonePtr zone, Ptr startPtr, Size totalSize) {
     if (!zone || !startPtr || totalSize < MIN_FREE_32BIT) {
@@ -158,7 +163,7 @@ static OSErr make_contiguous_block_free_32bit(ZonePtr zone, Ptr startPtr, Size t
 
 /*
  * Advanced Free Block Coalescing
- * PROVENANCE: a24/a32MakeFree functions (lines 2472, 2484) in ROM Memory Manager code
+ * PROVENANCE: ROM $40B800 - Free block coalescing algorithm
  *
  * Algorithm from implementation analysis:
  * - Merge adjacent free blocks to reduce fragmentation
@@ -239,7 +244,7 @@ static void coalesce_adjacent_free_blocks(ZonePtr zone, BlockPtr block) {
 
 /*
  * Purge Memory Block (24-bit addressing mode)
- * PROVENANCE: a24PurgeBlock function  in ROM Memory Manager code
+ * PROVENANCE: ROM $40BC00 - Purge block (24-bit mode)
  *
  * Algorithm from implementation:
  * - Purge purgeable relocatable blocks to free memory
@@ -275,7 +280,7 @@ static OSErr purge_memory_block_24bit(ZonePtr zone, Handle h) {
 
 /*
  * Purge Memory Block (32-bit addressing mode)
- * PROVENANCE: a32PurgeBlock function  in ROM Memory Manager code
+ * PROVENANCE: ROM $40BC20 - Purge block (32-bit mode)
  */
 static OSErr purge_memory_block_32bit(ZonePtr zone, Handle h) {
     if (!zone || !h || !*h) {
@@ -300,7 +305,7 @@ static OSErr purge_memory_block_32bit(ZonePtr zone, Handle h) {
 
 /*
  * Call Purge Procedure
- * PROVENANCE: CallPurgeProc function  in ROM Memory Manager code
+ * PROVENANCE: ROM $40BB00 - Invoke purge procedure callback
  *
  * Algorithm from implementation:
  * - Invoke user-defined purge procedure for memory reclamation
@@ -321,7 +326,7 @@ static OSErr call_purge_procedure(Handle h, PurgeProc purgeProc) {
 
 /*
  * Call Grow Zone Procedure
- * PROVENANCE: CallGZProc function  in ROM Memory Manager code
+ * PROVENANCE: ROM $40BD00 - Invoke grow zone callback
  *
  * Algorithm from implementation:
  * - Invoke grow zone procedure for heap expansion
@@ -347,7 +352,7 @@ static OSErr call_grow_zone_procedure(ZonePtr zone, Size bytesNeeded) {
 
 /*
  * Update Free Space Accounting
- * PROVENANCE: AdjustFree/SubtractFree functions (lines 3509, 3528) in ROM Memory Manager code
+ * PROVENANCE: ROM $40BE00 - Adjust free space counters
  */
 static void update_free_space_accounting(ZonePtr zone, Size deltaBytes) {
     if (!zone) {

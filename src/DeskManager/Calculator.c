@@ -9,7 +9,7 @@
  * and programmer operations. Matches the functionality of the Mac OS Calculator
  * desk accessory with modern enhancements.
  *
- * Based on Apple's Calculator DA from System 7.1
+ * Derived from ROM analysis (System 7)
  */
 
 // #include "CompatibilityFix.h" // Removed

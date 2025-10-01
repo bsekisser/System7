@@ -8,7 +8,7 @@
  * Provides the core functionality for managing desk accessories (DAs) in
  * System 7.1. Handles DA loading, system integration, and event routing.
  *
- * Based on Apple's Macintosh Toolbox Desk Manager from System 7.1
+ * Derived from ROM analysis (System 7)
  */
 
 #include "SystemTypes.h"

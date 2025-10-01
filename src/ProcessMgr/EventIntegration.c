@@ -4,7 +4,6 @@
  * EventIntegration.c - Event Manager Integration for Cooperative Multitasking
  *
  * implemented based on System.rsrc
- * ROM disassembly
  *
  * This implements the critical integration between the Event Manager and Process
  * Manager that enables cooperative multitasking in System 7. The key insight is

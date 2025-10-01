@@ -5,7 +5,7 @@
  * This provides the complete Apple QuickDraw API for modern platforms.
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
- * Derived from System 7 ROM analysis 7.1 QuickDraw
+ * Derived from System 7 ROM analysis (Ghidra) QuickDraw
  */
 
 #ifndef __QUICKDRAW_COMPLETE_H__

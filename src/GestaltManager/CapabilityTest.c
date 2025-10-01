@@ -3,7 +3,7 @@
 /*
  * RE-AGENT-BANNER
  * System Capability Detection Test Utility for Mac OS System 6.0.7
- * implemented based on System.rsrc (ROM disassembly)
+ * Derived from ROM binary analysis (Ghidra)
  *
  * This test utility demonstrates the capability detection functions and validates
  * their operation against the original System 6.0.7 behavior patterns.

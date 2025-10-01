@@ -14,7 +14,7 @@
  * for the current keyboard layout. Users can see what characters are produced
  * by different key combinations and can click to insert characters.
  *
- * Based on Apple's Key Caps DA from System 7.1
+ * Derived from ROM analysis (System 7)
  */
 
 #include "DeskAccessory.h"

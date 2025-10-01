@@ -3,7 +3,6 @@
  * ProcessMgr.h - Mac OS System 7 Process Manager Interface
  *
  * implemented based on System.rsrc
- * ROM disassembly
  *
  * This file implements the cooperative multitasking Process Manager that was
  * introduced with System 7, enabling multiple applications to run simultaneously

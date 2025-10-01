@@ -5,7 +5,7 @@
  * providing HFS (Hierarchical File System) support for modern platforms.
  *
  * Copyright (c) 2024 - Implementation for System 7.1 Portable
- * Based on Apple System Software 7.1 architecture
+ * Derived from System 7 ROM analysis (Ghidra) architecture
  */
 
 #ifndef __FILEMANAGER_H__

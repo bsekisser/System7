@@ -7,7 +7,6 @@
  * This module implements the core trap dispatch system that routes all Mac OS
  * system calls (A-line traps) and handles F-line traps for unimplemented opcodes.
  *
- * 
  * Portable conversion for System7.1-Portable project
  */
 

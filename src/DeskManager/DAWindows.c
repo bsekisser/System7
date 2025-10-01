@@ -8,7 +8,7 @@
  * window creation, event handling, drawing, and interaction with the
  * Mac OS window system.
  *
- * Based on Apple's Macintosh Window Manager integration for DAs
+ * Derived from ROM desk accessory integration
  */
 
 #include "SystemTypes.h"

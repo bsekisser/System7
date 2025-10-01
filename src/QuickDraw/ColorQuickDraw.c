@@ -8,7 +8,7 @@
  * color tables, pixel depth handling, and color graphics ports.
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
- * Derived from System 7 ROM analysis 7.1 Color QuickDraw
+ * Derived from System 7 ROM analysis (Ghidra) Color QuickDraw
  */
 
 // #include "CompatibilityFix.h" // Removed

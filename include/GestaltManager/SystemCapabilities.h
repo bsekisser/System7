@@ -1,7 +1,7 @@
 /*
  * RE-AGENT-BANNER
  * System Capabilities Detection for Mac OS System 6.0.7
- * implemented based on System.rsrc (ROM disassembly)
+ * Derived from ROM binary analysis (Ghidra)
  *
  * This header defines the system capability detection interface used in System 6.0.7
  * for hardware feature detection and compatibility checking.

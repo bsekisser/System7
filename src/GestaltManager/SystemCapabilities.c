@@ -3,7 +3,7 @@
 /*
  * RE-AGENT-BANNER
  * System Capabilities Detection Implementation for Mac OS System 6.0.7
- * implemented based on System.rsrc (ROM disassembly)
+ * Derived from ROM binary analysis (Ghidra)
  *
  * This implementation provides system capability detection based on analysis of
  * the original System 6.0.7 system resource file. Functions detect hardware

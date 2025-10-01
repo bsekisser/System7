@@ -14,7 +14,7 @@
  * allows setting alarms, and provides notification when alarms trigger.
  * Integrates with system time and notification services.
  *
- * Based on Apple's Alarm Clock DA from System 7.1
+ * Derived from ROM analysis (System 7)
  */
 
 #include "DeskAccessory.h"

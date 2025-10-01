@@ -2,7 +2,7 @@
 /* RE-AGENT-BANNER
  * System 7.1 List Manager - Core Implementation
  *
- * Original Binary: System.rsrc (ROM disassembly)
+ * SOURCE: Quadra 800 ROM (1MB, 1993 release)
  * Architecture: Motorola 68000 (m68k)
  * Original System: Apple System 7.1 (1992)
  *

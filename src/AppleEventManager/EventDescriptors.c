@@ -12,7 +12,7 @@
  * Apple Event descriptor handling and manipulation functions
  * Provides comprehensive support for Apple Event data structures
  *
- * Based on Mac OS 7.1 Apple Event descriptor system
+ * Derived from System 7 ROM analysis Apple Event descriptor system
  */
 
 #include "CompatibilityFix.h"

@@ -21,7 +21,7 @@
  * functionality and can run authentic Mac applications.
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
- * Derived from System 7 ROM analysis 7.1 Menu Manager
+ * Derived from System 7 ROM analysis (Ghidra) Menu Manager
  */
 
 #ifndef __MENU_MANAGER_H__

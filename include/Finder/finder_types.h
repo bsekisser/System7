@@ -4,7 +4,6 @@
  *
  * Reverse-engineered from System 7 Finder.rsrc
  * Source:  3_resources/Finder.rsrc
- * ROM disassembly
  *
  * Evidence sources:
  * - layouts.curated.json structure analysis

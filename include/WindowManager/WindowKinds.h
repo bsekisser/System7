@@ -18,7 +18,7 @@
  * application windows. Zero is reserved and should not be used.
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
- * Derived from System 7 ROM analysis 7.1 Window Manager
+ * Derived from System 7 ROM analysis (Ghidra) Window Manager
  */
 
 #ifndef WINDOW_KINDS_H

@@ -75,6 +75,9 @@ static void FillEventRecord(EventRecord* event);
 static Boolean IsEventEnabled(SInt16 eventType);
 static void ProcessAutoKey(void);
 
+/* External function from SystemEvents.c */
+extern void ProcessSystemEvents(void);
+
 /*---------------------------------------------------------------------------
  * Platform-Specific Timing
  *---------------------------------------------------------------------------*/
@@ -584,11 +587,10 @@ void FlushEvents(SInt16 whichMask, SInt16 stopMask)
     }
 }
 
-#if 0  /* DISABLED - WaitNextEvent now provided by event_manager.c */
 /**
  * Wait for next event with idle processing
  */
-Boolean WaitNextEvent_DISABLED(SInt16 eventMask, EventRecord* theEvent,
+Boolean WaitNextEvent(SInt16 eventMask, EventRecord* theEvent,
                    UInt32 sleep, RgnHandle mouseRgn)
 {
     if (!theEvent || !g_eventMgrInitialized) {
@@ -633,7 +635,6 @@ Boolean WaitNextEvent_DISABLED(SInt16 eventMask, EventRecord* theEvent,
     FillEventRecord(theEvent);
     return false;
 }
-#endif /* DISABLED WaitNextEvent */
 
 /*---------------------------------------------------------------------------
  * Mouse Event API

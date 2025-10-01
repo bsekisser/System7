@@ -38,6 +38,7 @@ C_SOURCES = src/main.c \
             src/SystemInit.c \
             src/sys71_stubs.c \
             src/System71StdLib.c \
+            src/ToolboxCompat.c \
             src/Finder/finder_main.c \
             src/Finder/desktop_manager.c \
             src/Finder/folder_window.c \
@@ -94,6 +95,9 @@ C_SOURCES = src/main.c \
             src/DeskManager/DeskManagerStubs.c \
             src/DialogManager/DialogManagerCore.c \
             src/DialogManager/DialogManagerStubs.c \
+            src/DialogManager/DialogEventStubs.c \
+            src/StandardFile/StandardFile.c \
+            src/StandardFile/StandardFileHAL_Shims.c \
             src/FileManager.c \
             src/FileManagerStubs.c \
             src/EventManager/event_manager.c \
@@ -195,6 +199,10 @@ $(OBJ_DIR)/%.o: src/EventManager/%.c
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/%.o: src/DialogManager/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/StandardFile/%.c
 	@echo "CC $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
 

@@ -15,7 +15,7 @@
  * DAs are small utility programs that provide specific functionality and
  * integrate with the Mac OS System menu and event handling.
  *
- * Based on Apple's Macintosh Toolbox desk accessory driver model
+ * Derived from ROM desk accessory model
  */
 
 #include "DeskManager.h"

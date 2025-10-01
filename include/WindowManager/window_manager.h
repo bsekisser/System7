@@ -3,7 +3,7 @@
  * Window Manager - Apple System 7.1 Window Manager Reimplementation
  *
  * This file contains reimplemented Window Manager functions from Apple System 7.1.
- * Based on evidence extracted from System.rsrc (ROM disassembly)
+ * Based on ROM analysis (Quadra 800)
  *
  * Evidence sources:
  * - radare2 binary analysis of System.rsrc
@@ -115,7 +115,7 @@ void DrawGrowIcon(WindowPtr window);
  * {
  *   "component": "window_manager",
  *   "evidence_sources": [
- *     {"source": "System.rsrc", "sha256": "78150ebb66707277e0947fbf81f6a27fc5d263a71bbf96df7084d5c3ec22a5ba"},
+ *     {"source": "System.rsrc", "rom_source": "Quadra800.ROM"},
  *     {"source": "layouts.curated.windowmgr.json", "structures": 7, "validation": "passed"},
  *     {"source": "mappings.windowmgr.json", "trap_calls": 21, "confidence": "high"}
  *   ],

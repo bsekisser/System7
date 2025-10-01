@@ -5,7 +5,7 @@
  * This is the foundation header that defines all structures used by QuickDraw.
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
- * Derived from System 7 ROM analysis 7.1 QuickDraw
+ * Derived from System 7 ROM analysis (Ghidra) QuickDraw
  */
 
 #ifndef __QDTYPES_H__

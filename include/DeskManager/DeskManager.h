@@ -15,7 +15,7 @@
  * Desk accessories are small utility programs that provide essential daily
  * computing functions like Calculator, Key Caps, Alarm Clock, and Chooser.
  *
- * Based on Apple's Macintosh Toolbox Desk Manager from System 7.1
+ * Derived from ROM analysis (System 7)
  */
 
 /* Forward declarations */

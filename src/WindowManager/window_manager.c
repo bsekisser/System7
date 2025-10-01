@@ -5,7 +5,7 @@
  * Window Manager - Apple System 7.1 Window Manager Reimplementation
  *
  * This file contains reimplemented Window Manager functions from Apple System 7.1.
- * Based on evidence extracted from System.rsrc (ROM disassembly)
+ * Based on ROM analysis (Quadra 800)
  *
  * Evidence sources:
  * - radare2 binary analysis showing trap call patterns (24 total Window Manager traps found)

@@ -5,7 +5,6 @@
  *
  * Reverse-engineered from System 7 Finder.rsrc
  * Source:  3_resources/Finder.rsrc
- * ROM disassembly
  *
  * Evidence sources:
  * - String analysis: "Macintosh Finder Version 7.1", "About The Finder"
@@ -28,6 +27,9 @@
 #include "DialogManager/DialogTypes.h"
 #include "WindowManager/WindowTypes.h"
 #include "FS/vfs.h"
+#include "StandardFile/StandardFile.h"
+#include "ToolboxCompat.h"
+#include "System71StdLib.h"
 
 
 /* External globals */
@@ -184,6 +186,9 @@ static OSErr SetupMenus(void)
     AppendMenu(gFileMenu, "\p(-");
     AppendMenu(gFileMenu, "\pFind.../F");
     AppendMenu(gFileMenu, "\pFind Again/G");
+    AppendMenu(gFileMenu, "\p(-");
+    AppendMenu(gFileMenu, "\p[Test] Open File...");
+    AppendMenu(gFileMenu, "\p[Test] Save File...");
 
     /* Edit Menu */
     static unsigned char editTitle[] = {4, 'E', 'd', 'i', 't'};  /* Pascal string: "Edit" */
@@ -513,6 +518,34 @@ static void HandleMenuChoice(long menuChoice)
                     break;
                 case 13:  /* Find Again */
                     err = FindAgain();      /*
+                    break;
+                case 15:  /* [Test] Open File... */
+                    {
+                        StandardFileReply reply;
+                        serial_printf("[TEST] StandardGetFile called\n");
+                        StandardGetFile(NULL, 0, NULL, &reply);
+                        if (reply.sfGood) {
+                            serial_printf("[TEST] File selected: vRefNum=%d parID=%ld name='%.*s'\n",
+                                         reply.sfFile.vRefNum, reply.sfFile.parID,
+                                         reply.sfFile.name[0], reply.sfFile.name + 1);
+                        } else {
+                            serial_printf("[TEST] User canceled\n");
+                        }
+                    }
+                    break;
+                case 16:  /* [Test] Save File... */
+                    {
+                        StandardFileReply reply;
+                        serial_printf("[TEST] StandardPutFile called\n");
+                        StandardPutFile("\pSave As:", "\pUntitled", &reply);
+                        if (reply.sfGood) {
+                            serial_printf("[TEST] Save location: vRefNum=%d parID=%ld name='%.*s'\n",
+                                         reply.sfFile.vRefNum, reply.sfFile.parID,
+                                         reply.sfFile.name[0], reply.sfFile.name + 1);
+                        } else {
+                            serial_printf("[TEST] User canceled\n");
+                        }
+                    }
                     break;
             }
             break;

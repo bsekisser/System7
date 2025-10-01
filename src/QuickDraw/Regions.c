@@ -9,7 +9,7 @@
  * clipping operations, hit testing, and complex region manipulation.
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
- * Derived from System 7 ROM analysis 7.1 QuickDraw
+ * Derived from System 7 ROM analysis (Ghidra) QuickDraw
  */
 
 // #include "CompatibilityFix.h" // Removed

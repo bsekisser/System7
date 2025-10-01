@@ -10,13 +10,10 @@ extern SInt16 gCurResFile;
  * Apple System 7.1 Resource Manager - System Trap Handlers
  *
  * implemented based on System.rsrc
- * ROM disassembly
  *
  * Evidence source: 
  * Mappings source: 
  *
- * 
- * Reimplemented for System 7.1 decompilation project
  */
 
 // #include "CompatibilityFix.h" // Removed

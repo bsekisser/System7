@@ -3,13 +3,10 @@
  * Apple System 7.1 Resource Manager - Type Definitions
  *
  * implemented based on System.rsrc
- * ROM disassembly
  *
  * Evidence source: 
  * Layout source: 
  *
- * 
- * Reimplemented for System 7.1 decompilation project
  */
 
 #ifndef RESOURCE_TYPES_H

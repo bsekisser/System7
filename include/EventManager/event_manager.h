@@ -8,7 +8,6 @@
  * mouse clicks, keyboard input, system events, and application activation.
  *
  * Source Binary: System.rsrc (383,182 bytes)
- * ROM disassembly
  * Architecture: 68000/68020/68030 Motorola
  * Target System: Apple System 7.1 (1992)
  *
@@ -206,7 +205,7 @@ extern QHdr gEventQueue;           /* Event queue header */
   "version": "1.0.0",
   "source_artifact": {
     "file": "System.rsrc",
-    "sha256": "78150ebb66707277e0947fbf81f6a27fc5d263a71bbf96df7084d5c3ec22a5ba"
+    "rom_source": "Quadra800.ROM"
   },
   "evidence_files": [
     "evidence.curated.eventmgr.json",

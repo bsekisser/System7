@@ -14,7 +14,7 @@
  * scientific functions, and programmer operations. This matches the
  * functionality of the Mac OS Calculator desk accessory.
  *
- * Based on Apple's Calculator DA from System 7.1
+ * Derived from ROM analysis (System 7)
  */
 
 #include "DeskAccessory.h"

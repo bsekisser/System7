@@ -12,7 +12,7 @@
  * Implementation of the four required Apple Events
  * that all applications must support
  *
- * Based on Mac OS 7.1 Apple Event Manager
+ * Derived from System 7 ROM analysis Apple Event Manager
  */
 
 #include "SystemTypes.h"

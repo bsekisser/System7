@@ -9,7 +9,7 @@
  * a clear error message rather than producing a silently broken binary.
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
- * Derived from System 7 ROM analysis 7.1 Window Manager
+ * Derived from System 7 ROM analysis (Ghidra) Window Manager
  */
 
 #ifndef LAYOUT_GUARDS_H

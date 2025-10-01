@@ -13,7 +13,7 @@
  * Apple Event handler registration and dispatch system
  * Provides event routing, handler management, and dispatch table support
  *
- * Based on Mac OS 7.1 Apple Event handler system
+ * Derived from System 7 ROM analysis Apple Event handler system
  */
 
 #include "SystemTypes.h"

@@ -9,7 +9,7 @@
  * and low-level I/O for the HFS file system.
  *
  * Copyright (c) 2024 - Implementation for System 7.1 Portable
- * Based on Apple System Software 7.1 HFS allocation architecture
+ * Derived from System 7 ROM analysis (Ghidra) HFS allocation architecture
  */
 
 #include "FileManager.h"

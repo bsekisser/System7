@@ -19,7 +19,7 @@
  * - wDrawGIcon (6): Draw the grow icon in the window's lower-right corner
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
- * Derived from System 7 ROM analysis 7.1 Window Manager
+ * Derived from System 7 ROM analysis (Ghidra) Window Manager
  */
 
 #ifndef WINDOW_WDEF_H

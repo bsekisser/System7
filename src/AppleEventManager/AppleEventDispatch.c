@@ -11,7 +11,7 @@
  * Apple Event dispatch and processing implementation
  * Handles event routing, processing, and responses
  *
- * Based on Mac OS 7.1 Apple Event Manager
+ * Derived from System 7 ROM analysis Apple Event Manager
  */
 
 #include "CompatibilityFix.h"

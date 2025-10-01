@@ -10,7 +10,7 @@
  * including selection highlighting and caret drawing.
  *
  * Copyright (c) 2024 System7.1-Portable Project
- * Based on Apple Computer, Inc. TextEdit Manager 1985-1992
+ * Derived from ROM analysis: TextEdit Manager 1985-1992
  *
  ************************************************************/
 

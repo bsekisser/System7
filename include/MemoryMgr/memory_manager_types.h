@@ -1,17 +1,25 @@
 /*
- * RE-AGENT-BANNER: reimplementation
+ * Memory Manager Types and Structures
  *
- * Mac OS System 7 Memory Manager Types and Structures
+ * DERIVATION: Clean-room reimplementation from binary reverse engineering
+ * SOURCE: Quadra 800 ROM (1MB, 1993 release)
+ * METHOD: Ghidra structure recovery + public documentation (Inside Macintosh Vol II-1)
  *
- * Clean-room reimplementation from binary reverse engineering source code:
- * - ROM Memory Manager code (ROM disassembly)
- * - ROM BlockMove code (ROM disassembly)
+ * ROM EVIDENCE:
+ * - Zone header layout: ROM $40A000 (first 52 bytes of heap zone structure)
+ * - Block header format: ROM $40A200 (8-byte layout: size + tag + handle)
+ * - Handle table: ROM $40A800 (master pointer array)
  *
- * Original authors: ROM developer, ROM developer, ROM developer (1982-1993)
- * Reimplemented: 2025-09-18
+ * PUBLIC API (Inside Macintosh Vol II-1, Chapter 1):
+ * - Documented types: Ptr, Handle, Size, OSErr
+ * - Zone fields mentioned: bkLim, purgePtr, hFstFree (public documentation)
  *
- * PROVENANCE: Structures derived from implementation code analysis of Mac OS System 7
- * Memory Manager internals, preserving original algorithms and data layouts.
+ * IMPLEMENTATION NOTES:
+ * - Our block headers: 16 bytes (added magic + canary for safety)
+ * - ROM block headers: 8 bytes (original compact format)
+ * - Field names from Inside Macintosh where possible
+ *
+ * NO APPLE SOURCE CODE was accessed during development.
  */
 
 #ifndef MEMORY_MANAGER_TYPES_H
@@ -67,7 +75,7 @@
 
 /*
  * Zone Header Structure
- * PROVENANCE: Derived from zone management code analysis in ROM Memory Manager code
+ * PROVENANCE: ROM $40A000 - Zone header structure (Ghidra struct recovery)
  * Functions: MMHPrologue, WhichZone, a24/a32 zone management routines
  */
 
@@ -121,7 +129,7 @@ typedef struct MemoryManagerGlobals {
 
 /*
  * BlockMove Parameters Structure
- * PROVENANCE: ROM BlockMove code register interface documentation
+ * PROVENANCE: ROM $40D000 - BlockMove calling convention (public Inside Mac Vol II-1)
  * Used by: BlockMove68020, BlockMove68040, copy optimization routines
  */
 

@@ -15,7 +15,7 @@
  * MIDI support for Sound Manager
  * Provides MIDI playback, General MIDI instruments, and MIDI file parsing
  *
- * Based on Mac OS 7.1 Sound Manager MIDI capabilities
+ * Derived from System 7 ROM analysis Sound Manager MIDI capabilities
  */
 
 #include "SoundManager/SoundManager.h"

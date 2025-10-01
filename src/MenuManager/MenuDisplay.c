@@ -8,7 +8,7 @@
  * It provides the complete visual representation of the Mac OS menu system.
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
- * Derived from System 7 ROM analysis 7.1 Menu Manager
+ * Derived from System 7 ROM analysis (Ghidra) Menu Manager
  */
 
 // #include "CompatibilityFix.h" // Removed

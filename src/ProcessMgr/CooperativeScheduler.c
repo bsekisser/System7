@@ -4,7 +4,6 @@
  * CooperativeScheduler.c - System 7 Cooperative Multitasking Scheduler
  *
  * implemented based on System.rsrc
- * ROM disassembly
  *
  * This implements the revolutionary cooperative multitasking scheduler introduced
  * in Mac OS System 7. Unlike preemptive multitasking, cooperative multitasking

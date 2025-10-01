@@ -11,7 +11,7 @@
  * Apple Event recording and playback functionality
  * Used for scripting and macro recording
  *
- * Based on Mac OS 7.1 Apple Event Manager
+ * Derived from System 7 ROM analysis Apple Event Manager
  */
 
 #include "CompatibilityFix.h"

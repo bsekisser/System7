@@ -8,7 +8,7 @@
  * Provides time display and alarm functionality. Shows current time and date,
  * allows setting alarms, and provides notification when alarms trigger.
  *
- * Based on Apple's Alarm Clock DA from System 7.1
+ * Derived from ROM analysis (System 7)
  */
 
 #include "SystemTypes.h"

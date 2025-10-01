@@ -8,7 +8,7 @@
  * Chooser) with the Desk Manager. Provides the interface between the generic
  * DA system and the specific implementations.
  *
- * Based on Apple's built-in desk accessories from System 7.1
+ * Derived from ROM analysis (System 7)
  */
 
 #include "SystemTypes.h"

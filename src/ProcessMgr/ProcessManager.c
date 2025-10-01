@@ -5,7 +5,6 @@
  * ProcessManager.c - Mac OS System 7 Process Manager Core Implementation
  *
  * implemented based on System.rsrc
- * ROM disassembly
  *
  * This implements the cooperative multitasking Process Manager for System 7.
  * The Process Manager enables multiple applications to run simultaneously

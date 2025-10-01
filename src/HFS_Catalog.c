@@ -9,7 +9,7 @@
  * including B-tree operations for file and directory management.
  *
  * Copyright (c) 2024 - Implementation for System 7.1 Portable
- * Based on Apple System Software 7.1 HFS catalog structure
+ * Derived from System 7 ROM analysis (Ghidra) HFS catalog structure
  */
 
 #include "FileManager.h"

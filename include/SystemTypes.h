@@ -1843,10 +1843,7 @@ typedef GrafPort WMgrPort;
 
 /* [WM-055] Window kind constants now in WindowManager/WindowKinds.h */
 
-/* Update flags for windows */
-#define kUpdateTitle    1
-#define kUpdateContent  2
-#define kUpdateStructure 4
+/* Update flags for windows - see also lines 487-490 for original definitions */
 
 // Missing File Manager types
 typedef SInt16 FSIORefNum;

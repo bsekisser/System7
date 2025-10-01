@@ -5,7 +5,6 @@
  *
  * Reverse-engineered from System 7 Finder.rsrc
  * Source:  3_resources/Finder.rsrc
- * ROM disassembly
  *
  * Evidence sources:
  * - String analysis: "the original item,## could not be found%The alias"

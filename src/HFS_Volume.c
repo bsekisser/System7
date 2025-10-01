@@ -10,7 +10,7 @@
  * and managing Volume Control Blocks (VCBs) and Master Directory Blocks (MDBs).
  *
  * Copyright (c) 2024 - Implementation for System 7.1 Portable
- * Based on Apple System Software 7.1 HFS architecture
+ * Derived from System 7 ROM analysis (Ghidra) HFS architecture
  */
 
 #include "FileManager.h"

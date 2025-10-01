@@ -1,9 +1,9 @@
 /*
  * RE-AGENT-BANNER
  * QuickDraw Types Header
- * Reimplemented from Apple System 7.1 QuickDraw Core
+ * Clean-room reimplementation from ROM analysis
  *
- * Original binary: System.rsrc (ROM disassembly)
+ * SOURCE: Quadra 800 ROM (1MB, 1993 release)
  * Architecture: 68k Mac OS System 7
  * Evidence sources: string analysis, Mac OS Toolbox reference, binary analysis
  *

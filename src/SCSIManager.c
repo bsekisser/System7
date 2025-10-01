@@ -8,7 +8,7 @@
  * SCSIManager.c
  *
  * Portable implementation of Mac OS System 7.1 SCSI Manager
- * Based on Apple's SCSI Manager 4.3 with CAM (Common Access Method) API
+ * Derived from ROM SCSI routines
  *
  * This implementation provides complete SCSI device management including:
  * - SCSI command execution (6, 10, and 12-byte commands)
@@ -18,7 +18,6 @@
  * - Error handling and retry logic
  * - Hardware abstraction for modern storage interfaces
  *
- * 
  * Portable implementation Copyright (c) 2024
  */
 

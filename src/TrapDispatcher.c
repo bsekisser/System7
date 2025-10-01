@@ -24,7 +24,6 @@
  * - Extended trap table support for Mac Plus/SE compatibility
  * - Cache flushing for self-modifying code compatibility
  *
- * 
  * Portable conversion for System7.1-Portable project
  */
 

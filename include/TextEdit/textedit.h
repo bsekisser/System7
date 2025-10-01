@@ -2,7 +2,6 @@
  * TextEdit Header - Apple System 7.1 TextEdit Manager
  *
  * implemented based on: System.rsrc
- * ROM disassembly
  * Architecture: m68k (68000)
  * ABI: classic_macos
  *

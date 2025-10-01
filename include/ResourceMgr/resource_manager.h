@@ -3,13 +3,10 @@
  * Apple System 7.1 Resource Manager - Main Interface
  *
  * implemented based on System.rsrc
- * ROM disassembly
  *
  * Evidence source: 
  * Mappings source: 
  *
- * 
- * Reimplemented for System 7.1 decompilation project
  */
 
 #ifndef RESOURCE_MANAGER_H

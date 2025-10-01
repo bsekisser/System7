@@ -1,7 +1,7 @@
 /* RE-AGENT-BANNER
  * System 7.1 List Manager - Header Definitions
  *
- * Original Binary: System.rsrc (ROM disassembly)
+ * SOURCE: Quadra 800 ROM (1MB, 1993 release)
  * Architecture: Motorola 68000 (m68k)
  * Original System: Apple System 7.1 (1992)
  *
@@ -147,7 +147,7 @@ void InitListManager(void);
   },
   "provenance": {
     "sources": ["r2_analysis", "evidence_curated", "layouts_curated", "mac_inside_macintosh"],
-    "binary_sha256": "78150ebb66707277e0947fbf81f6a27fc5d263a71bbf96df7084d5c3ec22a5ba",
+    "rom_source": "Quadra800.ROM",
     "evidence_files": [
       "evidence.curated.listmgr.json",
       "mappings.listmgr.json",

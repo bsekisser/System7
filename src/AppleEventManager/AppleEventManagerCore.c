@@ -13,7 +13,7 @@
  * Core Apple Event Manager implementation
  * Provides the fundamental Apple Event system for inter-application communication
  *
- * Based on Mac OS 7.1 Apple Event Manager
+ * Derived from System 7 ROM analysis Apple Event Manager
  */
 
 #include "SystemTypes.h"

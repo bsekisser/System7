@@ -8,7 +8,7 @@
  * Handles adding/removing DAs from the menu, menu selection routing, and
  * menu state management.
  *
- * Based on Apple's System Menu implementation from System 7.1
+ * Derived from ROM analysis (System 7)
  */
 
 #include "SystemTypes.h"
