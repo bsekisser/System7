@@ -777,7 +777,10 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     }
 
     /* Button released: erase ghost */
-    if (ghostOn) InvertIconOutline(&ghost);
+    if (ghostOn) {
+        serial_printf("TrackIconDragSync: erasing final ghost outline\n");
+        InvertIconOutline(&ghost);
+    }
 
     /* Commit new position (snap to grid) - only for movable items */
     if (gDesktopIcons[iconIndex].movable) {

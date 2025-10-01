@@ -459,6 +459,13 @@ Boolean HandleUpdate(EventRecord* event)
 
         /* Log successful update */
         serial_printf("UPDATE: drew content for window=%p\n", updateWindow);
+    } else {
+        /* NULL window = desktop/background update */
+        serial_printf("HandleUpdate: NULL window, redrawing desktop\n");
+        extern void DrawDesktop(void);
+        extern void DrawVolumeIcon(void);
+        DrawDesktop();
+        DrawVolumeIcon();
     }
 
     return true;
