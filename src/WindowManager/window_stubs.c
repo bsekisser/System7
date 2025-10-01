@@ -47,7 +47,6 @@ Boolean TrackBox(WindowPtr window, Point pt, short partCode) { return false; }
 Boolean TrackGoAway(WindowPtr window, Point pt) { return false; }
 long GrowWindow(WindowPtr window, Point startPt, const Rect* sizeRect) { return 0; }
 /* DragWindow is implemented in src/WindowManager/WindowDragging.c */
-/* void DragWindow(WindowPtr window, Point startPt, const Rect* boundsRect) {} */
 
 /* Window updating */
 void BeginUpdate(WindowPtr window) {}

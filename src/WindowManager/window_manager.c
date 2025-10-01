@@ -86,14 +86,10 @@ WindowPtr NewWindow(void* wStorage, const Rect* boundsRect, ConstStr255Param tit
         InitWindows();
     }
 
-    /*
-    if (wStorage) {
-        newWindow = (WindowPtr)wStorage;
-    } else {
-        newWindow = (WindowPtr)malloc(sizeof(WindowRecord));
-        if (!newWindow) {
-            return NULL;
-        }
+    /* Always allocate new window storage */
+    newWindow = (WindowPtr)malloc(sizeof(WindowRecord));
+    if (!newWindow) {
+        return NULL;
     }
 
     /* Initialize WindowRecord structure based on evidence from layouts.curated.windowmgr.json */
@@ -124,8 +120,6 @@ WindowPtr NewWindow(void* wStorage, const Rect* boundsRect, ConstStr255Param tit
     newWindow->goAwayFlag = goAwayFlag;
     newWindow->spareFlag = false;
     newWindow->refCon = refCon;
-
-    /*
     newWindow->windowDefProc = (Handle)(intptr_t)theProc;
 
     /* Title handling - Evidence: titleHandle field at offset 134 */
@@ -202,7 +196,6 @@ void ShowWindow(WindowPtr window) {
         return;
     }
 
-    /*
     window->visible = true;
 
     /* Bring to front when showing */
@@ -223,7 +216,6 @@ void HideWindow(WindowPtr window) {
         return;
     }
 
-    /*
     window->visible = false;
 
     /* If this was front window, find new front window */
@@ -258,7 +250,6 @@ void BeginUpdate(WindowPtr window) {
         return;
     }
 
-    /*
     /* Set clipping to update region */
     if (window->updateRgn) {
         (window)->clipRgn = window->updateRgn;
@@ -275,7 +266,6 @@ void EndUpdate(WindowPtr window) {
         return;
     }
 
-    /*
     if (window->contRgn) {
         (window)->clipRgn = window->contRgn;
     }
@@ -304,20 +294,19 @@ SInt16 FindWindow(Point thePoint, WindowPtr* whichWindow) {
     /* Search through visible windows from front to back */
     WindowPtr window = g_frontWindow;
     while (window) {
-        if (window->visible) {
-            Rect* bounds = &(window)->portRect;
+        if (window->visible && window->strucRgn) {
+            /* Use strucRgn which contains GLOBAL window position */
+            Rect bounds = (*window->strucRgn)->rgnBBox;
 
-            /*
-            if (thePoint.h >= bounds->left && thePoint.h < bounds->right &&
-                thePoint.v >= bounds->top && thePoint.v < bounds->bottom) {
+            if (thePoint.h >= bounds.left && thePoint.h < bounds.right &&
+                thePoint.v >= bounds.top && thePoint.v < bounds.bottom) {
 
                 if (whichWindow) {
                     *whichWindow = window;
                 }
 
-                /*
                 /* Simplified hit testing - real implementation would check regions */
-                if (thePoint.v < bounds->top + 20) {
+                if (thePoint.v < bounds.top + 20) {
                     return inDrag;  /* Title bar area */
                 }
 
@@ -342,7 +331,6 @@ void SelectWindow(WindowPtr window) {
 
     BringToFront(window);
 
-    /*
     if (g_frontWindow) {
         g_frontWindow->hilited = false;  /* Deactivate previous front window */
     }
@@ -382,7 +370,6 @@ WindowPtr FrontWindow(void) {
 static void LinkWindow(WindowPtr window) {
     if (!window) return;
 
-    /*
     window->nextWindow = g_windowList;
     g_windowList = window;
 
@@ -435,12 +422,6 @@ void SizeWindow(WindowPtr window, SInt16 w, SInt16 h, Boolean fUpdate) {
 }
 
 /* DragWindow is implemented in src/WindowManager/WindowDragging.c */
-/*
-void DragWindow(WindowPtr window, Point startPt, const Rect* boundsRect) {
-    // Stub - would implement interactive dragging
-    (void)window; (void)startPt; (void)boundsRect;
-}
-*/
 
 SInt32 GrowWindow(WindowPtr window, Point startPt, const Rect* bBox) {
     /* Stub - would implement interactive resizing */
