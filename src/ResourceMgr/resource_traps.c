@@ -370,3 +370,4 @@ SInt16 GetResFileAttrs(SInt16 refNum) {
 }
 
 /*
+ */

@@ -512,3 +512,4 @@ void DrawGrowIcon(WindowPtr window) {
 }
 
 /*
+ */

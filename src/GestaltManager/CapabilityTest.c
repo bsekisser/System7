@@ -194,3 +194,4 @@ static const char* GetColorDepthString(unsigned short flags)
 }
 
 /*
+ */

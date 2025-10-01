@@ -62,8 +62,7 @@ OSErr ResolveAlias(FSSpec *alias, FSSpec *target, Boolean *wasChanged)
     /* Validate that this is actually an alias file */
     err = ValidateAliasFile(alias);
     if (err != noErr) {
-        /*
-        ShowErrorDialog("\pThis item is really not an alias. The problem has now been corrected.", err);
+        /* ShowErrorDialog("\pThis item is really not an alias. The problem has now been corrected.", err); */
         return err;
     }
 
@@ -96,8 +95,7 @@ OSErr ResolveAlias(FSSpec *alias, FSSpec *target, Boolean *wasChanged)
             err = UpdateAliasFile(alias, target);
         }
     } else {
-        /*
-        ShowErrorDialog("\pThe alias could not be resolved because the original item could not be found.", err);
+        /* ShowErrorDialog("\pThe alias could not be resolved because the original item could not be found.", err); */
     }
 
     /* Clean up */
@@ -149,8 +147,7 @@ OSErr FixBrokenAlias(FSSpec *alias)
             err = PBSetCatInfoSync(&pb);
 
             if (err == noErr) {
-                /*
-                ShowErrorDialog("\pThe problem has now been corrected. Please try again.", noErr);
+                /* ShowErrorDialog("\pThe problem has now been corrected. Please try again.", noErr); */
             }
         }
     }
@@ -429,5 +426,3 @@ static Boolean IsValidAliasRecord(AliasRecord *record)
             return false;
     }
 }
-
-/*

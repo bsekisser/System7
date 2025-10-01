@@ -326,3 +326,4 @@ OSErr GetSystemCapabilities(SystemCapabilities *caps)
 }
 
 /*
+ */

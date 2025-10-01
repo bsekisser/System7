@@ -284,4 +284,4 @@ void SetValidateMenuBarSemaphore(Boolean locked) {
     }
 }
 
-/*
+/* */

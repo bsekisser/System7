@@ -41,6 +41,7 @@ extern UInt32 TickCount(void);
  * GetNextEvent - Canonical implementation
  * Retrieves and removes the next matching event from the queue
  */
+#ifndef ENABLE_PROCESS_COOP
 Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
     static int gne_calls = 0;
     gne_calls++;
@@ -139,11 +140,13 @@ Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
     serial_printf("GetNextEvent: No matching event found\n");
     return false;
 }
+#endif /* !ENABLE_PROCESS_COOP */
 
 /**
  * EventAvail - Check if event is available without removing it
  * New function added for System 7.1 compatibility
  */
+#ifndef ENABLE_PROCESS_COOP
 Boolean EventAvail(short eventMask, EventRecord* theEvent) {
     serial_printf("EventAvail: Called with mask=0x%04x, queue count=%d\n",
                   eventMask, g_eventQueue.count);
@@ -197,11 +200,13 @@ Boolean EventAvail(short eventMask, EventRecord* theEvent) {
     serial_printf("EventAvail: No matching event found\n");
     return false;
 }
+#endif /* !ENABLE_PROCESS_COOP */
 
 /**
  * PostEvent - Post an event to the queue
  * Core function for adding events to the system
  */
+#ifndef ENABLE_PROCESS_COOP
 SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
     /* Debug: log post with event name */
     const char* eventName = "unknown";
@@ -259,6 +264,7 @@ SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
 
     return 0; /* noErr */
 }
+#endif /* !ENABLE_PROCESS_COOP */
 
 /* InitEvents is provided by sys71_stubs.c - we just use the queue here */
 extern SInt16 InitEvents(SInt16 numEvents);
@@ -326,6 +332,7 @@ Boolean WaitNextEvent(short eventMask, EventRecord* theEvent, UInt32 sleep, RgnH
  * FlushEvents - Remove events from the queue
  * Used to clear unwanted events
  */
+#ifndef ENABLE_PROCESS_COOP
 void FlushEvents(short whichMask, short stopMask) {
     serial_printf("FlushEvents: Flushing events with mask=0x%04x, stop=0x%04x\n",
                   whichMask, stopMask);
@@ -370,6 +377,7 @@ void FlushEvents(short whichMask, short stopMask) {
 
     serial_printf("FlushEvents: Complete, queue now has %d events\n", g_eventQueue.count);
 }
+#endif /* !ENABLE_PROCESS_COOP */
 
 /* Button is provided by PS2Controller.c */
 extern Boolean Button(void);

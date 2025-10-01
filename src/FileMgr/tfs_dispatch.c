@@ -29,7 +29,7 @@ static const struct {
     {0x00, "VolumeCall", (OSErr(*)(ParamBlockRec*))VolumeCall},
     {0x01, "RefNumCall", (OSErr(*)(ParamBlockRec*))RefNumCall},
     {0x02, "OpenCall", (OSErr(*)(ParamBlockRec*))OpenCall},
-    {0x03, "UnknownCall", NULL},  /*
+    {0x03, "UnknownCall", NULL}
 };
 
 /*
@@ -130,7 +130,6 @@ OSErr RefNumCall(void* param_block) {
     }
 
     /* For now, return success - full implementation would handle file I/O */
-    /*
     return noErr;
 }
 
@@ -150,7 +149,6 @@ OSErr OpenCall(void* param_block) {
     }
 
     /* For now, return success - full implementation would open files */
-    /*
     return noErr;
 }
 
@@ -165,7 +163,6 @@ OSErr FSQueue(void* param_block) {
     if (pb == NULL) return paramErr;
 
     /* In original implementation, this would add to FS queue */
-    /*
 
     /* For synchronous implementation, just call the operation directly */
     return TFSDispatch(0, pb->ioTrap, param_block);
@@ -177,7 +174,6 @@ OSErr FSQueue(void* param_block) {
  * Handles synchronous file system operations without queuing
  */
 OSErr FSQueueSync(void) {
-    /*
     /* In our implementation, operations are already synchronous */
     return noErr;
 }
@@ -188,7 +184,6 @@ OSErr FSQueueSync(void) {
  * Handles cleanup after file system operations complete
  */
 void CmdDone(void) {
-    /*
     /* Original would:
      * 1. Check for errors and convert internal error codes
      * 2. Call completion routines for async operations
@@ -200,4 +195,4 @@ void CmdDone(void) {
     return;
 }
 
-/*
+/* */

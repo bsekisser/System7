@@ -61,8 +61,7 @@ OSErr EmptyTrash(Boolean force)
 
     /* Check if trash can be emptied */
     if (!force && !CanEmptyTrash()) {
-        /*
-        ShowErrorDialog("\pThe Trash cannot be emptied because some items are locked.", noErr);
+        /* ShowErrorDialog("\pThe Trash cannot be emptied because some items are locked.", noErr); */
         return userCanceledErr;
     }
 
@@ -112,8 +111,7 @@ OSErr EmptyTrash(Boolean force)
 
     /* Show warning if some locked items remain */
     if (hasLockedItems && !force) {
-        /*
-        ShowErrorDialog("\pSome items could not be deleted because they are locked.", noErr);
+        /* ShowErrorDialog("\pSome items could not be deleted because they are locked.", noErr); */
     }
 
     return (err == fnfErr) ? noErr : err; /* fnfErr is expected when done */
@@ -226,8 +224,7 @@ OSErr HandleFloppyTrashItems(void)
     } while (err == noErr);
 
     if (foundFloppyItems) {
-        /*
-        err = ShowConfirmDialog("\pItems from 400K disks cannot be left in the Trash. Do you want to delete them?", &confirmed);
+        /* err = ShowConfirmDialog("\pItems from 400K disks cannot be left in the Trash. Do you want to delete them?", &confirmed); */
         if (err == noErr && confirmed) {
             /* Delete floppy items immediately */
             itemIndex = 1;
@@ -446,5 +443,3 @@ static Boolean IsFloppyDisk(short vRefNum)
     /* Check if volume size is approximately 400K */
     return (pb.u.volumeParam.ioVAlBlkSiz * pb.u.volumeParam.ioVNmAlBlks) <= kFloppyDiskSize;
 }
-
-/*

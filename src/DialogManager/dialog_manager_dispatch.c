@@ -336,3 +336,4 @@ const char* GetDialogManagerTrapName(UInt16 trapVector) {
 }
 
 /*
+ */

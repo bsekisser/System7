@@ -1,439 +1,393 @@
-/* #include "SystemTypes.h" */
 /*
- * RE-AGENT-BANNER
- * EventIntegration.c - Event Manager Integration for Cooperative Multitasking
+ * EventIntegration.c - Event Queue and Process Integration
  *
- * implemented based on System.rsrc
- *
- * This implements the critical integration between the Event Manager and Process
- * Manager that enables cooperative multitasking in System 7. The key insight is
- * that cooperative multitasking works by having applications voluntarily yield
- * control when they call WaitNextEvent or GetNextEvent.
- *
- * This creates natural yield points where the scheduler can switch between
- * processes, making multitasking appear seamless while maintaining application
- * compatibility with older single-tasking code.
- *
- * Evidence sources:
- * - evidence.process_manager.json: System identifiers and resource analysis
- * - layouts.process_manager.json: Event record structure
- * - mappings.process_manager.json: System call mappings for events
- * RE-AGENT-BANNER
+ * Implements event queue management and process-aware event APIs.
+ * Provides GetNextEvent, EventAvail, and PostEvent with process
+ * unblocking capabilities.
  */
 
-// #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
-
-#include "ProcessMgr/ProcessMgr.h"
 #include "EventManager/EventTypes.h"
-#include <QuickDraw.h>
 
+/* Event queue - ring buffer */
+#define EVENT_QUEUE_SIZE 64
+static EventRecord gEventQueue[EVENT_QUEUE_SIZE];
+static UInt16 gQueueHead = 0;
+static UInt16 gQueueTail = 0;
+static UInt16 gQueueCount = 0;
+
+/* External functions */
+extern void serial_printf(const char* fmt, ...);
+extern void Proc_UnblockEvent(EventRecord* evt);
+extern UInt32 TickCount(void);
+extern void GetMouse(Point* pt);
+extern Boolean Button(void);
+
+/* String function from System71StdLib */
+extern void* memset(void* s, int c, size_t n);
+
+/* Forward declarations */
+static UInt16 GetModifiers(void);
+static Boolean DequeueEvent(EventMask mask, EventRecord* evt);
+static Boolean CheckSystemEvents(EventMask mask, EventRecord* evt);
 
 /*
- * Event Integration State
-
+ * Proc_GetNextEvent - Process-aware get next event matching mask
+ *
+ * This is THE cooperative multitasking point. When apps call this,
+ * they're saying "I'm idle, let others run"
+ *
+ * NOTE: This is a process-aware version that integrates with the scheduler.
+ * The canonical GetNextEvent is in EventManager/event_manager.c
  */
-static EventRecord gPendingEvents[16];
-static UInt16 gEventQueueHead = 0;
-static UInt16 gEventQueueTail = 0;
-static UInt16 gEventQueueSize = 0;
-static Boolean gEventManagerActive = false;
+Boolean Proc_GetNextEvent(EventMask mask, EventRecord* evt) {
+    if (!evt) return false;
 
-/* Per-process event state */
-typedef struct ProcessEventState {
-    EventMask   eventMask;
-    UInt32      lastEventTime;
-    Point       lastMouseLocation;
-    UInt16      eventCount;
-} ProcessEventState;
-
-static ProcessEventState gProcessEventStates[kPM_MaxProcesses];
-
-/*
- * Initialize Event Manager Integration
-
- */
-OSErr EventIntegration_Initialize(void)
-{
-    /* Initialize event queue */
-    gEventQueueHead = 0;
-    gEventQueueTail = 0;
-    gEventQueueSize = 0;
-    gEventManagerActive = true;
-
-    /* Initialize per-process event states */
-    for (int i = 0; i < kPM_MaxProcesses; i++) {
-        gProcessEventStates[i].eventMask = everyEvent;
-        gProcessEventStates[i].lastEventTime = 0;
-        gProcessEventStates[i].lastMouseLocation.h = 0;
-        gProcessEventStates[i].lastMouseLocation.v = 0;
-        gProcessEventStates[i].eventCount = 0;
-    }
-
-    return noErr;
-}
-
-#if 0  /* DISABLED - GetNextEvent now provided by EventManager/event_manager.c */
-/*
- * Enhanced GetNextEvent with Process Switching
-
- */
-Boolean GetNextEvent_DISABLED(EventMask eventMask, EventRecord* theEvent)
-{
-    Boolean eventFound = false;
-    UInt32 startTime = TickCount();
-
-    if (!theEvent || !gEventManagerActive) {
-        return false;
-    }
-
-    /* Update current process event statistics */
-    if (gCurrentProcess) {
-        UInt32 processIndex = (gCurrentProcess)->lowLongOfPSN;
-        if (processIndex < kPM_MaxProcesses) {
-            gProcessEventStates[processIndex].lastEventTime = startTime;
-            gProcessEventStates[processIndex].eventCount++;
-        }
-    }
-
-    /* Check for queued events first */
-    eventFound = EventQueue_GetNext(eventMask, theEvent);
-    if (eventFound) {
+    /* Check queue first */
+    if (DequeueEvent(mask, evt)) {
+        /* Unblock any process waiting for this event */
+        Proc_UnblockEvent(evt);
         return true;
     }
 
-    /* Check for system events */
-    eventFound = System_CheckForEvents(eventMask, theEvent);
-    if (eventFound) {
+    /* Check for system-generated events */
+    if (CheckSystemEvents(mask, evt)) {
+        /* Unblock any process waiting for this event */
+        Proc_UnblockEvent(evt);
         return true;
     }
 
-    /* Cooperative yield opportunity - other processes can run */
-    if (gMultiFinderActive && gCurrentProcess) {
-        /* This is where cooperative multitasking happens! */
-        ProcessControlBlock* nextProcess;
-        if (Scheduler_GetNextProcess(&nextProcess) == noErr) {
-            if (nextProcess != gCurrentProcess) {
-                /* Brief context switch to allow other processes to run */
-                Context_Switch(nextProcess);
+    /* No event - generate null event */
+    evt->what = nullEvent;
+    evt->message = 0;
+    evt->when = TickCount();
+    evt->where.h = 0;
+    evt->where.v = 0;
+    GetMouse(&evt->where);
+    evt->modifiers = GetModifiers();
 
-                /* Switch back after other process yields */
-                /* In real implementation, this would be handled by scheduler */
-            }
-        }
-    }
-
-    /* Generate null event if no real event */
-    if (!eventFound) {
-        theEvent->what = nullEvent;
-        theEvent->message = 0;
-        theEvent->when = TickCount();
-        theEvent->modifiers = GetCurrentEventModifiers();
-        GetMouse(&theEvent->where);
-        eventFound = true;
-    }
-
-    return eventFound;
+    return false;  /* false means null event */
 }
-#endif /* DISABLED GetNextEvent */
-
-#if 0  /* DISABLED - WaitNextEvent now provided by EventManager/event_manager.c */
-/*
- * WaitNextEvent - The Heart of Cooperative Multitasking
-
- */
-Boolean WaitNextEvent(EventMask eventMask, EventRecord* theEvent,
-                     UInt32 sleep, RgnHandle mouseRgn)
-{
-    Boolean eventAvailable = false;
-    UInt32 startTime = TickCount();
-    UInt32 endTime = startTime + sleep;
-    UInt32 lastCooperativeYield = startTime;
-    const UInt32 yieldInterval = 6; /* Yield every 1/10 second */
-
-    if (!theEvent) {
-        return false;
-    }
-
-    /*
-     * Primary cooperative multitasking loop
-     * This is where the magic happens - applications call WaitNextEvent
-     * and this gives other processes a chance to run
-     */
-    do {
-        /* Quick event check */
-        eventAvailable = GetNextEvent(eventMask, theEvent);
-        if (eventAvailable) {
-            break;
-        }
-
-        /*
-         * Cooperative Yielding Strategy:
-         * - Yield immediately if MultiFinder is active
-         * - Yield periodically during long waits
-         * - Yield to higher priority processes
-         */
-        UInt32 currentTime = TickCount();
-
-        if (gMultiFinderActive) {
-            /* Yield if enough time has passed or if high priority process waiting */
-            Boolean shouldYield = (currentTime - lastCooperativeYield) >= yieldInterval;
-
-            if (!shouldYield) {
-                /* Check for higher priority processes */
-                shouldYield = Scheduler_HasHigherPriorityProcess();
-            }
-
-            if (shouldYield) {
-                ProcessControlBlock* nextProcess;
-                if (Scheduler_GetNextProcess(&nextProcess) == noErr &&
-                    nextProcess != gCurrentProcess) {
-
-                    /* Mark current process as yielding */
-                    if (gCurrentProcess->processState == kProcessRunning) {
-                        gCurrentProcess->processState = kProcessBackground;
-                    }
-
-                    /* Switch to next process */
-                    Context_Switch(nextProcess);
-
-                    /* When we return, update yield time */
-                    lastCooperativeYield = TickCount();
-                    currentTime = lastCooperativeYield;
-                }
-            }
-        }
-
-        /* Handle mouse region tracking */
-        if (mouseRgn) {
-            Point currentMouse;
-            GetMouse(&currentMouse);
-
-            /* Generate mouse moved event if mouse leaves region */
-            if (!PtInRgn(currentMouse, mouseRgn)) {
-                theEvent->what = nullEvent; /* Mouse moved event */
-                theEvent->message = 0;
-                theEvent->when = currentTime;
-                theEvent->where = currentMouse;
-                theEvent->modifiers = GetCurrentEventModifiers();
-                eventAvailable = true;
-                break;
-            }
-        }
-
-        /* Small delay to prevent excessive CPU usage */
-        /* In real implementation, would use system timing facilities */
-
-    } while (TickCount() < endTime);
-
-    /* Always return an event, even if it's just null */
-    if (!eventAvailable) {
-        theEvent->what = nullEvent;
-        theEvent->message = 0;
-        theEvent->when = TickCount();
-        theEvent->modifiers = GetCurrentEventModifiers();
-        GetMouse(&theEvent->where);
-        eventAvailable = true;
-    }
-
-    return eventAvailable;
-}
-#endif /* DISABLED WaitNextEvent */
 
 /*
- * Post Event to Process Queue
-
+ * Proc_EventAvail - Process-aware check if event available without removing
+ *
+ * NOTE: This is a process-aware version. The canonical EventAvail
+ * is in EventManager/event_manager.c
  */
-OSErr PostEvent(EventKind eventNum, UInt32 eventMsg)
-{
-    EventRecord newEvent;
+Boolean Proc_EventAvail(EventMask mask, EventRecord* evt) {
+    UInt16 index;
+    UInt16 count;
 
-    if (gEventQueueSize >= 16) {
-        return queueFull;
+    if (!evt) return false;
+
+    /* Scan queue for matching event */
+    index = gQueueHead;
+    count = gQueueCount;
+
+    while (count > 0) {
+        EventRecord* qEvt = &gEventQueue[index];
+
+        if ((1 << qEvt->what) & mask) {
+            /* Found matching event - copy but don't remove */
+            *evt = *qEvt;
+            return true;
+        }
+
+        index = (index + 1) % EVENT_QUEUE_SIZE;
+        count--;
     }
 
-    /* Create event record */
-    newEvent.what = eventNum;
-    newEvent.message = eventMsg;
-    newEvent.when = TickCount();
-    newEvent.modifiers = GetCurrentEventModifiers();
-    GetMouse(&newEvent.where);
+    /* Check system events without consuming */
+    if (CheckSystemEvents(mask, evt)) {
+        return true;
+    }
 
-    /* Add to event queue */
-    gPendingEvents[gEventQueueTail] = newEvent;
-    gEventQueueTail = (gEventQueueTail + 1) % 16;
-    gEventQueueSize++;
+    /* No event available */
+    evt->what = nullEvent;
+    evt->message = 0;
+    evt->when = TickCount();
+    evt->where.h = 0;
+    evt->where.v = 0;
+    GetMouse(&evt->where);
+    evt->modifiers = GetModifiers();
+
+    return false;
+}
+
+/*
+ * Proc_PostEvent - Process-aware post event to queue
+ *
+ * NOTE: This is a process-aware version that unblocks waiting processes.
+ * It can be called in addition to the standard PostEvent.
+ */
+OSErr Proc_PostEvent(EventKind what, UInt32 message) {
+    EventRecord evt;
+
+    if (gQueueCount >= EVENT_QUEUE_SIZE) {
+        serial_printf("EventMgr: Queue full, dropping event %d\n", what);
+        return evtNotEnb;  /* Event queue full */
+    }
+
+    /* Build event record */
+    evt.what = what;
+    evt.message = message;
+    evt.when = TickCount();
+    evt.where.h = 0;
+    evt.where.v = 0;
+    GetMouse(&evt.where);
+    evt.modifiers = GetModifiers();
+
+    /* Add to queue */
+    gEventQueue[gQueueTail] = evt;
+    gQueueTail = (gQueueTail + 1) % EVENT_QUEUE_SIZE;
+    gQueueCount++;
+
+    serial_printf("EventMgr: Posted event %d msg=0x%08x\n", what, message);
+
+    /* Unblock any process waiting for this event */
+    Proc_UnblockEvent(&evt);
 
     return noErr;
 }
 
 /*
- * Flush Events from Queue
-
+ * Proc_FlushEvents - Remove events from queue (process-aware version)
  */
-void FlushEvents(EventMask eventMask, EventMask stopMask)
-{
-    UInt16 readIndex = gEventQueueHead;
-    UInt16 writeIndex = gEventQueueHead;
+static void Proc_FlushEvents(EventMask whichMask, EventMask stopMask) {
+    UInt16 readIdx = gQueueHead;
+    UInt16 writeIdx = gQueueHead;
+    UInt16 count = gQueueCount;
 
-    /* Filter events, keeping only those not matching eventMask */
-    while (readIndex != gEventQueueTail) {
-        EventRecord* event = &gPendingEvents[readIndex];
-        EventMask eventBit = 1 << event->what;
+    serial_printf("EventMgr: Flushing events mask=0x%04x stop=0x%04x\n",
+                  whichMask, stopMask);
 
-        /* Stop if we hit a stop event */
-        if (stopMask && (eventBit & stopMask)) {
+    while (count > 0) {
+        EventRecord* evt = &gEventQueue[readIdx];
+        EventMask evtBit = (1 << evt->what);
+
+        /* Stop if we hit stop event */
+        if (evtBit & stopMask) {
             break;
         }
 
-        /* Keep event if it doesn't match flush mask */
-        if (!(eventBit & eventMask)) {
-            if (writeIndex != readIndex) {
-                gPendingEvents[writeIndex] = *event;
+        /* Keep event if not in flush mask */
+        if (!(evtBit & whichMask)) {
+            if (writeIdx != readIdx) {
+                gEventQueue[writeIdx] = *evt;
             }
-            writeIndex = (writeIndex + 1) % 16;
+            writeIdx = (writeIdx + 1) % EVENT_QUEUE_SIZE;
+        } else {
+            gQueueCount--;  /* Removing this event */
         }
 
-        readIndex = (readIndex + 1) % 16;
+        readIdx = (readIdx + 1) % EVENT_QUEUE_SIZE;
+        count--;
     }
 
-    /* Update queue size */
-    if (writeIndex >= gEventQueueHead) {
-        gEventQueueSize = writeIndex - gEventQueueHead;
-    } else {
-        gEventQueueSize = (16 - gEventQueueHead) + writeIndex;
+    /* Update tail if we removed events */
+    if (writeIdx != readIdx) {
+        gQueueTail = writeIdx;
     }
-    gEventQueueTail = writeIndex;
 }
 
 /*
- * Check for System Events
-
+ * DequeueEvent - Remove matching event from queue
+ * Strategy: Only pop from head - rotate non-matches to back
  */
-static Boolean System_CheckForEvents(EventMask eventMask, EventRecord* theEvent)
-{
-    static UInt32 lastDiskCheck = 0;
-    static Point lastMousePos = {0, 0};
-    UInt32 currentTime = TickCount();
+static Boolean DequeueEvent(EventMask mask, EventRecord* evt) {
+    UInt16 rotations = 0;
 
-    /* Check for disk events */
-    if ((eventMask & diskMask) && (currentTime - lastDiskCheck) > 30) {
-        /* Simulate disk event checking */
-        lastDiskCheck = currentTime;
-        /* In real implementation, would check for disk insertion/ejection */
-    }
+    /* Rotate queue until matching event at head or full rotation */
+    while (rotations < gQueueCount) {
+        if (gQueueCount == 0) {
+            return false;
+        }
 
-    /* Check for mouse events */
-    if (eventMask & (mDownMask | mUpMask)) {
-        Boolean mouseDown = Button();
-        Point currentMouse;
-        GetMouse(&currentMouse);
+        EventRecord* headEvt = &gEventQueue[gQueueHead];
 
-        /* Generate mouse down/up events */
-        static Boolean lastMouseDown = false;
-        if (mouseDown != lastMouseDown) {
-            theEvent->what = mouseDown ? mouseDown : mouseUp;
-            theEvent->message = 0;
-            theEvent->when = currentTime;
-            theEvent->where = currentMouse;
-            theEvent->modifiers = GetCurrentEventModifiers();
-            lastMouseDown = mouseDown;
+        /* Check if head matches mask */
+        if ((1 << headEvt->what) & mask) {
+            /* Found match at head - dequeue it */
+            *evt = *headEvt;
+            gQueueHead = (gQueueHead + 1) % EVENT_QUEUE_SIZE;
+            gQueueCount--;
+
+            serial_printf("EventMgr: Dequeued event %d\n", evt->what);
             return true;
         }
-        lastMousePos = currentMouse;
-    }
 
-    /* Check for update events */
-    if (eventMask & updateMask) {
-        /* In real implementation, would check for windows needing updates */
-    }
-
-    /* Check for activate/deactivate events */
-    if (eventMask & activMask) {
-        /* In real implementation, would handle window activation */
+        /* No match - rotate this event to back */
+        EventRecord temp = *headEvt;
+        gQueueHead = (gQueueHead + 1) % EVENT_QUEUE_SIZE;
+        gEventQueue[gQueueTail] = temp;
+        gQueueTail = (gQueueTail + 1) % EVENT_QUEUE_SIZE;
+        rotations++;
     }
 
     return false;
 }
 
 /*
- * Get Next Event from Internal Queue
-
+ * CheckSystemEvents - Check for system-generated events
  */
-static Boolean EventQueue_GetNext(EventMask eventMask, EventRecord* theEvent)
-{
-    if (gEventQueueSize == 0) {
-        return false;
+static Boolean CheckSystemEvents(EventMask mask, EventRecord* evt) {
+    static Boolean lastButton = false;
+    static Point lastMouse = {0, 0};
+    Boolean button;
+    Point mouse;
+
+    /* Check mouse button */
+    button = Button();
+    GetMouse(&mouse);
+
+    if ((mask & mDownMask) && button && !lastButton) {
+        /* Mouse down event */
+        evt->what = mouseDown;
+        evt->message = 0;
+        evt->when = TickCount();
+        evt->where = mouse;
+        evt->modifiers = GetModifiers();
+
+        lastButton = button;
+        lastMouse = mouse;
+
+        serial_printf("EventMgr: Generated mouseDown at (%d,%d)\n",
+                     mouse.h, mouse.v);
+        return true;
     }
 
-    /* Find first matching event */
-    UInt16 index = gEventQueueHead;
-    for (UInt16 i = 0; i < gEventQueueSize; i++) {
-        EventRecord* event = &gPendingEvents[index];
-        EventMask eventBit = 1 << event->what;
+    if ((mask & mUpMask) && !button && lastButton) {
+        /* Mouse up event */
+        evt->what = mouseUp;
+        evt->message = 0;
+        evt->when = TickCount();
+        evt->where = mouse;
+        evt->modifiers = GetModifiers();
 
-        if (eventBit & eventMask) {
-            /* Copy event */
-            *theEvent = *event;
+        lastButton = button;
+        lastMouse = mouse;
 
-            /* Remove from queue */
-            for (UInt16 j = i; j < gEventQueueSize - 1; j++) {
-                UInt16 src = (gEventQueueHead + j + 1) % 16;
-                UInt16 dst = (gEventQueueHead + j) % 16;
-                gPendingEvents[dst] = gPendingEvents[src];
-            }
-            gEventQueueSize--;
-            gEventQueueTail = (gEventQueueTail + 15) % 16; /* Move tail back */
-
-            return true;
-        }
-        index = (index + 1) % 16;
+        serial_printf("EventMgr: Generated mouseUp at (%d,%d)\n",
+                     mouse.h, mouse.v);
+        return true;
     }
 
-    return false;
-}
+    lastButton = button;
+    lastMouse = mouse;
 
-/*
- * Check if Higher Priority Process is Waiting
-
- */
-Boolean Scheduler_HasHigherPriorityProcess(void)
-{
-    if (!gCurrentProcess || !gProcessQueue) {
-        return false;
-    }
-
-    ProcessControlBlock* candidate = gProcessQueue->queueHead;
-    while (candidate) {
-        if (candidate != gCurrentProcess &&
-            (candidate->processState == kProcessRunning ||
-             candidate->processState == kProcessBackground) &&
-            candidate->processPriority > gCurrentProcess->processPriority) {
-            return true;
-        }
-        candidate = candidate->processNextProcess;
-    }
-
-    return false;
-}
-
-/*
- * Get Current Event Modifiers
-
- */
-static UInt16 GetCurrentEventModifiers(void)
-{
-    UInt16 modifiers = 0;
-
-    /* In real implementation, would check:
-     * - Shift key state
-     * - Command key state
-     * - Option key state
-     * - Control key state
-     * - Caps lock state
+    /* TODO: Check for other system events:
+     * - keyDown/keyUp/autoKey
+     * - updateEvt (window needs redraw)
+     * - diskEvt (disk inserted)
+     * - activateEvt (window activated)
+     * - networkEvt
+     * - driverEvt
+     * - osEvt (suspend/resume)
      */
 
-    return modifiers;
+    return false;
 }
 
 /*
+ * GetModifiers - Get current keyboard modifiers
+ */
+static UInt16 GetModifiers(void) {
+    UInt16 mods = 0;
+
+    /* TODO: Check actual keyboard state
+     * - cmdKey (0x0100)
+     * - shiftKey (0x0200)
+     * - alphaLock (0x0400)
+     * - optionKey (0x0800)
+     * - controlKey (0x1000)
+     * - rightShiftKey (0x2000)
+     * - rightOptionKey (0x4000)
+     * - rightControlKey (0x8000)
+     */
+
+    return mods;
+}
+
+/*
+ * Event queue management
+ */
+void Event_InitQueue(void) {
+    gQueueHead = 0;
+    gQueueTail = 0;
+    gQueueCount = 0;
+    memset(gEventQueue, 0, sizeof(gEventQueue));
+
+    serial_printf("EventMgr: Event queue initialized\n");
+}
+
+UInt16 Event_QueueCount(void) {
+    return gQueueCount;
+}
+
+void Event_DumpQueue(void) {
+    UInt16 index = gQueueHead;
+    UInt16 count = gQueueCount;
+    UInt16 i = 0;
+
+    serial_printf("\n=== Event Queue ===\n");
+    serial_printf("Head=%d Tail=%d Count=%d\n",
+                  gQueueHead, gQueueTail, gQueueCount);
+
+    while (count > 0) {
+        EventRecord* evt = &gEventQueue[index];
+        const char* typeStr = "?";
+
+        switch (evt->what) {
+            case nullEvent: typeStr = "null"; break;
+            case mouseDown: typeStr = "mDown"; break;
+            case mouseUp: typeStr = "mUp"; break;
+            case keyDown: typeStr = "kDown"; break;
+            case keyUp: typeStr = "kUp"; break;
+            case autoKey: typeStr = "auto"; break;
+            case updateEvt: typeStr = "updt"; break;
+            case diskEvt: typeStr = "disk"; break;
+            case activateEvt: typeStr = "actv"; break;
+            /* High-level events */
+            case osEvt: typeStr = "os"; break;
+            case kHighLevelEvent: typeStr = "hlev"; break;
+        }
+
+        serial_printf("[%2d] %-4s msg=0x%08x time=%lu pos=(%d,%d)\n",
+                     i, typeStr, evt->message, evt->when,
+                     evt->where.h, evt->where.v);
+
+        index = (index + 1) % EVENT_QUEUE_SIZE;
+        count--;
+        i++;
+    }
+    serial_printf("==================\n\n");
+}
+
+/*
+ * Route canonical Event Manager APIs to process-aware versions
+ * when ENABLE_PROCESS_COOP is defined
+ */
+#ifdef ENABLE_PROCESS_COOP
+
+/* Override the canonical GetNextEvent */
+Boolean GetNextEvent(EventMask mask, EventRecord* evt) {
+    return Proc_GetNextEvent(mask, evt);
+}
+
+/* Override the canonical EventAvail */
+Boolean EventAvail(EventMask mask, EventRecord* evt) {
+    return Proc_EventAvail(mask, evt);
+}
+
+/* Override the canonical PostEvent */
+OSErr PostEvent(EventKind what, UInt32 message) {
+    return Proc_PostEvent(what, message);
+}
+
+/* Override the canonical FlushEvents */
+void FlushEvents(EventMask whichMask, EventMask stopMask) {
+    Proc_FlushEvents(whichMask, stopMask);
+}
+
+#endif /* ENABLE_PROCESS_COOP */

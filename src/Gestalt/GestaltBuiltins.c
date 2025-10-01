@@ -16,6 +16,8 @@ static const OSType kSel_mach = FOURCC('m','a','c','h');
 static const OSType kSel_proc = FOURCC('p','r','o','c');
 static const OSType kSel_fpu_ = FOURCC('f','p','u',' ');
 static const OSType kSel_init = FOURCC('i','n','i','t');
+static const OSType kSel_evnt = FOURCC('e','v','n','t');
+static const OSType kSel_pcop = FOURCC('p','c','o','p');  /* Process coop */
 
 /* Global init bits for tracking subsystem initialization */
 static UInt32 gGestaltInitBits = 0;
@@ -200,6 +202,45 @@ static OSErr gestalt_init(long *response) {
     return noErr;
 }
 
+/* Built-in selector: Event Manager features */
+static OSErr gestalt_evnt(long *response) {
+    if (!response) return paramErr;
+
+    /* Event feature bits:
+     * bit 0: Event queue present
+     * bit 1: Mouse synthesis
+     * bit 2: Keyboard synthesis
+     */
+    *response = 0;
+
+#ifdef ENABLE_PROCESS_COOP
+    *response |= 0x01;  /* Event queue present */
+    *response |= 0x02;  /* Mouse synthesis */
+#endif
+
+    return noErr;
+}
+
+/* Built-in selector: Process Manager cooperative features */
+static OSErr gestalt_pcop(long *response) {
+    if (!response) return paramErr;
+
+    /* Process coop feature bits:
+     * bit 0: Cooperative scheduler
+     * bit 1: Process sleep
+     * bit 2: Block on event
+     */
+    *response = 0;
+
+#ifdef ENABLE_PROCESS_COOP
+    *response |= 0x01;  /* Coop scheduler present */
+    *response |= 0x02;  /* Process sleep supported */
+    *response |= 0x04;  /* Block on event supported */
+#endif
+
+    return noErr;
+}
+
 /* Register all built-in selectors */
 void Gestalt_Register_Builtins(void) {
     OSErr err;
@@ -229,6 +270,12 @@ void Gestalt_Register_Builtins(void) {
     /* Resource Manager - only register if compiled in */
     err = NewGestalt(kSel_rsrc, gestalt_rsrc);
 #endif
+
+    /* Event Manager features */
+    err = NewGestalt(kSel_evnt, gestalt_evnt);
+
+    /* Process Manager cooperative features */
+    err = NewGestalt(kSel_pcop, gestalt_pcop);
 
     /* Unused variable warning suppression */
     (void)err;

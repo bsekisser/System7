@@ -34,6 +34,9 @@ extern void DoMenuCommand(short menuID, short item);
 #endif
 #include "../include/Resources/system7_resources.h"
 #include "../include/TimeManager/TimeManager.h"
+#ifdef ENABLE_PROCESS_COOP
+#include "../include/ProcessMgr/ProcessTypes.h"
+#endif
 
 /* Simple 5x7 font for basic ASCII characters */
 static const uint8_t font5x7[][5] = {
@@ -1627,6 +1630,13 @@ void init_system71(void) {
     if (tmErr == noErr) {
         serial_puts("  Time Manager initialized\n");
 
+#ifdef ENABLE_PROCESS_COOP
+        /* Process Manager cooperative scheduling */
+        Proc_Init();
+        Event_InitQueue();
+        serial_puts("  ProcessMgr (coop) + Event queue initialized\n");
+#endif
+
         /* Smoke test: schedule a timer */
         #ifdef TM_SMOKE_TEST
         InsTime(&gHelloTimer);
@@ -2223,6 +2233,15 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         /* IMPORTANT: Call TimerISR each iteration for high-cadence timer checking */
         TimeManager_TimerISR();  /* Poll timer (simulated ISR) - must be called each loop */
         TimeManager_DrainDeferred(16, 1000);  /* Process up to 16 tasks, max 1ms */
+
+#ifdef ENABLE_PROCESS_COOP
+        /* Cooperative yield point - let other processes run */
+        static EventRecord evt;
+        if (!GetNextEvent(everyEvent, &evt)) {
+            /* No events - yield to other processes */
+            Proc_Yield();
+        }
+#endif
 
         /* Simple alive message every 1 million iterations */
         static uint32_t simple_counter = 0;

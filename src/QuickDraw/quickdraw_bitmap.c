@@ -189,3 +189,4 @@ void GetIndPattern(Pattern* thePat, short patternListID, short index)
 }
 
 /*
+ */

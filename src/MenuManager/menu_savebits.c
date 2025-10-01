@@ -199,5 +199,3 @@ OSErr RestoreMenuBits(Handle bitsHandle) {
 OSErr DiscardMenuBits(Handle bitsHandle) {
     return DiscardBits(bitsHandle);
 }
-
-/*

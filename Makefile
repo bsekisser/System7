@@ -20,6 +20,7 @@ GRUB = grub-mkrescue
 # Feature flags
 ENABLE_RESOURCES ?= 1
 ENABLE_FILEMGR_EXTRA ?= 1
+ENABLE_PROCESS_COOP ?= 1
 
 # Flags
 # [WM-050] SYS71_PROVIDE_FINDER_TOOLBOX=1 means: DO NOT provide Toolbox stubs; real implementations win.
@@ -32,6 +33,9 @@ CFLAGS += -DENABLE_RESOURCES=1
 endif
 ifeq ($(ENABLE_FILEMGR_EXTRA),1)
 CFLAGS += -DENABLE_FILEMGR_EXTRA=1
+endif
+ifeq ($(ENABLE_PROCESS_COOP),1)
+CFLAGS += -DENABLE_PROCESS_COOP=1
 endif
 CFLAGS += -ffreestanding -fno-builtin -fno-stack-protector -nostdlib \
          -Wall -Wextra -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wcast-qual \
@@ -155,6 +159,12 @@ ifeq ($(ENABLE_GESTALT),1)
 C_SOURCES += src/Gestalt/Gestalt.c \
              src/Gestalt/GestaltBuiltins.c
 CFLAGS += -DENABLE_GESTALT=1
+endif
+
+# Conditionally add Process Manager cooperative scheduling
+ifeq ($(ENABLE_PROCESS_COOP),1)
+C_SOURCES += src/ProcessMgr/CooperativeScheduler.c \
+             src/ProcessMgr/EventIntegration.c
 endif
 
 ASM_SOURCES = src/multiboot2.S

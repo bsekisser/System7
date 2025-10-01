@@ -426,5 +426,3 @@ void update_blockmove_statistics(Size bytesCopied, Boolean wasOverlap) {
 const BlockMoveStats* get_blockmove_statistics(void) {
     return &g_blockMoveStats;
 }
-
-/*

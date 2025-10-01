@@ -351,5 +351,3 @@ Boolean StdFilterProc(DialogPtr dlg, EventRecord* evt, SInt16* itemHit) {
 DialogMgrGlobals* GetDialogManagerGlobals(void) {
     return &gDialogMgrGlobals;
 }
-
-/*

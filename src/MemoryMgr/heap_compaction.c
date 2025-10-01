@@ -448,5 +448,3 @@ OSErr purge_memory_zone(ZonePtr zone) {
 
     return noErr;
 }
-
-/*

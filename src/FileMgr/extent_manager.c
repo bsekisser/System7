@@ -44,7 +44,6 @@ OSErr FXMFindExtent(FCB* fcb, UInt32 file_block, ExtentRecord* extent_rec) {
     }
 
     /* Block not found in FCB extents - would search extent overflow B-Tree */
-    /*
     return fnfErr;
 }
 
@@ -119,7 +118,6 @@ OSErr FXMDeallocateExtent(VCB* vcb, ExtentRecord* extent_rec) {
         if (extent->blockCount == 0) break;  /* End of extents */
 
         /* Mark blocks as free in volume bitmap */
-        /*
         /* In real implementation, would clear bits in volume allocation bitmap */
 
         /* Update volume free block count */
@@ -166,7 +164,6 @@ OSErr FXMExtendFile(FCB* fcb, UInt32 bytes_to_add) {
     }
 
     /* No room in FCB - would need to add to extent overflow B-Tree */
-    /*
     /* For now, just update physical length */
     fcb->fcbPLen += bytes_to_add;
 
@@ -232,3 +229,4 @@ UInt32 CalculateAllocationBlocks(UInt32 file_size, UInt32 block_size) {
 }
 
 /*
+ */

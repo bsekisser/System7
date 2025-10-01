@@ -37,7 +37,7 @@ extern QDGlobals qd;  /* QuickDraw globals from main.c */
 
 /* Global Variables */
 static Boolean gFinderInitialized = false;
-static Str255 gFinderVersion = "\pMacintosh Finder Version 7.1"; /*
+static Str255 gFinderVersion = "\pMacintosh Finder Version 7.1";
 static MenuHandle gAppleMenu, gFileMenu, gEditMenu, gViewMenu, gLabelMenu, gSpecialMenu;
 
 /* Forward Declarations */
@@ -489,7 +489,7 @@ static void HandleMenuChoice(long menuChoice)
     switch (menuID) {
         case 128:  /* Apple Menu */
             if (menuItem == 1) {
-                ShowAboutFinder();  /*
+                ShowAboutFinder();
             } else {
                 /* Get item text to check if it's Shut Down */
                 Str255 itemName;
@@ -511,13 +511,13 @@ static void HandleMenuChoice(long menuChoice)
         case 129:  /* File Menu */
             switch (menuItem) {
                 case 6:   /* Get Info */
-                    err = HandleGetInfo();  /*
+                    err = HandleGetInfo();
                     break;
                 case 12:  /* Find */
-                    err = ShowFind();       /*
+                    err = ShowFind();
                     break;
                 case 13:  /* Find Again */
-                    err = FindAgain();      /*
+                    err = FindAgain();
                     break;
                 case 15:  /* [Test] Open File... */
                     {
@@ -564,10 +564,10 @@ static void HandleMenuChoice(long menuChoice)
         case 133:  /* Special Menu */
             switch (menuItem) {
                 case 1:   /* Clean Up Desktop */
-                    err = CleanUpDesktop();  /*
+                    err = CleanUpDesktop();
                     break;
                 case 2:   /* Empty Trash */
-                    err = EmptyTrash(false); /*
+                    err = EmptyTrash(false);
                     break;
             }
             break;
@@ -617,5 +617,3 @@ StringPtr GetFinderVersion(void)
 {
     return gFinderVersion;
 }
-
-/*

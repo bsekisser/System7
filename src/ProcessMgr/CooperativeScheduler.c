@@ -1,489 +1,487 @@
-/* #include "SystemTypes.h" */
 /*
- * RE-AGENT-BANNER
- * CooperativeScheduler.c - System 7 Cooperative Multitasking Scheduler
+ * CooperativeScheduler.c - Cooperative Process Scheduler
  *
- * implemented based on System.rsrc
- *
- * This implements the revolutionary cooperative multitasking scheduler introduced
- * in Mac OS System 7. Unlike preemptive multitasking, cooperative multitasking
- * relies on applications voluntarily yielding control through WaitNextEvent calls.
- *
- * Key cooperative scheduling features:
- * - Event-driven yield points via WaitNextEvent
- * - Round-robin scheduling among cooperative processes
- * - Background processing support
- * - Process priority management
- * - Integration with Event Manager for seamless multitasking
- *
- * Evidence sources:
- * - mappings.process_manager.json: Scheduler function mappings
- * - layouts.process_manager.json: Process queue and scheduling structures
- * - evidence.process_manager.json: System 7 multitasking evidence
- * RE-AGENT-BANNER
+ * Implements cooperative multitasking with round-robin scheduling
+ * and aging priority system. Integrates with Time Manager for
+ * microsecond-precision sleep timers.
  */
 
-// #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
-
-#include "ProcessMgr/ProcessMgr.h"
+#include "ProcessMgr/ProcessTypes.h"
+#include "TimeManager/TimeManager.h"
 #include "EventManager/EventTypes.h"
-/* #include <OSUtils.h>
- - utilities in MacTypes.h */
+
+/* Process states */
+#define PROC_FREE     0
+#define PROC_READY    1
+#define PROC_RUNNING  2
+#define PROC_BLOCKED  3
+#define PROC_SLEEPING 4
+
+/* Process entry function type */
+typedef void (*ProcEntry)(void* arg);
+
+/* Process control block */
+typedef struct ProcessCB {
+    /* State and identity */
+    UInt8 state;
+    UInt8 priority;     /* Base priority 0-15 */
+    UInt8 aging;        /* Aging bonus 0-15 */
+    UInt8 flags;
+
+    /* Process context */
+    void* stackPtr;
+    void* stackBase;
+    Size stackSize;
+
+    /* Entry point */
+    ProcEntry entry;
+    void* arg;
+    Boolean neverStarted;
+
+    /* Scheduling */
+    struct ProcessCB* next;
+    struct ProcessCB* prev;
+
+    /* Sleep/wake management */
+    TMTask wakeTimer;
+    UInt32 wakeTime;
+
+    /* Event blocking */
+    EventMask eventMask;
+    EventRecord* eventPtr;
+
+    /* Process info */
+    ProcessID pid;
+    char name[32];
+} ProcessCB;
+
+/* Process table - 16 slots max */
+#define MAX_PROCESSES 16
+static ProcessCB gProcessTable[MAX_PROCESSES];
+static ProcessCB* gCurrentProcess = NULL;
+static ProcessCB* gReadyQueue = NULL;
+static UInt32 gNextPID = 1;
+static Boolean gSchedulerInitialized = false;
+
+/* Forward declarations */
+static void AddToReadyQueue(ProcessCB* proc);
+static void RemoveFromReadyQueue(ProcessCB* proc);
+static ProcessCB* SelectNextProcess(void);
+static void WakeTimerCallback(TMTaskPtr tmTaskPtr);
+
+/* External serial debug */
+extern void serial_printf(const char* fmt, ...);
+
+/* String functions from System71StdLib */
+extern void* memset(void* s, int c, size_t n);
+extern char* strcpy(char* dest, const char* src);
+extern char* strncpy(char* dest, const char* src, size_t n);
 
 /*
- * Scheduler State Variables
-
+ * Proc_Init - Initialize cooperative scheduler
  */
-static UInt32 gSchedulerTicks = 0;
-static UInt32 gLastYieldTime = 0;
-static UInt16 gSchedulerQuantum = 6; /* 1/10 second at 60Hz */
-static Boolean gSchedulerActive = false;
-
-/*
- * Forward Declarations
- */
-static OSErr Scheduler_AddToQueue(ProcessControlBlock* process);
-static OSErr Scheduler_RemoveFromQueue(ProcessControlBlock* process);
-static Boolean Scheduler_ShouldYield(void);
-static ProcessControlBlock* Scheduler_FindNextRunnable(ProcessControlBlock* current);
-
-/*
- * Initialize Cooperative Scheduler
-
- */
-OSErr Scheduler_Initialize(void)
-{
-    gSchedulerTicks = 0;
-    gLastYieldTime = TickCount();
-    gSchedulerActive = true;
-
-    /* Install scheduler as part of vertical blanking interrupt */
-    /* In real implementation, this would hook into VBL task queue */
-
-    return noErr;
-}
-
-/*
- * Process Yielding - Core of Cooperative Multitasking
-
- */
-OSErr Process_Yield(void)
-{
-    ProcessControlBlock* nextProcess;
-    OSErr err;
-
-    if (!gSchedulerActive || !gCurrentProcess) {
+OSErr Proc_Init(void) {
+    if (gSchedulerInitialized) {
         return noErr;
     }
 
-    /* Update yield timing */
-    gLastYieldTime = TickCount();
+    /* Clear process table */
+    memset(gProcessTable, 0, sizeof(gProcessTable));
 
-    /* Find next process to run */
-    err = Scheduler_GetNextProcess(&nextProcess);
-    if (err != noErr) {
-        return err;
-    }
+    /* Create idle process (PID 0) */
+    ProcessCB* idle = &gProcessTable[0];
+    idle->state = PROC_READY;
+    idle->priority = 0;
+    idle->aging = 0;
+    idle->pid = 0;
+    strcpy(idle->name, "Idle");
 
-    /* Switch to next process if different */
-    if (nextProcess != gCurrentProcess) {
-        /* Update current process state for cooperative yield */
-        if (gCurrentProcess->processState == kProcessRunning) {
-            gCurrentProcess->processState = kProcessBackground;
-        }
+    /* Set as current and only ready process */
+    gCurrentProcess = idle;
+    gReadyQueue = idle;
+    idle->next = idle;
+    idle->prev = idle;
 
-        /* Switch context */
-        err = Context_Switch(nextProcess);
-        if (err == noErr) {
-            nextProcess->processState = kProcessRunning;
-        }
-    }
-
-    return err;
-}
-
-/*
- * Enhanced Process Scheduler with Priority Support
-
- */
-OSErr Scheduler_GetNextProcess(ProcessControlBlock** nextProcess)
-{
-    ProcessControlBlock* candidate;
-    ProcessControlBlock* highestPriority = NULL;
-    UInt16 maxPriority = 0;
-
-    if (!nextProcess) {
-        return paramErr;
-    }
-
-    *nextProcess = gCurrentProcess; /* Default to current */
-
-    if (!gProcessQueue || gProcessQueue->queueSize == 0) {
-        return noErr;
-    }
-
-    /*
-     * Cooperative Round-Robin with Priority Consideration
-    
-     */
-
-    /* First pass: Look for higher priority processes */
-    candidate = gProcessQueue->queueHead;
-    while (candidate) {
-        if ((candidate->processState == kProcessRunning ||
-             candidate->processState == kProcessBackground) &&
-            candidate->processPriority > maxPriority) {
-            highestPriority = candidate;
-            maxPriority = candidate->processPriority;
-        }
-        candidate = candidate->processNextProcess;
-    }
-
-    /* If we found a higher priority process, use it */
-    if (highestPriority &&
-        highestPriority->processPriority > gCurrentProcess->processPriority) {
-        *nextProcess = highestPriority;
-        return noErr;
-    }
-
-    /* Otherwise, use round-robin among equal priority processes */
-    candidate = Scheduler_FindNextRunnable(gCurrentProcess);
-    if (candidate) {
-        *nextProcess = candidate;
-    }
+    gSchedulerInitialized = true;
+    serial_printf("ProcessMgr: Scheduler initialized\n");
 
     return noErr;
 }
 
 /*
- * Find Next Runnable Process in Round-Robin Fashion
-
+ * Proc_New - Create new process
  */
-static ProcessControlBlock* Scheduler_FindNextRunnable(ProcessControlBlock* current)
-{
-    ProcessControlBlock* candidate;
-    ProcessControlBlock* start;
+ProcessID Proc_New(const char* name, void* entry, void* arg,
+                   Size stackSize, UInt8 priority) {
+    ProcessCB* proc = NULL;
 
-    if (!current || !gProcessQueue) {
-        return NULL;
+    if (!gSchedulerInitialized) {
+        Proc_Init();
     }
 
-    /* Start search from next process in queue */
-    candidate = current->processNextProcess;
-    if (!candidate) {
-        candidate = gProcessQueue->queueHead;
-    }
-
-    start = candidate;
-
-    /* Find next runnable process */
-    do {
-        if (candidate &&
-            (candidate->processState == kProcessRunning ||
-             candidate->processState == kProcessBackground) &&
-            candidate != current) {
-            return candidate;
-        }
-
-        candidate = candidate->processNextProcess;
-        if (!candidate) {
-            candidate = gProcessQueue->queueHead;
-        }
-
-    } while (candidate && candidate != start);
-
-    return current; /* Return current if no other runnable process */
-}
-
-/*
- * Process Suspension for Background Operation
-
- */
-OSErr Process_Suspend(ProcessSerialNumber* psn)
-{
-    ProcessControlBlock* process = NULL;
-
-    /* Find process by PSN */
-    for (int i = 0; i < kPM_MaxProcesses; i++) {
-        if (gProcessTable[i].processID.lowLongOfPSN == psn->lowLongOfPSN &&
-            gProcessTable[i].processID.highLongOfPSN == psn->highLongOfPSN) {
-            process = &gProcessTable[i];
+    /* Find free slot (skip idle at 0) */
+    for (int i = 1; i < MAX_PROCESSES; i++) {
+        if (gProcessTable[i].state == PROC_FREE) {
+            proc = &gProcessTable[i];
             break;
         }
     }
 
-    if (!process) {
-        return procNotFound;
+    if (!proc) {
+        serial_printf("ProcessMgr: No free process slots\n");
+        return 0;
     }
 
-    /* Only suspend if process accepts suspension */
-    if (!(process->processMode & kProcessModeAcceptSuspend)) {
-        return paramErr;
-    }
+    /* Initialize process */
+    proc->state = PROC_READY;
+    proc->priority = priority & 0x0F;
+    proc->aging = 0;
+    proc->flags = 0;
 
-    /* Update process state */
-    ProcessState oldState = process->processState;
-    process->processState = kProcessSuspended;
+    proc->stackPtr = NULL;  /* No stack switching yet */
+    proc->stackBase = NULL;
+    proc->stackSize = stackSize;
 
-    /* If suspending current process, yield to next */
-    if (process == gCurrentProcess) {
-        Process_Yield();
-    }
+    /* Store entry point for cooperative tasklet */
+    proc->entry = (ProcEntry)entry;
+    proc->arg = arg;
+    proc->neverStarted = true;
 
-    return noErr;
+    proc->pid = gNextPID++;
+    strncpy(proc->name, name, 31);
+    proc->name[31] = '\0';
+
+    /* Clear wake timer */
+    memset(&proc->wakeTimer, 0, sizeof(TMTask));
+    proc->wakeTime = 0;
+
+    /* Clear event blocking */
+    proc->eventMask = 0;
+    proc->eventPtr = NULL;
+
+    /* Add to ready queue */
+    AddToReadyQueue(proc);
+
+    serial_printf("ProcessMgr: Created process %d '%s' pri=%d\n",
+                  proc->pid, proc->name, proc->priority);
+
+    return proc->pid;
 }
 
 /*
- * Process Resume from Suspension
-
+ * Proc_Yield - Yield CPU to next process
  */
-OSErr Process_Resume(ProcessSerialNumber* psn)
-{
-    ProcessControlBlock* process = NULL;
+void Proc_Yield(void) {
+    ProcessCB* next;
 
-    /* Find process by PSN */
-    for (int i = 0; i < kPM_MaxProcesses; i++) {
-        if (gProcessTable[i].processID.lowLongOfPSN == psn->lowLongOfPSN &&
-            gProcessTable[i].processID.highLongOfPSN == psn->highLongOfPSN) {
-            process = &gProcessTable[i];
+    if (!gSchedulerInitialized || !gCurrentProcess) {
+        return;
+    }
+
+    /* If current process still ready, age other processes */
+    if (gCurrentProcess->state == PROC_RUNNING) {
+        gCurrentProcess->state = PROC_READY;
+
+        /* Age all other ready processes */
+        ProcessCB* proc = gReadyQueue;
+        if (proc) {
+            do {
+                if (proc != gCurrentProcess && proc->aging < 15) {
+                    proc->aging++;
+                }
+                proc = proc->next;
+            } while (proc != gReadyQueue);
+        }
+    }
+
+    /* Select next process */
+    next = SelectNextProcess();
+    if (next && next != gCurrentProcess) {
+        ProcessCB* prev = gCurrentProcess;
+
+        /* Switch to new process */
+        gCurrentProcess = next;
+        next->state = PROC_RUNNING;
+        next->aging = 0;  /* Reset aging on run */
+
+        serial_printf("ProcessMgr: Switch %d->%d\n", prev->pid, next->pid);
+
+        /* First-time execution of tasklet */
+        if (next->neverStarted && next->entry) {
+            next->neverStarted = false;
+            serial_printf("ProcessMgr: Starting tasklet %d\n", next->pid);
+            next->entry(next->arg);
+            /* If entry returns, mark process as free */
+            next->state = PROC_FREE;
+            RemoveFromReadyQueue(next);
+            /* Need to pick another process */
+            Proc_Yield();
+        }
+    }
+}
+
+/*
+ * Proc_Sleep - Sleep for microseconds using Time Manager
+ */
+void Proc_Sleep(UInt32 microseconds) {
+    if (!gCurrentProcess || gCurrentProcess->pid == 0) {
+        /* Can't sleep idle process */
+        return;
+    }
+
+    /* Set up wake timer - critical: must set callback or timer never fires! */
+    gCurrentProcess->wakeTimer.tmAddr = (Ptr)WakeTimerCallback;
+    gCurrentProcess->wakeTimer.tmWakeUp = 0;
+    gCurrentProcess->wakeTimer.tmReserved = 0;
+
+    /* Calculate wake time */
+    gCurrentProcess->wakeTime = microseconds;
+
+    /* Install timer task */
+    InsTime(&gCurrentProcess->wakeTimer);
+    PrimeTime(&gCurrentProcess->wakeTimer, microseconds);
+
+    /* Remove from ready queue and mark sleeping */
+    RemoveFromReadyQueue(gCurrentProcess);
+    gCurrentProcess->state = PROC_SLEEPING;
+
+    serial_printf("ProcessMgr: Process %d sleeping for %lu us\n",
+                  gCurrentProcess->pid, microseconds);
+
+    /* Yield to next process */
+    Proc_Yield();
+}
+
+/*
+ * Proc_BlockOnEvent - Block waiting for event
+ */
+void Proc_BlockOnEvent(EventMask mask, EventRecord* evt) {
+    if (!gCurrentProcess || gCurrentProcess->pid == 0) {
+        /* Can't block idle process - it must always be ready */
+        if (gCurrentProcess && gCurrentProcess->pid == 0) {
+            serial_printf("ProcessMgr: WARNING: Idle process cannot block\n");
+        }
+        return;
+    }
+
+    /* Set up event blocking */
+    gCurrentProcess->eventMask = mask;
+    gCurrentProcess->eventPtr = evt;
+
+    /* Remove from ready queue and mark blocked */
+    RemoveFromReadyQueue(gCurrentProcess);
+    gCurrentProcess->state = PROC_BLOCKED;
+
+    serial_printf("ProcessMgr: Process %d blocked on events 0x%04x\n",
+                  gCurrentProcess->pid, mask);
+
+    /* Yield to next process */
+    Proc_Yield();
+}
+
+/*
+ * Proc_Wake - Wake process by PID
+ */
+void Proc_Wake(ProcessID pid) {
+    ProcessCB* proc = NULL;
+
+    /* Find process */
+    for (int i = 0; i < MAX_PROCESSES; i++) {
+        if (gProcessTable[i].pid == pid &&
+            gProcessTable[i].state != PROC_FREE) {
+            proc = &gProcessTable[i];
             break;
         }
     }
 
-    if (!process) {
-        return procNotFound;
+    if (!proc) {
+        return;
     }
 
-    if (process->processState != kProcessSuspended) {
-        return paramErr; /* Not suspended */
-    }
+    /* Wake based on state */
+    if (proc->state == PROC_SLEEPING) {
+        /* Cancel wake timer */
+        RmvTime(&proc->wakeTimer);
+        proc->wakeTime = 0;
 
-    /* Resume process */
-    if (process->processMode & kProcessModeCanBackground) {
-        process->processState = kProcessBackground;
-    } else {
-        process->processState = kProcessRunning;
-    }
+        /* Return to ready */
+        proc->state = PROC_READY;
+        AddToReadyQueue(proc);
 
-    return noErr;
+        serial_printf("ProcessMgr: Woke sleeping process %d\n", pid);
+    }
+    else if (proc->state == PROC_BLOCKED) {
+        /* Clear event blocking */
+        proc->eventMask = 0;
+        proc->eventPtr = NULL;
+
+        /* Return to ready */
+        proc->state = PROC_READY;
+        AddToReadyQueue(proc);
+
+        serial_printf("ProcessMgr: Woke blocked process %d\n", pid);
+    }
 }
 
 /*
- * Set Process as Frontmost (Active)
-
+ * Proc_UnblockEvent - Unblock processes waiting for event
  */
-OSErr SetFrontProcess(ProcessSerialNumber* psn)
-{
-    ProcessControlBlock* process = NULL;
-    ProcessControlBlock* oldFront = gCurrentProcess;
+void Proc_UnblockEvent(EventRecord* evt) {
+    for (int i = 1; i < MAX_PROCESSES; i++) {
+        ProcessCB* proc = &gProcessTable[i];
 
-    /* Find target process */
-    for (int i = 0; i < kPM_MaxProcesses; i++) {
-        if (gProcessTable[i].processID.lowLongOfPSN == psn->lowLongOfPSN &&
-            gProcessTable[i].processID.highLongOfPSN == psn->highLongOfPSN) {
-            process = &gProcessTable[i];
-            break;
-        }
-    }
+        if (proc->state == PROC_BLOCKED &&
+            (proc->eventMask & (1 << evt->what))) {
 
-    if (!process) {
-        return procNotFound;
-    }
-
-    if (process->processState == kProcessTerminated) {
-        return paramErr;
-    }
-
-    /* Move current process to background if it can background */
-    if (oldFront && (oldFront->processMode & kProcessModeCanBackground)) {
-        oldFront->processState = kProcessBackground;
-    }
-
-    /* Bring target process to front */
-    process->processState = kProcessRunning;
-    process->processPriority = 2; /* Boost priority for front process */
-
-    /* Switch to new front process */
-    return Context_Switch(process);
-}
-
-/*
- * Background Process Management
-
- */
-OSErr Process_AllowBackgroundProcessing(ProcessSerialNumber* psn, Boolean allow)
-{
-    ProcessControlBlock* process = NULL;
-
-    /* Find process by PSN */
-    for (int i = 0; i < kPM_MaxProcesses; i++) {
-        if (gProcessTable[i].processID.lowLongOfPSN == psn->lowLongOfPSN &&
-            gProcessTable[i].processID.highLongOfPSN == psn->highLongOfPSN) {
-            process = &gProcessTable[i];
-            break;
-        }
-    }
-
-    if (!process) {
-        return procNotFound;
-    }
-
-    /* Update background processing mode */
-    if (allow) {
-        process->processMode |= kProcessModeCanBackground;
-    } else {
-        process->processMode &= ~kProcessModeCanBackground;
-        /* If currently background, bring to front */
-        if (process->processState == kProcessBackground) {
-            process->processState = kProcessRunning;
-        }
-    }
-
-    return noErr;
-}
-
-/*
- * Check if Scheduler Should Yield (Time Slice Expired)
-
- */
-static Boolean Scheduler_ShouldYield(void)
-{
-    UInt32 currentTime = TickCount();
-
-    /* Yield if time quantum expired */
-    if ((currentTime - gLastYieldTime) >= gSchedulerQuantum) {
-        return true;
-    }
-
-    /* Yield if higher priority process is waiting */
-    ProcessControlBlock* candidate = gProcessQueue->queueHead;
-    while (candidate) {
-        if (candidate != gCurrentProcess &&
-            (candidate->processState == kProcessRunning ||
-             candidate->processState == kProcessBackground) &&
-            candidate->processPriority > gCurrentProcess->processPriority) {
-            return true;
-        }
-        candidate = candidate->processNextProcess;
-    }
-
-    return false;
-}
-
-/*
- * Enhanced WaitNextEvent with Better Cooperative Scheduling
-
- */
-Boolean Enhanced_WaitNextEvent(EventMask eventMask, EventRecord* theEvent,
-                              UInt32 sleep, RgnHandle mouseRgn)
-{
-    Boolean eventAvailable = false;
-    UInt32 startTime = TickCount();
-    UInt32 yieldInterval = 3; /* Yield every 3 ticks (1/20 second) */
-    UInt32 lastYield = startTime;
-
-    /* Immediate event check */
-    eventAvailable = GetNextEvent(eventMask, theEvent);
-    if (eventAvailable) {
-        return true;
-    }
-
-    /* Cooperative multitasking loop */
-    do {
-        /* Check for events */
-        eventAvailable = GetNextEvent(eventMask, theEvent);
-        if (eventAvailable) {
-            break;
-        }
-
-        /* Yield to other processes periodically */
-        UInt32 currentTime = TickCount();
-        if (gMultiFinderActive && (currentTime - lastYield) >= yieldInterval) {
-            Process_Yield();
-            lastYield = currentTime;
-        }
-
-        /* Small delay to prevent busy waiting */
-        /* In real implementation, would use more sophisticated timing */
-
-    } while ((TickCount() - startTime) < sleep);
-
-    /* Generate null event if timeout */
-    if (!eventAvailable) {
-        theEvent->what = nullEvent;
-        theEvent->message = 0;
-        theEvent->when = TickCount();
-        theEvent->modifiers = 0;
-        GetMouse(&theEvent->where);
-        eventAvailable = true;
-    }
-
-    return eventAvailable;
-}
-
-/*
- * Add Process to Scheduler Queue
-
- */
-static OSErr Scheduler_AddToQueue(ProcessControlBlock* process)
-{
-    if (!process || !gProcessQueue) {
-        return paramErr;
-    }
-
-    /* Add to end of queue */
-    if (gProcessQueue->queueTail) {
-        gProcessQueue->queueTail->processNextProcess = process;
-        gProcessQueue->queueTail = process;
-    } else {
-        gProcessQueue->queueHead = process;
-        gProcessQueue->queueTail = process;
-    }
-
-    process->processNextProcess = NULL;
-    gProcessQueue->queueSize++;
-
-    return noErr;
-}
-
-/*
- * Remove Process from Scheduler Queue
-
- */
-static OSErr Scheduler_RemoveFromQueue(ProcessControlBlock* process)
-{
-    ProcessControlBlock* current;
-    ProcessControlBlock* previous = NULL;
-
-    if (!process || !gProcessQueue) {
-        return paramErr;
-    }
-
-    /* Find process in queue */
-    current = gProcessQueue->queueHead;
-    while (current) {
-        if (current == process) {
-            /* Remove from queue */
-            if (previous) {
-                previous->processNextProcess = current->processNextProcess;
-            } else {
-                gProcessQueue->queueHead = current->processNextProcess;
+            /* Copy event if buffer provided */
+            if (proc->eventPtr) {
+                *proc->eventPtr = *evt;
             }
 
-            if (current == gProcessQueue->queueTail) {
-                gProcessQueue->queueTail = previous;
-            }
+            /* Wake process */
+            proc->eventMask = 0;
+            proc->eventPtr = NULL;
+            proc->state = PROC_READY;
+            AddToReadyQueue(proc);
 
-            gProcessQueue->queueSize--;
-            current->processNextProcess = NULL;
-            return noErr;
+            serial_printf("ProcessMgr: Unblocked process %d for event %d\n",
+                         proc->pid, evt->what);
         }
-        previous = current;
-        current = current->processNextProcess;
     }
-
-    return procNotFound;
 }
 
 /*
+ * Proc_GetCurrent - Get current process ID
+ */
+ProcessID Proc_GetCurrent(void) {
+    return gCurrentProcess ? gCurrentProcess->pid : 0;
+}
+
+/*
+ * Queue management
+ */
+static void AddToReadyQueue(ProcessCB* proc) {
+    if (!proc) return;
+
+    if (!gReadyQueue) {
+        /* First ready process */
+        gReadyQueue = proc;
+        proc->next = proc;
+        proc->prev = proc;
+    } else {
+        /* Add to end of queue */
+        proc->next = gReadyQueue;
+        proc->prev = gReadyQueue->prev;
+        gReadyQueue->prev->next = proc;
+        gReadyQueue->prev = proc;
+    }
+}
+
+static void RemoveFromReadyQueue(ProcessCB* proc) {
+    if (!proc) return;
+
+    /* Idle process (PID 0) must never leave ready queue */
+    if (proc->pid == 0) {
+        serial_printf("ProcessMgr: WARNING: Attempt to remove idle from ready queue\n");
+        return;
+    }
+
+    if (proc->next == proc) {
+        /* Last non-idle process - keep idle in queue */
+        if (proc->pid != 0) {
+            /* Find idle process */
+            ProcessCB* idle = &gProcessTable[0];
+            gReadyQueue = idle;
+            idle->next = idle;
+            idle->prev = idle;
+        }
+    } else {
+        /* Remove from queue */
+        proc->prev->next = proc->next;
+        proc->next->prev = proc->prev;
+
+        if (gReadyQueue == proc) {
+            gReadyQueue = proc->next;
+        }
+    }
+
+    proc->next = NULL;
+    proc->prev = NULL;
+}
+
+/*
+ * SelectNextProcess - Choose next process to run
+ */
+static ProcessCB* SelectNextProcess(void) {
+    ProcessCB* best = NULL;
+    UInt8 bestScore = 0;
+
+    if (!gReadyQueue) {
+        /* No ready processes - shouldn't happen with idle */
+        return gCurrentProcess;
+    }
+
+    /* Find highest priority + aging */
+    ProcessCB* proc = gReadyQueue;
+    do {
+        UInt8 score = proc->priority + proc->aging;
+        if (!best || score > bestScore) {
+            best = proc;
+            bestScore = score;
+        }
+        proc = proc->next;
+    } while (proc != gReadyQueue);
+
+    return best;
+}
+
+/*
+ * WakeTimerCallback - Time Manager callback for waking sleeping process
+ */
+static void WakeTimerCallback(TMTaskPtr tmTaskPtr) {
+    /* Find process that owns this timer */
+    ProcessCB* proc = NULL;
+
+    for (int i = 0; i < MAX_PROCESSES; i++) {
+        if (&gProcessTable[i].wakeTimer == tmTaskPtr) {
+            proc = &gProcessTable[i];
+            break;
+        }
+    }
+
+    if (proc && proc->state == PROC_SLEEPING) {
+        /* Wake process */
+        proc->wakeTime = 0;
+        proc->state = PROC_READY;
+        AddToReadyQueue(proc);
+
+        serial_printf("ProcessMgr: Timer woke process %d\n", proc->pid);
+    }
+}
+
+/*
+ * Debugging functions
+ */
+void Proc_DumpTable(void) {
+    serial_printf("\n=== Process Table ===\n");
+    serial_printf("Current: %d\n", gCurrentProcess ? gCurrentProcess->pid : -1);
+
+    for (int i = 0; i < MAX_PROCESSES; i++) {
+        ProcessCB* proc = &gProcessTable[i];
+        if (proc->state != PROC_FREE) {
+            const char* stateStr = "?";
+            switch (proc->state) {
+                case PROC_READY: stateStr = "READY"; break;
+                case PROC_RUNNING: stateStr = "RUN"; break;
+                case PROC_BLOCKED: stateStr = "BLOCK"; break;
+                case PROC_SLEEPING: stateStr = "SLEEP"; break;
+            }
+
+            serial_printf("[%2d] %-8s pid=%d pri=%d age=%d '%s'\n",
+                         i, stateStr, proc->pid, proc->priority,
+                         proc->aging, proc->name);
+        }
+    }
+    serial_printf("===================\n\n");
+}

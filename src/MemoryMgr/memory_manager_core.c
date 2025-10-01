@@ -463,5 +463,3 @@ void init_memory_manager(ZonePtr sysZone, ZonePtr applZone) {
     gMemMgr.JBlockMove = NULL;
     gMemMgr.jCacheFlush = NULL;
 }
-
-/*

@@ -279,7 +279,7 @@ OSErr BTGetRecord(void* btcb_ptr, SInt16 selection_mode, void** key, void** data
         return paramErr;
     }
 
-    /*
+
     switch (selection_mode) {
         case 0:  /* Get first record */
             btcb->btcbCurNode = btcb->btcbHeader->bthFNode;
@@ -298,7 +298,6 @@ OSErr BTGetRecord(void* btcb_ptr, SInt16 selection_mode, void** key, void** data
     }
 
     /* For simplified implementation, return no records found */
-    /*
     return fnfErr;
 }
 
@@ -360,4 +359,4 @@ static Boolean NodeHasSpace(BTNode* node, UInt16 record_size) {
     return (used_space + record_size < BTREE_NODE_SIZE);
 }
 
-/*
+/* */

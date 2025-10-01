@@ -173,7 +173,6 @@ OSErr MtCheck(VCB* vcb) {
     vcb->vcbXTAlBlks = (UInt16)(max_extent_records / 100);   /* Conservative estimate */
 
     /* In full implementation, would open catalog and extent B-Tree files here */
-    /*
 
     return noErr;
 }
@@ -186,7 +185,6 @@ OSErr MtCheck(VCB* vcb) {
 void* FindDrive(SInt16 drive_num) {
     DrvQEl* current = g_drive_queue;
 
-    /*
     while (current != NULL) {
         if (current->dQDrive == drive_num) {
             return current;
@@ -297,3 +295,4 @@ OSErr ValidateVCB(const VCB* vcb) {
 }
 
 /*
+ */
