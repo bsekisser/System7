@@ -1,510 +1,302 @@
-#include "SuperCompat.h"
-#include <time.h>
-#include <stdlib.h>
-#include <string.h>
 /*
- * TimeManagerCore.c
- *
- * Core Time Manager Implementation for System 7.1 - Portable C Version
- *
- * This file implements the core Time Manager functionality, converted from the
- *
- * The Time Manager provides high-precision timing services, task scheduling,
- * and time-based operations essential for System 7.1 operation.
+ * TimeManagerCore.c - Core scheduler with side-table
+ * Based on Inside Macintosh: Operating System Utilities (Time Manager)
  */
 
-#include "CompatibilityFix.h"
-#include <time.h>
 #include "SystemTypes.h"
-#include <time.h>
-#include "System71StdLib.h"
-#include <time.h>
-
 #include "TimeManager/TimeManager.h"
-#include <time.h>
-#include "TimeManager/TimeManager.h"
-#include <time.h>
-#include "MicrosecondTimer.h"
-#include <time.h>
-#include "TimeBase.h"
-#include <time.h>
-#include "DeferredTasks.h"
-#include <time.h>
+#include "TimeManager/TimeManagerPriv.h"
+#include "TimeManager/TimeBase.h"
 
+#define TM_MAX_TASKS 512
+#define TM_FLAG_PERIODIC 0x0001
 
-/* ===== Global Time Manager State ===== */
-static TimeMgrPrivate *gTimeMgrPrivate = NULL;
-static pthread_mutex_t gTimeMgrMutex = PTHREAD_MUTEX_INITIALIZER;
-static Boolean gTimeMgrInitialized = false;
-static UInt32 gNextTaskID = 1;
+/* Private task entry with scheduling metadata */
+typedef struct {
+    TMTask   *task;
+    UInt64    absDeadlineUS;
+    UInt32    periodUS;
+    UInt32    gen;
+    UInt16    inHeap;
+    UInt16    heapIndex;
+} TMEntry;
 
-/* ===== Private Function Prototypes ===== */
-static OSErr AllocateTimeMgrPrivate(void);
-static void DeallocateTimeMgrPrivate(void);
-static OSErr SetupTimerThread(void);
-static void ShutdownTimerThread(void);
-static void* TimerThreadProc(void* param);
-static uint64_t GetSystemTimeNS(void);
-static UInt32 GenerateTaskID(void);
+/* Static allocation */
+static TMEntry gEntries[TM_MAX_TASKS];
+static TMEntry* gHeap[TM_MAX_TASKS];
+static UInt32 gHeapSize = 0;
+static UInt32 gGenCounter = 1;
+static Boolean gInitialized = false;
 
-/* ===== Time Manager Initialization ===== */
+/* Deferred queue interface */
+extern void EnqueueDeferred(TMTask *task, UInt32 gen);
 
-/**
- * Initialize the Time Manager
- *
- * Sets up the Time Manager's global data structures, timer interrupt handling,
- * and runtime calibration for processor-speed independence.
- */
-OSErr InitTimeMgr(void)
-{
-    OSErr err;
+/* Interrupt masking stubs */
+static inline UInt32 DisableInterrupts(void) { return 0; }
+static inline void RestoreInterrupts(UInt32 state) { (void)state; }
 
-    // Check if already initialized
-    if (gTimeMgrInitialized) {
-        return NO_ERR;
-    }
-
-    // Lock for thread safety
-    if (pthread_mutex_lock(&gTimeMgrMutex) != 0) {
-        return -1; // Mutex error
-    }
-
-    // Double-check initialization under lock
-    if (gTimeMgrInitialized) {
-        pthread_mutex_unlock(&gTimeMgrMutex);
-        return NO_ERR;
-    }
-
-    // Allocate private data structure
-    err = AllocateTimeMgrPrivate();
-    if (err != NO_ERR) {
-        pthread_mutex_unlock(&gTimeMgrMutex);
-        return err;
-    }
-
-    // Initialize time base
-    err = InitTimeBase();
-    if (err != NO_ERR) {
-        DeallocateTimeMgrPrivate();
-        pthread_mutex_unlock(&gTimeMgrMutex);
-        return err;
-    }
-
-    // Initialize platform timer
-    err = InitPlatformTimer();
-    if (err != NO_ERR) {
-        ShutdownTimeBase();
-        DeallocateTimeMgrPrivate();
-        pthread_mutex_unlock(&gTimeMgrMutex);
-        return err;
-    }
-
-    // Initialize deferred task system
-    err = InitDeferredTasks();
-    if (err != NO_ERR) {
-        ShutdownPlatformTimer();
-        ShutdownTimeBase();
-        DeallocateTimeMgrPrivate();
-        pthread_mutex_unlock(&gTimeMgrMutex);
-        return err;
-    }
-
-    // Setup timer thread for interrupt simulation
-    err = SetupTimerThread();
-    if (err != NO_ERR) {
-        ShutdownDeferredTasks();
-        ShutdownPlatformTimer();
-        ShutdownTimeBase();
-        DeallocateTimeMgrPrivate();
-        pthread_mutex_unlock(&gTimeMgrMutex);
-        return err;
-    }
-
-    // Calibrate timer
-    err = CalibrateTimer();
-    if (err != NO_ERR) {
-        // Non-fatal error - continue with default calibration
-    }
-
-    // Store system start time
-    gTimeMgrPrivate->startTime = GetSystemTimeNS();
-
-    // Mark as initialized
-    gTimeMgrInitialized = true;
-
-    pthread_mutex_unlock(&gTimeMgrMutex);
-    return NO_ERR;
-}
-
-/**
- * Shutdown the Time Manager
- *
- * Cleans up Time Manager resources and stops all active timers.
- */
-void ShutdownTimeMgr(void)
-{
-    if (!gTimeMgrInitialized) {
-        return;
-    }
-
-    // Lock for thread safety
-    if (pthread_mutex_lock(&gTimeMgrMutex) != 0) {
-        return; // Mutex error
-    }
-
-    if (!gTimeMgrInitialized) {
-        pthread_mutex_unlock(&gTimeMgrMutex);
-        return;
-    }
-
-    // Shutdown in reverse order of initialization
-    ShutdownTimerThread();
-    ShutdownDeferredTasks();
-    ShutdownPlatformTimer();
-    ShutdownTimeBase();
-    DeallocateTimeMgrPrivate();
-
-    gTimeMgrInitialized = false;
-
-    pthread_mutex_unlock(&gTimeMgrMutex);
-}
-
-/* ===== Task Management Functions ===== */
-
-/**
- * Install Time Manager Task
- *
- * Initializes a Time Manager Task structure for use.
- */
-OSErr InsTime(TMTaskPtr tmTaskPtr)
-{
-    if (!tmTaskPtr) {
-        return -1; // Invalid parameter
-    }
-
-    if (!gTimeMgrInitialized) {
-        return -2; // Time Manager not initialized
-    }
-
-    // Initialize the task structure
-    memset(tmTaskPtr, 0, sizeof(TMTask));
-
-    // Clear flags - task is initially inactive
-    tmTaskPtr->qType = QTASK_TIMER_TYPE;
-    tmTaskPtr->isActive = false;
-    tmTaskPtr->isExtended = false;
-
-    return NO_ERR;
-}
-
-/**
- * Install Extended Time Manager Task
- *
- * Like InsTime, but for extended TMTask structures that support drift-free
- * fixed-frequency timing.
- */
-OSErr InsXTime(TMTaskPtr tmTaskPtr)
-{
-    OSErr err = InsTime(tmTaskPtr);
-    if (err != NO_ERR) {
-        return err;
-    }
-
-    // Mark as extended task
-    tmTaskPtr->qType |= QTASK_EXTENDED_FLAG;
-    tmTaskPtr->isExtended = true;
-
-    return NO_ERR;
-}
-
-/* ===== Private Implementation Functions ===== */
-
-/**
- * Allocate Time Manager Private Data
- */
-static OSErr AllocateTimeMgrPrivate(void)
-{
-    gTimeMgrPrivate = (TimeMgrPrivate*)calloc(1, sizeof(TimeMgrPrivate));
-    if (!gTimeMgrPrivate) {
-        return -1; // Memory allocation failed
-    }
-
-    // Initialize private data
-    gTimeMgrPrivate->activePtr = NULL;
-    gTimeMgrPrivate->timerAdjust = 1; // Initial adjustment value
-    gTimeMgrPrivate->retryAdjust = (1 << (TICK_SCALE - 1)) + (1 << TICK_SCALE); // From original
-    gTimeMgrPrivate->currentTime = 0;
-    gTimeMgrPrivate->backLog = 0;
-    gTimeMgrPrivate->highUSecs = 0;
-    gTimeMgrPrivate->lowUSecs = 0;
-    gTimeMgrPrivate->fractUSecs = 0;
-    gTimeMgrPrivate->curTimeThresh = 0;
-    gTimeMgrPrivate->initialized = true;
-
-    return NO_ERR;
-}
-
-/**
- * Deallocate Time Manager Private Data
- */
-static void DeallocateTimeMgrPrivate(void)
-{
-    if (gTimeMgrPrivate) {
-        free(gTimeMgrPrivate);
-        gTimeMgrPrivate = NULL;
-    }
-}
-
-/**
- * Setup Timer Thread
- *
- * Creates a high-priority thread to simulate timer interrupts.
- */
-static OSErr SetupTimerThread(void)
-{
-    pthread_t *timerThread;
-    pthread_attr_t attr;
-    struct sched_param param;
-    int result;
-
-    // Allocate thread handle storage
-    timerThread = (pthread_t*)malloc(sizeof(pthread_t));
-    if (!timerThread) {
-        return -1; // Memory allocation failed
-    }
-
-    // Initialize thread attributes
-    result = pthread_attr_init(&attr);
-    if (result != 0) {
-        free(timerThread);
-        return -2; // Thread attribute initialization failed
-    }
-
-    // Set thread to be detached
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-
-    // Try to set high priority for timer accuracy
-    if (pthread_attr_setschedpolicy(&attr, SCHED_FIFO) == 0) {
-        param.sched_priority = sched_get_priority_max(SCHED_FIFO) - 1;
-        pthread_attr_setschedparam(&attr, &param);
-    }
-
-    // Create the timer thread
-    result = pthread_create(timerThread, &attr, TimerThreadProc, NULL);
-    pthread_attr_destroy(&attr);
-
-    if (result != 0) {
-        free(timerThread);
-        return -3; // Thread creation failed
-    }
-
-    gTimeMgrPrivate->timerThread = timerThread;
-    return NO_ERR;
-}
-
-/**
- * Shutdown Timer Thread
- */
-static void ShutdownTimerThread(void)
-{
-    if (gTimeMgrPrivate && gTimeMgrPrivate->timerThread) {
-        pthread_t *timerThread = (pthread_t*)gTimeMgrPrivate->timerThread;
-
-        // Signal thread to exit (implementation would set a flag)
-        // For now, we'll cancel the thread
-        pthread_cancel(*timerThread);
-        pthread_join(*timerThread, NULL);
-
-        free(timerThread);
-        gTimeMgrPrivate->timerThread = NULL;
-    }
-}
-
-/**
- * Timer Thread Procedure
- *
- * High-priority thread that simulates the VIA timer interrupts.
- * This provides the basic timing heartbeat for the Time Manager.
- */
-static void* TimerThreadProc(void* param)
-{
-    struct timespec sleepTime;
-    uint64_t lastTime, currentTime;
-    UInt32 elapsed;
-
-    (void)param; // Unused parameter
-
-    // Set thread cancellation type
-    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
-
-    // Get initial time
-    lastTime = GetSystemTimeNS();
-
-    // Timer loop - approximate the original VIA timer behavior
-    while (true) {
-        // Sleep for approximately 20 microseconds (original resolution)
-        sleepTime.tv_sec = 0;
-        sleepTime.tv_nsec = 20000; // 20 microseconds
-        nanosleep(&sleepTime, NULL);
-
-        // Check for thread cancellation
-        pthread_testcancel();
-
-        // Update time and check for expired timers
-        currentTime = GetSystemTimeNS();
-        elapsed = (UInt32)((currentTime - lastTime) / 1000); // Convert to microseconds
-
-        if (elapsed > 0) {
-            // Update the time base
-            UpdateTimeBase(elapsed);
-
-            // Process any expired timers (would call Timer2Int equivalent)
-            // This is handled by TimerInterrupts.c in the full implementation
+/* Find entry by task pointer */
+static TMEntry* FindEntry(TMTask *task) {
+    for (UInt32 i = 0; i < TM_MAX_TASKS; i++) {
+        if (gEntries[i].task == task) {
+            return &gEntries[i];
         }
-
-        lastTime = currentTime;
     }
-
-    return NULL;
+    return 0;
 }
 
-/**
- * Get System Time in Nanoseconds
- */
-static uint64_t GetSystemTimeNS(void)
-{
-    struct timespec ts;
-
-    // Use monotonic clock for consistent timing
-    if (clock_gettime(CLOCK_REALTIME, &ts) == 0) {
-        return (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
-    }
-
-    // Fallback to realtime clock
-    if (clock_gettime(CLOCK_REALTIME, &ts) == 0) {
-        return (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
-    }
-
-    return 0; // Error case
-}
-
-/**
- * Generate Unique Task ID
- */
-static UInt32 GenerateTaskID(void)
-{
-    return __sync_fetch_and_add(&gNextTaskID, 1);
-}
-
-/* ===== Utility Functions ===== */
-
-/**
- * Multiply and Merge utility
- *
- * Performs 32-bit by 32-bit multiplication with 64-bit intermediate result,
- * then merges selected bits to produce final 32-bit result.
- */
-UInt32 MultAndMerge(UInt32 multiplicand, UInt32 multiplier, UInt32 mergeMask)
-{
-    uint64_t product = (uint64_t)multiplicand * (uint64_t)multiplier;
-    UInt32 high = (UInt32)(product >> 32);
-    UInt32 low = (UInt32)product;
-
-    if (mergeMask == 0) {
-        return high;
-    }
-
-    // Check for overflow in high word where merge mask has bits set
-    UInt32 maskBits = low & mergeMask;
-    if ((high + (maskBits >> 31)) & (~mergeMask >> 31)) {
-        return 0xFFFFFFFF; // Overflow
-    }
-
-    return high | maskBits;
-}
-
-/* ===== Time Conversion Functions ===== */
-
-/**
- * Convert milliseconds to internal time format
- */
-UInt32 MillisecondsToInternal(UInt32 milliseconds)
-{
-    return MultAndMerge(milliseconds, MS_TO_INTERNAL,
-                       (UInt32)(-1) << MS_TO_INT_FRACT_BITS);
-}
-
-/**
- * Convert microseconds to internal time format
- */
-UInt32 MicrosecondsToInternal(UInt32 microseconds)
-{
-    return MultAndMerge(microseconds, US_TO_INTERNAL, 0);
-}
-
-/**
- * Convert internal time to milliseconds
- */
-UInt32 InternalToMilliseconds(UInt32 internal)
-{
-    return MultAndMerge(internal, INTERNAL_TO_MS, 0);
-}
-
-/**
- * Convert internal time to microseconds
- */
-UInt32 InternalToMicroseconds(UInt32 internal)
-{
-    UInt32 result = MultAndMerge(internal, INTERNAL_TO_US,
-                                  (UInt32)(-1) << INT_TO_US_FRACT_BITS);
-    // Rotate result to align properly (from original implementation)
-    return (result << (32 - INT_TO_US_FRACT_BITS)) |
-           (result >> INT_TO_US_FRACT_BITS);
-}
-
-/* ===== Status Functions ===== */
-
-/**
- * Get current Time Manager status
- */
-Boolean IsTimeMgrActive(void)
-{
-    return gTimeMgrInitialized && (gTimeMgrPrivate != NULL);
-}
-
-/**
- * Get number of active timer tasks
- */
-SInt32 GetActiveTaskCount(void)
-{
-    SInt32 count = 0;
-    TMTaskPtr current;
-
-    if (!gTimeMgrInitialized || !gTimeMgrPrivate) {
-        return 0;
-    }
-
-    // Lock and count active tasks
-    if (pthread_mutex_lock(&gTimeMgrMutex) == 0) {
-        current = gTimeMgrPrivate->activePtr;
-        while (current) {
-            count++;
-            current = current->qLink;
+/* Min-heap operations */
+static void HeapSiftUp(UInt32 index) {
+    while (index > 0) {
+        UInt32 parent = (index - 1) / 2;
+        if ((int64_t)(gHeap[parent]->absDeadlineUS - gHeap[index]->absDeadlineUS) <= 0) {
+            break;
         }
-        pthread_mutex_unlock(&gTimeMgrMutex);
+        TMEntry* temp = gHeap[parent];
+        gHeap[parent] = gHeap[index];
+        gHeap[index] = temp;
+        gHeap[parent]->heapIndex = parent;
+        gHeap[index]->heapIndex = index;
+        index = parent;
     }
-
-    return count;
 }
 
-/**
- * Get current backlog time
- */
-UInt32 GetBacklogTime(void)
-{
-    if (!gTimeMgrInitialized || !gTimeMgrPrivate) {
-        return 0;
+static void HeapSiftDown(UInt32 index) {
+    while (2 * index + 1 < gHeapSize) {
+        UInt32 left = 2 * index + 1;
+        UInt32 right = 2 * index + 2;
+        UInt32 smallest = index;
+        
+        if ((int64_t)(gHeap[smallest]->absDeadlineUS - gHeap[left]->absDeadlineUS) > 0) {
+            smallest = left;
+        }
+        if (right < gHeapSize && 
+            (int64_t)(gHeap[smallest]->absDeadlineUS - gHeap[right]->absDeadlineUS) > 0) {
+            smallest = right;
+        }
+        
+        if (smallest == index) break;
+        
+        TMEntry* temp = gHeap[index];
+        gHeap[index] = gHeap[smallest];
+        gHeap[smallest] = temp;
+        gHeap[index]->heapIndex = index;
+        gHeap[smallest]->heapIndex = smallest;
+        index = smallest;
     }
+}
 
-    return gTimeMgrPrivate->backLog;
+static void HeapPush(TMEntry* entry) {
+    if (gHeapSize >= TM_MAX_TASKS) return;
+    
+    gHeap[gHeapSize] = entry;
+    entry->heapIndex = gHeapSize;
+    entry->inHeap = 1;
+    gHeapSize++;
+    HeapSiftUp(gHeapSize - 1);
+}
+
+static TMEntry* HeapPop(void) {
+    if (gHeapSize == 0) return 0;
+    
+    TMEntry* result = gHeap[0];
+    result->inHeap = 0;
+    
+    gHeapSize--;
+    if (gHeapSize > 0) {
+        gHeap[0] = gHeap[gHeapSize];
+        gHeap[0]->heapIndex = 0;
+        HeapSiftDown(0);
+    }
+    
+    return result;
+}
+
+static void HeapRemove(TMEntry* entry) {
+    if (!entry->inHeap) return;
+    
+    UInt32 index = entry->heapIndex;
+    entry->inHeap = 0;
+    
+    gHeapSize--;
+    if (gHeapSize > 0 && index < gHeapSize) {
+        gHeap[index] = gHeap[gHeapSize];
+        gHeap[index]->heapIndex = index;
+        
+        /* Fix heap property */
+        if (index > 0 && (int64_t)(gHeap[(index-1)/2]->absDeadlineUS - 
+                                    gHeap[index]->absDeadlineUS) > 0) {
+            HeapSiftUp(index);
+        } else {
+            HeapSiftDown(index);
+        }
+    }
+}
+
+/* Rearm hardware timer for next deadline */
+static void RearmNextInterrupt(void) {
+    if (gHeapSize > 0) {
+        ProgramNextTimerInterrupt(gHeap[0]->absDeadlineUS);
+    } else {
+        ProgramNextTimerInterrupt(0);
+    }
+}
+
+/* Core API implementation */
+OSErr Core_Initialize(void) {
+    for (UInt32 i = 0; i < TM_MAX_TASKS; i++) {
+        gEntries[i].task = 0;
+        gEntries[i].inHeap = 0;
+    }
+    gHeapSize = 0;
+    gGenCounter = 1;
+    gInitialized = true;
+    return noErr;
+}
+
+void Core_Shutdown(void) {
+    gInitialized = false;
+    ProgramNextTimerInterrupt(0);
+}
+
+OSErr Core_InsertTask(TMTask *task) {
+    if (!gInitialized) return tmNotActive;
+    if (!task) return tmParamErr;
+    
+    UInt32 irq = DisableInterrupts();
+    
+    /* Find free entry */
+    TMEntry* entry = 0;
+    for (UInt32 i = 0; i < TM_MAX_TASKS; i++) {
+        if (gEntries[i].task == 0) {
+            entry = &gEntries[i];
+            break;
+        }
+    }
+    
+    if (!entry) {
+        RestoreInterrupts(irq);
+        return tmQueueFull;
+    }
+    
+    entry->task = task;
+    entry->absDeadlineUS = 0;
+    entry->periodUS = 0;
+    entry->gen = gGenCounter++;
+    entry->inHeap = 0;
+    
+    RestoreInterrupts(irq);
+    return noErr;
+}
+
+OSErr Core_RemoveTask(TMTask *task) {
+    if (!gInitialized) return tmNotActive;
+    if (!task) return tmParamErr;
+    
+    UInt32 irq = DisableInterrupts();
+    
+    TMEntry* entry = FindEntry(task);
+    if (!entry) {
+        RestoreInterrupts(irq);
+        return tmNotActive;
+    }
+    
+    if (entry->inHeap) {
+        HeapRemove(entry);
+        RearmNextInterrupt();
+    }
+    
+    entry->task = 0;
+    entry->gen++;
+    
+    RestoreInterrupts(irq);
+    return noErr;
+}
+
+OSErr Core_PrimeTask(TMTask *task, UInt32 delayUS) {
+    if (!gInitialized) return tmNotActive;
+    if (!task) return tmParamErr;
+    
+    UInt32 irq = DisableInterrupts();
+    
+    TMEntry* entry = FindEntry(task);
+    if (!entry) {
+        RestoreInterrupts(irq);
+        return tmNotActive;
+    }
+    
+    /* Remove from heap if already scheduled */
+    if (entry->inHeap) {
+        HeapRemove(entry);
+    }
+    
+    /* Compute deadline */
+    UnsignedWide now;
+    Microseconds(&now);
+    UInt64 nowUS = ((UInt64)now.hi << 32) | now.lo;
+    
+    entry->absDeadlineUS = nowUS + delayUS;
+    entry->periodUS = (task->qType & TM_FLAG_PERIODIC) ? delayUS : 0;
+    entry->gen++;
+    
+    /* Insert into heap */
+    HeapPush(entry);
+    RearmNextInterrupt();
+    
+    RestoreInterrupts(irq);
+    return noErr;
+}
+
+OSErr Core_CancelTask(TMTask *task) {
+    if (!gInitialized) return tmNotActive;
+    if (!task) return tmParamErr;
+    
+    UInt32 irq = DisableInterrupts();
+    
+    TMEntry* entry = FindEntry(task);
+    if (!entry || !entry->inHeap) {
+        RestoreInterrupts(irq);
+        return tmNotActive;
+    }
+    
+    HeapRemove(entry);
+    entry->gen++;
+    RearmNextInterrupt();
+    
+    RestoreInterrupts(irq);
+    return noErr;
+}
+
+UInt32 Core_GetActiveCount(void) {
+    return gHeapSize;
+}
+
+/* ISR callback - expire all due tasks */
+void Core_ExpireDue(UInt64 nowUS) {
+    UInt32 irq = DisableInterrupts();
+    
+    while (gHeapSize > 0) {
+        TMEntry* entry = gHeap[0];
+        
+        /* Check if expired */
+        if ((int64_t)(entry->absDeadlineUS - nowUS) > 0) {
+            break;
+        }
+        
+        /* Remove from heap */
+        HeapPop();
+        
+        /* Enqueue callback */
+        EnqueueDeferred(entry->task, entry->gen);
+        
+        /* Reschedule if periodic */
+        if (entry->periodUS > 0) {
+            entry->absDeadlineUS += entry->periodUS;
+            entry->gen++;
+            HeapPush(entry);
+        }
+    }
+    
+    RearmNextInterrupt();
+    RestoreInterrupts(irq);
 }

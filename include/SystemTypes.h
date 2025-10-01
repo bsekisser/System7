@@ -3104,3 +3104,30 @@ typedef struct {
 } GrafPortExt;
 #endif
 
+/* ===== Classic Mac types needed by Time Manager ===== */
+#ifndef SYSTEMTYPES_TIME_MANAGER_SHIM
+#define SYSTEMTYPES_TIME_MANAGER_SHIM
+
+/* Classic UnsignedWide (hi:lo) */
+typedef struct UnsignedWide {
+    UInt32 hi;
+    UInt32 lo;
+} UnsignedWide;
+
+/* Time unit helpers */
+#ifndef MICROSECONDS_PER_SECOND
+#define MICROSECONDS_PER_SECOND 1000000ULL
+#endif
+#ifndef NANOSECONDS_PER_SECOND
+#define NANOSECONDS_PER_SECOND  1000000000ULL
+#endif
+#ifndef NANOSECONDS_PER_MICROSECOND
+#define NANOSECONDS_PER_MICROSECOND 1000ULL
+#endif
+
+#ifndef paramErr
+#define paramErr -50
+#endif
+
+#endif /* SYSTEMTYPES_TIME_MANAGER_SHIM */
+

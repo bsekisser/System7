@@ -22,7 +22,7 @@ GRUB = grub-mkrescue
 #          When defined, stubs in sys71_stubs.c are excluded via #ifndef guards.
 #          This ensures single source of truth per symbol (no duplicate definitions).
 # [WM-052] Warnings are errors - no papering over issues
-CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 -ffreestanding -fno-builtin -fno-stack-protector -nostdlib \
+CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 -DTM_SMOKE_TEST -ffreestanding -fno-builtin -fno-stack-protector -nostdlib \
          -Wall -Wextra -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wcast-qual \
          -Wpointer-arith -Wstrict-prototypes -Wno-unused-parameter \
          -g -O0 -fno-inline -fno-optimize-sibling-calls -I./include -std=c99 -m32
@@ -116,7 +116,14 @@ C_SOURCES = src/main.c \
             src/WindowManager/WindowDragging.c \
             src/WindowManager/WindowResizing.c \
             src/WindowManager/WindowLayering.c \
-            src/WindowManager/WindowParts.c
+            src/WindowManager/WindowParts.c \
+            src/TimeManager/PlatformTime.c \
+            src/TimeManager/TimeBase.c \
+            src/TimeManager/MicrosecondTimer.c \
+            src/TimeManager/TimeManager.c \
+            src/TimeManager/TimeManagerCore.c \
+            src/TimeManager/TimerInterrupts.c \
+            src/TimeManager/TimerTasks.c
 
 ASM_SOURCES = src/multiboot2.S
 

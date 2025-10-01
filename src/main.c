@@ -29,6 +29,7 @@ extern void DoMenuCommand(short menuID, short item);
 #include "../include/FS/vfs.h"
 #include "../include/MemoryMgr/MemoryManager.h"
 #include "../include/Resources/system7_resources.h"
+#include "../include/TimeManager/TimeManager.h"
 
 /* Simple 5x7 font for basic ASCII characters */
 static const uint8_t font5x7[][5] = {
@@ -1563,6 +1564,14 @@ extern void FinderEventLoop(void);
 extern OSErr CleanUpDesktop(void);
 extern void DrawDesktop(void);
 
+#ifdef TM_SMOKE_TEST
+/* Time Manager test callback */
+static struct TMTask gHelloTimer;
+static void tm_hello(struct TMTask *t) {
+    serial_puts("[TM] Hello from timer!\n");
+}
+#endif
+
 /* Initialize System 7.1 subsystems */
 void init_system71(void) {
     /* console_puts("Initializing System 7.1 subsystems...\n"); - disabled in graphics mode */
@@ -1573,6 +1582,24 @@ void init_system71(void) {
     /* Memory Manager - foundation of everything */
     InitMemoryManager();
     serial_puts("  Memory Manager initialized\n");
+
+    /* Time Manager - low-level timing services */
+    OSErr tmErr = InitTimeManager();
+    if (tmErr == noErr) {
+        serial_puts("  Time Manager initialized\n");
+
+        /* Smoke test: schedule a timer */
+        #ifdef TM_SMOKE_TEST
+        InsTime(&gHelloTimer);
+        gHelloTimer.tmAddr = (Ptr)tm_hello;
+        gHelloTimer.tmCount = 0;
+        gHelloTimer.qType = 0; /* one-shot */
+        PrimeTime(&gHelloTimer, 2000); /* 2ms */
+        serial_puts("  [TM] Test timer scheduled for 2ms\n");
+        #endif
+    } else {
+        serial_puts("  Time Manager init FAILED\n");
+    }
 
     /* Resource Manager - needed for loading resources */
     InitResourceManager();
@@ -2027,6 +2054,10 @@ skip_cursor_drawing:
             /* Let DispatchEvent handle all events */
             DispatchEvent(&event);
         }
+
+        /* Process deferred Time Manager tasks */
+        TimeManager_DrainDeferred(16, 1000); /* up to 16 callbacks or 1ms of work */
+        TimeManager_TimerISR(); /* Poll timer (simulated ISR) */
 #endif /* #if 1 */
 
 #if 0
