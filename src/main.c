@@ -2237,11 +2237,16 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 #ifdef ENABLE_PROCESS_COOP
         /* Cooperative yield point - let other processes run */
         static EventRecord evt;
-        if (!GetNextEvent(everyEvent, &evt)) {
+        if (GetNextEvent(everyEvent, &evt)) {
+            /* Got an event - dispatch it */
+            serial_printf("MAIN: GetNextEvent -> 1, what=%d at (%d,%d)\n",
+                         evt.what, evt.where.h, evt.where.v);
+            DispatchEvent(&evt);
+        } else {
             /* No events - yield to other processes */
             Proc_Yield();
         }
-#endif
+#endif /* ENABLE_PROCESS_COOP */
 
         /* Simple alive message every 1 million iterations */
         static uint32_t simple_counter = 0;
@@ -2395,6 +2400,8 @@ skip_cursor_drawing:
 #endif
 
         /* Get and process events via DispatchEvent */
+#ifndef ENABLE_PROCESS_COOP
+        /* Only do this when NOT using ProcessMgr (already handled above) */
         if (GetNextEvent(everyEvent, &event)) {
             /* Log event retrieval */
             serial_printf("MAIN: GetNextEvent -> 1, what=%d at (%d,%d)\n",
@@ -2402,6 +2409,7 @@ skip_cursor_drawing:
             /* Let DispatchEvent handle all events */
             DispatchEvent(&event);
         }
+#endif
 
         /* Process deferred Time Manager tasks
          * IMPORTANT: Call TimerISR each iteration for high-cadence timer checking.
