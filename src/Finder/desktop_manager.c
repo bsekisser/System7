@@ -89,6 +89,10 @@ static Point gOriginalPos = {0, 0};          /* Original position before drag */
 static UInt32 gLastClickTime = 0;            /* For double-click detection */
 static Point gLastClickPos = {0, 0};         /* Last click position */
 
+/* Same-icon double-click tracking (Classic Finder behavior) */
+static short sLastClickIcon = -1;            /* Icon clicked last time */
+static UInt32 sLastClickTicks = 0;           /* When it was clicked */
+
 /* Forward Declarations */
 static OSErr LoadDesktopDatabase(short vRefNum);
 static OSErr SaveDesktopDatabase(short vRefNum);
@@ -727,6 +731,7 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
 {
     Rect ghost;
     Boolean ghostOn = false;
+    Boolean didDrag = false;  /* Track if icon actually moved during drag */
     Point p;
     GrafPtr savePort;
 
@@ -786,6 +791,7 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
             if (cur.h != last.h || cur.v != last.v) {
                 /* Move by per-frame delta (cur - last, not cur - start) */
                 OffsetRect(&ghost, cur.h - last.h, cur.v - last.v);
+                didDrag = true;  /* Icon actually moved */
 
                 /* Constrain to desktop bounds */
                 Rect desk = qd.screenBits.bounds;
@@ -826,6 +832,12 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     extern OSErr PostEvent(EventKind eventNum, UInt32 eventMsg);
     PostEvent(updateEvt, 0);  /* desktop repaint */
     serial_printf("TrackIconDragSync: posted updateEvt\n");
+
+    /* If we actually dragged, clear same-icon tracking to prevent accidental open */
+    if (didDrag) {
+        serial_printf("TrackIconDragSync: didDrag=true, clearing sLastClickIcon\n");
+        sLastClickIcon = -1;
+    }
 
     /* Clear tracking guard and drag flag */
     serial_printf("TrackIconDragSync: clearing tracking flags\n");
@@ -1165,51 +1177,79 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
         return false;
     }
 
+    /* Ensure we're in screen port for global coordinate hit testing */
+    extern QDGlobals qd;
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort(qd.thePort);
+
     /* Find which icon was hit */
     hitIcon = IconAtPoint(clickPoint);
 
     if (hitIcon == -1) {
-        /* No icon hit - deselect */
+        /* No icon hit - deselect and clear same-icon tracking */
         if (prevSelected != -1) {
             gSelectedIcon = -1;
             /* Don't redraw here - let Window Manager handle it via DeskHook */
         }
+        sLastClickIcon = -1;
+        sLastClickTicks = 0;
+        SetPort(savePort);
         return false;
     }
 
-    serial_printf("Hit icon index %d, doubleClick=%d\n", hitIcon, doubleClick);
+    serial_printf("Hit icon index %d, doubleClick=%d, sLastClickIcon=%d\n", hitIcon, doubleClick, sLastClickIcon);
 
-    /* Double-click: open, never drag */
-    if (doubleClick && hitIcon >= 0 && hitIcon < gDesktopIconCount) {
-        serial_printf("[DBLCLK] Opening icon %d\n", hitIcon);
+    /* Double-click on SAME icon: open immediately, never drag */
+    if (doubleClick && hitIcon == sLastClickIcon && hitIcon >= 0 && hitIcon < gDesktopIconCount) {
+        serial_printf("[DBLCLK SAME ICON] Opening icon %d\n", hitIcon);
         extern WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title);
         DesktopItem *it = &gDesktopIcons[hitIcon];
 
+        /* Ensure any ghost from prior drag is erased */
+        GhostEraseIf();
+
         if (it->type == kDesktopItemVolume) {
             Finder_OpenDesktopItem(false, "\pMacintosh HD");
-            return true;
         } else if (it->type == kDesktopItemTrash) {
             Finder_OpenDesktopItem(true, "\pTrash");
-            return true;
         }
+
+        /* Schedule repaint and clear tracking */
+        extern OSErr PostEvent(EventKind eventNum, UInt32 eventMsg);
+        PostEvent(updateEvt, 0);
+        sLastClickIcon = -1;  /* Consume double-click */
+        SetPort(savePort);
         return true;
     }
 
-    /* Single click: select first, then arm for drag only while button still down */
+    /* Single click or double-click on different icon: select and arm for drag */
     if (hitIcon >= 0 && hitIcon < gDesktopIconCount) {
         gSelectedIcon = hitIcon;
+
+        /* Update same-icon tracking for next potential double-click */
+        extern UInt32 TickCount(void);
+        sLastClickIcon = hitIcon;
+        sLastClickTicks = TickCount();
+
         extern OSErr PostEvent(EventKind eventNum, UInt32 eventMsg);
         PostEvent(updateEvt, 0);  /* selection redraw deferred */
+
+        serial_printf("Single-click: icon %d selected, sLastClickIcon=%d\n", hitIcon, sLastClickIcon);
 
         extern volatile UInt8 gCurrentButtons;
         if ((gCurrentButtons & 1) != 0) {  /* mouse still down? arm drag */
             serial_printf("Single-click: button still down, starting drag tracking\n");
+            SetPort(savePort);
             TrackIconDragSync(hitIcon, clickPoint);
         } else {
             serial_printf("Single-click: button released, no drag\n");
+            SetPort(savePort);
         }
         return true;
     }
+
+    SetPort(savePort);
 
     return true;
 }
