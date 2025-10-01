@@ -3,6 +3,8 @@
  * Minimal implementation for kernel environment
  */
 
+#ifndef ENABLE_RESOURCES  /* Only compile when not using full ResourceMgr */
+
 #include "SystemTypes.h"
 #include "ResourceMgr/resource_manager.h"
 #include <string.h>
@@ -125,3 +127,4 @@ Handle GetResource(ResType type, short id) {
 
     return NULL;
 }
+#endif /* !ENABLE_RESOURCES */

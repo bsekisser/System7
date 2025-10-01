@@ -1525,6 +1525,10 @@ void test_framebuffer(void) {
 /* External System 7.1 component initialization functions */
 extern void InitMemoryManager(void);
 extern void InitResourceManager(void);
+
+#ifdef ENABLE_RESOURCES
+#include "ResourceMgr/ResourceMgr.h"
+#endif
 extern void InitGraf(void *globalPtr);
 extern void InitFonts(void);
 extern void InitWindows(void);
@@ -1604,6 +1608,44 @@ void init_system71(void) {
     /* Resource Manager - needed for loading resources */
     InitResourceManager();
     serial_puts("  Resource Manager initialized\n");
+
+#ifdef ENABLE_RESOURCES
+    /* Resource Manager smoke test */
+    {
+        extern void serial_puts(const char*);
+        OSErr err;
+        Handle h;
+
+        /* Try to load a PAT resource */
+        h = GetResource('PAT ', 1);
+        err = ResError();
+        if (h && err == noErr) {
+            serial_puts("[ResourceMgr] PAT 1 loaded successfully\n");
+            ReleaseResource(h);
+        } else {
+            serial_puts("[ResourceMgr] PAT 1 load FAILED\n");
+        }
+
+        /* Try to load a ppat resource */
+        h = GetResource('ppat', 100);
+        err = ResError();
+        if (h && err == noErr) {
+            serial_puts("[ResourceMgr] ppat 100 loaded successfully\n");
+            ReleaseResource(h);
+        } else {
+            serial_puts("[ResourceMgr] ppat 100 load FAILED\n");
+        }
+
+        /* Try non-existent resource to test error handling */
+        h = GetResource('MENU', 256);
+        err = ResError();
+        if (err == resNotFound) {
+            serial_puts("[ResourceMgr] MENU 256 correctly returned resNotFound\n");
+        } else {
+            serial_puts("[ResourceMgr] MENU 256 unexpected result\n");
+        }
+    }
+#endif
 
     /* QuickDraw - graphics foundation */
     InitGraf(&qd.thePort);

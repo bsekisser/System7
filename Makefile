@@ -17,12 +17,23 @@ AS = as
 LD = ld
 GRUB = grub-mkrescue
 
+# Feature flags
+ENABLE_RESOURCES ?= 1
+ENABLE_FILEMGR_EXTRA ?= 1
+
 # Flags
 # [WM-050] SYS71_PROVIDE_FINDER_TOOLBOX=1 means: DO NOT provide Toolbox stubs; real implementations win.
 #          When defined, stubs in sys71_stubs.c are excluded via #ifndef guards.
 #          This ensures single source of truth per symbol (no duplicate definitions).
 # [WM-052] Warnings are errors - no papering over issues
-CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 -DTM_SMOKE_TEST -ffreestanding -fno-builtin -fno-stack-protector -nostdlib \
+CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 -DTM_SMOKE_TEST
+ifeq ($(ENABLE_RESOURCES),1)
+CFLAGS += -DENABLE_RESOURCES=1
+endif
+ifeq ($(ENABLE_FILEMGR_EXTRA),1)
+CFLAGS += -DENABLE_FILEMGR_EXTRA=1
+endif
+CFLAGS += -ffreestanding -fno-builtin -fno-stack-protector -nostdlib \
          -Wall -Wextra -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wcast-qual \
          -Wpointer-arith -Wstrict-prototypes -Wno-unused-parameter \
          -g -O0 -fno-inline -fno-optimize-sibling-calls -I./include -std=c99 -m32
@@ -124,6 +135,19 @@ C_SOURCES = src/main.c \
             src/TimeManager/TimeManagerCore.c \
             src/TimeManager/TimerInterrupts.c \
             src/TimeManager/TimerTasks.c
+
+# Add ResourceMgr sources if enabled
+ifeq ($(ENABLE_RESOURCES),1)
+C_SOURCES += src/ResourceMgr/ResourceMgr.c
+endif
+
+# Add FileMgr extra sources if enabled
+ifeq ($(ENABLE_FILEMGR_EXTRA),1)
+C_SOURCES += src/FileMgr/btree_services.c \
+             src/FileMgr/extent_manager.c \
+             src/FileMgr/tfs_dispatch.c \
+             src/FileMgr/volume_manager.c
+endif
 
 ASM_SOURCES = src/multiboot2.S
 

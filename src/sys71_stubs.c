@@ -47,9 +47,11 @@ void Platform_CleanupMenuSystem(void) {
 }
 
 /* Resource Manager */
+#ifndef ENABLE_RESOURCES
 void InitResourceManager(void) {
     /* Stub implementation */
 }
+#endif
 
 /* QuickDraw - InitGraf is now provided by QuickDrawCore.c */
 
@@ -803,9 +805,11 @@ OSErr ResolveAliasFile(const FSSpec* spec, FSSpec* target, Boolean* wasAliased, 
     return noErr;
 }
 
+#ifndef ENABLE_RESOURCES
 void ReleaseResource(Handle theResource) {
     /* Stub */
 }
+#endif
 
 OSErr NewAlias(const FSSpec* fromFile, const FSSpec* target, AliasHandle* alias) {
     if (alias) *alias = (AliasHandle)NewHandle(sizeof(AliasRecord));
@@ -863,6 +867,7 @@ OSErr SetEOF(SInt16 refNum, SInt32 logEOF) {
 /* NewHandle and DisposeHandle provided by Memory Manager */
 /* GetResource provided by simple_resource_manager.c */
 
+#ifndef ENABLE_RESOURCES
 Handle Get1Resource(ResType theType, SInt16 theID) {
     extern Handle GetResource(ResType type, short id);
     return GetResource(theType, theID);
@@ -887,6 +892,7 @@ void CloseResFile(SInt16 refNum) {
 OSErr ResError(void) {
     return noErr;
 }
+#endif
 
 void AddResMenu(MenuHandle theMenu, ResType theType) {
     /* Stub - would add resources to menu */
