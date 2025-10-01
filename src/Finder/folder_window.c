@@ -28,14 +28,18 @@ static void DrawFileIcon(short x, short y, Boolean isFolder)
                   isFolder ? 1 : 2, x, y, NULL);
 
     if (isFolder) {
-        /* Draw folder shape */
+        /* Draw folder shape - paint with gray then frame */
+        extern void PaintRect(const Rect* r);
+        extern void InvertRect(const Rect* r);
+        PaintRect(&iconRect);  /* Fill with black */
         FrameRect(&iconRect);
         /* Tab on top */
         Rect tabRect;
         SetRect(&tabRect, x, y - 4, x + 12, y);
+        PaintRect(&tabRect);  /* Fill with black */
         FrameRect(&tabRect);
     } else {
-        /* Draw document shape */
+        /* Draw document shape - just frame it (white background) */
         FrameRect(&iconRect);
         /* Folded corner */
         MoveTo(x + 24, y);
