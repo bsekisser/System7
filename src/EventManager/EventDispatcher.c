@@ -266,13 +266,19 @@ Boolean HandleMouseDown(EventRecord* event)
                 UInt16 clickCount = (event->message >> 16) & 0xFFFF;
                 Boolean doubleClick = (clickCount >= 2);
 
+                serial_printf("[DESK CLICK] clickCount=%d, doubleClick=%d, where=(%d,%d)\n",
+                             clickCount, doubleClick, event->where.h, event->where.v);
+
                 /* Check if click was on a desktop icon */
                 extern Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick);
                 if (HandleDesktopClick(event->where, doubleClick)) {
-                    serial_printf("Desktop icon clicked (clickCount=%d)\n", clickCount);
+                    serial_printf("Desktop icon clicked (clickCount=%d), trackingDesktop=true\n", clickCount);
                     /* Start tracking for potential drag */
                     g_dispatcher.trackingDesktop = true;
                     return true;
+                } else {
+                    serial_printf("[DESK CLICK] No icon hit, trackingDesktop stays %d\n",
+                                 g_dispatcher.trackingDesktop);
                 }
 
                 /* Otherwise just a desktop click */

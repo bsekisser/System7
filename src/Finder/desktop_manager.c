@@ -1198,10 +1198,19 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
         return false;
     }
 
-    serial_printf("Hit icon index %d, doubleClick=%d, sLastClickIcon=%d\n", hitIcon, doubleClick, sLastClickIcon);
+    /* Check for double-click ourselves using time threshold (ignore broken event flag) */
+    extern UInt32 TickCount(void);
+    extern UInt32 GetDblTime(void);
+    UInt32 currentTicks = TickCount();
+    UInt32 timeSinceLastClick = currentTicks - sLastClickTicks;
+    Boolean isDoubleClick = (hitIcon == sLastClickIcon && timeSinceLastClick <= GetDblTime());
+
+    serial_printf("Hit icon index %d, same=%d, dt=%d, threshold=%d, dblClick=%d\n",
+                 hitIcon, (hitIcon == sLastClickIcon), (int)timeSinceLastClick,
+                 (int)GetDblTime(), (int)isDoubleClick);
 
     /* Double-click on SAME icon: open immediately, never drag */
-    if (doubleClick && hitIcon == sLastClickIcon && hitIcon >= 0 && hitIcon < gDesktopIconCount) {
+    if (isDoubleClick && hitIcon >= 0 && hitIcon < gDesktopIconCount) {
         serial_printf("[DBLCLK SAME ICON] Opening icon %d\n", hitIcon);
         extern WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title);
         DesktopItem *it = &gDesktopIcons[hitIcon];
@@ -1215,9 +1224,8 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
             Finder_OpenDesktopItem(true, "\pTrash");
         }
 
-        /* Schedule repaint and clear tracking */
-        extern OSErr PostEvent(EventKind eventNum, UInt32 eventMsg);
-        PostEvent(updateEvt, 0);
+        /* DO NOT post desktop updateEvt - the window will handle its own updates */
+        /* Posting updateEvt(0) would trigger DrawDesktop which paints over windows! */
         sLastClickIcon = -1;  /* Consume double-click */
         SetPort(savePort);
         return true;

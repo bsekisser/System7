@@ -43,6 +43,7 @@ void PenNormal(void);                  /* Set pen to normal */
 void PenSize(short width, short height); /* Set pen size */
 void PenMode(short mode);              /* Set pen transfer mode */
 void PenPat(const Pattern* pat);       /* Set pen pattern */
+void GetPenPat(Pattern* pat);          /* Get pen pattern */
 
 /* Text drawing */
 void DrawString(ConstStr255Param str); /* Trap 0xA884 */

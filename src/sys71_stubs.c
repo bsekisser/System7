@@ -1051,10 +1051,7 @@ SInt16 Alert(SInt16 alertID, ModalFilterProcPtr filterProc) {
     return 1;  /* OK button */
 }
 
-UInt32 TickCount(void) {
-    static UInt32 ticks = 0;
-    return ticks++;
-}
+/* TickCount() now implemented in TimeManager/TimeBase.c */
 
 /* GetMenuItemText now implemented in MenuItems.c */
 

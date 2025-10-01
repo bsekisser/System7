@@ -6,8 +6,8 @@
 
 #include "EventManager/EventGlobals.h"
 
-/* Double-click timing: 180 ticks ≈ 3000ms at 60Hz (increased for testing) */
-UInt32 gDoubleTimeTicks = 180;
+/* Double-click timing: ~500ms at 60 Hz (Classic Mac OS standard) */
+UInt32 gDoubleTimeTicks = 30;
 
 /* Double-click pixel slop: 6 pixels max distance */
 UInt16 gDoubleClickSlop = 6;

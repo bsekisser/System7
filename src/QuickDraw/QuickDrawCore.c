@@ -324,6 +324,12 @@ void PenPat(ConstPatternParam pat) {
     g_currentPort->pnPat = *pat;
 }
 
+void GetPenPat(Pattern* pat) {
+    assert(g_currentPort != NULL);
+    assert(pat != NULL);
+    *pat = g_currentPort->pnPat;
+}
+
 void GetPen(Point *pt) {
     assert(g_currentPort != NULL);
     assert(pt != NULL);

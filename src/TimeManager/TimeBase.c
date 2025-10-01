@@ -35,8 +35,10 @@ static struct {
     Boolean  initialized;
 } gTimeBase = {0};
 
+/* Forward declarations */
+UInt32 TickCount(void);
+
 /* External functions */
-extern UInt32 TickCount(void);
 extern void serial_puts(const char* s);
 
 #ifdef __i386__
@@ -245,15 +247,48 @@ void Microseconds(UnsignedWide *microTickCount) {
         microTickCount->lo = 0;
         return;
     }
-    
+
     uint64_t now = PlatformCounterNow();
     uint64_t delta = now - gTimeBase.bootCounter;
-    
+
     /* Convert to microseconds using 16.16 fixed point */
     uint64_t us = (delta * gTimeBase.usPerCount_16_16) >> 16;
-    
+
     microTickCount->hi = (UInt32)(us >> 32);
     microTickCount->lo = (UInt32)(us & 0xFFFFFFFF);
+}
+
+/**
+ * TickCount - Returns 60 Hz ticks since boot (Classic Mac OS API)
+ *
+ * Implements the classic Mac OS TickCount() function which returns the number
+ * of ticks (1/60th second intervals) since system startup. Uses Microseconds()
+ * as the time source for accuracy and consistency with Time Manager.
+ *
+ * @return Number of ticks since boot (wraps at 2^32)
+ */
+UInt32 TickCount(void) {
+    static UInt64 s_bootUS = 0;     /* microseconds at first call (boot epoch) */
+    static UInt32 s_last   = 0;     /* last value returned, for monotonicity */
+
+    UnsignedWide now;
+    Microseconds(&now);
+    UInt64 nowUS = ((UInt64)now.hi << 32) | now.lo;
+
+    if (s_bootUS == 0) {
+        /* First call: establish boot epoch so we start from ~0 ticks */
+        s_bootUS = nowUS;
+    }
+
+    /* 1 tick = 1/60 s ≈ 16,666.666… µs. Use 16667 for integer stability */
+    const UInt64 usPerTick = 16667ULL;
+    UInt64 deltaUS = nowUS - s_bootUS;
+    UInt32 ticks = (UInt32)udiv64(deltaUS, usPerTick);   /* wraps naturally at 2^32 */
+
+    /* Guard against tiny timer regressions (shouldn't happen, but cheap insurance) */
+    if (ticks < s_last) ticks = s_last;
+    s_last = ticks;
+    return ticks;
 }
 
 OSErr AbsoluteToNanoseconds(UnsignedWide absolute, UnsignedWide *duration) {

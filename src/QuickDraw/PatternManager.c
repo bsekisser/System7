@@ -143,6 +143,14 @@ void PenPat(const Pattern* pat) {
     }
 }
 
+void GetPenPat(Pattern* pat) {
+    GrafPtr port;
+    GetPort(&port);
+    if (port && pat) {
+        *pat = port->pnPat;
+    }
+}
+
 void FillPat(const Pattern* pat) {
     GrafPtr port;
     GetPort(&port);

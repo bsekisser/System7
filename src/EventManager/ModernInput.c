@@ -34,8 +34,10 @@ extern volatile Boolean gInMouseTracking;
 extern Boolean InitPS2Controller(void);
 extern void PollPS2Input(void);
 
+/* Global mouse position from PS2Controller.c */
+extern Point g_mousePos;
+
 /* Global event manager state - simplified for kernel use */
-static Point g_mousePos = {0, 0};
 static UInt8 g_mouseButtonState = 0;
 static KeyMap g_keyMapState = {0};
 static EventMgrGlobals g_eventGlobals = {0};
@@ -197,7 +199,6 @@ void ProcessModernInput(void)
 
     /* Get current input state from hardware abstraction layer */
     /* For now, we'll use the global mouse state from PS2Controller */
-    extern Point g_mousePos;
     extern struct {
         int16_t x;
         int16_t y;
@@ -206,8 +207,15 @@ void ProcessModernInput(void)
         uint8_t packet_index;
     } g_mouseState;
 
-    currentMousePos = g_mousePos;
+    currentMousePos = g_mousePos;  /* Use file-scope extern */
     currentButtonState = g_mouseState.buttons;
+
+    /* DEBUG: Check if g_mousePos is actually being read */
+    static int posReadCount = 0;
+    if (++posReadCount % 60 == 1) {
+        serial_printf("[MI] g_mousePos read: (%d,%d)\n",
+                     (int)g_mousePos.h, (int)g_mousePos.v);
+    }
 
     /* Update global button state for Button()/StillDown() */
     extern volatile UInt8 gCurrentButtons;
@@ -271,8 +279,18 @@ void ProcessModernInput(void)
 
             /* Check for multi-click using GetDblTime() and gDoubleClickSlop */
             UInt32 threshold = GetDblTime();
+
+            /* Hardcoded slop value - gDoubleClickSlop global not working */
+            const UInt16 kClickSlop = 6;
+
             SInt16 dx = currentMousePos.h - g_modernInput.lastClickPos.h;
             SInt16 dy = currentMousePos.v - g_modernInput.lastClickPos.v;
+
+            serial_printf("[MI] DELTA: curr=(%d,%d) last=(%d,%d) dx=%d dy=%d\n",
+                         (int)currentMousePos.h, (int)currentMousePos.v,
+                         (int)g_modernInput.lastClickPos.h, (int)g_modernInput.lastClickPos.v,
+                         (int)dx, (int)dy);
+
             if (dx < 0) dx = -dx;
             if (dy < 0) dy = -dy;
 
@@ -292,10 +310,10 @@ void ProcessModernInput(void)
                 UInt32 effectiveThreshold = threshold;
 #endif
 
-                serial_printf("[MI] Click timing: dt=%u, thresh=%u, dx=%d, dy=%d, slop=%d\n",
-                             (unsigned)dt, (unsigned)effectiveThreshold, dx, dy, gDoubleClickSlop);
+                serial_printf("[MI] Click timing: dt=%u, thresh=%u, dx=%d, dy=%d, slop=6\n",
+                             (unsigned)dt, (unsigned)effectiveThreshold, (int)dx, (int)dy);
 
-                if (dt <= effectiveThreshold && dx <= gDoubleClickSlop && dy <= gDoubleClickSlop) {
+                if (dt <= effectiveThreshold && dx <= kClickSlop && dy <= kClickSlop) {
                     /* Within time and distance - increment click count (cap at 3) */
                     g_modernInput.clickCount = (g_modernInput.clickCount < 3)
                         ? (g_modernInput.clickCount + 1) : 3;
@@ -307,7 +325,7 @@ void ProcessModernInput(void)
                     if (dt > effectiveThreshold) {
                         serial_printf("[MI] Reset: dt=%u > thresh=%u\n", (unsigned)dt, (unsigned)effectiveThreshold);
                     } else {
-                        serial_printf("[MI] Reset: dx=%d or dy=%d > slop=%d\n", dx, dy, gDoubleClickSlop);
+                        serial_printf("[MI] Reset: dx=%d or dy=%d > slop=6\n", dx, dy);
                     }
                 }
             }
