@@ -110,12 +110,30 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     /* Draw chrome in WMgr port (global coordinates) */
     SetPort(wmgrPort);
     serial_printf("PaintOne: Drawing window chrome in WMgr port\n");
+
+    /* Reset clip in WMgr port before drawing chrome */
+    extern RgnHandle NewRgn(void);
+    extern void SetRectRgn(RgnHandle rgn, short left, short top, short right, short bottom);
+    extern void DisposeRgn(RgnHandle rgn);
+    RgnHandle fullClipWMgr = NewRgn();
+    SetRectRgn(fullClipWMgr, -32768, -32768, 32767, 32767);
+    SetClip(fullClipWMgr);
+    DisposeRgn(fullClipWMgr);
+    serial_printf("PaintOne: Reset WMgr port clip\n");
+
     DrawWindowFrame(window);
     DrawWindowControls(window);
 
     /* Switch to window port for content (local coordinates) */
     SetPort((GrafPtr)window);
     serial_printf("PaintOne: Switched to window port for content\n");
+
+    /* Reset clip region to full window - important for proper EraseRect */
+    RgnHandle fullClipLocal = NewRgn();
+    SetRectRgn(fullClipLocal, -32768, -32768, 32767, 32767);
+    SetClip(fullClipLocal);
+    DisposeRgn(fullClipLocal);
+    serial_printf("PaintOne: Reset window port clip\n");
 
     /* Fill content area - use LOCAL coords (0,0,width,height) */
     serial_printf("PaintOne: portRect raw = (%d,%d,%d,%d)\n",

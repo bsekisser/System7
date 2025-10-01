@@ -1101,7 +1101,7 @@ extern uint32_t fb_pitch;
 extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 
 /* DeskHook support */
-static DeskHookProc g_deskHook = NULL;
+DeskHookProc g_deskHook = NULL;  /* Non-static so WindowDragging.c can access it */
 
 /* External QuickDraw globals */
 extern QDGlobals qd;

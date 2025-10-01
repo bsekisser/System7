@@ -377,13 +377,72 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         /* Recalculate window visibility */
         CalcVis(theWindow);
 
-        /* Repaint everything behind the window in the old region */
-        PaintBehind(theWindow, oldRgn);
-        serial_printf("DragWindow: PaintBehind called for old region\n");
+        /* Calculate the uncovered desktop region: old position minus new position */
+        extern void DiffRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn);
+        RgnHandle uncoveredRgn = NewRgn();
+        RgnHandle newRgn = NewRgn();
+        if (theWindow->strucRgn && *theWindow->strucRgn) {
+            CopyRgn(theWindow->strucRgn, newRgn);
+        }
+
+        /* Compute: oldRgn - newRgn = region that was uncovered */
+        DiffRgn(oldRgn, newRgn, uncoveredRgn);
+
+        serial_printf("DragWindow: Computed uncovered region\n");
+
+        /* Paint the desktop pattern in the uncovered region FIRST */
+        extern void GetWMgrPort(GrafPtr* port);
+        extern void SetClip(RgnHandle rgn);
+        typedef void (*DeskHookProc)(RgnHandle rgn);
+        extern DeskHookProc g_deskHook;  /* From sys71_stubs.c */
+
+        GrafPtr savePort;
+        GetPort(&savePort);
+        GrafPtr wmgrPort;
+        GetWMgrPort(&wmgrPort);
+        SetPort(wmgrPort);
+
+        /* Set clip to only the uncovered region */
+        SetClip(uncoveredRgn);
+
+        /* Call the desk hook to paint the desktop pattern in the uncovered region */
+        if (g_deskHook) {
+            serial_printf("DragWindow: Calling DeskHook for uncovered region\n");
+            g_deskHook(uncoveredRgn);
+        }
+
+        /* Reset clip */
+        extern void SetRectRgn(RgnHandle rgn, short left, short top, short right, short bottom);
+        RgnHandle fullClip = NewRgn();
+        SetRectRgn(fullClip, -32768, -32768, 32767, 32767);
+        SetClip(fullClip);
+        DisposeRgn(fullClip);
+
+        SetPort(savePort);
+        serial_printf("DragWindow: Desktop repainted in uncovered region\n");
+
+        /* Repaint windows behind in the uncovered region */
+        PaintBehind(theWindow->nextWindow, uncoveredRgn);
+        serial_printf("DragWindow: PaintBehind called for uncovered region\n");
 
         /* Repaint the window itself at new position */
         PaintOne(theWindow, NULL);
         serial_printf("DragWindow: PaintOne called for window at new position\n");
+
+        /* Invalidate window content to trigger updateEvt for content redraw */
+        if (theWindow->contRgn) {
+            extern void InvalRgn(RgnHandle badRgn);
+            GrafPtr savePort;
+            GetPort(&savePort);
+            SetPort((GrafPtr)theWindow);
+            InvalRgn(theWindow->contRgn);
+            SetPort(savePort);
+            serial_printf("DragWindow: Invalidated window content region\n");
+        }
+
+        /* Clean up new regions */
+        DisposeRgn(uncoveredRgn);
+        DisposeRgn(newRgn);
 
         /* Clean up */
         serial_printf("DragWindow: About to DisposeRgn\n");
