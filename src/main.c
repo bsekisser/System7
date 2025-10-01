@@ -28,6 +28,10 @@ extern void DoMenuCommand(short menuID, short item);
 #include "../include/PS2Controller.h"
 #include "../include/FS/vfs.h"
 #include "../include/MemoryMgr/MemoryManager.h"
+
+#ifdef ENABLE_GESTALT
+#include "../include/Gestalt/Gestalt.h"
+#endif
 #include "../include/Resources/system7_resources.h"
 #include "../include/TimeManager/TimeManager.h"
 
@@ -239,6 +243,37 @@ void process_serial_command(void) {
             }
             break;
 
+#ifdef ENABLE_GESTALT
+        case 'g':  /* Gestalt query */
+        case 'G':
+            {
+                serial_puts("\nGestalt query - enter 4 characters: ");
+                char selector[4];
+                int i;
+                for (i = 0; i < 4; i++) {
+                    while (!serial_data_ready());
+                    selector[i] = serial_getchar();
+                    serial_putchar(selector[i]);
+                }
+                serial_puts("\n");
+
+                OSType sel = FOURCC(selector[0], selector[1], selector[2], selector[3]);
+                long value;
+                OSErr err = Gestalt(sel, &value);
+
+                if (err == noErr) {
+                    serial_puts("Result: 0x");
+                    print_hex(value);
+                    serial_puts("\n");
+                } else if (err == gestaltUnknownErr) {
+                    serial_puts("Selector not found\n");
+                } else {
+                    serial_printf("Error: %d\n", err);
+                }
+            }
+            break;
+#endif
+
         case 'f':  /* File menu */
         case 'F':
             {
@@ -406,9 +441,9 @@ void console_clear(void) {
 /* Helper to print hex values */
 void print_hex(uint32_t value) {
     const char* hex = "0123456789ABCDEF";
-    console_puts("0x");
+    serial_puts("0x");
     for (int i = 7; i >= 0; i--) {
-        console_putchar(hex[(value >> (i * 4)) & 0xF]);
+        serial_putchar(hex[(value >> (i * 4)) & 0xF]);
     }
 }
 
@@ -1605,9 +1640,37 @@ void init_system71(void) {
         serial_puts("  Time Manager init FAILED\n");
     }
 
+    /* Gestalt Manager - must be after Memory Manager, before other subsystems query */
+#ifdef ENABLE_GESTALT
+    {
+        extern void Gestalt_SetInitBit(int bit);
+
+        OSErr err = Gestalt_Init();
+        if (err == noErr) {
+            serial_puts("  Gestalt Manager initialized\n");
+
+            /* Mark Memory Manager as initialized */
+            Gestalt_SetInitBit(0);  /* kGestaltInitBit_MemoryMgr */
+
+            /* Mark Time Manager as initialized if it was successful */
+            if (tmErr == noErr) {
+                Gestalt_SetInitBit(1);  /* kGestaltInitBit_TimeMgr */
+            }
+        } else {
+            serial_puts("  Gestalt Manager init FAILED\n");
+        }
+    }
+#endif
+
     /* Resource Manager - needed for loading resources */
     InitResourceManager();
     serial_puts("  Resource Manager initialized\n");
+
+#ifdef ENABLE_GESTALT
+    /* Mark Resource Manager as initialized */
+    extern void Gestalt_SetInitBit(int bit);
+    Gestalt_SetInitBit(2);  /* kGestaltInitBit_ResourceMgr */
+#endif
 
 #ifdef ENABLE_RESOURCES
     /* Resource Manager smoke test */
@@ -1959,6 +2022,101 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     serial_puts("MAIN: About to call create_system71_windows\n");
     create_system71_windows();
     serial_puts("MAIN: create_system71_windows returned\n");
+
+#ifdef ENABLE_GESTALT
+    /* Gestalt smoke test */
+    {
+        long value;
+        OSErr err;
+
+        serial_puts("\n=== Gestalt Smoke Test ===\n");
+
+        /* Test system version */
+        err = Gestalt(FOURCC('s','y','s','v'), &value);
+        if (err == noErr) {
+            serial_puts("[Gestalt] sysv = 0x");
+            print_hex(value);
+            serial_puts(" (System 7.1)\n");
+        } else {
+            serial_puts("[Gestalt] sysv query failed\n");
+        }
+
+        /* Test Time Manager version */
+        err = Gestalt(FOURCC('q','t','i','m'), &value);
+        if (err == noErr) {
+            serial_puts("[Gestalt] qtim = 0x");
+            print_hex(value);
+            if (value > 0) {
+                serial_puts(" (Time Manager present)\n");
+            } else {
+                serial_puts(" (Time Manager not initialized)\n");
+            }
+        }
+
+        /* Test Resource Manager */
+        if (Gestalt_Has(FOURCC('r','s','r','c'))) {
+            Gestalt(FOURCC('r','s','r','c'), &value);
+            serial_puts("[Gestalt] rsrc = 0x");
+            print_hex(value);
+            serial_puts(" (Resource Manager present)\n");
+        }
+
+        /* Test machine type */
+        err = Gestalt(FOURCC('m','a','c','h'), &value);
+        if (err == noErr) {
+            serial_puts("[Gestalt] mach = 0x");
+            print_hex(value);
+            serial_puts(" (x86 machine)\n");
+        }
+
+        /* Test processor type */
+        err = Gestalt(FOURCC('p','r','o','c'), &value);
+        if (err == noErr) {
+            serial_puts("[Gestalt] proc = 0x");
+            print_hex(value);
+            serial_puts(" (x86 processor)\n");
+        }
+
+        /* Test FPU */
+        err = Gestalt(FOURCC('f','p','u',' '), &value);
+        if (err == noErr) {
+            serial_puts("[Gestalt] fpu  = ");
+            print_hex(value);
+            serial_puts(value ? " (FPU present)\n" : " (No FPU)\n");
+        }
+
+        /* Test init bits */
+        err = Gestalt(FOURCC('i','n','i','t'), &value);
+        if (err == noErr) {
+            serial_puts("[Gestalt] init = 0x");
+            print_hex(value);
+            serial_puts(" (subsystem init bits)\n");
+        }
+
+        /* Test unknown selector */
+        err = Gestalt(FOURCC('t','e','s','t'), &value);
+        if (err == gestaltUnknownErr) {
+            serial_puts("[Gestalt] 'test' correctly returned gestaltUnknownErr\n");
+        }
+
+        /* Test SysEnv */
+        SysEnvRec env;
+        err = GetSysEnv(1, &env);
+        if (err == noErr) {
+            serial_puts("[Gestalt] GetSysEnv: machine=");
+            print_hex(env.machineType);
+            serial_puts(" sysVers=0x");
+            print_hex(env.systemVersion);
+            serial_puts(" FPU=");
+            print_hex(env.hasFPU);
+            serial_puts(" MMU=");
+            print_hex(env.hasMMU);
+            serial_puts("\n");
+        }
+
+        serial_puts("=== Gestalt Test Complete ===\n\n");
+    }
+#endif
 
     /* Always run performance tests after initialization for debugging */
     #if 1  /* Enable performance tests */

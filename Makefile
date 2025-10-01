@@ -149,6 +149,14 @@ C_SOURCES += src/FileMgr/btree_services.c \
              src/FileMgr/volume_manager.c
 endif
 
+# Add Gestalt Manager if enabled
+ENABLE_GESTALT ?= 1
+ifeq ($(ENABLE_GESTALT),1)
+C_SOURCES += src/Gestalt/Gestalt.c \
+             src/Gestalt/GestaltBuiltins.c
+CFLAGS += -DENABLE_GESTALT=1
+endif
+
 ASM_SOURCES = src/multiboot2.S
 
 # Object files
@@ -206,6 +214,10 @@ $(OBJ_DIR)/%.o: src/ResourceMgr/%.c
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/%.o: src/FileMgr/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/Gestalt/%.c
 	@echo "CC $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
 
