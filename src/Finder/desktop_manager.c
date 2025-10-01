@@ -692,7 +692,8 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     Rect prevGhost = ghost;
 
     int loopCount = 0;
-    while (StillDown()) {
+    const int kMaxDragLoops = 3000;  /* Safety timeout: ~5 seconds at 60Hz */
+    while (StillDown() && loopCount < kMaxDragLoops) {
         Point cur;
         DesktopYield();  /* Pump input each iteration */
         if (++loopCount % 100 == 0) {
@@ -747,6 +748,11 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
             p = cur;
         }
         DesktopYield();
+    }
+
+    /* Check for timeout (PS/2 emulation issue in QEMU) */
+    if (loopCount >= kMaxDragLoops) {
+        serial_printf("TrackIconDragSync: WARNING - drag loop timeout (PS/2 button release not detected)\n");
     }
 
     /* Button released: erase ghost */
