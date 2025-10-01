@@ -317,6 +317,13 @@ SInt16 InitModernInput(const char* platform);
 void ProcessModernInput(void);
 
 /**
+ * EventPumpYield - Pump input in modal loops
+ * Call once per iteration in modal tracking (drag, resize, etc.)
+ * to ensure button transitions are processed
+ */
+void EventPumpYield(void);
+
+/**
  * Shutdown modern input system
  */
 void ShutdownModernInput(void);
