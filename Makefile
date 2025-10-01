@@ -21,6 +21,7 @@ GRUB = grub-mkrescue
 ENABLE_RESOURCES ?= 1
 ENABLE_FILEMGR_EXTRA ?= 1
 ENABLE_PROCESS_COOP ?= 1
+MODERN_INPUT_ONLY ?= 1
 
 # Flags
 # [WM-050] SYS71_PROVIDE_FINDER_TOOLBOX=1 means: DO NOT provide Toolbox stubs; real implementations win.
@@ -36,6 +37,9 @@ CFLAGS += -DENABLE_FILEMGR_EXTRA=1
 endif
 ifeq ($(ENABLE_PROCESS_COOP),1)
 CFLAGS += -DENABLE_PROCESS_COOP=1
+endif
+ifeq ($(MODERN_INPUT_ONLY),1)
+CFLAGS += -DMODERN_INPUT_ONLY=1
 endif
 CFLAGS += -ffreestanding -fno-builtin -fno-stack-protector -nostdlib \
          -Wall -Wextra -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wcast-qual \
@@ -116,6 +120,7 @@ C_SOURCES = src/main.c \
             src/FileManager.c \
             src/FileManagerStubs.c \
             src/EventManager/event_manager.c \
+            src/EventManager/EventGlobals.c \
             src/EventManager/ModernInput.c \
             src/EventManager/EventDispatcher.c \
             src/EventManager/MouseEvents.c \
@@ -165,6 +170,15 @@ endif
 ifeq ($(ENABLE_PROCESS_COOP),1)
 C_SOURCES += src/ProcessMgr/CooperativeScheduler.c \
              src/ProcessMgr/EventIntegration.c
+endif
+
+# Add ScrapManager if enabled
+ENABLE_SCRAP ?= 1
+ifeq ($(ENABLE_SCRAP),1)
+C_SOURCES += src/ScrapManager/ScrapManager.c
+CFLAGS += -DENABLE_SCRAP=1
+# Enable self-test for debugging
+CFLAGS += -DSCRAP_SELFTEST=1 -DDEBUG_DOUBLECLICK=1
 endif
 
 ASM_SOURCES = src/multiboot2.S
