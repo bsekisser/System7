@@ -617,10 +617,16 @@ static void InvertIconOutline(const Rect *r)
 static void DesktopYield(void)
 {
     extern void SystemTask(void);
-    extern void PollPS2Input(void);
+    extern void EventPumpYield(void);
+    extern void serial_printf(const char* fmt, ...);
+    static int yieldCount = 0;
+    if (++yieldCount % 100 == 0) {
+        serial_printf("[DesktopYield] Called %d times\n", yieldCount);
+    }
 
     SystemTask();
-    PollPS2Input();  /* Poll hardware to update mouse/keyboard state */
+    EventPumpYield();  /* Pump input so Button()/StillDown() see updates */
+    /* PollPS2Input() is now called inside ProcessModernInput() via EventPumpYield() */
 }
 
 /*
@@ -685,8 +691,14 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
 
     Rect prevGhost = ghost;
 
+    int loopCount = 0;
     while (StillDown()) {
         Point cur;
+        DesktopYield();  /* Pump input each iteration */
+        if (++loopCount % 100 == 0) {
+            extern volatile UInt8 gCurrentButtons;
+            serial_printf("TrackIconDragSync: loop %d, gCurrentButtons=0x%02x\n", loopCount, gCurrentButtons);
+        }
         GetMouse(&cur);
         if (cur.h != p.h || cur.v != p.v) {
             /* Erase old ghost outline */

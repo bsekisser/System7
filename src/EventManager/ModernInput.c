@@ -149,6 +149,10 @@ SInt16 InitModernInput(const char* platform)
  */
 void EventPumpYield(void)
 {
+    static int pumpCount = 0;
+    if (++pumpCount % 200 == 0) {
+        serial_printf("[EventPumpYield] Called %d times\n", pumpCount);
+    }
     ProcessModernInput();
 }
 
@@ -196,6 +200,11 @@ void ProcessModernInput(void)
 
     /* Update global button state for Button()/StillDown() */
     extern volatile UInt8 gCurrentButtons;
+    static int updateCount = 0;
+    if (currentButtonState != gCurrentButtons) {
+        serial_printf("[MI] gCurrentButtons: 0x%02x -> 0x%02x (update #%d)\n",
+                     gCurrentButtons, currentButtonState, ++updateCount);
+    }
     gCurrentButtons = currentButtonState;
 
     /* Debug: Log button states on every call */
@@ -263,6 +272,8 @@ void ProcessModernInput(void)
             if (!gInMouseTracking) {
                 SInt16 partCode = 0;  /* Desktop default; FindWindow may update later */
                 SInt32 message = ((SInt32)g_modernInput.clickCount << 16) | (SInt16)partCode;
+                serial_printf("[MI] PostEvent mouseDown: clickCount=%d, msg=0x%08x\n",
+                             g_modernInput.clickCount, message);
                 PostEvent(mouseDown, message);
             }
 
