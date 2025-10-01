@@ -272,11 +272,15 @@ OSErr Context_Switch(ProcessControlBlock* targetProcess)
 OSErr LaunchApplication(LaunchParamBlockRec* launchParams)
 {
     OSErr err;
-    ProcessControlBlock* newProcess;
+    ProcessControlBlock* newProcess = NULL;
+    UInt32 targetPSN;
 
     if (!launchParams) {
         return paramErr;
     }
+
+    /* Remember the next PSN before creating the process */
+    targetPSN = gNextProcessID;
 
     /* Create new process */
     err = Process_Create(launchParams->launchAppSpec,
@@ -284,6 +288,19 @@ OSErr LaunchApplication(LaunchParamBlockRec* launchParams)
                         launchParams->launchControlFlags);
     if (err != noErr) {
         return err;
+    }
+
+    /* Find the newly created process by PSN */
+    for (int i = 1; i < kPM_MaxProcesses; i++) {
+        if (gProcessTable[i].processID.lowLongOfPSN == targetPSN &&
+            gProcessTable[i].processState != kProcessTerminated) {
+            newProcess = &gProcessTable[i];
+            break;
+        }
+    }
+
+    if (newProcess == NULL) {
+        return memFullErr; /* Could not find newly created process */
     }
 
     /* Add process to scheduler queue */
