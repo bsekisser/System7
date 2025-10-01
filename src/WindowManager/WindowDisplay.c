@@ -107,14 +107,46 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     GetPort(&savePort);
     GetWMgrPort(&wmgrPort);
 
-    /* Draw chrome in WMgr port (global coordinates) */
+    /* Switch to window port for content (local coordinates) */
+    SetPort((GrafPtr)window);
+    serial_printf("PaintOne: Switched to window port for content\n");
+
+    /* Reset clip region to full window - important for proper EraseRect */
+    extern RgnHandle NewRgn(void);
+    extern void SetRectRgn(RgnHandle rgn, short left, short top, short right, short bottom);
+    extern void DisposeRgn(RgnHandle rgn);
+    RgnHandle fullClipLocal = NewRgn();
+    SetRectRgn(fullClipLocal, -32768, -32768, 32767, 32767);
+    SetClip(fullClipLocal);
+    DisposeRgn(fullClipLocal);
+    serial_printf("PaintOne: Reset window port clip\n");
+
+    /* Fill content area ONLY - exclude 20px title bar!
+     * CRITICAL: portRect is (0,0,width,height) which INCLUDES title bar area
+     * We must offset top by 20 to avoid erasing the title bar we just drew */
+    serial_printf("PaintOne: portRect raw = (%d,%d,%d,%d)\n",
+        window->port.portRect.left, window->port.portRect.top,
+        window->port.portRect.right, window->port.portRect.bottom);
+
+    /* Compute content-only rect: portRect with top+20 to exclude title bar */
+    Rect contentRect = window->port.portRect;
+    contentRect.top += 20;  /* Skip 20px title bar */
+
+    serial_printf("[PAINT] port=%p rect={%d,%d,%d,%d}\n",
+        window, contentRect.top, contentRect.left, contentRect.bottom, contentRect.right);
+
+    serial_printf("PaintOne: Content rect (local, excluding title) = (%d,%d,%d,%d)\n",
+        contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
+
+    /* Fill content area with white (excluding title bar!) */
+    EraseRect(&contentRect);
+    serial_printf("PaintOne: Content erased\n");
+
+    /* NOW draw chrome in WMgr port AFTER content fill (so frame is on top) */
     SetPort(wmgrPort);
     serial_printf("PaintOne: Drawing window chrome in WMgr port\n");
 
     /* Reset clip in WMgr port before drawing chrome */
-    extern RgnHandle NewRgn(void);
-    extern void SetRectRgn(RgnHandle rgn, short left, short top, short right, short bottom);
-    extern void DisposeRgn(RgnHandle rgn);
     RgnHandle fullClipWMgr = NewRgn();
     SetRectRgn(fullClipWMgr, -32768, -32768, 32767, 32767);
     SetClip(fullClipWMgr);
@@ -123,35 +155,6 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
 
     DrawWindowFrame(window);
     DrawWindowControls(window);
-
-    /* Switch to window port for content (local coordinates) */
-    SetPort((GrafPtr)window);
-    serial_printf("PaintOne: Switched to window port for content\n");
-
-    /* Reset clip region to full window - important for proper EraseRect */
-    RgnHandle fullClipLocal = NewRgn();
-    SetRectRgn(fullClipLocal, -32768, -32768, 32767, 32767);
-    SetClip(fullClipLocal);
-    DisposeRgn(fullClipLocal);
-    serial_printf("PaintOne: Reset window port clip\n");
-
-    /* Fill content area - use LOCAL coords (0,0,width,height) */
-    serial_printf("PaintOne: portRect raw = (%d,%d,%d,%d)\n",
-        window->port.portRect.left, window->port.portRect.top,
-        window->port.portRect.right, window->port.portRect.bottom);
-
-    /* portRect is already local (0,0,width,height), copy it directly */
-    Rect contentRect = window->port.portRect;
-
-    serial_printf("[PAINT] port=%p rect={%d,%d,%d,%d}\n",
-        window, contentRect.top, contentRect.left, contentRect.bottom, contentRect.right);
-
-    serial_printf("PaintOne: Content rect (local) = (%d,%d,%d,%d)\n",
-        contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
-
-    /* Fill with white to make opaque */
-    EraseRect(&contentRect);
-    serial_printf("PaintOne: Content erased\n");
 
     /* Test content drawing temporarily disabled until Font Manager is linked */
     serial_printf("[TEXT] Text drawing disabled - Font Manager not linked\n");

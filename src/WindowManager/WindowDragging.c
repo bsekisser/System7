@@ -271,6 +271,20 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         SetPort(wmPort);
     }
 
+    /* CRITICAL: Erase the window from its current position BEFORE starting XOR drag
+     * This prevents leaving white artifacts where the title bar was */
+    extern void HideWindow(WindowPtr window);
+    extern void ShowWindow(WindowPtr window);
+    Boolean wasVisible = theWindow->visible;
+    if (wasVisible) {
+        /* Temporarily hide window to erase it from old position */
+        HideWindow(theWindow);
+        /* Repaint desktop/windows behind where window was */
+        extern void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn);
+        PaintBehind(NULL, theWindow->strucRgn);  /* NULL = paint all windows */
+        QDPlatform_FlushScreen();
+    }
+
     /* Main modal drag loop - System 7 idiom with XOR outline feedback
      * Minimal logging to avoid blocking */
     extern void EventPumpYield(void);
@@ -410,6 +424,11 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         /* Repaint windows behind in the uncovered region */
         PaintBehind(theWindow->nextWindow, uncoveredRgn);
         serial_printf("DragWindow: PaintBehind called for uncovered region\n");
+
+        /* Restore window visibility if it was visible before drag */
+        if (wasVisible) {
+            theWindow->visible = true;
+        }
 
         /* Repaint the window itself at new position */
         PaintOne(theWindow, NULL);

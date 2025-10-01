@@ -103,6 +103,13 @@ WindowPtr NewWindow(void* wStorage, const Rect* boundsRect, ConstStr255Param tit
         SInt16 height = boundsRect->bottom - boundsRect->top;
         SetRect(&(newWindow)->portRect, 0, 0, width, height);
 
+        /* CRITICAL: Initialize portBits.bounds to GLOBAL window position!
+         * This maps local coordinates to global screen coordinates.
+         * portRect is LOCAL (0,0,w,h), portBits.bounds is GLOBAL (left,top,right,bottom) */
+        SetRect(&(newWindow)->port.portBits.bounds,
+                boundsRect->left, boundsRect->top,
+                boundsRect->right, boundsRect->bottom);
+
         /* Initialize strucRgn with global position */
         extern RgnHandle NewRgn(void);
         extern void SetRectRgn(RgnHandle rgn, SInt16 left, SInt16 top, SInt16 right, SInt16 bottom);
