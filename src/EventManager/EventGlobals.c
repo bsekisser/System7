@@ -6,8 +6,8 @@
 
 #include "EventManager/EventGlobals.h"
 
-/* Double-click timing: 36 ticks ≈ 600ms at 60Hz (classic System 7 default) */
-UInt32 gDoubleTimeTicks = 36;
+/* Double-click timing: 180 ticks ≈ 3000ms at 60Hz (increased for testing) */
+UInt32 gDoubleTimeTicks = 180;
 
 /* Double-click pixel slop: 6 pixels max distance */
 UInt16 gDoubleClickSlop = 6;
