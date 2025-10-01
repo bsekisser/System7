@@ -695,6 +695,12 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     const int kMaxDragLoops = 300;  /* Safety timeout: ~0.5 seconds at 60Hz */
     extern volatile UInt8 gCurrentButtons;
 
+    /* No-movement detection for PS/2 stall recovery */
+    Point lastMovedPos = p;
+    int noMoveCount = 0;
+    const int kMaxNoMove = 20;  /* Force exit if no movement for 20 iterations */
+    int dx, dy;  /* Declare outside loop to avoid repeated stack allocation */
+
     while (loopCount < kMaxDragLoops) {
         Point cur;
         DesktopYield();  /* Pump input each iteration */
@@ -706,10 +712,25 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
             break;
         }
 
-        if (loopCount % 100 == 0) {
-            serial_printf("TrackIconDragSync: loop %d, gCurrentButtons=0x%02x\n", loopCount, gCurrentButtons);
-        }
         GetMouse(&cur);
+
+        /* Check for movement stall */
+        dx = cur.h - lastMovedPos.h;
+        dy = cur.v - lastMovedPos.v;
+        if (dx < 0) dx = -dx;
+        if (dy < 0) dy = -dy;
+
+        if (dx < 1 && dy < 1) {
+            noMoveCount++;
+            if (noMoveCount >= kMaxNoMove) {
+                serial_printf("TrackIconDragSync: cancelled (no-release / no-move)\n");
+                break;
+            }
+        } else {
+            noMoveCount = 0;
+            lastMovedPos = cur;
+        }
+
         if (cur.h != p.h || cur.v != p.v) {
             /* Erase old ghost outline */
             if (ghostOn) InvertIconOutline(&ghost);
@@ -757,11 +778,6 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
             p = cur;
         }
         DesktopYield();
-    }
-
-    /* Check for timeout (PS/2 emulation issue in QEMU) */
-    if (loopCount >= kMaxDragLoops) {
-        serial_printf("TrackIconDragSync: WARNING - drag loop timeout (PS/2 button release not detected)\n");
     }
 
     /* Button released: erase ghost */

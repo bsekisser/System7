@@ -27,6 +27,9 @@ extern void serial_printf(const char* fmt, ...);
 /* Tracking guard to suppress events during modal drag loops */
 extern volatile Boolean gInMouseTracking;
 
+/* QEMU PS/2 jitter tolerance: allows tiny grace for packet arrival delays */
+#define QEMU_JITTER_HACK 1
+
 /* PS/2 Controller integration */
 extern Boolean InitPS2Controller(void);
 extern void PollPS2Input(void);
@@ -73,6 +76,10 @@ static struct {
     Boolean gesturesEnabled;
     Boolean accessibilityEnabled;
     UInt32 pollCounter;  /* PS/2 poll throttling */
+#if QEMU_JITTER_HACK
+    UInt32 lastDownTick;  /* Tick of last mouseDown to coalesce jitter */
+    UInt16 coalescedPolls; /* Count of coalesced down events in same tick */
+#endif
 } g_modernInput = {
     false,
     NULL,
@@ -86,6 +93,10 @@ static struct {
     false,
     false,
     0
+#if QEMU_JITTER_HACK
+    , 0
+    , 0
+#endif
 };
 
 /**
@@ -244,6 +255,20 @@ void ProcessModernInput(void)
         if ((currentButtonState & 1) && !(g_modernInput.lastButtonState & 1)) {
             /* Mouse button pressed - down transition */
 
+#if QEMU_JITTER_HACK
+            /* QEMU PS/2 jitter: coalesce rapid downs in same tick */
+            if (currentTime == g_modernInput.lastDownTick) {
+                g_modernInput.coalescedPolls++;
+                serial_printf("[MI] Coalesce down: sameTick=%u polls=%u\n",
+                             (unsigned)currentTime, g_modernInput.coalescedPolls);
+                /* Skip duplicate down event - already posted */
+                g_modernInput.lastButtonState = currentButtonState;
+                return;
+            }
+            g_modernInput.lastDownTick = currentTime;
+            g_modernInput.coalescedPolls = 1;
+#endif
+
             /* Check for multi-click using GetDblTime() and gDoubleClickSlop */
             UInt32 threshold = GetDblTime();
             SInt16 dx = currentMousePos.h - g_modernInput.lastClickPos.h;
@@ -258,18 +283,29 @@ void ProcessModernInput(void)
                 serial_printf("[MI] First click since boot\n");
             } else {
                 UInt32 dt = currentTime - g_modernInput.lastClickTime;
+
+#if QEMU_JITTER_HACK
+                /* QEMU grace: allow ≤3 tick late arrival if within slop */
+                const UInt32 kJitterGrace = 3;
+                UInt32 effectiveThreshold = threshold + kJitterGrace;
+#else
+                UInt32 effectiveThreshold = threshold;
+#endif
+
                 serial_printf("[MI] Click timing: dt=%u, thresh=%u, dx=%d, dy=%d, slop=%d\n",
-                             (unsigned)dt, (unsigned)threshold, dx, dy, gDoubleClickSlop);
-                if (dt <= threshold && dx <= gDoubleClickSlop && dy <= gDoubleClickSlop) {
+                             (unsigned)dt, (unsigned)effectiveThreshold, dx, dy, gDoubleClickSlop);
+
+                if (dt <= effectiveThreshold && dx <= gDoubleClickSlop && dy <= gDoubleClickSlop) {
                     /* Within time and distance - increment click count (cap at 3) */
                     g_modernInput.clickCount = (g_modernInput.clickCount < 3)
                         ? (g_modernInput.clickCount + 1) : 3;
-                    serial_printf("[MI] Multi-click detected! count=%d\n", g_modernInput.clickCount);
+                    serial_printf("[MI] Multi-click: count=%d dt=%u dx=%d dy=%d\n",
+                                 g_modernInput.clickCount, (unsigned)dt, dx, dy);
                 } else {
                     /* Outside window - reset to single click */
                     g_modernInput.clickCount = 1;
-                    if (dt > threshold) {
-                        serial_printf("[MI] Reset: dt=%u > thresh=%u\n", (unsigned)dt, (unsigned)threshold);
+                    if (dt > effectiveThreshold) {
+                        serial_printf("[MI] Reset: dt=%u > thresh=%u\n", (unsigned)dt, (unsigned)effectiveThreshold);
                     } else {
                         serial_printf("[MI] Reset: dx=%d or dy=%d > slop=%d\n", dx, dy, gDoubleClickSlop);
                     }
