@@ -270,8 +270,8 @@ void DrawDesktop(void)
     /* Directly call our DeskHook to paint the desktop with the proper pattern */
     Finder_DeskHook(desktopRgn);  /* Pass the desktop region to paint */
 
-    /* Invalidate entire screen to trigger any window repaints */
-    InvalRect(&qd.screenBits.bounds);
+    /* NOTE: Do NOT call InvalRect here - that would cause infinite recursion!
+     * The caller (PostEvent(updateEvt, 0) sites) already requested the update. */
 
     DisposeRgn(desktopRgn);
     gInDesktopPaint = false;
