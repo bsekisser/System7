@@ -271,28 +271,17 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         SetPort(wmPort);
     }
 
-    /* SIMPLIFIED: Skip modal loop, just move window immediately
-     * The proper modal loop with StillDown() doesn't work correctly yet,
-     * so for now just move the window to the current mouse position */
+    /* Main modal drag loop - System 7 idiom with XOR outline feedback
+     * Minimal logging to avoid blocking */
     extern void EventPumpYield(void);
-    serial_printf("DragWindow: Simplified immediate move (no modal loop)\n");
-    int loopCount = 0;
-    int maxLoops = 1;  /* Just one iteration for immediate move */
-    while (loopCount < maxLoops) {
+    while (StillDown()) {
         /* Poll hardware for new input events (mouse button state) */
         EventPumpYield();
 
         GetMouse(&ptG);  /* Returns GLOBAL coords */
 
-        if (++loopCount % 100 == 0) {
-            serial_printf("DragWindow: Loop iteration %d, mouse=(%d,%d), last=(%d,%d), StillDown=%d\n",
-                         loopCount, ptG.h, ptG.v, lastPos.h, lastPos.v, StillDown());
-        }
-
         /* Only process if mouse moved */
         if (ptG.h != lastPos.h || ptG.v != lastPos.v) {
-            serial_printf("DragWindow: Mouse moved from (%d,%d) to (%d,%d)\n",
-                         lastPos.h, lastPos.v, ptG.h, ptG.v);
             /* Calculate new window position */
             short newLeft = ptG.h - offset.h;
             short newTop = ptG.v - offset.v;
@@ -341,9 +330,6 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
             lastPos = ptG;
         }
     }
-
-    serial_printf("DragWindow: Exited modal loop after %d iterations, StillDown=%d\n",
-                  loopCount, StillDown());
 
     /* Erase final outline before moving window (XOR erases by redrawing) */
     if (outlineDrawn) {
