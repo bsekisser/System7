@@ -249,11 +249,10 @@ Boolean HandleMouseDown(EventRecord* event)
             return true;
 
         case inGoAway:
-            /* Close box clicked */
+            /* Close box clicked - directly close without tracking (TrackGoAway not fully implemented) */
             if (whichWindow) {
-                if (TrackGoAway(whichWindow, event->where)) {
-                    CloseWindow(whichWindow);
-                }
+                serial_printf("DISP: Close box clicked, closing window 0x%08x\n", (unsigned int)whichWindow);
+                CloseWindow(whichWindow);
             }
             return true;
 

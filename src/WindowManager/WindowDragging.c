@@ -445,6 +445,17 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
             serial_printf("DragWindow: Invalidated window content region\n");
         }
 
+        /* WORKAROUND: Directly redraw window content since update events aren't flowing through */
+        if (theWindow->refCon == 'DISK' || theWindow->refCon == 'TRSH') {
+            extern void DrawFolderWindowContents(WindowPtr window, Boolean isTrash);
+            GrafPtr savePort;
+            GetPort(&savePort);
+            SetPort((GrafPtr)theWindow);
+            DrawFolderWindowContents(theWindow, theWindow->refCon == 'TRSH');
+            SetPort(savePort);
+            serial_printf("DragWindow: Direct content redraw complete\n");
+        }
+
         /* Clean up new regions */
         DisposeRgn(uncoveredRgn);
         DisposeRgn(newRgn);
