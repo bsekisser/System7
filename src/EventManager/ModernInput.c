@@ -262,12 +262,16 @@ void ProcessModernInput(void)
 
         if ((currentButtonState & 1) && !(g_modernInput.lastButtonState & 1)) {
             /* Mouse button pressed - down transition */
+            extern volatile Boolean gInMouseTracking;
+            serial_printf("[MI] mouseDown detected, gInMouseTracking=%d\n", (int)gInMouseTracking);
 
 #if QEMU_JITTER_HACK
-            /* QEMU PS/2 jitter: coalesce rapid downs in same tick */
-            if (currentTime == g_modernInput.lastDownTick) {
+            /* QEMU PS/2 jitter: coalesce rapid downs in same tick AND same position */
+            if (currentTime == g_modernInput.lastDownTick &&
+                currentMousePos.h == g_modernInput.lastClickPos.h &&
+                currentMousePos.v == g_modernInput.lastClickPos.v) {
                 g_modernInput.coalescedPolls++;
-                serial_printf("[MI] Coalesce down: sameTick=%u polls=%u\n",
+                serial_printf("[MI] Coalesce down: sameTick=%u samePos polls=%u\n",
                              (unsigned)currentTime, g_modernInput.coalescedPolls);
                 /* Skip duplicate down event - already posted */
                 g_modernInput.lastButtonState = currentButtonState;
