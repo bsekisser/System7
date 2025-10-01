@@ -69,10 +69,11 @@ static struct {
  */
 void InitEventDispatcher(void)
 {
+    /* Zero entire structure to prevent partial-init regressions */
+    memset(&g_dispatcher, 0, sizeof(g_dispatcher));
+
+    /* Set non-zero initial values */
     g_dispatcher.initialized = true;
-    g_dispatcher.activeWindow = NULL;
-    g_dispatcher.lastActivateTime = 0;
-    g_dispatcher.menuVisible = false;
 }
 
 /**

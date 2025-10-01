@@ -300,6 +300,7 @@ void serial_printf(const char* fmt, ...) {
         strstr(fmt, "PaintOne") == NULL &&
         strstr(fmt, "DrawNew") == NULL &&
         strstr(fmt, "WindowManager") == NULL &&
+        strstr(fmt, "[MI]") == NULL &&
         strstr(fmt, "Finder:") == NULL) {
         return;
     }

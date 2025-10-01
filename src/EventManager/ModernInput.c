@@ -245,20 +245,35 @@ void ProcessModernInput(void)
             /* Mouse button pressed - down transition */
 
             /* Check for multi-click using GetDblTime() and gDoubleClickSlop */
-            UInt32 dt = currentTime - g_modernInput.lastClickTime;
             UInt32 threshold = GetDblTime();
             SInt16 dx = currentMousePos.h - g_modernInput.lastClickPos.h;
             SInt16 dy = currentMousePos.v - g_modernInput.lastClickPos.v;
             if (dx < 0) dx = -dx;
             if (dy < 0) dy = -dy;
 
-            if (dt <= threshold && dx <= gDoubleClickSlop && dy <= gDoubleClickSlop) {
-                /* Within time and distance - increment click count (cap at 3) */
-                g_modernInput.clickCount = (g_modernInput.clickCount < 3)
-                    ? (g_modernInput.clickCount + 1) : 3;
-            } else {
-                /* Outside window - reset to single click */
+            /* Handle first-ever click (lastClickTime == 0) */
+            if (g_modernInput.lastClickTime == 0) {
+                /* First click since boot - always single click */
                 g_modernInput.clickCount = 1;
+                serial_printf("[MI] First click since boot\n");
+            } else {
+                UInt32 dt = currentTime - g_modernInput.lastClickTime;
+                serial_printf("[MI] Click timing: dt=%u, thresh=%u, dx=%d, dy=%d, slop=%d\n",
+                             (unsigned)dt, (unsigned)threshold, dx, dy, gDoubleClickSlop);
+                if (dt <= threshold && dx <= gDoubleClickSlop && dy <= gDoubleClickSlop) {
+                    /* Within time and distance - increment click count (cap at 3) */
+                    g_modernInput.clickCount = (g_modernInput.clickCount < 3)
+                        ? (g_modernInput.clickCount + 1) : 3;
+                    serial_printf("[MI] Multi-click detected! count=%d\n", g_modernInput.clickCount);
+                } else {
+                    /* Outside window - reset to single click */
+                    g_modernInput.clickCount = 1;
+                    if (dt > threshold) {
+                        serial_printf("[MI] Reset: dt=%u > thresh=%u\n", (unsigned)dt, (unsigned)threshold);
+                    } else {
+                        serial_printf("[MI] Reset: dx=%d or dy=%d > slop=%d\n", dx, dy, gDoubleClickSlop);
+                    }
+                }
             }
 
             /* Update Event Manager mouse position BEFORE posting event */
