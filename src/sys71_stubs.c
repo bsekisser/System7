@@ -490,14 +490,26 @@ void DisposeWindow(WindowPtr window) {
 void MoveWindow(WindowPtr window, short h, short v, Boolean front) {
     if (!window) return;
 
+    /* CRITICAL: portRect should ALWAYS stay in LOCAL coordinates (0,0,width,height)!
+     * Only portBits.bounds changes to map local coords to global screen position.
+     * This stub was incorrectly setting portRect to global coords, causing the
+     * coordinate system bug where window contents rendered at wrong locations. */
+
     GrafPort* port = (GrafPort*)window;
     short width = port->portRect.right - port->portRect.left;
     short height = port->portRect.bottom - port->portRect.top;
 
-    port->portRect.left = h;
-    port->portRect.top = v;
-    port->portRect.right = h + width;
-    port->portRect.bottom = v + height;
+    /* portRect stays local - DO NOT modify it */
+    /* port->portRect.left = h; */       /* WRONG - breaks coordinate system */
+    /* port->portRect.top = v; */        /* WRONG - breaks coordinate system */
+    /* port->portRect.right = h + width; */   /* WRONG - breaks coordinate system */
+    /* port->portRect.bottom = v + height; */ /* WRONG - breaks coordinate system */
+
+    /* Instead, update portBits.bounds to map local to new global position */
+    port->portBits.bounds.left = h;
+    port->portBits.bounds.top = v;
+    port->portBits.bounds.right = h + width;
+    port->portBits.bounds.bottom = v + height;
 
     if (front) {
         SelectWindow(window);

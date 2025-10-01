@@ -91,21 +91,26 @@ void QDPlatform_FlushScreen(void) {
 void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
     extern GrafPtr g_currentPort;
 
-    /* Use the current port's bitmap if available */
+    /* CRITICAL: x,y are in GLOBAL screen coordinates from QDPlatform_DrawShape!
+     * If port has baseAddr == framebuffer, use them directly.
+     * If port has a different bitmap, would need to convert, but we don't support that. */
     if (g_currentPort && g_currentPort->portBits.baseAddr) {
-        /* Clip to port bounds */
-        if (x < g_currentPort->portBits.bounds.left ||
-            x >= g_currentPort->portBits.bounds.right ||
-            y < g_currentPort->portBits.bounds.top ||
-            y >= g_currentPort->portBits.bounds.bottom) {
-            return;
-        }
+        /* Check if this is the framebuffer */
+        if (g_currentPort->portBits.baseAddr == (Ptr)framebuffer) {
+            /* Drawing to framebuffer - x,y are already global screen coords */
+            if (x < 0 || x >= fb_width || y < 0 || y >= fb_height) return;
 
-        /* Draw to port's bitmap */
-        int rowBytes = g_currentPort->portBits.rowBytes;
-        uint32_t* pixel = (uint32_t*)((uint8_t*)g_currentPort->portBits.baseAddr +
-                                      y * rowBytes + x * 4);
-        *pixel = color;
+            uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
+            *pixel = color;
+        } else {
+            /* Drawing to a separate bitmap - would need coordinate conversion */
+            /* Not currently supported - fall back to framebuffer */
+            if (!framebuffer) return;
+            if (x < 0 || x >= fb_width || y < 0 || y >= fb_height) return;
+
+            uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
+            *pixel = color;
+        }
     } else {
         /* Fall back to framebuffer */
         if (!framebuffer) return;
