@@ -12,6 +12,8 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Recent Updates
 
+- ✅ **VFS Integration for Folder Windows**: Folder windows now display actual file system contents via VFS_Enumerate()
+- ✅ **Icon Label Spacing**: Adjusted spacing for full-height icons (label offset 40px for folders, 34px for desktop)
 - ✅ **Icon Rendering Fixed**: Full-height 32x32 folder/document icons, restored "Trash is empty" message
 - ✅ **Folder Window Icons Fixed**: Correct vertical positioning in folder windows, proper coordinate transformation
 - ✅ **Window Close Cleanup**: Fixed crash when closing folder windows by adding proper state cleanup
@@ -47,6 +49,9 @@ This is a proof-of-concept implementation focused on understanding and recreatin
 - **Memory Manager**: Zone-based memory management (8MB total: System and App zones)
 - **Menu System**: Menu bar rendering with File, Edit, View, and Label menus
 - **File System**: HFS virtual file system with B-tree implementation and trash folder integration
+  - VFS layer with directory enumeration (VFS_Enumerate)
+  - Folder windows display actual file system contents
+  - File metadata tracking (FileID, DirID, type, creator)
 - **Window Manager**:
   - Window structure, creation, and display with chrome (title bar, close box)
   - Interactive window dragging with XOR outline feedback
