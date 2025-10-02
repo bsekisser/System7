@@ -445,7 +445,7 @@ $(ISO): $(KERNEL)
 	@echo '    multiboot2 /boot/$(KERNEL)' >> $(ISO_DIR)/boot/grub/grub.cfg
 	@echo '    boot' >> $(ISO_DIR)/boot/grub/grub.cfg
 	@echo '}' >> $(ISO_DIR)/boot/grub/grub.cfg
-	@$(GRUB) -o $(ISO) $(ISO_DIR)
+	@$(GRUB) -d /usr/lib/grub/i386-pc -o $(ISO) $(ISO_DIR)
 
 # Run with QEMU
 run: $(ISO)
