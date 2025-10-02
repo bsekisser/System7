@@ -11,6 +11,8 @@
 #include "Finder/Icon/icon_types.h"
 #include "Finder/Icon/icon_label.h"
 #include "Finder/Icon/icon_system.h"
+#include "FS/vfs.h"
+#include "FS/hfs_types.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -30,11 +32,15 @@ extern UInt32 GetDblTime(void);
 extern OSErr PostEvent(EventKind eventNum, UInt32 eventMsg);
 extern QDGlobals qd;
 
-/* Folder item representation (simplified for now) */
+/* Folder item representation with file system integration */
 typedef struct FolderItem {
     char name[256];
     Boolean isFolder;      /* true = folder, false = document/app */
     Point position;        /* position in window (for icon view) */
+    FileID fileID;         /* File system ID (CNID) */
+    DirID parentID;        /* Parent directory ID */
+    uint32_t type;         /* File type (OSType) */
+    uint32_t creator;      /* Creator code (OSType) */
 } FolderItem;
 
 /* Folder window state (per window) */
@@ -46,6 +52,8 @@ typedef struct FolderWindowState {
     UInt32 lastClickTime;  /* For double-click detection */
     Point lastClickPos;    /* Last click position */
     short lastClickIndex;  /* Index of last clicked item */
+    VRefNum vref;          /* Volume reference for this folder */
+    DirID currentDir;      /* Directory ID being displayed */
 } FolderWindowState;
 
 /* Global folder window states (indexed by window pointer for now) */
@@ -235,6 +243,8 @@ static FolderWindowState* GetFolderState(WindowPtr w) {
             gFolderWindows[i].state.lastClickPos.h = 0;
             gFolderWindows[i].state.lastClickPos.v = 0;
             gFolderWindows[i].state.lastClickIndex = -1;
+            gFolderWindows[i].state.vref = 0;
+            gFolderWindows[i].state.currentDir = 0;
 
             /* Initialize folder contents */
             InitializeFolderContents(w, (w->refCon == 'TRSH'));
@@ -245,7 +255,7 @@ static FolderWindowState* GetFolderState(WindowPtr w) {
     return NULL;  /* No slots available */
 }
 
-/* Initialize folder contents (creates sample items for now) */
+/* Initialize folder contents from VFS */
 static void InitializeFolderContents(WindowPtr w, Boolean isTrash) {
     FolderWindowState* state = NULL;
 
@@ -259,41 +269,90 @@ static void InitializeFolderContents(WindowPtr w, Boolean isTrash) {
 
     if (!state) return;
 
+    /* Get boot volume reference */
+    VRefNum vref = VFS_GetBootVRef();
+    state->vref = vref;
+
     if (isTrash) {
-        /* Trash is empty for now */
+        /* Trash folder - for now, keep empty
+         * TODO: Get trash directory ID and enumerate it */
+        state->currentDir = 0;  /* Special trash ID (to be defined) */
         state->itemCount = 0;
         state->items = NULL;
+        serial_printf("FW: Initialized empty trash folder\n");
     } else {
-        /* Sample volume contents - matches what's drawn in DrawFolderWindowContents */
-        state->itemCount = 5;
-        state->items = (FolderItem*)malloc(sizeof(FolderItem) * 5);
+        /* Volume root - enumerate actual file system contents */
+        state->currentDir = 2;  /* HFS root directory CNID is always 2 */
 
-        if (state->items) {
-            strcpy(state->items[0].name, "System Folder");
-            state->items[0].isFolder = true;
-            state->items[0].position.h = 80;
-            state->items[0].position.v = 30;  /* 30px from content area top */
+        /* Enumerate directory contents using VFS */
+        #define MAX_ITEMS 128
+        CatEntry entries[MAX_ITEMS];
+        int count = 0;
 
-            strcpy(state->items[1].name, "Applications");
-            state->items[1].isFolder = true;
-            state->items[1].position.h = 180;
-            state->items[1].position.v = 30;
+        serial_printf("FW: Enumerating vref=%d dir=%d\n", vref, state->currentDir);
 
-            strcpy(state->items[2].name, "Documents");
-            state->items[2].isFolder = true;
-            state->items[2].position.h = 280;
-            state->items[2].position.v = 30;
-
-            strcpy(state->items[3].name, "ReadMe.txt");
-            state->items[3].isFolder = false;
-            state->items[3].position.h = 80;
-            state->items[3].position.v = 120;  /* Second row */
-
-            strcpy(state->items[4].name, "About System 7");
-            state->items[4].isFolder = false;
-            state->items[4].position.h = 180;
-            state->items[4].position.v = 120;
+        if (!VFS_Enumerate(vref, state->currentDir, entries, MAX_ITEMS, &count)) {
+            serial_printf("FW: VFS_Enumerate failed\n");
+            state->itemCount = 0;
+            state->items = NULL;
+            return;
         }
+
+        serial_printf("FW: VFS_Enumerate returned %d items\n", count);
+
+        if (count == 0) {
+            state->itemCount = 0;
+            state->items = NULL;
+            return;
+        }
+
+        /* Allocate item array */
+        state->items = (FolderItem*)malloc(sizeof(FolderItem) * count);
+        if (!state->items) {
+            serial_printf("FW: malloc failed for %d items\n", count);
+            state->itemCount = 0;
+            return;
+        }
+
+        state->itemCount = count;
+
+        /* Convert CatEntry to FolderItem and lay out in grid
+         * Grid: 3 columns, spacing 100px horizontal, 90px vertical
+         * Start at (80, 30) for margins */
+        const int startX = 80;
+        const int startY = 30;
+        const int colSpacing = 100;
+        const int rowHeight = 90;
+        const int maxCols = 3;
+
+        for (int i = 0; i < count; i++) {
+            /* Copy name (ensure null termination) */
+            size_t nameLen = strlen(entries[i].name);
+            if (nameLen >= 256) nameLen = 255;
+            memcpy(state->items[i].name, entries[i].name, nameLen);
+            state->items[i].name[nameLen] = '\0';
+
+            /* File system metadata */
+            state->items[i].isFolder = (entries[i].kind == kNodeDir);
+            state->items[i].fileID = entries[i].id;
+            state->items[i].parentID = entries[i].parent;
+            state->items[i].type = entries[i].type;
+            state->items[i].creator = entries[i].creator;
+
+            /* Calculate grid position */
+            int col = i % maxCols;
+            int row = i / maxCols;
+            state->items[i].position.h = startX + (col * colSpacing);
+            state->items[i].position.v = startY + (row * rowHeight);
+
+            serial_printf("FW: Item %d: '%s' %s id=%d pos=(%d,%d)\n",
+                         i, state->items[i].name,
+                         state->items[i].isFolder ? "DIR" : "FILE",
+                         state->items[i].fileID,
+                         state->items[i].position.h, state->items[i].position.v);
+        }
+
+        serial_printf("FW: Initialized %d items from VFS\n", count);
     }
 }
 
