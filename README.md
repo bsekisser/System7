@@ -12,6 +12,8 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Recent Updates
 
+- ✅ **Window Dragging Restored**: XOR mode implementation for drag outlines, smooth window repositioning
+- ✅ **QuickDraw XOR Mode**: PenMode support with proper XOR rendering for interactive feedback
 - ✅ **Production-Quality Time Manager**: Accurate TSC frequency calibration, <100 ppm drift, generation checking
 - ✅ **Enhanced Resource Manager**: O(log n) binary search, LRU cache, comprehensive bounds checking
 - ✅ **Gestalt Manager**: Clean-room implementation with multi-architecture support (x86/ARM/RISC-V/PowerPC)
@@ -24,6 +26,8 @@ This is a proof-of-concept implementation focused on understanding and recreatin
 
 - **Boot System**: Successfully boots via GRUB2/Multiboot2 on x86 hardware
 - **Graphics Foundation**: VESA framebuffer (800x600x32) with QuickDraw primitives
+  - PenMode support including XOR mode (patXor) for interactive drag feedback
+  - Rect, Line, and Frame operations with mode-aware rendering
 - **Desktop Rendering**:
   - System 7 menu bar with rainbow Apple logo
   - Desktop pattern rendering with authentic System 7 patterns
@@ -40,7 +44,11 @@ This is a proof-of-concept implementation focused on understanding and recreatin
 - **Memory Manager**: Zone-based memory management (8MB total: System and App zones)
 - **Menu System**: Menu bar rendering with File, Edit, View, and Label menus
 - **File System**: HFS virtual file system with B-tree implementation and trash folder integration
-- **Window Manager Core**: Window structure, basic display, and event handling (see limitations below)
+- **Window Manager**:
+  - Window structure, creation, and display with chrome (title bar, close box)
+  - Interactive window dragging with XOR outline feedback
+  - Window layering and activation
+  - Mouse hit testing (title bar, content, close box)
 - **Time Manager**: Production-quality implementation with:
   - Accurate TSC frequency calibration via CPUID (±100 ppm drift)
   - Binary min-heap scheduler with O(log n) operations
@@ -61,13 +69,11 @@ This is a proof-of-concept implementation focused on understanding and recreatin
 ### Partially Working ⚠️
 
 - **Window Manager**:
-  - Window structure and creation works
-  - Window display with chrome (title bar, close box) renders
-  - **BROKEN**: Window dragging is currently non-functional ([see commit e6a4ef8](https://github.com/user-attachments/commit/e6a4ef8))
-  - Window content rendering has coordinate system issues
-  - Update event pipeline incomplete
-  - WDEF (Window Definition Procedure) dispatch not implemented
-  - Visible region (visRgn) calculation incomplete
+  - Window content rendering (coordinate fixes completed)
+  - Update event pipeline (basic implementation in place)
+  - WDEF (Window Definition Procedure) dispatch (partial)
+  - Visible region (visRgn) calculation (basic implementation)
+  - Window resizing and grow box handling (stubbed)
 - **Desktop Icons**:
   - Icons render and display correctly
   - Icon dragging implemented but has visual artifacts
@@ -271,14 +277,13 @@ This project serves as:
 
 ## 🐛 Known Issues
 
-1. **Window Dragging Broken**: As of commit e6a4ef8, window dragging does not work (restoration of System 7-faithful behavior broke drag functionality)
-2. **Window Content Coordinate Issues**: Window content may not render in correct positions
-3. **Menu Dropdowns Incomplete**: Menus display but don't show items when clicked
-4. **Icon Drag Artifacts**: Dragging desktop icons causes visual artifacts
-5. **No Application Support**: Cannot launch or run applications
-6. **Limited Font Support**: Only Chicago font implemented
-7. **HFS Read-Only**: File system is virtual/simulated, no real disk I/O
-8. **No Stability Guarantees**: Crashes, hangs, and unexpected behavior are common
+1. **Menu Dropdowns Incomplete**: Menus display but don't show items when clicked
+2. **Icon Drag Artifacts**: Dragging desktop icons causes visual artifacts
+3. **Window Close Crash**: Closing windows sometimes causes system restart (intermittent, under investigation)
+4. **No Application Support**: Cannot launch or run applications
+5. **Limited Font Support**: Only Chicago font implemented
+6. **HFS Read-Only**: File system is virtual/simulated, no real disk I/O
+7. **No Stability Guarantees**: Crashes, hangs, and unexpected behavior are common
 
 ## 🤝 Contributing
 
@@ -347,10 +352,10 @@ This project exists for:
 This project is in **active development** with no guaranteed timeline. Planned work includes:
 
 **Short Term** (Proof of Concept Completion):
-- Fix window dragging functionality
 - Implement menu dropdown display
-- Complete window update event pipeline
 - Fix desktop icon drag artifacts
+- Debug window close crash issue
+- Complete window resizing functionality
 
 **Medium Term** (Core Toolbox):
 - Complete Window Definition Procedure (WDEF) dispatch
