@@ -78,9 +78,17 @@ _start:
     movb $0x03, %al
     outb %al, %dx       /* 8 bits, no parity, 1 stop */
 
-    /* Send 'B' for Boot */
+    /* Send 'BOOT\n' for debugging */
     movw $0x3F8, %dx
     movb $'B', %al
+    outb %al, %dx
+    movb $'O', %al
+    outb %al, %dx
+    movb $'O', %al
+    outb %al, %dx
+    movb $'T', %al
+    outb %al, %dx
+    movb $'\n', %al
     outb %al, %dx
 
     /* Reset EFLAGS */

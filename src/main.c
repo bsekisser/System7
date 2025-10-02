@@ -2066,7 +2066,7 @@ void create_system71_windows(void) {
 void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     /* Initialize serial port for debugging */
     serial_init();
-    /* serial_puts("System 7.1 Portable - Serial Console Initialized\n"); */
+    serial_puts("System 7.1 Portable - Serial Console Initialized\n");
 
     /* Clear screen and show startup message */
     console_clear();

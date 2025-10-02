@@ -40,3 +40,9 @@ void HFS_BD_Close(HFS_BlockDev* bd);
 
 /* Read a sector */
 bool HFS_BD_ReadSector(HFS_BlockDev* bd, uint32_t sector, void* buffer);
+
+/* Write a sector (if not readonly) */
+bool HFS_BD_WriteSector(HFS_BlockDev* bd, uint32_t sector, const void* buffer);
+
+/* Flush any cached writes */
+bool HFS_BD_Flush(HFS_BlockDev* bd);

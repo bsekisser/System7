@@ -467,3 +467,213 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
     /* serial_printf("HFS: Created blank volume (%u MB) with B-trees\n", (uint32_t)(size / 1024 / 1024)); */
     return true;
 }
+
+/*
+ * HFS_FormatVolume - Format a block device with HFS filesystem
+ * Writes MDB, volume bitmap, catalog B-tree, and extents B-tree
+ */
+bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
+    if (!bd || !volName) return false;
+
+    /* Calculate volume size from block device */
+    uint64_t size = bd->size;
+    serial_printf("HFS: Formatting volume '%s' (size=%u MB)\n",
+                  volName, (uint32_t)(size / 1024 / 1024));
+
+    /* Calculate volume parameters */
+    uint32_t alBlkSize = 512;  /* Start with 512 byte allocation blocks */
+    uint32_t size32 = (size > 0xFFFFFFFF) ? 0xFFFFFFFF : (uint32_t)size;
+    uint32_t totalBlocks = size32 / alBlkSize;
+
+    /* Adjust allocation block size for larger volumes */
+    while (totalBlocks > 65535 && alBlkSize < 4096) {
+        alBlkSize *= 2;
+        totalBlocks = size32 / alBlkSize;
+    }
+
+    /* System area parameters */
+    uint16_t alBlSt = 16;  /* First allocation block for data */
+    uint16_t numAlBlks = totalBlocks - alBlSt;
+    uint16_t vbmStart = 3;  /* VBM starts at block 3 */
+    uint16_t vbmBlocks = (numAlBlks + 4095) / 4096;  /* 1 bit per block */
+
+    /* Allocate temporary buffer for sectors */
+    uint8_t* sectorBuf = (uint8_t*)malloc(alBlkSize);
+    if (!sectorBuf) {
+        serial_printf("HFS: Failed to allocate sector buffer\n");
+        return false;
+    }
+
+    /* Write boot blocks (sectors 0-1) - all zeros for now */
+    memset(sectorBuf, 0, 512);
+    if (!HFS_BD_WriteSector(bd, 0, sectorBuf) || !HFS_BD_WriteSector(bd, 1, sectorBuf)) {
+        serial_printf("HFS: Failed to write boot blocks\n");
+        free(sectorBuf);
+        return false;
+    }
+
+    /* Create and write MDB (sector 2) */
+    uint8_t mdb[512];
+    memset(mdb, 0, sizeof(mdb));
+
+    be16_write(&mdb[0], HFS_SIGNATURE);               /* drSigWord */
+    be32_write(&mdb[4], 0);                          /* drCrDate */
+    be32_write(&mdb[8], 0);                          /* drLsMod */
+    be16_write(&mdb[12], 0);                         /* drAtrb */
+    be16_write(&mdb[14], 0);                         /* drNmFls */
+    be16_write(&mdb[16], vbmStart);                  /* drVBMSt */
+    be16_write(&mdb[18], 0);                         /* drAllocPtr */
+    be16_write(&mdb[20], numAlBlks);                 /* drNmAlBlks */
+    be32_write(&mdb[22], alBlkSize);                 /* drAlBlkSiz */
+    be32_write(&mdb[26], 4096);                      /* drClpSiz */
+    be16_write(&mdb[30], alBlSt);                    /* drAlBlSt */
+    be32_write(&mdb[32], 16);                        /* drNxtCNID */
+    be16_write(&mdb[36], numAlBlks - 13);            /* drFreeBks */
+
+    /* Volume name */
+    uint8_t pname[28];
+    memset(pname, 0, sizeof(pname));
+    cstr_to_pstr(pname, volName, 27);
+    memcpy(&mdb[38], pname, 28);                     /* drVN */
+
+    /* Catalog file - 10 allocation blocks */
+    be32_write(&mdb[142], 10 * alBlkSize);           /* drCTFlSize */
+    be16_write(&mdb[146], 0);                        /* drCTExtRec[0].startBlock */
+    be16_write(&mdb[148], 10);                       /* drCTExtRec[0].blockCount */
+
+    /* Extents file - 3 allocation blocks */
+    be32_write(&mdb[126], 3 * alBlkSize);            /* drXTFlSize */
+    be16_write(&mdb[130], 10);                       /* drXTExtRec[0].startBlock */
+    be16_write(&mdb[132], 3);                        /* drXTExtRec[0].blockCount */
+
+    /* Directories and files count (will be 0 initially, populated later) */
+    be32_write(&mdb[90], 0);                         /* drDirCnt */
+    be32_write(&mdb[86], 0);                         /* drFilCnt */
+
+    if (!HFS_BD_WriteSector(bd, HFS_MDB_SECTOR, mdb)) {
+        serial_printf("HFS: Failed to write MDB\n");
+        free(sectorBuf);
+        return false;
+    }
+
+    serial_printf("HFS: Wrote MDB at sector %d\n", HFS_MDB_SECTOR);
+
+    /* Write volume bitmap - clear all bits (all blocks free) */
+    memset(sectorBuf, 0, alBlkSize);
+    /* Mark system blocks as used (first 13 allocation blocks) */
+    sectorBuf[0] = 0xFF;  /* Blocks 0-7 used */
+    sectorBuf[1] = 0xF8;  /* Blocks 8-12 used (bits 7-3) */
+
+    for (uint32_t i = 0; i < vbmBlocks; i++) {
+        uint32_t sector = vbmStart * (alBlkSize / 512) + i * (alBlkSize / 512);
+        for (uint32_t j = 0; j < alBlkSize / 512; j++) {
+            if (!HFS_BD_WriteSector(bd, sector + j, sectorBuf + j * 512)) {
+                serial_printf("HFS: Failed to write VBM\n");
+                free(sectorBuf);
+                return false;
+            }
+        }
+        /* After first block, all bits are zero */
+        memset(sectorBuf, 0, alBlkSize);
+    }
+
+    serial_printf("HFS: Wrote volume bitmap\n");
+
+    /* Write catalog B-tree */
+    memset(sectorBuf, 0, alBlkSize);
+
+    /* Catalog B-tree header node (node 0) */
+    HFS_BTNodeDesc* catNodeDesc = (HFS_BTNodeDesc*)sectorBuf;
+    catNodeDesc->fLink = 0;
+    catNodeDesc->bLink = 0;
+    catNodeDesc->kind = kBTHeaderNode;
+    catNodeDesc->height = 1;
+    be16_write(&catNodeDesc->numRecords, 3);
+
+    HFS_BTHeaderRec* catHeader = (HFS_BTHeaderRec*)(sectorBuf + sizeof(HFS_BTNodeDesc));
+    be16_write(&catHeader->depth, 0);                /* Empty tree initially */
+    be32_write(&catHeader->rootNode, 0);
+    be32_write(&catHeader->leafRecords, 0);
+    be32_write(&catHeader->firstLeafNode, 0);
+    be32_write(&catHeader->lastLeafNode, 0);
+    be16_write(&catHeader->nodeSize, 1024);
+    be16_write(&catHeader->keyCompareType, 0);
+    be32_write(&catHeader->totalNodes, 20);
+    be32_write(&catHeader->freeNodes, 20);
+
+    /* Write catalog header node */
+    uint32_t catStart = alBlSt * (alBlkSize / 512);
+    for (uint32_t i = 0; i < alBlkSize / 512; i++) {
+        if (!HFS_BD_WriteSector(bd, catStart + i, sectorBuf + i * 512)) {
+            serial_printf("HFS: Failed to write catalog header\n");
+            free(sectorBuf);
+            return false;
+        }
+    }
+
+    /* Write remaining catalog blocks as zeros */
+    memset(sectorBuf, 0, alBlkSize);
+    for (uint32_t block = 1; block < 10; block++) {
+        for (uint32_t i = 0; i < alBlkSize / 512; i++) {
+            if (!HFS_BD_WriteSector(bd, catStart + block * (alBlkSize / 512) + i, sectorBuf + i * 512)) {
+                serial_printf("HFS: Failed to write catalog blocks\n");
+                free(sectorBuf);
+                return false;
+            }
+        }
+    }
+
+    serial_printf("HFS: Wrote catalog B-tree\n");
+
+    /* Write extents B-tree */
+    memset(sectorBuf, 0, alBlkSize);
+
+    HFS_BTNodeDesc* extNodeDesc = (HFS_BTNodeDesc*)sectorBuf;
+    extNodeDesc->fLink = 0;
+    extNodeDesc->bLink = 0;
+    extNodeDesc->kind = kBTHeaderNode;
+    extNodeDesc->height = 1;
+    be16_write(&extNodeDesc->numRecords, 3);
+
+    HFS_BTHeaderRec* extHeader = (HFS_BTHeaderRec*)(sectorBuf + sizeof(HFS_BTNodeDesc));
+    be16_write(&extHeader->depth, 0);
+    be32_write(&extHeader->rootNode, 0);
+    be32_write(&extHeader->leafRecords, 0);
+    be32_write(&extHeader->firstLeafNode, 0);
+    be32_write(&extHeader->lastLeafNode, 0);
+    be16_write(&extHeader->nodeSize, 512);
+    be16_write(&extHeader->keyCompareType, 0);
+    be32_write(&extHeader->totalNodes, 6);
+    be32_write(&extHeader->freeNodes, 6);
+
+    /* Write extents header node */
+    uint32_t extStart = (alBlSt + 10) * (alBlkSize / 512);
+    for (uint32_t i = 0; i < alBlkSize / 512; i++) {
+        if (!HFS_BD_WriteSector(bd, extStart + i, sectorBuf + i * 512)) {
+            serial_printf("HFS: Failed to write extents header\n");
+            free(sectorBuf);
+            return false;
+        }
+    }
+
+    /* Write remaining extents blocks as zeros */
+    memset(sectorBuf, 0, alBlkSize);
+    for (uint32_t block = 1; block < 3; block++) {
+        for (uint32_t i = 0; i < alBlkSize / 512; i++) {
+            if (!HFS_BD_WriteSector(bd, extStart + block * (alBlkSize / 512) + i, sectorBuf + i * 512)) {
+                serial_printf("HFS: Failed to write extents blocks\n");
+                free(sectorBuf);
+                return false;
+            }
+        }
+    }
+
+    serial_printf("HFS: Wrote extents B-tree\n");
+
+    /* Flush cache */
+    HFS_BD_Flush(bd);
+
+    free(sectorBuf);
+    serial_printf("HFS: Format complete\n");
+    return true;
+}

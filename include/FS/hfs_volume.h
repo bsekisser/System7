@@ -56,3 +56,6 @@ bool HFS_GetVolumeInfo(const HFS_Volume* vol, VolumeControlBlock* vcb);
 
 /* Create a blank HFS volume in memory (for initial testing) */
 bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName);
+
+/* Format a block device with HFS filesystem */
+bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName);

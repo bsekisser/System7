@@ -189,3 +189,27 @@ bool HFS_BD_ReadSector(HFS_BlockDev* bd, uint32_t sector, void* buffer) {
     uint64_t offset = (uint64_t)sector * bd->sectorSize;
     return HFS_BD_Read(bd, offset, buffer, bd->sectorSize);
 }
+
+bool HFS_BD_WriteSector(HFS_BlockDev* bd, uint32_t sector, const void* buffer) {
+    if (!bd || !buffer || bd->readonly) return false;
+
+    uint64_t offset = (uint64_t)sector * bd->sectorSize;
+    return HFS_BD_Write(bd, offset, buffer, bd->sectorSize);
+}
+
+bool HFS_BD_Flush(HFS_BlockDev* bd) {
+    if (!bd) return false;
+
+    if (bd->type == HFS_BD_TYPE_ATA) {
+        /* Flush ATA device cache */
+        ATADevice* ata_dev = ATA_GetDevice(bd->ata_device);
+        if (ata_dev && ata_dev->present) {
+            OSErr err = ATA_FlushCache(ata_dev);
+            return (err == noErr);
+        }
+        return false;
+    }
+
+    /* Memory/file devices don't need explicit flushing */
+    return true;
+}

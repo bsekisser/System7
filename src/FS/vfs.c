@@ -3,6 +3,7 @@
 #include "../../include/FS/hfs_volume.h"
 #include "../../include/FS/hfs_catalog.h"
 #include "../../include/FS/hfs_file.h"
+#include "../../include/FS/hfs_endian.h"
 #include "../../include/MemoryMgr/MemoryManager.h"
 #include <string.h>
 
@@ -153,6 +154,8 @@ bool VFS_MountBootVolume(const char* volName) {
 }
 
 bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
+    extern bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName);
+
     if (!g_vfs.initialized) {
         serial_printf("VFS: Not initialized\n");
         return false;
@@ -174,18 +177,92 @@ bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
         return false;
     }
 
-    /* Try to mount existing HFS volume */
-    /* For now, we'll try to read the MDB and see if there's a valid HFS volume */
-    /* If not, we could optionally format it */
+    /* Check if disk is formatted by reading MDB */
+    uint8_t mdbSector[512];
+    bool needsFormat = false;
 
-    /* Mark volume as mounted (simplified - in real implementation would validate HFS) */
+    if (!HFS_BD_ReadSector(&vol->volume.bd, HFS_MDB_SECTOR, mdbSector)) {
+        serial_printf("VFS: Failed to read MDB sector\n");
+        return false;
+    }
+
+    /* Check HFS signature */
+    uint16_t sig = be16_read(&mdbSector[0]);
+
+    if (sig != HFS_SIGNATURE) {
+        serial_printf("VFS: No HFS signature found (0x%04x), formatting...\n", sig);
+        needsFormat = true;
+    }
+
+    /* Format if needed */
+    if (needsFormat) {
+        if (!HFS_FormatVolume(&vol->volume.bd, volName)) {
+            serial_printf("VFS: Failed to format volume\n");
+            return false;
+        }
+        serial_printf("VFS: Volume formatted successfully\n");
+    }
+
+    /* Now mount the HFS volume by reading the MDB */
+    if (!HFS_BD_ReadSector(&vol->volume.bd, HFS_MDB_SECTOR, mdbSector)) {
+        serial_printf("VFS: Failed to read MDB after format\n");
+        return false;
+    }
+
+    /* Parse MDB into volume structure */
+    HFS_MDB* mdb = &vol->volume.mdb;
+
+    mdb->drSigWord    = be16_read(&mdbSector[0]);
+    mdb->drCrDate     = be32_read(&mdbSector[4]);
+    mdb->drLsMod      = be32_read(&mdbSector[8]);
+    mdb->drAtrb       = be16_read(&mdbSector[12]);
+    mdb->drNmFls      = be16_read(&mdbSector[14]);
+    mdb->drVBMSt      = be16_read(&mdbSector[16]);
+    mdb->drAllocPtr   = be16_read(&mdbSector[18]);
+    mdb->drNmAlBlks   = be16_read(&mdbSector[20]);
+    mdb->drAlBlkSiz   = be32_read(&mdbSector[22]);
+    mdb->drClpSiz     = be32_read(&mdbSector[26]);
+    mdb->drAlBlSt     = be16_read(&mdbSector[30]);
+    mdb->drNxtCNID    = be32_read(&mdbSector[32]);
+    mdb->drFreeBks    = be16_read(&mdbSector[36]);
+
+    /* Volume name */
+    memcpy(mdb->drVN, &mdbSector[38], 28);
+
+    /* Catalog file */
+    mdb->drCTFlSize = be32_read(&mdbSector[142]);
+    for (int i = 0; i < 3; i++) {
+        mdb->drCTExtRec[i].startBlock = be16_read(&mdbSector[146 + i * 4]);
+        mdb->drCTExtRec[i].blockCount = be16_read(&mdbSector[148 + i * 4]);
+    }
+
+    /* Extents file */
+    mdb->drXTFlSize = be32_read(&mdbSector[126]);
+    for (int i = 0; i < 3; i++) {
+        mdb->drXTExtRec[i].startBlock = be16_read(&mdbSector[130 + i * 4]);
+        mdb->drXTExtRec[i].blockCount = be16_read(&mdbSector[132 + i * 4]);
+    }
+
+    /* Cache volume parameters */
+    vol->volume.alBlkSize = mdb->drAlBlkSiz;
+    vol->volume.alBlSt = mdb->drAlBlSt;
+    vol->volume.numAlBlks = mdb->drNmAlBlks;
+    vol->volume.vbmStart = mdb->drVBMSt;
+    vol->volume.catFileSize = mdb->drCTFlSize;
+    memcpy(vol->volume.catExtents, mdb->drCTExtRec, sizeof(vol->volume.catExtents));
+    vol->volume.extFileSize = mdb->drXTFlSize;
+    memcpy(vol->volume.extExtents, mdb->drXTExtRec, sizeof(vol->volume.extExtents));
+    vol->volume.nextCNID = mdb->drNxtCNID;
+    vol->volume.rootDirID = 2;  /* HFS root is always 2 */
+
+    /* Mark volume as mounted */
     vol->volume.vRefNum = vol->vref;
     vol->volume.mounted = true;
 
     /* Try to initialize catalog */
     if (!HFS_CatalogInit(&vol->catalog, &vol->volume)) {
         serial_printf("VFS: Warning - Failed to initialize catalog for ATA volume\n");
-        /* Continue anyway - volume might be unformatted */
+        /* Continue anyway for empty formatted volumes */
     }
 
     /* Mark as mounted */
