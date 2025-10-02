@@ -647,31 +647,31 @@ static void GhostXOR(const Rect* r)
     /* XOR color: white (inverts on blue desktop) */
     uint32_t xor_color = 0xFFFFFFFF;
 
-    /* Draw thick (2px) XOR rectangle frame */
-    /* Top edge (2 pixels thick) */
-    for (int y = top; y < top + 2 && y < bottom; y++) {
+    /* Draw thick (3px) XOR rectangle frame for better visibility */
+    /* Top edge (3 pixels thick) */
+    for (int y = top; y < top + 3 && y < bottom; y++) {
         for (int x = left; x < right; x++) {
             fb[y * pitch + x] ^= xor_color;
         }
     }
 
-    /* Bottom edge (2 pixels thick) */
-    for (int y = bottom - 2; y < bottom && y >= top; y++) {
+    /* Bottom edge (3 pixels thick) */
+    for (int y = bottom - 3; y < bottom && y >= top; y++) {
         for (int x = left; x < right; x++) {
             fb[y * pitch + x] ^= xor_color;
         }
     }
 
-    /* Left edge (2 pixels thick, avoiding corners already drawn) */
-    for (int y = top + 2; y < bottom - 2; y++) {
-        for (int x = left; x < left + 2 && x < right; x++) {
+    /* Left edge (3 pixels thick, avoiding corners already drawn) */
+    for (int y = top + 3; y < bottom - 3; y++) {
+        for (int x = left; x < left + 3 && x < right; x++) {
             fb[y * pitch + x] ^= xor_color;
         }
     }
 
-    /* Right edge (2 pixels thick, avoiding corners already drawn) */
-    for (int y = top + 2; y < bottom - 2; y++) {
-        for (int x = right - 2; x < right && x >= left; x++) {
+    /* Right edge (3 pixels thick, avoiding corners already drawn) */
+    for (int y = top + 3; y < bottom - 3; y++) {
+        for (int x = right - 3; x < right && x >= left; x++) {
             fb[y * pitch + x] ^= xor_color;
         }
     }
@@ -719,16 +719,17 @@ static inline void GhostShowAt(const Rect* r)
 static void DesktopYield(void)
 {
     extern void SystemTask(void);
-    extern void EventPumpYield(void);
+    extern void PollPS2Input(void);
     extern void serial_printf(const char* fmt, ...);
     static int yieldCount = 0;
     if (++yieldCount % 100 == 0) {
         serial_printf("[DesktopYield] Called %d times\n", yieldCount);
     }
 
-    SystemTask();
-    EventPumpYield();  /* Pump input so Button()/StillDown() see updates and cursor moves */
-    /* PollPS2Input() is now called inside ProcessModernInput() via EventPumpYield() */
+    /* Don't call EventPumpYield() here - it can cause re-entrancy issues during drag.
+     * Just poll input directly and let SystemTask() handle time manager */
+    PollPS2Input();  /* Update mouse/keyboard state directly */
+    SystemTask();    /* Handle time manager tasks */
 }
 
 /*
@@ -821,19 +822,59 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     SetPort(savePort);
     serial_printf("TrackIconDragSync: drag complete, ghost erased\n");
 
-    /* Commit new position (ghost matches icon bounds, +20 label inset) */
-    if (gDesktopIcons[iconIndex].movable) {
-        /* Ghost rect is expanded 20px left for label, so add 20 to get icon left edge */
-        /* NOTE: Point struct is {v, h} in Classic Mac OS! */
-        Point snapped = (Point){ .h = ghost.left + 20, .v = ghost.top };
-        snapped = SnapToGrid(snapped);
-        serial_printf("TrackIconDragSync: ghost final=(%d,%d,%d,%d), icon pos before snap=(%d,%d), after snap=(%d,%d)\n",
-                     ghost.left, ghost.top, ghost.right, ghost.bottom,
-                     ghost.left + 20, ghost.top, snapped.h, snapped.v);
-        gDesktopIcons[iconIndex].position = snapped;
-        serial_printf("TrackIconDragSync: committed position (%d,%d)\n", snapped.h, snapped.v);
+    /* Check if dropped on trash */
+    Point dropPoint = (Point){ .h = ghost.left + 20 + 16, .v = ghost.top + 16 };  /* Icon center */
+    Boolean droppedOnTrash = Desktop_IsOverTrash(dropPoint);
+
+    if (droppedOnTrash && iconIndex != 0) {  /* Can't trash the trash itself */
+        serial_printf("TrackIconDragSync: Dropped on trash! Moving to trash folder\n");
+
+        /* Get the icon's file info */
+        DesktopItem* item = &gDesktopIcons[iconIndex];
+
+        /* Move to trash using VFS/Trash system */
+        extern bool Trash_MoveNode(VRefNum vref, DirID parent, FileID id);
+        extern VRefNum VFS_GetBootVRef(void);
+
+        /* For desktop items, we need to get their actual FileID */
+        /* Volume icon has special iconID, files/folders have their FileID */
+        if (item->type == kDesktopItemVolume) {
+            serial_printf("TrackIconDragSync: Cannot trash volume icon\n");
+        } else if (item->iconID != 0xFFFFFFFF) {
+            /* Regular file/folder with FileID */
+            VRefNum vref = VFS_GetBootVRef();
+
+            /* iconID is the FileID for desktop items */
+            if (Trash_MoveNode(vref, HFS_ROOT_DIR_ID, item->iconID)) {
+                serial_printf("TrackIconDragSync: Successfully moved to trash\n");
+
+                /* Remove from desktop array (shift remaining items down) */
+                for (short i = iconIndex; i < gDesktopIconCount - 1; i++) {
+                    gDesktopIcons[i] = gDesktopIcons[i + 1];
+                }
+                gDesktopIconCount--;
+
+                /* Clear selection */
+                gSelectedIcon = -1;
+            } else {
+                serial_printf("TrackIconDragSync: Failed to move to trash\n");
+            }
+        }
     } else {
-        serial_printf("TrackIconDragSync: non-movable item, no position save\n");
+        /* Commit new position (ghost matches icon bounds, +20 label inset) */
+        if (gDesktopIcons[iconIndex].movable) {
+            /* Ghost rect is expanded 20px left for label, so add 20 to get icon left edge */
+            /* NOTE: Point struct is {v, h} in Classic Mac OS! */
+            Point snapped = (Point){ .h = ghost.left + 20, .v = ghost.top };
+            snapped = SnapToGrid(snapped);
+            serial_printf("TrackIconDragSync: ghost final=(%d,%d,%d,%d), icon pos before snap=(%d,%d), after snap=(%d,%d)\n",
+                         ghost.left, ghost.top, ghost.right, ghost.bottom,
+                         ghost.left + 20, ghost.top, snapped.h, snapped.v);
+            gDesktopIcons[iconIndex].position = snapped;
+            serial_printf("TrackIconDragSync: committed position (%d,%d)\n", snapped.h, snapped.v);
+        } else {
+            serial_printf("TrackIconDragSync: non-movable item, no position save\n");
+        }
     }
 
     /* Post updateEvt to defer desktop redraw (no reentrancy) */
