@@ -26,6 +26,14 @@ struct multiboot_tag {
     uint32_t size;
 };
 
+/* Basic memory info tag */
+struct multiboot_tag_basic_meminfo {
+    uint32_t type;
+    uint32_t size;
+    uint32_t mem_lower;  /* KB of lower memory (0-640KB) */
+    uint32_t mem_upper;  /* KB of memory above 1MB */
+};
+
 /* Framebuffer tag */
 struct multiboot_tag_framebuffer {
     uint32_t type;

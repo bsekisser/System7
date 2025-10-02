@@ -572,7 +572,13 @@ void InitMemoryManager(void) {
     gCurrentZone = &gAppZone;
 
     serial_puts("MM: Current zone set to App Zone\n");
-    serial_puts("MM: Total memory: 8 MB\n");
+
+    /* Report detected memory (comes from multiboot2) */
+    extern uint32_t g_total_memory_kb;
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("MM: Total memory: %u KB (%u MB)\n",
+                 g_total_memory_kb, g_total_memory_kb / 1024);
+
     serial_puts("MM: InitMemoryManager complete\n");
 }
 

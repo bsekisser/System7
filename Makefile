@@ -452,12 +452,12 @@ $(ISO): $(KERNEL)
 
 # Run with QEMU (PC speaker with PulseAudio backend)
 run: $(ISO)
-	qemu-system-i386 -cdrom $(ISO) -m 256 -vga std -serial file:/tmp/serial.log \
+	qemu-system-i386 -cdrom $(ISO) -m 1024 -vga std -serial file:/tmp/serial.log \
 		-audiodev pa,id=snd0,server=/run/user/$(shell id -u)/pulse/native -machine pcspk-audiodev=snd0
 
 # Debug with QEMU
 debug: $(ISO)
-	qemu-system-i386 -cdrom $(ISO) -m 256 -vga std -s -S
+	qemu-system-i386 -cdrom $(ISO) -m 1024 -vga std -s -S
 
 # Clean
 clean:

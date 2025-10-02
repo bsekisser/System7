@@ -359,6 +359,9 @@ uint8_t fb_green_size = 0;
 uint8_t fb_blue_pos = 0;
 uint8_t fb_blue_size = 0;
 
+/* System memory globals */
+uint32_t g_total_memory_kb = 8 * 1024;  /* Default 8MB if not detected */
+
 /* Window management */
 static int window_count = 0;
 
@@ -499,6 +502,27 @@ void parse_multiboot2(uint32_t magic, uint32_t* mb2_info) {
         serial_puts("\n");
 
         switch (tag->type) {
+            case MULTIBOOT_TAG_TYPE_BASIC_MEMINFO:
+                {
+                    struct multiboot_tag_basic_meminfo* mem_tag =
+                        (struct multiboot_tag_basic_meminfo*)tag;
+
+                    /* Total memory = lower (up to 640KB) + upper (above 1MB) */
+                    g_total_memory_kb = mem_tag->mem_lower + mem_tag->mem_upper;
+
+                    serial_puts("Memory detected:\n");
+                    serial_puts("  Lower: ");
+                    serial_print_hex(mem_tag->mem_lower);
+                    serial_puts(" KB\n");
+                    serial_puts("  Upper: ");
+                    serial_print_hex(mem_tag->mem_upper);
+                    serial_puts(" KB\n");
+                    serial_puts("  Total: ");
+                    serial_print_hex(g_total_memory_kb);
+                    serial_puts(" KB\n");
+                }
+                break;
+
             case MULTIBOOT_TAG_TYPE_FRAMEBUFFER:
                 {
                     struct multiboot_tag_framebuffer* fb_tag =

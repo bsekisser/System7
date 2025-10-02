@@ -384,7 +384,8 @@ void serial_printf(const char* fmt, ...) {
         strstr(fmt, "Sound") == NULL &&
         strstr(fmt, "PCSpkr") == NULL &&
         strstr(fmt, "SysBeep") == NULL &&
-        strstr(fmt, "Startup") == NULL) {
+        strstr(fmt, "Startup") == NULL &&
+        strstr(fmt, "MM:") == NULL) {
         return;  /* Message not whitelisted - silently drop */
     }
 
@@ -417,6 +418,25 @@ void serial_printf(const char* fmt, ...) {
                     if (buf_idx < 255) buffer[buf_idx++] = '-';
                     val = -val;
                 }
+
+                if (val == 0) {
+                    if (buf_idx < 255) buffer[buf_idx++] = '0';
+                } else {
+                    while (val > 0 && i < 11) {
+                        num_buf[i++] = '0' + (val % 10);
+                        val /= 10;
+                    }
+                    while (i > 0 && buf_idx < 255) {
+                        buffer[buf_idx++] = num_buf[--i];
+                    }
+                }
+                p++;
+            }
+            /* Handle %u for unsigned integers */
+            else if (*p == 'u') {
+                unsigned int val = va_arg(args, unsigned int);
+                char num_buf[12];
+                int i = 0;
 
                 if (val == 0) {
                     if (buf_idx < 255) buffer[buf_idx++] = '0';
