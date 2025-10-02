@@ -497,10 +497,12 @@ void FolderWindow_Draw(WindowPtr w) {
             iconHandle.selected = selected;
 
             /* Convert local position to global screen position
-             * Add 20 to Y for title bar offset (content area starts at y=20 in port)
+             * position.v is already in port-local coordinates (measured from port top)
+             * globalOrigin.v is the global screen Y of the port top
+             * So simple addition gives us the global coordinate
              */
             int globalX = state->items[i].position.h + globalOrigin.h;
-            int globalY = state->items[i].position.v + globalOrigin.v + 20;  /* +20 for title bar */
+            int globalY = state->items[i].position.v + globalOrigin.v;
 
             serial_printf("FW: Icon %d '%s' local=(%d,%d) global=(%d,%d)\n",
                          i, state->items[i].name,
@@ -521,8 +523,8 @@ void FolderWindow_Draw(WindowPtr w) {
 
 /* Check if window is a folder window (by refCon) */
 Boolean IsFolderWindow(WindowPtr w) {
-    /* DEBUG: Return FALSE unconditionally to see if we get "Click in content" message */
-    return false;
+    if (!w) return false;
+    return (w->refCon == 'DISK' || w->refCon == 'TRSH');
 }
 
 /* Update window proc for folder windows */
