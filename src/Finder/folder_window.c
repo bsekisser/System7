@@ -31,6 +31,11 @@ extern UInt32 TickCount(void);
 extern UInt32 GetDblTime(void);
 extern OSErr PostEvent(EventKind eventNum, UInt32 eventMsg);
 extern QDGlobals qd;
+extern void GetMouse(Point* pt);
+extern volatile UInt8 gCurrentButtons;
+
+/* Drag threshold for distinguishing clicks from drags */
+#define kDragThreshold 4
 
 /* Folder item representation with file system integration */
 typedef struct FolderItem {
@@ -48,12 +53,14 @@ typedef struct FolderWindowState {
     FolderItem* items;     /* Array of items in this folder */
     short itemCount;       /* Number of items */
     short selectedIndex;   /* Currently selected item (-1 = none) */
-    Boolean isDragging;    /* Currently dragging (reserved for future) */
+    Boolean isDragging;    /* Currently dragging an item */
     UInt32 lastClickTime;  /* For double-click detection */
     Point lastClickPos;    /* Last click position */
     short lastClickIndex;  /* Index of last clicked item */
     VRefNum vref;          /* Volume reference for this folder */
     DirID currentDir;      /* Directory ID being displayed */
+    Point dragStartGlobal; /* Global coordinates where drag started */
+    short draggingIndex;   /* Index of item being dragged (-1 = none) */
 } FolderWindowState;
 
 /* Global folder window states (indexed by window pointer for now) */
@@ -245,6 +252,9 @@ static FolderWindowState* GetFolderState(WindowPtr w) {
             gFolderWindows[i].state.lastClickIndex = -1;
             gFolderWindows[i].state.vref = 0;
             gFolderWindows[i].state.currentDir = 0;
+            gFolderWindows[i].state.dragStartGlobal.h = 0;
+            gFolderWindows[i].state.dragStartGlobal.v = 0;
+            gFolderWindows[i].state.draggingIndex = -1;
 
             /* Initialize folder contents */
             InitializeFolderContents(w, (w->refCon == 'TRSH'));
@@ -400,6 +410,69 @@ static short FW_IconAtPoint(WindowPtr w, Point localPt) {
     return -1;
 }
 
+/* Track folder item drag - detects drag threshold and sets drag state
+ * Returns true if drag was started, false if click (button released before threshold)
+ */
+static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short itemIndex, Point startGlobal) {
+    if (!w || !state || itemIndex < 0 || itemIndex >= state->itemCount) {
+        return false;
+    }
+
+    serial_printf("FW: TrackFolderItemDrag: item %d '%s' from global (%d,%d)\n",
+                 itemIndex, state->items[itemIndex].name, startGlobal.h, startGlobal.v);
+
+    /* Wait for drag threshold or button release */
+    Point last = startGlobal, cur;
+
+    while ((gCurrentButtons & 1) != 0) {
+        GetMouse(&cur);
+
+        /* Check if we've exceeded drag threshold */
+        int dx = cur.h - startGlobal.h;
+        int dy = cur.v - startGlobal.v;
+        if (dx < 0) dx = -dx;
+        if (dy < 0) dy = -dy;
+
+        if (dx >= kDragThreshold || dy >= kDragThreshold) {
+            /* Threshold exceeded - start drag */
+            serial_printf("FW: Drag threshold exceeded: delta=(%d,%d)\n",
+                         cur.h - startGlobal.h, cur.v - startGlobal.v);
+
+            state->isDragging = true;
+            state->draggingIndex = itemIndex;
+            state->dragStartGlobal = startGlobal;
+
+            serial_printf("FW: DRAG STARTED: item='%s' fileID=%d vref=%d dir=%d\n",
+                         state->items[itemIndex].name,
+                         state->items[itemIndex].fileID,
+                         state->vref,
+                         state->currentDir);
+
+            /* For Phase 2, we just detect and log the drag
+             * Phase 3 will implement drop-to-desktop
+             * Phase 4 will implement drop-to-trash
+             * For now, consume the drag and return */
+
+            /* Wait for button release */
+            while ((gCurrentButtons & 1) != 0) {
+                GetMouse(&cur);
+            }
+
+            serial_printf("FW: Drag ended at global (%d,%d)\n", cur.h, cur.v);
+
+            /* Clear drag state */
+            state->isDragging = false;
+            state->draggingIndex = -1;
+
+            return true;  /* Drag occurred */
+        }
+    }
+
+    /* Button released before threshold - treat as click */
+    serial_printf("FW: Button released before threshold - treating as click\n");
+    return false;
+}
+
 /* Handle click in folder window - called from EventDispatcher
  * Point is in GLOBAL coordinates, isDoubleClick from event system
  */
@@ -476,16 +549,27 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
         state->lastClickIndex = -1;
         state->lastClickTime = 0;
     } else {
-        /* SINGLE-CLICK: select this icon */
-        short oldSel = state->selectedIndex;
-        state->selectedIndex = hitIndex;
-        state->lastClickIndex = hitIndex;
-        state->lastClickTime = currentTime;
+        /* SINGLE-CLICK: Track for potential drag, or select if just a click */
+        serial_printf("FW: single-click on icon %d, tracking for drag...\n", hitIndex);
 
-        serial_printf("FW: select %d -> %d\n", oldSel, hitIndex);
+        /* Call drag tracking - this will wait for threshold or button release */
+        Boolean wasDrag = TrackFolderItemDrag(w, state, hitIndex, ev->where);
 
-        /* Post update to redraw selection */
-        PostEvent(updateEvt, (UInt32)w);
+        if (!wasDrag) {
+            /* No drag occurred - treat as normal click/selection */
+            short oldSel = state->selectedIndex;
+            state->selectedIndex = hitIndex;
+            state->lastClickIndex = hitIndex;
+            state->lastClickTime = currentTime;
+
+            serial_printf("FW: select %d -> %d\n", oldSel, hitIndex);
+
+            /* Post update to redraw selection */
+            PostEvent(updateEvt, (UInt32)w);
+        } else {
+            /* Drag occurred - selection/timing was handled by drag tracking */
+            serial_printf("FW: drag completed, skipping normal selection\n");
+        }
     }
 
     SetPort(savePort);
