@@ -343,6 +343,13 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
     ShowWindow(w);
     serial_printf("[WIN_OPEN] ShowWindow returned\n");
 
+    /* Initialize folder state and populate contents from VFS */
+    /* GetFolderState creates the state and calls InitializeFolderContents internally */
+    extern void* GetFolderState(WindowPtr w);  /* Returns FolderWindowState* */
+    serial_printf("[WIN_OPEN] Calling GetFolderState to initialize contents\n");
+    (void)GetFolderState(w);
+    serial_printf("[WIN_OPEN] GetFolderState returned\n");
+
     serial_printf("[WIN_OPEN] Calling SelectWindow\n");
     SelectWindow(w);
 

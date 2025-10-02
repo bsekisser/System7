@@ -15,6 +15,9 @@ void VFS_Shutdown(void);
 /* Mount the boot volume */
 bool VFS_MountBootVolume(const char* volName);
 
+/* Populate initial file system contents */
+bool VFS_PopulateInitialFiles(void);
+
 /* Get volume info */
 bool VFS_GetVolumeInfo(VRefNum vref, VolumeControlBlock* vcb);
 

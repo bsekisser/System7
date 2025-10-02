@@ -88,10 +88,77 @@ bool VFS_MountBootVolume(const char* volName) {
 
     /* serial_printf("VFS: Mounted boot volume successfully\n"); */
 
-    /* Create some default folders for testing */
-    /* These would normally be created by the System installer */
-    /* For now, we just report success */
+    return true;
+}
 
+/* Populate initial file system contents */
+bool VFS_PopulateInitialFiles(void) {
+    serial_printf("VFS: Populating initial file system...\n");
+
+    if (!g_vfs.initialized || !g_vfs.bootVolume.mounted) {
+        serial_printf("VFS: Cannot populate - volume not mounted\n");
+        return false;
+    }
+
+    VRefNum vref = g_vfs.bootVRef;
+    DirID rootDir = 2;  /* Root directory is always ID 2 in HFS */
+
+    /* Create System Folder */
+    DirID systemID = 0;
+    if (!VFS_CreateFolder(vref, rootDir, "System Folder", &systemID)) {
+        serial_printf("VFS: Failed to create System Folder\n");
+        return false;
+    }
+    serial_printf("VFS: Created System Folder (ID=%ld)\n", systemID);
+
+    /* Create Documents folder */
+    DirID documentsID = 0;
+    if (!VFS_CreateFolder(vref, rootDir, "Documents", &documentsID)) {
+        serial_printf("VFS: Failed to create Documents folder\n");
+        return false;
+    }
+    serial_printf("VFS: Created Documents folder (ID=%ld)\n", documentsID);
+
+    /* Create Applications folder */
+    DirID appsID = 0;
+    if (!VFS_CreateFolder(vref, rootDir, "Applications", &appsID)) {
+        serial_printf("VFS: Failed to create Applications folder\n");
+        return false;
+    }
+    serial_printf("VFS: Created Applications folder (ID=%ld)\n", appsID);
+
+    /* Create README file in root */
+    FileID readmeID = 0;
+    if (!VFS_CreateFile(vref, rootDir, "Read Me", 'TEXT', 'ttxt', &readmeID)) {
+        serial_printf("VFS: Failed to create Read Me file\n");
+        return false;
+    }
+    serial_printf("VFS: Created Read Me file (ID=%ld)\n", readmeID);
+
+    /* Create About This Mac file */
+    FileID aboutID = 0;
+    if (!VFS_CreateFile(vref, rootDir, "About This Mac", 'TEXT', 'ttxt', &aboutID)) {
+        serial_printf("VFS: Failed to create About This Mac file\n");
+        return false;
+    }
+    serial_printf("VFS: Created About This Mac file (ID=%ld)\n", aboutID);
+
+    /* Create some sample documents */
+    FileID doc1ID = 0;
+    if (!VFS_CreateFile(vref, documentsID, "Sample Document", 'TEXT', 'ttxt', &doc1ID)) {
+        serial_printf("VFS: Failed to create Sample Document\n");
+        return false;
+    }
+    serial_printf("VFS: Created Sample Document (ID=%ld)\n", doc1ID);
+
+    FileID doc2ID = 0;
+    if (!VFS_CreateFile(vref, documentsID, "Notes", 'TEXT', 'ttxt', &doc2ID)) {
+        serial_printf("VFS: Failed to create Notes file\n");
+        return false;
+    }
+    serial_printf("VFS: Created Notes file (ID=%ld)\n", doc2ID);
+
+    serial_printf("VFS: Initial file system population complete\n");
     return true;
 }
 

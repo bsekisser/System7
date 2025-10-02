@@ -74,8 +74,8 @@ static struct {
 } gFolderWindows[MAX_FOLDER_WINDOWS];
 
 /* Get or create state for a folder window */
-static FolderWindowState* GetFolderState(WindowPtr w);
-static void InitializeFolderContents(WindowPtr w, Boolean isTrash);
+FolderWindowState* GetFolderState(WindowPtr w);
+void InitializeFolderContents(WindowPtr w, Boolean isTrash);
 static void GhostEraseIf(void);  /* Forward declaration for ghost system */
 
 /* Draw a simple file/folder icon */
@@ -231,12 +231,17 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
 }
 
 /* Helper: Find folder window state slot */
-static FolderWindowState* GetFolderState(WindowPtr w) {
-    if (!w) return NULL;
+FolderWindowState* GetFolderState(WindowPtr w) {
+    extern void serial_printf(const char* fmt, ...);
+    if (!w) {
+        serial_printf("GetFolderState: w is NULL\n");
+        return NULL;
+    }
 
     /* Search for existing slot */
     for (int i = 0; i < MAX_FOLDER_WINDOWS; i++) {
         if (gFolderWindows[i].window == w) {
+            serial_printf("GetFolderState: Found existing slot %d\n", i);
             return &gFolderWindows[i].state;
         }
     }
@@ -244,6 +249,7 @@ static FolderWindowState* GetFolderState(WindowPtr w) {
     /* Find empty slot */
     for (int i = 0; i < MAX_FOLDER_WINDOWS; i++) {
         if (gFolderWindows[i].window == NULL) {
+            serial_printf("GetFolderState: Creating new slot %d, refCon=0x%08lX\n", i, (unsigned long)w->refCon);
             gFolderWindows[i].window = w;
             gFolderWindows[i].state.items = NULL;
             gFolderWindows[i].state.itemCount = 0;
@@ -260,16 +266,19 @@ static FolderWindowState* GetFolderState(WindowPtr w) {
             gFolderWindows[i].state.draggingIndex = -1;
 
             /* Initialize folder contents */
+            serial_printf("GetFolderState: About to call InitializeFolderContents\n");
             InitializeFolderContents(w, (w->refCon == 'TRSH'));
+            serial_printf("GetFolderState: InitializeFolderContents returned\n");
             return &gFolderWindows[i].state;
         }
     }
 
+    serial_printf("GetFolderState: No slots available!\n");
     return NULL;  /* No slots available */
 }
 
 /* Initialize folder contents from VFS */
-static void InitializeFolderContents(WindowPtr w, Boolean isTrash) {
+void InitializeFolderContents(WindowPtr w, Boolean isTrash) {
     FolderWindowState* state = NULL;
 
     /* Find the state we just created */

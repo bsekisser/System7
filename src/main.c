@@ -1761,6 +1761,9 @@ void init_system71(void) {
         Trash_Init();
         Trash_OnVolumeMount(1);  /* Boot volume is always vRef 1 */
         serial_puts("  Trash system initialized\n");
+
+        /* Initial file system contents are now created during volume creation in HFS_CreateBlankVolume() */
+        serial_puts("  Initial file system contents created during volume initialization\n");
     } else {
         serial_puts("  WARNING: Failed to mount boot volume\n");
     }

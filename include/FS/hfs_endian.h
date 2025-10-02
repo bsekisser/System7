@@ -45,3 +45,8 @@ static inline uint32_t make_ostype(char a, char b, char c, char d) {
     return ((uint32_t)a << 24) | ((uint32_t)b << 16) |
            ((uint32_t)c << 8)  | (uint32_t)d;
 }
+
+/* Swap bytes in 16-bit value to convert to big-endian */
+static inline uint16_t be16_swap(uint16_t v) {
+    return (v >> 8) | (v << 8);
+}

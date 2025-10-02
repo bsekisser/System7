@@ -319,15 +319,116 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
 
     /* Create catalog B-tree header record */
     HFS_BTHeaderRec* catHeader = (HFS_BTHeaderRec*)(catData + sizeof(HFS_BTNodeDesc));
-    be16_write(&catHeader->depth, 0);           /* Empty tree */
-    be32_write(&catHeader->rootNode, 0);        /* No root yet */
-    be32_write(&catHeader->leafRecords, 0);
-    be32_write(&catHeader->firstLeafNode, 0);
-    be32_write(&catHeader->lastLeafNode, 0);
+    be16_write(&catHeader->depth, 1);           /* One level - header + leaf */
+    be32_write(&catHeader->rootNode, 1);        /* Root is first leaf node */
+    be32_write(&catHeader->leafRecords, 7);     /* Will add 7 initial entries */
+    be32_write(&catHeader->firstLeafNode, 1);   /* First leaf at node 1 */
+    be32_write(&catHeader->lastLeafNode, 1);    /* Last leaf at node 1 */
     be16_write(&catHeader->nodeSize, 512);      /* 512-byte nodes */
     be16_write(&catHeader->keyCompareType, 0); /* Case-insensitive compare */
     be32_write(&catHeader->totalNodes, 20);     /* 10 blocks * 512 / 512 */
-    be32_write(&catHeader->freeNodes, 19);      /* All but header free */
+    be32_write(&catHeader->freeNodes, 18);      /* Header + 1 leaf used */
+
+    /* Create first leaf node with initial catalog entries at node 1 (512 bytes after header) */
+    uint8_t* leafNode = catData + 512;
+    memset(leafNode, 0, 512);
+
+    /* Leaf node descriptor */
+    HFS_BTNodeDesc* leafDesc = (HFS_BTNodeDesc*)leafNode;
+    leafDesc->fLink = 0;  /* No next leaf */
+    leafDesc->bLink = 0;  /* No previous leaf */
+    leafDesc->kind = kBTLeafNode;
+    leafDesc->height = 1;
+    be16_write(&leafDesc->numRecords, 7);  /* 7 initial entries */
+    leafDesc->reserved = 0;
+
+    /* Build catalog records - write them sequentially after the node descriptor */
+    uint8_t* recData = leafNode + sizeof(HFS_BTNodeDesc);
+    uint16_t* offsets = (uint16_t*)(leafNode + 512);  /* Offsets written from end */
+    uint16_t offset = sizeof(HFS_BTNodeDesc);
+    int recNum = 0;
+
+    /* Helper function to add a folder record */
+    #define ADD_FOLDER(parent, name_str, cnid) do { \
+        HFS_CatKey* key = (HFS_CatKey*)recData; \
+        size_t name_len = strlen(name_str); \
+        if (name_len > 31) name_len = 31; \
+        key->keyLength = 6 + name_len; \
+        key->reserved = 0; \
+        be32_write(&key->parentID, parent); \
+        key->nameLength = name_len; \
+        memcpy(key->name, name_str, name_len); \
+        HFS_CatFolderRec* folder = (HFS_CatFolderRec*)(recData + 1 + key->keyLength); \
+        be16_write(&folder->recordType, kHFS_FolderRecord); \
+        be16_write(&folder->flags, 0); \
+        be16_write(&folder->valence, (parent == 2 && cnid == 17) ? 2 : 0); \
+        be32_write(&folder->folderID, cnid); \
+        be32_write(&folder->createDate, 0); \
+        be32_write(&folder->modifyDate, 0); \
+        be32_write(&folder->backupDate, 0); \
+        memset(folder->finderInfo, 0, 16); \
+        memset(folder->reserved, 0, 16); \
+        uint16_t rec_size = 1 + key->keyLength + sizeof(HFS_CatFolderRec); \
+        offsets[-(recNum+1)] = be16_swap(offset); \
+        recData += rec_size; \
+        offset += rec_size; \
+        recNum++; \
+    } while(0)
+
+    /* Helper function to add a file record */
+    #define ADD_FILE(parent, name_str, cnid, type_code, creator_code) do { \
+        HFS_CatKey* key = (HFS_CatKey*)recData; \
+        size_t name_len = strlen(name_str); \
+        if (name_len > 31) name_len = 31; \
+        key->keyLength = 6 + name_len; \
+        key->reserved = 0; \
+        be32_write(&key->parentID, parent); \
+        key->nameLength = name_len; \
+        memcpy(key->name, name_str, name_len); \
+        HFS_CatFileRec* file = (HFS_CatFileRec*)(recData + 1 + key->keyLength); \
+        be16_write(&file->recordType, kHFS_FileRecord); \
+        file->flags = 0; \
+        file->fileType = 0; \
+        be32_write(&file->fileID, cnid); \
+        be16_write(&file->dataStartBlock, 0); \
+        be32_write(&file->dataLogicalSize, 0); \
+        be32_write(&file->dataPhysicalSize, 0); \
+        be16_write(&file->rsrcStartBlock, 0); \
+        be32_write(&file->rsrcLogicalSize, 0); \
+        be32_write(&file->rsrcPhysicalSize, 0); \
+        be32_write(&file->createDate, 0); \
+        be32_write(&file->modifyDate, 0); \
+        be32_write(&file->backupDate, 0); \
+        memset(file->finderInfo, 0, 16); \
+        be32_write(&file->finderInfo[0], type_code); \
+        be32_write(&file->finderInfo[4], creator_code); \
+        be16_write(&file->clumpSize, 0); \
+        memset(file->dataExtents, 0, sizeof(file->dataExtents)); \
+        memset(file->rsrcExtents, 0, sizeof(file->rsrcExtents)); \
+        be32_write(&file->reserved, 0); \
+        uint16_t rec_size = 1 + key->keyLength + sizeof(HFS_CatFileRec); \
+        offsets[-(recNum+1)] = be16_swap(offset); \
+        recData += rec_size; \
+        offset += rec_size; \
+        recNum++; \
+    } while(0)
+
+    /* Add initial folders and files */
+    ADD_FOLDER(2, "System Folder", 16);
+    ADD_FOLDER(2, "Documents", 17);
+    ADD_FOLDER(2, "Applications", 18);
+    ADD_FILE(2, "Read Me", 19, 0x54455854, 0x74747874);  /* 'TEXT', 'ttxt' */
+    ADD_FILE(2, "About This Mac", 20, 0x54455854, 0x74747874);  /* 'TEXT', 'ttxt' */
+    ADD_FILE(17, "Sample Document", 21, 0x54455854, 0x74747874);  /* 'TEXT', 'ttxt' */
+    ADD_FILE(17, "Notes", 22, 0x54455854, 0x74747874);  /* 'TEXT', 'ttxt' */
+
+    #undef ADD_FOLDER
+    #undef ADD_FILE
+
+    /* Update MDB to reflect created folders and files */
+    be32_write(&mdb[32], 23);  /* drNxtCNID - next available is 23 */
+    be32_write(&mdb[90], 3);   /* drDirCnt - 3 directories (excluding root) */
+    be32_write(&mdb[86], 4);   /* drFilCnt - 4 files */
 
     /* Initialize Extents B-tree */
     /* Extents start at allocation block 10 (after catalog's 10 blocks) */
