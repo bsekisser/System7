@@ -580,9 +580,23 @@ static void DrawPrimitive(GrafVerb verb, const void *shape, int shapeType,
     serial_printf("DrawPrimitive: clipped rect=(%d,%d,%d,%d)\n",
                   drawRect.left, drawRect.top, drawRect.right, drawRect.bottom);
 
+    /* CRITICAL: Convert LOCAL coordinates to GLOBAL using portBits.bounds!
+     * portRect is in LOCAL coords (0,0,width,height)
+     * portBits.bounds maps LOCAL to GLOBAL screen position
+     * Platform layer needs GLOBAL coords to draw at correct screen position */
+    Rect globalRect = drawRect;
+    globalRect.left += g_currentPort->portBits.bounds.left;
+    globalRect.top += g_currentPort->portBits.bounds.top;
+    globalRect.right += g_currentPort->portBits.bounds.left;
+    globalRect.bottom += g_currentPort->portBits.bounds.top;
+
+    serial_printf("DrawPrimitive: globalRect=(%d,%d,%d,%d) offset by portBits(%d,%d)\n",
+                  globalRect.left, globalRect.top, globalRect.right, globalRect.bottom,
+                  g_currentPort->portBits.bounds.left, g_currentPort->portBits.bounds.top);
+
     /* Call platform layer to do actual drawing */
     serial_printf("DrawPrimitive: calling QDPlatform_DrawShape\n");
-    QDPlatform_DrawShape(g_currentPort, verb, &drawRect, shapeType, pat);
+    QDPlatform_DrawShape(g_currentPort, verb, &globalRect, shapeType, pat);
     serial_printf("DrawPrimitive: QDPlatform_DrawShape returned\n");
 }
 
