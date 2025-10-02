@@ -69,6 +69,9 @@ C_SOURCES = src/main.c \
             src/QuickDraw/Coordinates.c \
             src/QuickDraw/Regions.c \
             src/Platform/WindowPlatform.c \
+            src/Platform/x86_io.c \
+            src/SoundManager/SoundManagerBareMetal.c \
+            src/SoundManager/SoundHardwarePC.c \
             src/MenuManager/MenuManagerCore.c \
             src/MenuManager/MenuSelection.c \
             src/MenuManager/MenuDisplay.c \
@@ -447,9 +450,10 @@ $(ISO): $(KERNEL)
 	@echo '}' >> $(ISO_DIR)/boot/grub/grub.cfg
 	@$(GRUB) -d /usr/lib/grub/i386-pc -o $(ISO) $(ISO_DIR)
 
-# Run with QEMU
+# Run with QEMU (PC speaker with PulseAudio backend)
 run: $(ISO)
-	qemu-system-i386 -cdrom $(ISO) -m 256 -vga std -serial file:/tmp/serial.log
+	qemu-system-i386 -cdrom $(ISO) -m 256 -vga std -serial file:/tmp/serial.log \
+		-audiodev pa,id=snd0,server=/run/user/$(shell id -u)/pulse/native -machine pcspk-audiodev=snd0
 
 # Debug with QEMU
 debug: $(ISO)

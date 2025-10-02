@@ -1827,6 +1827,14 @@ void init_system71(void) {
         serial_puts("  WARNING: PS/2 controller initialization failed\n");
     }
 
+    /* Initialize Sound Manager */
+    extern OSErr SoundManagerInit(void);
+    if (SoundManagerInit() == noErr) {
+        serial_puts("  Sound Manager initialized\n");
+    } else {
+        serial_puts("  WARNING: Sound Manager initialization failed\n");
+    }
+
     /* Initialize Finder */
     OSErr err = InitializeFinder();
     if (err == noErr) {

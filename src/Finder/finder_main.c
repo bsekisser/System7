@@ -151,6 +151,11 @@ OSErr InitializeFinder(void)
         serial_puts("Finder: Volume icon initialized\n");
     }
 
+    /* Play classic System 7 startup chime */
+    extern void StartupChime(void);
+    serial_puts("Finder: Playing System 7 startup chime\n");
+    StartupChime();
+
     gFinderInitialized = true;
     return noErr;
 }

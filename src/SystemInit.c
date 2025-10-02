@@ -424,6 +424,8 @@ static SystemError LoadSystemResources(void) {
  * ============================================================================ */
 
 static SystemError InitializeInputSystem(void) {
+    extern OSErr SoundManagerInit(void);
+
     /* Initialize keyboard emulation */
     /* In the portable version, we map modern keyboard/mouse events
      * to classic Mac OS ADB events */
@@ -435,6 +437,13 @@ static SystemError InitializeInputSystem(void) {
 
     /* Initialize mouse tracking */
     /* Will be handled by platform-specific event loop */
+
+    /* Initialize Sound Manager */
+    OSErr err = SoundManagerInit();
+    if (err != noErr) {
+        serial_puts("SystemInit: WARNING - Sound Manager initialization failed\n");
+        /* Non-fatal - continue without sound */
+    }
 
     return SYS_OK;
 }

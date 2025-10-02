@@ -17,11 +17,7 @@ DialogItemInternal* GetDialogItemPtr(DialogPtr theDialog, SInt16 itemNo) {
     return NULL;
 }
 
-/* Play system beep stub */
-void SysBeep(SInt16 duration) {
-    /* Could trigger PC speaker beep, but just stub for now */
-    serial_printf("SysBeep: %d\n", duration);
-}
+/* SysBeep - now provided by SoundManagerBareMetal.c */
 
 /* DrawDialog & UpdateDialog - provided by DialogManagerCore.c */
 

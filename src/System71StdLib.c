@@ -380,7 +380,11 @@ void serial_printf(const char* fmt, ...) {
         strstr(fmt, "Finder:") == NULL &&
         strstr(fmt, "FW:") == NULL &&
         strstr(fmt, "Icon_DrawWithLabel") == NULL &&
-        strstr(fmt, "GhostXOR") == NULL) {
+        strstr(fmt, "GhostXOR") == NULL &&
+        strstr(fmt, "Sound") == NULL &&
+        strstr(fmt, "PCSpkr") == NULL &&
+        strstr(fmt, "SysBeep") == NULL &&
+        strstr(fmt, "Startup") == NULL) {
         return;  /* Message not whitelisted - silently drop */
     }
 
