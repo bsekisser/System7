@@ -12,6 +12,11 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Recent Updates
 
+- ⚠️ **XOR Ghost Dragging for Folder Windows**: Initial implementation (in progress)
+  - XOR ghost outline appears and follows mouse during drag
+  - Proper port context management (window → screen → window)
+  - Known issue: Ghost coordinates need adjustment for proper initial positioning
+  - Drop-to-desktop alias creation pending coordinate fix
 - ✅ **Drag-Drop System Implementation**: Complete drag-drop with modifier key support
   - Option key creates aliases, Cmd key forces copy, cross-volume auto-copy
   - Folder window drops, desktop drops, and trash integration
