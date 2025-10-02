@@ -61,9 +61,17 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
     GetPort(&savePort);
     SetPort(window);
 
+    /* CRITICAL: Log port and coordinate mapping for debugging */
+    serial_printf("DrawFolder: window=%p savePort=%p\n", window, savePort);
+    serial_printf("DrawFolder: portBits.bounds(GLOBAL)=(%d,%d,%d,%d)\n",
+                  window->port.portBits.bounds.left, window->port.portBits.bounds.top,
+                  window->port.portBits.bounds.right, window->port.portBits.bounds.bottom);
+
     /* Use window's portRect which is in LOCAL (port-relative) coordinates */
     /* In Mac Toolbox, portRect should always start at (0,0) */
     Rect localBounds = window->port.portRect;
+    serial_printf("DrawFolder: portRect(LOCAL)=(%d,%d,%d,%d)\n",
+                  localBounds.left, localBounds.top, localBounds.right, localBounds.bottom);
 
     /* Calculate content area in LOCAL coordinates */
     /* Content = full port minus title bar (20px) */
@@ -82,11 +90,11 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
     /* Set clipping to content area to prevent drawing outside bounds */
     ClipRect(&contentRect);
 
-    /* Fill background with white using EraseRect (uses port's background pattern) */
+    /* Fill background with white - EraseRect uses LOCAL coords, DrawPrimitive converts to GLOBAL */
     extern void EraseRect(const Rect* r);
     EraseRect(&contentRect);
 
-    serial_printf("Finder: Erased content rect (%d,%d,%d,%d)\n",
+    serial_printf("Finder: Erased contentRect (%d,%d,%d,%d) for white backfill\n",
                   contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
 
     /* Text drawing disabled until Font Manager is linked */

@@ -258,10 +258,13 @@ void BeginUpdate(WindowPtr window) {
         return;
     }
 
-    /* Set clipping to update region */
-    if (window->updateRgn) {
-        (window)->clipRgn = window->updateRgn;
-    }
+    /* CRITICAL: Do NOT set clipRgn to updateRgn!
+     * updateRgn is in GLOBAL coordinates, but drawing happens in LOCAL coords.
+     * Setting clipRgn to a GLOBAL region clips out all LOCAL drawing.
+     * The proper clipRgn (contRgn) is already set and should be preserved. */
+
+    /* NOTE: Real Mac OS converts updateRgn to port-local coordinates here.
+     * For now, we skip this and rely on contRgn staying as clipRgn. */
 }
 
 /**

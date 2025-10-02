@@ -219,10 +219,12 @@ extern bool PM_GetColorPattern(uint32_t** patternData);
 void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
                          SInt16 shapeType, const Pattern* pat) {
 
-    /* CRITICAL: Convert LOCAL coordinates to GLOBAL for SetPixel!
-     * rect is in port-relative (LOCAL) coords, but SetPixel expects GLOBAL screen coords */
-    SInt32 offsetX = port ? port->portBits.bounds.left : 0;
-    SInt32 offsetY = port ? port->portBits.bounds.top : 0;
+    /* CRITICAL: DrawPrimitive already converted LOCAL→GLOBAL!
+     * rect parameter is already in GLOBAL coordinates.
+     * Adding offset here causes DOUBLE transformation - coordinates offset twice!
+     * Do NOT add portBits.bounds offset! */
+    SInt32 offsetX = 0;
+    SInt32 offsetY = 0;
 
     extern void serial_printf(const char* fmt, ...);
     serial_printf("QDPlatform_DrawShape: verb=%d, rect=(%d,%d,%d,%d), offset=(%d,%d)\n",

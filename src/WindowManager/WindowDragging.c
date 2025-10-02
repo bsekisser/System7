@@ -446,6 +446,8 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         }
 
         /* WORKAROUND: Directly redraw window content since update events aren't flowing through */
+        serial_printf("DragWindow: Checking refCon=0x%08lx (DISK=0x%08x, TRSH=0x%08x)\n",
+                     theWindow->refCon, 'DISK', 'TRSH');
         if (theWindow->refCon == 'DISK' || theWindow->refCon == 'TRSH') {
             extern void DrawFolderWindowContents(WindowPtr window, Boolean isTrash);
             GrafPtr savePort;
@@ -454,6 +456,8 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
             DrawFolderWindowContents(theWindow, theWindow->refCon == 'TRSH');
             SetPort(savePort);
             serial_printf("DragWindow: Direct content redraw complete\n");
+        } else {
+            serial_printf("DragWindow: refCon doesn't match, skipping content redraw\n");
         }
 
         /* Clean up new regions */

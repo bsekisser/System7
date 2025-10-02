@@ -121,16 +121,9 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     SetClip(fullClipWMgr);
     DisposeRgn(fullClipWMgr);
 
-    /* Get GLOBAL window bounds from strucRgn (always correct!) */
-    if (window->strucRgn && *window->strucRgn) {
-        Rect globalBounds = (*window->strucRgn)->rgnBBox;
-        serial_printf("PaintOne: Filling window at GLOBAL (%d,%d,%d,%d)\n",
-            globalBounds.left, globalBounds.top, globalBounds.right, globalBounds.bottom);
-
-        /* Fill entire window with white in GLOBAL coordinates */
-        EraseRect(&globalBounds);
-        serial_printf("PaintOne: Window backfill complete\n");
-    }
+    /* Window backfill is handled by chrome (title bar) and content drawing */
+    /* No need to fill the entire window structure here */
+    serial_printf("PaintOne: Skipping window backfill (handled by chrome+content)\n");
 
     /* NOW draw chrome on top of backfill */
     serial_printf("PaintOne: Drawing window chrome\n");
@@ -272,12 +265,8 @@ void DrawNew(WindowPtr window, Boolean update) {
         SetClip(window->updateRgn);
     }
 
-    /* Fill content area - LOCAL coords */
-    Rect contentRect = window->port.portRect;
-    serial_printf("DrawNew: Filling content rect (local) (%d,%d,%d,%d)\n",
-        contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
-    EraseRect(&contentRect);
-    serial_printf("DrawNew: Content filled\n");
+    /* Content backfill is handled by application (Finder) draw code, not here */
+    serial_printf("DrawNew: Content backfill handled by application draw code\n");
 
     SetPort(savePort);
     serial_printf("DrawNew: EXIT\n");
