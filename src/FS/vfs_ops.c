@@ -27,6 +27,28 @@ bool VFS_Move(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* n
      * 2. Change parent directory ID
      * 3. Optionally rename
      */
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("VFS_Move: id=%u from dir=%u to dir=%u, newName=%s\n",
+                 id, fromDir, toDir, newName ? newName : "(null)");
+    return true;
+}
+
+bool VFS_Copy(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* newName, FileID* newID) {
+    /* In real implementation:
+     * 1. Read source file data and metadata
+     * 2. Create new catalog entry in destination
+     * 3. Copy file data blocks
+     * 4. Copy resource fork if present
+     */
+    extern void serial_printf(const char* fmt, ...);
+    static FileID nextCopyID = 10000;
+
+    serial_printf("VFS_Copy: id=%u from dir=%u to dir=%u, newName=%s\n",
+                 id, fromDir, toDir, newName ? newName : "(null)");
+
+    if (newID) {
+        *newID = nextCopyID++;
+    }
     return true;
 }
 
@@ -112,4 +134,21 @@ const char* VFS_GetNameByID(VRefNum vref, DirID parent, FileID id) {
     /* Look up name from catalog */
     static char nameBuf[32] = "Item";
     return nameBuf;
+}
+
+VRefNum VFS_GetVRefByID(FileID id) {
+    /* In real implementation: look up volume ref from catalog */
+    extern VRefNum VFS_GetBootVRef(void);
+    return VFS_GetBootVRef();  /* For now, assume all files on boot volume */
+}
+
+bool VFS_GetParentDir(VRefNum vref, FileID id, DirID* parentDir) {
+    /* In real implementation: read catalog entry to get parent dirID */
+    extern void serial_printf(const char* fmt, ...);
+    if (parentDir) {
+        *parentDir = 2;  /* HFS_ROOT_CNID - For now, assume root */
+        serial_printf("VFS_GetParentDir: id=%u -> parent=%u\n", id, *parentDir);
+        return true;
+    }
+    return false;
 }

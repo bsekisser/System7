@@ -870,22 +870,97 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
         invalidDrop = true;
     } else {
         /* DROP TARGET: Desktop or folder window */
-        /* For now, desktop drops just reposition the icon */
-        /* TODO: Check for folder window drops and implement move/copy logic */
+        extern short FindWindow(Point thePoint, WindowPtr* theWindow);
+        extern VRefNum VFS_GetVRefByID(FileID id);
+        extern VRefNum VFS_GetBootVRef(void);
+        extern bool VFS_GetParentDir(VRefNum vref, FileID id, DirID* parentDir);
+        extern bool VFS_Copy(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* newName, FileID* newID);
+        extern OSErr CreateAlias(FSSpec* target, FSSpec* aliasFile);
+
+        WindowPtr hitWindow = NULL;
+        short partCode = FindWindow(dropPoint, &hitWindow);
+
+        /* Check if dropped on a folder window */
+        Boolean droppedOnFolder = (hitWindow != NULL && partCode == inContent);
+        DirID targetDir = HFS_ROOT_DIR_ID;  /* Default to desktop (root) */
+        VRefNum vref = VFS_GetBootVRef();
+
+        if (droppedOnFolder) {
+            /* TODO: Get actual folder window's DirID from window refCon */
+            serial_printf("TrackIconDragSync: Dropped on folder window\n");
+            /* For now, treat as desktop drop */
+            droppedOnFolder = false;
+        }
+
+        /* Get source volume and directory */
+        VRefNum sourceVRef = VFS_GetVRefByID(item->iconID);
+        DirID sourceDir = HFS_ROOT_DIR_ID;
+        VFS_GetParentDir(sourceVRef, item->iconID, &sourceDir);
+
+        /* Determine if cross-volume */
+        Boolean crossVolume = (sourceVRef != vref);
 
         if (optionKeyDown) {
-            /* Option key: create alias (stubbed for now) */
-            serial_printf("TrackIconDragSync: Option key - would create alias\n");
-            /* TODO: Implement alias creation */
-            invalidDrop = true;  /* Treat as invalid until implemented */
-        } else if (cmdKeyDown) {
-            /* Cmd key: force copy (stubbed for now) */
-            serial_printf("TrackIconDragSync: Cmd key - would force copy\n");
-            /* TODO: Implement copy operation */
-            invalidDrop = true;  /* Treat as invalid until implemented */
+            /* Option key: create alias */
+            serial_printf("TrackIconDragSync: Creating alias\n");
+
+            FSSpec target, aliasFile;
+            target.vRefNum = sourceVRef;
+            target.parID = sourceDir;
+            /* Copy name from item */
+            int nameLen = strlen(item->name);
+            if (nameLen > 31) nameLen = 31;
+            memcpy(target.name, item->name, nameLen);
+            target.name[nameLen] = 0;
+
+            /* Create alias on desktop with " alias" suffix */
+            aliasFile.vRefNum = vref;
+            aliasFile.parID = targetDir;
+            char aliasName[64];
+            snprintf(aliasName, sizeof(aliasName), "%s alias", item->name);
+            if (strlen(aliasName) > 31) aliasName[31] = 0;
+            memcpy(aliasFile.name, aliasName, strlen(aliasName) + 1);
+
+            if (CreateAlias(&target, &aliasFile) == noErr) {
+                serial_printf("TrackIconDragSync: Alias created successfully\n");
+                operationSucceeded = true;
+            } else {
+                serial_printf("TrackIconDragSync: Alias creation failed\n");
+                invalidDrop = true;
+            }
+        } else if (cmdKeyDown || crossVolume) {
+            /* Cmd key or cross-volume: force copy */
+            serial_printf("TrackIconDragSync: Copying file (cmd=%d, crossVol=%d)\n", cmdKeyDown, crossVolume);
+
+            char copyName[32];
+            extern bool VFS_GenerateUniqueName(VRefNum vref, DirID dir, const char* base, char* out);
+            VFS_GenerateUniqueName(vref, targetDir, item->name, copyName);
+
+            FileID newID = 0;
+            if (VFS_Copy(vref, sourceDir, item->iconID, targetDir, copyName, &newID)) {
+                serial_printf("TrackIconDragSync: Copy succeeded, newID=%u\n", newID);
+                operationSucceeded = true;
+            } else {
+                serial_printf("TrackIconDragSync: Copy operation failed\n");
+                invalidDrop = true;
+            }
         } else {
-            /* No modifiers: default behavior (move on same volume) */
-            if (gDesktopIcons[iconIndex].movable) {
+            /* No modifiers: default behavior (move on same volume or reposition desktop icon) */
+            if (droppedOnFolder) {
+                /* Move to folder */
+                extern bool VFS_Move(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* newName);
+                if (VFS_Move(vref, sourceDir, item->iconID, targetDir, NULL)) {
+                    serial_printf("TrackIconDragSync: Moved to folder\n");
+                    operationSucceeded = true;
+                    /* Remove from desktop */
+                    for (short i = iconIndex; i < gDesktopIconCount - 1; i++) {
+                        gDesktopIcons[i] = gDesktopIcons[i + 1];
+                    }
+                    gDesktopIconCount--;
+                    gSelectedIcon = -1;
+                }
+            } else if (gDesktopIcons[iconIndex].movable) {
+                /* Reposition on desktop */
                 Point snapped = (Point){ .h = ghost.left + 20, .v = ghost.top };
                 snapped = SnapToGrid(snapped);
                 gDesktopIcons[iconIndex].position = snapped;
