@@ -216,8 +216,10 @@ IconRect Icon_DrawWithLabel(const IconHandle* h, const char* name,
     int iconLeft = centerX - 16;  /* 32x32 icon */
     Icon_Draw32(h, iconLeft, iconTopY);
 
-    /* Draw label below icon (using perfected positioning from HD icon) */
-    int labelTop = iconTopY + 27;  /* Original HD icon position */
+    /* Draw label below icon with proper spacing
+     * Icon is 32px tall, so label should start at iconTopY + 32 (icon bottom)
+     * Add 2px spacing for visual separation */
+    int labelTop = iconTopY + 34;
     IconLabel_Draw(name, centerX, labelTop, selected);
 
     /* Return combined bounds for hit testing */
