@@ -332,14 +332,14 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
     be32_write(&catHeader->leafRecords, 7);     /* Will add 7 initial entries */
     be32_write(&catHeader->firstLeafNode, 1);   /* First leaf at node 1 */
     be32_write(&catHeader->lastLeafNode, 1);    /* Last leaf at node 1 */
-    be16_write(&catHeader->nodeSize, 512);      /* 512-byte nodes */
+    be16_write(&catHeader->nodeSize, 1024);      /* 1024-byte nodes (was 512 - too small for 7 entries) */
     be16_write(&catHeader->keyCompareType, 0); /* Case-insensitive compare */
     be32_write(&catHeader->totalNodes, 20);     /* 10 blocks * 512 / 512 */
     be32_write(&catHeader->freeNodes, 18);      /* Header + 1 leaf used */
 
-    /* Create first leaf node with initial catalog entries at node 1 (512 bytes after header) */
-    uint8_t* leafNode = catData + 512;
-    memset(leafNode, 0, 512);
+    /* Create first leaf node with initial catalog entries at node 1 (1024 bytes after header) */
+    uint8_t* leafNode = catData + 1024;
+    memset(leafNode, 0, 1024);
 
     /* Leaf node descriptor */
     HFS_BTNodeDesc* leafDesc = (HFS_BTNodeDesc*)leafNode;
@@ -352,7 +352,7 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
 
     /* Build catalog records - write them sequentially after the node descriptor */
     uint8_t* recData = leafNode + sizeof(HFS_BTNodeDesc);
-    uint16_t* offsets = (uint16_t*)(leafNode + 512 - 2);  /* Point to last 2 bytes of node */
+    uint16_t* offsets = (uint16_t*)(leafNode + 1024 - 2);  /* Point to last 2 bytes of node */
     uint16_t offset = sizeof(HFS_BTNodeDesc);
     int recNum = 0;
 
@@ -377,7 +377,7 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
         memset(folder->finderInfo, 0, 16); \
         memset(folder->reserved, 0, 16); \
         uint16_t rec_size = 1 + key->keyLength + sizeof(HFS_CatFolderRec); \
-        offsets[-(recNum)] = be16_swap(offset); \
+        be16_write(&offsets[-(recNum)], offset); \
         recData += rec_size; \
         offset += rec_size; \
         recNum++; \
@@ -415,7 +415,7 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
         memset(file->rsrcExtents, 0, sizeof(file->rsrcExtents)); \
         be32_write(&file->reserved, 0); \
         uint16_t rec_size = 1 + key->keyLength + sizeof(HFS_CatFileRec); \
-        offsets[-(recNum)] = be16_swap(offset); \
+        be16_write(&offsets[-(recNum)], offset); \
         recData += rec_size; \
         offset += rec_size; \
         recNum++; \
@@ -432,14 +432,6 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
 
     #undef ADD_FOLDER
     #undef ADD_FILE
-
-    /* DEBUG: Verify first catalog entry was written */
-    uint8_t* firstEntry = leafNode + sizeof(HFS_BTNodeDesc);
-    serial_printf("HFS: First catalog entry bytes: [%02x %02x %02x %02x %02x %02x %02x %02x]\n",
-                 firstEntry[0], firstEntry[1], firstEntry[2], firstEntry[3],
-                 firstEntry[4], firstEntry[5], firstEntry[6], firstEntry[7]);
-    serial_printf("HFS: CreateBlankVolume: buffer=%08x, catData=%08x, leafNode=%08x\n",
-                 (unsigned int)buffer, (unsigned int)catData, (unsigned int)leafNode);
 
     /* Update MDB to reflect created folders and files */
     be32_write(&mdb[32], 23);  /* drNxtCNID - next available is 23 */

@@ -172,6 +172,13 @@ bool HFS_BT_GetRecord(void* node, uint16_t nodeSize, uint16_t recordNum,
 
     /* Offsets are stored backwards from the end */
     uint16_t offset = be16_read(&offsets[-(recordNum)]);
+
+    /* DEBUG: Show offset details for first few records */
+    if (recordNum < 3) {
+        serial_printf("HFS_BT_GetRecord: rec=%d offset=%d offsetAddr=%08x\n",
+                     recordNum, offset, (unsigned int)&offsets[-(recordNum)]);
+    }
+
     uint16_t nextOffset;
 
     if (recordNum + 1 < numRecords) {
