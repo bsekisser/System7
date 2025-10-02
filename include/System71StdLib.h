@@ -30,7 +30,12 @@ int abs(int n);
 long labs(long n);
 
 /* Serial output functions */
-void serial_printf(const char* fmt, ...);
+void serial_init(void);
+void serial_putchar(char c);
 void serial_puts(const char* str);
+int serial_data_ready(void);
+char serial_getchar(void);
+void serial_print_hex(uint32_t value);
+void serial_printf(const char* fmt, ...);
 
 #endif /* SYSTEM71_STDLIB_H */

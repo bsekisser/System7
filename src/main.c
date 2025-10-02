@@ -15,6 +15,7 @@
 #include "../include/ResourceManager.h"
 #include "../include/EventManager/EventTypes.h"  /* Include EventTypes first to define activeFlag */
 #include "../include/EventManager/EventManager.h"
+#include "../include/System71StdLib.h"                 /* for serial_printf & friends */
 #include "../include/MenuManager/MenuManager.h"
 
 /* Menu command dispatcher */
@@ -37,6 +38,9 @@ extern void DoMenuCommand(short menuID, short item);
 #ifdef ENABLE_PROCESS_COOP
 #include "../include/ProcessMgr/ProcessTypes.h"
 #endif
+
+/* Forward declaration for DispatchEvent (no header available yet) */
+extern Boolean DispatchEvent(EventRecord* evt);
 
 /* Simple 5x7 font for basic ASCII characters */
 static const uint8_t font5x7[][5] = {
@@ -151,13 +155,7 @@ static inline uint8_t inb(uint16_t port) {
     return ret;
 }
 
-/* Serial functions moved to System71StdLib.c */
-extern void serial_init(void);
-extern void serial_putchar(char c);
-extern void serial_puts(const char* str);
-extern int serial_data_ready(void);
-extern char serial_getchar(void);
-extern void serial_print_hex(uint32_t value);
+/* Serial functions are declared in System71StdLib.h */
 
 /* Commented out - moved to System71StdLib.c
 void serial_init(void) {
