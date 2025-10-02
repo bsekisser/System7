@@ -228,7 +228,8 @@ Boolean HandleMouseDown(EventRecord* event)
             extern Boolean IsFolderWindow(WindowPtr w);
             extern Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleClick);
 
-            serial_printf("HandleMouseDown: Calling IsFolderWindow\n");
+            serial_printf("HandleMouseDown: Calling IsFolderWindow with window=0x%08x, refCon=0x%08x\n",
+                         (unsigned int)whichWindow, (unsigned int)whichWindow->refCon);
             if (IsFolderWindow(whichWindow)) {
                 /* Extract double-click flag from event message (same as desktop) */
                 UInt16 clickCount = (event->message >> 16) & 0xFFFF;

@@ -752,7 +752,8 @@ void FolderWindow_Draw(WindowPtr w) {
 /* Check if window is a folder window (by refCon) */
 Boolean IsFolderWindow(WindowPtr w) {
     if (!w) return false;
-    return (w->refCon == 'DISK' || w->refCon == 'TRSH');
+    /* Use lowercase hex to match runtime exactly */
+    return (w->refCon == 0x4449534b || w->refCon == 0x54525348);  /* 'DISK' or 'TRSH' */
 }
 
 /* Update window proc for folder windows */

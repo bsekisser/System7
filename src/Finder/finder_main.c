@@ -332,7 +332,7 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
 
     WindowPtr w = NewWindow(NULL, &r, isTrash ? "\pTrash" : "\pMacintosh HD",
                             false, 0, (WindowPtr)-1L, true,
-                            isTrash ? 'TRSH' : 'DISK');
+                            isTrash ? 0x54525348 : 0x4449534B);  /* 'TRSH' or 'DISK' */
 
     if (!w) {
         serial_printf("[WIN_OPEN] NewWindow returned NULL!\n");
