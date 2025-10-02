@@ -312,6 +312,19 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
                     }
                 }
             }
+        } else if (verb == invert) {
+            /* XOR pixels with white for authentic Mac OS invert/XOR feedback */
+            serial_printf("QDPlatform_DrawShape: Inverting rect (%d,%d,%d,%d)\n",
+                          rect->left, rect->top, rect->right, rect->bottom);
+            for (SInt32 y = rect->top; y < rect->bottom; y++) {
+                for (SInt32 x = rect->left; x < rect->right; x++) {
+                    /* Get current pixel color */
+                    UInt32 current = QDPlatform_GetPixel(x + offsetX, y + offsetY);
+                    /* XOR with white to invert */
+                    UInt32 inverted = current ^ 0x00FFFFFF;
+                    QDPlatform_SetPixel(x + offsetX, y + offsetY, inverted);
+                }
+            }
         }
     }
 }
