@@ -448,6 +448,7 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
     while ((gCurrentButtons & 1) != 0) {
         ProcessModernInput();  /* Update gCurrentButtons */
         GetMouse(&cur);
+        LocalToGlobal(&cur);  /* Convert to global for comparison */
 
         /* Check if we've exceeded drag threshold */
         int dx = cur.h - startGlobal.h;
@@ -474,6 +475,7 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
             while ((gCurrentButtons & 1) != 0) {
                 ProcessModernInput();  /* Update gCurrentButtons */
                 GetMouse(&cur);
+                LocalToGlobal(&cur);  /* Convert to global coordinates */
             }
 
             serial_printf("FW: Drag ended at global (%d,%d)\n", cur.h, cur.v);

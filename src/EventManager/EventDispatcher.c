@@ -230,14 +230,20 @@ Boolean HandleMouseDown(EventRecord* event)
 
             serial_printf("HandleMouseDown: Calling IsFolderWindow with window=0x%08x, refCon=0x%08x\n",
                          (unsigned int)whichWindow, (unsigned int)whichWindow->refCon);
-            if (IsFolderWindow(whichWindow)) {
+            Boolean isFolderWin = IsFolderWindow(whichWindow);
+            serial_printf("HandleMouseDown: IsFolderWindow returned %d\n", isFolderWin);
+            if (isFolderWin) {
+                serial_printf("HandleMouseDown: Folder window detected, processing click\n");
                 /* Extract double-click flag from event message (same as desktop) */
                 UInt16 clickCount = (event->message >> 16) & 0xFFFF;
                 Boolean doubleClick = (clickCount >= 2);
 
-                serial_printf("[FW_CLICK] clickCount=%d, doubleClick=%d\n", clickCount, doubleClick);
+                serial_printf("HandleMouseDown: clickCount=%d, doubleClick=%d\n", clickCount, doubleClick);
 
-                if (HandleFolderWindowClick(whichWindow, event, doubleClick)) {
+                serial_printf("HandleMouseDown: Calling HandleFolderWindowClick...\n");
+                Boolean handled = HandleFolderWindowClick(whichWindow, event, doubleClick);
+                serial_printf("HandleMouseDown: HandleFolderWindowClick returned %d\n", handled);
+                if (handled) {
                     return true;
                 }
             } else {
