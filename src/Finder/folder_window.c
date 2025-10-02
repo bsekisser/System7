@@ -479,8 +479,16 @@ void FolderWindow_Draw(WindowPtr w) {
     EraseRect(&contentRect);
     serial_printf("FW: Erased content area\n");
 
+    /* If trash is empty, draw empty message */
+    if (isTrash && state && state->itemCount == 0) {
+        serial_printf("FW: Drawing empty trash message\n");
+        MoveTo(10, 30);
+        DrawText("Trash is empty", 0, 14);
+        MoveTo(10, 50);
+        DrawText("Drag items here to delete them", 0, 30);
+    }
     /* If we have state, draw icons with selection highlighting */
-    if (state && state->items) {
+    else if (state && state->items) {
         /* Convert window port coordinates to global screen coordinates for icon drawing */
         Point globalOrigin = {.v = w->port.portBits.bounds.top, .h = w->port.portBits.bounds.left};
 
