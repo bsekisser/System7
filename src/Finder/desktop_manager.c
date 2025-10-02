@@ -695,6 +695,14 @@ static inline void GhostEraseIf(void)
 }
 
 /*
+ * Desktop_GhostEraseIf - Public wrapper for folder windows to erase ghost safely
+ */
+void Desktop_GhostEraseIf(void)
+{
+    GhostEraseIf();
+}
+
+/*
  * GhostShowAt - Show ghost at new position
  */
 static inline void GhostShowAt(const Rect* r)

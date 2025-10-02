@@ -360,8 +360,8 @@ This project is in **active development** with no guaranteed timeline. Planned w
 **Medium Term** (Core Toolbox):
 - Complete Window Definition Procedure (WDEF) dispatch
 - Implement standard controls (buttons, scrollbars, text fields)
-- Add TextEdit for basic text input
-- Implement functional dialog boxes
+- Enhance TextEdit with full editing capabilities (cut/copy/paste)
+- Implement functional dialog boxes with standard items
 
 **Long Term** (Application Support):
 - Resource Manager with .rsrc file support

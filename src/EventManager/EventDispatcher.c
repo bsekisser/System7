@@ -214,6 +214,27 @@ Boolean HandleMouseDown(EventRecord* event)
                 serial_printf("HandleMouseDown: Calling SelectWindow(0x%08x)\n", (unsigned int)whichWindow);
                 SelectWindow(whichWindow);
                 serial_printf("HandleMouseDown: SelectWindow returned\n");
+                return true;
+            }
+
+            /* Window is already front - handle click in content */
+            serial_printf("HandleMouseDown: Window already front, checking type\n");
+
+            /* Check if this is a folder window and route to folder window handler */
+            extern Boolean IsFolderWindow(WindowPtr w);
+            extern Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleClick);
+
+            serial_printf("HandleMouseDown: Calling IsFolderWindow\n");
+            if (IsFolderWindow(whichWindow)) {
+                /* Extract double-click flag from event message (same as desktop) */
+                UInt16 clickCount = (event->message >> 16) & 0xFFFF;
+                Boolean doubleClick = (clickCount >= 2);
+
+                serial_printf("[FW_CLICK] clickCount=%d, doubleClick=%d\n", clickCount, doubleClick);
+
+                if (HandleFolderWindowClick(whichWindow, event, doubleClick)) {
+                    return true;
+                }
             } else {
                 /* Pass click to window content handler */
                 /* Application would handle this */
@@ -449,11 +470,13 @@ Boolean HandleUpdate(EventRecord* event)
         /* Draw window contents */
         SetPort((GrafPtr)updateWindow);
 
-        /* Check if this is a Finder window and draw its content */
-        if (updateWindow->refCon == 'TRSH' || updateWindow->refCon == 'DISK') {
-            /* Call Finder's window drawing */
-            extern void DrawFolderWindowContents(WindowPtr window, Boolean isTrash);
-            DrawFolderWindowContents(updateWindow, updateWindow->refCon == 'TRSH');
+        /* Check if this is a folder window - use new integrated drawing */
+        extern Boolean IsFolderWindow(WindowPtr w);
+        extern void FolderWindow_Draw(WindowPtr w);
+
+        if (IsFolderWindow(updateWindow)) {
+            /* Call integrated folder window drawing (handles icons, selection, etc.) */
+            FolderWindow_Draw(updateWindow);
         } else {
             /* Application would do the actual drawing */
             /* For now, just fill with white to show content area */

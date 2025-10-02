@@ -289,12 +289,10 @@ static void DoUpdate(WindowPtr w)
 
     /* Text drawing temporarily disabled until Font Manager is linked */
 
-    if (w->refCon == 'TRSH') {
-        serial_printf("DoUpdate: drawing trash window contents\n");
-        DrawFolderWindowContents(w, true);
-    } else if (w->refCon == 'DISK') {
-        serial_printf("DoUpdate: drawing volume window contents\n");
-        DrawFolderWindowContents(w, false);
+    if (w->refCon == 'TRSH' || w->refCon == 'DISK') {
+        serial_printf("DoUpdate: calling FolderWindow_Draw for folder window\n");
+        extern void FolderWindow_Draw(WindowPtr w);
+        FolderWindow_Draw(w);
     } else {
         /* Generic doc window: clear content and draw sample text */
         serial_printf("DoUpdate: generic window, drawing sample content\n");

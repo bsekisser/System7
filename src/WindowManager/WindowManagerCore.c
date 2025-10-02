@@ -361,12 +361,18 @@ WindowPtr GetNewCWindow(short windowID, void* wStorage, WindowPtr behind) {
 
 void CloseWindow(WindowPtr theWindow) {
     extern void serial_printf(const char* fmt, ...);
+    extern void CleanupFolderWindow(WindowPtr w);
 
     serial_printf("CloseWindow: ENTRY, window=%p\n", theWindow);
     if (theWindow == NULL) {
         serial_printf("CloseWindow: NULL window, returning\n");
         return;
     }
+
+    /* Clean up folder window state if this is a folder window */
+    serial_printf("CloseWindow: Calling CleanupFolderWindow\n");
+    CleanupFolderWindow(theWindow);
+    serial_printf("CloseWindow: CleanupFolderWindow returned\n");
 
     #ifdef DEBUG_WINDOW_MANAGER
     printf("CloseWindow: Closing window\n");
