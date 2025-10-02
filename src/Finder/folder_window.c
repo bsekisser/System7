@@ -443,8 +443,10 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
 
     /* Wait for drag threshold or button release */
     Point last = startGlobal, cur;
+    extern void ProcessModernInput(void);
 
     while ((gCurrentButtons & 1) != 0) {
+        ProcessModernInput();  /* Update gCurrentButtons */
         GetMouse(&cur);
 
         /* Check if we've exceeded drag threshold */
@@ -470,6 +472,7 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
 
             /* Wait for button release and track final position */
             while ((gCurrentButtons & 1) != 0) {
+                ProcessModernInput();  /* Update gCurrentButtons */
                 GetMouse(&cur);
             }
 
