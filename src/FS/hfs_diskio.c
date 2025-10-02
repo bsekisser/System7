@@ -7,9 +7,14 @@
 /* Later this can be extended to use real file I/O */
 
 bool HFS_BD_InitMemory(HFS_BlockDev* bd, void* buffer, uint64_t size) {
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("HFS: BD_InitMemory: buffer=%08x size=%d\n",
+                 (unsigned int)buffer, (int)size);
+
     if (!bd || !buffer || size == 0) return false;
 
     bd->data = buffer;
+    serial_printf("HFS: BD_InitMemory: stored bd->data=%08x\n", (unsigned int)bd->data);
     bd->size = size;
     bd->sectorSize = 512;
     bd->readonly = false;

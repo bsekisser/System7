@@ -105,23 +105,35 @@ typedef struct {
 static bool enum_callback(void* keyPtr, uint16_t keyLen,
                          void* dataPtr, uint16_t dataLen,
                          void* context) {
+    extern void serial_printf(const char* fmt, ...);
     EnumContext* ctx = (EnumContext*)context;
     HFS_CatKey* key = (HFS_CatKey*)keyPtr;
 
+    /* Debug: show first 8 bytes of key */
+    uint8_t* bytes = (uint8_t*)keyPtr;
+    serial_printf("HFS enum_callback: keyBytes=[%02x %02x %02x %02x %02x %02x %02x %02x]\n",
+                 bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7]);
+
     /* Check if this entry belongs to our parent */
     uint32_t entryParent = be32_read(&key->parentID);
+
+    serial_printf("HFS enum_callback: entryParent=%d target=%d nameLen=%d\n",
+                 (int)entryParent, (int)ctx->parentID, key->nameLength);
+
     if (entryParent != ctx->parentID) {
         return true;  /* Continue iteration */
     }
 
     /* Check if we have room */
     if (ctx->count >= ctx->maxEntries) {
+        serial_printf("HFS enum_callback: out of room\n");
         return false;  /* Stop iteration */
     }
 
     /* Parse the record */
     CatEntry entry;
     if (HFS_ParseCatalogRecord(key, dataPtr, dataLen, &entry)) {
+        serial_printf("HFS enum_callback: matched! adding entry '%s'\n", entry.name);
         ctx->entries[ctx->count++] = entry;
     }
 
@@ -161,7 +173,14 @@ void HFS_CatalogClose(HFS_Catalog* cat) {
 
 bool HFS_CatalogEnumerate(HFS_Catalog* cat, DirID parentID,
                          CatEntry* entries, int maxEntries, int* count) {
-    if (!cat || !entries || maxEntries <= 0 || !count) return false;
+    extern void serial_printf(const char* fmt, ...);
+
+    serial_printf("HFS_CatalogEnumerate: ENTRY parentID=%d maxEntries=%d\n", (int)parentID, maxEntries);
+
+    if (!cat || !entries || maxEntries <= 0 || !count) {
+        serial_printf("HFS_CatalogEnumerate: Invalid params\n");
+        return false;
+    }
 
     EnumContext ctx = {
         .parentID = parentID,
@@ -170,8 +189,14 @@ bool HFS_CatalogEnumerate(HFS_Catalog* cat, DirID parentID,
         .count = 0
     };
 
+    serial_printf("HFS_CatalogEnumerate: Calling HFS_BT_IterateLeaves, firstLeaf=%d\n",
+                 (int)cat->bt.firstLeaf);
+
     /* Iterate through all leaf nodes */
     bool result = HFS_BT_IterateLeaves(&cat->bt, enum_callback, &ctx);
+
+    serial_printf("HFS_CatalogEnumerate: IterateLeaves returned %d, found %d entries\n",
+                 result, ctx.count);
 
     *count = ctx.count;
     return result;

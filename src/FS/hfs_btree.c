@@ -11,8 +11,9 @@ extern void serial_printf(const char* fmt, ...);
 static bool read_btree_data(HFS_BTree* bt, uint32_t offset, void* buffer, uint32_t length) {
     if (!bt || !buffer) return false;
 
-    serial_printf("read_btree_data: offset=%u, length=%u, fileSize=%u\n",
-                 offset, length, bt->fileSize);
+    serial_printf("read_btree_data: offset=%d length=%d fileSize=%d vol=%08x bd.data=%08x\n",
+                 (int)offset, (int)length, (int)bt->fileSize,
+                 (unsigned int)bt->vol, (unsigned int)bt->vol->bd.data);
 
     uint32_t bytesRead = 0;
     uint32_t currentOffset = offset;
@@ -218,8 +219,9 @@ bool HFS_BT_IterateLeaves(HFS_BTree* bt, HFS_BT_IteratorFunc func, void* context
             if (bt->type == kBTreeCatalog) {
                 HFS_CatKey* key = (HFS_CatKey*)record;
                 uint8_t keyLen = key->keyLength;
-                void* data = (uint8_t*)record + keyLen + 2;  /* +2 for keyLength and reserved */
-                uint16_t dataLen = recordLen - keyLen - 2;
+                /* keyLength excludes the keyLength byte itself, so data starts at +1 + keyLen */
+                void* data = (uint8_t*)record + 1 + keyLen;
+                uint16_t dataLen = recordLen - 1 - keyLen;
 
                 if (!func(key, keyLen, data, dataLen, context)) {
                     free(nodeBuffer);

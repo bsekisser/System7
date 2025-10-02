@@ -233,6 +233,7 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
 /* Helper: Find folder window state slot */
 FolderWindowState* GetFolderState(WindowPtr w) {
     extern void serial_printf(const char* fmt, ...);
+    serial_printf("GetFolderState: ENTRY\n");
     if (!w) {
         serial_printf("GetFolderState: w is NULL\n");
         return NULL;
@@ -249,7 +250,7 @@ FolderWindowState* GetFolderState(WindowPtr w) {
     /* Find empty slot */
     for (int i = 0; i < MAX_FOLDER_WINDOWS; i++) {
         if (gFolderWindows[i].window == NULL) {
-            serial_printf("GetFolderState: Creating new slot %d, refCon=0x%08lX\n", i, (unsigned long)w->refCon);
+            serial_printf("GetFolderState: Creating new slot %d, refCon=0x%08x\n", i, (unsigned int)w->refCon);
             gFolderWindows[i].window = w;
             gFolderWindows[i].state.items = NULL;
             gFolderWindows[i].state.itemCount = 0;
@@ -279,7 +280,10 @@ FolderWindowState* GetFolderState(WindowPtr w) {
 
 /* Initialize folder contents from VFS */
 void InitializeFolderContents(WindowPtr w, Boolean isTrash) {
+    extern void serial_printf(const char* fmt, ...);
     FolderWindowState* state = NULL;
+
+    serial_printf("InitializeFolderContents: ENTRY, w=0x%08x isTrash=%d\n", (unsigned int)w, (int)isTrash);
 
     /* Find the state we just created */
     for (int i = 0; i < MAX_FOLDER_WINDOWS; i++) {
@@ -289,7 +293,11 @@ void InitializeFolderContents(WindowPtr w, Boolean isTrash) {
         }
     }
 
-    if (!state) return;
+    if (!state) {
+        return;
+    }
+
+    serial_printf("InitializeFolderContents: state found, getting boot vref\n");
 
     /* Get boot volume reference */
     VRefNum vref = VFS_GetBootVRef();
@@ -301,7 +309,7 @@ void InitializeFolderContents(WindowPtr w, Boolean isTrash) {
         state->currentDir = 0;  /* Special trash ID (to be defined) */
         state->itemCount = 0;
         state->items = NULL;
-        serial_printf("FW: Initialized empty trash folder\n");
+        serial_printf("InitializeFolderContents: trash folder empty\n");
     } else {
         /* Volume root - enumerate actual file system contents */
         state->currentDir = 2;  /* HFS root directory CNID is always 2 */
@@ -311,16 +319,16 @@ void InitializeFolderContents(WindowPtr w, Boolean isTrash) {
         CatEntry entries[MAX_ITEMS];
         int count = 0;
 
-        serial_printf("FW: Enumerating vref=%d dir=%d\n", vref, state->currentDir);
+        serial_printf("InitializeFolderContents: calling VFS_Enumerate\n");
 
         if (!VFS_Enumerate(vref, state->currentDir, entries, MAX_ITEMS, &count)) {
-            serial_printf("FW: VFS_Enumerate failed\n");
+            serial_printf("InitializeFolderContents: VFS_Enumerate failed\n");
             state->itemCount = 0;
             state->items = NULL;
             return;
         }
 
-        serial_printf("FW: VFS_Enumerate returned %d items\n", count);
+        serial_printf("InitializeFolderContents: VFS_Enumerate OK, count=%d\n", count);
 
         if (count == 0) {
             state->itemCount = 0;

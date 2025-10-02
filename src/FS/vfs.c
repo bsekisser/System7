@@ -177,19 +177,34 @@ VRefNum VFS_GetBootVRef(void) {
 }
 
 bool VFS_Enumerate(VRefNum vref, DirID dir, CatEntry* entries, int maxEntries, int* count) {
-    if (!g_vfs.initialized || !entries || !count) return false;
+    extern void serial_printf(const char* fmt, ...);
 
-    if (vref != g_vfs.bootVRef || !g_vfs.bootVolume.mounted) {
+    serial_printf("VFS_Enumerate: ENTRY vref=%d dir=%d maxEntries=%d\n", (int)vref, (int)dir, maxEntries);
+
+    if (!g_vfs.initialized || !entries || !count) {
+        serial_printf("VFS_Enumerate: Invalid params - init=%d entries=%08x count=%08x\n",
+                     g_vfs.initialized, (unsigned int)entries, (unsigned int)count);
         return false;
     }
 
-    /* If enumerating an empty volume, return empty list for now */
+    if (vref != g_vfs.bootVRef || !g_vfs.bootVolume.mounted) {
+        serial_printf("VFS_Enumerate: vref mismatch or not mounted - vref=%d boot=%d mounted=%d\n",
+                     (int)vref, (int)g_vfs.bootVRef, g_vfs.bootVolume.mounted);
+        return false;
+    }
+
+    /* Check if B-tree is initialized */
     if (!g_vfs.bootCatalog.bt.nodeBuffer) {
+        serial_printf("VFS_Enumerate: nodeBuffer is NULL - returning empty list\n");
         *count = 0;
         return true;
     }
 
-    return HFS_CatalogEnumerate(&g_vfs.bootCatalog, dir, entries, maxEntries, count);
+    serial_printf("VFS_Enumerate: Calling HFS_CatalogEnumerate, nodeBuffer=%08x\n",
+                 (unsigned int)g_vfs.bootCatalog.bt.nodeBuffer);
+    bool result = HFS_CatalogEnumerate(&g_vfs.bootCatalog, dir, entries, maxEntries, count);
+    serial_printf("VFS_Enumerate: HFS_CatalogEnumerate returned %d, count=%d\n", result, *count);
+    return result;
 }
 
 bool VFS_Lookup(VRefNum vref, DirID dir, const char* name, CatEntry* entry) {

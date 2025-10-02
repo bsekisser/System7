@@ -270,11 +270,83 @@ void serial_print_hex(uint32_t value) {
     }
 }
 
+/*
+ * serial_printf - Printf-like function with message filtering
+ *
+ * WHITELIST FILTERING:
+ * To reduce serial output lag and focus on relevant debugging, this function
+ * only outputs messages containing specific whitelisted strings. If the format
+ * string doesn't contain any whitelisted substring, the message is silently dropped.
+ *
+ * HOW TO ADD A NEW WHITELIST ENTRY:
+ * 1. Find the whitelist check block below (lines 290-317)
+ * 2. Add a new line: strstr(fmt, "YourDebugString") == NULL &&
+ * 3. Place it before the closing brace that contains "return;"
+ * 4. Rebuild the project
+ *
+ * CURRENT WHITELIST ENTRIES (alphabetical by category):
+ *
+ * Desktop & Icon Management:
+ *   - "Desktop icon"          : Desktop icon operations
+ *   - "DrawVolumeIcon"        : Volume icon rendering
+ *   - "Hit icon"              : Icon click detection
+ *   - "IconAtPoint"           : Icon hit testing
+ *   - "Selection"             : Icon selection state
+ *   - "Single-click"          : Single-click handling
+ *   - "TrackIconDragSync"     : Icon drag operations
+ *   - "Trash"                 : Trash folder operations
+ *   - "Volume"                : Volume-related operations
+ *
+ * Event Processing:
+ *   - "[DBLCLK"               : Double-click events (marker tag)
+ *   - "[MI]"                  : Menu item events (marker tag)
+ *   - "[PRE-IF]"              : Pre-if condition (marker tag)
+ *   - "GetNextEvent"          : Event queue polling
+ *   - "HandleDesktopClick"    : Desktop click handling
+ *   - "HandleMouseDown"       : Mouse down event handling
+ *   - "PostEvent"             : Event posting
+ *   - "WaitNextEvent"         : Event waiting
+ *
+ * Finder & File System:
+ *   - "Finder:"               : General Finder operations
+ *   - "HFS"                   : HFS file system operations
+ *   - "InitializeFolderContents" : Folder window initialization
+ *   - "read_btree_data"       : B-tree data reading
+ *   - "VFS_Enumerate"         : VFS directory enumeration
+ *
+ * Menu System:
+ *   - "MenuSelect"            : Menu selection handling
+ *
+ * Window Management:
+ *   - "[NEWWIN]"              : New window creation (marker tag)
+ *   - "[WIN_OPEN]"            : Window opening (marker tag)
+ *   - "CheckWindowsNeedingUpdate" : Window update checks
+ *   - "DoUpdate"              : Window update processing
+ *   - "DrawNew"               : New window drawing
+ *   - "PaintOne"              : Single window painting
+ *   - "ShowWindow"            : Window visibility
+ *   - "WindowManager"         : General window manager operations
+ *
+ * SUPPORTED FORMAT SPECIFIERS:
+ *   %d    - signed integer
+ *   %x    - unsigned hex (variable width)
+ *   %08x  - unsigned hex (8 digits, zero-padded)
+ *   %02x  - unsigned hex byte (2 digits, zero-padded)
+ *   %s    - null-terminated string
+ *   %c    - single character
+ *   %%    - literal % character
+ *
+ * UNSUPPORTED (will print literally):
+ *   %p    - pointer (use %08x with (unsigned int) cast instead)
+ *   %lx   - long hex (use %08x with (unsigned int) cast instead)
+ *   %lu   - long unsigned (not implemented)
+ *   %f    - float/double (not implemented)
+ */
 void serial_printf(const char* fmt, ...) {
     /* Only output critical debug messages to avoid lag */
     if (!fmt) return;
 
-    /* Only output HandleMouseDown, MenuSelect, PostEvent, HandleDesktopClick, IconAtPoint, WindowManager, and Finder messages */
+    /* WHITELIST CHECK: Message must contain at least one of these strings */
     if (strstr(fmt, "HandleMouseDown") == NULL &&
         strstr(fmt, "MenuSelect") == NULL &&
         strstr(fmt, "PostEvent") == NULL &&
@@ -301,8 +373,12 @@ void serial_printf(const char* fmt, ...) {
         strstr(fmt, "DrawNew") == NULL &&
         strstr(fmt, "WindowManager") == NULL &&
         strstr(fmt, "[MI]") == NULL &&
+        strstr(fmt, "InitializeFolderContents") == NULL &&
+        strstr(fmt, "HFS") == NULL &&
+        strstr(fmt, "read_btree_data") == NULL &&
+        strstr(fmt, "VFS_Enumerate") == NULL &&
         strstr(fmt, "Finder:") == NULL) {
-        return;
+        return;  /* Message not whitelisted - silently drop */
     }
 
     va_list args;
