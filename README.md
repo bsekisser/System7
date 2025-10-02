@@ -1,10 +1,10 @@
-# System 7 - Iteration 2
+# System 7
 
 <img width="793" height="657" alt="System 7 running on modern hardware" src="https://github.com/user-attachments/assets/be84b83e-191c-4f9d-a786-11d0bd04203b" />
 
 > ⚠️ **PROOF OF CONCEPT** - This is an experimental, educational reimplementation of Apple's Macintosh System 7. This is NOT a finished product and should not be considered production-ready software.
 
-An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardware, bootable via GRUB2/Multiboot2. This project aims to recreate the classic Mac OS experience while documenting the System 7 architecture through reverse engineering and archaeological analysis.
+An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardware, bootable via GRUB2/Multiboot2. This project aims to recreate the classic Mac OS experience while documenting the System 7 architecture through reverse engineering analysis.
 
 ## 🎯 Project Status
 
@@ -97,20 +97,19 @@ This is a proof-of-concept implementation focused on understanding and recreatin
   - Window resizing and grow box handling (stubbed)
 - **Desktop Icons**:
   - Icons render and display correctly
-  - Icon dragging implemented but has visual artifacts
-  - Double-click to open partially functional
+  - Double-click to open functional
 - **Menu Manager**:
   - Menu bar displays and tracks mouse correctly
   - Dropdown menu rendering incomplete
   - Menu selection and command dispatch stubbed
 - **Control Manager**: Framework in place, most controls not implemented
 - **Dialog Manager**: Core structure present, dialog drawing/interaction not complete
-- **File Manager**: API stubs present, full HFS operations incomplete
+- **File Manager**: Core implemented, in progress.
 
 ### Not Yet Implemented ❌
 
 - **Application Launching**: No process management or application loading
-- **Clipboard/Scrap Manager**: Copy/paste functionality absent
+- **Clipboard/Scrap Manager**: Copy/paste functionality incomplete, scrap manager implemented.
 - **List Manager**: List controls not working
 - **Sound Manager**: No audio support
 - **Printing**: No print system
@@ -145,7 +144,6 @@ This is a proof-of-concept implementation focused on understanding and recreatin
 - **140+ header files** across 26+ subsystems
 - **220+ source files** (~55,000+ lines of code)
 - **69 resource types** extracted from original System 7.1
-- **57 documented archaeological findings** with Inside Macintosh citations
 - **Performance targets achieved**:
   - Timer drift: <100 ppm (target met)
   - Timer precision: ±10 µs (target met)
@@ -180,7 +178,6 @@ iteration2/
 │   └── PS2Controller.c         # Hardware input driver
 ├── include/                    # Public headers (Inside Mac API)
 ├── docs/                       # Archaeological documentation
-│   ├── ARCHAEOLOGY.md          # 57 documented findings with citations
 │   ├── WM_STATUS_REPORT.md     # Window Manager implementation status
 │   └── WM_RESTRUCTURE_PLAN.md  # Architecture planning docs
 └── System_Resources_Extracted/ # Original System 7.1 resources
@@ -261,16 +258,6 @@ qemu-system-i386 -cdrom system71.iso \
 2. Boot from USB with legacy BIOS (not UEFI)
 3. Serial output available on COM1 (115200 baud) if available
 
-## 📚 Documentation
-
-### For Developers
-
-- **[ARCHAEOLOGY.md](docs/ARCHAEOLOGY.md)**: 57 documented findings with Inside Macintosh citations and archaeological evidence for every implementation decision
-- **[WM_STATUS_REPORT.md](docs/WM_STATUS_REPORT.md)**: Detailed Window Manager implementation status (94% error-free)
-- **[WINDOW_OPENING_ISSUE.md](WINDOW_OPENING_ISSUE.md)**: Event Manager refactoring documentation
-- **[ICON_SYSTEM_IMPLEMENTATION.md](ICON_SYSTEM_IMPLEMENTATION.md)**: Icon system architecture guide
-- **[docs/WM_RESTRUCTURE_PLAN.md](docs/WM_RESTRUCTURE_PLAN.md)**: Window Manager architecture planning
-
 ### Implementation Philosophy
 
 This project follows an **archaeological approach** to reimplementation:
@@ -310,11 +297,7 @@ This project serves as:
 This is primarily a learning/research project, but contributions are welcome:
 
 1. **Bug Reports**: File issues with detailed reproduction steps
-2. **Documentation**: Help improve archaeological documentation with citations
 3. **Testing**: Test on different hardware/emulators and report results
-4. **Implementation**: Submit PRs with proper `[WM-###]` style findings documentation
-
-**Important**: All contributions must maintain the archaeological approach with proper citations and evidence.
 
 ## 📖 Resources
 
@@ -363,7 +346,6 @@ This project exists for:
 - **Compilation Time**: ~3-5 seconds on modern hardware
 - **Kernel Size**: ~900KB (kernel.elf)
 - **ISO Size**: ~12.5MB (system71.iso)
-- **Documented Findings**: 57 with full provenance
 - **Error Reduction**: 94% (30 of 32 Window Manager errors resolved)
 - **New Managers Added**: 3 (Gestalt, enhanced Resource, production Time Manager)
 
@@ -372,8 +354,7 @@ This project exists for:
 This project is in **active development** with no guaranteed timeline. Planned work includes:
 
 **Short Term** (Proof of Concept Completion):
-- Implement menu dropdown display
-- Fix desktop icon drag artifacts
+- Fix desktop artifacts
 - Debug window close crash issue
 - Complete window resizing functionality
 
@@ -391,7 +372,6 @@ This project is in **active development** with no guaranteed timeline. Planned w
 
 **Stretch Goals** (Full System):
 - Sound Manager with sample playback
-- Printing system (PostScript generation)
 - AppleTalk networking stack
 - Color QuickDraw with 8-bit palette support
 
