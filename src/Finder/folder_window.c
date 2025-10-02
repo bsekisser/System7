@@ -441,6 +441,11 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
     serial_printf("FW: TrackFolderItemDrag: item %d '%s' from global (%d,%d)\n",
                  itemIndex, state->items[itemIndex].name, startGlobal.h, startGlobal.v);
 
+    /* Ensure window port is set for GetMouse calls */
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort((GrafPtr)w);
+
     /* Wait for drag threshold or button release */
     Point last = startGlobal, cur;
     extern void ProcessModernInput(void);
@@ -540,12 +545,14 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
             state->isDragging = false;
             state->draggingIndex = -1;
 
+            SetPort(savePort);
             return true;  /* Drag occurred */
         }
     }
 
     /* Button released before threshold - treat as click */
     serial_printf("FW: Button released before threshold - treating as click\n");
+    SetPort(savePort);
     return false;
 }
 
