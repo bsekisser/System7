@@ -822,59 +822,86 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     SetPort(savePort);
     serial_printf("TrackIconDragSync: drag complete, ghost erased\n");
 
-    /* Check if dropped on trash */
+    /* Determine drop target and action */
     Point dropPoint = (Point){ .h = ghost.left + 20 + 16, .v = ghost.top + 16 };  /* Icon center */
+    DesktopItem* item = &gDesktopIcons[iconIndex];
+    Boolean operationSucceeded = false;
+    Boolean invalidDrop = false;
+
+    /* Get modifier keys to determine action (option = alias, cmd = copy) */
+    extern void GetKeys(KeyMap theKeys);
+    KeyMap keys;
+    GetKeys(keys);
+    /* Check for option key (0x3A = option key scancode, byte 7, bit 2) */
+    Boolean optionKeyDown = (keys[7] & 0x04) != 0;
+    Boolean cmdKeyDown = (keys[7] & 0x80) != 0;  /* Cmd key */
+
+    serial_printf("TrackIconDragSync: Modifiers - option=%d cmd=%d\n", optionKeyDown, cmdKeyDown);
+
+    /* Check drop targets in priority order */
     Boolean droppedOnTrash = Desktop_IsOverTrash(dropPoint);
 
-    if (droppedOnTrash && iconIndex != 0) {  /* Can't trash the trash itself */
+    if (droppedOnTrash && iconIndex != 0 && item->type != kDesktopItemVolume) {
+        /* DROP TARGET: Trash - always move to trash folder with name conflict resolution */
         serial_printf("TrackIconDragSync: Dropped on trash! Moving to trash folder\n");
 
-        /* Get the icon's file info */
-        DesktopItem* item = &gDesktopIcons[iconIndex];
-
-        /* Move to trash using VFS/Trash system */
         extern bool Trash_MoveNode(VRefNum vref, DirID parent, FileID id);
         extern VRefNum VFS_GetBootVRef(void);
 
-        /* For desktop items, we need to get their actual FileID */
-        /* Volume icon has special iconID, files/folders have their FileID */
-        if (item->type == kDesktopItemVolume) {
-            serial_printf("TrackIconDragSync: Cannot trash volume icon\n");
-        } else if (item->iconID != 0xFFFFFFFF) {
-            /* Regular file/folder with FileID */
+        if (item->iconID != 0xFFFFFFFF) {
             VRefNum vref = VFS_GetBootVRef();
-
-            /* iconID is the FileID for desktop items */
             if (Trash_MoveNode(vref, HFS_ROOT_DIR_ID, item->iconID)) {
                 serial_printf("TrackIconDragSync: Successfully moved to trash\n");
+                operationSucceeded = true;
 
-                /* Remove from desktop array (shift remaining items down) */
+                /* Remove from desktop array */
                 for (short i = iconIndex; i < gDesktopIconCount - 1; i++) {
                     gDesktopIcons[i] = gDesktopIcons[i + 1];
                 }
                 gDesktopIconCount--;
-
-                /* Clear selection */
                 gSelectedIcon = -1;
             } else {
-                serial_printf("TrackIconDragSync: Failed to move to trash\n");
+                serial_printf("TrackIconDragSync: Trash operation failed\n");
             }
         }
+    } else if (droppedOnTrash && (iconIndex == 0 || item->type == kDesktopItemVolume)) {
+        /* Cannot trash the trash itself or volume icons */
+        serial_printf("TrackIconDragSync: Cannot trash this item\n");
+        invalidDrop = true;
     } else {
-        /* Commit new position (ghost matches icon bounds, +20 label inset) */
-        if (gDesktopIcons[iconIndex].movable) {
-            /* Ghost rect is expanded 20px left for label, so add 20 to get icon left edge */
-            /* NOTE: Point struct is {v, h} in Classic Mac OS! */
-            Point snapped = (Point){ .h = ghost.left + 20, .v = ghost.top };
-            snapped = SnapToGrid(snapped);
-            serial_printf("TrackIconDragSync: ghost final=(%d,%d,%d,%d), icon pos before snap=(%d,%d), after snap=(%d,%d)\n",
-                         ghost.left, ghost.top, ghost.right, ghost.bottom,
-                         ghost.left + 20, ghost.top, snapped.h, snapped.v);
-            gDesktopIcons[iconIndex].position = snapped;
-            serial_printf("TrackIconDragSync: committed position (%d,%d)\n", snapped.h, snapped.v);
+        /* DROP TARGET: Desktop or folder window */
+        /* For now, desktop drops just reposition the icon */
+        /* TODO: Check for folder window drops and implement move/copy logic */
+
+        if (optionKeyDown) {
+            /* Option key: create alias (stubbed for now) */
+            serial_printf("TrackIconDragSync: Option key - would create alias\n");
+            /* TODO: Implement alias creation */
+            invalidDrop = true;  /* Treat as invalid until implemented */
+        } else if (cmdKeyDown) {
+            /* Cmd key: force copy (stubbed for now) */
+            serial_printf("TrackIconDragSync: Cmd key - would force copy\n");
+            /* TODO: Implement copy operation */
+            invalidDrop = true;  /* Treat as invalid until implemented */
         } else {
-            serial_printf("TrackIconDragSync: non-movable item, no position save\n");
+            /* No modifiers: default behavior (move on same volume) */
+            if (gDesktopIcons[iconIndex].movable) {
+                Point snapped = (Point){ .h = ghost.left + 20, .v = ghost.top };
+                snapped = SnapToGrid(snapped);
+                gDesktopIcons[iconIndex].position = snapped;
+                serial_printf("TrackIconDragSync: Repositioned to (%d,%d)\n", snapped.h, snapped.v);
+                operationSucceeded = true;
+            }
         }
+    }
+
+    /* Handle operation result */
+    if (invalidDrop) {
+        /* Invalid drop: beep and restore to original position */
+        serial_printf("TrackIconDragSync: Invalid drop - would beep here\n");
+        extern void SysBeep(short duration);
+        SysBeep(1);  /* System beep */
+        /* Icon position already unchanged for invalid drops */
     }
 
     /* Post updateEvt to defer desktop redraw (no reentrancy) */
