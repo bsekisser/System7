@@ -76,10 +76,10 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
     /* Calculate content area in LOCAL coordinates */
     /* Content = full port minus title bar (20px) */
     Rect contentRect;
-    contentRect.left = 0;
+    contentRect.left = localBounds.left;
     contentRect.top = 20;  /* Skip title bar */
-    contentRect.right = localBounds.right - localBounds.left;
-    contentRect.bottom = localBounds.bottom - localBounds.top;
+    contentRect.right = localBounds.right;
+    contentRect.bottom = localBounds.bottom;
 
     serial_printf("Finder: portRect (local) = (%d,%d,%d,%d)\n",
                   localBounds.left, localBounds.top, localBounds.right, localBounds.bottom);
