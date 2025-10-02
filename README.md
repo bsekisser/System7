@@ -12,6 +12,7 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Recent Updates
 
+- ✅ **Icon Rendering Fixed**: Full-height 32x32 folder/document icons, restored "Trash is empty" message
 - ✅ **Folder Window Icons Fixed**: Correct vertical positioning in folder windows, proper coordinate transformation
 - ✅ **Window Close Cleanup**: Fixed crash when closing folder windows by adding proper state cleanup
 - ✅ **Window Dragging Restored**: XOR mode implementation for drag outlines, smooth window repositioning
