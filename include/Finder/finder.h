@@ -23,6 +23,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "EventManager/EventTypes.h"  /* Include before WindowTypes.h to avoid activeFlag conflict */
 #include "WindowManager/WindowTypes.h"
+#include "FS/hfs_types.h"  /* For VRefNum, FileID */
 
 /* Finder Flag Constants - Evidence: Finder.h interface definitions */
 #define kIsOnDesk               0x0001      /* Item is positioned on desktop */
@@ -72,6 +73,7 @@ OSErr CleanUpDesktop(void);
 OSErr RebuildDesktopFile(short vRefNum);
 OSErr GetDesktopIconPosition(FSSpec *item, Point *position);
 OSErr SetDesktopIconPosition(FSSpec *item, Point position);
+OSErr Desktop_AddAliasIcon(const char* name, Point position, FileID targetID, VRefNum vref, Boolean isFolder);
 Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick);
 
 /* File Manager API - Evidence: "Do you want to copy", "Items from ^1 disks cannot be moved" */

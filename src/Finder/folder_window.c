@@ -11,6 +11,7 @@
 #include "Finder/Icon/icon_types.h"
 #include "Finder/Icon/icon_label.h"
 #include "Finder/Icon/icon_system.h"
+#include "Finder/finder.h"
 #include "FS/vfs.h"
 #include "FS/hfs_types.h"
 #include <string.h>
@@ -33,6 +34,7 @@ extern OSErr PostEvent(EventKind eventNum, UInt32 eventMsg);
 extern QDGlobals qd;
 extern void GetMouse(Point* pt);
 extern volatile UInt8 gCurrentButtons;
+extern short FindWindow(Point thePoint, WindowPtr* theWindow);
 
 /* Drag threshold for distinguishing clicks from drags */
 #define kDragThreshold 4
@@ -448,17 +450,35 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
                          state->vref,
                          state->currentDir);
 
-            /* For Phase 2, we just detect and log the drag
-             * Phase 3 will implement drop-to-desktop
-             * Phase 4 will implement drop-to-trash
-             * For now, consume the drag and return */
-
-            /* Wait for button release */
+            /* Wait for button release and track final position */
             while ((gCurrentButtons & 1) != 0) {
                 GetMouse(&cur);
             }
 
             serial_printf("FW: Drag ended at global (%d,%d)\n", cur.h, cur.v);
+
+            /* Phase 3: Detect drop-to-desktop and create alias */
+            WindowPtr hitWindow = NULL;
+            short partCode = FindWindow(cur, &hitWindow);
+
+            if (partCode == inDesk) {
+                /* Dropped on desktop - create alias */
+                FolderItem* item = &state->items[itemIndex];
+                Boolean isFolder = item->isFolder;
+
+                serial_printf("FW: DROP TO DESKTOP detected - creating alias for '%s'\n", item->name);
+
+                OSErr err = Desktop_AddAliasIcon(item->name, cur, item->fileID,
+                                                state->vref, isFolder);
+
+                if (err == noErr) {
+                    serial_printf("FW: Alias created successfully on desktop\n");
+                } else {
+                    serial_printf("FW: ERROR: Desktop_AddAliasIcon failed with error %d\n", err);
+                }
+            } else {
+                serial_printf("FW: Dropped over window (partCode=%d) - not creating alias\n", partCode);
+            }
 
             /* Clear drag state */
             state->isDragging = false;

@@ -1052,6 +1052,61 @@ OSErr InitializeVolumeIcon(void)
 }
 
 /*
+ * Desktop_AddAliasIcon - Add an alias icon to the desktop (PUBLIC API)
+ * Creates a desktop alias/shortcut pointing to a file or folder
+ *
+ * Parameters:
+ *   name      - Display name for the alias
+ *   position  - Position on desktop (global coordinates)
+ *   targetID  - FileID of the target file/folder
+ *   vref      - Volume reference containing the target
+ *   isFolder  - true if target is a folder, false for file
+ *
+ * Returns: OSErr (noErr on success)
+ */
+OSErr Desktop_AddAliasIcon(const char* name, Point position, FileID targetID,
+                           VRefNum vref, Boolean isFolder) {
+    if (!name || gDesktopIconCount >= kMaxDesktopIcons) {
+        return paramErr;
+    }
+
+    serial_printf("Desktop_AddAliasIcon: Creating alias '%s' at (%d,%d), targetID=%d, vref=%d\n",
+                 name, position.h, position.v, targetID, vref);
+
+    /* Add to desktop icons array */
+    DesktopItem* item = &gDesktopIcons[gDesktopIconCount];
+
+    item->type = isFolder ? kDesktopItemFolder : kDesktopItemAlias;
+    item->iconID = targetID;  /* Use FileID as iconID */
+    item->position = position;
+    item->movable = true;  /* Aliases are movable */
+
+    /* Copy name (ensure null termination) */
+    size_t nameLen = strlen(name);
+    if (nameLen >= 64) nameLen = 63;
+    memcpy(item->name, name, nameLen);
+    item->name[nameLen] = '\0';
+
+    /* Store alias-specific data */
+    if (isFolder) {
+        item->data.folder.dirID = (long)targetID;
+    } else {
+        item->data.alias.targetID = (long)targetID;
+    }
+
+    gDesktopIconCount++;
+
+    serial_printf("Desktop_AddAliasIcon: Added alias at index %d, total icons now = %d\n",
+                 gDesktopIconCount - 1, gDesktopIconCount);
+
+    /* Request desktop redraw */
+    extern OSErr PostEvent(EventKind eventNum, UInt32 eventMsg);
+    PostEvent(updateEvt, 0);  /* 0 = desktop update */
+
+    return noErr;
+}
+
+/*
  * DrawVolumeIcon - Draw the boot volume icon on desktop using universal icon system
  */
 void DrawVolumeIcon(void)
@@ -1470,7 +1525,7 @@ void OpenSelectedDesktopIcon(void)
         Rect windowBounds;
         SetRect(&windowBounds, 200, 120, 600, 420);
 
-        WindowPtr trashWindow = NewWindow(NULL, &windowBounds,
+        WindowPtr trashWindow = (WindowPtr)NewWindow(NULL, &windowBounds,
                                          "\pTrash",
                                          true,  /* visible */
                                          0,     /* documentProc */
