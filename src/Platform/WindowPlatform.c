@@ -591,16 +591,21 @@ void Platform_GetRegionBounds(RgnHandle rgn, Rect* bounds) {
 void Platform_MoveNativeWindow(WindowPtr window, short h, short v) {
     if (window) {
         /* CRITICAL: portRect must ALWAYS stay in LOCAL coordinates (0,0,width,height)!
-         * Only update portBits.bounds to map local coords to new global screen position */
+         * Only update portBits.bounds to map local coords to new global screen position
+         *
+         * IMPORTANT: h,v are WINDOW FRAME coords, but portBits.bounds must map to CONTENT area!
+         * Content area starts 21px down from frame (20px title + 1px separator) */
+        const short kBorder = 1, kTitle = 20, kSeparator = 1;
+
         short width = window->port.portRect.right - window->port.portRect.left;
         short height = window->port.portRect.bottom - window->port.portRect.top;
 
         /* portRect stays local - DO NOT modify it! */
-        /* Only update portBits.bounds to new global position */
-        window->port.portBits.bounds.left = h;
-        window->port.portBits.bounds.top = v;
-        window->port.portBits.bounds.right = h + width;
-        window->port.portBits.bounds.bottom = v + height;
+        /* portBits.bounds maps local (0,0) to global content area position */
+        window->port.portBits.bounds.left = h + kBorder;
+        window->port.portBits.bounds.top = v + kTitle + kSeparator;
+        window->port.portBits.bounds.right = h + kBorder + width;
+        window->port.portBits.bounds.bottom = v + kTitle + kSeparator + height;
 
         Platform_CalculateWindowRegions(window);
     }

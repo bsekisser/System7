@@ -272,27 +272,27 @@ static void InitializeFolderContents(WindowPtr w, Boolean isTrash) {
             strcpy(state->items[0].name, "System Folder");
             state->items[0].isFolder = true;
             state->items[0].position.h = 80;
-            state->items[0].position.v = 50;  /* contentRect.top + 30 */
+            state->items[0].position.v = 30;  /* 30px from content area top */
 
             strcpy(state->items[1].name, "Applications");
             state->items[1].isFolder = true;
             state->items[1].position.h = 180;
-            state->items[1].position.v = 50;
+            state->items[1].position.v = 30;
 
             strcpy(state->items[2].name, "Documents");
             state->items[2].isFolder = true;
             state->items[2].position.h = 280;
-            state->items[2].position.v = 50;
+            state->items[2].position.v = 30;
 
             strcpy(state->items[3].name, "ReadMe.txt");
             state->items[3].isFolder = false;
             state->items[3].position.h = 80;
-            state->items[3].position.v = 140;  /* Second row */
+            state->items[3].position.v = 120;  /* Second row */
 
             strcpy(state->items[4].name, "About System 7");
             state->items[4].isFolder = false;
             state->items[4].position.h = 180;
-            state->items[4].position.v = 140;
+            state->items[4].position.v = 120;
         }
     }
 }
@@ -471,9 +471,11 @@ void FolderWindow_Draw(WindowPtr w) {
                   w->port.portBits.bounds.top, w->port.portBits.bounds.left,
                   w->port.portBits.bounds.bottom, w->port.portBits.bounds.right);
 
-    /* Draw white background (contentRect only, skip title bar) */
+    /* Draw white background for content area
+     * NOTE: portBits.bounds is already set to content area top (not window top)
+     * by Platform_InitializeWindowPort (gFrame.top + kTitle + kSeparator)
+     * So portRect local coord 0 maps to content area top, not title bar! */
     Rect contentRect = w->port.portRect;
-    contentRect.top = 20;  /* Skip title bar */
     EraseRect(&contentRect);
     serial_printf("FW: Erased content area\n");
 

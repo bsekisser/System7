@@ -2252,7 +2252,9 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
             /* Got an event - dispatch it */
             serial_printf("MAIN: GetNextEvent -> 1, what=%d at (%d,%d)\n",
                          evt.what, evt.where.h, evt.where.v);
+            serial_printf("MAIN: About to call DispatchEvent(&evt) where evt.what=%d\n", evt.what);
             DispatchEvent(&evt);
+            serial_printf("MAIN: DispatchEvent returned\n");
         } else {
             /* No events - yield to other processes */
             Proc_Yield();

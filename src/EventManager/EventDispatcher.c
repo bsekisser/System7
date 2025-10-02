@@ -89,14 +89,17 @@ void InitEventDispatcher(void)
 Boolean DispatchEvent(EventRecord* event)
 {
     extern void serial_puts(const char* s);
+    extern void serial_printf(const char* fmt, ...);
+
+    serial_printf("[DISP] >>> DispatchEvent ENTRY event=%p\n", event);
 
     if (!event || !g_dispatcher.initialized) {
-        serial_puts("[DISP] Early return\n");
+        serial_printf("[DISP] Early return: event=%p, init=%d\n", event, g_dispatcher.initialized);
         return false;
     }
 
     /* Entry log for all events */
-    serial_puts("[DISP] DispatchEvent called\n");
+    serial_printf("[DISP] DispatchEvent: event->what=%d\n", event->what);
 
     switch (event->what) {
         case nullEvent:
@@ -116,6 +119,7 @@ Boolean DispatchEvent(EventRecord* event)
             return HandleKeyUp(event);
 
         case updateEvt:
+            serial_printf("[DISP] Case updateEvt reached, calling HandleUpdate\n");
             return HandleUpdate(event);
 
         case activateEvt:
@@ -459,6 +463,7 @@ Boolean HandleKeyUp(EventRecord* event)
  */
 Boolean HandleUpdate(EventRecord* event)
 {
+    serial_printf("[HandleUpdate] ENTRY, event=%p\n", event);
     WindowPtr updateWindow = (WindowPtr)(event->message);
 
     serial_printf("HandleUpdate: window=0x%08x\n", (unsigned int)updateWindow);

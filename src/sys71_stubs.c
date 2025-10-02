@@ -492,24 +492,22 @@ void MoveWindow(WindowPtr window, short h, short v, Boolean front) {
 
     /* CRITICAL: portRect should ALWAYS stay in LOCAL coordinates (0,0,width,height)!
      * Only portBits.bounds changes to map local coords to global screen position.
-     * This stub was incorrectly setting portRect to global coords, causing the
-     * coordinate system bug where window contents rendered at wrong locations. */
+     *
+     * IMPORTANT: h,v are WINDOW FRAME coords, but portBits.bounds must map to CONTENT area!
+     * Content area starts 21px down from frame (20px title + 1px separator) */
+    const short kBorder = 1, kTitle = 20, kSeparator = 1;
 
     GrafPort* port = (GrafPort*)window;
     short width = port->portRect.right - port->portRect.left;
     short height = port->portRect.bottom - port->portRect.top;
 
     /* portRect stays local - DO NOT modify it */
-    /* port->portRect.left = h; */       /* WRONG - breaks coordinate system */
-    /* port->portRect.top = v; */        /* WRONG - breaks coordinate system */
-    /* port->portRect.right = h + width; */   /* WRONG - breaks coordinate system */
-    /* port->portRect.bottom = v + height; */ /* WRONG - breaks coordinate system */
 
-    /* Instead, update portBits.bounds to map local to new global position */
-    port->portBits.bounds.left = h;
-    port->portBits.bounds.top = v;
-    port->portBits.bounds.right = h + width;
-    port->portBits.bounds.bottom = v + height;
+    /* portBits.bounds maps local (0,0) to global content area position */
+    port->portBits.bounds.left = h + kBorder;
+    port->portBits.bounds.top = v + kTitle + kSeparator;
+    port->portBits.bounds.right = h + kBorder + width;
+    port->portBits.bounds.bottom = v + kTitle + kSeparator + height;
 
     if (front) {
         SelectWindow(window);
