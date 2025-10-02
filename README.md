@@ -12,6 +12,14 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Recent Updates
 
+- ✅ **Drag-Drop System Implementation**: Complete drag-drop with modifier key support
+  - Option key creates aliases, Cmd key forces copy, cross-volume auto-copy
+  - Folder window drops, desktop drops, and trash integration
+  - VFS operations for move, copy, delete with unique name generation
+- ✅ **Modal Drag Loop Freeze Fix**: Fixed desktop and folder window drag freezes
+  - Root cause: `gCurrentButtons` not updated during modal drag loops
+  - Added `ProcessModernInput()` calls to update button state during drag
+  - Desktop icons and folder items now drag/release correctly
 - ✅ **HFS B-tree Catalog Fixed**: Folder windows now display file system contents correctly
   - Root cause: B-tree node size (512 bytes) too small for 7 initial catalog entries (~644 bytes)
   - Buffer overflow was corrupting offset table, making entries unreadable
