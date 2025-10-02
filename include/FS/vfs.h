@@ -15,6 +15,16 @@ void VFS_Shutdown(void);
 /* Mount the boot volume */
 bool VFS_MountBootVolume(const char* volName);
 
+/* Mount a volume from an ATA device */
+bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref);
+
+/* Unmount a volume */
+bool VFS_Unmount(VRefNum vref);
+
+/* Volume mount notification callback */
+typedef void (*VFS_MountCallback)(VRefNum vref, const char* volName);
+void VFS_SetMountCallback(VFS_MountCallback callback);
+
 /* Populate initial file system contents */
 bool VFS_PopulateInitialFiles(void);
 

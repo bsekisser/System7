@@ -1208,6 +1208,97 @@ OSErr InitializeVolumeIcon(void)
 }
 
 /*
+ * Desktop_AddVolumeIcon - Add a volume icon to the desktop
+ * Called when a new volume is mounted
+ *
+ * Parameters:
+ *   name - Volume name to display
+ *   vref - Volume reference number
+ *
+ * Returns: OSErr (noErr on success)
+ */
+OSErr Desktop_AddVolumeIcon(const char* name, VRefNum vref) {
+    extern uint32_t fb_width, fb_height;
+
+    if (!name || gDesktopIconCount >= kMaxDesktopIcons) {
+        return paramErr;
+    }
+
+    /* Ensure desktop icons array is allocated */
+    if (gDesktopIcons == nil) {
+        OSErr err = AllocateDesktopIcons();
+        if (err != noErr) return err;
+    }
+
+    /* Calculate position (stack volumes on right side) */
+    /* Count existing volume icons to calculate Y position */
+    int volumeCount = 0;
+    for (int i = 0; i < gDesktopIconCount; i++) {
+        if (gDesktopIcons[i].type == kDesktopItemVolume) {
+            volumeCount++;
+        }
+    }
+
+    /* Add volume icon */
+    DesktopItem* item = &gDesktopIcons[gDesktopIconCount];
+    item->type = kDesktopItemVolume;
+    item->iconID = 0xFFFFFFFF; /* Special ID for volume */
+    item->position.h = fb_width - 100;
+    item->position.v = 60 + (volumeCount * 80); /* Stack vertically */
+    strncpy(item->name, name, sizeof(item->name) - 1);
+    item->name[sizeof(item->name) - 1] = '\0';
+    item->movable = true;
+    item->data.volume.vRefNum = vref;
+
+    serial_printf("Desktop_AddVolumeIcon: Added '%s' (vRef %d) at index %d, pos=(%d,%d)\n",
+                  name, vref, gDesktopIconCount, item->position.h, item->position.v);
+
+    gDesktopIconCount++;
+
+    /* Desktop will be redrawn on next event loop iteration */
+
+    return noErr;
+}
+
+/*
+ * Desktop_RemoveVolumeIcon - Remove a volume icon from the desktop
+ * Called when a volume is unmounted
+ *
+ * Parameters:
+ *   vref - Volume reference number to remove
+ *
+ * Returns: OSErr (noErr on success)
+ */
+OSErr Desktop_RemoveVolumeIcon(VRefNum vref) {
+    if (!gDesktopIcons) {
+        return paramErr;
+    }
+
+    /* Find the volume icon */
+    for (int i = 0; i < gDesktopIconCount; i++) {
+        if (gDesktopIcons[i].type == kDesktopItemVolume &&
+            gDesktopIcons[i].data.volume.vRefNum == vref) {
+
+            serial_printf("Desktop_RemoveVolumeIcon: Removing volume icon for vRef %d at index %d\n", vref, i);
+
+            /* Shift remaining icons down */
+            for (int j = i; j < gDesktopIconCount - 1; j++) {
+                gDesktopIcons[j] = gDesktopIcons[j + 1];
+            }
+
+            gDesktopIconCount--;
+
+            /* Desktop will be redrawn on next event loop iteration */
+
+            return noErr;
+        }
+    }
+
+    serial_printf("Desktop_RemoveVolumeIcon: Volume icon for vRef %d not found\n", vref);
+    return fnfErr; /* Not found */
+}
+
+/*
  * Desktop_AddAliasIcon - Add an alias icon to the desktop (PUBLIC API)
  * Creates a desktop alias/shortcut pointing to a file or folder
  *
@@ -1302,11 +1393,7 @@ Boolean Desktop_IsOverTrash(Point where) {
 void DrawVolumeIcon(void)
 {
     static Boolean gInVolumeIconPaint = false;
-    Point volumePos = {0, 0};
-    VolumeControlBlock vcb;
-    char volumeName[256];
     IconHandle iconHandle;
-    FileKind fk = {0};
 
     extern void serial_printf(const char* fmt, ...);
     serial_printf("DrawVolumeIcon: ENTRY\n");
@@ -1327,60 +1414,24 @@ void DrawVolumeIcon(void)
         return;
     }
 
-    serial_printf("DrawVolumeIcon: Finding volume position\n");
-    /* Find volume icon in desktop array */
+    serial_printf("DrawVolumeIcon: Drawing all desktop items\n");
+
+    /* Draw all desktop items */
     for (int i = 0; i < gDesktopIconCount; i++) {
         if (gDesktopIcons[i].type == kDesktopItemVolume) {
-            volumePos = gDesktopIcons[i].position;
-            break;
-        }
-    }
+            /* Draw volume icon */
+            serial_printf("DrawVolumeIcon: Drawing volume at index %d, pos=(%d,%d)\n",
+                         i, gDesktopIcons[i].position.h, gDesktopIcons[i].position.v);
 
-    serial_printf("DrawVolumeIcon: Getting volume name\n");
-    /* Get volume name */
-    if (VFS_GetVolumeInfo(gBootVolumeRef, &vcb)) {
-        size_t len = strlen(vcb.name);
-        if (len > 255) len = 255;
-        memcpy(volumeName, vcb.name, len);
-        volumeName[len] = '\0';
-    } else {
-        memcpy(volumeName, "Macintosh HD", 13);
-    }
+            iconHandle.fam = IconSys_DefaultVolume();
+            iconHandle.selected = (gSelectedIcon == i);
 
-    serial_printf("DrawVolumeIcon: Setting up icon handle\n");
-    /* Setup FileKind for volume */
-    fk.isVolume = true;
-    fk.isFolder = false;
-    fk.type = 0;
-    fk.creator = 0;
-    fk.hasCustomIcon = false;
-    fk.path = NULL;
-
-    /* Get icon handle for volume - this will use the default HD icon */
-    iconHandle.fam = IconSys_DefaultVolume();
-    /* Check if this icon is selected (find its index) */
-    Boolean isSelected = false;
-    for (int j = 0; j < gDesktopIconCount; j++) {
-        if (gDesktopIcons[j].type == kDesktopItemVolume && gSelectedIcon == j) {
-            isSelected = true;
-            break;
-        }
-    }
-    iconHandle.selected = isSelected;
-
-    serial_printf("DrawVolumeIcon: About to call Icon_DrawWithLabelOffset\n");
-    /* Draw icon with label using universal system (desktop icons use tighter spacing) */
-    Icon_DrawWithLabelOffset(&iconHandle, volumeName,
-                      volumePos.h + 16,  /* Center X (icon is 32px wide) */
-                      volumePos.v,        /* Top Y */
-                      34,                 /* Label offset (tighter for desktop) */
-                      isSelected);        /* Selection state */
-    serial_printf("DrawVolumeIcon: Icon_DrawWithLabelOffset returned\n");
-
-    /* Draw all other desktop items */
-    serial_printf("DrawVolumeIcon: Drawing other desktop items\n");
-    for (int i = 0; i < gDesktopIconCount; i++) {
-        if (gDesktopIcons[i].type == kDesktopItemTrash) {
+            Icon_DrawWithLabelOffset(&iconHandle, gDesktopIcons[i].name,
+                                    gDesktopIcons[i].position.h + 16,  /* Center X */
+                                    gDesktopIcons[i].position.v,        /* Top Y */
+                                    34,                                 /* Label offset */
+                                    iconHandle.selected);
+        } else if (gDesktopIcons[i].type == kDesktopItemTrash) {
             /* Draw trash icon */
             extern const IconFamily* IconSys_TrashEmpty(void);
             extern const IconFamily* IconSys_TrashFull(void);

@@ -3,9 +3,18 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+/* Block device types */
+typedef enum {
+    HFS_BD_TYPE_MEMORY = 0,    /* Memory-based (RAM disk) */
+    HFS_BD_TYPE_FILE,          /* File-based (hosted) */
+    HFS_BD_TYPE_ATA            /* ATA/IDE disk */
+} HFS_BD_Type;
+
 /* Block device abstraction */
 typedef struct {
-    void*    data;          /* Memory-mapped image or file handle */
+    HFS_BD_Type type;       /* Device type */
+    void*    data;          /* Memory-mapped image or file handle (for MEMORY/FILE) */
+    int      ata_device;    /* ATA device index (for ATA type) */
     uint64_t size;          /* Total size in bytes */
     uint32_t sectorSize;    /* Sector size (typically 512) */
     bool     readonly;      /* Read-only flag */
@@ -16,6 +25,9 @@ bool HFS_BD_InitMemory(HFS_BlockDev* bd, void* buffer, uint64_t size);
 
 /* Initialize block device from file path */
 bool HFS_BD_InitFile(HFS_BlockDev* bd, const char* path, bool readonly);
+
+/* Initialize block device from ATA drive */
+bool HFS_BD_InitATA(HFS_BlockDev* bd, int device_index, bool readonly);
 
 /* Read from block device */
 bool HFS_BD_Read(HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t length);

@@ -385,7 +385,8 @@ void serial_printf(const char* fmt, ...) {
         strstr(fmt, "PCSpkr") == NULL &&
         strstr(fmt, "SysBeep") == NULL &&
         strstr(fmt, "Startup") == NULL &&
-        strstr(fmt, "MM:") == NULL) {
+        strstr(fmt, "MM:") == NULL &&
+        strstr(fmt, "ATA:") == NULL) {
         return;  /* Message not whitelisted - silently drop */
     }
 

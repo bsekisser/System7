@@ -74,6 +74,8 @@ OSErr RebuildDesktopFile(short vRefNum);
 OSErr GetDesktopIconPosition(FSSpec *item, Point *position);
 OSErr SetDesktopIconPosition(FSSpec *item, Point position);
 OSErr Desktop_AddAliasIcon(const char* name, Point position, FileID targetID, VRefNum vref, Boolean isFolder);
+OSErr Desktop_AddVolumeIcon(const char* name, VRefNum vref);
+OSErr Desktop_RemoveVolumeIcon(VRefNum vref);
 Boolean Desktop_IsOverTrash(Point where);
 Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick);
 

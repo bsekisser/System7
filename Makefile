@@ -70,6 +70,7 @@ C_SOURCES = src/main.c \
             src/QuickDraw/Regions.c \
             src/Platform/WindowPlatform.c \
             src/Platform/x86_io.c \
+            src/Platform/ATA_Driver.c \
             src/SoundManager/SoundManagerBareMetal.c \
             src/SoundManager/SoundHardwarePC.c \
             src/MenuManager/MenuManagerCore.c \
@@ -452,12 +453,12 @@ $(ISO): $(KERNEL)
 
 # Run with QEMU (PC speaker with PulseAudio backend)
 run: $(ISO)
-	qemu-system-i386 -cdrom $(ISO) -m 1024 -vga std -serial file:/tmp/serial.log \
+	qemu-system-i386 -cdrom $(ISO) -drive file=test_disk.img,format=raw,if=ide -m 1024 -vga std -serial file:/tmp/serial.log \
 		-audiodev pa,id=snd0,server=/run/user/$(shell id -u)/pulse/native -machine pcspk-audiodev=snd0
 
 # Debug with QEMU
 debug: $(ISO)
-	qemu-system-i386 -cdrom $(ISO) -m 1024 -vga std -s -S
+	qemu-system-i386 -cdrom $(ISO) -drive file=test_disk.img,format=raw,if=ide -m 1024 -vga std -s -S
 
 # Clean
 clean:

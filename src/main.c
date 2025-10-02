@@ -1771,6 +1771,16 @@ void init_system71(void) {
     InitMenus();
     serial_puts("  Menu Manager initialized\n");
 
+    /* ATA/IDE Driver */
+    extern OSErr ATA_Init(void);
+    serial_puts("  Initializing ATA/IDE driver...\n");
+    OSErr ata_err = ATA_Init();
+    if (ata_err != noErr) {
+        serial_puts("  WARNING: ATA initialization failed\n");
+    } else {
+        serial_puts("  ATA/IDE driver initialized\n");
+    }
+
     /* Virtual File System */
     VFS_Init();
     serial_puts("  Virtual File System initialized\n");
@@ -1791,6 +1801,8 @@ void init_system71(void) {
     } else {
         serial_puts("  WARNING: Failed to mount boot volume\n");
     }
+
+    /* ATA volumes will be mounted after Finder initializes */
 
     /* Create minimal Apple menu for compatibility - Finder will add its own */
     static unsigned char appleMenuTitle[] = {1, 0x14};  /* Pascal string: Apple symbol */
@@ -1863,6 +1875,25 @@ void init_system71(void) {
     OSErr err = InitializeFinder();
     if (err == noErr) {
         serial_puts("  Finder initialized\n");
+
+        /* Now mount ATA volumes (callback is registered) */
+        extern int ATA_GetDeviceCount(void);
+        extern bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref);
+        int ata_count = ATA_GetDeviceCount();
+        if (ata_count > 0) {
+            serial_puts("  Mounting detected ATA volumes...\n");
+            for (int i = 0; i < ata_count; i++) {
+                VRefNum vref = 0;
+                char volName[32];
+                volName[0] = 'A'; volName[1] = 'T'; volName[2] = 'A'; volName[3] = ' ';
+                volName[4] = 'D'; volName[5] = 'i'; volName[6] = 's'; volName[7] = 'k';
+                volName[8] = ' '; volName[9] = '0' + i; volName[10] = '\0';
+
+                if (VFS_MountATA(i, volName, &vref)) {
+                    serial_puts("  ATA volume mounted and added to desktop\n");
+                }
+            }
+        }
     } else {
         serial_puts("  Finder initialization failed\n");
     }

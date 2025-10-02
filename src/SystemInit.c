@@ -453,6 +453,16 @@ static SystemError InitializeInputSystem(void) {
  * ============================================================================ */
 
 static SystemError InitializeFileSystem(void) {
+    extern OSErr ATA_Init(void);
+
+    /* Initialize ATA/IDE disk driver */
+    serial_puts("SystemInit: Initializing ATA/IDE driver\n");
+    OSErr ata_err = ATA_Init();
+    if (ata_err != noErr) {
+        serial_puts("SystemInit: WARNING - ATA initialization failed\n");
+        /* Non-fatal - continue without disk access */
+    }
+
     /* For now, just mark file system as initialized */
     /* In a full implementation, this would:
      * - Initialize VCB, FCB, and WDCB structures

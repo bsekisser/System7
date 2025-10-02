@@ -92,6 +92,23 @@ static OSErr InitializeWindowManager(void)
 }
 
 /*
+ * OnVolumeMount - Callback when a volume is mounted
+ * Adds the volume icon to the desktop
+ */
+void OnVolumeMount(VRefNum vref, const char* volName)
+{
+    extern void serial_printf(const char* fmt, ...);
+    extern OSErr Desktop_AddVolumeIcon(const char* name, VRefNum vref);
+
+    serial_printf("Finder: Volume '%s' (vRef %d) mounted - adding desktop icon\n", volName, vref);
+
+    OSErr err = Desktop_AddVolumeIcon(volName, vref);
+    if (err != noErr) {
+        serial_printf("Finder: Failed to add volume icon (err=%d)\n", err);
+    }
+}
+
+/*
  * InitializeFinder - Initialize all Finder subsystems
 
  * Made non-static for kernel integration
@@ -129,6 +146,12 @@ OSErr InitializeFinder(void)
     err = InitializeDesktopDB();
     serial_puts("Finder: InitializeDesktopDB returned\n");
     if (err != noErr) return err;
+
+    /* Set up volume mount callback */
+    extern void VFS_SetMountCallback(void (*callback)(VRefNum, const char*));
+    extern void OnVolumeMount(VRefNum vref, const char* volName);
+    VFS_SetMountCallback(OnVolumeMount);
+    serial_puts("Finder: Volume mount callback registered\n");
 
     /* Initialize window management */
     err = InitializeWindowManager();

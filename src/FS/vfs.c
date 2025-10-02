@@ -11,12 +11,24 @@ extern void serial_printf(const char* fmt, ...);
 
 /* Volume buffer - allocated from heap */
 
+/* Maximum mounted volumes */
+#define VFS_MAX_VOLUMES 8
+
+/* Mounted volume entry */
+typedef struct {
+    bool         mounted;
+    VRefNum      vref;
+    HFS_Volume   volume;
+    HFS_Catalog  catalog;
+    char         name[256];
+} VFSVolume;
+
 /* VFS state */
 static struct {
-    bool         initialized;
-    HFS_Volume   bootVolume;
-    HFS_Catalog  bootCatalog;
-    VRefNum      bootVRef;
+    bool                initialized;
+    VFSVolume          volumes[VFS_MAX_VOLUMES];
+    VRefNum             nextVRef;
+    VFS_MountCallback  mountCallback;
 } g_vfs = { 0 };
 
 /* VFS file wrapper */
@@ -25,6 +37,26 @@ struct VFSFile {
     VRefNum  vref;
 };
 
+/* Helper: Find volume by vref */
+static VFSVolume* VFS_FindVolume(VRefNum vref) {
+    for (int i = 0; i < VFS_MAX_VOLUMES; i++) {
+        if (g_vfs.volumes[i].mounted && g_vfs.volumes[i].vref == vref) {
+            return &g_vfs.volumes[i];
+        }
+    }
+    return NULL;
+}
+
+/* Helper: Find free volume slot */
+static VFSVolume* VFS_AllocVolume(void) {
+    for (int i = 0; i < VFS_MAX_VOLUMES; i++) {
+        if (!g_vfs.volumes[i].mounted) {
+            return &g_vfs.volumes[i];
+        }
+    }
+    return NULL;
+}
+
 bool VFS_Init(void) {
     if (g_vfs.initialized) {
         /* serial_printf("VFS: Already initialized\n"); */
@@ -32,21 +64,28 @@ bool VFS_Init(void) {
     }
 
     memset(&g_vfs, 0, sizeof(g_vfs));
-    g_vfs.bootVRef = 1;  /* Boot volume is always vRef 1 */
+    g_vfs.nextVRef = 1;  /* Start VRefs at 1 */
 
     /* serial_printf("VFS: Initialized\n"); */
     g_vfs.initialized = true;
     return true;
 }
 
+void VFS_SetMountCallback(VFS_MountCallback callback) {
+    g_vfs.mountCallback = callback;
+}
+
 void VFS_Shutdown(void) {
     if (!g_vfs.initialized) return;
 
-    /* Close catalog if open */
-    HFS_CatalogClose(&g_vfs.bootCatalog);
-
-    /* Unmount volume if mounted */
-    HFS_VolumeUnmount(&g_vfs.bootVolume);
+    /* Unmount all volumes */
+    for (int i = 0; i < VFS_MAX_VOLUMES; i++) {
+        if (g_vfs.volumes[i].mounted) {
+            HFS_CatalogClose(&g_vfs.volumes[i].catalog);
+            HFS_VolumeUnmount(&g_vfs.volumes[i].volume);
+            g_vfs.volumes[i].mounted = false;
+        }
+    }
 
     g_vfs.initialized = false;
     /* serial_printf("VFS: Shutdown complete\n"); */
@@ -55,6 +94,13 @@ void VFS_Shutdown(void) {
 bool VFS_MountBootVolume(const char* volName) {
     if (!g_vfs.initialized) {
         /* serial_printf("VFS: Not initialized\n"); */
+        return false;
+    }
+
+    /* Allocate volume slot */
+    VFSVolume* vol = VFS_AllocVolume();
+    if (!vol) {
+        serial_printf("VFS: No free volume slots\n");
         return false;
     }
 
@@ -69,25 +115,115 @@ bool VFS_MountBootVolume(const char* volName) {
     /* Create blank HFS volume */
     if (!HFS_CreateBlankVolume(volumeData, volumeSize, volName)) {
         /* serial_printf("VFS: Failed to create blank volume\n"); */
+        free(volumeData);
         return false;
     }
 
+    /* Assign vref */
+    vol->vref = g_vfs.nextVRef++;
+
     /* Mount the volume */
-    if (!HFS_VolumeMountMemory(&g_vfs.bootVolume, volumeData, volumeSize, g_vfs.bootVRef)) {
+    if (!HFS_VolumeMountMemory(&vol->volume, volumeData, volumeSize, vol->vref)) {
         /* serial_printf("VFS: Failed to mount volume\n"); */
+        free(volumeData);
         return false;
     }
 
     /* Initialize catalog */
-    if (!HFS_CatalogInit(&g_vfs.bootCatalog, &g_vfs.bootVolume)) {
-        HFS_VolumeUnmount(&g_vfs.bootVolume);
+    if (!HFS_CatalogInit(&vol->catalog, &vol->volume)) {
+        HFS_VolumeUnmount(&vol->volume);
         free(volumeData);
         /* serial_printf("VFS: Failed to initialize catalog\n"); */
         return false;
     }
 
+    /* Mark as mounted */
+    vol->mounted = true;
+    strncpy(vol->name, volName, sizeof(vol->name) - 1);
+    vol->name[sizeof(vol->name) - 1] = '\0';
+
     /* serial_printf("VFS: Mounted boot volume successfully\n"); */
 
+    /* Notify mount callback */
+    if (g_vfs.mountCallback) {
+        g_vfs.mountCallback(vol->vref, volName);
+    }
+
+    return true;
+}
+
+bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
+    if (!g_vfs.initialized) {
+        serial_printf("VFS: Not initialized\n");
+        return false;
+    }
+
+    /* Allocate volume slot */
+    VFSVolume* vol = VFS_AllocVolume();
+    if (!vol) {
+        serial_printf("VFS: No free volume slots\n");
+        return false;
+    }
+
+    /* Assign vref */
+    vol->vref = g_vfs.nextVRef++;
+
+    /* Initialize block device from ATA */
+    if (!HFS_BD_InitATA(&vol->volume.bd, ata_device_index, false)) {
+        serial_printf("VFS: Failed to initialize ATA block device\n");
+        return false;
+    }
+
+    /* Try to mount existing HFS volume */
+    /* For now, we'll try to read the MDB and see if there's a valid HFS volume */
+    /* If not, we could optionally format it */
+
+    /* Mark volume as mounted (simplified - in real implementation would validate HFS) */
+    vol->volume.vRefNum = vol->vref;
+    vol->volume.mounted = true;
+
+    /* Try to initialize catalog */
+    if (!HFS_CatalogInit(&vol->catalog, &vol->volume)) {
+        serial_printf("VFS: Warning - Failed to initialize catalog for ATA volume\n");
+        /* Continue anyway - volume might be unformatted */
+    }
+
+    /* Mark as mounted */
+    vol->mounted = true;
+    strncpy(vol->name, volName, sizeof(vol->name) - 1);
+    vol->name[sizeof(vol->name) - 1] = '\0';
+
+    serial_printf("VFS: Mounted ATA volume '%s' as vRef %d\n", volName, vol->vref);
+
+    /* Return vref */
+    if (vref) {
+        *vref = vol->vref;
+    }
+
+    /* Notify mount callback */
+    if (g_vfs.mountCallback) {
+        g_vfs.mountCallback(vol->vref, volName);
+    }
+
+    return true;
+}
+
+bool VFS_Unmount(VRefNum vref) {
+    VFSVolume* vol = VFS_FindVolume(vref);
+    if (!vol) {
+        return false;
+    }
+
+    /* Close catalog */
+    HFS_CatalogClose(&vol->catalog);
+
+    /* Unmount volume */
+    HFS_VolumeUnmount(&vol->volume);
+
+    /* Mark as unmounted */
+    vol->mounted = false;
+
+    serial_printf("VFS: Unmounted volume vRef %d\n", vref);
     return true;
 }
 
@@ -95,12 +231,14 @@ bool VFS_MountBootVolume(const char* volName) {
 bool VFS_PopulateInitialFiles(void) {
     serial_printf("VFS: Populating initial file system...\n");
 
-    if (!g_vfs.initialized || !g_vfs.bootVolume.mounted) {
-        serial_printf("VFS: Cannot populate - volume not mounted\n");
+    /* Find boot volume (vRef 1) */
+    VFSVolume* vol = VFS_FindVolume(1);
+    if (!vol || !vol->mounted) {
+        serial_printf("VFS: Cannot populate - boot volume not mounted\n");
         return false;
     }
 
-    VRefNum vref = g_vfs.bootVRef;
+    VRefNum vref = vol->vref;
     DirID rootDir = 2;  /* Root directory is always ID 2 in HFS */
 
     /* Create System Folder */
@@ -165,15 +303,17 @@ bool VFS_PopulateInitialFiles(void) {
 bool VFS_GetVolumeInfo(VRefNum vref, VolumeControlBlock* vcb) {
     if (!g_vfs.initialized || !vcb) return false;
 
-    if (vref != g_vfs.bootVRef || !g_vfs.bootVolume.mounted) {
+    VFSVolume* vol = VFS_FindVolume(vref);
+    if (!vol || !vol->mounted) {
         return false;
     }
 
-    return HFS_GetVolumeInfo(&g_vfs.bootVolume, vcb);
+    return HFS_GetVolumeInfo(&vol->volume, vcb);
 }
 
 VRefNum VFS_GetBootVRef(void) {
-    return g_vfs.bootVRef;
+    /* Boot volume is always vRef 1 */
+    return 1;
 }
 
 bool VFS_Enumerate(VRefNum vref, DirID dir, CatEntry* entries, int maxEntries, int* count) {
@@ -187,22 +327,22 @@ bool VFS_Enumerate(VRefNum vref, DirID dir, CatEntry* entries, int maxEntries, i
         return false;
     }
 
-    if (vref != g_vfs.bootVRef || !g_vfs.bootVolume.mounted) {
-        serial_printf("VFS_Enumerate: vref mismatch or not mounted - vref=%d boot=%d mounted=%d\n",
-                     (int)vref, (int)g_vfs.bootVRef, g_vfs.bootVolume.mounted);
+    VFSVolume* vol = VFS_FindVolume(vref);
+    if (!vol || !vol->mounted) {
+        serial_printf("VFS_Enumerate: vref %d not found or not mounted\n", (int)vref);
         return false;
     }
 
     /* Check if B-tree is initialized */
-    if (!g_vfs.bootCatalog.bt.nodeBuffer) {
+    if (!vol->catalog.bt.nodeBuffer) {
         serial_printf("VFS_Enumerate: nodeBuffer is NULL - returning empty list\n");
         *count = 0;
         return true;
     }
 
     serial_printf("VFS_Enumerate: Calling HFS_CatalogEnumerate, nodeBuffer=%08x\n",
-                 (unsigned int)g_vfs.bootCatalog.bt.nodeBuffer);
-    bool result = HFS_CatalogEnumerate(&g_vfs.bootCatalog, dir, entries, maxEntries, count);
+                 (unsigned int)vol->catalog.bt.nodeBuffer);
+    bool result = HFS_CatalogEnumerate(&vol->catalog, dir, entries, maxEntries, count);
     serial_printf("VFS_Enumerate: HFS_CatalogEnumerate returned %d, count=%d\n", result, *count);
     return result;
 }
@@ -210,31 +350,34 @@ bool VFS_Enumerate(VRefNum vref, DirID dir, CatEntry* entries, int maxEntries, i
 bool VFS_Lookup(VRefNum vref, DirID dir, const char* name, CatEntry* entry) {
     if (!g_vfs.initialized || !name || !entry) return false;
 
-    if (vref != g_vfs.bootVRef || !g_vfs.bootVolume.mounted) {
+    VFSVolume* vol = VFS_FindVolume(vref);
+    if (!vol || !vol->mounted) {
         return false;
     }
 
-    return HFS_CatalogLookup(&g_vfs.bootCatalog, dir, name, entry);
+    return HFS_CatalogLookup(&vol->catalog, dir, name, entry);
 }
 
 bool VFS_GetByID(VRefNum vref, FileID id, CatEntry* entry) {
     if (!g_vfs.initialized || !entry) return false;
 
-    if (vref != g_vfs.bootVRef || !g_vfs.bootVolume.mounted) {
+    VFSVolume* vol = VFS_FindVolume(vref);
+    if (!vol || !vol->mounted) {
         return false;
     }
 
-    return HFS_CatalogGetByID(&g_vfs.bootCatalog, id, entry);
+    return HFS_CatalogGetByID(&vol->catalog, id, entry);
 }
 
 VFSFile* VFS_OpenFile(VRefNum vref, FileID id, bool resourceFork) {
     if (!g_vfs.initialized) return NULL;
 
-    if (vref != g_vfs.bootVRef || !g_vfs.bootVolume.mounted) {
+    VFSVolume* vol = VFS_FindVolume(vref);
+    if (!vol || !vol->mounted) {
         return NULL;
     }
 
-    HFSFile* hfsFile = HFS_FileOpen(&g_vfs.bootCatalog, id, resourceFork);
+    HFSFile* hfsFile = HFS_FileOpen(&vol->catalog, id, resourceFork);
     if (!hfsFile) return NULL;
 
     VFSFile* vfsFile = (VFSFile*)malloc(sizeof(VFSFile));
@@ -252,11 +395,12 @@ VFSFile* VFS_OpenFile(VRefNum vref, FileID id, bool resourceFork) {
 VFSFile* VFS_OpenByPath(VRefNum vref, const char* path, bool resourceFork) {
     if (!g_vfs.initialized || !path) return NULL;
 
-    if (vref != g_vfs.bootVRef || !g_vfs.bootVolume.mounted) {
+    VFSVolume* vol = VFS_FindVolume(vref);
+    if (!vol || !vol->mounted) {
         return NULL;
     }
 
-    HFSFile* hfsFile = HFS_FileOpenByPath(&g_vfs.bootCatalog, path, resourceFork);
+    HFSFile* hfsFile = HFS_FileOpenByPath(&vol->catalog, path, resourceFork);
     if (!hfsFile) return NULL;
 
     VFSFile* vfsFile = (VFSFile*)malloc(sizeof(VFSFile));
