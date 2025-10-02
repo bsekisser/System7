@@ -633,6 +633,9 @@ static void GhostXOR(const Rect* r)
 
     if (!framebuffer || !r) return;
 
+    serial_printf("GhostXOR: received Rect top=%d left=%d bottom=%d right=%d\n",
+                 r->top, r->left, r->bottom, r->right);
+
     uint32_t* fb = (uint32_t*)framebuffer;
     int pitch = fb_pitch / 4;
 
@@ -641,6 +644,8 @@ static void GhostXOR(const Rect* r)
     short top = (r->top >= 0) ? r->top : 0;
     short right = (r->right <= (short)fb_width) ? r->right : fb_width;
     short bottom = (r->bottom <= (short)fb_height) ? r->bottom : fb_height;
+
+    serial_printf("GhostXOR: drawing at X=%d-%d Y=%d-%d\n", left, right, top, bottom);
 
     if (left >= right || top >= bottom) return;
 

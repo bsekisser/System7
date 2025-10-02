@@ -377,7 +377,10 @@ void serial_printf(const char* fmt, ...) {
         strstr(fmt, "HFS") == NULL &&
         strstr(fmt, "read_btree_data") == NULL &&
         strstr(fmt, "VFS_Enumerate") == NULL &&
-        strstr(fmt, "Finder:") == NULL) {
+        strstr(fmt, "Finder:") == NULL &&
+        strstr(fmt, "FW:") == NULL &&
+        strstr(fmt, "Icon_DrawWithLabel") == NULL &&
+        strstr(fmt, "GhostXOR") == NULL) {
         return;  /* Message not whitelisted - silently drop */
     }
 

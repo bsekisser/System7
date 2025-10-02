@@ -453,7 +453,9 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
     while ((gCurrentButtons & 1) != 0) {
         ProcessModernInput();  /* Update gCurrentButtons */
         GetMouse(&cur);
+        serial_printf("FW: Threshold check - GetMouse returned cur=(%d,%d)\n", cur.h, cur.v);
         LocalToGlobal(&cur);  /* Convert to global for comparison */
+        serial_printf("FW: Threshold check - After LocalToGlobal cur=(%d,%d)\n", cur.h, cur.v);
 
         /* Check if we've exceeded drag threshold */
         int dx = cur.h - startGlobal.h;
@@ -495,28 +497,43 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
                          ghost.left, ghost.top, ghost.right, ghost.bottom);
 
             /* Convert to global coordinates */
-            Point topLeft = {ghost.left, ghost.top};
-            Point botRight = {ghost.right, ghost.bottom};
+            Point topLeft, botRight;
+            topLeft.h = ghost.left;
+            topLeft.v = ghost.top;
+            botRight.h = ghost.right;
+            botRight.v = ghost.bottom;
+
+            serial_printf("FW: topLeft BEFORE L2G: h=%d v=%d\n", topLeft.h, topLeft.v);
+            serial_printf("FW: portBits.bounds: left=%d top=%d\n",
+                         w->port.portBits.bounds.left, w->port.portBits.bounds.top);
+
             LocalToGlobal(&topLeft);
             LocalToGlobal(&botRight);
+
+            serial_printf("FW: topLeft AFTER L2G: h=%d v=%d\n", topLeft.h, topLeft.v);
+
             ghost.left = topLeft.h;
             ghost.top = topLeft.v;
             ghost.right = botRight.h;
             ghost.bottom = botRight.v;
 
-            serial_printf("FW: Ghost rect AFTER LocalToGlobal (global) = (%d,%d,%d,%d)\n",
-                         ghost.left, ghost.top, ghost.right, ghost.bottom);
+            serial_printf("FW: Ghost rect AFTER LocalToGlobal (global) X=%d-%d Y=%d-%d\n",
+                         ghost.left, ghost.right, ghost.top, ghost.bottom);
 
             /* Add padding like desktop (left -20, right +20, bottom +16) */
             ghost.left -= 20;
             ghost.right += 20;
             ghost.bottom += 16;
 
-            serial_printf("FW: Ghost rect (global) = (%d,%d,%d,%d)\n",
-                         ghost.left, ghost.top, ghost.right, ghost.bottom);
+            serial_printf("FW: Ghost rect with padding (global) X=%d-%d Y=%d-%d\n",
+                         ghost.left, ghost.right, ghost.top, ghost.bottom);
 
-            /* Switch to screen port for XOR ghost drawing */
-            SetPort(qd.thePort);
+            /* Switch to screen port for XOR ghost drawing - we need GetMouse to return global coords */
+            GrafPort screenDragPort;
+            OpenPort(&screenDragPort);
+            screenDragPort.portBits = qd.screenBits;
+            screenDragPort.portRect = qd.screenBits.bounds;
+            SetPort(&screenDragPort);
             ClipRect(&qd.screenBits.bounds);
 
             /* Show initial ghost */
@@ -526,15 +543,21 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
 
             /* Track drag with visual feedback */
             Point lastPos = cur;  /* cur is already in global coords from threshold check */
+            serial_printf("FW: Starting drag loop, lastPos=(%d,%d) in GLOBAL coords\n", lastPos.h, lastPos.v);
             while ((gCurrentButtons & 1) != 0) {
                 ProcessModernInput();  /* Update gCurrentButtons */
                 GetMouse(&cur);
-                /* NOTE: Don't call LocalToGlobal here! We're in screen port now, */
-                /* so GetMouse already returns global (screen) coordinates */
+                /* g_mousePos is in window-local coords, need to convert using WINDOW port */
+                SetPort((GrafPtr)w);  /* Temporarily switch back to window port for LocalToGlobal */
+                LocalToGlobal(&cur);
+                SetPort(&screenDragPort);  /* Switch back to screen port for drawing */
+                serial_printf("FW: GetMouse+LocalToGlobal returned cur=(%d,%d)\n", cur.h, cur.v);
 
                 /* Update ghost position if mouse moved */
                 if (cur.h != lastPos.h || cur.v != lastPos.v) {
                     extern void OffsetRect(Rect* r, short dh, short dv);
+                    serial_printf("FW: Mouse moved, offsetting ghost by (%d,%d)\n",
+                                 cur.h - lastPos.h, cur.v - lastPos.v);
                     OffsetRect(&ghost, cur.h - lastPos.h, cur.v - lastPos.v);
                     Desktop_GhostShowAt(&ghost);
                     lastPos = cur;
@@ -780,7 +803,9 @@ void FolderWindow_Draw(WindowPtr w) {
     /* If we have state, draw icons with selection highlighting */
     else if (state && state->items) {
         /* Convert window port coordinates to global screen coordinates for icon drawing */
-        Point globalOrigin = {.v = w->port.portBits.bounds.top, .h = w->port.portBits.bounds.left};
+        Point globalOrigin;
+        globalOrigin.h = w->port.portBits.bounds.left;
+        globalOrigin.v = w->port.portBits.bounds.top;
 
         serial_printf("FW: Drawing %d icons, portBounds=(%d,%d)\n",
                      state->itemCount, globalOrigin.h, globalOrigin.v);
