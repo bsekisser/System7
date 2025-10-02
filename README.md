@@ -12,6 +12,8 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Recent Updates
 
+- ✅ **Folder Window Icons Fixed**: Correct vertical positioning in folder windows, proper coordinate transformation
+- ✅ **Window Close Cleanup**: Fixed crash when closing folder windows by adding proper state cleanup
 - ✅ **Window Dragging Restored**: XOR mode implementation for drag outlines, smooth window repositioning
 - ✅ **QuickDraw XOR Mode**: PenMode support with proper XOR rendering for interactive feedback
 - ✅ **Production-Quality Time Manager**: Accurate TSC frequency calibration, <100 ppm drift, generation checking
@@ -279,11 +281,10 @@ This project serves as:
 
 1. **Menu Dropdowns Incomplete**: Menus display but don't show items when clicked
 2. **Icon Drag Artifacts**: Dragging desktop icons causes visual artifacts
-3. **Window Close Crash**: Closing windows sometimes causes system restart (intermittent, under investigation)
-4. **No Application Support**: Cannot launch or run applications
-5. **Limited Font Support**: Only Chicago font implemented
-6. **HFS Read-Only**: File system is virtual/simulated, no real disk I/O
-7. **No Stability Guarantees**: Crashes, hangs, and unexpected behavior are common
+3. **No Application Support**: Cannot launch or run applications
+4. **Limited Font Support**: Only Chicago font implemented
+5. **HFS Read-Only**: File system is virtual/simulated, no real disk I/O
+6. **No Stability Guarantees**: Crashes, hangs, and unexpected behavior are common
 
 ## 🤝 Contributing
 
