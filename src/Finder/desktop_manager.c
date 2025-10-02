@@ -703,6 +703,14 @@ void Desktop_GhostEraseIf(void)
 }
 
 /*
+ * Desktop_GhostShowAt - Public wrapper for folder windows to show ghost at rect
+ */
+void Desktop_GhostShowAt(const Rect* r)
+{
+    GhostShowAt(r);
+}
+
+/*
  * GhostShowAt - Show ghost at new position
  */
 static inline void GhostShowAt(const Rect* r)

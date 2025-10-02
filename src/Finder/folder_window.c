@@ -476,16 +476,79 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
                          state->vref,
                          state->currentDir);
 
-            /* Wait for button release and track final position */
+            /* Calculate ghost rect from item position (32x32 icon) */
+            FolderItem* item = &state->items[itemIndex];
+
+            serial_printf("FW: Item '%s' position (local) = (%d,%d)\n",
+                         item->name, item->position.h, item->position.v);
+            serial_printf("FW: Window bounds (global) = (%d,%d,%d,%d)\n",
+                         w->port.portBits.bounds.left, w->port.portBits.bounds.top,
+                         w->port.portBits.bounds.right, w->port.portBits.bounds.bottom);
+
+            Rect ghost;
+            ghost.left = item->position.h;
+            ghost.top = item->position.v;
+            ghost.right = ghost.left + 32;
+            ghost.bottom = ghost.top + 32;
+
+            serial_printf("FW: Ghost rect BEFORE LocalToGlobal (local) = (%d,%d,%d,%d)\n",
+                         ghost.left, ghost.top, ghost.right, ghost.bottom);
+
+            /* Convert to global coordinates */
+            Point topLeft = {ghost.left, ghost.top};
+            Point botRight = {ghost.right, ghost.bottom};
+            LocalToGlobal(&topLeft);
+            LocalToGlobal(&botRight);
+            ghost.left = topLeft.h;
+            ghost.top = topLeft.v;
+            ghost.right = botRight.h;
+            ghost.bottom = botRight.v;
+
+            serial_printf("FW: Ghost rect AFTER LocalToGlobal (global) = (%d,%d,%d,%d)\n",
+                         ghost.left, ghost.top, ghost.right, ghost.bottom);
+
+            /* Add padding like desktop (left -20, right +20, bottom +16) */
+            ghost.left -= 20;
+            ghost.right += 20;
+            ghost.bottom += 16;
+
+            serial_printf("FW: Ghost rect (global) = (%d,%d,%d,%d)\n",
+                         ghost.left, ghost.top, ghost.right, ghost.bottom);
+
+            /* Switch to screen port for XOR ghost drawing */
+            SetPort(qd.thePort);
+            ClipRect(&qd.screenBits.bounds);
+
+            /* Show initial ghost */
+            extern void Desktop_GhostShowAt(const Rect* r);
+            Desktop_GhostShowAt(&ghost);
+            serial_printf("FW: Ghost visible, entering drag loop\n");
+
+            /* Track drag with visual feedback */
+            Point lastPos = cur;  /* cur is already in global coords from threshold check */
             while ((gCurrentButtons & 1) != 0) {
                 ProcessModernInput();  /* Update gCurrentButtons */
                 GetMouse(&cur);
-                LocalToGlobal(&cur);  /* Convert to global coordinates */
+                /* NOTE: Don't call LocalToGlobal here! We're in screen port now, */
+                /* so GetMouse already returns global (screen) coordinates */
+
+                /* Update ghost position if mouse moved */
+                if (cur.h != lastPos.h || cur.v != lastPos.v) {
+                    extern void OffsetRect(Rect* r, short dh, short dv);
+                    OffsetRect(&ghost, cur.h - lastPos.h, cur.v - lastPos.v);
+                    Desktop_GhostShowAt(&ghost);
+                    lastPos = cur;
+                }
             }
 
-            serial_printf("FW: Drag ended at global (%d,%d)\n", cur.h, cur.v);
+            /* Erase ghost before processing drop */
+            extern void Desktop_GhostEraseIf(void);
+            Desktop_GhostEraseIf();
 
-            FolderItem* item = &state->items[itemIndex];
+            /* Restore port */
+            SetPort((GrafPtr)w);
+
+            serial_printf("FW: Drag ended at global (%d,%d)\n", cur.h, cur.v);
 
             /* Phase 4: Check for drop-to-trash first */
             if (Desktop_IsOverTrash(cur)) {
