@@ -719,7 +719,7 @@ static inline void GhostShowAt(const Rect* r)
 static void DesktopYield(void)
 {
     extern void SystemTask(void);
-    extern void PollPS2Input(void);
+    extern void ProcessModernInput(void);
     extern void serial_printf(const char* fmt, ...);
     static int yieldCount = 0;
     if (++yieldCount % 100 == 0) {
@@ -727,8 +727,8 @@ static void DesktopYield(void)
     }
 
     /* Don't call EventPumpYield() here - it can cause re-entrancy issues during drag.
-     * Just poll input directly and let SystemTask() handle time manager */
-    PollPS2Input();  /* Update mouse/keyboard state directly */
+     * ProcessModernInput() polls PS/2 input AND updates gCurrentButtons */
+    ProcessModernInput();  /* Update mouse/keyboard state including gCurrentButtons */
     SystemTask();    /* Handle time manager tasks */
 }
 
