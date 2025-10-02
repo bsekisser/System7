@@ -217,9 +217,9 @@ IconRect Icon_DrawWithLabel(const IconHandle* h, const char* name,
     Icon_Draw32(h, iconLeft, iconTopY);
 
     /* Draw label below icon with proper spacing
-     * Icon is 32px tall, so label should start at iconTopY + 32 (icon bottom)
-     * Add 2px spacing for visual separation */
-    int labelTop = iconTopY + 34;
+     * Icon visibly extends to row 27 (28px tall), label background extends 12px above baseline
+     * So baseline needs to be at iconTopY + 28 (icon bottom) + 12 (background height above) = 40 */
+    int labelTop = iconTopY + 40;
     IconLabel_Draw(name, centerX, labelTop, selected);
 
     /* Return combined bounds for hit testing */

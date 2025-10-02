@@ -316,16 +316,17 @@ static short FW_IconAtPoint(WindowPtr w, Point localPt) {
         iconRect.right = state->items[i].position.h + 32;
         iconRect.bottom = state->items[i].position.v + 32;
 
-        /* Label rect (text centered, with padding) */
+        /* Label rect (text centered, with padding)
+         * Label baseline is at iconTop + 40, background extends from (baseline - 12) to (baseline + 2) */
         int textWidth, textHeight;
         IconLabel_Measure(state->items[i].name, &textWidth, &textHeight);
 
         Rect labelRect;
         int centerX = state->items[i].position.h + 16;
         labelRect.left = centerX - (textWidth / 2) - 2;
-        labelRect.top = state->items[i].position.v + 27;  /* label offset from icon_label.c */
+        labelRect.top = state->items[i].position.v + 28;  /* 40 - 12 = 28 */
         labelRect.right = centerX + (textWidth / 2) + 2;
-        labelRect.bottom = labelRect.top + 15;  /* Chicago font height */
+        labelRect.bottom = state->items[i].position.v + 42;  /* 40 + 2 = 42 */
 
         /* Check if point is in icon or label */
         if ((localPt.h >= iconRect.left && localPt.h < iconRect.right &&

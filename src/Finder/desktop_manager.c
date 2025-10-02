@@ -1123,13 +1123,14 @@ void DrawVolumeIcon(void)
     }
     iconHandle.selected = isSelected;
 
-    serial_printf("DrawVolumeIcon: About to call Icon_DrawWithLabel\n");
-    /* Draw icon with label using universal system */
-    Icon_DrawWithLabel(&iconHandle, volumeName,
+    serial_printf("DrawVolumeIcon: About to call Icon_DrawWithLabelOffset\n");
+    /* Draw icon with label using universal system (desktop icons use tighter spacing) */
+    Icon_DrawWithLabelOffset(&iconHandle, volumeName,
                       volumePos.h + 16,  /* Center X (icon is 32px wide) */
                       volumePos.v,        /* Top Y */
+                      34,                 /* Label offset (tighter for desktop) */
                       isSelected);        /* Selection state */
-    serial_printf("DrawVolumeIcon: Icon_DrawWithLabel returned\n");
+    serial_printf("DrawVolumeIcon: Icon_DrawWithLabelOffset returned\n");
 
     /* Draw all other desktop items */
     serial_printf("DrawVolumeIcon: Drawing other desktop items\n");
