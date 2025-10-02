@@ -35,6 +35,7 @@ extern QDGlobals qd;
 extern void GetMouse(Point* pt);
 extern volatile UInt8 gCurrentButtons;
 extern short FindWindow(Point thePoint, WindowPtr* theWindow);
+extern bool VFS_Delete(VRefNum vref, FileID id);
 
 /* Drag threshold for distinguishing clicks from drags */
 #define kDragThreshold 4
@@ -457,27 +458,60 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
 
             serial_printf("FW: Drag ended at global (%d,%d)\n", cur.h, cur.v);
 
-            /* Phase 3: Detect drop-to-desktop and create alias */
-            WindowPtr hitWindow = NULL;
-            short partCode = FindWindow(cur, &hitWindow);
+            FolderItem* item = &state->items[itemIndex];
 
-            if (partCode == inDesk) {
-                /* Dropped on desktop - create alias */
-                FolderItem* item = &state->items[itemIndex];
-                Boolean isFolder = item->isFolder;
+            /* Phase 4: Check for drop-to-trash first */
+            if (Desktop_IsOverTrash(cur)) {
+                serial_printf("FW: DROP TO TRASH detected - deleting '%s' (fileID=%d, vref=%d)\n",
+                             item->name, item->fileID, state->vref);
 
-                serial_printf("FW: DROP TO DESKTOP detected - creating alias for '%s'\n", item->name);
+                bool deleted = VFS_Delete(state->vref, item->fileID);
 
-                OSErr err = Desktop_AddAliasIcon(item->name, cur, item->fileID,
-                                                state->vref, isFolder);
+                if (deleted) {
+                    serial_printf("FW: File deleted successfully from VFS\n");
 
-                if (err == noErr) {
-                    serial_printf("FW: Alias created successfully on desktop\n");
+                    /* Remove item from folder window display by shifting array */
+                    for (int i = itemIndex; i < state->itemCount - 1; i++) {
+                        state->items[i] = state->items[i + 1];
+                    }
+                    state->itemCount--;
+
+                    /* Clear selection if we deleted the selected item */
+                    if (state->selectedIndex == itemIndex) {
+                        state->selectedIndex = -1;
+                    } else if (state->selectedIndex > itemIndex) {
+                        state->selectedIndex--;  /* Adjust index after shift */
+                    }
+
+                    serial_printf("FW: Item removed from display, new itemCount=%d\n", state->itemCount);
+
+                    /* Request window redraw */
+                    PostEvent(updateEvt, (UInt32)w);
                 } else {
-                    serial_printf("FW: ERROR: Desktop_AddAliasIcon failed with error %d\n", err);
+                    serial_printf("FW: ERROR: VFS_Delete failed\n");
                 }
             } else {
-                serial_printf("FW: Dropped over window (partCode=%d) - not creating alias\n", partCode);
+                /* Phase 3: Check for drop-to-desktop and create alias */
+                WindowPtr hitWindow = NULL;
+                short partCode = FindWindow(cur, &hitWindow);
+
+                if (partCode == inDesk) {
+                    /* Dropped on desktop - create alias */
+                    Boolean isFolder = item->isFolder;
+
+                    serial_printf("FW: DROP TO DESKTOP detected - creating alias for '%s'\n", item->name);
+
+                    OSErr err = Desktop_AddAliasIcon(item->name, cur, item->fileID,
+                                                    state->vref, isFolder);
+
+                    if (err == noErr) {
+                        serial_printf("FW: Alias created successfully on desktop\n");
+                    } else {
+                        serial_printf("FW: ERROR: Desktop_AddAliasIcon failed with error %d\n", err);
+                    }
+                } else {
+                    serial_printf("FW: Dropped over window (partCode=%d) - no action\n", partCode);
+                }
             }
 
             /* Clear drag state */

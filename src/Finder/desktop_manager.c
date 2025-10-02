@@ -1107,6 +1107,40 @@ OSErr Desktop_AddAliasIcon(const char* name, Point position, FileID targetID,
 }
 
 /*
+ * Desktop_IsOverTrash - Check if a point is over the trash icon (PUBLIC API)
+ * Used for drag-and-drop trash detection
+ *
+ * Parameters:
+ *   where - Point to test (in global coordinates)
+ *
+ * Returns: true if point is over trash icon or label, false otherwise
+ */
+Boolean Desktop_IsOverTrash(Point where) {
+    /* Trash is always at index 0 */
+    if (gDesktopIconCount == 0 || gDesktopIcons[0].type != kDesktopItemTrash) {
+        return false;
+    }
+
+    Rect iconRect, labelRect;
+
+    /* Calculate trash icon rect (32x32) */
+    SetRect(&iconRect,
+            gDesktopIcons[0].position.h,
+            gDesktopIcons[0].position.v,
+            gDesktopIcons[0].position.h + kIconW,
+            gDesktopIcons[0].position.v + kIconH);
+
+    /* Calculate trash label rect (trash has labelOffset=48) */
+    SetRect(&labelRect,
+            gDesktopIcons[0].position.h - 20,
+            gDesktopIcons[0].position.v + 48,
+            gDesktopIcons[0].position.h + kIconW + 20,
+            gDesktopIcons[0].position.v + 48 + 16);
+
+    return (PtInRect(where, &iconRect) || PtInRect(where, &labelRect));
+}
+
+/*
  * DrawVolumeIcon - Draw the boot volume icon on desktop using universal icon system
  */
 void DrawVolumeIcon(void)

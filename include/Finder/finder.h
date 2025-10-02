@@ -74,6 +74,7 @@ OSErr RebuildDesktopFile(short vRefNum);
 OSErr GetDesktopIconPosition(FSSpec *item, Point *position);
 OSErr SetDesktopIconPosition(FSSpec *item, Point position);
 OSErr Desktop_AddAliasIcon(const char* name, Point position, FileID targetID, VRefNum vref, Boolean isFolder);
+Boolean Desktop_IsOverTrash(Point where);
 Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick);
 
 /* File Manager API - Evidence: "Do you want to copy", "Items from ^1 disks cannot be moved" */
