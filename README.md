@@ -12,6 +12,12 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Recent Updates
 
+- 🔧 **HFS B-tree Debugging** (In Progress): Investigating catalog record offset issues - folder windows still empty
+  - Buffer pointer chain verified correct through mount process
+  - Fixed offset table pointer (was pointing past end of node)
+  - Fixed offset indexing in ADD_FOLDER/ADD_FILE macros
+  - Added comprehensive debug logging to track buffer/volume pointers
+  - Issue: Catalog entries written correctly but read back as zeros - further investigation needed
 - ✅ **VFS Integration for Folder Windows**: Folder windows now display actual file system contents via VFS_Enumerate()
 - ✅ **Icon Label Spacing**: Adjusted spacing for full-height icons (label offset 40px for folders, 34px for desktop)
 - ✅ **Icon Rendering Fixed**: Full-height 32x32 folder/document icons, restored "Trash is empty" message
