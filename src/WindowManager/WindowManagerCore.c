@@ -360,30 +360,47 @@ WindowPtr GetNewCWindow(short windowID, void* wStorage, WindowPtr behind) {
  * ============================================================================ */
 
 void CloseWindow(WindowPtr theWindow) {
-    if (theWindow == NULL) return;
+    extern void serial_printf(const char* fmt, ...);
+
+    serial_printf("CloseWindow: ENTRY, window=%p\n", theWindow);
+    if (theWindow == NULL) {
+        serial_printf("CloseWindow: NULL window, returning\n");
+        return;
+    }
 
     #ifdef DEBUG_WINDOW_MANAGER
     printf("CloseWindow: Closing window\n");
     #endif
 
     /* Hide the window if it's visible */
+    serial_printf("CloseWindow: Checking visible flag=%d\n", theWindow->visible);
     if (theWindow->visible) {
+        serial_printf("CloseWindow: Calling HideWindow\n");
         HideWindow(theWindow);
+        serial_printf("CloseWindow: HideWindow returned\n");
     }
 
     /* Remove from window list */
+    serial_printf("CloseWindow: Calling RemoveWindowFromList\n");
     RemoveWindowFromList(theWindow);
+    serial_printf("CloseWindow: RemoveWindowFromList returned\n");
 
     /* Dispose of auxiliary window record if it exists */
+    serial_printf("CloseWindow: Checking for AuxWin\n");
     AuxWinHandle auxWin;
     if (GetAuxWin(theWindow, &auxWin)) {
+        serial_printf("CloseWindow: Disposing AuxWin\n");
         DisposeAuxiliaryWindowRecord(auxWin);
+        serial_printf("CloseWindow: AuxWin disposed\n");
     }
 
     /* Destroy native platform window */
+    serial_printf("CloseWindow: Destroying native window\n");
     Platform_DestroyNativeWindow(theWindow);
+    serial_printf("CloseWindow: Native window destroyed\n");
 
     /* Dispose of window regions */
+    serial_printf("CloseWindow: Disposing regions\n");
     if (theWindow->strucRgn) {
         Platform_DisposeRgn(theWindow->strucRgn);
         theWindow->strucRgn = NULL;
@@ -396,8 +413,10 @@ void CloseWindow(WindowPtr theWindow) {
         Platform_DisposeRgn(theWindow->updateRgn);
         theWindow->updateRgn = NULL;
     }
+    serial_printf("CloseWindow: Regions disposed\n");
 
     /* Dispose of title */
+    serial_printf("CloseWindow: Disposing title\n");
     if (theWindow->titleHandle) {
         if (*(theWindow->titleHandle)) {
             free(*(theWindow->titleHandle));
@@ -405,12 +424,17 @@ void CloseWindow(WindowPtr theWindow) {
         free(theWindow->titleHandle);
         theWindow->titleHandle = NULL;
     }
+    serial_printf("CloseWindow: Title disposed\n");
 
     /* Clean up the window's port */
+    serial_printf("CloseWindow: Cleaning up port\n");
     Platform_CleanupWindowPort(theWindow);
+    serial_printf("CloseWindow: Port cleaned up\n");
 
     /* Clear the window record (but don't free it) */
+    serial_printf("CloseWindow: Clearing window record\n");
     memset(theWindow, 0, sizeof(WindowRecord));
+    serial_printf("CloseWindow: EXIT\n");
 }
 
 void DisposeWindow(WindowPtr theWindow) {
