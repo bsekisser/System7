@@ -334,8 +334,12 @@ static void DrawWindowFrame(WindowPtr window) {
 
     if (window->titleWidth > 0) {
         serial_printf("WindowManager: titleWidth > 0, drawing title bar\n");
-        Rect titleBar = frame;
-        titleBar.bottom = titleBar.top + 20;
+        /* Title bar background should be INSIDE the frame, not overlap it */
+        Rect titleBar;
+        titleBar.left = frame.left + 1;    /* Inset from left frame edge */
+        titleBar.top = frame.top + 1;      /* Inset from top frame edge */
+        titleBar.right = frame.right - 1;  /* Inset from right frame edge */
+        titleBar.bottom = frame.top + 20;  /* Extends to separator line */
 
         /* Fill title bar with white background */
         serial_printf("WindowManager: EraseRect titleBar=(%d,%d,%d,%d)\n",
