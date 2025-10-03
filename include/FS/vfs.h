@@ -18,6 +18,9 @@ bool VFS_MountBootVolume(const char* volName);
 /* Mount a volume from an ATA device */
 bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref);
 
+/* Format an ATA device with HFS filesystem - REQUIRES EXPLICIT CALL */
+bool VFS_FormatATA(int ata_device_index, const char* volName);
+
 /* Unmount a volume */
 bool VFS_Unmount(VRefNum vref);
 

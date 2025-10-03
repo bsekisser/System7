@@ -153,9 +153,39 @@ bool VFS_MountBootVolume(const char* volName) {
     return true;
 }
 
-bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
+/* Format an ATA disk with HFS filesystem - REQUIRES EXPLICIT CALL */
+bool VFS_FormatATA(int ata_device_index, const char* volName) {
     extern bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName);
 
+    if (!g_vfs.initialized) {
+        serial_printf("VFS: Not initialized\n");
+        return false;
+    }
+
+    /* Initialize temporary block device */
+    HFS_BlockDev bd;
+    if (!HFS_BD_InitATA(&bd, ata_device_index, false)) {
+        serial_printf("VFS: Failed to initialize ATA block device for formatting\n");
+        return false;
+    }
+
+    /* Format the volume */
+    serial_printf("VFS: Formatting ATA device %d as '%s'...\n", ata_device_index, volName);
+    bool result = HFS_FormatVolume(&bd, volName);
+
+    /* Close block device */
+    HFS_BD_Close(&bd);
+
+    if (result) {
+        serial_printf("VFS: ATA device %d formatted successfully\n", ata_device_index);
+    } else {
+        serial_printf("VFS: Failed to format ATA device %d\n", ata_device_index);
+    }
+
+    return result;
+}
+
+bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
     if (!g_vfs.initialized) {
         serial_printf("VFS: Not initialized\n");
         return false;
@@ -179,10 +209,10 @@ bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
 
     /* Check if disk is formatted by reading MDB */
     uint8_t mdbSector[512];
-    bool needsFormat = false;
 
     if (!HFS_BD_ReadSector(&vol->volume.bd, HFS_MDB_SECTOR, mdbSector)) {
         serial_printf("VFS: Failed to read MDB sector\n");
+        HFS_BD_Close(&vol->volume.bd);
         return false;
     }
 
@@ -190,24 +220,14 @@ bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
     uint16_t sig = be16_read(&mdbSector[0]);
 
     if (sig != HFS_SIGNATURE) {
-        serial_printf("VFS: No HFS signature found (0x%04x), formatting...\n", sig);
-        needsFormat = true;
-    }
-
-    /* Format if needed */
-    if (needsFormat) {
-        if (!HFS_FormatVolume(&vol->volume.bd, volName)) {
-            serial_printf("VFS: Failed to format volume\n");
-            return false;
-        }
-        serial_printf("VFS: Volume formatted successfully\n");
-    }
-
-    /* Now mount the HFS volume by reading the MDB */
-    if (!HFS_BD_ReadSector(&vol->volume.bd, HFS_MDB_SECTOR, mdbSector)) {
-        serial_printf("VFS: Failed to read MDB after format\n");
+        serial_printf("VFS: ERROR - Disk is not formatted with HFS (signature: 0x%04x)\n", sig);
+        serial_printf("VFS: Use VFS_FormatATA() to format this disk first\n");
+        HFS_BD_Close(&vol->volume.bd);
         return false;
     }
+
+    /* Disk is formatted, proceed with mounting */
+    serial_printf("VFS: Found valid HFS signature, mounting...\n");
 
     /* Parse MDB into volume structure */
     HFS_MDB* mdb = &vol->volume.mdb;

@@ -1879,6 +1879,8 @@ void init_system71(void) {
         /* Now mount ATA volumes (callback is registered) */
         extern int ATA_GetDeviceCount(void);
         extern bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref);
+        extern bool VFS_FormatATA(int ata_device_index, const char* volName);
+
         int ata_count = ATA_GetDeviceCount();
         if (ata_count > 0) {
             serial_puts("  Mounting detected ATA volumes...\n");
@@ -1889,7 +1891,22 @@ void init_system71(void) {
                 volName[4] = 'D'; volName[5] = 'i'; volName[6] = 's'; volName[7] = 'k';
                 volName[8] = ' '; volName[9] = '0' + i; volName[10] = '\0';
 
-                if (VFS_MountATA(i, volName, &vref)) {
+                /* Try to mount - will fail if disk is not formatted */
+                if (!VFS_MountATA(i, volName, &vref)) {
+                    /* TESTING ONLY: Auto-format test_disk.img for development */
+                    /* WARNING: In production, NEVER auto-format without user consent! */
+                    serial_puts("  ATA disk not formatted, formatting for testing...\n");
+                    if (VFS_FormatATA(i, volName)) {
+                        serial_puts("  Format complete, attempting mount...\n");
+                        if (VFS_MountATA(i, volName, &vref)) {
+                            serial_puts("  ATA volume formatted, mounted, and added to desktop\n");
+                        } else {
+                            serial_puts("  ERROR: Mount failed after format\n");
+                        }
+                    } else {
+                        serial_puts("  ERROR: Format failed\n");
+                    }
+                } else {
                     serial_puts("  ATA volume mounted and added to desktop\n");
                 }
             }
