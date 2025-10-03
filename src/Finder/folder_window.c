@@ -452,10 +452,8 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
 
     while ((gCurrentButtons & 1) != 0) {
         ProcessModernInput();  /* Update gCurrentButtons */
-        GetMouse(&cur);
-        serial_printf("FW: Threshold check - GetMouse returned cur=(%d,%d)\n", cur.h, cur.v);
-        LocalToGlobal(&cur);  /* Convert to global for comparison */
-        serial_printf("FW: Threshold check - After LocalToGlobal cur=(%d,%d)\n", cur.h, cur.v);
+        GetMouse(&cur);  /* Returns global coordinates */
+        serial_printf("FW: Threshold check - GetMouse returned cur=(%d,%d) (global)\n", cur.h, cur.v);
 
         /* Check if we've exceeded drag threshold */
         int dx = cur.h - startGlobal.h;
@@ -671,6 +669,7 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
             state->selectedIndex = -1;
             PostEvent(updateEvt, (UInt32)w);
         }
+        serial_printf("FW: empty click - clearing lastClickIndex (was %d)\n", state->lastClickIndex);
         state->lastClickIndex = -1;
         SetPort(savePort);
         return true;
@@ -799,13 +798,14 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
             state->lastClickIndex = hitIndex;
             state->lastClickTime = currentTime;
 
-            serial_printf("FW: select %d -> %d\n", oldSel, hitIndex);
+            serial_printf("FW: select %d -> %d, SET lastClickIndex=%d, lastClickTime=%lu\n",
+                         oldSel, hitIndex, hitIndex, (unsigned long)currentTime);
 
             /* Post update to redraw selection */
             PostEvent(updateEvt, (UInt32)w);
         } else {
             /* Drag occurred - selection/timing was handled by drag tracking */
-            serial_printf("FW: drag completed, skipping normal selection\n");
+            serial_printf("FW: drag completed, NOT setting lastClick values\n");
         }
     }
 

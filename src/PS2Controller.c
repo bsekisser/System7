@@ -594,9 +594,10 @@ void PollPS2Input(void) {
     }
 }
 
-/* Get current mouse position */
+/* Get current mouse position - returns in global (screen) coordinates */
 void GetMouse(Point* mouseLoc) {
     if (mouseLoc) {
+        /* g_mouseState is in global coordinates */
         mouseLoc->h = g_mouseState.x;
         mouseLoc->v = g_mouseState.y;
     }
