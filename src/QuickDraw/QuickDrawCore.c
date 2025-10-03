@@ -606,6 +606,18 @@ static void ClipToPort(GrafPtr port, Rect *rect) {
         return;
     }
     *rect = clippedRect;
+
+    /* CRITICAL: Also clip to clipRgn if set (e.g., content region to prevent overdrawing chrome) */
+    if (port->clipRgn && *port->clipRgn) {
+        Rect clipBounds = (*port->clipRgn)->rgnBBox;
+        /* clipRgn is in GLOBAL coords, convert to LOCAL */
+        OffsetRect(&clipBounds, -port->portBits.bounds.left, -port->portBits.bounds.top);
+        if (!SectRect(rect, &clipBounds, &clippedRect)) {
+            SetRect(rect, 0, 0, 0, 0); /* Empty result */
+            return;
+        }
+        *rect = clippedRect;
+    }
 }
 
 static Boolean PrepareDrawing(GrafPtr port) {

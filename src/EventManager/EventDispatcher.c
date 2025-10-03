@@ -266,6 +266,11 @@ Boolean HandleMouseDown(EventRecord* event)
         case inDrag:
             /* Drag window */
             if (whichWindow) {
+                /* CRITICAL: Select window first to bring it to front and activate it! */
+                SelectWindow(whichWindow);
+                serial_printf("HandleMouseDown: inDrag - called SelectWindow for window=0x%08x\n",
+                             (unsigned int)whichWindow);
+
                 /* Set up drag bounds (entire screen minus menu bar) */
                 dragBounds.top = 20;     /* Below menu bar */
                 dragBounds.left = 0;

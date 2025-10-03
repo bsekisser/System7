@@ -737,13 +737,13 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
         serial_printf("InitializeWindowRecord: Set strucRgn to clampedBounds\n");
     }
 
-    /* Initialize contRgn with global content area bounds */
+    /* CRITICAL: Initialize contRgn to match portBits.bounds EXACTLY!
+     * contRgn must match the actual content area for proper clipping */
     if (window->contRgn) {
-        Rect contentBounds = clampedBounds;
-        contentBounds.top += kTitleBar + kSeparator;
-        /* No need to inset left/right/bottom - frame is drawn inside bounds */
-        Platform_SetRectRgn(window->contRgn, &contentBounds);
-        serial_printf("InitializeWindowRecord: Set contRgn to content bounds\n");
+        Platform_SetRectRgn(window->contRgn, &window->port.portBits.bounds);
+        serial_printf("InitializeWindowRecord: Set contRgn to match portBits.bounds (%d,%d,%d,%d)\n",
+                     window->port.portBits.bounds.left, window->port.portBits.bounds.top,
+                     window->port.portBits.bounds.right, window->port.portBits.bounds.bottom);
     }
 }
 

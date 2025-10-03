@@ -784,13 +784,12 @@ void FolderWindow_Draw(WindowPtr w) {
                   w->port.portBits.bounds.top, w->port.portBits.bounds.left,
                   w->port.portBits.bounds.bottom, w->port.portBits.bounds.right);
 
-    /* Draw white background for content area
-     * NOTE: portBits.bounds is already set to content area top (not window top)
-     * by Platform_InitializeWindowPort (gFrame.top + kTitle + kSeparator)
-     * So portRect local coord 0 maps to content area top, not title bar! */
-    Rect contentRect = w->port.portRect;
-    EraseRect(&contentRect);
-    serial_printf("FW: Erased content area\n");
+    /* CRITICAL: Erase the entire portRect (content area in LOCAL coordinates)
+     * portRect is already in LOCAL coords (0,0,width,height) representing just content.
+     * clipRgn is already set to contRgn to prevent overdrawing chrome. */
+    EraseRect(&w->port.portRect);
+    serial_printf("FW: Erased content area using portRect (0,0,%d,%d)\n",
+                 w->port.portRect.right, w->port.portRect.bottom);
 
     /* If trash is empty, draw empty message */
     if (isTrash && state && state->itemCount == 0) {

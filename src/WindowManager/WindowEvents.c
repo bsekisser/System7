@@ -337,14 +337,18 @@ void BeginUpdate(WindowPtr theWindow) {
     /* Begin platform drawing session */
     Platform_BeginWindowDraw(theWindow);
 
-    /* Set clip region to intersection of visible and update regions */
-    if (theWindow->visRgn && theWindow->updateRgn) {
+    /* CRITICAL: Set clip region to intersection of CONTENT and update regions
+     * (not visRgn, which includes chrome and allows content to overdraw it!) */
+    if (theWindow->contRgn && theWindow->updateRgn) {
         RgnHandle updateClip = Platform_NewRgn();
         if (updateClip) {
-            Platform_IntersectRgn(theWindow->visRgn, theWindow->updateRgn, updateClip);
+            Platform_IntersectRgn(theWindow->contRgn, theWindow->updateRgn, updateClip);
             Platform_SetClipRgn(updateClip);
             Platform_DisposeRgn(updateClip);
         }
+    } else if (theWindow->contRgn) {
+        /* If no updateRgn, just use contRgn to prevent overdrawing chrome */
+        Platform_SetClipRgn(theWindow->contRgn);
     }
 
     WM_DEBUG("BeginUpdate: Update session started");
@@ -363,9 +367,10 @@ void EndUpdate(WindowPtr theWindow) {
     /* End platform drawing session */
     Platform_EndWindowDraw(theWindow);
 
-    /* Restore normal clipping */
-    if (theWindow->visRgn) {
-        Platform_SetClipRgn(theWindow->visRgn);
+    /* CRITICAL: Restore clipping to content region (not visRgn!)
+     * to prevent content from overdrawing chrome */
+    if (theWindow->contRgn) {
+        Platform_SetClipRgn(theWindow->contRgn);
     }
 
     /* Restore previous port */

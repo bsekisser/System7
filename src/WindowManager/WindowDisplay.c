@@ -193,15 +193,23 @@ void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn) {
             GrafPtr savePort;
             GetPort(&savePort);
             SetPort((GrafPtr)w);
+
+            /* CRITICAL: Clip to content region so content doesn't overdraw chrome! */
+            if (w->contRgn) {
+                w->port.clipRgn = w->contRgn;
+            }
+
             InvalRgn(w->contRgn);
-            SetPort(savePort);
 
             /* WORKAROUND: Directly redraw folder window content since update events may not flow */
-            if (w->refCon == 'DISK' || w->refCon == 'TRSH') {
+            if (w->refCon == 0x4449534b || w->refCon == 0x54525348) {  /* 'DISK' or 'TRSH' */
                 extern void FolderWindow_Draw(WindowPtr window);
-                serial_printf("[PaintBehind] Drawing content for window %p (index %d of %d)\n", w, i, count);
+                serial_printf("[PaintBehind] Drawing content for window %p (index %d of %d), refCon=0x%08x\n",
+                             w, i, count, (unsigned int)w->refCon);
                 FolderWindow_Draw(w);
             }
+
+            SetPort(savePort);
         }
     }
 
@@ -890,7 +898,20 @@ void ShowWindow(WindowPtr window) {
         GrafPtr savePort;
         GetPort(&savePort);
         SetPort((GrafPtr)window);
+
+        /* CRITICAL: Set clipRgn to contRgn to prevent content from overdrawing chrome! */
+        window->port.clipRgn = window->contRgn;
+
         InvalRgn(window->contRgn);
+
+        /* WORKAROUND: Directly draw folder window content since update events may not flow yet */
+        if (window->refCon == 0x4449534b || window->refCon == 0x54525348) {  /* 'DISK' or 'TRSH' */
+            extern void FolderWindow_Draw(WindowPtr window);
+            serial_printf("ShowWindow: Drawing content for window %p, refCon=0x%08x\n",
+                         window, (unsigned int)window->refCon);
+            FolderWindow_Draw(window);
+        }
+
         SetPort(savePort);
     }
 
