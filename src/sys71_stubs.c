@@ -987,9 +987,7 @@ OSErr CleanUpWindow(WindowPtr window, SInt16 cleanupType) {
 
 /* ParamText provided by DialogManagerCore.c */
 
-SInt16 Alert(SInt16 alertID, ModalFilterProcPtr filterProc) {
-    return 1;  /* OK button */
-}
+/* Alert, StopAlert, NoteAlert, CautionAlert now provided by AlertDialogs.c */
 
 /* TickCount() now implemented in TimeManager/TimeBase.c */
 
@@ -1296,3 +1294,23 @@ Boolean RectInRgn(const Rect *r, RgnHandle rgn) {
 
 /* sqrt() moved to System71StdLib.c */
 /* QDPlatform_DrawRegion() moved to QuickDraw/QuickDrawPlatform.c */
+/* QuickDraw text stubs for About box */
+void TextSize(short size) {
+    /* Stub - would set text size in current GrafPort */
+}
+
+void TextFont(short font) {
+    /* Stub - would set text font in current GrafPort */
+}
+
+void TextFace(short face) {
+    /* Stub - would set text face (bold, italic, etc.) in current GrafPort */
+}
+
+
+/* Alert stub for trash_folder */
+SInt16 Alert(SInt16 alertID, ModalFilterProcPtr filterProc) {
+    serial_printf("Alert stub: alertID=%d\n", alertID);
+    return 1; /* OK button */
+}
+

@@ -315,7 +315,7 @@ Boolean GetUseNativeAlerts(void);
  * Parameters:
  *   theme - Pointer to theme structure
  */
-void SetAlertTheme(const DialogColorTheme* theme);
+void SetAlertTheme(const DialogTheme* theme);
 
 /*
  * GetAlertTheme - Get current alert theme
@@ -323,7 +323,7 @@ void SetAlertTheme(const DialogColorTheme* theme);
  * Parameters:
  *   theme - Buffer to receive theme information
  */
-void GetAlertTheme(DialogColorTheme* theme);
+void GetAlertTheme(DialogTheme* theme);
 
 /* Alert dialog utilities */
 

@@ -286,6 +286,9 @@ void serial_print_hex(uint32_t value) {
  *
  * CURRENT WHITELIST ENTRIES (alphabetical by category):
  *
+ * About & Dialogs:
+ *   - "About"                 : About This Macintosh window
+ *
  * Desktop & Icon Management:
  *   - "Desktop icon"          : Desktop icon operations
  *   - "DrawVolumeIcon"        : Volume icon rendering
@@ -386,7 +389,8 @@ void serial_printf(const char* fmt, ...) {
         strstr(fmt, "SysBeep") == NULL &&
         strstr(fmt, "Startup") == NULL &&
         strstr(fmt, "MM:") == NULL &&
-        strstr(fmt, "ATA:") == NULL) {
+        strstr(fmt, "ATA:") == NULL &&
+        strstr(fmt, "About") == NULL) {
         return;  /* Message not whitelisted - silently drop */
     }
 

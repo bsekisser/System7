@@ -30,6 +30,7 @@
 #include "StandardFile/StandardFile.h"
 #include "ToolboxCompat.h"
 #include "System71StdLib.h"
+#include "Finder/AboutThisMac.h"
 
 
 /* External globals */
@@ -522,7 +523,7 @@ static void HandleMenuChoice(long menuChoice)
     switch (menuID) {
         case 128:  /* Apple Menu */
             if (menuItem == 1) {
-                ShowAboutFinder();
+                AboutWindow_ShowOrToggle();
             } else {
                 /* Get item text to check if it's Shut Down */
                 Str255 itemName;

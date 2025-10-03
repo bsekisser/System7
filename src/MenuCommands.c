@@ -11,6 +11,7 @@
 extern void serial_puts(const char* str);
 extern void serial_printf(const char* format, ...);
 #include "MenuManager/MenuManager.h"
+#include "Finder/AboutThisMac.h"
 
 /* Forward declarations */
 static void ShowAboutBox(void);
@@ -127,8 +128,8 @@ static void HandleAppleMenu(short item)
     switch (item) {
         case 1:  /* About This Macintosh */
             serial_printf("About This Macintosh...\n");
-            /* Show about box */
-            ShowAboutBox();
+            /* Show about window */
+            AboutWindow_ShowOrToggle();
             break;
 
         case 2:  /* Separator */

@@ -15,6 +15,7 @@
 #include "EventManager/EventManager.h"
 #include "WindowManager/WindowManager.h"
 #include "MenuManager/MenuManager.h"
+#include "Finder/AboutThisMac.h"  /* About This Macintosh window */
 #include <stdlib.h>  /* For abs() */
 
 /* External functions */
@@ -187,6 +188,15 @@ Boolean HandleMouseDown(EventRecord* event)
                  (unsigned int)event, (int)event->where.v, (int)event->where.h, event->modifiers);
     serial_printf("HandleMouseDown: part=%d, window=0x%08x at (%d,%d)\n",
                  windowPart, (unsigned int)whichWindow, (int)event->where.h, (int)event->where.v);
+
+    /* Check if this is the About This Macintosh window - handle specially */
+    if (whichWindow && AboutWindow_IsOurs(whichWindow)) {
+        Point localPt = event->where;
+        /* AboutWindow_HandleMouseDown expects the part code and point */
+        if (AboutWindow_HandleMouseDown(whichWindow, windowPart, localPt)) {
+            return true;
+        }
+    }
 
     switch (windowPart) {
         case inMenuBar:
@@ -476,6 +486,13 @@ Boolean HandleUpdate(EventRecord* event)
     serial_printf("HandleUpdate: window=0x%08x\n", (unsigned int)updateWindow);
 
     if (updateWindow) {
+        /* Check if this is the About This Macintosh window */
+        if (AboutWindow_IsOurs(updateWindow)) {
+            /* About window handles its own BeginUpdate/EndUpdate */
+            AboutWindow_HandleUpdate(updateWindow);
+            return true;
+        }
+
         /* Begin update to set up clipping */
         BeginUpdate(updateWindow);
 

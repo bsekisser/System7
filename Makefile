@@ -64,6 +64,7 @@ C_SOURCES = src/main.c \
             src/Finder/folder_window.c \
             src/Finder/alias_manager.c \
             src/Finder/trash_folder.c \
+            src/Finder/AboutThisMac.c \
             src/QuickDraw/QuickDrawCore.c \
             src/QuickDraw/QuickDrawPlatform.c \
             src/QuickDraw/Coordinates.c \
