@@ -158,6 +158,10 @@ void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn) {
     WindowPtr windows[MAX_WINDOWS];
     int count = 0;
 
+    /* DEFENSIVE: Track visited windows to detect circular lists */
+    WindowPtr visited[MAX_WINDOWS];
+    int visitedCount = 0;
+
     /* Find start position */
     WindowPtr window = startWindow;
     if (!window) {
@@ -166,11 +170,25 @@ void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn) {
 
     /* Collect visible windows */
     while (window && count < MAX_WINDOWS) {
+        /* DEFENSIVE: Check for circular list by detecting revisited windows */
+        for (int i = 0; i < visitedCount; i++) {
+            if (visited[i] == window) {
+                serial_printf("[PaintBehind] ERROR: Circular list detected at window %p! Breaking loop.\n", window);
+                goto paint_windows;  /* Break out and paint what we have */
+            }
+        }
+
+        if (visitedCount < MAX_WINDOWS) {
+            visited[visitedCount++] = window;
+        }
+
         if (window->visible) {
             windows[count++] = window;
         }
         window = window->nextWindow;
     }
+
+paint_windows:
 
     /* CRITICAL: Paint ALL chrome first, then ALL content to prevent background
      * window content from overwriting foreground window chrome! */
@@ -1016,9 +1034,12 @@ void BringToFront(WindowPtr window) {
 
     if (!current) return;  /* Window not in list */
 
-    /* Remove from list */
+    /* Remove from list - CRITICAL: Handle both cases to prevent circular list! */
     if (prev) {
         prev->nextWindow = window->nextWindow;
+    } else {
+        /* Window was at front of list - must update windowList head! */
+        wmState->windowList = window->nextWindow;
     }
 
     /* Add to front */

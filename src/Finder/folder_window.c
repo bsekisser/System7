@@ -779,10 +779,10 @@ void FolderWindow_Draw(WindowPtr w) {
 
     serial_printf("FW: updateEvt for window %p, portRect=(%d,%d,%d,%d), portBits.bounds=(%d,%d,%d,%d)\n",
                   w,
-                  w->port.portRect.top, w->port.portRect.left,
-                  w->port.portRect.bottom, w->port.portRect.right,
-                  w->port.portBits.bounds.top, w->port.portBits.bounds.left,
-                  w->port.portBits.bounds.bottom, w->port.portBits.bounds.right);
+                  w->port.portRect.left, w->port.portRect.top,
+                  w->port.portRect.right, w->port.portRect.bottom,
+                  w->port.portBits.bounds.left, w->port.portBits.bounds.top,
+                  w->port.portBits.bounds.right, w->port.portBits.bounds.bottom);
 
     /* CRITICAL: Erase the entire portRect (content area in LOCAL coordinates)
      * portRect is already in LOCAL coords (0,0,width,height) representing just content.
