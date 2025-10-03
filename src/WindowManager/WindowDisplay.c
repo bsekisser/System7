@@ -634,14 +634,9 @@ void HiliteWindow(WindowPtr window, Boolean fHilite) {
     window->hilited = fHilite;
 
     /* Redraw the window frame to show highlight state */
-    GrafPtr savePort;
-    GetPort(&savePort);
-    SetPort((GrafPtr)window);
-
+    /* NOTE: DrawWindowFrame and DrawWindowControls set their own ports to WMgrPort */
     DrawWindowFrame(window);
     DrawWindowControls(window);
-
-    SetPort(savePort);
 }
 
 /*-----------------------------------------------------------------------*/
