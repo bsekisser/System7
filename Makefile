@@ -42,11 +42,15 @@ ifeq ($(MODERN_INPUT_ONLY),1)
 CFLAGS += -DMODERN_INPUT_ONLY=1
 endif
 CFLAGS += -ffreestanding -fno-builtin -fno-stack-protector -nostdlib \
-         -Wall -Wextra -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wcast-qual \
+         -Wall -Wextra -Wcast-qual \
          -Wpointer-arith -Wstrict-prototypes -Wno-unused-parameter \
          -g -O1 -fno-inline -fno-optimize-sibling-calls -I./include -std=c99 -m32 \
          -Wuninitialized -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
-         -Wno-multichar -Wno-pointer-sign -Wno-unknown-escape-sequence -Wno-sign-compare
+         -Wno-multichar -Wno-pointer-sign -Wno-sign-compare \
+         -Wno-switch -Wno-cast-qual -Wno-implicit-function-declaration -Wno-comment \
+         -Wno-shadow -Wno-dangling-pointer -Wno-int-conversion -Wno-type-limits \
+         -Wno-incompatible-pointer-types -Wno-maybe-uninitialized \
+         -Wno-missing-prototypes -Wno-missing-declarations -Wno-nonnull-compare
 ASFLAGS = --32
 LDFLAGS = -melf_i386 -nostdlib
 
