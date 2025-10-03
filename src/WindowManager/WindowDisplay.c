@@ -962,6 +962,12 @@ void HideWindow(WindowPtr window) {
         }
     }
 
+    /* Erase the window's area with desktop pattern FIRST */
+    if (clobberedRgn) {
+        extern void EraseRgn(RgnHandle rgn);
+        EraseRgn(clobberedRgn);
+    }
+
     /* Recalculate visible regions */
     CalcVisBehind(window->nextWindow, clobberedRgn);
 
