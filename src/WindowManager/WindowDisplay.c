@@ -127,8 +127,11 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
 
     /* NOW draw chrome on top of backfill */
     serial_printf("PaintOne: Drawing window chrome\n");
+    serial_printf("PaintOne: About to call DrawWindowFrame, window=%p\n", window);
     DrawWindowFrame(window);
+    serial_printf("PaintOne: DrawWindowFrame returned\n");
     DrawWindowControls(window);
+    serial_printf("PaintOne: DrawWindowControls returned\n");
 
     /* Test content drawing temporarily disabled until Font Manager is linked */
     serial_printf("[TEXT] Text drawing disabled - Font Manager not linked\n");
@@ -273,13 +276,31 @@ void DrawNew(WindowPtr window, Boolean update) {
 }
 
 static void DrawWindowFrame(WindowPtr window) {
-    if (!window || !window->visible) return;
+    serial_printf("DrawWindowFrame: ENTRY, window=%p\n", window);
+
+    if (!window) {
+        serial_printf("DrawWindowFrame: window is NULL, returning\n");
+        return;
+    }
+
+    serial_printf("DrawWindowFrame: window->visible=%d\n", window->visible);
+    if (!window->visible) {
+        serial_printf("DrawWindowFrame: window not visible, returning\n");
+        return;
+    }
 
     /* CRITICAL: strucRgn must be set to draw the window
      * strucRgn contains GLOBAL screen coordinates
      * portRect contains LOCAL coordinates (0,0,width,height) and must NEVER be used for positioning! */
-    if (!window->strucRgn || !*window->strucRgn) {
-        serial_printf("WindowManager: DrawWindowFrame - strucRgn not set, cannot draw\n");
+    serial_printf("DrawWindowFrame: Checking strucRgn=%p\n", window->strucRgn);
+    if (!window->strucRgn) {
+        serial_printf("WindowManager: DrawWindowFrame - strucRgn is NULL, cannot draw\n");
+        return;
+    }
+
+    serial_printf("DrawWindowFrame: Checking *strucRgn=%p\n", *window->strucRgn);
+    if (!*window->strucRgn) {
+        serial_printf("WindowManager: DrawWindowFrame - *strucRgn is NULL, cannot draw\n");
         return;
     }
 
@@ -290,6 +311,14 @@ static void DrawWindowFrame(WindowPtr window) {
     SetPort(wmgrPort);
 
     serial_printf("WindowManager: DrawWindowFrame START\n");
+
+    /* Set up pen for drawing black frames */
+    extern void PenNormal(void);
+    extern void PenSize(short width, short height);
+    static const Pattern blackPat = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    PenNormal();  /* Reset pen to normal state */
+    PenPat(&blackPat);  /* Use black pattern for frames */
+    PenSize(1, 1);  /* 1-pixel pen */
 
     /* Get window's global bounds from structure region */
     Rect frame = (*window->strucRgn)->rgnBBox;
@@ -356,6 +385,14 @@ static void DrawWindowControls(WindowPtr window) {
     GetPort(&savePort);
     GetWMgrPort(&wmgrPort);
     SetPort(wmgrPort);
+
+    /* Set up pen for drawing black controls */
+    extern void PenNormal(void);
+    extern void PenSize(short width, short height);
+    static const Pattern blackPat = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    PenNormal();
+    PenPat(&blackPat);
+    PenSize(1, 1);
 
     /* CRITICAL: Use global coordinates from strucRgn, not local portRect */
     Rect frame;
