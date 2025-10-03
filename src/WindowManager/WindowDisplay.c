@@ -194,23 +194,19 @@ void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn) {
 
 paint_windows:
 
-    /* CRITICAL: Paint ALL chrome first, then ALL content to prevent background
-     * window content from overwriting foreground window chrome! */
+    /* Paint each window COMPLETELY (chrome + content) from BACK to FRONT
+     * This ensures background windows never overdraw foreground windows */
 
-    /* Phase 1: Paint all window chrome from BACK to FRONT */
     for (int i = count - 1; i >= 0; i--) {
         WindowPtr w = windows[i];
+
+        /* Phase 1: Paint chrome */
         serial_printf("[PaintBehind] Painting chrome for window %p (index %d of %d)\n", w, i, count);
         PaintOne(w, clobberedRgn);
-    }
 
-    /* Phase 2: Paint all window content from BACK to FRONT */
-    for (int i = count - 1; i >= 0; i--) {
-        WindowPtr w = windows[i];
-
-        /* Invalidate content region to trigger update event for content redraw */
+        /* Phase 2: Paint content with proper clipping */
         if (w->contRgn) {
-            serial_printf("[PaintBehind] Invalidating content for window %p\n", w);
+            serial_printf("[PaintBehind] Painting content for window %p\n", w);
             extern void InvalRgn(RgnHandle badRgn);
             GrafPtr savePort;
             GetPort(&savePort);

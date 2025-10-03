@@ -196,13 +196,17 @@ static void HandleFileMenu(short item)
 
         case kCloseItem:
             serial_printf("File > Close\n");
-            /* Close current window */
+            /* Close current window - but only if it's valid and visible */
             extern WindowPtr FrontWindow(void);
             extern void CloseWindow(WindowPtr window);
             WindowPtr front = FrontWindow();
-            if (front) {
+            if (front && front->visible) {
+                serial_printf("Closing visible front window 0x%08x\n", (unsigned int)front);
                 CloseWindow(front);
                 serial_printf("Closed front window\n");
+            } else {
+                serial_printf("No visible window to close (front=%p, visible=%d)\n",
+                             front, front ? front->visible : -1);
             }
             break;
 

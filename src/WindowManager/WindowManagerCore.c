@@ -441,9 +441,10 @@ void CloseWindow(WindowPtr theWindow) {
     Platform_CleanupWindowPort(theWindow);
     serial_printf("CloseWindow: Port cleaned up\n");
 
-    /* Clear the window record (but don't free it) */
-    serial_printf("CloseWindow: Clearing window record\n");
-    memset(theWindow, 0, sizeof(WindowRecord));
+    /* Mark window as invisible and invalid - but DON'T zero memory yet!
+     * Memory will be freed by DisposeWindow or reused by NewWindow.
+     * Zeroing here causes crashes if any code has cached pointers. */
+    theWindow->visible = false;
     serial_printf("CloseWindow: EXIT\n");
 }
 
