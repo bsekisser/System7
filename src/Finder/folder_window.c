@@ -681,10 +681,15 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
     UInt32 timeSinceLast = currentTime - state->lastClickTime;
     Boolean isSameIcon = (hitIndex == state->lastClickIndex);
     Boolean withinDblTime = (timeSinceLast <= GetDblTime());
-    Boolean isRealDoubleClick = isSameIcon && withinDblTime && isDoubleClick;
 
-    serial_printf("FW: hit index %d, same=%d, dt=%d, threshold=%d, realDbl=%d\n",
-                 hitIndex, isSameIcon, (int)timeSinceLast, (int)GetDblTime(), isRealDoubleClick);
+    /* Check if this could potentially be a double-click based on timing and position
+     * Note: We check this BEFORE isDoubleClick flag because we need to handle
+     * the second click of a double-click specially */
+    Boolean couldBeDoubleClick = isSameIcon && withinDblTime;
+    Boolean isRealDoubleClick = couldBeDoubleClick && isDoubleClick;
+
+    serial_printf("FW: hit index %d, same=%d, dt=%d, threshold=%d, couldBeDbl=%d, realDbl=%d\n",
+                 hitIndex, isSameIcon, (int)timeSinceLast, (int)GetDblTime(), couldBeDoubleClick, isRealDoubleClick);
 
     if (isRealDoubleClick) {
         /* DOUBLE-CLICK on same icon: open it */
@@ -767,6 +772,19 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
         /* Clear double-click tracking */
         state->lastClickIndex = -1;
         state->lastClickTime = 0;
+    } else if (couldBeDoubleClick && !isDoubleClick) {
+        /* This is potentially the second click of a double-click but the event
+         * system hasn't flagged it as a double-click yet. Just select and track timing. */
+        serial_printf("FW: potential double-click (waiting for confirmation), selecting icon %d\n", hitIndex);
+
+        short oldSel = state->selectedIndex;
+        state->selectedIndex = hitIndex;
+        state->lastClickIndex = hitIndex;
+        state->lastClickTime = currentTime;
+
+        if (oldSel != hitIndex) {
+            PostEvent(updateEvt, (UInt32)w);
+        }
     } else {
         /* SINGLE-CLICK: Track for potential drag, or select if just a click */
         serial_printf("FW: single-click on icon %d, tracking for drag...\n", hitIndex);
