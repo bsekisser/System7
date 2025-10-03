@@ -39,16 +39,18 @@ static void SetPixel(int x, int y, uint32_t color) {
  * - Mask: All 1s for the entire trash can shape
  * - Image: 1s only for the outline and vertical stripes, 0s for the white body
  */
-static void DrawICN32(const IconBitmap* ib, int dx, int dy) {
+static void DrawICN32(const IconBitmap* ib, int dx, int dy, bool selected) {
     extern void serial_printf(const char* fmt, ...);
     uint32_t black = 0xFF000000;
     uint32_t white = 0xFFFFFFFF;
+    uint32_t darkBlue = 0xFF000080;  /* Dark blue for selection highlight */
 
-    serial_printf("[ICON_DRAW] DrawICN32 at (%d,%d)\n", dx, dy);
+    serial_printf("[ICON_DRAW] DrawICN32 at (%d,%d) selected=%d\n", dx, dy, selected);
 
     /* Draw the icon using proper Mac mask/image compositing:
      * - Mask defines the shape (1 = opaque, 0 = transparent)
      * - Image defines the colors (1 = black, 0 = white)
+     * - If selected, blend with dark blue to create highlight effect
      */
     for (int y = 0; y < 32; ++y) {
         if (dy + y >= 600) break;
@@ -59,19 +61,34 @@ static void DrawICN32(const IconBitmap* ib, int dx, int dy) {
             if (dx + x >= 800) break;
             /* Only draw where mask bit is set (opaque area) */
             if (GetBit(mrow, x)) {
+                uint32_t color;
                 /* If image bit is set, draw black; otherwise draw white */
                 if (GetBit(irow, x)) {
-                    SetPixel(dx + x, dy + y, black);
+                    color = black;
                 } else {
-                    SetPixel(dx + x, dy + y, white);
+                    color = white;
                 }
+
+                /* If selected, blend with dark blue for highlight */
+                if (selected) {
+                    uint8_t r = (color >> 16) & 0xFF;
+                    uint8_t g = (color >> 8) & 0xFF;
+                    uint8_t b = color & 0xFF;
+                    /* Blend 50% with dark blue */
+                    r = (r + 0x00) / 2;
+                    g = (g + 0x00) / 2;
+                    b = (b + 0x80) / 2;
+                    color = 0xFF000000 | (r << 16) | (g << 8) | b;
+                }
+
+                SetPixel(dx + x, dy + y, color);
             }
         }
     }
 }
 
 /* Draw color cicn icon */
-static void DrawCICN32(const IconBitmap* ib, int dx, int dy) {
+static void DrawCICN32(const IconBitmap* ib, int dx, int dy, bool selected) {
     for (int y = 0; y < 32; ++y) {
         if (dy + y >= 600) break;
         const uint32_t* src = ib->argb32 + y * 32;
@@ -82,7 +99,17 @@ static void DrawCICN32(const IconBitmap* ib, int dx, int dy) {
             uint8_t alpha = (pixel >> 24) & 0xFF;
 
             if (alpha > 0) {
-                /* Simple alpha blend if needed */
+                /* If selected, blend with dark blue */
+                if (selected) {
+                    uint8_t r = (pixel >> 16) & 0xFF;
+                    uint8_t g = (pixel >> 8) & 0xFF;
+                    uint8_t b = pixel & 0xFF;
+                    /* Blend 50% with dark blue */
+                    r = (r + 0x00) / 2;
+                    g = (g + 0x00) / 2;
+                    b = (b + 0x80) / 2;
+                    pixel = (alpha << 24) | (r << 16) | (g << 8) | b;
+                }
                 SetPixel(dx + x, dy + y, pixel);
             }
         }
@@ -90,15 +117,15 @@ static void DrawCICN32(const IconBitmap* ib, int dx, int dy) {
 }
 
 /* Public API: Draw 32x32 icon */
-void Icon_Draw32(const IconHandle* h, int x, int y) {
+void Icon_Draw32(const IconHandle* h, int x, int y, bool selected) {
     if (!h || !h->fam) return;
 
     const IconBitmap* b = &h->fam->large;
 
     if (b->depth == kIconColor32 && b->argb32) {
-        DrawCICN32(b, x, y);
+        DrawCICN32(b, x, y, selected);
     } else if (b->img1b && b->mask1b) {
-        DrawICN32(b, x, y);
+        DrawICN32(b, x, y, selected);
     }
 }
 
@@ -106,6 +133,6 @@ void Icon_Draw32(const IconHandle* h, int x, int y) {
 void Icon_Draw16(const IconHandle* h, int x, int y) {
     /* TODO: Implement SICN drawing when we have small icons */
     if (!h || !h->fam || !h->fam->hasSmall) return;
-    /* For now, just use the large icon */
-    Icon_Draw32(h, x, y);
+    /* For now, just use the large icon (not selected in list views) */
+    Icon_Draw32(h, x, y, false);
 }

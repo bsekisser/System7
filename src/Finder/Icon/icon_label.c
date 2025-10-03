@@ -186,8 +186,8 @@ void IconLabel_Draw(const char* name, int cx, int topY, bool selected) {
     int textX = cx - (textWidth / 2);
     int padding = 2;
 
-    /* Draw white background rectangle behind text */
-    uint32_t bgColor = selected ? 0xFF000080 : 0xFFFFFFFF;  /* Blue if selected, white otherwise */
+    /* Draw background rectangle behind text */
+    uint32_t bgColor = selected ? 0xFF000000 : 0xFFFFFFFF;  /* Black if selected, white otherwise */
     uint32_t fgColor = selected ? 0xFFFFFFFF : 0xFF000000;  /* White text if selected, black otherwise */
 
     /* Adjusted background rectangle (perfected from HD icon) */
@@ -217,8 +217,8 @@ IconRect Icon_DrawWithLabel(const IconHandle* h, const char* name,
 
     /* Draw icon centered at centerX */
     int iconLeft = centerX - 16;  /* 32x32 icon */
-    serial_printf("Icon_DrawWithLabel: calling Icon_Draw32 at X=%d Y=%d\n", iconLeft, iconTopY);
-    Icon_Draw32(h, iconLeft, iconTopY);
+    serial_printf("Icon_DrawWithLabel: calling Icon_Draw32 at X=%d Y=%d selected=%d\n", iconLeft, iconTopY, selected);
+    Icon_Draw32(h, iconLeft, iconTopY, selected);
 
     /* Draw label below icon with proper spacing
      * Icon visibly extends to row 27 (28px tall), label background extends 12px above baseline
@@ -250,7 +250,7 @@ IconRect Icon_DrawWithLabelOffset(const IconHandle* h, const char* name,
                                   int centerX, int iconTopY, int labelOffset, bool selected) {
     /* Draw icon centered at centerX */
     int iconLeft = centerX - 16;  /* 32x32 icon */
-    Icon_Draw32(h, iconLeft, iconTopY);
+    Icon_Draw32(h, iconLeft, iconTopY, selected);
 
     /* Draw label with custom offset */
     int labelTop = iconTopY + labelOffset;

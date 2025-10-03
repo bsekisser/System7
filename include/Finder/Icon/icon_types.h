@@ -68,7 +68,7 @@ typedef struct {
 /* Public API */
 bool Icon_Init(void);  /* Load system icon set once */
 bool Icon_ResolveForNode(const FileKind* fk, IconHandle* out); /* Lookup by custom icon / BNDL/FREF / defaults */
-void Icon_Draw32(const IconHandle* h, int x, int y);           /* Draw at 32×32 */
+void Icon_Draw32(const IconHandle* h, int x, int y, bool selected);  /* Draw at 32×32, optionally darkened if selected */
 void Icon_Draw16(const IconHandle* h, int x, int y);           /* Draw at 16×16 (list views) */
 
 /* Icon with label */
