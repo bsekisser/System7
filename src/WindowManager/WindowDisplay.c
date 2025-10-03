@@ -212,9 +212,10 @@ paint_windows:
             GetPort(&savePort);
             SetPort((GrafPtr)w);
 
-            /* CRITICAL: Clip to content region so content doesn't overdraw chrome! */
-            if (w->contRgn) {
-                w->port.clipRgn = w->contRgn;
+            /* CRITICAL: Calculate visible region and clip to it to prevent overdraw! */
+            CalcVis(w);
+            if (w->visRgn) {
+                w->port.clipRgn = w->visRgn;
             }
 
             InvalRgn(w->contRgn);
@@ -244,11 +245,14 @@ void CalcVis(WindowPtr window) {
         CopyRgn(window->contRgn, window->visRgn);
 
         /* Subtract regions of windows in front */
-        WindowPtr frontWindow = FrontWindow();
+        WindowManagerState* wmState = GetWindowManagerState();
+        if (!wmState) return;
+
+        WindowPtr frontWindow = wmState->windowList;
         while (frontWindow && frontWindow != window) {
             if (frontWindow->visible && frontWindow->strucRgn) {
-                /* Would subtract frontWindow->strucRgn from window->visRgn */
-                /* For now, simplified implementation */
+                /* Subtract the structure region of windows in front to prevent overdraw */
+                DiffRgn(window->visRgn, frontWindow->strucRgn, window->visRgn);
             }
             frontWindow = frontWindow->nextWindow;
         }
