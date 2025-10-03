@@ -415,6 +415,10 @@ void CloseWindow(WindowPtr theWindow) {
         Platform_DisposeRgn(theWindow->contRgn);
         theWindow->contRgn = NULL;
     }
+    if (theWindow->visRgn) {
+        Platform_DisposeRgn(theWindow->visRgn);
+        theWindow->visRgn = NULL;
+    }
     if (theWindow->updateRgn) {
         Platform_DisposeRgn(theWindow->updateRgn);
         theWindow->updateRgn = NULL;
@@ -649,6 +653,7 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     window->strucRgn = Platform_NewRgn();
     window->contRgn = Platform_NewRgn();
     window->updateRgn = Platform_NewRgn();
+    window->visRgn = Platform_NewRgn();
 
     /* Set window definition procedure based on procID */
     window->windowDefProc = Platform_GetWindowDefProc(procID);
