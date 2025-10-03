@@ -304,10 +304,13 @@ static void DrawWindowFrame(WindowPtr window) {
     serial_printf("WindowManager: About to check titleWidth=%d\n", window->titleWidth);
 
     if (window->titleWidth > 0) {
+        serial_printf("WindowManager: titleWidth > 0, drawing title bar\n");
         Rect titleBar = frame;
         titleBar.bottom = titleBar.top + 20;
 
         /* Fill title bar with white background */
+        serial_printf("WindowManager: EraseRect titleBar=(%d,%d,%d,%d)\n",
+                     titleBar.left, titleBar.top, titleBar.right, titleBar.bottom);
         EraseRect(&titleBar);
 
         /* Draw title bar separator */
@@ -320,10 +323,25 @@ static void DrawWindowFrame(WindowPtr window) {
         FrameRect(&closeBox);
 
         /* Draw window title */
-        if (window->titleHandle) {
-            MoveTo(frame.left + 20, frame.top + 15);
-            DrawString((unsigned char*)*window->titleHandle);
+        serial_printf("WindowManager: titleHandle=%p\n", window->titleHandle);
+        if (window->titleHandle && *window->titleHandle) {
+            unsigned char* titleStr = (unsigned char*)*window->titleHandle;
+            unsigned char titleLen = titleStr[0];
+            serial_printf("WindowManager: Title string ptr=%p, len=%d\n", titleStr, titleLen);
+
+            /* Safety check: ensure length is reasonable */
+            if (titleLen > 0 && titleLen < 256) {
+                serial_printf("WindowManager: Drawing title at (%d,%d)\n", frame.left + 20, frame.top + 15);
+                MoveTo(frame.left + 20, frame.top + 15);
+                DrawString(titleStr);
+            } else {
+                serial_printf("WindowManager: Invalid title length %d, skipping\n", titleLen);
+            }
+        } else {
+            serial_printf("WindowManager: titleHandle is NULL or empty, skipping title\n");
         }
+    } else {
+        serial_printf("WindowManager: titleWidth is 0, skipping title bar\n");
     }
 
     SetPort(savePort);

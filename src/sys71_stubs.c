@@ -627,14 +627,42 @@ void SetWTitle(WindowPtr window, ConstStr255Param title) {
 
     serial_printf("SetWTitle: Setting window title length %d\n", len);
 
-    /* Store in window title field - would copy to window's title storage */
-    /* For now just log it */
+    /* Log title for debugging */
     char titleBuf[256];
     for (int i = 0; i < len; i++) {
         titleBuf[i] = title[i+1];
     }
     titleBuf[len] = 0;
     serial_printf("SetWTitle: Title = '%s'\n", titleBuf);
+
+    /* CRITICAL: Allocate and store title in titleHandle */
+    if (window->titleHandle) {
+        /* Free existing title */
+        if (*window->titleHandle) {
+            free(*window->titleHandle);
+            *window->titleHandle = NULL;
+        }
+        free(window->titleHandle);
+        window->titleHandle = NULL;
+    }
+
+    if (len > 0) {
+        /* Allocate handle */
+        window->titleHandle = (StringHandle)malloc(sizeof(Ptr));
+        if (window->titleHandle) {
+            /* Allocate title string (length byte + string) */
+            *window->titleHandle = (Ptr)malloc(len + 1);
+            if (*window->titleHandle) {
+                /* Copy Pascal string */
+                (*window->titleHandle)[0] = len;
+                for (int i = 0; i < len; i++) {
+                    (*window->titleHandle)[i + 1] = title[i + 1];
+                }
+                serial_printf("SetWTitle: Allocated titleHandle=%p, string=%p\n",
+                             window->titleHandle, *window->titleHandle);
+            }
+        }
+    }
 
     /* Calculate title width for title bar rendering */
     extern SInt16 StringWidth(ConstStr255Param s);
@@ -643,7 +671,7 @@ void SetWTitle(WindowPtr window, ConstStr255Param title) {
     } else {
         window->titleWidth = 0;
     }
-    serial_printf("SetWTitle: titleWidth = %d\n", window->titleWidth);
+    serial_printf("SetWTitle: titleWidth = %d, titleHandle = %p\n", window->titleWidth, window->titleHandle);
 
     /* Invalidate title bar area */
     GrafPort* port = (GrafPort*)window;
