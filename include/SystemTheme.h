@@ -22,6 +22,6 @@ SystemTheme* GetSystemTheme(void);
 #define kHighlightRed     {0xFFFF, 0x0000, 0x0000}  /* Red */
 #define kHighlightGreen   {0x0000, 0x8000, 0x0000}  /* Green */
 #define kHighlightBrown   {0x8000, 0x4000, 0x0000}  /* Brown */
-#define kHighlightTeal    {0x0000, 0x8000, 0x8000}  /* Teal */
+#define kHighlightTeal    {0x0000, 0xB000, 0xB000}  /* Teal (brighter) */
 
 #endif /* SYSTEM_THEME_H */

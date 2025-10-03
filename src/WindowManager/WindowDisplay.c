@@ -491,49 +491,112 @@ static void DrawWindowFrame(WindowPtr window) {
             EraseRect(&titleBar);
         }
 
-        /* Draw close box - 14x14 circle at left side */
-        Rect closeBox;
-        SetRect(&closeBox, frame.left + 4, frame.top + 4, frame.left + 18, frame.top + 18);
-        FrameRect(&closeBox);
+        /* Draw System 7 close box - 14x14 at left side
+         * Design: Black outline (left/top only for 3D), 1px theme highlight inside, grey fill */
+        if (framebuffer) {
+            int boxLeft = frame.left + 10;
+            int boxTop = frame.top + 4;
+            int boxSize = 14;
 
-        /* Draw 1px themed highlight inside close box if window is active */
-        if (window->hilited && framebuffer) {
-            SystemTheme* theme = GetSystemTheme();
-            RGBColor highlight = theme->highlightColor;
-            /* Convert 16-bit Mac OS color to 8-bit framebuffer RGB */
-            uint32_t highlightColor = 0xFF000000 | ((highlight.red >> 8) << 16) | ((highlight.green >> 8) << 8) | (highlight.blue >> 8);
+            uint32_t black = 0xFF000000;
+            uint32_t grey = 0xFF808080;  /* Same grey as title bar stripes */
             uint32_t* fb = (uint32_t*)framebuffer;
             int pitch = fb_pitch / 4;
 
-            /* Top border */
-            int y = closeBox.top + 1;
+            /* Get theme highlight color if window is active */
+            uint32_t highlightColor = grey;
+            if (window->hilited) {
+                SystemTheme* theme = GetSystemTheme();
+                RGBColor highlight = theme->highlightColor;
+                highlightColor = 0xFF000000 | ((highlight.red >> 8) << 16) | ((highlight.green >> 8) << 8) | (highlight.blue >> 8);
+            }
+
+            /* Draw black outline on LEFT and TOP only (3D effect) */
+            /* Top edge */
+            for (int x = boxLeft; x < boxLeft + boxSize - 1 && x < (int)fb_width; x++) {
+                if (x >= 0 && boxTop >= 0 && boxTop < (int)fb_height) {
+                    fb[boxTop * pitch + x] = black;
+                }
+            }
+            /* Left edge */
+            for (int y = boxTop; y < boxTop + boxSize - 1 && y < (int)fb_height; y++) {
+                if (y >= 0 && boxLeft >= 0 && boxLeft < (int)fb_width) {
+                    fb[y * pitch + boxLeft] = black;
+                }
+            }
+
+            /* Draw 1px themed highlight border (complete box around grey) */
+            /* Top highlight line */
+            int y = boxTop + 1;
             if (y >= 0 && y < (int)fb_height) {
-                for (int x = closeBox.left + 1; x < closeBox.right - 1 && x < (int)fb_width; x++) {
+                for (int x = boxLeft + 1; x < boxLeft + boxSize - 1 && x < (int)fb_width; x++) {
+                    if (x >= 0) fb[y * pitch + x] = highlightColor;
+                }
+            }
+            /* Left highlight line */
+            int x = boxLeft + 1;
+            if (x >= 0 && x < (int)fb_width) {
+                for (y = boxTop + 2; y < boxTop + boxSize - 2 && y < (int)fb_height; y++) {
+                    if (y >= 0) fb[y * pitch + x] = highlightColor;
+                }
+            }
+            /* Right highlight line */
+            x = boxLeft + boxSize - 2;
+            if (x >= 0 && x < (int)fb_width) {
+                for (y = boxTop + 1; y < boxTop + boxSize - 1 && y < (int)fb_height; y++) {
+                    if (y >= 0) fb[y * pitch + x] = highlightColor;
+                }
+            }
+            /* Bottom highlight line */
+            y = boxTop + boxSize - 2;
+            if (y >= 0 && y < (int)fb_height) {
+                for (x = boxLeft + 1; x < boxLeft + boxSize - 1 && x < (int)fb_width; x++) {
                     if (x >= 0) fb[y * pitch + x] = highlightColor;
                 }
             }
 
-            /* Bottom border */
-            y = closeBox.bottom - 2;
+            /* Fill interior with solid grey (reduced by 1px on bottom and right for shadow) */
+            for (y = boxTop + 2; y < boxTop + boxSize - 3 && y < (int)fb_height; y++) {
+                if (y >= 0) {
+                    for (x = boxLeft + 2; x < boxLeft + boxSize - 3 && x < (int)fb_width; x++) {
+                        if (x >= 0) fb[y * pitch + x] = grey;
+                    }
+                }
+            }
+
+            /* Draw black 3D shadow on bottom and right edges of grey */
+            /* Bottom shadow */
+            y = boxTop + boxSize - 3;
             if (y >= 0 && y < (int)fb_height) {
-                for (int x = closeBox.left + 1; x < closeBox.right - 1 && x < (int)fb_width; x++) {
-                    if (x >= 0) fb[y * pitch + x] = highlightColor;
+                for (x = boxLeft + 2; x < boxLeft + boxSize - 2 && x < (int)fb_width; x++) {
+                    if (x >= 0) fb[y * pitch + x] = black;
+                }
+            }
+            /* Right shadow */
+            x = boxLeft + boxSize - 3;
+            if (x >= 0 && x < (int)fb_width) {
+                for (y = boxTop + 2; y < boxTop + boxSize - 3 && y < (int)fb_height; y++) {
+                    if (y >= 0) fb[y * pitch + x] = black;
                 }
             }
 
-            /* Left border */
-            int x = closeBox.left + 1;
-            if (x >= 0 && x < (int)fb_width) {
-                for (y = closeBox.top + 1; y < closeBox.bottom - 1 && y < (int)fb_height; y++) {
-                    if (y >= 0) fb[y * pitch + x] = highlightColor;
+            /* Draw light grey separator columns on either side of close box
+             * This separates the teal highlight from the dark grey horizontal stripes */
+            uint32_t lightGrey = 0xFFE0E0E0;  /* Match title bar background */
+
+            /* Left separator column - same height as black outline */
+            int sepX = boxLeft - 1;
+            if (sepX >= 0 && sepX < (int)fb_width) {
+                for (y = boxTop; y < boxTop + boxSize - 1 && y < (int)fb_height; y++) {
+                    if (y >= 0) fb[y * pitch + sepX] = lightGrey;
                 }
             }
 
-            /* Right border */
-            x = closeBox.right - 2;
-            if (x >= 0 && x < (int)fb_width) {
-                for (y = closeBox.top + 1; y < closeBox.bottom - 1 && y < (int)fb_height; y++) {
-                    if (y >= 0) fb[y * pitch + x] = highlightColor;
+            /* Right separator column - right against the close box */
+            sepX = boxLeft + boxSize - 1;
+            if (sepX >= 0 && sepX < (int)fb_width) {
+                for (y = boxTop; y < boxTop + boxSize - 1 && y < (int)fb_height; y++) {
+                    if (y >= 0) fb[y * pitch + sepX] = lightGrey;
                 }
             }
         }
@@ -661,21 +724,7 @@ static void DrawWindowControls(WindowPtr window) {
         frame = window->port.portRect;
     }
 
-    /* Draw close box */
-    if (window->goAwayFlag) {
-        Rect closeBox;
-        SetRect(&closeBox, frame.left + 8, frame.top + 4,
-                frame.left + 20, frame.top + 16);
-        FrameRect(&closeBox);
-
-        if (window->hilited) {
-            /* Draw close box X */
-            MoveTo(closeBox.left + 2, closeBox.top + 2);
-            LineTo(closeBox.right - 3, closeBox.bottom - 3);
-            MoveTo(closeBox.right - 3, closeBox.top + 2);
-            LineTo(closeBox.left + 2, closeBox.bottom - 3);
-        }
-    }
+    /* Close box is drawn in DrawWindowFrame, not here */
 
     /* Draw zoom box */
     if (window->spareFlag) {
