@@ -1892,22 +1892,11 @@ void init_system71(void) {
                 volName[8] = ' '; volName[9] = '0' + i; volName[10] = '\0';
 
                 /* Try to mount - will fail if disk is not formatted */
-                if (!VFS_MountATA(i, volName, &vref)) {
-                    /* TESTING ONLY: Auto-format test_disk.img for development */
-                    /* WARNING: In production, NEVER auto-format without user consent! */
-                    serial_puts("  ATA disk not formatted, formatting for testing...\n");
-                    if (VFS_FormatATA(i, volName)) {
-                        serial_puts("  Format complete, attempting mount...\n");
-                        if (VFS_MountATA(i, volName, &vref)) {
-                            serial_puts("  ATA volume formatted, mounted, and added to desktop\n");
-                        } else {
-                            serial_puts("  ERROR: Mount failed after format\n");
-                        }
-                    } else {
-                        serial_puts("  ERROR: Format failed\n");
-                    }
-                } else {
+                if (VFS_MountATA(i, volName, &vref)) {
                     serial_puts("  ATA volume mounted and added to desktop\n");
+                } else {
+                    serial_puts("  WARNING: ATA disk is not formatted with HFS\n");
+                    serial_puts("  Use VFS_FormatATA() to format this disk\n");
                 }
             }
         }
