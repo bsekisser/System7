@@ -42,8 +42,22 @@ extern void DoMenuCommand(short menuID, short item);
 /* Forward declaration for DispatchEvent (no header available yet) */
 extern Boolean DispatchEvent(EventRecord* evt);
 
+/* Forward declarations for static functions in this file */
+static void process_serial_command(void);
+uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
+static void console_putchar(char c);
+static void console_puts(const char* str);
+static void console_clear(void);
+static void print_hex(uint32_t value);
+static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info);
+static void test_framebuffer(void);
+static void init_system71(void);
+static void run_performance_tests(void);
+static void create_system71_windows(void);
+void kernel_main(uint32_t magic, uint32_t* mb2_info);
+
 /* Simple 5x7 font for basic ASCII characters */
-static const uint8_t font5x7[][5] = {
+static const uint8_t font5x7[][5] __attribute__((unused)) = {
     {0x00, 0x00, 0x00, 0x00, 0x00}, // Space
     {0x00, 0x00, 0x5F, 0x00, 0x00}, // !
     {0x00, 0x07, 0x00, 0x07, 0x00}, // "
@@ -201,7 +215,8 @@ char serial_getchar(void) {
 */
 
 /* Process serial commands for menu testing */
-void process_serial_command(void) {
+static void process_serial_command(void) __attribute__((unused));
+static void process_serial_command(void) {
 #if DEBUG_SERIAL_MENU_COMMANDS
     if (!serial_data_ready()) return;
 
@@ -363,7 +378,7 @@ uint8_t fb_blue_size = 0;
 uint32_t g_total_memory_kb = 8 * 1024;  /* Default 8MB if not detected */
 
 /* Window management */
-static int window_count = 0;
+static int window_count __attribute__((unused)) = 0;
 
 /* QuickDraw globals structure */
 QDGlobals qd;
@@ -397,7 +412,7 @@ void draw_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t
 void draw_icon(uint32_t x, uint32_t y, int icon_type);
 
 /* Early console output */
-void console_putchar(char c) {
+static void console_putchar(char c) {
     /* Disable console output when in graphics mode to prevent corruption */
     if (framebuffer != NULL) {
         return;
@@ -425,13 +440,13 @@ void console_putchar(char c) {
     }
 }
 
-void console_puts(const char* str) {
+static void console_puts(const char* str) {
     while (*str) {
         console_putchar(*str++);
     }
 }
 
-void console_clear(void) {
+static void console_clear(void) {
     for (size_t y = 0; y < VGA_HEIGHT; y++) {
         for (size_t x = 0; x < VGA_WIDTH; x++) {
             size_t index = y * VGA_WIDTH + x;
@@ -443,7 +458,7 @@ void console_clear(void) {
 }
 
 /* Helper to print hex values */
-void print_hex(uint32_t value) {
+static void print_hex(uint32_t value) {
     const char* hex = "0123456789ABCDEF";
     serial_puts("0x");
     for (int i = 7; i >= 0; i--) {
@@ -462,7 +477,7 @@ void serial_print_hex(uint32_t value) {
 */
 
 /* Parse Multiboot2 info */
-void parse_multiboot2(uint32_t magic, uint32_t* mb2_info) {
+static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info) {
     if (magic != MULTIBOOT2_BOOTLOADER_MAGIC) {
         console_puts("Error: Invalid Multiboot2 magic! Got: ");
         print_hex(magic);
@@ -1577,7 +1592,8 @@ void draw_icon(uint32_t x, uint32_t y, int icon_type) {
 #endif /* Removed draw_system71_desktop */
 
 /* Test framebuffer - now handled by Finder */
-void test_framebuffer(void) {
+static void test_framebuffer(void) __attribute__((unused));
+static void test_framebuffer(void) {
     /* Desktop drawing is now done by Finder */
     serial_puts("Desktop rendering delegated to Finder\n");
 }
@@ -1637,7 +1653,7 @@ static void tm_hello(struct TMTask *t) {
 #endif
 
 /* Initialize System 7.1 subsystems */
-void init_system71(void) {
+static void init_system71(void) {
     /* console_puts("Initializing System 7.1 subsystems...\n"); - disabled in graphics mode */
     serial_puts("Initializing System 7.1 subsystems...\n");
 
@@ -2014,7 +2030,7 @@ static void test_cancel_stale(void) {
 }
 
 /* Run all performance tests */
-void run_performance_tests(void) {
+static void run_performance_tests(void) {
     serial_puts("\n=== Running Performance Tests ===\n");
 
 #ifdef ENABLE_RESOURCES
@@ -2028,7 +2044,7 @@ void run_performance_tests(void) {
 #endif /* Performance tests */
 
 /* Create System 7.1 windows using real Window Manager */
-void create_system71_windows(void) {
+static void create_system71_windows(void) {
     MenuHandle appleMenu, fileMenu, editMenu;
 
     /* serial_puts("Creating System 7.1 windows...\n"); */
@@ -2037,7 +2053,8 @@ void create_system71_windows(void) {
     static unsigned char appleTitle[] = {1, 0x14};  /* Pascal string: length 1, Apple symbol */
     appleMenu = NewMenu(128, appleTitle);
     if (appleMenu) {
-        AppendMenu(appleMenu, "\pAbout System 7.1...");
+        static unsigned char aboutItem[] = {20, 'A','b','o','u','t',' ','S','y','s','t','e','m',' ','7','.','1','.','.','.'}; /* Pascal string */
+        AppendMenu(appleMenu, aboutItem);
         InsertMenu(appleMenu, 0);
         /* serial_puts("  Apple menu created\n"); */
     }
@@ -2046,7 +2063,8 @@ void create_system71_windows(void) {
     static unsigned char fileTitle[] = {4, 'F', 'i', 'l', 'e'};  /* Pascal string: "File" */
     fileMenu = NewMenu(129, fileTitle);
     if (fileMenu) {
-        AppendMenu(fileMenu, "\pNew/N;Open.../O;-;Close/W;Save/S;Save As...;-;Quit/Q");
+        static unsigned char fileItems[] = {56, 'N','e','w','/','N',';','O','p','e','n','.','.','.','/','O',';','-',';','C','l','o','s','e','/','W',';','S','a','v','e','/','S',';','S','a','v','e',' ','A','s','.','.','.',';','-',';','Q','u','i','t','/','Q'}; /* Pascal string */
+        AppendMenu(fileMenu, fileItems);
         InsertMenu(fileMenu, 0);
         /* serial_puts("  File menu created\n"); */
     }
@@ -2055,7 +2073,8 @@ void create_system71_windows(void) {
     static unsigned char editTitle[] = {4, 'E', 'd', 'i', 't'};  /* Pascal string: "Edit" */
     editMenu = NewMenu(130, editTitle);
     if (editMenu) {
-        AppendMenu(editMenu, "\pUndo/Z;-;Cut/X;Copy/C;Paste/V;Clear");
+        static unsigned char editItems[] = {36, 'U','n','d','o','/','Z',';','-',';','C','u','t','/','X',';','C','o','p','y','/','C',';','P','a','s','t','e','/','V',';','C','l','e','a','r'}; /* Pascal string */
+        AppendMenu(editMenu, editItems);
         InsertMenu(editMenu, 0);
         /* serial_puts("  Edit menu created\n"); */
     }
@@ -2221,7 +2240,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     /* console_puts("\nSystem ready. Processing events...\n"); */
     /* serial_puts("\nSystem ready. Entering event loop.\n"); */
 
-    EventRecord event;
+    EventRecord event __attribute__((unused));
 
     /* Initial desktop draw */
     /* WM_Update was a bootstrap function, now quarantined. TODO: Use real Toolbox APIs */
@@ -2300,7 +2319,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 
     int16_t last_mouse_x = g_mouseState.x;
     int16_t last_mouse_y = g_mouseState.y;
-    volatile uint32_t debug_counter = 0;
+    volatile uint32_t debug_counter __attribute__((unused)) = 0;
 
     /* serial_puts("Entering main event loop...\n"); */
 

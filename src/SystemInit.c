@@ -84,8 +84,12 @@ typedef struct SystemGlobalsExt {
 #define SYS_ERR_INITIALIZATION_FAILED -4
 #define SYSTEM_VERSION            0x0710
 
-#define EM_STANDARD_SIZE          (1024 * 4)  /* 4KB for ExpandMem */
-#define EM_CURRENT_VERSION        1
+#ifndef EM_STANDARD_SIZE
+#define EM_STANDARD_SIZE 32
+#endif
+#ifndef EM_CURRENT_VERSION  
+#define EM_CURRENT_VERSION 1
+#endif
 
 /* Static system globals instance */
 static SystemGlobalsExt g_system = {
