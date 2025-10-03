@@ -172,13 +172,19 @@ void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn) {
         window = window->nextWindow;
     }
 
-    /* Paint windows from BACK to FRONT (reverse of list order) */
+    /* CRITICAL: Paint ALL chrome first, then ALL content to prevent background
+     * window content from overwriting foreground window chrome! */
+
+    /* Phase 1: Paint all window chrome from BACK to FRONT */
     for (int i = count - 1; i >= 0; i--) {
         WindowPtr w = windows[i];
-        serial_printf("[PaintBehind] Painting window %p (index %d of %d)\n", w, i, count);
-
-        /* Paint chrome (frame and controls) */
+        serial_printf("[PaintBehind] Painting chrome for window %p (index %d of %d)\n", w, i, count);
         PaintOne(w, clobberedRgn);
+    }
+
+    /* Phase 2: Paint all window content from BACK to FRONT */
+    for (int i = count - 1; i >= 0; i--) {
+        WindowPtr w = windows[i];
 
         /* Invalidate content region to trigger update event for content redraw */
         if (w->contRgn) {
@@ -193,7 +199,7 @@ void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn) {
             /* WORKAROUND: Directly redraw folder window content since update events may not flow */
             if (w->refCon == 'DISK' || w->refCon == 'TRSH') {
                 extern void FolderWindow_Draw(WindowPtr window);
-                serial_printf("[PaintBehind] Directly drawing folder content for window %p\n", w);
+                serial_printf("[PaintBehind] Drawing content for window %p (index %d of %d)\n", w, i, count);
                 FolderWindow_Draw(w);
             }
         }
