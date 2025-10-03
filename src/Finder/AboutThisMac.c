@@ -583,6 +583,8 @@ Boolean AboutWindow_HandleMouseDown(WindowPtr w, short part, Point localPt)
 
     switch (part) {
         case inDrag:
+            /* Select window before dragging (Mac OS standard behavior) */
+            SelectWindow(w);
             /* Allow window to be dragged */
             dragBounds = qd.screenBits.bounds;
             InsetRect(&dragBounds, 4, 4);

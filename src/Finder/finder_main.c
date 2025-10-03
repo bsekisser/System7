@@ -487,6 +487,10 @@ static void HandleMouseDown(EventRecord *event)
     short part;
     long menuChoice;
 
+    /* Function declarations */
+    extern void SelectWindow(WindowPtr);
+    extern void DragWindow(WindowPtr, Point, const Rect*);
+
     part = FindWindow(event->where, &window);
 
     switch (part) {
@@ -504,6 +508,8 @@ static void HandleMouseDown(EventRecord *event)
             break;
 
         case inDrag:
+            /* Select window before dragging (Mac OS standard behavior) */
+            SelectWindow(window);
             DragWindow(window, event->where, &qd.screenBits.bounds);
             break;
 

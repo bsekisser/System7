@@ -697,9 +697,9 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
                  fullWidth, fullHeight);
 
     /* Content area is smaller than full window by the chrome dimensions
-     * Note: FrameRect draws inside the bounds, so we don't need to subtract for left/right borders */
-    SInt16 contentWidth = fullWidth;  /* Full width - borders are drawn inside */
-    SInt16 contentHeight = fullHeight - kTitleBar - kSeparator;  /* Just subtract title bar and separator */
+     * Subtract 3px width (1px left border + 2px right for 3D effect) and extra height for bottom border */
+    SInt16 contentWidth = fullWidth - 3;  /* Subtract left border and right 3D highlight */
+    SInt16 contentHeight = fullHeight - kTitleBar - kSeparator - 2;  /* Subtract title bar, separator, and bottom border */
 
     SetRect(&window->port.portRect, 0, 0, contentWidth, contentHeight);
     serial_printf("[NEWWIN] portRect set to (0,0,%d,%d) from content w=%d h=%d\n",

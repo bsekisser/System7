@@ -3,6 +3,7 @@
 #include "WindowManager/WindowManagerInternal.h"
 #include "QuickDraw/QuickDraw.h"
 #include "ControlManager/ControlTypes.h"
+#include "SystemTheme.h"
 
 /* Debug macros */
 #ifdef DEBUG_WINDOW_MANAGER
@@ -18,6 +19,9 @@ extern void LineTo(short h, short v);
 extern void MoveTo(short h, short v);
 extern void FrameRect(const Rect* r);
 extern void PaintRect(const Rect* r);
+
+/* External globals */
+extern QDGlobals qd;
 extern void EraseRect(const Rect* r);
 extern void InsetRect(Rect* r, short dh, short dv);
 extern void SetRect(Rect* r, short left, short top, short right, short bottom);
@@ -147,7 +151,10 @@ void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn) {
     WindowManagerState* wmState = GetWindowManagerState();
     if (!wmState) return;
 
-    WM_DEBUG("PaintBehind: Starting paint");
+    serial_printf("[PaintBehind] Starting, startWindow=%p\n", startWindow);
+
+    /* Get front window - we'll repaint it last to ensure it's on top */
+    WindowPtr frontWin = wmState->windowList;
 
     /* Find start position in window list */
     WindowPtr window = startWindow;
@@ -158,10 +165,38 @@ void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn) {
     /* Paint windows from back to front */
     while (window) {
         if (window->visible) {
+            serial_printf("[PaintBehind] Painting window %p\n", window);
+            /* Paint chrome (frame and controls) */
             PaintOne(window, clobberedRgn);
+
+            /* Invalidate content region to trigger update event for content redraw */
+            if (window->contRgn) {
+                serial_printf("[PaintBehind] Invalidating content for window %p\n", window);
+                extern void InvalRgn(RgnHandle badRgn);
+                GrafPtr savePort;
+                GetPort(&savePort);
+                SetPort((GrafPtr)window);
+                InvalRgn(window->contRgn);
+                SetPort(savePort);
+
+                /* WORKAROUND: Directly redraw folder window content since update events may not flow */
+                if (window->refCon == 'DISK' || window->refCon == 'TRSH') {
+                    extern void FolderWindow_Draw(WindowPtr w);
+                    serial_printf("[PaintBehind] Directly drawing folder content for window %p\n", window);
+                    FolderWindow_Draw(window);
+                }
+            }
         }
         window = window->nextWindow;
     }
+
+    /* Repaint front window frame last to ensure it's on top of all background content */
+    if (frontWin && frontWin->visible) {
+        serial_printf("[PaintBehind] Repainting front window %p frame to keep it on top\n", frontWin);
+        PaintOne(frontWin, NULL);
+    }
+
+    serial_printf("[PaintBehind] Complete\n");
 }
 
 void CalcVis(WindowPtr window) {
@@ -330,6 +365,41 @@ static void DrawWindowFrame(WindowPtr window) {
     FrameRect(&frame);
     serial_printf("WindowManager: Drew frame using FrameRect\n");
 
+    /* Add 3D black highlights for depth effect */
+    extern void* framebuffer;
+    extern uint32_t fb_width, fb_height, fb_pitch;
+    if (framebuffer) {
+        uint32_t* fb = (uint32_t*)framebuffer;
+        int pitch = fb_pitch / 4;
+        uint32_t black = 0xFF000000;
+
+        /* Right side highlight: 2px wide, starting 1px down from top and extending to bottom */
+        int highlightStartY = frame.top + 1;
+        for (int y = highlightStartY; y < frame.bottom - 1 && y < (int)fb_height; y++) {
+            if (y >= 0) {
+                /* Draw 2 pixels on the right side (inside the frame) */
+                for (int dx = 1; dx <= 2; dx++) {
+                    int x = frame.right - 1 - dx;
+                    if (x >= 0 && x < (int)fb_width) {
+                        fb[y * pitch + x] = black;
+                    }
+                }
+            }
+        }
+
+        /* Bottom highlight: 2px thick */
+        for (int dy = 1; dy <= 2; dy++) {
+            int y = frame.bottom - 1 - dy;
+            if (y >= 0 && y < (int)fb_height) {
+                for (int x = frame.left + 1; x < frame.right - 3 && x < (int)fb_width; x++) {
+                    if (x >= 0) {
+                        fb[y * pitch + x] = black;
+                    }
+                }
+            }
+        }
+    }
+
     /* Draw title bar BEFORE filling content area */
     serial_printf("WindowManager: About to check titleWidth=%d\n", window->titleWidth);
 
@@ -339,29 +409,140 @@ static void DrawWindowFrame(WindowPtr window) {
         Rect titleBar;
         titleBar.left = frame.left + 1;    /* Inset from left frame edge */
         titleBar.top = frame.top + 1;      /* Inset from top frame edge */
-        titleBar.right = frame.right - 1;  /* Inset from right frame edge */
+        titleBar.right = frame.right - 2;  /* Inset 2px from right to not overlap frame */
         titleBar.bottom = frame.top + 20;  /* Extends to separator line */
 
-        /* Fill title bar with light grey background for active windows */
+        /* Fill title bar background */
+        extern void* framebuffer;
+        extern uint32_t fb_width, fb_height, fb_pitch;
+
         if (window->hilited) {
-            /* Active window: light grey background */
-            static const Pattern greyPat = {0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55};
-            FillRect(&titleBar, &greyPat);
+            /* Active window: solid light grey background with darker horizontal stripes */
+            if (framebuffer) {
+                uint32_t* fb = (uint32_t*)framebuffer;
+                int pitch = fb_pitch / 4;
+                uint32_t lightGrey = 0xFFE8E8E8;  /* Solid lighter grey RGB(232,232,232) */
+                uint32_t darkGrey = 0xFF808080;   /* Solid darker grey RGB(128,128,128) for stripes */
+
+                /* Fill entire title bar with light grey */
+                for (int y = titleBar.top; y < titleBar.bottom && y < (int)fb_height; y++) {
+                    if (y >= 0) {
+                        for (int x = titleBar.left; x < titleBar.right && x < (int)fb_width; x++) {
+                            if (x >= 0) {
+                                fb[y * pitch + x] = lightGrey;
+                            }
+                        }
+                    }
+                }
+
+                /* Draw 6 evenly spaced darker horizontal stripes (every 3 pixels starting at offset 3) */
+                int stripePositions[6] = {3, 6, 9, 12, 15, 18};
+                for (int i = 0; i < 6; i++) {
+                    int y = titleBar.top + stripePositions[i];
+                    if (y >= 0 && y < (int)fb_height) {
+                        for (int x = titleBar.left; x < titleBar.right && x < (int)fb_width; x++) {
+                            if (x >= 0) {
+                                fb[y * pitch + x] = darkGrey;
+                            }
+                        }
+                    }
+                }
+
+                /* Draw 1px themed highlight border inside title bar */
+                SystemTheme* theme = GetSystemTheme();
+                RGBColor highlight = theme->highlightColor;
+                /* Convert 16-bit Mac OS color to 8-bit framebuffer RGB */
+                uint32_t highlightColor = 0xFF000000 | ((highlight.red >> 8) << 16) | ((highlight.green >> 8) << 8) | (highlight.blue >> 8);
+
+                /* Top border - 1px inside */
+                int y = titleBar.top;
+                if (y >= 0 && y < (int)fb_height) {
+                    for (int x = titleBar.left; x < titleBar.right && x < (int)fb_width; x++) {
+                        if (x >= 0) fb[y * pitch + x] = highlightColor;
+                    }
+                }
+
+                /* Bottom border - 1px inside (at separator line) */
+                y = titleBar.bottom - 1;
+                if (y >= 0 && y < (int)fb_height) {
+                    for (int x = titleBar.left; x < titleBar.right && x < (int)fb_width; x++) {
+                        if (x >= 0) fb[y * pitch + x] = highlightColor;
+                    }
+                }
+
+                /* Left border - 1px inside */
+                int x = titleBar.left;
+                if (x >= 0 && x < (int)fb_width) {
+                    for (y = titleBar.top; y < titleBar.bottom && y < (int)fb_height; y++) {
+                        if (y >= 0) fb[y * pitch + x] = highlightColor;
+                    }
+                }
+
+                /* Right border - 1px inside */
+                x = titleBar.right - 1;
+                if (x >= 0 && x < (int)fb_width) {
+                    for (y = titleBar.top; y < titleBar.bottom && y < (int)fb_height; y++) {
+                        if (y >= 0) fb[y * pitch + x] = highlightColor;
+                    }
+                }
+            }
         } else {
             /* Inactive window: white background */
             EraseRect(&titleBar);
+        }
+
+        /* Draw close box - 14x14 circle at left side */
+        Rect closeBox;
+        SetRect(&closeBox, frame.left + 4, frame.top + 4, frame.left + 18, frame.top + 18);
+        FrameRect(&closeBox);
+
+        /* Draw 1px themed highlight inside close box if window is active */
+        if (window->hilited && framebuffer) {
+            SystemTheme* theme = GetSystemTheme();
+            RGBColor highlight = theme->highlightColor;
+            /* Convert 16-bit Mac OS color to 8-bit framebuffer RGB */
+            uint32_t highlightColor = 0xFF000000 | ((highlight.red >> 8) << 16) | ((highlight.green >> 8) << 8) | (highlight.blue >> 8);
+            uint32_t* fb = (uint32_t*)framebuffer;
+            int pitch = fb_pitch / 4;
+
+            /* Top border */
+            int y = closeBox.top + 1;
+            if (y >= 0 && y < (int)fb_height) {
+                for (int x = closeBox.left + 1; x < closeBox.right - 1 && x < (int)fb_width; x++) {
+                    if (x >= 0) fb[y * pitch + x] = highlightColor;
+                }
+            }
+
+            /* Bottom border */
+            y = closeBox.bottom - 2;
+            if (y >= 0 && y < (int)fb_height) {
+                for (int x = closeBox.left + 1; x < closeBox.right - 1 && x < (int)fb_width; x++) {
+                    if (x >= 0) fb[y * pitch + x] = highlightColor;
+                }
+            }
+
+            /* Left border */
+            int x = closeBox.left + 1;
+            if (x >= 0 && x < (int)fb_width) {
+                for (y = closeBox.top + 1; y < closeBox.bottom - 1 && y < (int)fb_height; y++) {
+                    if (y >= 0) fb[y * pitch + x] = highlightColor;
+                }
+            }
+
+            /* Right border */
+            x = closeBox.right - 2;
+            if (x >= 0 && x < (int)fb_width) {
+                for (y = closeBox.top + 1; y < closeBox.bottom - 1 && y < (int)fb_height; y++) {
+                    if (y >= 0) fb[y * pitch + x] = highlightColor;
+                }
+            }
         }
 
         /* Draw title bar separator */
         MoveTo(frame.left, frame.top + 20);
         LineTo(frame.right - 1, frame.top + 20);
 
-        /* Draw close box - simple square at left side */
-        Rect closeBox;
-        SetRect(&closeBox, frame.left + 4, frame.top + 4, frame.left + 14, frame.top + 14);
-        FrameRect(&closeBox);
-
-        /* Draw window title - centered and with validation */
+        /* Draw window title with System 7 lozenge */
         serial_printf("TITLE_DRAW: titleHandle=%p, *titleHandle=%p\n",
                      window->titleHandle, window->titleHandle ? *window->titleHandle : NULL);
 
@@ -374,14 +555,72 @@ static void DrawWindowFrame(WindowPtr window) {
             /* Basic validation: just check length is positive and not obviously corrupt */
             if (titleLen > 0 && titleLen < 128) {
                 extern short StringWidth(ConstStr255Param str);
-                short textWidth = StringWidth(titleStr);
-                short titleBarWidth = titleBar.right - titleBar.left;
-                short centerX = titleBar.left + (titleBarWidth - textWidth) / 2;
+                extern void TextFace(short face);
+                extern void PaintRoundRect(const Rect* r, short ovalWidth, short ovalHeight);
+                extern void FrameRoundRect(const Rect* r, short ovalWidth, short ovalHeight);
+                extern void InsetRect(Rect* r, short dh, short dv);
 
-                serial_printf("TITLE_DRAW: Drawing title centered at %d\n", centerX);
-                /* Draw centered title text */
-                MoveTo(centerX, frame.top + 15);
-                DrawString(titleStr);
+                short textWidth = StringWidth(titleStr);
+
+                /* System 7 lozenge calculations (exact pixel metrics) */
+                short barTop = frame.top;
+                short barBottom = barTop + 20;
+                short barMidX = (frame.left + frame.right) / 2;
+                short textLeft = barMidX - textWidth / 2;
+                short textBaseline = barTop + 14;
+
+                /* Lozenge rect (before clipping) */
+                Rect loz;
+                loz.top = barTop + 3;
+                loz.bottom = barBottom - 3;
+                loz.left = textLeft - 10;
+                loz.right = textLeft + textWidth + 10;
+
+                /* Clip lozenge to avoid controls (4px clearance) */
+                short ctrlPad = 4;
+                short closeRight = frame.left + 4 + 14;  /* close box: 4 inset + 14 size */
+                short zoomLeft = frame.right - 4 - 14;   /* zoom box (if present) */
+
+                if (loz.left < closeRight + ctrlPad) loz.left = closeRight + ctrlPad;
+                if (loz.right > zoomLeft - ctrlPad) loz.right = zoomLeft - ctrlPad;
+
+                if (window->hilited) {
+                    /* Active window: draw rectangular area behind text to cover stripes */
+
+                    /* Fill rectangular lozenge with grey at framebuffer level */
+                    if (framebuffer) {
+                        uint32_t* fb = (uint32_t*)framebuffer;
+                        int pitch = fb_pitch / 4;
+                        uint32_t lightGrey = 0xFFE8E8E8;  /* Same as title bar background */
+
+                        /* Simple rectangular fill to cleanly cover stripes */
+                        for (int y = loz.top; y < loz.bottom; y++) {
+                            if (y >= 0 && y < (int)fb_height) {
+                                for (int x = loz.left; x < loz.right; x++) {
+                                    if (x >= 0 && x < (int)fb_width) {
+                                        fb[y * pitch + x] = lightGrey;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    /* Draw title text in bold black */
+                    PenPat(&qd.black);
+                    TextFace(1);  /* bold */
+                    MoveTo(textLeft, textBaseline);
+                    DrawString(titleStr);
+                    TextFace(0);  /* reset to normal */
+                } else {
+                    /* Inactive window: no lozenge, gray text */
+                    PenPat(&qd.gray);
+                    TextFace(0);  /* normal */
+                    MoveTo(textLeft, textBaseline);
+                    DrawString(titleStr);
+                    PenPat(&qd.black);  /* reset to black */
+                }
+
+                serial_printf("TITLE_DRAW: Drew title at baseline %d\n", textBaseline);
             } else {
                 serial_printf("TITLE_DRAW: titleLen %d out of range\n", titleLen);
             }
@@ -599,6 +838,10 @@ void ShowWindow(WindowPtr window) {
 
     /* Recalculate regions for windows behind */
     CalcVisBehind(window->nextWindow, window->strucRgn);
+
+    /* Don't call PaintBehind here - background windows are already painted.
+     * Calling PaintBehind would cause background windows to paint over the front window. */
+
     serial_printf("ShowWindow: EXIT\n");
 }
 
@@ -642,9 +885,14 @@ void ShowHide(WindowPtr window, Boolean showFlag) {
 /*-----------------------------------------------------------------------*/
 
 void HiliteWindow(WindowPtr window, Boolean fHilite) {
-    if (!window || window->hilited == fHilite) return;
+    if (!window) return;
 
-    WM_DEBUG("HiliteWindow: Setting hilite to %d", fHilite);
+    if (window->hilited == fHilite) {
+        serial_printf("[HILITE] Window %p already has hilite=%d, skipping\n", window, fHilite);
+        return;
+    }
+
+    serial_printf("[HILITE] Window %p: changing hilite %d -> %d\n", window, window->hilited, fHilite);
 
     window->hilited = fHilite;
 
@@ -652,6 +900,8 @@ void HiliteWindow(WindowPtr window, Boolean fHilite) {
     /* NOTE: DrawWindowFrame and DrawWindowControls set their own ports to WMgrPort */
     DrawWindowFrame(window);
     DrawWindowControls(window);
+
+    serial_printf("[HILITE] Window %p: frame redrawn with hilite=%d\n", window, fHilite);
 }
 
 /*-----------------------------------------------------------------------*/
@@ -662,9 +912,16 @@ void BringToFront(WindowPtr window) {
     if (!window) return;
 
     WindowManagerState* wmState = GetWindowManagerState();
-    if (!wmState || wmState->windowList == window) return;
+    if (!wmState) return;
 
     WM_DEBUG("BringToFront: Moving window to front");
+
+    /* If already at front, just ensure it's hilited */
+    if (wmState->windowList == window) {
+        serial_printf("[HILITE] Window already at front, ensuring hilited\n");
+        HiliteWindow(window, true);
+        return;
+    }
 
     /* Remove window from current position */
     WindowPtr prev = NULL;
@@ -686,18 +943,22 @@ void BringToFront(WindowPtr window) {
     window->nextWindow = wmState->windowList;
     wmState->windowList = window;
 
-    /* Update highlight state */
-    HiliteWindow(window, true);
+    /* Update highlight state and repaint BEFORE bringing to front */
+    WindowPtr prevFront = window->nextWindow;  /* Will be the previous front window */
 
-    /* Unhighlight previous front window */
-    if (window->nextWindow) {
-        HiliteWindow(window->nextWindow, false);
+    /* Unhighlight the window that will be demoted (if any) */
+    if (prevFront) {
+        serial_printf("[HILITE] Unhiliting previous front window %p\n", prevFront);
+        HiliteWindow(prevFront, false);
     }
+
+    /* Now hilite and paint the new front window */
+    HiliteWindow(window, true);
 
     /* Recalculate visible regions */
     CalcVisBehind(window, NULL);
 
-    /* Redraw if needed */
+    /* Paint the new front window LAST so it's on top */
     PaintOne(window, NULL);
 }
 

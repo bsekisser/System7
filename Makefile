@@ -58,6 +58,7 @@ C_SOURCES = src/main.c \
             src/SystemInit.c \
             src/sys71_stubs.c \
             src/System71StdLib.c \
+            src/System/SystemTheme.c \
             src/ToolboxCompat.c \
             src/Finder/finder_main.c \
             src/Finder/desktop_manager.c \
@@ -69,6 +70,7 @@ C_SOURCES = src/main.c \
             src/QuickDraw/QuickDrawPlatform.c \
             src/QuickDraw/Coordinates.c \
             src/QuickDraw/Regions.c \
+            src/QuickDraw/quickdraw_shapes.c \
             src/Platform/WindowPlatform.c \
             src/Platform/x86_io.c \
             src/Platform/ATA_Driver.c \
@@ -226,6 +228,10 @@ $(OBJ_DIR)/%.o: src/%.S
 
 # Pattern rules for each subdirectory
 $(OBJ_DIR)/%.o: src/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/System/%.c
 	@echo "CC $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
 
