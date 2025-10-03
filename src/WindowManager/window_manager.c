@@ -346,12 +346,19 @@ void SelectWindow(WindowPtr window) {
         return;
     }
 
-    BringToFront(window);
+    /* Save previous front window BEFORE BringToFront changes it */
+    WindowPtr oldFront = g_frontWindow;
 
-    if (g_frontWindow) {
-        g_frontWindow->hilited = false;  /* Deactivate previous front window */
+    /* Deactivate old front window (will be repainted by BringToFront's PaintBehind) */
+    if (oldFront && oldFront != window) {
+        oldFront->hilited = false;
     }
-    window->hilited = true;  /* Activate this window */
+
+    /* Activate new window BEFORE painting so it draws with active chrome */
+    window->hilited = true;
+
+    /* BringToFront will repaint entire window stack in proper order */
+    BringToFront(window);
 }
 
 /* Additional Window Manager functions */
@@ -363,6 +370,9 @@ void BringToFront(WindowPtr window) {
         return;
     }
 
+    /* Save old position for invalidation */
+    WindowPtr oldNext = window->nextWindow;
+
     /* Remove from current position */
     UnlinkWindow(window);
 
@@ -371,10 +381,11 @@ void BringToFront(WindowPtr window) {
     g_windowList = window;
     g_frontWindow = window;
 
-    /* Repaint the window if it's visible */
+    /* Repaint entire window stack from this window down to ensure proper z-order */
     if (window->visible) {
-        extern void PaintOne(WindowPtr window, RgnHandle clobberedRgn);
-        PaintOne(window, NULL);
+        extern void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn);
+        /* Repaint all windows from the back to ensure proper layering */
+        PaintBehind(NULL, NULL);
     }
 }
 

@@ -153,50 +153,53 @@ void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn) {
 
     serial_printf("[PaintBehind] Starting, startWindow=%p\n", startWindow);
 
-    /* Get front window - we'll repaint it last to ensure it's on top */
-    WindowPtr frontWin = wmState->windowList;
+    /* Build list of windows in reverse order (back to front) */
+    #define MAX_WINDOWS 32
+    WindowPtr windows[MAX_WINDOWS];
+    int count = 0;
 
-    /* Find start position in window list */
+    /* Find start position */
     WindowPtr window = startWindow;
     if (!window) {
         window = wmState->windowList;
     }
 
-    /* Paint windows from back to front */
-    while (window) {
+    /* Collect visible windows */
+    while (window && count < MAX_WINDOWS) {
         if (window->visible) {
-            serial_printf("[PaintBehind] Painting window %p\n", window);
-            /* Paint chrome (frame and controls) */
-            PaintOne(window, clobberedRgn);
-
-            /* Invalidate content region to trigger update event for content redraw */
-            if (window->contRgn) {
-                serial_printf("[PaintBehind] Invalidating content for window %p\n", window);
-                extern void InvalRgn(RgnHandle badRgn);
-                GrafPtr savePort;
-                GetPort(&savePort);
-                SetPort((GrafPtr)window);
-                InvalRgn(window->contRgn);
-                SetPort(savePort);
-
-                /* WORKAROUND: Directly redraw folder window content since update events may not flow */
-                if (window->refCon == 'DISK' || window->refCon == 'TRSH') {
-                    extern void FolderWindow_Draw(WindowPtr w);
-                    serial_printf("[PaintBehind] Directly drawing folder content for window %p\n", window);
-                    FolderWindow_Draw(window);
-                }
-            }
+            windows[count++] = window;
         }
         window = window->nextWindow;
     }
 
-    /* Repaint front window frame last to ensure it's on top of all background content */
-    if (frontWin && frontWin->visible) {
-        serial_printf("[PaintBehind] Repainting front window %p frame to keep it on top\n", frontWin);
-        PaintOne(frontWin, NULL);
+    /* Paint windows from BACK to FRONT (reverse of list order) */
+    for (int i = count - 1; i >= 0; i--) {
+        WindowPtr w = windows[i];
+        serial_printf("[PaintBehind] Painting window %p (index %d of %d)\n", w, i, count);
+
+        /* Paint chrome (frame and controls) */
+        PaintOne(w, clobberedRgn);
+
+        /* Invalidate content region to trigger update event for content redraw */
+        if (w->contRgn) {
+            serial_printf("[PaintBehind] Invalidating content for window %p\n", w);
+            extern void InvalRgn(RgnHandle badRgn);
+            GrafPtr savePort;
+            GetPort(&savePort);
+            SetPort((GrafPtr)w);
+            InvalRgn(w->contRgn);
+            SetPort(savePort);
+
+            /* WORKAROUND: Directly redraw folder window content since update events may not flow */
+            if (w->refCon == 'DISK' || w->refCon == 'TRSH') {
+                extern void FolderWindow_Draw(WindowPtr window);
+                serial_printf("[PaintBehind] Directly drawing folder content for window %p\n", w);
+                FolderWindow_Draw(w);
+            }
+        }
     }
 
-    serial_printf("[PaintBehind] Complete\n");
+    serial_printf("[PaintBehind] Complete, painted %d windows back-to-front\n", count);
 }
 
 void CalcVis(WindowPtr window) {
@@ -965,8 +968,11 @@ void BringToFront(WindowPtr window) {
 
     WM_DEBUG("BringToFront: Moving window to front");
 
+    /* CRITICAL: Save the current front window BEFORE modifying the list */
+    WindowPtr prevFront = wmState->windowList;
+
     /* If already at front, just ensure it's hilited */
-    if (wmState->windowList == window) {
+    if (prevFront == window) {
         serial_printf("[HILITE] Window already at front, ensuring hilited\n");
         HiliteWindow(window, true);
         return;
@@ -992,9 +998,6 @@ void BringToFront(WindowPtr window) {
     window->nextWindow = wmState->windowList;
     wmState->windowList = window;
 
-    /* Update highlight state and repaint BEFORE bringing to front */
-    WindowPtr prevFront = window->nextWindow;  /* Will be the previous front window */
-
     /* Unhighlight the window that will be demoted (if any) */
     if (prevFront) {
         serial_printf("[HILITE] Unhiliting previous front window %p\n", prevFront);
@@ -1007,8 +1010,8 @@ void BringToFront(WindowPtr window) {
     /* Recalculate visible regions */
     CalcVisBehind(window, NULL);
 
-    /* Paint the new front window LAST so it's on top */
-    PaintOne(window, NULL);
+    /* CRITICAL: Repaint entire window stack from back to front to ensure proper z-order */
+    PaintBehind(NULL, NULL);
 }
 
 void SendBehind(WindowPtr window, WindowPtr behindWindow) {
