@@ -657,8 +657,12 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     /* Set window title */
     window->titleHandle = NULL;
     window->titleWidth = 0;
+    serial_printf("TITLE_INIT: title ptr=%p, len=%d\n", title, title ? title[0] : -1);
     if (title && title[0] > 0) {
+        serial_printf("TITLE_INIT: Calling SetWTitle\n");
         SetWTitle(window, title);
+    } else {
+        serial_printf("TITLE_INIT: Skipping SetWTitle (NULL or empty title)\n");
     }
 
     /* Initialize control list */

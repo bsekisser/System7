@@ -201,7 +201,7 @@ void ClosePort(GrafPtr port) {
     /* If this was the current port, clear it */
     if (g_currentPort == port) {
         g_currentPort = NULL;
-        g_currentQD->thePort = NULL;
+        qd.thePort = NULL;  /* Direct access instead of g_currentQD->thePort */
     }
 }
 
@@ -211,8 +211,9 @@ void ClosePort(GrafPtr port) {
 
 void SetPort(GrafPtr port) {
     assert(g_qdInitialized);
+
     g_currentPort = port;
-    g_currentQD->thePort = port;
+    qd.thePort = port;  /* Direct access instead of g_currentQD->thePort */
 }
 
 void GetPort(GrafPtr *port) {
@@ -433,10 +434,7 @@ void ColorBit(SInt16 whichBit) {
  * ================================================================ */
 
 void FrameRect(const Rect *r) {
-    assert(g_currentPort != NULL);
-    assert(r != NULL);
-    if (EmptyRect(r)) return;
-
+    if (!g_currentPort || !r || EmptyRect(r)) return;
     DrawPrimitive(frame, r, 0, &g_currentPort->pnPat);
 }
 

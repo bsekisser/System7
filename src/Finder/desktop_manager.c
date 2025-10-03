@@ -1524,9 +1524,17 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
         GhostEraseIf();
 
         if (it->type == kDesktopItemVolume) {
-            Finder_OpenDesktopItem(false, "\pMacintosh HD");
+            /* Build Pascal string for HD title */
+            static unsigned char hdTitle[256];
+            strcpy((char*)&hdTitle[1], "Macintosh HD");
+            hdTitle[0] = (unsigned char)strlen("Macintosh HD");
+            Finder_OpenDesktopItem(false, hdTitle);
         } else if (it->type == kDesktopItemTrash) {
-            Finder_OpenDesktopItem(true, "\pTrash");
+            /* Build Pascal string for Trash title */
+            static unsigned char trashTitle[256];
+            strcpy((char*)&trashTitle[1], "Trash");
+            trashTitle[0] = (unsigned char)strlen("Trash");
+            Finder_OpenDesktopItem(true, trashTitle);
         }
 
         /* DO NOT post desktop updateEvt - the window will handle its own updates */

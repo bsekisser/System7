@@ -368,6 +368,8 @@ void serial_printf(const char* fmt, ...) {
         strstr(fmt, "[WIN_OPEN]") == NULL &&
         strstr(fmt, "[NEWWIN]") == NULL &&
         strstr(fmt, "ShowWindow") == NULL &&
+        strstr(fmt, "TITLE_INIT") == NULL &&
+        strstr(fmt, "TITLE_DRAW") == NULL &&
         strstr(fmt, "CheckWindowsNeedingUpdate") == NULL &&
         strstr(fmt, "GetNextEvent") == NULL &&
         strstr(fmt, "WaitNextEvent") == NULL &&

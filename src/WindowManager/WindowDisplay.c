@@ -326,8 +326,9 @@ static void DrawWindowFrame(WindowPtr window) {
     serial_printf("WindowManager: Frame rect (%d,%d,%d,%d)\n",
                   frame.left, frame.top, frame.right, frame.bottom);
 
-    /* Draw frame outline first */
+    /* Draw frame outline using QuickDraw (not direct framebuffer) */
     FrameRect(&frame);
+    serial_printf("WindowManager: Drew frame using FrameRect\n");
 
     /* Draw title bar BEFORE filling content area */
     serial_printf("WindowManager: About to check titleWidth=%d\n", window->titleWidth);
@@ -341,10 +342,15 @@ static void DrawWindowFrame(WindowPtr window) {
         titleBar.right = frame.right - 1;  /* Inset from right frame edge */
         titleBar.bottom = frame.top + 20;  /* Extends to separator line */
 
-        /* Fill title bar with white background */
-        serial_printf("WindowManager: EraseRect titleBar=(%d,%d,%d,%d)\n",
-                     titleBar.left, titleBar.top, titleBar.right, titleBar.bottom);
-        EraseRect(&titleBar);
+        /* Fill title bar with light grey background for active windows */
+        if (window->hilited) {
+            /* Active window: light grey background */
+            static const Pattern greyPat = {0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55};
+            FillRect(&titleBar, &greyPat);
+        } else {
+            /* Inactive window: white background */
+            EraseRect(&titleBar);
+        }
 
         /* Draw title bar separator */
         MoveTo(frame.left, frame.top + 20);
@@ -355,23 +361,32 @@ static void DrawWindowFrame(WindowPtr window) {
         SetRect(&closeBox, frame.left + 4, frame.top + 4, frame.left + 14, frame.top + 14);
         FrameRect(&closeBox);
 
-        /* Draw window title */
-        serial_printf("WindowManager: titleHandle=%p\n", window->titleHandle);
+        /* Draw window title - centered and with validation */
+        serial_printf("TITLE_DRAW: titleHandle=%p, *titleHandle=%p\n",
+                     window->titleHandle, window->titleHandle ? *window->titleHandle : NULL);
+
         if (window->titleHandle && *window->titleHandle) {
             unsigned char* titleStr = (unsigned char*)*window->titleHandle;
             unsigned char titleLen = titleStr[0];
-            serial_printf("WindowManager: Title string ptr=%p, len=%d\n", titleStr, titleLen);
 
-            /* Safety check: ensure length is reasonable */
-            if (titleLen > 0 && titleLen < 256) {
-                serial_printf("WindowManager: Drawing title at (%d,%d)\n", frame.left + 20, frame.top + 15);
-                MoveTo(frame.left + 20, frame.top + 15);
+            serial_printf("TITLE_DRAW: titleLen=%d\n", titleLen);
+
+            /* Basic validation: just check length is positive and not obviously corrupt */
+            if (titleLen > 0 && titleLen < 128) {
+                extern short StringWidth(ConstStr255Param str);
+                short textWidth = StringWidth(titleStr);
+                short titleBarWidth = titleBar.right - titleBar.left;
+                short centerX = titleBar.left + (titleBarWidth - textWidth) / 2;
+
+                serial_printf("TITLE_DRAW: Drawing title centered at %d\n", centerX);
+                /* Draw centered title text */
+                MoveTo(centerX, frame.top + 15);
                 DrawString(titleStr);
             } else {
-                serial_printf("WindowManager: Invalid title length %d, skipping\n", titleLen);
+                serial_printf("TITLE_DRAW: titleLen %d out of range\n", titleLen);
             }
         } else {
-            serial_printf("WindowManager: titleHandle is NULL or empty, skipping title\n");
+            serial_printf("TITLE_DRAW: No titleHandle or empty\n");
         }
     } else {
         serial_printf("WindowManager: titleWidth is 0, skipping title bar\n");

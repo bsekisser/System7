@@ -359,7 +359,23 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
 
     serial_printf("[WIN_OPEN] Starting, isTrash=%d\n", isTrash);
 
-    WindowPtr w = NewWindow(NULL, &r, isTrash ? "\pTrash" : "\pMacintosh HD",
+    /* Build title as local Pascal string (same method as AboutThisMac) */
+    static unsigned char windowTitleBuf[256];
+    ConstStr255Param windowTitle = title;
+
+    if (!windowTitle || windowTitle[0] == 0) {
+        /* Build default title as Pascal string */
+        const char* titleText = isTrash ? "Trash" : "Macintosh HD";
+        strcpy((char*)&windowTitleBuf[1], titleText);
+        windowTitleBuf[0] = (unsigned char)strlen(titleText);
+        windowTitle = windowTitleBuf;
+        serial_printf("[WIN_OPEN] Built title: len=%d, first_char=0x%02x\n",
+                      windowTitleBuf[0], windowTitleBuf[1]);
+    } else {
+        serial_printf("[WIN_OPEN] Using provided title: len=%d\n", windowTitle[0]);
+    }
+
+    WindowPtr w = NewWindow(NULL, &r, windowTitle,
                             false, 0, (WindowPtr)-1L, true,
                             isTrash ? 0x54525348 : 0x4449534B);  /* 'TRSH' or 'DISK' */
 

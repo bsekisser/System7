@@ -134,13 +134,19 @@ WindowPtr NewWindow(void* wStorage, const Rect* boundsRect, ConstStr255Param tit
     if (title && title[0] > 0) {
         /* Create Pascal string handle */
         size_t titleLen = title[0] + 1;  /* Length byte + string */
+        serial_printf("NewWindow: Creating title, input len=%d\n", title[0]);
         newWindow->titleHandle = (StringHandle)malloc(sizeof(void*));
         if (newWindow->titleHandle) {
             *newWindow->titleHandle = malloc(titleLen);
             if (*newWindow->titleHandle) {
                 memcpy(*newWindow->titleHandle, title, titleLen);
+                serial_printf("NewWindow: Title copied, titleHandle=%p, *titleHandle=%p, len=%d\n",
+                    newWindow->titleHandle, *newWindow->titleHandle, (*newWindow->titleHandle)[0]);
             }
         }
+    } else {
+        serial_printf("NewWindow: No title provided (title=%p, len=%d)\n", title, title ? title[0] : -1);
+        newWindow->titleHandle = NULL;
     }
 
     /* Link into window list */
