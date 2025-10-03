@@ -710,8 +710,58 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                 PostEvent(updateEvt, (UInt32)w);
             }
         } else {
-            /* Document/app: show "not implemented" in serial log */
-            serial_printf("FW: OPEN app/doc \"%s\" not implemented\n", state->items[hitIndex].name);
+            /* Document/app: check if it's a text file */
+            Boolean isTextFile = false;
+            const char* name = state->items[hitIndex].name;
+
+            /* Check file type */
+            if (state->items[hitIndex].type == 'TEXT') {
+                isTextFile = true;
+            }
+
+            /* Check filename patterns for text files */
+            if (!isTextFile) {
+                int len = strlen(name);
+                /* Check for .txt extension */
+                if (len >= 4) {
+                    const char* ext = name + len - 4;
+                    if ((ext[0] == '.' || ext[0] == '.') &&
+                        (ext[1] == 't' || ext[1] == 'T') &&
+                        (ext[2] == 'x' || ext[2] == 'X') &&
+                        (ext[3] == 't' || ext[3] == 'T')) {
+                        isTextFile = true;
+                    }
+                }
+                /* Check for "readme" or "README" prefix */
+                if (!isTextFile && len >= 6) {
+                    const char* prefix = name;
+                    if ((prefix[0] == 'r' || prefix[0] == 'R') &&
+                        (prefix[1] == 'e' || prefix[1] == 'E') &&
+                        (prefix[2] == 'a' || prefix[2] == 'A') &&
+                        (prefix[3] == 'd' || prefix[3] == 'D') &&
+                        (prefix[4] == 'm' || prefix[4] == 'M') &&
+                        (prefix[5] == 'e' || prefix[5] == 'E')) {
+                        isTextFile = true;
+                    }
+                }
+            }
+
+            if (isTextFile) {
+                serial_printf("FW: Opening text file \"%s\" with TextEdit\n", name);
+                /* Launch TextEdit if not already running */
+                extern OSErr TextEdit_InitApp(void);
+                extern Boolean TextEdit_IsRunning(void);
+
+                if (!TextEdit_IsRunning()) {
+                    OSErr err = TextEdit_InitApp();
+                    if (err != noErr) {
+                        serial_printf("FW: Failed to launch TextEdit, err=%d\n", err);
+                    }
+                }
+                /* TODO: Load file content into TextEdit window */
+            } else {
+                serial_printf("FW: OPEN app/doc \"%s\" not implemented\n", name);
+            }
         }
 
         /* Clear double-click tracking */
