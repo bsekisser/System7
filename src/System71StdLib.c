@@ -312,6 +312,7 @@ void serial_print_hex(uint32_t value) {
  *
  * Finder & File System:
  *   - "Finder:"               : General Finder operations
+ *   - "FolderWindow_OpenFolder" : Opening folder windows
  *   - "HFS"                   : HFS file system operations
  *   - "InitializeFolderContents" : Folder window initialization
  *   - "read_btree_data"       : B-tree data reading
@@ -381,6 +382,7 @@ void serial_printf(const char* fmt, ...) {
         strstr(fmt, "WindowManager") == NULL &&
         strstr(fmt, "[MI]") == NULL &&
         strstr(fmt, "InitializeFolderContents") == NULL &&
+        strstr(fmt, "FolderWindow_OpenFolder") == NULL &&
         strstr(fmt, "HFS") == NULL &&
         strstr(fmt, "read_btree_data") == NULL &&
         strstr(fmt, "VFS_Enumerate") == NULL &&

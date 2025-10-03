@@ -796,7 +796,7 @@ EventRecord GenerateMouseDownEvent(Point position, SInt16 buttonID,
     EventRecord event = {0};
 
     event.what = mouseDown;
-    event.message = 0; /* Could encode button ID and click count */
+    event.message = (clickCount << 16) | (buttonID & 0xFFFF); /* Encode click count in upper 16 bits, button ID in lower 16 bits */
     event.when = TickCount();
     event.where = position;
     event.modifiers = modifiers;

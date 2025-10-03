@@ -278,12 +278,13 @@ FolderWindowState* GetFolderState(WindowPtr w) {
     return NULL;  /* No slots available */
 }
 
-/* Initialize folder contents from VFS */
-void InitializeFolderContents(WindowPtr w, Boolean isTrash) {
+/* Initialize folder contents from VFS - Extended version with custom dirID */
+void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID) {
     extern void serial_printf(const char* fmt, ...);
     FolderWindowState* state = NULL;
 
-    serial_printf("InitializeFolderContents: ENTRY, w=0x%08x isTrash=%d\n", (unsigned int)w, (int)isTrash);
+    serial_printf("InitializeFolderContentsEx: ENTRY, w=0x%08x isTrash=%d vref=%d dirID=%d\n",
+                 (unsigned int)w, (int)isTrash, (int)vref, (int)dirID);
 
     /* Find the state we just created */
     for (int i = 0; i < MAX_FOLDER_WINDOWS; i++) {
@@ -297,10 +298,6 @@ void InitializeFolderContents(WindowPtr w, Boolean isTrash) {
         return;
     }
 
-    serial_printf("InitializeFolderContents: state found, getting boot vref\n");
-
-    /* Get boot volume reference */
-    VRefNum vref = VFS_GetBootVRef();
     state->vref = vref;
 
     if (isTrash) {
@@ -309,10 +306,10 @@ void InitializeFolderContents(WindowPtr w, Boolean isTrash) {
         state->currentDir = 0;  /* Special trash ID (to be defined) */
         state->itemCount = 0;
         state->items = NULL;
-        serial_printf("InitializeFolderContents: trash folder empty\n");
+        serial_printf("InitializeFolderContentsEx: trash folder empty\n");
     } else {
-        /* Volume root - enumerate actual file system contents */
-        state->currentDir = 2;  /* HFS root directory CNID is always 2 */
+        /* Use provided directory ID */
+        state->currentDir = dirID;
 
         /* Enumerate directory contents using VFS */
         #define MAX_ITEMS 128
@@ -384,6 +381,51 @@ void InitializeFolderContents(WindowPtr w, Boolean isTrash) {
 
         serial_printf("FW: Initialized %d items from VFS\n", count);
     }
+}
+
+/* Backward-compatible wrapper for InitializeFolderContentsEx - opens root directory */
+void InitializeFolderContents(WindowPtr w, Boolean isTrash) {
+    VRefNum vref = VFS_GetBootVRef();
+    DirID rootDir = 2;  /* HFS root directory CNID is always 2 */
+    InitializeFolderContentsEx(w, isTrash, vref, rootDir);
+}
+
+/* Open a folder window for a specific directory */
+WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param title) {
+    extern void serial_printf(const char* fmt, ...);
+    extern WindowPtr NewWindow(void *, const Rect *, ConstStr255Param, Boolean, short,
+                               WindowPtr, Boolean, long);
+    extern void ShowWindow(WindowPtr);
+    extern void SelectWindow(WindowPtr);
+
+    serial_printf("FolderWindow_OpenFolder: vref=%d dirID=%d\n", (int)vref, (int)dirID);
+
+    /* Create window with same geometry as generic folder windows */
+    static Rect r;
+    r.left = 10;
+    r.top = 80;
+    r.right = 490;
+    r.bottom = 420;
+
+    WindowPtr w = NewWindow(NULL, &r, title, true, 0 /* documentProc */, (WindowPtr)-1, true, 'DISK');
+
+    if (!w) {
+        serial_printf("FolderWindow_OpenFolder: Failed to create window\n");
+        return NULL;
+    }
+
+    /* Initialize folder state with specific directory */
+    FolderWindowState* state = GetFolderState(w);
+    if (state) {
+        /* Override the default initialization with specific directory */
+        InitializeFolderContentsEx(w, false, vref, dirID);
+    }
+
+    ShowWindow(w);
+    SelectWindow(w);
+
+    serial_printf("FolderWindow_OpenFolder: Window created successfully\n");
+    return w;
 }
 
 /* Icon hit-testing: find icon at point (local window coordinates)
@@ -695,8 +737,8 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
         serial_printf("FW: OPEN_FOLDER \"%s\"\n", state->items[hitIndex].name);
 
         if (state->items[hitIndex].isFolder) {
-            /* Open folder: create new window (minimal implementation) */
-            extern WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title);
+            /* Open folder: create new window showing the subfolder's contents */
+            extern WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param title);
 
             /* Convert C string to Pascal string for window title */
             Str255 pTitle;
@@ -705,10 +747,10 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
             pTitle[0] = (unsigned char)len;
             memcpy(&pTitle[1], state->items[hitIndex].name, len);
 
-            /* For now, just open a generic folder window (not the actual subfolder) */
-            WindowPtr newWin = Finder_OpenDesktopItem(false, pTitle);
+            /* Open folder window with the subfolder's directory ID */
+            WindowPtr newWin = FolderWindow_OpenFolder(state->vref, state->items[hitIndex].fileID, pTitle);
             if (newWin) {
-                serial_printf("FW: opened new folder window %p\n", newWin);
+                serial_printf("FW: opened subfolder window %p (dirID=%d)\n", newWin, (int)state->items[hitIndex].fileID);
                 /* Post update for the new window and old window */
                 PostEvent(updateEvt, (UInt32)newWin);
                 PostEvent(updateEvt, (UInt32)w);
@@ -755,6 +797,7 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                 /* Launch TextEdit if not already running */
                 extern OSErr TextEdit_InitApp(void);
                 extern Boolean TextEdit_IsRunning(void);
+                extern OSErr TextEdit_LoadFile(ConstStr255Param fileName, VolumeRefNum vRefNum);
 
                 if (!TextEdit_IsRunning()) {
                     OSErr err = TextEdit_InitApp();
@@ -762,7 +805,19 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                         serial_printf("FW: Failed to launch TextEdit, err=%d\n", err);
                     }
                 }
-                /* TODO: Load file content into TextEdit window */
+
+                /* Convert C string to Pascal string */
+                Str255 pfileName;
+                size_t len = strlen(name);
+                if (len > 255) len = 255;
+                pfileName[0] = (unsigned char)len;
+                memcpy(pfileName + 1, name, len);
+
+                /* Load file content into TextEdit window */
+                OSErr loadErr = TextEdit_LoadFile(pfileName, state->vref);
+                if (loadErr != noErr) {
+                    serial_printf("FW: Failed to load file into TextEdit, err=%d\n", loadErr);
+                }
             } else {
                 serial_printf("FW: OPEN app/doc \"%s\" not implemented\n", name);
             }

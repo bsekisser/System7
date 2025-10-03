@@ -11,6 +11,9 @@
 #include "WindowManager/WindowManager.h"
 #include "EventManager/EventManager.h"
 #include "QuickDraw/QuickDraw.h"
+#include "FileManager.h"
+#include "MemoryMgr/MemoryManager.h"
+#include "Errors/ErrorCodes.h"
 #include <string.h>
 
 extern void serial_printf(const char* fmt, ...);
@@ -34,8 +37,10 @@ OSErr TextEdit_InitApp(void)
 
     /* Create window */
     SetRect(&windRect, 100, 100, 500, 400);
-    gTextEditWindow = NewWindow(NULL, &windRect, "\pTextEdit", true,
-                                documentProc, (WindowPtr)-1, true, 0);
+    /* Create Pascal string for window title */
+    static unsigned char titleStr[] = "\010TextEdit"; /* \010 = length 8 in octal */
+    gTextEditWindow = NewWindow(NULL, &windRect, titleStr, true,
+                                0 /* documentProc */, (WindowPtr)-1, true, 0);
 
     if (!gTextEditWindow) {
         serial_printf("TextEdit_InitApp: Failed to create window\n");
@@ -151,4 +156,85 @@ void TextEdit_CleanupApp(void)
 Boolean TextEdit_IsRunning(void)
 {
     return gAppRunning;
+}
+
+/*
+ * TextEdit_LoadFile - Load a file into TextEdit window
+ * fileName: Pascal string (length-prefixed) filename
+ * vRefNum: Volume reference number (0 for default volume)
+ */
+OSErr TextEdit_LoadFile(ConstStr255Param fileName, VolumeRefNum vRefNum)
+{
+    FileRefNum refNum;
+    OSErr err;
+    UInt32 fileSize;
+    char* buffer = NULL;
+
+    serial_printf("TextEdit_LoadFile: Loading file \"%.*s\"\n", fileName[0], fileName+1);
+
+    /* Make sure TextEdit is initialized */
+    if (!gAppRunning || !gTextEditWindow || !gTextEditTE) {
+        serial_printf("TextEdit_LoadFile: TextEdit not initialized\n");
+        return fnfErr;
+    }
+
+    /* Open the file */
+    err = FSOpen(fileName, vRefNum, &refNum);
+    if (err != noErr) {
+        serial_printf("TextEdit_LoadFile: FSOpen failed, err=%d\n", err);
+        return err;
+    }
+
+    /* Get file size */
+    err = FSGetEOF(refNum, &fileSize);
+    if (err != noErr) {
+        serial_printf("TextEdit_LoadFile: FSGetEOF failed, err=%d\n", err);
+        FSClose(refNum);
+        return err;
+    }
+
+    serial_printf("TextEdit_LoadFile: File size = %u bytes\n", fileSize);
+
+    /* Allocate buffer for file content */
+    if (fileSize > 0) {
+        buffer = (char*)NewPtr(fileSize + 1);
+        if (!buffer) {
+            serial_printf("TextEdit_LoadFile: Failed to allocate buffer\n");
+            FSClose(refNum);
+            return memFullErr;
+        }
+
+        /* Read file content */
+        UInt32 bytesToRead = fileSize;
+        err = FSRead(refNum, &bytesToRead, buffer);
+        if (err != noErr && err != eofErr) {
+            serial_printf("TextEdit_LoadFile: FSRead failed, err=%d\n", err);
+            DisposePtr((Ptr)buffer);
+            FSClose(refNum);
+            return err;
+        }
+
+        buffer[bytesToRead] = '\0';
+        serial_printf("TextEdit_LoadFile: Read %u bytes\n", bytesToRead);
+
+        /* Clear existing text and insert file content */
+        SetPort(gTextEditWindow);
+        TESetSelect(0, 32767, gTextEditTE);  /* Select all */
+        TEDelete(gTextEditTE);                 /* Delete existing text */
+        TEInsert(buffer, bytesToRead, gTextEditTE);
+
+        DisposePtr((Ptr)buffer);
+    }
+
+    /* Close file */
+    FSClose(refNum);
+
+    /* Update window title with filename */
+    SetWTitle(gTextEditWindow, fileName);
+
+    /* Refresh window */
+    InvalRect(&gTextEditWindow->port.portRect);
+
+    serial_printf("TextEdit_LoadFile: File loaded successfully\n");
+    return noErr;
 }

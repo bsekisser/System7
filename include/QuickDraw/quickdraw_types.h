@@ -19,6 +19,7 @@
 /* Forward declarations */
 
 #include "SystemTypes.h"
+#include "EventManager/EventTypes.h"  /* Must include before WindowTypes.h to avoid activeFlag conflict */
 #include "WindowManager/WindowTypes.h"
 
 #pragma pack(push, 2)  /* 68k word alignment */

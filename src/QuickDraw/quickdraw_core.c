@@ -17,7 +17,7 @@
 #include "SystemTypes.h"
 #include "QuickDrawConstants.h"
 
-#include "QuickDraw/quickdraw.h"
+#include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/quickdraw_types.h"
 /* #include "mac_memory.h"
  */

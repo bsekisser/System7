@@ -12,7 +12,7 @@
  * This file implements QuickDraw bitmap operations, particularly CopyBits.
  */
 
-#include "QuickDraw/quickdraw.h"
+#include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/quickdraw_types.h"
 /* #include "SystemTypes.h" */
 #include "SystemTypes.h"

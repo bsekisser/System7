@@ -11,7 +11,7 @@
  * This file implements QuickDraw line drawing and text rendering functions.
  */
 
-#include "QuickDraw/quickdraw.h"
+#include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/quickdraw_types.h"
 #include "SystemTypes.h"
 #include "QuickDrawConstants.h"
