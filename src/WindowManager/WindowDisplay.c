@@ -41,6 +41,9 @@ extern RgnHandle NewRgn(void);
 extern void DisposeRgn(RgnHandle rgn);
 extern void SetOrigin(SInt16 h, SInt16 v);
 
+/* Forward declarations */
+static void DumpWindowList(const char* context);
+
 /*-----------------------------------------------------------------------*/
 /* Window Display Functions                                             */
 /*-----------------------------------------------------------------------*/
@@ -152,6 +155,7 @@ void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn) {
     if (!wmState) return;
 
     serial_printf("[PaintBehind] Starting, startWindow=%p\n", startWindow);
+    DumpWindowList("PaintBehind - START");
 
     /* Build list of windows in reverse order (back to front) */
     #define MAX_WINDOWS 32
@@ -1006,6 +1010,33 @@ void HiliteWindow(WindowPtr window, Boolean fHilite) {
 }
 
 /*-----------------------------------------------------------------------*/
+/* Window Debugging Functions                                           */
+/*-----------------------------------------------------------------------*/
+
+static void DumpWindowList(const char* context) {
+    WindowManagerState* wmState = GetWindowManagerState();
+    if (!wmState) {
+        serial_printf("[WINLIST] %s: No WM state\n", context);
+        return;
+    }
+
+    serial_printf("[WINLIST] === %s ===\n", context);
+    int count = 0;
+    WindowPtr w = wmState->windowList;
+    while (w && count < 20) {
+        serial_printf("[WINLIST]   [%d] Win=%p visible=%d hilited=%d next=%p refCon=0x%08x\n",
+                     count, w, w->visible, w->hilited, w->nextWindow, (unsigned int)w->refCon);
+        if (w == w->nextWindow) {
+            serial_printf("[WINLIST]   ERROR: Circular reference detected!\n");
+            break;
+        }
+        w = w->nextWindow;
+        count++;
+    }
+    serial_printf("[WINLIST] === Total: %d windows ===\n", count);
+}
+
+/*-----------------------------------------------------------------------*/
 /* Window Ordering Functions                                            */
 /*-----------------------------------------------------------------------*/
 
@@ -1016,6 +1047,7 @@ void BringToFront(WindowPtr window) {
     if (!wmState) return;
 
     WM_DEBUG("BringToFront: Moving window to front");
+    DumpWindowList("BringToFront - START");
 
     /* CRITICAL: Save the current front window BEFORE modifying the list */
     WindowPtr prevFront = wmState->windowList;
@@ -1064,6 +1096,8 @@ void BringToFront(WindowPtr window) {
 
     /* CRITICAL: Repaint entire window stack from back to front to ensure proper z-order */
     PaintBehind(NULL, NULL);
+
+    DumpWindowList("BringToFront - END");
 }
 
 void SendBehind(WindowPtr window, WindowPtr behindWindow) {
@@ -1073,6 +1107,7 @@ void SendBehind(WindowPtr window, WindowPtr behindWindow) {
     if (!wmState) return;
 
     WM_DEBUG("SendBehind: Moving window behind another");
+    DumpWindowList("SendBehind - START");
 
     /* Remove window from current position */
     WindowPtr prev = NULL;
@@ -1123,6 +1158,8 @@ void SendBehind(WindowPtr window, WindowPtr behindWindow) {
 
     /* Repaint affected windows */
     PaintBehind(window, window->strucRgn);
+
+    DumpWindowList("SendBehind - END");
 }
 
 /*-----------------------------------------------------------------------*/
@@ -1133,6 +1170,7 @@ void SelectWindow(WindowPtr window) {
     if (!window) return;
 
     WM_DEBUG("SelectWindow: Selecting window");
+    DumpWindowList("SelectWindow - START");
 
     /* Bring window to front */
     BringToFront(window);
