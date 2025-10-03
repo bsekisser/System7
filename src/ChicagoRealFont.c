@@ -75,7 +75,11 @@ void DrawChar(short ch) {
     DrawRealChicagoChar(px, py, (char)ch, pack_color(0, 0, 0));
 
     if (g_currentPort) {
-        g_currentPort->pnLoc.h += chicago_ascii[ch - 32].advance;
+        ChicagoCharInfo info = chicago_ascii[ch - 32];
+        /* Use bit_width + 2 for proper spacing */
+        int advance = info.bit_width + 2;
+        if (ch == ' ') advance += 3;  /* Extra space width */
+        g_currentPort->pnLoc.h += advance;
     }
 }
 
@@ -100,7 +104,11 @@ void DrawText(const void* textBuf, short firstByte, short byteCount) {
         int px, py;
         QD_LocalToPixel(pen.h, pen.v - CHICAGO_ASCENT, &px, &py);
         DrawRealChicagoChar(px, py, (char)ch, pack_color(0, 0, 0));
-        pen.h += chicago_ascii[ch - 32].advance;
+        ChicagoCharInfo info = chicago_ascii[ch - 32];
+        /* Use bit_width + 2 for proper spacing */
+        int advance = info.bit_width + 2;
+        if (ch == ' ') advance += 3;  /* Extra space width */
+        pen.h += advance;
     }
     g_currentPort->pnLoc = pen;  /* Still local */
 }
@@ -108,7 +116,11 @@ void DrawText(const void* textBuf, short firstByte, short byteCount) {
 /* Font measurement functions */
 short CharWidth(short ch) {
     if (ch >= 32 && ch <= 126) {
-        return chicago_ascii[ch - 32].advance;
+        ChicagoCharInfo info = chicago_ascii[ch - 32];
+        /* Use bit_width + 2 for proper spacing instead of the too-small advance values */
+        int width = info.bit_width + 2;
+        if (ch == ' ') width += 3;  /* Extra space width */
+        return width;
     }
     return 0;
 }
