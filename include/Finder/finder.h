@@ -80,7 +80,7 @@ Boolean Desktop_IsOverTrash(Point where);
 Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick);
 void ArrangeDesktopIcons(void);
 OSErr InitializeDesktopDB(void);
-OSErr InitializeVolumeIcon(const char* volumeName, VRefNum vref);
+OSErr InitializeVolumeIcon(void);
 OSErr HandleVolumeDoubleClick(Point clickPoint);
 void Desktop_GhostEraseIf(void);
 void Desktop_GhostShowAt(const Rect* r);
