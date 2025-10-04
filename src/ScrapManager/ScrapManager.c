@@ -25,6 +25,11 @@ extern void serial_printf(const char* fmt, ...);
 /* Maximum number of scrap types we support */
 #define MAX_SCRAP_ITEMS 8
 
+/* Error codes */
+#ifndef noTypeErr
+#define noTypeErr (-102)  /* No object of that type in scrap */
+#endif
+
 /* Scrap Manager global state */
 static struct {
     short state;           /* Scrap state counter (increments on change) */
@@ -257,6 +262,60 @@ ProcessID Scrap_GetOwner(void)
 {
     InitScrapIfNeeded();
     return gScrap.owner;
+}
+
+/* ============================================================================
+ * Mac OS Classic API Compatibility Functions
+ * ============================================================================ */
+
+/*
+ * ZeroScrap - Clear the scrap (Classic Mac OS API)
+ */
+OSErr ZeroScrap(void) {
+    Scrap_Zero();
+    return noErr;
+}
+
+/*
+ * PutScrap - Put data into scrap (Classic Mac OS API)
+ */
+OSErr PutScrap(SInt32 length, ResType theType, const void *source) {
+    return Scrap_Put((Size)length, theType, source);
+}
+
+/*
+ * GetScrap - Get data from scrap (Classic Mac OS API)
+ * Returns size on success, negative error code on failure
+ */
+SInt32 GetScrap(Handle hDest, ResType theType, SInt32 *offset) {
+    Size size;
+
+    /* First get the size */
+    size = Scrap_Get(NULL, theType);
+    if (size == 0) {
+        return noTypeErr;  /* Type not found */
+    }
+
+    /* If no destination handle, just return size */
+    if (!hDest) {
+        if (offset) *offset = 0;
+        return (SInt32)size;
+    }
+
+    /* Resize destination handle */
+    SetHandleSize(hDest, size);
+    if (MemError() != noErr) {
+        return MemError();
+    }
+
+    /* Get the data */
+    HLock(hDest);
+    size = Scrap_Get(*hDest, theType);
+    HUnlock(hDest);
+
+    if (offset) *offset = 0;
+
+    return (SInt32)size;
 }
 
 #ifdef SCRAP_SELFTEST

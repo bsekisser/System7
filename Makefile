@@ -140,8 +140,13 @@ C_SOURCES = src/main.c \
             src/EventManager/KeyboardEvents.c \
             src/EventManager/SystemEvents.c \
             src/ProcessMgr/ProcessManager.c \
-            src/TextEdit/TextEditApp.c \
-            src/TextEdit/TextEditCore.c \
+            src/TextEdit/TextEdit.c \
+            src/TextEdit/TextEditDraw.c \
+            src/TextEdit/TextEditInput.c \
+            src/TextEdit/TextEditScroll.c \
+            src/TextEdit/TextEditClipboard.c \
+            src/TextEdit/TextBreak.c \
+            src/TextEdit/TextEditTest.c \
             src/WindowManager/WindowDisplay.c \
             src/WindowManager/WindowEvents.c \
             src/WindowManager/WindowManagerCore.c \
@@ -156,7 +161,13 @@ C_SOURCES = src/main.c \
             src/TimeManager/TimeManager.c \
             src/TimeManager/TimeManagerCore.c \
             src/TimeManager/TimerInterrupts.c \
-            src/TimeManager/TimerTasks.c
+            src/TimeManager/TimerTasks.c \
+            src/Apps/SimpleText/SimpleText.c \
+            src/Apps/SimpleText/STDocument.c \
+            src/Apps/SimpleText/STView.c \
+            src/Apps/SimpleText/STMenus.c \
+            src/Apps/SimpleText/STFileIO.c \
+            src/Apps/SimpleText/STClipboard.c
 
 # Add ResourceMgr sources if enabled
 ifeq ($(ENABLE_RESOURCES),1)
@@ -431,6 +442,10 @@ $(OBJ_DIR)/%.o: src/Resources/%.c
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/%.o: src/Resources/Icons/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/Apps/SimpleText/%.c
 	@echo "CC $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
 

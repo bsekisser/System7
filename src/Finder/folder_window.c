@@ -5,6 +5,14 @@
  * Supports single-click selection and double-click to open items.
  */
 
+/* Include stdio.h first to avoid FILE type conflict with SystemTypes.h */
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+/* Define _FILE_DEFINED to prevent SystemTypes.h from redefining FILE */
+#define _FILE_DEFINED
+
 #include "SystemTypes.h"
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
@@ -14,8 +22,6 @@
 #include "Finder/finder.h"
 #include "FS/vfs.h"
 #include "FS/hfs_types.h"
-#include <string.h>
-#include <stdlib.h>
 
 extern void serial_printf(const char* fmt, ...);
 extern void DrawString(const unsigned char* str);
@@ -793,33 +799,39 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
             }
 
             if (isTextFile) {
-                serial_printf("FW: Opening text file \"%s\" with TextEdit\n", name);
-                /* Launch TextEdit if not already running */
-                extern OSErr TextEdit_InitApp(void);
-                extern Boolean TextEdit_IsRunning(void);
-                extern OSErr TextEdit_LoadFile(ConstStr255Param fileName, VolumeRefNum vRefNum);
+                serial_printf("FW: Opening text file \"%s\" with SimpleText\n", name);
+                /* Launch SimpleText if not already running */
+                extern void SimpleText_Launch(void);
+                extern Boolean SimpleText_IsRunning(void);
+                extern void SimpleText_OpenFile(const char* path);
 
-                if (!TextEdit_IsRunning()) {
-                    OSErr err = TextEdit_InitApp();
-                    if (err != noErr) {
-                        serial_printf("FW: Failed to launch TextEdit, err=%d\n", err);
-                    }
+                if (!SimpleText_IsRunning()) {
+                    SimpleText_Launch();
+                    serial_printf("FW: Launched SimpleText\n");
                 }
 
-                /* Convert C string to Pascal string */
-                Str255 pfileName;
-                size_t len = strlen(name);
-                if (len > 255) len = 255;
-                pfileName[0] = (unsigned char)len;
-                memcpy(pfileName + 1, name, len);
+                /* Build full path to the file */
+                char fullPath[512];
+                snprintf(fullPath, sizeof(fullPath), "/%s", name);  /* Simple path for now */
 
-                /* Load file content into TextEdit window */
-                OSErr loadErr = TextEdit_LoadFile(pfileName, state->vref);
-                if (loadErr != noErr) {
-                    serial_printf("FW: Failed to load file into TextEdit, err=%d\n", loadErr);
+                /* Load file content into SimpleText window */
+                SimpleText_OpenFile(fullPath);
+                serial_printf("FW: Opened file '%s' in SimpleText\n", name);
+            } else if (state->items[hitIndex].type == 'APPL') {
+                /* Application file */
+                if (strcmp(name, "TextEdit") == 0) {
+                    serial_printf("FW: Launching TextEdit application\n");
+                    extern void TextEdit_InitApp(void);
+                    TextEdit_InitApp();
+                } else if (strcmp(name, "SimpleText") == 0) {
+                    serial_printf("FW: Launching SimpleText application\n");
+                    extern void SimpleText_Launch(void);
+                    SimpleText_Launch();
+                } else {
+                    serial_printf("FW: OPEN app \"%s\" not implemented\n", name);
                 }
             } else {
-                serial_printf("FW: OPEN app/doc \"%s\" not implemented\n", name);
+                serial_printf("FW: OPEN doc \"%s\" not implemented\n", name);
             }
         }
 

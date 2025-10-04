@@ -1,233 +1,189 @@
-/************************************************************
+/*
+ * TextEdit.h - System 7.1 TextEdit Manager
  *
- * TextEdit.h
- * System 7.1 Portable - TextEdit Manager
- *
- * Main TextEdit API - Comprehensive text editing functionality
- * for System 7.1 applications. Provides complete compatibility
- * with Mac OS TextEdit Toolbox Manager.
- *
- * Copyright (c) 2024 System7.1-Portable Project
- * Derived from ROM analysis: TextEdit Manager 1985-1992
- *
- ************************************************************/
+ * Complete text editing subsystem with single and multi-style support
+ * Based on Inside Macintosh: Text (1993)
+ */
 
 #ifndef __TEXTEDIT_H__
 #define __TEXTEDIT_H__
 
 #include "SystemTypes.h"
-
-#ifndef __QUICKDRAW_H__
 #include "QuickDraw/QuickDraw.h"
-#endif
+#include "FontManager/FontTypes.h"
 
-#ifndef __MEMORY_H__
-#endif
+/* ============================================================================
+ * TextEdit Constants
+ * ============================================================================ */
 
-#ifndef __TYPES_H__
-#include "SystemTypes.h"
-#endif
+/* Text justification */
+#define teJustLeft      0       /* Left justified */
+#define teJustCenter    1       /* Center justified */
+#define teJustRight     -1      /* Right justified */
+#define teForceLeft     -2      /* Force left */
+
+/* Style modes for TESetStyle */
+#define doFont          1       /* Set font */
+#define doFace          2       /* Set face */
+#define doSize          4       /* Set size */
+#define doColor         8       /* Set color */
+#define doAll           15      /* Set all attributes */
+#define addSize         16      /* Add to size */
+#define doToggle        32      /* Toggle face */
+
+/* Feature flags */
+#define teFAutoScroll   0       /* Auto-scroll during selection */
+#define teFTextBuffering 1      /* Text buffering */
+#define teFOutlineHilite 2      /* Outline highlighting */
+#define teFInlineInput  3       /* Inline input support */
+#define teFUseWhiteBackground 4 /* Use white background */
+
+/* Caret/Selection */
+#define teCaretWidth    1       /* Caret width in pixels */
+#define teDefaultTab    8       /* Default tab width in chars */
+
+/* Limits */
+#define teMaxLength     32767   /* Maximum text length */
+
+/* ============================================================================
+ * TextEdit Types
+ * ============================================================================ */
+
+/* Forward declarations */
+typedef struct TERec **TEHandle;
+typedef struct TERec *TEPtr;
+
+/* TextStyle is already defined in SystemTypes.h */
+
+/* Style run - associates style with text range */
+typedef struct StyleRun {
+    SInt32      startChar;      /* Starting character position */
+    SInt16      styleIndex;     /* Index into style table */
+} StyleRun;
+
+/* STElement is already defined in SystemTypes.h */
+
+typedef struct STRec {
+    SInt32      nRuns;          /* Number of style runs */
+    SInt32      nStyles;        /* Number of unique styles */
+    Handle      styleTab;       /* Handle to style table */
+    Handle      runArray;       /* Handle to run array */
+    Handle      lineHeights;    /* Handle to line height array */
+} STRec;
+
+/* STPtr and STHandle already defined in SystemTypes.h */
+
+/* StScrpRec already defined in SystemTypes.h */
+
+/* Line height record */
+typedef struct LHElement {
+    SInt32      lhHeight;       /* Line height */
+    SInt32      lhAscent;       /* Line ascent */
+} LHElement;
+
+typedef LHElement *LHPtr, **LHHandle;
+
+/* Click loop callback */
+typedef pascal Boolean (*TEClickLoopProcPtr)(TEHandle hTE);
+
+/* High-level hook callback */
+typedef pascal void (*TEDoTextProcPtr)(TEHandle hTE, SInt16 firstByte,
+                                       SInt16 byteCount, SInt16 selector);
+
+/* TERec is already defined in SystemTypes.h - we extend it with additional fields */
+/* Note: Our implementation adds extra fields not in the standard TERec */
+
+/* ============================================================================
+ * TextEdit API
+ * ============================================================================ */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/************************************************************
- * TextEdit Constants
- ************************************************************/
-
-/* Justification (word alignment) styles */
-
-/* Set/Replace style modes */
-
-/* TESetStyle/TEContinuousStyle modes */
-
-/* Offsets into TEDispatchRec */
-
-/* Selectors for TECustomHook */
-
-/* Feature or bit definitions for TEFeatureFlag */
-
-/* Action for TEFeatureFlag interface */
-
-/* Constants for identifying FindWord callers */
-
-/* Constants for identifying DoText selectors */
-
-/************************************************************
- * TextEdit Data Types
- ************************************************************/
-
-/* Forward declarations */
-
-/* Handle is defined in MacTypes.h */
-
-/* Hook procedure types */
-
-/* Text data types */
-
-/* Handle is defined in MacTypes.h */
-
-/* Main TextEdit Record */
-
-/* Style run structure */
-
-/* Style table element */
-
-/* Handle is defined in MacTypes.h */
-
-/* Line height element */
-
-/* Handle is defined in MacTypes.h */
-
-/* Scrap style element */
-
-/* Scrap style record */
-
-/* Handle is defined in MacTypes.h */
-
-/* Null style record */
-
-/* Handle is defined in MacTypes.h */
-
-/* TextEdit style record */
-
-/* Handle is defined in MacTypes.h */
-
-/* Text style */
-
-/* Style is defined in MacTypes.h */
-/* Handle is defined in MacTypes.h */
-
-/************************************************************
- * Core TextEdit Functions
- ************************************************************/
-
 /* Initialization */
-pascal void TEInit(void);
+extern void TEInit(void);
 
-/* TextEdit Record Management */
-pascal TEHandle TENew(const Rect *destRect, const Rect *viewRect);
-pascal TEHandle TEStyleNew(const Rect *destRect, const Rect *viewRect);
-pascal TEHandle TEStylNew(const Rect *destRect, const Rect *viewRect); /* synonym */
-pascal void TEDispose(TEHandle hTE);
+/* Creation and disposal */
+extern TEHandle TENew(const Rect *destRect, const Rect *viewRect);
+extern TEHandle TEStyleNew(const Rect *destRect, const Rect *viewRect);
+extern void TEDispose(TEHandle hTE);
 
-/* Text Access */
-pascal void TESetText(const void *text, long length, TEHandle hTE);
-pascal CharsHandle TEGetText(TEHandle hTE);
+/* Text manipulation */
+extern void TESetText(const void *text, SInt32 length, TEHandle hTE);
+extern Handle TEGetText(TEHandle hTE);
+extern void TEInsert(const void *text, SInt32 length, TEHandle hTE);
+extern void TEDelete(TEHandle hTE);
+extern void TEKey(CharParameter key, TEHandle hTE);
+extern void TEReplaceSel(const void *text, SInt32 length, TEHandle hTE);
 
-/* Selection Management */
-pascal void TESetSelect(long selStart, long selEnd, TEHandle hTE);
-pascal void TEClick(Point pt, Boolean fExtend, TEHandle h);
-pascal short TEGetOffset(Point pt, TEHandle hTE);
-pascal Point TEGetPoint(short offset, TEHandle hTE);
+/* Selection */
+extern void TESetSelect(SInt32 selStart, SInt32 selEnd, TEHandle hTE);
+extern void TEGetSelection(SInt32 *selStart, SInt32 *selEnd, TEHandle hTE);
+
+/* Mouse handling */
+extern void TEClick(Point pt, Boolean extend, TEHandle hTE);
+
+/* Clipboard operations */
+extern void TECut(TEHandle hTE);
+extern void TECopy(TEHandle hTE);
+extern void TEPaste(TEHandle hTE);
+extern OSErr TEFromScrap(void);
+extern OSErr TEToScrap(void);
+extern Handle TEScrapHandle(void);
+
+/* Display and update */
+extern void TEUpdate(const Rect *updateRect, TEHandle hTE);
+extern void TETextBox(const void *text, SInt32 length, const Rect *box, SInt16 just);
+extern void TECalText(TEHandle hTE);
+
+/* Scrolling */
+extern void TEScroll(SInt16 dh, SInt16 dv, TEHandle hTE);
+extern void TESelView(TEHandle hTE);
+extern void TEPinScroll(SInt16 dh, SInt16 dv, TEHandle hTE);
+extern void TEAutoView(Boolean autoView, TEHandle hTE);
 
 /* Activation */
-pascal void TEActivate(TEHandle hTE);
-pascal void TEDeactivate(TEHandle hTE);
-pascal void TEIdle(TEHandle hTE);
+extern void TEActivate(TEHandle hTE);
+extern void TEDeactivate(TEHandle hTE);
+extern void TEIdle(TEHandle hTE);
 
-/* Text Input */
-pascal void TEKey(short key, TEHandle hTE);
-pascal void TEInsert(const void *text, long length, TEHandle hTE);
-pascal void TEDelete(TEHandle hTE);
+/* Information */
+extern SInt16 TEGetHeight(SInt32 endLine, SInt32 startLine, TEHandle hTE);
+extern Point TEGetPoint(SInt16 offset, TEHandle hTE);
+extern SInt16 TEGetOffset(Point pt, TEHandle hTE);
+extern SInt16 TEGetLine(SInt16 offset, TEHandle hTE);
 
-/* Clipboard Operations */
-pascal void TECut(TEHandle hTE);
-pascal void TECopy(TEHandle hTE);
-pascal void TEPaste(TEHandle hTE);
+/* Style support (styled TextEdit only) */
+extern void TEGetStyle(SInt32 offset, TextStyle *theStyle,
+                      SInt16 *lineHeight, SInt16 *fontAscent, TEHandle hTE);
+extern void TESetStyle(SInt16 mode, const TextStyle *newStyle,
+                      Boolean redraw, TEHandle hTE);
+extern void TEContinuousStyle(SInt16 *mode, TextStyle *aStyle, TEHandle hTE);
+extern void TEUseStyleScrap(SInt32 rangeStart, SInt32 rangeEnd,
+                          StScrpHandle newStyles, Boolean redraw, TEHandle hTE);
+extern void TEStyleInsert(const void *text, SInt32 length,
+                         StScrpHandle hST, TEHandle hTE);
+extern void TEStylePaste(TEHandle hTE);
 
-/* Display and Scrolling */
-pascal void TEUpdate(const Rect *rUpdate, TEHandle hTE);
-pascal void TEScroll(short dh, short dv, TEHandle hTE);
-pascal void TESelView(TEHandle hTE);
-pascal void TEPinScroll(short dh, short dv, TEHandle hTE);
-pascal void TEAutoView(Boolean fAuto, TEHandle hTE);
+/* Features */
+extern SInt16 TEFeatureFlag(SInt16 feature, SInt16 action, TEHandle hTE);
 
-/* Text Formatting */
-pascal void TESetAlignment(short just, TEHandle hTE);
-pascal void TESetJust(short just, TEHandle hTE);
-pascal void TECalText(TEHandle hTE);
-pascal void TETextBox(const void *text, long length, const Rect *box, short just);
-pascal void TextBox(const void *text, long length, const Rect *box, short just);
+/* Utilities */
+extern void TESetJust(SInt16 just, TEHandle hTE);
+extern void TESetWordWrap(Boolean wrap, TEHandle hTE);
+extern Boolean TEIsActive(TEHandle hTE);
 
-/* Style Management */
-pascal void TESetStyleHandle(TEStyleHandle theHandle, TEHandle hTE);
-pascal void SetStyleHandle(TEStyleHandle theHandle, TEHandle hTE); /* synonym */
-pascal void SetStylHandle(TEStyleHandle theHandle, TEHandle hTE);  /* synonym */
-pascal TEStyleHandle TEGetStyleHandle(TEHandle hTE);
-pascal TEStyleHandle GetStyleHandle(TEHandle hTE); /* synonym */
-pascal TEStyleHandle GetStylHandle(TEHandle hTE);  /* synonym */
-
-pascal void TEGetStyle(short offset, TextStyle *theStyle, short *lineHeight,
-                      short *fontAscent, TEHandle hTE);
-pascal void TESetStyle(short mode, const TextStyle *newStyle, Boolean fRedraw,
-                      TEHandle hTE);
-pascal void TEReplaceStyle(short mode, const TextStyle *oldStyle,
-                          const TextStyle *newStyle, Boolean fRedraw, TEHandle hTE);
-pascal Boolean TEContinuousStyle(short *mode, TextStyle *aStyle, TEHandle hTE);
-
-/* Style Scrap Operations */
-pascal StScrpHandle TEGetStyleScrapHandle(TEHandle hTE);
-pascal StScrpHandle GetStyleScrap(TEHandle hTE); /* synonym */
-pascal StScrpHandle GetStylScrap(TEHandle hTE);  /* synonym */
-pascal void TEStyleInsert(const void *text, long length, StScrpHandle hST,
-                         TEHandle hTE);
-pascal void TEStylInsert(const void *text, long length, StScrpHandle hST,
-                        TEHandle hTE); /* synonym */
-pascal void TEStylePaste(TEHandle hTE);
-pascal void TEStylPaste(TEHandle hTE); /* synonym */
-pascal void TEUseStyleScrap(long rangeStart, long rangeEnd, StScrpHandle newStyles,
-                           Boolean fRedraw, TEHandle hTE);
-pascal void SetStyleScrap(long rangeStart, long rangeEnd, StScrpHandle newStyles,
-                         Boolean redraw, TEHandle hTE); /* synonym */
-pascal void SetStylScrap(long rangeStart, long rangeEnd, StScrpHandle newStyles,
-                        Boolean redraw, TEHandle hTE);  /* synonym */
-
-/* Advanced Functions */
-pascal long TEGetHeight(long endLine, long startLine, TEHandle hTE);
-pascal long TENumStyles(long rangeStart, long rangeEnd, TEHandle hTE);
-pascal void TECustomHook(TEIntHook which, ProcPtr *addr, TEHandle hTE);
-pascal short TEFeatureFlag(short feature, short action, TEHandle hTE);
-
-/* Hook Functions */
-pascal void TESetClickLoop(ClikLoopProcPtr clikProc, TEHandle hTE);
-pascal void SetClikLoop(ClikLoopProcPtr clikProc, TEHandle hTE); /* synonym */
-pascal void TESetWordBreak(WordBreakProcPtr wBrkProc, TEHandle hTE);
-pascal void SetWordBreak(WordBreakProcPtr wBrkProc, TEHandle hTE); /* synonym */
-
-/* Scrap Functions */
-#define TEScrapHandle() (* (Handle*) 0xAB4)
-/* Note: TEGetScrapLength is implemented as function in ScrapManager.h */
-/* #define TEGetScrapLength() ((long) * (unsigned short *) 0x0AB0) */
-#define TEGetScrapLen() ((long) * (unsigned short *) 0x0AB0)
-pascal void TESetScrapLength(long length);
-pascal void TESetScrapLen(long length);
-pascal OSErr TEFromScrap(void);
-pascal OSErr TEToScrap(void);
-
-/* C interface helper */
-void teclick(Point *pt, Boolean fExtend, TEHandle h);
-
-/************************************************************
- * Internal/Platform Abstraction Functions
- ************************************************************/
-
-/* Modern platform integration */
-OSErr TEInitPlatform(void);
-void TECleanupPlatform(void);
-
-/* Unicode/multi-byte character support */
-OSErr TESetTextEncoding(TEHandle hTE, TextEncoding encoding);
-TextEncoding TEGetTextEncoding(TEHandle hTE);
-
-/* Modern input method support */
-OSErr TESetInputMethod(TEHandle hTE, Boolean useModernIM);
-Boolean TEGetInputMethod(TEHandle hTE);
-
-/* Accessibility support */
-OSErr TESetAccessibilityEnabled(TEHandle hTE, Boolean enabled);
-Boolean TEGetAccessibilityEnabled(TEHandle hTE);
+/* Internal helpers (exposed for other TE modules) */
+extern void TE_RecalcLines(TEHandle hTE);
+extern SInt32 TE_OffsetToLine(TEHandle hTE, SInt32 offset);
+extern SInt32 TE_LineToOffset(TEHandle hTE, SInt32 line);
+extern void TE_DrawLine(TEHandle hTE, SInt32 lineNum, SInt16 y);
+extern void TE_InvalidateSelection(TEHandle hTE);
+extern void TE_UpdateCaret(TEHandle hTE, Boolean forceOn);
+extern SInt32 TE_FindWordBoundary(TEHandle hTE, SInt32 offset, Boolean forward);
+extern SInt32 TE_FindLineStart(TEHandle hTE, SInt32 offset);
+extern SInt32 TE_FindLineEnd(TEHandle hTE, SInt32 offset);
 
 #ifdef __cplusplus
 }

@@ -224,6 +224,26 @@ void DisableItem(MenuHandle theMenu, short item) {
     }
 }
 
+/*
+ * CheckItem - Set item check mark
+ *
+ * Sets or removes a check mark for a menu item.
+ *
+ * Parameters:
+ *   theMenu: Handle to the menu
+ *   item: Menu item number (1-based)
+ *   checked: true to add check, false to remove
+ */
+void CheckItem(MenuHandle theMenu, short item, Boolean checked) {
+    if (!theMenu || item < 1) return;
+
+    /* For now, just log the operation */
+    serial_printf("CheckItem: menu %p, item %d, checked %d\n", theMenu, item, checked);
+
+    /* In a full implementation, this would update the menu item's check state
+     * in the menu data structure and potentially redraw the menu if visible */
+}
+
 /* Helper functions */
 static void ParseMenuData(MenuHandle theMenu) {
     if (!theMenu) return;

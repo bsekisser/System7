@@ -429,14 +429,15 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
     ADD_FILE(2, "About This Mac", 20, 0x54455854, 0x74747874);  /* 'TEXT', 'ttxt' */
     ADD_FILE(17, "Sample Document", 21, 0x54455854, 0x74747874);  /* 'TEXT', 'ttxt' */
     ADD_FILE(17, "Notes", 22, 0x54455854, 0x74747874);  /* 'TEXT', 'ttxt' */
+    ADD_FILE(18, "SimpleText", 23, 0x4150504C, 0x74747874);  /* 'APPL', 'ttxt' - text editor application */
 
     #undef ADD_FOLDER
     #undef ADD_FILE
 
     /* Update MDB to reflect created folders and files */
-    be32_write(&mdb[32], 23);  /* drNxtCNID - next available is 23 */
+    be32_write(&mdb[32], 24);  /* drNxtCNID - next available is 24 */
     be32_write(&mdb[90], 3);   /* drDirCnt - 3 directories (excluding root) */
-    be32_write(&mdb[86], 4);   /* drFilCnt - 4 files */
+    be32_write(&mdb[86], 5);   /* drFilCnt - 5 files (including TextEdit) */
 
     /* Initialize Extents B-tree */
     /* Extents start at allocation block 10 (after catalog's 10 blocks) */
