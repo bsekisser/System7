@@ -78,6 +78,18 @@ OSErr Desktop_AddVolumeIcon(const char* name, VRefNum vref);
 OSErr Desktop_RemoveVolumeIcon(VRefNum vref);
 Boolean Desktop_IsOverTrash(Point where);
 Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick);
+void ArrangeDesktopIcons(void);
+OSErr InitializeDesktopDB(void);
+OSErr InitializeVolumeIcon(const char* volumeName, VRefNum vref);
+OSErr HandleVolumeDoubleClick(Point clickPoint);
+void Desktop_GhostEraseIf(void);
+void Desktop_GhostShowAt(const Rect* r);
+void StartDragIcon(Point mousePt);
+void DragIcon(Point mousePt);
+void EndDragIcon(Point mousePt);
+Boolean HandleDesktopDrag(Point clickPoint);
+void SelectNextDesktopIcon(void);
+void OpenSelectedDesktopIcon(void);
 
 /* File Manager API - Evidence: "Do you want to copy", "Items from ^1 disks cannot be moved" */
 OSErr CopyItems(FSSpec *source, FSSpec *dest, Boolean askUser);
