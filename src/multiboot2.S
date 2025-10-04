@@ -47,7 +47,9 @@ stack_top:
 /* Entry point */
 .section .text
 .global _start
+#ifndef _WIN32
 .type _start, @function
+#endif
 _start:
     /* Save Multiboot2 magic and info pointer first! */
     movl %eax, %edi                  /* Save magic in %edi */
@@ -108,5 +110,7 @@ hang:
     hlt
     jmp hang
 
+#ifndef _WIN32
 .size _start, . - _start
+#endif
 
