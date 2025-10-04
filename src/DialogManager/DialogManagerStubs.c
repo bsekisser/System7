@@ -78,33 +78,6 @@ void DisposeDialogItemList(Handle itemListH) {
     }
 }
 
-SInt16 CountDITL(DialogPtr theDialog) {
-    return 0;
-}
-
-void DrawDialogItem(DialogPtr theDialog, SInt16 itemNo) {
-    /* Stub - would draw the specified dialog item */
-}
-
-SInt16 FindDialogItem(DialogPtr theDialog, Point where) {
-    return 0; /* No item found */
-}
-
-void GetDialogItem(DialogPtr theDialog, SInt16 itemNo, SInt16* itemType, Handle* item, Rect* box) {
-    if (itemType) *itemType = 0;
-    if (item) *item = NULL;
-    if (box) {
-        box->top = 0;
-        box->left = 0;
-        box->bottom = 0;
-        box->right = 0;
-    }
-}
-
-void InvalDialogItem(DialogPtr theDialog, SInt16 itemNo) {
-    /* Stub - would invalidate the item's rectangle */
-}
-
 OSErr LoadAlertTemplate(SInt16 resID, Handle* alertH) {
     *alertH = NULL;
     return -1; /* resNotFound */
@@ -116,9 +89,6 @@ void DisposeAlertTemplate(Handle alertH) {
     }
 }
 /* Window Manager stubs for Dialog Manager */
-void InitDialogItems(void) {
-    /* Stub - would initialize dialog item management */
-}
 
 void InitDialogResources(void) {
     /* Stub - would initialize dialog resource management */

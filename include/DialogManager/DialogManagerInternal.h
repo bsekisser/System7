@@ -11,6 +11,11 @@ typedef struct DialogItemEx {
     short type;
     short index;
     void* data;
+    Boolean visible;
+    Boolean enabled;
+    SInt32 refCon;
+    void* userData;
+    void* platformData;
 } DialogItemEx;
 
 typedef struct DialogManagerState {
@@ -23,7 +28,6 @@ typedef struct DialogManagerState {
 
 // Internal functions
 void InitDialogInternals(void);
-DialogItemEx* GetDialogItemEx(DialogPtr dialog, short item);
 void UpdateDialogState(DialogManagerState* state);
 
 extern DialogManagerState gDialogState;

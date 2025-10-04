@@ -415,7 +415,14 @@ void serial_printf(const char* fmt, ...) {
         strstr(fmt, "Build:") == NULL &&
         strstr(fmt, "compatible") == NULL &&
         strstr(fmt, "Macintosh") == NULL &&
-        strstr(fmt, "portable") == NULL) {
+        strstr(fmt, "portable") == NULL &&
+        strstr(fmt, "Dialog") == NULL &&
+        strstr(fmt, "DIALOG") == NULL &&
+        strstr(fmt, "Alert") == NULL &&
+        strstr(fmt, "ALERT") == NULL &&
+        strstr(fmt, "Modal") == NULL &&
+        strstr(fmt, "DITL") == NULL &&
+        strstr(fmt, "DLOG") == NULL) {
         return;  /* Message not whitelisted - silently drop */
     }
 

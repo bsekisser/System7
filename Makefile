@@ -130,6 +130,9 @@ C_SOURCES = src/main.c \
             src/DialogManager/ModalDialogs.c \
             src/DialogManager/AlertDialogs.c \
             src/DialogManager/DialogEvents.c \
+            src/DialogManager/DialogItems.c \
+            src/DialogManager/DialogResourceParser.c \
+            src/DialogManager/DialogDrawing.c \
             src/StandardFile/StandardFile.c \
             src/StandardFile/StandardFileHAL_Shims.c \
             src/FileManager.c \

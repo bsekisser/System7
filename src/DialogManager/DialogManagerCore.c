@@ -35,6 +35,11 @@ extern void ShowWindow(WindowPtr window);
 extern void HideWindow(WindowPtr window);
 extern void DrawWindow(WindowPtr window);
 extern void InvalRect(const Rect* rect);
+extern void BeginUpdate(WindowPtr window);
+extern void EndUpdate(WindowPtr window);
+extern void EraseRect(const Rect* r);
+extern void GetPort(GrafPtr* port);
+extern void SetPort(GrafPtr port);
 
 /* Private function prototypes */
 static DialogPtr CreateDialogStructure(void* storage, Boolean isColor);
@@ -325,13 +330,36 @@ void DrawDialog(DialogPtr theDialog)
  */
 void UpdateDialog(DialogPtr theDialog, RgnHandle updateRgn)
 {
+    GrafPtr savePort;
+    SInt16 itemCount, i;
+
     if (!theDialog || ValidateDialogPtr(theDialog) != 0) {
         return;
     }
 
-    /* For now, just redraw the entire dialog */
-    /* A full implementation would only redraw the update region */
-    DrawDialog(theDialog);
+    /* Save and set port */
+    GetPort(&savePort);
+    SetPort((GrafPtr)theDialog);
+
+    /* Begin update - sets clip to update region */
+    BeginUpdate((WindowPtr)theDialog);
+
+    /* Erase content region */
+    EraseRect(&((GrafPtr)theDialog)->portRect);
+
+    /* Draw all visible items in order */
+    itemCount = CountDITL(theDialog);
+    for (i = 1; i <= itemCount; i++) {
+        DrawDialogItem(theDialog, i);
+    }
+
+    /* End update */
+    EndUpdate((WindowPtr)theDialog);
+
+    /* Restore port */
+    SetPort(savePort);
+
+    serial_printf("Dialog: Updated dialog %p\n", (void*)theDialog);
 }
 
 /*

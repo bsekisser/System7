@@ -73,6 +73,21 @@ typedef union {
 /* Dialog Manager feature flags */
 
 /* Dialog item type masks and flags */
+/* Note: Most dialog item constants are defined in SystemTypes.h */
+/* Only define the ones that are missing */
+#ifndef itemTypeMask
+enum {
+    itemTypeMask = 0x7F       /* Mask for item type (127) */
+};
+#endif
+
+/* DITL append methods */
+typedef short DITLMethod;
+enum {
+    overlayDITL = 0,          /* Overlay items */
+    appendDITLRight = 1,      /* Append to right */
+    appendDITLBottom = 2      /* Append to bottom */
+};
 
 /* Dialog window classes and styles */
 
