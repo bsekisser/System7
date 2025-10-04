@@ -269,7 +269,7 @@ void InitFonts(void) {}
 void InitWindows(void) {}
 void InitMenus(void) {}
 void TEInit(void) {}
-void InitDialogs(void* proc) {}
+// void InitDialogs(void* proc) {} /* Now implemented in DialogManagerCore.c */
 void SysBeep(short duration) {}
 void ExitToShell(void) { while(1); }
 void InitApplZone(void) {}

@@ -77,7 +77,7 @@ void InitDialogEvents(void)
 /*
  * ProcessDialogEvent - Process an event for a dialog
  */
-SInt16 ProcessDialogEvent(DialogPtr theDialog, EventRecord* theEvent, SInt16* itemHit)
+SInt16 ProcessDialogEvent(DialogPtr theDialog, const EventRecord* theEvent, SInt16* itemHit)
 {
     if (!theDialog || !theEvent) {
         return kDialogEventResult_NotHandled;
@@ -130,14 +130,16 @@ void ProcessDialogIdle(DialogPtr theDialog)
 /*
  * AdvanceDialogFocus - Advance focus to next/previous item
  */
-void AdvanceDialogFocus(DialogPtr theDialog, Boolean backward)
+SInt16 AdvanceDialogFocus(DialogPtr theDialog, Boolean backward)
 {
     if (!theDialog) {
-        return;
+        return 0;
     }
 
     printf("AdvanceDialogFocus: dialog=%p, backward=%d\n",
            (void*)theDialog, backward);
+
+    return 0; /* Success */
 }
 
 /*

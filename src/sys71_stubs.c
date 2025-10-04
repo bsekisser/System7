@@ -1341,8 +1341,12 @@ void TextFace(short face) {
 
 
 /* Alert stub for trash_folder */
-SInt16 Alert(SInt16 alertID, ModalFilterProcPtr filterProc) {
-    serial_printf("Alert stub: alertID=%d\n", alertID);
-    return 1; /* OK button */
+
+void Delay(UInt32 numTicks, UInt32* finalTicks) {
+    /* Minimal delay stub - just return current tick count */
+    if (finalTicks) {
+        extern UInt32 TickCount(void);
+        *finalTicks = TickCount();
+    }
 }
 

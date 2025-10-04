@@ -12,7 +12,8 @@
 #define pascal
 
 // Stub FILE type for bare metal compatibility
-#ifndef _FILE_DEFINED
+// Only define if stdio.h hasn't been included
+#if !defined(_STDIO_H) && !defined(_FILE_DEFINED)
 #define _FILE_DEFINED
 typedef struct FILE FILE;
 #endif

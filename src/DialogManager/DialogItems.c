@@ -15,6 +15,8 @@
 #include "DialogManager/DialogItems.h"
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/DialogTypes.h"
+#include "DialogManager/DialogManagerInternal.h"
+#include "DialogManager/DialogManagerStateExt.h"
 #include <assert.h>
 
 

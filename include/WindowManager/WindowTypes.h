@@ -179,10 +179,12 @@ typedef struct WinCTab {
 */
 
 /* Window utilities */
+/* Temporarily disabled - conflicts with function declarations
 #define GetWindowPort(w) ((GrafPtr)(w))
 #define GetWindowFromPort(p) ((WindowPtr)(p))
 #define IsWindowVisible(w) ((w) && (w)->visible)
 #define IsWindowHilited(w) ((w) && (w)->hilited)
+*/
 
 /* Type checking macros */
 #define IsWindowPtr(w) ((w) != NULL)

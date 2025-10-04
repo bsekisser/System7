@@ -97,7 +97,7 @@ void InitDialogs(ResumeProcPtr resumeProc)
 
     gDialogManagerInitialized = true;
 
-    printf("Dialog Manager initialized successfully\n");
+    serial_printf("Dialog Manager initialized successfully\n");
 }
 
 /*
@@ -601,7 +601,7 @@ Boolean GetDialogTracksCursor(DialogPtr theDialog)
     return gDialogManagerState.globals.tracksCursor;
 }
 
-Boolean IsModalDialog(DialogPtr theDialog)
+static Boolean IsModalDialog_Core(DialogPtr theDialog)
 {
     if (!theDialog || ValidateDialogPtr(theDialog) != 0) {
         return false;

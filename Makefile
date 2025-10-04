@@ -127,7 +127,9 @@ C_SOURCES = src/main.c \
             src/DeskManager/DeskManagerStubs.c \
             src/DialogManager/DialogManagerCore.c \
             src/DialogManager/DialogManagerStubs.c \
-            src/DialogManager/DialogEventStubs.c \
+            src/DialogManager/ModalDialogs.c \
+            src/DialogManager/AlertDialogs.c \
+            src/DialogManager/DialogEvents.c \
             src/StandardFile/StandardFile.c \
             src/StandardFile/StandardFileHAL_Shims.c \
             src/FileManager.c \
