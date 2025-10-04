@@ -22,26 +22,9 @@ extern "C" {
 
 /*
  * Core Scrap Manager Functions
- * These functions provide the standard Mac OS Scrap Manager API
+ * The classic Mac OS Scrap Manager API functions are declared in ScrapTypes.h
+ * with their authentic System 7 signatures
  */
-
-/* Get information about the current scrap */
-PScrapStuff InfoScrap(void);
-
-/* Clear the scrap and increment change counter */
-OSErr ZeroScrap(void);
-
-/* Put data into the scrap */
-OSErr PutScrap(SInt32 length, ResType theType, const void *source);
-
-/* Get data from the scrap */
-OSErr GetScrap(Handle destHandle, ResType theType, SInt32 *offset);
-
-/* Load scrap from disk file */
-OSErr LoadScrap(void);
-
-/* Unload scrap to disk file */
-OSErr UnloadScrap(void);
 
 /*
  * Extended Scrap Manager Functions
@@ -58,10 +41,10 @@ void CleanupScrapManager(void);
 OSErr GetScrapFormats(ResType *types, SInt16 *count, SInt16 maxTypes);
 
 /* Check if a specific format is available */
-Boolean HasScrapFormat(ResType theType);
+/* Note: ScrapTypes.h declares ScrapHasFlavor for this purpose */
 
 /* Get the size of data for a specific format */
-SInt32 GetScrapSize(ResType theType);
+/* Note: ScrapTypes.h declares ScrapGetFlavorSize for this purpose */
 
 /* Put data with format conversion */
 OSErr PutScrapWithConversion(SInt32 length, ResType theType,

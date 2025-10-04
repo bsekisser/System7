@@ -111,6 +111,18 @@ ProcessID Scrap_GetOwner(void);
 #define kScrapTypeTEXT 'TEXT'
 #define kScrapTypePICT 'PICT'
 
+/* Classic Mac OS Scrap Manager API */
+void ZeroScrap(void);
+void PutScrap(long byteCount, OSType theType, const void* sourcePtr);
+long GetScrap(Handle hDest, OSType theType, long* offset);
+void LoadScrap(void);
+void UnloadScrap(void);
+long InfoScrap(void);
+
+/* Helper functions */
+Boolean ScrapHasFlavor(OSType theType);
+long ScrapGetFlavorSize(OSType theType);
+
 #ifdef __cplusplus
 }
 #endif

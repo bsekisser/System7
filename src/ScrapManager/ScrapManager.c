@@ -1,10 +1,12 @@
 /*
- * ScrapManager.c - Minimal Scrap Manager (Clipboard) Implementation
+ * ScrapManager.c - Classic Mac OS Scrap Manager Implementation
  *
- * Provides inter-process clipboard functionality for System 7.1-style OS.
+ * System 7.1-compatible clipboard with multiple flavors and persistence.
  * Uses Handle-based storage for memory management.
  */
 
+/* Standard includes */
+#include <string.h>
 #include "SystemTypes.h"
 /* Only include ScrapTypes.h to avoid conflicts with existing ScrapManager.h */
 #define SCRAP_MANAGER_H  /* Prevent ScrapManager.h inclusion */
@@ -22,8 +24,22 @@ extern void BlockMoveData(const void* src, void* dest, Size size);
 extern OSErr MemError(void);
 extern void serial_printf(const char* fmt, ...);
 
+/* Debug logging control */
+#define SCRAP_DEBUG 1
+
+#if SCRAP_DEBUG
+#define SCRAP_LOG(...) serial_printf("[Scrap] " __VA_ARGS__)
+#else
+#define SCRAP_LOG(...)
+#endif
+
 /* Maximum number of scrap types we support */
-#define MAX_SCRAP_ITEMS 8
+#define MAX_SCRAP_ITEMS 16
+
+/* File format constants */
+#define SCRAP_FILE_MAGIC    0x434C4950  /* 'CLIP' */
+#define SCRAP_FILE_VERSION  1
+#define SCRAP_FILE_PATH     "/Clipboard"
 
 /* Error codes */
 #ifndef noTypeErr
@@ -32,11 +48,12 @@ extern void serial_printf(const char* fmt, ...);
 
 /* Scrap Manager global state */
 static struct {
-    short state;           /* Scrap state counter (increments on change) */
+    UInt32 changeCnt;      /* Change counter (increments on change) */
     short count;           /* Number of items in scrap */
     ProcessID owner;       /* Process that owns current scrap */
     ScrapItem items[MAX_SCRAP_ITEMS];
     Boolean inited;        /* Has been initialized */
+    Boolean dirty;         /* Needs saving to disk */
 } gScrap = {0};
 
 /* Forward declarations */
@@ -49,16 +66,19 @@ static ScrapItem* AllocateScrapItem(ResType type);
  */
 static void InitScrapIfNeeded(void)
 {
+    int i;
+
     if (gScrap.inited) {
         return;
     }
 
     /* Zero the scrap table */
-    gScrap.state = 0;
+    gScrap.changeCnt = 0;
     gScrap.count = 0;
     gScrap.owner = 0;
+    gScrap.dirty = false;
 
-    for (int i = 0; i < MAX_SCRAP_ITEMS; i++) {
+    for (i = 0; i < MAX_SCRAP_ITEMS; i++) {
         gScrap.items[i].type = 0;
         gScrap.items[i].data = NULL;
     }
@@ -69,7 +89,7 @@ static void InitScrapIfNeeded(void)
     /*
     OSErr err = Gestalt_RegisterSelector('scra', 0x03);
     if (err == noErr) {
-        serial_printf("[Scrap] Registered with Gestalt\n");
+        SCRAP_LOG("Registered with Gestalt\n");
     }
     */
 
@@ -81,7 +101,8 @@ static void InitScrapIfNeeded(void)
  */
 static ScrapItem* FindScrapItem(ResType type)
 {
-    for (int i = 0; i < MAX_SCRAP_ITEMS; i++) {
+    int i;
+    for (i = 0; i < MAX_SCRAP_ITEMS; i++) {
         if (gScrap.items[i].type == type && gScrap.items[i].data != NULL) {
             return &gScrap.items[i];
         }
@@ -94,14 +115,17 @@ static ScrapItem* FindScrapItem(ResType type)
  */
 static ScrapItem* AllocateScrapItem(ResType type)
 {
+    ScrapItem* item;
+    int i;
+
     /* First check if type already exists */
-    ScrapItem* item = FindScrapItem(type);
+    item = FindScrapItem(type);
     if (item) {
         return item;
     }
 
     /* Find empty slot */
-    for (int i = 0; i < MAX_SCRAP_ITEMS; i++) {
+    for (i = 0; i < MAX_SCRAP_ITEMS; i++) {
         if (gScrap.items[i].type == 0 || gScrap.items[i].data == NULL) {
             gScrap.items[i].type = type;
             return &gScrap.items[i];
@@ -116,12 +140,13 @@ static ScrapItem* AllocateScrapItem(ResType type)
  */
 void Scrap_Zero(void)
 {
+    int i;
     InitScrapIfNeeded();
 
-    serial_printf("[Scrap] Scrap_Zero called\n");
+    SCRAP_LOG("Scrap_Zero called\n");
 
     /* Dispose all existing handles */
-    for (int i = 0; i < MAX_SCRAP_ITEMS; i++) {
+    for (i = 0; i < MAX_SCRAP_ITEMS; i++) {
         if (gScrap.items[i].data != NULL) {
             DisposeHandle(gScrap.items[i].data);
             gScrap.items[i].data = NULL;
@@ -131,7 +156,8 @@ void Scrap_Zero(void)
 
     /* Reset state */
     gScrap.count = 0;
-    gScrap.state++;  /* Increment state to indicate change */
+    gScrap.changeCnt++;  /* Increment change counter */
+    gScrap.dirty = true;
 
     /* Set owner to current process if ProcessMgr is available */
 #ifdef ENABLE_PROCESS_COOP
@@ -141,8 +167,8 @@ void Scrap_Zero(void)
     gScrap.owner = 1;  /* Default process ID */
 #endif
 
-    serial_printf("[Scrap] Zeroed, state=%d owner=%d\n",
-                 gScrap.state, gScrap.owner);
+    SCRAP_LOG("Zeroed, changeCnt=%lu owner=%d\n",
+             (unsigned long)gScrap.changeCnt, gScrap.owner);
 }
 
 /*
@@ -185,7 +211,8 @@ OSErr Scrap_Put(Size size, ResType type, const void* src)
     }
 
     /* Update state and owner */
-    gScrap.state++;
+    gScrap.changeCnt++;
+    gScrap.dirty = true;
 #ifdef ENABLE_PROCESS_COOP
     extern ProcessID Proc_GetCurrent(void);
     gScrap.owner = Proc_GetCurrent();
@@ -193,10 +220,10 @@ OSErr Scrap_Put(Size size, ResType type, const void* src)
     gScrap.owner = 1;
 #endif
 
-    serial_printf("[Scrap] Put type='%c%c%c%c' size=%ld state=%d\n",
-                 (char)(type >> 24), (char)(type >> 16),
-                 (char)(type >> 8), (char)type,
-                 (long)size, gScrap.state);
+    SCRAP_LOG("Put type='%c%c%c%c' size=%ld changeCnt=%lu\n",
+             (char)(type >> 24), (char)(type >> 16),
+             (char)(type >> 8), (char)type,
+             (long)size, (unsigned long)gScrap.changeCnt);
 
     return noErr;
 }
@@ -224,10 +251,10 @@ Size Scrap_Get(void* dest, ResType type)
         HUnlock(item->data);
     }
 
-    serial_printf("[Scrap] Get type='%c%c%c%c' size=%ld\n",
-                 (char)(type >> 24), (char)(type >> 16),
-                 (char)(type >> 8), (char)type,
-                 (long)size);
+    SCRAP_LOG("Get type='%c%c%c%c' size=%ld\n",
+             (char)(type >> 24), (char)(type >> 16),
+             (char)(type >> 8), (char)type,
+             (long)size);
 
     return size;
 }
@@ -243,7 +270,7 @@ void Scrap_Info(short* count, short* state)
         *count = gScrap.count;
     }
     if (state) {
-        *state = gScrap.state;
+        *state = (short)(gScrap.changeCnt & 0xFFFF);  /* Return low 16 bits for compatibility */
     }
 }
 
@@ -265,57 +292,143 @@ ProcessID Scrap_GetOwner(void)
 }
 
 /* ============================================================================
+ * File I/O Helper Functions - Stubbed for kernel environment
+ * TODO: Implement using VFS when available
+ * ============================================================================ */
+
+/* ============================================================================
  * Mac OS Classic API Compatibility Functions
  * ============================================================================ */
 
 /*
  * ZeroScrap - Clear the scrap (Classic Mac OS API)
  */
-OSErr ZeroScrap(void) {
+void ZeroScrap(void) {
     Scrap_Zero();
-    return noErr;
 }
 
 /*
  * PutScrap - Put data into scrap (Classic Mac OS API)
  */
-OSErr PutScrap(SInt32 length, ResType theType, const void *source) {
-    return Scrap_Put((Size)length, theType, source);
+void PutScrap(long byteCount, OSType theType, const void* sourcePtr) {
+    if (byteCount < 0) return;
+    Scrap_Put((Size)byteCount, theType, sourcePtr);
 }
 
 /*
  * GetScrap - Get data from scrap (Classic Mac OS API)
- * Returns size on success, negative error code on failure
+ * Returns size on success, 0 if type not found
+ * Appends data to hDest at *offset if provided
  */
-SInt32 GetScrap(Handle hDest, ResType theType, SInt32 *offset) {
-    Size size;
+long GetScrap(Handle hDest, OSType theType, long* offset) {
+    ScrapItem* item;
+    Size flavorSize;
+    Size currentSize;
+    Ptr srcPtr;
+    Ptr destPtr;
 
-    /* First get the size */
-    size = Scrap_Get(NULL, theType);
-    if (size == 0) {
-        return noTypeErr;  /* Type not found */
+    InitScrapIfNeeded();
+
+    /* Find the item */
+    item = FindScrapItem(theType);
+    if (!item || !item->data) {
+        SCRAP_LOG("GetScrap: type '%.4s' not found\n", (char*)&theType);
+        return 0;
     }
 
-    /* If no destination handle, just return size */
+    /* Get flavor size */
+    flavorSize = GetHandleSize(item->data);
+    if (flavorSize == 0) {
+        return 0;
+    }
+
+    /* If no destination, just return size */
     if (!hDest) {
-        if (offset) *offset = 0;
-        return (SInt32)size;
+        return (long)flavorSize;
     }
 
-    /* Resize destination handle */
-    SetHandleSize(hDest, size);
+    /* Get current size and grow handle */
+    currentSize = GetHandleSize(hDest);
+    SetHandleSize(hDest, currentSize + flavorSize);
     if (MemError() != noErr) {
-        return MemError();
+        SCRAP_LOG("GetScrap: failed to grow handle\n");
+        return 0;
     }
 
-    /* Get the data */
+    /* Lock both handles for copying */
+    HLock(item->data);
     HLock(hDest);
-    size = Scrap_Get(*hDest, theType);
+
+    /* Copy data at offset */
+    srcPtr = *item->data;
+    destPtr = *hDest + (offset ? *offset : 0);
+    BlockMoveData(srcPtr, destPtr, flavorSize);
+
+    /* Unlock handles */
+    HUnlock(item->data);
     HUnlock(hDest);
 
-    if (offset) *offset = 0;
+    /* Update offset if provided */
+    if (offset) {
+        *offset += flavorSize;
+    }
 
-    return (SInt32)size;
+    SCRAP_LOG("GetScrap: copied %ld bytes of '%.4s'\n",
+              (long)flavorSize, (char*)&theType);
+
+    return (long)flavorSize;
+}
+
+/*
+ * LoadScrap - Load scrap from disk
+ * Stubbed for kernel environment - TODO: Implement using VFS
+ */
+void LoadScrap(void) {
+    InitScrapIfNeeded();
+    SCRAP_LOG("LoadScrap: stub - file I/O not available\n");
+    /* In-memory scrap only for now */
+}
+
+/*
+ * UnloadScrap - Save scrap to disk
+ * Stubbed for kernel environment - TODO: Implement using VFS
+ */
+void UnloadScrap(void) {
+    InitScrapIfNeeded();
+    SCRAP_LOG("UnloadScrap: stub - file I/O not available\n");
+    /* In-memory scrap only for now */
+    gScrap.dirty = false;
+}
+/*
+ * InfoScrap - Get scrap change count
+ */
+long InfoScrap(void) {
+    InitScrapIfNeeded();
+    return (long)gScrap.changeCnt;
+}
+
+/*
+ * ScrapHasFlavor - Check if clipboard has specified flavor
+ */
+Boolean ScrapHasFlavor(OSType theType) {
+    InitScrapIfNeeded();
+    return FindScrapItem(theType) != NULL;
+}
+
+/*
+ * ScrapGetFlavorSize - Get size of specified flavor
+ */
+long ScrapGetFlavorSize(OSType theType) {
+    ScrapItem* item;
+
+    InitScrapIfNeeded();
+
+    item = FindScrapItem(theType);
+    if (!item || !item->data) {
+        return 0;
+    }
+
+    return (long)GetHandleSize(item->data);
 }
 
 #ifdef SCRAP_SELFTEST

@@ -7,6 +7,7 @@
 #include "TextEdit/TextEdit.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "ScrapManager/ScrapManager.h"
+#include "ErrorCodes.h"
 #include <string.h>
 
 /* Boolean constants */
@@ -197,7 +198,8 @@ void TEStylePaste(TEHandle hTE) {
  */
 OSErr TEFromScrap(void) {
     Handle textHandle;
-    SInt32 scrapSize;
+    long scrapSize;
+    long bytesRead;
     OSErr err;
 
     TEC_LOG("TEFromScrap: loading from system scrap\n");
@@ -209,24 +211,28 @@ OSErr TEFromScrap(void) {
     }
 
     /* Get TEXT from scrap */
-    err = GetScrap(NULL, kScrapFlavorTypeText, &scrapSize);
-    if (err >= 0 && scrapSize > 0) {
+    bytesRead = GetScrap(NULL, kScrapFlavorTypeText, &scrapSize);
+    if (bytesRead >= 0 && scrapSize > 0) {
         /* Allocate handle for text */
         g_TEScrap = NewHandle(scrapSize);
         if (g_TEScrap) {
             /* Get the text */
-            err = GetScrap(g_TEScrap, kScrapFlavorTypeText, &scrapSize);
-            if (err < 0) {
+            bytesRead = GetScrap(g_TEScrap, kScrapFlavorTypeText, &scrapSize);
+            if (bytesRead < 0) {
                 DisposeHandle(g_TEScrap);
                 g_TEScrap = NULL;
+                err = noTypeErr;
             } else {
                 /* Resize to actual size */
                 SetHandleSize(g_TEScrap, scrapSize);
-                TEC_LOG("TEFromScrap: loaded %d bytes\n", scrapSize);
+                TEC_LOG("TEFromScrap: loaded %ld bytes\n", bytesRead);
+                err = noErr;
             }
         } else {
             err = memFullErr;
         }
+    } else {
+        err = noErr; /* No text in scrap is not an error */
     }
 
     /* TODO: Get style scrap if present */
@@ -245,18 +251,18 @@ OSErr TEToScrap(void) {
 
     if (g_TEScrap) {
         /* Clear system scrap */
-        err = ZeroScrap();
-        if (err != noErr) return err;
+        ZeroScrap();
 
         /* Put TEXT to scrap */
         scrapSize = GetHandleSize(g_TEScrap);
         if (scrapSize > 0) {
             HLock(g_TEScrap);
-            err = PutScrap(scrapSize, kScrapFlavorTypeText, *g_TEScrap);
+            PutScrap(scrapSize, kScrapFlavorTypeText, *g_TEScrap);
             HUnlock(g_TEScrap);
 
             TEC_LOG("TEToScrap: saved %d bytes\n", scrapSize);
         }
+        err = noErr;
 
         /* TODO: Put style scrap if present */
     }
