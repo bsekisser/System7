@@ -223,6 +223,7 @@ long MenuSelect(Point startPt)
 short MenuSelectEx(Point startPt, MenuTrackInfo* trackInfo, MenuSelection* selection)
 {
     Point currentPt;
+    Boolean buttonDown = false;
     unsigned long modifiers;
     Boolean isInMenuBar, isInMenu;
     short currentMenu = 0;
@@ -267,12 +268,12 @@ short MenuSelectEx(Point startPt, MenuTrackInfo* trackInfo, MenuSelection* selec
     int loopCount = 0; /* Add loop counter to prevent infinite loops */
     const int MAX_LOOPS = 1000; /* Prevent infinite loops */
 
-    while ((mouseDown || currentMenu != 0) && loopCount < MAX_LOOPS) {
+    while ((buttonDown || currentMenu != 0) && loopCount < MAX_LOOPS) {
         loopCount++;
-        GetCurrentMouseState(&currentPt, &mouseDown, &modifiers);
+        GetCurrentMouseState(&currentPt, &buttonDown, &modifiers);
 
         /* Update tracking state */
-        UpdateMenuTracking(trackInfo, currentPt, mouseDown);
+        UpdateMenuTracking(trackInfo, currentPt, buttonDown);
 
         isInMenuBar = IsPointInMenuBar(currentPt);
         isInMenu = (currentMenu != 0) && IsPointInMenu(currentPt, &trackInfo->currentMenuRect);
@@ -436,6 +437,7 @@ long MenuChoice(void)
 short TrackMenuBar(Point startPt, MenuTrackInfo* trackInfo)
 {
     Point currentPt;
+    Boolean buttonDown = false;
     short menuUnderMouse = 0;
 
     if (!IsPointInMenuBar(startPt)) {
@@ -449,7 +451,7 @@ short TrackMenuBar(Point startPt, MenuTrackInfo* trackInfo)
 
     /* Track mouse until it leaves menu bar or button is released */
     do {
-        GetCurrentMouseState(&currentPt, &mouseDown, NULL);
+        GetCurrentMouseState(&currentPt, &buttonDown, NULL);
 
         if (IsPointInMenuBar(currentPt)) {
             short newMenu = FindMenuAtPoint(currentPt);
@@ -464,7 +466,7 @@ short TrackMenuBar(Point startPt, MenuTrackInfo* trackInfo)
         }
 
         WaitForMouseChange(1);
-    } while (mouseDown && IsPointInMenuBar(currentPt));
+    } while (buttonDown && IsPointInMenuBar(currentPt));
 
     return menuUnderMouse;
 }
@@ -476,6 +478,7 @@ short TrackPullDownMenu(MenuHandle theMenu, const Rect* menuRect,
                        Point startPt, MenuTrackInfo* trackInfo)
 {
     Point currentPt;
+    Boolean buttonDown = false;
     short itemUnderMouse = 0;
     short lastItem = 0;
 
@@ -487,7 +490,7 @@ short TrackPullDownMenu(MenuHandle theMenu, const Rect* menuRect,
 
     /* Track mouse in menu */
     do {
-        GetCurrentMouseState(&currentPt, &mouseDown, NULL);
+        GetCurrentMouseState(&currentPt, &buttonDown, NULL);
 
         if (IsPointInMenu(currentPt, menuRect)) {
             itemUnderMouse = FindMenuItemAtPoint(theMenu, currentPt, menuRect);
@@ -515,7 +518,7 @@ short TrackPullDownMenu(MenuHandle theMenu, const Rect* menuRect,
         }
 
         WaitForMouseChange(1);
-    } while (mouseDown);
+    } while (buttonDown);
 
     /* Clean up highlighting */
     if (lastItem > 0) {
@@ -673,7 +676,7 @@ void UpdateMenuTracking(MenuTrackInfo* trackInfo, Point mousePt, Boolean buttonD
 
     trackInfo->lastMousePoint = trackInfo->mousePoint;
     trackInfo->mousePoint = mousePt;
-    trackInfo->mouseDown = buttonDown;
+    trackInfo->mouseWasDown = buttonDown;
     trackInfo->mouseMoved = (mousePt.h != (trackInfo)->h ||
                             mousePt.v != (trackInfo)->v);
     trackInfo->lastMoveTime = GetCurrentTime();
