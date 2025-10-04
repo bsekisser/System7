@@ -97,6 +97,7 @@ C_SOURCES = src/main.c \
             src/FontManager/FontManagerCore.c \
             src/FontManager/FontResourceLoader.c \
             src/FontManager/FontStyleSynthesis.c \
+            src/FontManager/FontScaling.c \
             src/test_fontmgr.c \
             src/PS2Controller.c \
             src/PatternMgr/pattern_manager.c \

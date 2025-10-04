@@ -239,7 +239,15 @@ void TextSize(short size) {
     g_currentPort->txSize = size;
     FM_LOG("TextSize: Set to %d\n", size);
 
-    /* Would select appropriate strike here */
+    /* Update current strike based on size */
+    if (size == 12) {
+        g_fmState.currentStrike = &g_chicagoStrike12;
+    } else {
+        /* For other sizes, we'll use scaling */
+        /* Keep Chicago 12 as base but remember requested size in txSize */
+        g_fmState.currentStrike = &g_chicagoStrike12;
+        FM_LOG("TextSize: Will use scaling for %dpt\n", size);
+    }
 }
 
 void TextMode(short mode) {
@@ -275,7 +283,23 @@ void GetFontMetrics(FMetricRec *theMetrics) {
 
 short CharWidth(short ch) {
     if (ch >= 32 && ch <= 126 && g_fmState.currentStrike == &g_chicagoStrike12) {
-        /* Use actual Chicago font metrics */
+        /* Check if we need scaling for different size */
+        if (g_currentPort && g_currentPort->txSize != 12) {
+            /* Use scaled width for non-12pt sizes */
+            extern short FM_GetScaledCharWidth(char ch, short targetSize);
+            short scaledWidth = FM_GetScaledCharWidth(ch, g_currentPort->txSize);
+
+            /* Apply style on top of scaling if needed */
+            if (g_currentPort->txFace != normal) {
+                extern short FM_GetStyledCharWidth(char ch, Style face);
+                /* Style adjustments are relative, apply to scaled width */
+                return scaledWidth + (FM_GetStyledCharWidth(ch, g_currentPort->txFace) - scaledWidth);
+            }
+
+            return scaledWidth;
+        }
+
+        /* Use actual Chicago font metrics for 12pt */
         ChicagoCharInfo info = chicago_ascii[ch - 32];
         short width = info.bit_width + 2;  /* Corrected spacing */
         if (ch == ' ') width += 3;  /* Extra space width */
