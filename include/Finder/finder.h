@@ -128,6 +128,9 @@ StringPtr GetFinderVersion(void);
 OSErr ShowErrorDialog(StringPtr message, OSErr errorCode);
 OSErr ShowConfirmDialog(StringPtr message, Boolean *confirmed);
 
+/* Volume Mount Callback */
+void OnVolumeMount(VRefNum vref, const char* volName);
+
 #endif /* __FINDER_H__ */
 
 /*

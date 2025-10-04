@@ -47,8 +47,7 @@ static OSErr SetupMenus(void);
 extern OSErr InitializeDesktopDB(void);  /* From desktop_manager.c */
 extern OSErr InitializeTrashFolder(void);  /* From trash_manager.c */
 static OSErr InitializeWindowManager(void);
-static OSErr HandleShutDown(void);
-/* HandleMenuChoice, HandleMouseDown, HandleKeyDown declared in #if 0 block below */
+/* HandleShutDown, HandleMenuChoice, HandleMouseDown, HandleKeyDown declared in #if 0 block below */
 /* DoUpdate, DoActivate, DoBackgroundTasks declared in #if 0 block below */
 /* MainEventLoop declared in #if 0 block below */
 extern void DrawFolderWindowContents(WindowPtr window, Boolean isTrash);
@@ -628,7 +627,6 @@ static void HandleMenuChoice(long menuChoice)
 
     HiliteMenu(0);
 }
-#endif  /* Event loop helper functions */
 
 /*
  * HandleShutDown - Handle Shut Down menu command
@@ -644,6 +642,7 @@ static OSErr HandleShutDown(void)
 
     return noErr;  /* Never reached */
 }
+#endif  /* Event loop helper functions */
 
 /*
  * ShowErrorDialog - Display error message to user
@@ -654,7 +653,7 @@ OSErr ShowErrorDialog(StringPtr message, OSErr errorCode)
     Str255 errorText;
 
     /* Format error message */
-    BlockMoveData(message, errorText, message[0] + 1);
+    BlockMove(message, errorText, message[0] + 1);
 
     /* Show alert dialog */
     ParamText(errorText, "\000", "\000", "\000");
