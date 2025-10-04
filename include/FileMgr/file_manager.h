@@ -153,5 +153,19 @@ OSErr ConvertCStringToPascal(const char* c_str, UInt8* pascal_str, size_t max_le
 #define nsDrvErr                -56     /* No such drive */
 #define offLinErr               -53     /* Volume is offline */
 #define volOnLinErr             -55     /* Volume already online */
+#define ioErr                   -36     /* I/O error */
+
+/*
+ * High-level File Manager API Functions
+ */
+OSErr FSMakeFSSpec(short vRefNum, long dirID, const unsigned char *fileName, FSSpec *spec);
+OSErr FSpCreate(const FSSpec *spec, OSType creator, OSType fileType, short scriptTag);
+OSErr FSpOpenDF(const FSSpec *spec, short permission, short *refNum);
+OSErr FSClose(short refNum);
+OSErr FSRead(short refNum, long *count, void *buffPtr);
+OSErr FSWrite(short refNum, long *count, const void *buffPtr);
+OSErr SetEOF(short refNum, long logEOF);
+OSErr PBHGetVInfoSync(void *paramBlock);
+OSErr PBGetCatInfoSync(void *paramBlock);
 
 #endif /* FILE_MANAGER_H */

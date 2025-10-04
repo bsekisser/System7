@@ -18,12 +18,14 @@
 #include "SystemTypes.h"
 #include <string.h>
 #include <stdlib.h>  /* For abs() */
+#include <stdio.h>   /* For sprintf, snprintf */
 
 #include "Finder/finder.h"
 #include "Finder/finder_types.h"
 #include "FileMgr/file_manager.h"
 /* Use local headers instead of system headers */
 #include "MemoryMgr/memory_manager_types.h"
+#include "MemoryMgr/MemoryManager.h"  /* For NewPtr */
 #include "ResourceManager.h"
 #include "PatternMgr/pattern_manager.h"
 #include "FS/vfs.h"
@@ -32,6 +34,9 @@
 #include "Finder/Icon/icon_label.h"
 #include "Finder/Icon/icon_system.h"
 #include "QuickDrawConstants.h"
+#include "WindowManager/WindowFunctions.h"  /* For NewWindow, ShowWindow, SelectWindow, InvalRect */
+#include "EventManager/EventManager.h"      /* For EventAvail, GetNextEvent */
+#include "sys71_stubs.h"                    /* For SetDeskHook */
 
 /* HD Icon data - still needed by icon_system.c */
 extern const uint8_t g_HDIcon[128];
