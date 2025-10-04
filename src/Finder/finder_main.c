@@ -48,8 +48,7 @@ extern OSErr InitializeDesktopDB(void);  /* From desktop_manager.c */
 extern OSErr InitializeTrashFolder(void);  /* From trash_manager.c */
 static OSErr InitializeWindowManager(void);
 static OSErr HandleShutDown(void);
-static void HandleMenuChoice(long menuChoice);
-/* HandleMouseDown, HandleKeyDown declared in #if 0 block below */
+/* HandleMenuChoice, HandleMouseDown, HandleKeyDown declared in #if 0 block below */
 /* DoUpdate, DoActivate, DoBackgroundTasks declared in #if 0 block below */
 /* MainEventLoop declared in #if 0 block below */
 extern void DrawFolderWindowContents(WindowPtr window, Boolean isTrash);
@@ -530,7 +529,6 @@ static void HandleMouseDown(EventRecord *event)
             break;
     }
 }
-#endif  /* Event loop helper functions */
 
 /*
  * HandleMenuChoice - Process menu selections
@@ -630,6 +628,7 @@ static void HandleMenuChoice(long menuChoice)
 
     HiliteMenu(0);
 }
+#endif  /* Event loop helper functions */
 
 /*
  * HandleShutDown - Handle Shut Down menu command
