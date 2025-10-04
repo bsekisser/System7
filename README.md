@@ -178,12 +178,43 @@ This is a proof-of-concept implementation focused on understanding and recreatin
 ### Not Yet Implemented ❌
 
 - **Application Launching**: No process management or application loading
-- **List Manager**: List controls not working
+- **List Manager**: List controls not working (2 source files exist but not compiled)
 - **Sound Manager**: No audio support
 - **Printing**: No print system
 - **Networking**: No AppleTalk or network functionality
 - **Desk Accessories**: Framework only, no functional DAs
 - **Color Manager**: Minimal color support
+
+### Subsystems Not Yet Compiled 🔧
+
+The following subsystems have source code but are not yet integrated into the build:
+
+- **AppleEventManager** (8 files): Inter-application messaging and scripting support
+  - Core event dispatch, descriptors, handlers, coercion
+  - Required Events (Open/Print/Quit), event recording
+  - Located in `src/AppleEventManager/`
+- **DeviceManager** (8 files): Device driver infrastructure
+  - Driver loading, dispatch, and I/O operations
+  - Async I/O support, unit table management
+  - Device interrupt handling
+  - Located in `src/DeviceManager/`
+- **FontResources** (8 files): Font resource management and conversion
+  - Embedded font support, font downloading
+  - Resource converter and loader
+  - Modern font compatibility layer
+  - Located in `src/FontResources/`
+- **GestaltManager** (2 files): Extended system capability detection
+  - System capabilities and feature testing
+  - Located in `src/GestaltManager/` (distinct from `src/Gestalt/` which IS compiled)
+- **ListManager** (2 files): List control implementation
+  - Core list management functionality
+  - Located in `src/ListManager/`
+- **SpeechManager** (8 files): Text-to-speech synthesis
+  - Voice management, speech output, synthesis engine
+  - Speech channels, pronunciation, voice resources
+  - Located in `src/SpeechManager/`
+- **StartupScreen** (1 file): Boot splash screen
+  - Located in `src/StartupScreen/`
 
 ## 🏗️ Architecture
 
