@@ -88,6 +88,8 @@ void Platform_UnionRgn(RgnHandle srcA, RgnHandle srcB, RgnHandle dst);
 void Platform_IntersectRgn(RgnHandle srcA, RgnHandle srcB, RgnHandle dst);
 void Platform_DiffRgn(RgnHandle srcA, RgnHandle srcB, RgnHandle dst);
 Boolean Platform_PtInRgn(Point pt, RgnHandle rgn);
+void Platform_GetRegionBounds(RgnHandle rgn, Rect* bounds);
+void Platform_EmptyRgn(RgnHandle rgn);
 
 /*
  * Native window management
@@ -100,6 +102,8 @@ void Platform_SizeNativeWindow(WindowPtr window, short w, short h);
 void Platform_SetNativeWindowTitle(WindowPtr window, ConstStr255Param title);
 void Platform_BringNativeWindowToFront(WindowPtr window);
 void Platform_SendNativeWindowBehind(WindowPtr window, WindowPtr behind);
+void Platform_UpdateNativeWindowOrder(void);
+void Platform_DisableWindow(WindowPtr window, Boolean disable);
 
 /*
  * Window drawing and updating
@@ -163,12 +167,20 @@ void WM_UpdateWindowVisibility(WindowPtr window);
 WindowPtr WM_FindWindowAt(Point pt);
 WindowPtr WM_GetNextVisibleWindow(WindowPtr window);
 WindowPtr WM_GetPreviousWindow(WindowPtr window);
+short WM_GetWindowLayer(WindowPtr window);
+void WM_SetWindowLayer(WindowPtr window, short layer);
+Boolean WM_IsFloatingWindow(WindowPtr window);
+Boolean WM_IsAlertDialog(WindowPtr window);
+Boolean WM_WindowsOverlap(WindowPtr window1, WindowPtr window2);
 
 /*
  * Window state management
  */
 void WM_SaveWindowState(WindowPtr window);
 void WM_RestoreWindowState(WindowPtr window);
+UInt32 WM_CalculateStateChecksum(WindowPtr window);
+void WM_UpdateStateChecksum(WindowPtr window);
+Boolean WM_ValidateStateChecksum(WindowPtr window);
 
 /*
  * Window drawing coordination
@@ -177,6 +189,9 @@ void WM_InvalidateWindowsBelow(WindowPtr topWindow, const Rect* rect);
 void WM_UpdateWindowRegions(WindowPtr window);
 void WM_DrawWindowFrame(WindowPtr window);
 void WM_DrawAllWindows(void);
+void WM_InvalidateScreenRegion(RgnHandle rgn);
+void WM_CalculateWindowVisibility(WindowPtr window);
+void WM_UpdateWindowVisibilityStats(WindowPtr window);
 
 /*
  * Window tracking and interaction
@@ -184,6 +199,20 @@ void WM_DrawAllWindows(void);
 void WM_StartWindowDrag(WindowPtr window, Point startPt);
 void WM_StartWindowResize(WindowPtr window, Point startPt);
 Boolean WM_TrackWindowPart(WindowPtr window, Point startPt, short part);
+void WM_StartDragFeedback(WindowPtr window, Point startPt);
+void WM_UpdateDragFeedback(Point currentPt);
+void WM_EndDragFeedback(void);
+void WM_InitializeDragState(WindowPtr window, Point startPt);
+void WM_CleanupDragState(void);
+void WM_StartResizeFeedback(WindowPtr window, Point startPt);
+void WM_UpdateResizeFeedback(Point currentPt);
+void WM_EndResizeFeedback(void);
+void WM_InitializeResizeState(WindowPtr window, Point startPt);
+void WM_CleanupResizeState(void);
+void WM_AnimateZoom(WindowPtr window, const Rect* fromRect, const Rect* toRect);
+void WM_GenerateResizeUpdateEvents(WindowPtr window, const Rect* oldBounds, const Rect* newBounds);
+void WM_DisableWindowsBehindModal(WindowPtr modalWindow);
+void WM_UpdatePlatformWindowOrder(void);
 
 /*
  * Update management
@@ -198,6 +227,16 @@ void WM_ScheduleWindowUpdate(WindowPtr window, WindowUpdateFlags flags);
 void WM_CalculateWindowMetrics(WindowPtr window, short procID);
 void WM_AdjustWindowBounds(Rect* bounds, short procID);
 Boolean WM_ValidateWindowBounds(const Rect* bounds);
+Boolean WM_ValidateWindow(WindowPtr window);
+Boolean WM_ValidateRect(const Rect* rect);
+void WM_InitializeSnapSizes(void);
+void WM_AddSnapSize(short width, short height);
+void WM_ApplySnapToSize(Rect* rect);
+void WM_ApplySnapToEdges(Rect* rect);
+void WM_CalculateNewSize(Rect* bounds, Point newCorner);
+short WM_CalculateConstrainedWindowPosition(const Rect* bounds, const Rect* screenBounds);
+short WM_CalculateFinalWindowPosition(const Rect* bounds);
+void WM_CalculateRegionArea(RgnHandle rgn);
 
 /*
  * Window parts and capabilities (WindowParts.c)
@@ -227,6 +266,7 @@ void WM_CopyPascalString(ConstStr255Param source, Str255 dest);
 void WM_SetPascalString(Str255 dest, const char* source);
 short WM_GetPascalStringLength(ConstStr255Param str);
 Boolean WM_ComparePascalStrings(ConstStr255Param str1, ConstStr255Param str2);
+short GetPascalStringLength(const unsigned char* str);
 
 /*
  * Geometry utilities
@@ -239,6 +279,12 @@ void WM_IntersectRect(const Rect* src1, const Rect* src2, Rect* dst);
 Boolean WM_EqualRect(const Rect* rect1, const Rect* rect2);
 Boolean WM_EmptyRect(const Rect* rect);
 Boolean WM_PtInRect(Point pt, const Rect* rect);
+Boolean WM_RectsIntersect(const Rect* rect1, const Rect* rect2);
+short WM_GetRectWidth(const Rect* rect);
+short WM_GetRectHeight(const Rect* rect);
+void WM_ConstrainToScreen(Rect* rect);
+void WM_ConstrainToRect(Rect* rect, const Rect* bounds);
+void WM_InterpolateRect(const Rect* from, const Rect* to, Rect* result, short fraction);
 
 /*
  * Error handling and debugging
