@@ -659,11 +659,13 @@ static void GhostXOR(const Rect* r)
     uint32_t* fb = (uint32_t*)framebuffer;
     int pitch = fb_pitch / 4;
 
-    /* Clip to screen bounds */
+    /* Clip to screen bounds, clamping fb dimensions to SInt16 range */
+    short safe_width = (fb_width <= 32767) ? (short)fb_width : 32767;
+    short safe_height = (fb_height <= 32767) ? (short)fb_height : 32767;
     short left = (r->left >= 0) ? r->left : 0;
     short top = (r->top >= 0) ? r->top : 0;
-    short right = (r->right <= (short)fb_width) ? r->right : fb_width;
-    short bottom = (r->bottom <= (short)fb_height) ? r->bottom : fb_height;
+    short right = (r->right <= safe_width) ? r->right : safe_width;
+    short bottom = (r->bottom <= safe_height) ? r->bottom : safe_height;
 
     serial_printf("GhostXOR: drawing at X=%d-%d Y=%d-%d\n", left, right, top, bottom);
 
@@ -1648,11 +1650,13 @@ void DragIcon(Point mousePt)
     newPos.h = mousePt.h - gDragOffset.h;
     newPos.v = mousePt.v - gDragOffset.v;
 
-    /* Constrain to screen bounds */
+    /* Constrain to screen bounds, clamping to SInt16 range */
+    short max_h = (fb_width > 42 && fb_width - 42 <= 32767) ? (short)(fb_width - 42) : 32767;
+    short max_v = (fb_height > 60 && fb_height - 60 <= 32767) ? (short)(fb_height - 60) : 32767;
     if (newPos.h < 10) newPos.h = 10;
     if (newPos.v < 30) newPos.v = 30;  /* Below menu bar */
-    if (newPos.h > fb_width - 42) newPos.h = fb_width - 42;
-    if (newPos.v > fb_height - 60) newPos.v = fb_height - 60;
+    if (newPos.h > max_h) newPos.h = max_h;
+    if (newPos.v > max_v) newPos.v = max_v;
 
     /* Update icon position */
     gDesktopIcons[gSelectedIcon].position = newPos;
