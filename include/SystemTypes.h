@@ -2172,7 +2172,9 @@ typedef enum {
     kSystemInitStage_Memory,
     kSystemInitStage_Core,
     kSystemInitStage_Managers,
-    kSystemInitStage_Complete
+    kSystemInitStage_Complete,
+    kSystemInitStage_Process,      /* Extended stage for process manager */
+    kSystemInitStage_FullComplete  /* Final completion stage */
 } SystemInitStage;
 
 typedef struct SystemCapabilities {

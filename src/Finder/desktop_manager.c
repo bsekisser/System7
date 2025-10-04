@@ -752,9 +752,7 @@ static void DesktopYield(void)
 static void TrackIconDragSync(short iconIndex, Point startPt)
 {
     Rect ghost;
-    Boolean ghostOn = false;
     Boolean didDrag = false;  /* Track if icon actually moved during drag */
-    Point p;
     GrafPtr savePort;
 
     extern void serial_printf(const char* fmt, ...);
@@ -838,7 +836,6 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     /* Determine drop target and action */
     Point dropPoint = (Point){ .h = ghost.left + 20 + 16, .v = ghost.top + 16 };  /* Icon center */
     DesktopItem* item = &gDesktopIcons[iconIndex];
-    Boolean operationSucceeded = false;
     Boolean invalidDrop = false;
 
     /* Get modifier keys to determine action (option = alias, cmd = copy) */
@@ -865,7 +862,6 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
             VRefNum vref = VFS_GetBootVRef();
             if (Trash_MoveNode(vref, HFS_ROOT_DIR_ID, item->iconID)) {
                 serial_printf("TrackIconDragSync: Successfully moved to trash\n");
-                operationSucceeded = true;
 
                 /* Remove from desktop array */
                 for (short i = iconIndex; i < gDesktopIconCount - 1; i++) {
@@ -936,7 +932,6 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
 
             if (CreateAlias(&target, &aliasFile) == noErr) {
                 serial_printf("TrackIconDragSync: Alias created successfully\n");
-                operationSucceeded = true;
             } else {
                 serial_printf("TrackIconDragSync: Alias creation failed\n");
                 invalidDrop = true;

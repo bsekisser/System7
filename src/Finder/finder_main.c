@@ -539,7 +539,6 @@ static void HandleMenuChoice(long menuChoice)
 {
     short menuID = HiWord(menuChoice);
     short menuItem = LoWord(menuChoice);
-    OSErr err;
 
     switch (menuID) {
         case 128:  /* Apple Menu */
@@ -555,7 +554,7 @@ static void HandleMenuChoice(long menuChoice)
                     itemName[1] == 'S' && itemName[2] == 'h' &&
                     itemName[3] == 'u' && itemName[4] == 't') {
                     /* Shut Down */
-                    err = HandleShutDown();
+                    (void)HandleShutDown();
                 } else {
                     /* Handle desk accessories */
                     OpenDeskAcc(itemName);
@@ -566,13 +565,13 @@ static void HandleMenuChoice(long menuChoice)
         case 129:  /* File Menu */
             switch (menuItem) {
                 case 6:   /* Get Info */
-                    err = HandleGetInfo();
+                    (void)HandleGetInfo();
                     break;
                 case 12:  /* Find */
-                    err = ShowFind();
+                    (void)ShowFind();
                     break;
                 case 13:  /* Find Again */
-                    err = FindAgain();
+                    (void)FindAgain();
                     break;
                 case 15:  /* [Test] Open File... */
                     {
