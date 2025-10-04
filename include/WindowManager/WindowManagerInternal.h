@@ -73,6 +73,15 @@ void Platform_ShutdownWindowing(void);
 Boolean Platform_HasColorQuickDraw(void);
 
 /*
+ * Mouse and input
+ */
+Boolean Platform_IsMouseDown(void);
+void Platform_GetMousePosition(Point* pt);
+void Platform_WaitTicks(short ticks);
+short Platform_LocalToGlobalPoint(WindowPtr window, Point* pt);
+short Platform_GlobalToLocalPoint(WindowPtr window, Point* pt);
+
+/*
  * Port and region management
  */
 Boolean Platform_InitializePort(GrafPtr port);
@@ -80,6 +89,10 @@ Boolean Platform_InitializeColorPort(CGrafPtr port);
 Boolean Platform_InitializeWindowPort(WindowPtr window);
 Boolean Platform_InitializeColorWindowPort(WindowPtr window);
 void Platform_CleanupWindowPort(WindowPtr window);
+GrafPtr Platform_GetCurrentPort(void);
+void Platform_SetCurrentPort(GrafPtr port);
+GrafPtr Platform_GetUpdatePort(WindowPtr window);
+void Platform_SetUpdatePort(GrafPtr port);
 
 RgnHandle Platform_NewRgn(void);
 void Platform_DisposeRgn(RgnHandle rgn);
@@ -90,6 +103,10 @@ void Platform_DiffRgn(RgnHandle srcA, RgnHandle srcB, RgnHandle dst);
 Boolean Platform_PtInRgn(Point pt, RgnHandle rgn);
 void Platform_GetRegionBounds(RgnHandle rgn, Rect* bounds);
 void Platform_EmptyRgn(RgnHandle rgn);
+void Platform_CopyRgn(RgnHandle src, RgnHandle dst);
+void Platform_SetEmptyRgn(RgnHandle rgn);
+void Platform_OffsetRgn(RgnHandle rgn, short dh, short dv);
+void Platform_SetClipRgn(GrafPtr port, RgnHandle rgn);
 
 /*
  * Native window management
@@ -131,6 +148,7 @@ void Platform_GetWindowGrowBoxRect(WindowPtr window, Rect* growRect);
  */
 short Platform_WindowHitTest(WindowPtr window, Point pt);
 Boolean Platform_PointInWindowPart(WindowPtr window, Point pt, short part);
+void Platform_HighlightWindowPart(WindowPtr window, short partCode, Boolean highlight);
 
 /*
  * Window definition procedures
@@ -154,6 +172,27 @@ void Platform_DisposeCTable(CTabHandle ctab);
  */
 void Platform_PostWindowEvent(WindowPtr window, short eventType, long eventData);
 Boolean Platform_ProcessPendingEvents(void);
+
+/*
+ * Window feedback and visual effects
+ */
+void Platform_ShowDragOutline(const Rect* rect);
+void Platform_HideDragOutline(const Rect* rect);
+void Platform_UpdateDragOutline(const Rect* oldRect, const Rect* newRect);
+void Platform_ShowDragRect(const Rect* rect);
+void Platform_HideDragRect(const Rect* rect);
+void Platform_UpdateDragRect(const Rect* oldRect, const Rect* newRect);
+void Platform_ShowSizeFeedback(const Rect* rect);
+void Platform_HideSizeFeedback(const Rect* rect);
+void Platform_UpdateSizeFeedback(const Rect* oldRect, const Rect* newRect);
+void Platform_ShowZoomFrame(const Rect* rect);
+void Platform_HideZoomFrame(const Rect* rect);
+void Platform_EnableWindow(WindowPtr window);
+Boolean Platform_GetPreferredDragFeedback(void);
+Boolean Platform_IsResizeFeedbackEnabled(void);
+Boolean Platform_IsSnapToEdgesEnabled(void);
+Boolean Platform_IsSnapToSizeEnabled(void);
+Boolean Platform_IsZoomAnimationEnabled(void);
 
 /* ============================================================================
  * Internal Window Manager Functions
