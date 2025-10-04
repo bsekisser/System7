@@ -708,10 +708,13 @@ static void DrawWindowFrame(WindowPtr window) {
                     }
 
                     /* Draw title text in bold black */
+                    serial_printf("TITLE: About to draw title, titleStr=%p\n", titleStr);
                     PenPat(&qd.black);
                     TextFace(1);  /* bold */
                     MoveTo(textLeft, textBaseline);
+                    serial_printf("TITLE: Calling DrawString now\n");
                     DrawString(titleStr);
+                    serial_printf("TITLE: DrawString returned\n");
                     TextFace(0);  /* reset to normal */
                 } else {
                     /* Inactive window: no lozenge, gray text */

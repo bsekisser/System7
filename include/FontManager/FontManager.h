@@ -30,7 +30,7 @@ Boolean RealFont(short fontNum, short size);
 
 /* Font Swapping and Metrics */
 FMOutPtr FMSwapFont(const FMInput *inRec);
-void FontMetrics(const FMetricRec *theMetrics);
+void SetFontMetrics(const FMetricRec *theMetrics);
 
 /* Font Scaling and Outline Support */
 void SetFScaleDisable(Boolean fscaleDisable);
