@@ -30,7 +30,7 @@ Boolean RealFont(short fontNum, short size);
 
 /* Font Swapping and Metrics */
 FMOutPtr FMSwapFont(const FMInput *inRec);
-void SetFontMetrics(const FMetricRec *theMetrics);
+void GetFontMetrics(FMetricRec *theMetrics);  /* Get current font metrics */
 
 /* Font Scaling and Outline Support */
 void SetFScaleDisable(Boolean fscaleDisable);
@@ -163,8 +163,24 @@ OSErr _ScaleFont(FontRec *font, Point numer, Point denom, FontRec **scaledFont);
 
 /* Font Manager State */
 
+/* QuickDraw Integration */
+void TextFont(short font);
+void TextFace(Style face);
+void TextSize(short size);
+void TextMode(short mode);
+
+/* Width Measurement */
+short CharWidth(short ch);
+short StringWidth(ConstStr255Param s);
+short TextWidth(const void* textBuf, short firstByte, short byteCount);
+
 /* Get current Font Manager state */
 FontManagerState *GetFontManagerState(void);
+FontStrike *FM_GetCurrentStrike(void);
+
+/* Font Drawing and Measurement */
+short FM_MeasureRun(const unsigned char* bytes, short len);
+void FM_DrawRun(const unsigned char* bytes, short len, Point baseline);
 
 /* Error handling */
 OSErr GetLastFontError(void);

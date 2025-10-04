@@ -11,12 +11,14 @@
 #include "SystemTypes.h"
 
 /* Forward declarations */
-
-#include "SystemTypes.h"
+struct FontStrike;
+struct FontFamily;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* Style type is already defined in SystemTypes.h */
 
 /* Font Constants */
 enum {
@@ -36,7 +38,12 @@ enum {
     helvetica = 21,
     courier = 22,
     symbol = 23,
-    mobile = 24
+    mobile = 24,
+
+    /* Aliases */
+    chicagoFont = 0,
+    genevaFont = 3,
+    monacoFont = 4
 };
 
 /* Resource Type Constants */
@@ -51,7 +58,7 @@ enum {
     fontCacheFullErr = -4961
 };
 
-/* Font Manager State */
+/* Font Manager State - Global state for the Font Manager */
 typedef struct FontManagerState {
     Boolean initialized;
     Boolean fractEnable;
@@ -59,15 +66,32 @@ typedef struct FontManagerState {
     Boolean outlinePreferred;
     Boolean preserveGlyph;
     Boolean fontLock;
-    void *cache;
+
+    /* Family and strike management */
+    struct FontFamily*     familyList;     /* Linked list of families */
+    struct FontStrike*     strikeCache;    /* LRU cache of strikes */
+    short           strikeCacheSize;
+    struct FontStrike*     currentStrike;  /* Active strike for current port */
+
+    /* Substitutions */
     void *substitutions;
     short substitutionCount;
+
+    /* Rendering preferences */
     Fixed fontGamma;
     Boolean hintingEnabled;
     Boolean smoothingEnabled;
 } FontManagerState;
 
 /* Font Manager Input Record */
+typedef struct FMInput {
+    short   family;
+    short   size;
+    Style   face;
+    Boolean needBits;
+    short   numer;
+    short   denom;
+} FMInput;
 
 /* Font Manager Output Record */
 typedef struct FMOutput {
@@ -89,9 +113,47 @@ typedef struct FMOutput {
     Point denom;           /* Actual scale denominator */
 } FMOutput, *FMOutPtr;
 
-/* Font Record - Bitmap Font Header */
+/* Font Record - NFNT/FONT Resource Structure */
+typedef struct FontRec {
+    short       fontType;       /* Font type */
+    short       firstChar;      /* First character */
+    short       lastChar;       /* Last character */
+    short       widMax;         /* Max character width */
+    short       kernMax;        /* Max kerning */
+    short       nDescent;       /* Negative of descent */
+    short       fRectWidth;     /* Width of font rectangle */
+    short       fRectHeight;    /* Height of font rectangle */
+    short       owTLoc;         /* Offset to width table */
+    short       ascent;         /* Ascent */
+    short       descent;        /* Descent */
+    short       leading;        /* Leading */
+    short       rowWords;       /* Row width in words */
+    /* Followed by:
+     * - Bit image (rowWords * fRectHeight * 2 bytes)
+     * - Location table ((lastChar - firstChar + 3) * 2 bytes)
+     * - Width/offset table ((lastChar - firstChar + 3) * 2 bytes)
+     */
+} FontRec;
 
 /* Font Family Record - FOND Resource Header */
+typedef struct FamRec {
+    short       ffFlags;        /* Family flags */
+    short       ffFamID;        /* Family ID */
+    short       ffFirstChar;    /* First character in family */
+    short       ffLastChar;     /* Last character in family */
+    short       ffAscent;       /* Family ascent */
+    short       ffDescent;      /* Family descent */
+    short       ffLeading;      /* Family leading */
+    short       ffWidMax;       /* Family max width */
+    long        ffWTabOff;      /* Offset to width table */
+    long        ffKernOff;      /* Offset to kerning table */
+    long        ffStylOff;      /* Offset to style mapping table */
+    short       ffProperty[9];  /* Style properties */
+    short       ffIntl[2];      /* International info */
+    short       ffVersion;      /* Version number */
+} FamRec;
+
+/* Font Metrics Record - FMetricRec is already defined in SystemTypes.h */
 
 /* Font Metrics Record */
 typedef struct FontMetrics {
@@ -155,6 +217,46 @@ typedef struct KernPair {
 /* Complete Width Table - Internal Font Manager Structure */
 
 /* TrueType/Outline Font Support Structures */
+
+/* Font Strike - Runtime representation of a specific size/style */
+typedef struct FontStrike {
+    short       familyID;       /* Font family ID */
+    short       size;           /* Point size */
+    Style       face;           /* Style bits */
+    Boolean     synthetic;      /* True if synthesized */
+
+    /* Metrics */
+    short       ascent;
+    short       descent;
+    short       leading;
+    short       widMax;
+
+    /* Character data */
+    short       firstChar;
+    short       lastChar;
+    short       rowWords;       /* Words per row in bitmap */
+    short       fRectHeight;    /* Height of font bitmap */
+
+    /* Tables */
+    Handle      bitmapData;     /* Handle to bitmap data */
+    short*      locTable;       /* Character location table */
+    unsigned char* widthTable;  /* Character width table */
+
+    /* Cache linkage */
+    struct FontStrike* next;
+    struct FontStrike* prev;
+    unsigned long lastUsed;     /* Tick count for LRU */
+} FontStrike;
+
+/* Font Family - Runtime representation of a font family */
+typedef struct FontFamily {
+    short       familyID;
+    Str255      familyName;
+    Handle      fondHandle;     /* FOND resource handle */
+    Boolean     hasNFNT;        /* Has bitmap strikes */
+    Boolean     hasTrueType;    /* Has TrueType outlines */
+    struct FontFamily* next;
+} FontFamily;
 
 /* Font Cache Structures */
 

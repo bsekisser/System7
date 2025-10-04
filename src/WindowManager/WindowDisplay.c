@@ -708,6 +708,7 @@ static void DrawWindowFrame(WindowPtr window) {
                     }
 
                     /* Draw title text in bold black */
+                    serial_printf("*** CODE PATH B: DrawWindowFrame in WindowDisplay.c ***\n");
                     serial_printf("TITLE: About to draw title, titleStr=%p\n", titleStr);
                     PenPat(&qd.black);
                     TextFace(1);  /* bold */

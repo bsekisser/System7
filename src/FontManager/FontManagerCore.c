@@ -1,23 +1,92 @@
-/* #include "SystemTypes.h" */
-#include <string.h>
 /*
  * FontManagerCore.c - Core Font Manager Implementation
  *
- * Implements the main Font Manager APIs compatible with Mac OS 7.1
- * Provides font loading, family management, and core font operations.
+ * System 7.1-compatible Font Manager with bitmap font support
+ * Integrates with existing Chicago font implementation
  */
 
-// #include "CompatibilityFix.h" // Removed
-#include "SystemTypes.h"
-#include "System71StdLib.h"
-
 #include "FontManager/FontManager.h"
-#include "FontManager/BitmapFonts.h"
-#include "FontManager/TrueTypeFonts.h"
-#include "FontManager/FontMetrics.h"
-#include "FontManager/ModernFonts.h"
-#include "MemoryMgr/MemoryManager.h"
-#include "ResourceMgr/resource_manager.h"
+#include "FontManager/FontTypes.h"
+#include "QuickDraw/QuickDraw.h"
+#include "SystemTypes.h"
+#include "chicago_font.h"
+#include <string.h>
+
+/* Debug logging */
+#define FM_DEBUG 1
+
+#if FM_DEBUG
+extern void serial_printf(const char* fmt, ...);
+#define FM_LOG(...) serial_printf("FM: " __VA_ARGS__)
+#else
+#define FM_LOG(...)
+#endif
+
+/* Ensure boolean constants are defined */
+#ifndef TRUE
+#define TRUE 1
+#endif
+#ifndef FALSE
+#define FALSE 0
+#endif
+
+/* External dependencies */
+extern GrafPtr g_currentPort;
+extern void DrawString(ConstStr255Param s);
+extern short StringWidth(ConstStr255Param s);
+
+/* Global Font Manager state */
+static FontManagerState g_fmState = {0};
+
+/* Built-in Chicago font strike (from chicago_font.h) */
+static FontStrike g_chicagoStrike12 = {
+    chicagoFont,      /* familyID */
+    12,               /* size */
+    normal,           /* face */
+    FALSE,            /* synthetic */
+    CHICAGO_ASCENT,   /* ascent */
+    CHICAGO_DESCENT,  /* descent */
+    CHICAGO_LEADING,  /* leading */
+    16,               /* widMax - maximum width of Chicago chars */
+    32,               /* firstChar */
+    126,              /* lastChar */
+    0,                /* rowWords - calculated from CHICAGO_ROW_BYTES */
+    CHICAGO_HEIGHT,   /* fRectHeight */
+    NULL,             /* bitmapData - use chicago_bitmap directly */
+    NULL,             /* locTable */
+    NULL,             /* widthTable */
+    NULL,             /* next */
+    NULL,             /* prev */
+    0                 /* lastUsed */
+};
+
+/* Built-in font families */
+static FontFamily g_chicagoFamily = {
+    chicagoFont,
+    {7, 'C','h','i','c','a','g','o'},  /* Pascal string */
+    NULL,   /* fondHandle */
+    TRUE,   /* hasNFNT */
+    FALSE,  /* hasTrueType */
+    NULL    /* next */
+};
+
+static FontFamily g_genevaFamily = {
+    genevaFont,
+    {6, 'G','e','n','e','v','a'},  /* Pascal string */
+    NULL,   /* fondHandle */
+    TRUE,   /* hasNFNT */
+    FALSE,  /* hasTrueType */
+    NULL    /* next */
+};
+
+static FontFamily g_monacoFamily = {
+    monacoFont,
+    {6, 'M','o','n','a','c','o'},  /* Pascal string */
+    NULL,   /* fondHandle */
+    TRUE,   /* hasNFNT */
+    FALSE,  /* hasTrueType */
+    NULL    /* next */
+};
 
 /* Helper to compare pascal strings */
 static Boolean EqualString(const unsigned char *s1, const unsigned char *s2, Boolean caseSensitive, Boolean diacSensitive) {
@@ -36,598 +105,410 @@ static Boolean EqualString(const unsigned char *s1, const unsigned char *s2, Boo
     return TRUE;
 }
 
-/* Helper to create pascal string from C string */
-static void CStrToPStr(const char *cstr, unsigned char *pstr) {
-    short len = 0;
-    while (cstr[len] && len < 255) {
-        pstr[len + 1] = cstr[len];
-        len++;
+/* ============================================================================
+ * Initialization
+ * ============================================================================ */
+
+void InitFonts(void) {
+    if (g_fmState.initialized) {
+        FM_LOG("InitFonts: Already initialized\n");
+        return;
     }
-    pstr[0] = len;
+
+    FM_LOG("InitFonts: Initializing Font Manager\n");
+
+    /* Set up family list */
+    g_chicagoFamily.next = &g_genevaFamily;
+    g_genevaFamily.next = &g_monacoFamily;
+    g_monacoFamily.next = NULL;
+    g_fmState.familyList = &g_chicagoFamily;
+
+    /* Set up strike cache with Chicago 12 */
+    g_chicagoStrike12.rowWords = CHICAGO_ROW_BYTES / 2;
+    g_fmState.strikeCache = &g_chicagoStrike12;
+    g_fmState.strikeCacheSize = 1;
+    g_fmState.currentStrike = &g_chicagoStrike12;
+
+    /* Initialize state flags */
+    g_fmState.fractEnable = FALSE;
+    g_fmState.scaleDisable = FALSE;
+    g_fmState.outlinePreferred = FALSE;
+    g_fmState.preserveGlyph = FALSE;
+    g_fmState.fontLock = FALSE;
+
+    /* Set default font in current port if available */
+    if (g_currentPort) {
+        g_currentPort->txFont = chicagoFont;
+        g_currentPort->txFace = normal;
+        g_currentPort->txSize = 12;
+        FM_LOG("InitFonts: Set port font to Chicago 12\n");
+    }
+
+    g_fmState.initialized = TRUE;
+    FM_LOG("InitFonts: Font Manager initialized with %d families\n", 3);
 }
 
-
-/* Font Manager Global State */
-static FontManagerState gFontManagerState = {
-    FALSE,          /* initialized */
-    FALSE,          /* fractEnable */
-    FALSE,          /* scaleDisable */
-    FALSE,          /* outlinePreferred */
-    FALSE,          /* preserveGlyph */
-    FALSE,          /* fontLock */
-    NULL,           /* cache */
-    NULL,           /* substitutions */
-    0,              /* substitutionCount */
-    0x00010000,     /* fontGamma (1.0 in Fixed) */
-    TRUE,           /* hintingEnabled */
-    TRUE            /* smoothingEnabled */
-};
-
-/* Font Family Table */
-static struct {
-    short familyID;
-    Str255 familyName;
-    Boolean isInstalled;
-} gFontFamilyTable[256];
-static short gFontFamilyCount = 0;
-
-/* Last error */
-static OSErr gLastError = noErr;
-static void (*gErrorCallback)(OSErr, const char*) = NULL;
-
-/* Internal helper functions */
-static OSErr InitializeFontFamilyTable(void);
-static OSErr LoadSystemFonts(void);
-static OSErr FindFontResource(short familyID, short size, short style, Handle *fontHandle, short *resourceID);
-static OSErr ParseFontName(ConstStr255Param name, short *familyID);
-static OSErr RegisterFontFamily(short familyID, ConstStr255Param name);
-static void SetLastError(OSErr error, const char *message);
-
-/*
- * InitFonts - Initialize the Font Manager
- *
- * This is the main initialization routine that sets up all Font Manager
- * data structures and loads system fonts.
- */
-void InitFonts(void)
-{
-    OSErr error;
-
-    if (gFontManagerState.initialized) {
-        return; /* Already initialized */
-    }
-
-    /* Initialize font family table */
-    error = InitializeFontFamilyTable();
-    if (error != noErr) {
-        SetLastError(error, "Failed to initialize font family table");
-        return;
-    }
-
-    /* Initialize font cache */
-    error = InitFontCache(64, 1024 * 1024); /* 64 entries, 1MB cache */
-    if (error != noErr) {
-        SetLastError(error, "Failed to initialize font cache");
-        return;
-    }
-
-    /* Load system fonts */
-    error = LoadSystemFonts();
-    if (error != noErr) {
-        SetLastError(error, "Failed to load system fonts");
-        return;
-    }
-
-    /* Initialize platform font support */
-    error = InitializePlatformFonts();
-    if (error != noErr) {
-        SetLastError(error, "Failed to initialize platform fonts");
-        /* Don't fail completely - continue with basic support */
-    }
-
-    /* Initialize modern font support */
-    error = InitializeModernFontSupport();
-    if (error != noErr) {
-        SetLastError(error, "Failed to initialize modern font support");
-        /* Don't fail completely - continue without modern font support */
-    }
-
-    gFontManagerState.initialized = TRUE;
-    SetLastError(noErr, "Font Manager initialized successfully");
-}
-
-/*
- * FlushFonts - Flush font caches and reload fonts
- */
-OSErr FlushFonts(void)
-{
-    OSErr error;
-
-    if (!gFontManagerState.initialized) {
-        return fontNotFoundErr;
-    }
-
-    /* Flush font cache */
-    error = FlushFontCache();
-    if (error != noErr) {
-        SetLastError(error, "Failed to flush font cache");
-        return error;
-    }
-
-    /* Reload system fonts */
-    error = LoadSystemFonts();
-    if (error != noErr) {
-        SetLastError(error, "Failed to reload system fonts");
-        return error;
-    }
-
-    SetLastError(noErr, "Fonts flushed successfully");
+OSErr FlushFonts(void) {
+    FM_LOG("FlushFonts: Flushing font caches\n");
+    /* For now, just reset to Chicago 12 */
+    g_fmState.currentStrike = &g_chicagoStrike12;
     return noErr;
 }
 
-/*
- * GetFontName - Get the name of a font family
- */
-void GetFontName(short familyID, Str255 name)
-{
-    short i;
+/* ============================================================================
+ * Font Family Management
+ * ============================================================================ */
 
-    if (!gFontManagerState.initialized) {
-        name[0] = 0;
-        return;
-    }
+void GetFontName(short familyID, Str255 name) {
+    FontFamily* family = g_fmState.familyList;
 
-    /* Search font family table */
-    for (i = 0; i < gFontFamilyCount; i++) {
-        if (gFontFamilyTable[i].familyID == familyID) {
-            BlockMoveData(gFontFamilyTable[i].familyName, name,
-                         gFontFamilyTable[i].familyName[0] + 1);
+    while (family) {
+        if (family->familyID == familyID) {
+            /* Copy Pascal string */
+            short len = family->familyName[0];
+            for (short i = 0; i <= len; i++) {
+                name[i] = family->familyName[i];
+            }
+            FM_LOG("GetFontName: ID %d -> %.*s\n", familyID, len, &name[1]);
             return;
         }
+        family = family->next;
     }
 
-    /* Font not found - return empty string */
+    /* Not found - return empty string */
     name[0] = 0;
-    SetLastError(fontNotFoundErr, "Font family not found");
+    FM_LOG("GetFontName: ID %d not found\n", familyID);
 }
 
-/*
- * GetFNum - Get the family ID for a font name
- */
-void GetFNum(ConstStr255Param name, short *familyID)
-{
-    OSErr error;
+void GetFNum(ConstStr255Param name, short *familyID) {
+    if (!name || !familyID) return;
 
-    if (!gFontManagerState.initialized || name == NULL || familyID == NULL) {
-        if (familyID) *familyID = 0;
-        return;
+    FontFamily* family = g_fmState.familyList;
+
+    while (family) {
+        if (EqualString(name, family->familyName, FALSE, FALSE)) {
+            *familyID = family->familyID;
+            FM_LOG("GetFNum: %.*s -> ID %d\n", name[0], &name[1], *familyID);
+            return;
+        }
+        family = family->next;
     }
 
-    error = ParseFontName(name, familyID);
-    if (error != noErr) {
-        *familyID = 0;
-        SetLastError(error, "Font name not found");
-    }
+    /* Not found */
+    *familyID = -1;
+    FM_LOG("GetFNum: %.*s not found\n", name[0], &name[1]);
 }
 
-/*
- * RealFont - Check if a font exists at the specified size
- */
-Boolean RealFont(short fontNum, short size)
-{
-    Handle fontHandle;
-    short resourceID;
-    OSErr error;
-
-    if (!gFontManagerState.initialized) {
-        return FALSE;
-    }
-
-    /* Try to find the font resource */
-    error = FindFontResource(fontNum, size, 0, &fontHandle, &resourceID);
-    if (error == noErr && fontHandle != NULL) {
-        /* Font exists */
+Boolean RealFont(short fontNum, short size) {
+    /* For now, only Chicago 12 is "real" */
+    if (fontNum == chicagoFont && size == 12) {
+        FM_LOG("RealFont: Chicago %d is real\n", size);
         return TRUE;
     }
 
-    /* Check if TrueType font exists */
-    TTFont *ttFont;
-    error = LoadTrueTypeFont(fontNum, &ttFont);
-    if (error == noErr && ttFont != NULL) {
-        UnloadTrueTypeFont(ttFont);
-        return TRUE;
-    }
-
+    FM_LOG("RealFont: Font %d size %d is synthetic\n", fontNum, size);
     return FALSE;
 }
 
-/*
- * FMSwapFont - Main font swapping routine
- *
- * This is the core font loading function that handles font selection,
- * scaling, and style application.
- */
-FMOutPtr FMSwapFont(const FMInput *inRec)
-{
-    static FMOutput output;
-    Handle fontHandle;
-    short resourceID;
-    OSErr error;
-    BitmapFontData *bitmapFont = NULL;
-    TTFont *trueTypeFont = NULL;
-    FontMetrics metrics;
-    WidthTable *widthTable = NULL;
+/* ============================================================================
+ * Font Selection
+ * ============================================================================ */
 
-    if (!gFontManagerState.initialized || inRec == NULL) {
-        output.errNum = fontNotFoundErr;
-        return &output;
-    }
+void TextFont(short font) {
+    if (!g_currentPort) return;
 
-    /* Clear output structure */
-    memset(&output, 0, sizeof(FMOutput));
+    g_currentPort->txFont = font;
+    FM_LOG("TextFont: Set to %d\n", font);
 
-    /* Try to load modern fonts first if outline preferred */
-    if (gFontManagerState.outlinePreferred || IsOutline(inRec->numer, inRec->denom)) {
-        /* Try OpenType font first */
-        if (IsOpenTypeFont(inRec->family, inRec->size)) {
-            OpenTypeFont *otFont = NULL;
-            Str255 fontName;
-            GetFontName(inRec->family, fontName);
+    /* Update current strike - for now always use Chicago 12 */
+    g_fmState.currentStrike = &g_chicagoStrike12;
+}
 
-            error = LoadOpenTypeFont(fontName, &otFont);
-            if (error == noErr && otFont != NULL) {
-                /* Convert OpenType metrics to Mac format */
-                output.ascent = (unsigned char)(otFont->ascender / (otFont->unitsPerEm / inRec->size));
-                output.descent = (unsigned char)(-otFont->descender / (otFont->unitsPerEm / inRec->size));
-                output.widMax = (unsigned char)(otFont->unitsPerEm / 2 / (otFont->unitsPerEm / inRec->size));
-                output.leading = (char)(otFont->lineGap / (otFont->unitsPerEm / inRec->size));
-                output.fontHandle = (Handle)otFont;
-                output.errNum = noErr;
-                return &output;
-            }
+void TextFace(Style face) {
+    if (!g_currentPort) return;
+
+    g_currentPort->txFace = face;
+    FM_LOG("TextFace: Set to 0x%02x\n", face);
+
+    /* Would update strike here for style synthesis */
+}
+
+void TextSize(short size) {
+    if (!g_currentPort) return;
+
+    g_currentPort->txSize = size;
+    FM_LOG("TextSize: Set to %d\n", size);
+
+    /* Would select appropriate strike here */
+}
+
+void TextMode(short mode) {
+    if (!g_currentPort) return;
+
+    g_currentPort->txMode = mode;
+    FM_LOG("TextMode: Set to %d\n", mode);
+}
+
+/* ============================================================================
+ * Metrics
+ * ============================================================================ */
+
+void GetFontMetrics(FMetricRec *theMetrics) {
+    if (!theMetrics || !g_fmState.currentStrike) return;
+
+    FontStrike* strike = g_fmState.currentStrike;
+
+    /* FMetricRec uses SInt32, not Fixed */
+    theMetrics->ascent = strike->ascent;
+    theMetrics->descent = strike->descent;
+    theMetrics->widMax = strike->widMax;
+    theMetrics->leading = strike->leading;
+    theMetrics->wTabHandle = NULL;  /* Width table handle */
+
+    FM_LOG("GetFontMetrics: ascent=%d descent=%d widMax=%d leading=%d\n",
+           strike->ascent, strike->descent, strike->widMax, strike->leading);
+}
+
+/* ============================================================================
+ * Width Measurement
+ * ============================================================================ */
+
+short CharWidth(short ch) {
+    if (ch >= 32 && ch <= 126 && g_fmState.currentStrike == &g_chicagoStrike12) {
+        /* Use actual Chicago font metrics */
+        ChicagoCharInfo info = chicago_ascii[ch - 32];
+        short width = info.bit_width + 2;  /* Corrected spacing */
+        if (ch == ' ') width += 3;  /* Extra space width */
+
+        /* Apply style modifications */
+        if (g_currentPort && (g_currentPort->txFace & bold)) {
+            width += 1;  /* Bold adds 1 pixel */
         }
 
-        /* Try TrueType font */
-        error = LoadTrueTypeFont(inRec->family, &trueTypeFont);
-        if (error == noErr && trueTypeFont != NULL) {
-            /* Get TrueType font metrics */
-            error = GetTrueTypeFontMetrics(trueTypeFont, &metrics);
-            if (error == noErr) {
-                output.ascent = (unsigned char)(metrics.ascent >> 16);
-                output.descent = (unsigned char)(metrics.descent >> 16);
-                output.widMax = (unsigned char)(metrics.widMax >> 16);
-                output.leading = (char)(metrics.leading >> 16);
-                output.fontHandle = (Handle)trueTypeFont;
-                output.errNum = noErr;
-                return &output;
-            }
-            UnloadTrueTypeFont(trueTypeFont);
-        }
+        return width;
     }
 
-    /* Try to load bitmap font */
-    error = FindFontResource(inRec->family, inRec->size, inRec->face, &fontHandle, &resourceID);
-    if (error == noErr && fontHandle != NULL) {
-        error = LoadBitmapFontFromResource(fontHandle, &bitmapFont);
-        if (error == noErr && bitmapFont != NULL) {
-            /* Get bitmap font metrics */
-            FMetricRec fmetrics;
-            error = GetBitmapFontMetrics(bitmapFont, &fmetrics);
-            if (error == noErr) {
-                output.ascent = (unsigned char)(fmetrics.ascent >> 16);
-                output.descent = (unsigned char)(fmetrics.descent >> 16);
-                output.widMax = (unsigned char)(fmetrics.widMax >> 16);
-                output.leading = (char)(fmetrics.leading >> 16);
-                output.fontHandle = (Handle)bitmapFont;
+    /* Default width for unknown chars */
+    return 8;
+}
 
-                /* Apply style effects */
-                if (inRec->face & bold) {
-                    output.boldPixels = 1;
-                }
-                if (inRec->face & italic) {
-                    output.italicPixels = 1;
-                }
-                if (inRec->face & underline) {
-                    output.ulOffset = output.descent / 2;
-                    output.ulThick = 1;
-                }
-                if (inRec->face & shadow) {
-                    output.shadowPixels = 1;
-                }
+short StringWidth(ConstStr255Param s) {
+    if (!s || s[0] == 0) return 0;
 
-                output.errNum = noErr;
-                return &output;
-            }
-            UnloadBitmapFont(bitmapFont);
-        }
+    short width = 0;
+    for (int i = 1; i <= s[0]; i++) {
+        width += CharWidth(s[i]);
     }
 
-    /* Font not found - try system font as fallback */
-    if (inRec->family != systemFont) {
-        FMInput sysInput = *inRec;
-        sysInput.family = systemFont;
-        return FMSwapFont(&sysInput);
+    FM_LOG("StringWidth: \"%.*s\" = %d pixels\n", s[0], &s[1], width);
+    return width;
+}
+
+short TextWidth(const void* textBuf, short firstByte, short byteCount) {
+    if (!textBuf || byteCount <= 0) return 0;
+
+    const char* text = (const char*)textBuf;
+    short width = 0;
+    for (short i = 0; i < byteCount; i++) {
+        width += CharWidth(text[firstByte + i]);
     }
 
-    /* Complete failure */
-    output.errNum = fontNotFoundErr;
-    SetLastError(fontNotFoundErr, "Font not found");
-    return &output;
+    return width;
 }
 
-/*
- * FontMetrics - Set current font metrics
- */
-void FontMetrics(const FMetricRec *theMetrics)
-{
-    if (!gFontManagerState.initialized || theMetrics == NULL) {
-        return;
+/* ============================================================================
+ * Font Manager State Access
+ * ============================================================================ */
+
+FontManagerState *GetFontManagerState(void) {
+    return &g_fmState;
+}
+
+FontStrike *FM_GetCurrentStrike(void) {
+    return g_fmState.currentStrike;
+}
+
+/* ============================================================================
+ * Font Drawing Integration
+ * ============================================================================ */
+
+short FM_MeasureRun(const unsigned char* bytes, short len) {
+    if (!bytes || len <= 0) return 0;
+
+    short width = 0;
+    for (short i = 0; i < len; i++) {
+        width += CharWidth(bytes[i]);
+    }
+    return width;
+}
+
+void FM_DrawRun(const unsigned char* bytes, short len, Point baseline) {
+    /* For now, delegate to existing ChicagoRealFont implementation */
+    /* This would be expanded to handle different fonts/sizes */
+
+    if (!bytes || len <= 0 || !g_currentPort) return;
+
+    /* Save and set pen location */
+    Point savePen = g_currentPort->pnLoc;
+    g_currentPort->pnLoc = baseline;
+
+    /* Draw each character */
+    for (short i = 0; i < len; i++) {
+        extern void DrawChar(short ch);
+        DrawChar(bytes[i]);
     }
 
-    /* Store metrics for current font context */
-    /* This is typically used by QuickDraw to cache font metrics */
-    /* Implementation would store in current grafport or global state */
+    /* Restore pen (DrawChar advances it) */
+    /* Actually leave pen advanced for proper text flow */
 }
 
-/*
- * SetFScaleDisable - Enable/disable font scaling
- */
-void SetFScaleDisable(Boolean fscaleDisable)
-{
-    gFontManagerState.scaleDisable = fscaleDisable;
+/* ============================================================================
+ * Font Swapping
+ * ============================================================================ */
+
+static FMOutput g_fmOutput;  /* Static output record */
+
+FMOutPtr FMSwapFont(const FMInput *inRec) {
+    if (!inRec) return NULL;
+
+    FM_LOG("FMSwapFont: family=%d size=%d face=0x%02x\n",
+           inRec->family, inRec->size, inRec->face);
+
+    /* For now, always return Chicago 12 metrics */
+    g_fmOutput.errNum = noErr;
+    g_fmOutput.fontHandle = NULL;  /* Would be handle to NFNT resource */
+    g_fmOutput.boldPixels = (inRec->face & bold) ? 1 : 0;
+    g_fmOutput.italicPixels = (inRec->face & italic) ? 2 : 0;  /* ~14 degree slant */
+    g_fmOutput.ulOffset = 2;  /* Underline offset from baseline */
+    g_fmOutput.ulThick = 1;   /* Underline thickness */
+    g_fmOutput.ulShadow = 0;  /* Underline shadow */
+    g_fmOutput.shadowPixels = (inRec->face & shadow) ? 1 : 0;
+    g_fmOutput.extra = 0;
+    g_fmOutput.ascent = CHICAGO_ASCENT;
+    g_fmOutput.descent = CHICAGO_DESCENT;
+    g_fmOutput.widMax = 16;
+    g_fmOutput.leading = CHICAGO_LEADING;
+    g_fmOutput.unused = 0;
+    g_fmOutput.numer.h = 1;
+    g_fmOutput.numer.v = 1;
+    g_fmOutput.denom.h = 1;
+    g_fmOutput.denom.v = 1;
+
+    /* Update current strike */
+    g_fmState.currentStrike = &g_chicagoStrike12;
+
+    return &g_fmOutput;
 }
 
-/*
- * SetFractEnable - Enable/disable fractional character widths
- */
-void SetFractEnable(Boolean fractEnable)
-{
-    gFontManagerState.fractEnable = fractEnable;
-    EnableFractionalWidths(fractEnable);
+/* ============================================================================
+ * Font Locking and Options
+ * ============================================================================ */
+
+void SetFontLock(Boolean lockFlag) {
+    g_fmState.fontLock = lockFlag;
+    FM_LOG("SetFontLock: %s\n", lockFlag ? "locked" : "unlocked");
 }
 
-/*
- * IsOutline - Check if font should be rendered as outline
- */
-Boolean IsOutline(Point numer, Point denom)
-{
-    /* Check if scaling would benefit from outline rendering */
-    if (numer.h != denom.h || numer.v != denom.v) {
-        return gFontManagerState.outlinePreferred;
-    }
-
-    return gFontManagerState.outlinePreferred;
+void SetFScaleDisable(Boolean fscaleDisable) {
+    g_fmState.scaleDisable = fscaleDisable;
+    FM_LOG("SetFScaleDisable: %s\n", fscaleDisable ? "disabled" : "enabled");
 }
 
-/*
- * SetOutlinePreferred - Set outline font preference
- */
-void SetOutlinePreferred(Boolean outlinePreferred)
-{
-    gFontManagerState.outlinePreferred = outlinePreferred;
+void SetFractEnable(Boolean fractEnable) {
+    g_fmState.fractEnable = fractEnable;
+    FM_LOG("SetFractEnable: %s\n", fractEnable ? "enabled" : "disabled");
 }
 
-/*
- * GetOutlinePreferred - Get outline font preference
- */
-Boolean GetOutlinePreferred(void)
-{
-    return gFontManagerState.outlinePreferred;
+void SetOutlinePreferred(Boolean outlinePreferred) {
+    g_fmState.outlinePreferred = outlinePreferred;
+    FM_LOG("SetOutlinePreferred: %s\n", outlinePreferred ? "yes" : "no");
 }
 
-/*
- * SetPreserveGlyph - Set glyph preservation mode
- */
-void SetPreserveGlyph(Boolean preserveGlyph)
-{
-    gFontManagerState.preserveGlyph = preserveGlyph;
+Boolean GetOutlinePreferred(void) {
+    return g_fmState.outlinePreferred;
 }
 
-/*
- * GetPreserveGlyph - Get glyph preservation mode
- */
-Boolean GetPreserveGlyph(void)
-{
-    return gFontManagerState.preserveGlyph;
+void SetPreserveGlyph(Boolean preserveGlyph) {
+    g_fmState.preserveGlyph = preserveGlyph;
+    FM_LOG("SetPreserveGlyph: %s\n", preserveGlyph ? "yes" : "no");
 }
 
-/*
- * SetFontLock - Enable/disable font locking
- */
-void SetFontLock(Boolean lockFlag)
-{
-    gFontManagerState.fontLock = lockFlag;
+Boolean GetPreserveGlyph(void) {
+    return g_fmState.preserveGlyph;
 }
 
-/*
- * GetDefFontSize - Get default font size
- */
-short GetDefFontSize(void)
-{
-    return 12; /* Default 12-point font */
+/* ============================================================================
+ * System Font Access
+ * ============================================================================ */
+
+short GetDefFontSize(void) {
+    return 12;  /* System 7 default */
 }
 
-/*
- * GetSysFont - Get system font ID
- */
-short GetSysFont(void)
-{
-    return systemFont;
+short GetSysFont(void) {
+    return chicagoFont;
 }
 
-/*
- * GetAppFont - Get application font ID
- */
-short GetAppFont(void)
-{
-    return applFont;
+short GetAppFont(void) {
+    return genevaFont;  /* Application font */
 }
 
-/*
- * C-style font name functions for compatibility
- */
-void getfnum(char *theName, short *familyID)
-{
-    Str255 pName;
+/* ============================================================================
+ * Error Handling
+ * ============================================================================ */
 
-    if (theName == NULL || familyID == NULL) {
-        return;
-    }
+static OSErr g_lastFontError = noErr;
+
+OSErr GetLastFontError(void) {
+    return g_lastFontError;
+}
+
+void SetFontErrorCallback(void (*callback)(OSErr error, const char *message)) {
+    /* Store callback for error notifications */
+}
+
+/* ============================================================================
+ * Stub Implementations (for linking)
+ * ============================================================================ */
+
+Boolean IsOutline(Point numer, Point denom) {
+    /* No outline fonts yet */
+    return FALSE;
+}
+
+OSErr OutlineMetrics(short byteCount, const void *textPtr, Point numer,
+                     Point denom, short *yMax, short *yMin, Fixed* awArray,
+                     Fixed* lsbArray, Rect* boundsArray) {
+    /* Not implemented for bitmap fonts */
+    return -1;  /* fontNotFoundErr */
+}
+
+/* C-style font name functions */
+void getfnum(char *theName, short *familyID) {
+    if (!theName || !familyID) return;
 
     /* Convert C string to Pascal string */
-    pName[0] = strlen(theName);
-    if (pName[0] > 255) pName[0] = 255;
-    BlockMoveData(theName, &pName[1], pName[0]);
+    unsigned char pstr[256];
+    short len = 0;
+    while (theName[len] && len < 255) {
+        pstr[len + 1] = theName[len];
+        len++;
+    }
+    pstr[0] = len;
 
-    GetFNum(pName, familyID);
+    GetFNum(pstr, familyID);
 }
 
-void getfontname(short familyID, char *theName)
-{
-    Str255 pName;
+void getfontname(short familyID, char *theName) {
+    if (!theName) return;
 
-    if (theName == NULL) {
-        return;
-    }
-
-    GetFontName(familyID, pName);
+    unsigned char pstr[256];
+    GetFontName(familyID, pstr);
 
     /* Convert Pascal string to C string */
-    if (pName[0] > 0) {
-        BlockMoveData(&pName[1], theName, pName[0]);
-        theName[pName[0]] = '\0';
-    } else {
-        theName[0] = '\0';
+    short len = pstr[0];
+    for (short i = 0; i < len; i++) {
+        theName[i] = pstr[i + 1];
     }
-}
-
-/*
- * GetFontManagerState - Get current Font Manager state
- */
-FontManagerState *GetFontManagerState(void)
-{
-    return &gFontManagerState;
-}
-
-/*
- * Error handling functions
- */
-OSErr GetLastFontError(void)
-{
-    return gLastError;
-}
-
-void SetFontErrorCallback(void (*callback)(OSErr error, const char *message))
-{
-    gErrorCallback = callback;
-}
-
-/* Internal helper functions */
-
-static OSErr InitializeFontFamilyTable(void)
-{
-    Str255 pstr;
-    gFontFamilyCount = 0;
-
-    /* Register built-in system fonts */
-    CStrToPStr("Chicago", pstr); RegisterFontFamily(systemFont, pstr);
-    CStrToPStr("Geneva", pstr); RegisterFontFamily(applFont, pstr);
-    CStrToPStr("New York", pstr); RegisterFontFamily(newYork, pstr);
-    CStrToPStr("Geneva", pstr); RegisterFontFamily(geneva, pstr);
-    CStrToPStr("Monaco", pstr); RegisterFontFamily(monaco, pstr);
-    CStrToPStr("Venice", pstr); RegisterFontFamily(venice, pstr);
-    CStrToPStr("London", pstr); RegisterFontFamily(london, pstr);
-    CStrToPStr("Athens", pstr); RegisterFontFamily(athens, pstr);
-    CStrToPStr("San Francisco", pstr); RegisterFontFamily(sanFran, pstr);
-    CStrToPStr("Toronto", pstr); RegisterFontFamily(toronto, pstr);
-    CStrToPStr("Cairo", pstr); RegisterFontFamily(cairo, pstr);
-    CStrToPStr("Los Angeles", pstr); RegisterFontFamily(losAngeles, pstr);
-    CStrToPStr("Times", pstr); RegisterFontFamily(times, pstr);
-    CStrToPStr("Helvetica", pstr); RegisterFontFamily(helvetica, pstr);
-    CStrToPStr("Courier", pstr); RegisterFontFamily(courier, pstr);
-    CStrToPStr("Symbol", pstr); RegisterFontFamily(symbol, pstr);
-    CStrToPStr("Mobile", pstr); RegisterFontFamily(mobile, pstr);
-
-    return noErr;
-}
-
-static OSErr LoadSystemFonts(void)
-{
-    /* This would typically scan system font directories and load font resources */
-    /* For now, we assume fonts are available through the Resource Manager */
-    return noErr;
-}
-
-static OSErr FindFontResource(short familyID, short size, short style, Handle *fontHandle, short *resourceID)
-{
-    Handle resource;
-    short resID;
-
-    if (fontHandle == NULL || resourceID == NULL) {
-        return paramErr;
-    }
-
-    *fontHandle = NULL;
-    *resourceID = 0;
-
-    /* Try NFNT resource first */
-    resID = (familyID * 128) + size; /* Simplified resource ID calculation */
-    resource = GetResource(kNFNTResourceType, resID);
-    if (resource != NULL) {
-        *fontHandle = resource;
-        *resourceID = resID;
-        return noErr;
-    }
-
-    /* Try FONT resource */
-    resource = GetResource(kFONTResourceType, resID);
-    if (resource != NULL) {
-        *fontHandle = resource;
-        *resourceID = resID;
-        return noErr;
-    }
-
-    return fontNotFoundErr;
-}
-
-static OSErr ParseFontName(ConstStr255Param name, short *familyID)
-{
-    short i;
-
-    if (name == NULL || familyID == NULL) {
-        return paramErr;
-    }
-
-    /* Search font family table */
-    for (i = 0; i < gFontFamilyCount; i++) {
-        if (EqualString(name, gFontFamilyTable[i].familyName, FALSE, TRUE)) {
-            *familyID = gFontFamilyTable[i].familyID;
-            return noErr;
-        }
-    }
-
-    return fontNotFoundErr;
-}
-
-static OSErr RegisterFontFamily(short familyID, ConstStr255Param name)
-{
-    if (gFontFamilyCount >= 256) {
-        return fontCacheFullErr;
-    }
-
-    gFontFamilyTable[gFontFamilyCount].familyID = familyID;
-    BlockMoveData(name, gFontFamilyTable[gFontFamilyCount].familyName, name[0] + 1);
-    gFontFamilyTable[gFontFamilyCount].isInstalled = TRUE;
-    gFontFamilyCount++;
-
-    return noErr;
-}
-
-static void SetLastError(OSErr error, const char *message)
-{
-    gLastError = error;
-
-    if (gErrorCallback != NULL && message != NULL) {
-        gErrorCallback(error, message);
-    }
+    theName[len] = '\0';
 }

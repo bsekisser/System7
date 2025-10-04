@@ -93,9 +93,11 @@ long long __divdi3(long long a, long long b);
 /* QuickDraw */
 typedef void (*DeskHookProc)(RgnHandle invalidRgn);
 void SetDeskHook(DeskHookProc proc);
+/* Moved to FontManagerCore.c
 void TextSize(short size);
 void TextFont(short font);
 void TextFace(short face);
+*/
 OSErr HandleGetInfo(void);
 
 /* Miscellaneous */

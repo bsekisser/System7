@@ -61,9 +61,11 @@ void InitCursor(void) {
 }
 
 /* Font Manager */
+/* Moved to FontManagerCore.c
 void InitFonts(void) {
-    /* Stub implementation */
+    // Stub implementation
 }
+*/
 
 /* [WM-050] Window Manager stub quarantine
  * Provenance: IM:Windows Vol I - real implementations in WindowDisplay.c, WindowEvents.c, WindowResizing.c
@@ -785,7 +787,7 @@ OSErr NewAlias(const FSSpec* fromFile, const FSSpec* target, AliasHandle* alias)
     return noErr;
 }
 
-/* GetHandleSize provided by Memory Manager */
+/* Memory Manager functions provided by MemoryManager.c */
 
 OSErr FSpCreateResFile(const FSSpec* spec, OSType creator, OSType fileType, SInt16 scriptTag) {
     return noErr;
@@ -1324,17 +1326,18 @@ Boolean RectInRgn(const Rect *r, RgnHandle rgn) {
 /* sqrt() moved to System71StdLib.c */
 /* QDPlatform_DrawRegion() moved to QuickDraw/QuickDrawPlatform.c */
 /* QuickDraw text stubs for About box */
+/* Moved to FontManagerCore.c
 void TextSize(short size) {
-    /* Stub - would set text size in current GrafPort */
+    // Stub - would set text size in current GrafPort
 }
-
 void TextFont(short font) {
-    /* Stub - would set text font in current GrafPort */
+    // Stub - would set text font in current GrafPort
 }
 
 void TextFace(short face) {
-    /* Stub - would set text face (bold, italic, etc.) in current GrafPort */
+    // Stub - would set text face (bold, italic, etc.) in current GrafPort
 }
+*/
 
 
 /* Alert stub for trash_folder */

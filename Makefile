@@ -94,6 +94,9 @@ C_SOURCES = src/main.c \
             src/trash_icons.c \
             src/ChicagoRealFont.c \
             src/chicago_font_data.c \
+            src/FontManager/FontManagerCore.c \
+            src/FontManager/FontResourceLoader.c \
+            src/test_fontmgr.c \
             src/PS2Controller.c \
             src/PatternMgr/pattern_manager.c \
             src/PatternMgr/pattern_resources.c \

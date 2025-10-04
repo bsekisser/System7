@@ -396,7 +396,11 @@ void serial_printf(const char* fmt, ...) {
         strstr(fmt, "Startup") == NULL &&
         strstr(fmt, "MM:") == NULL &&
         strstr(fmt, "ATA:") == NULL &&
-        strstr(fmt, "About") == NULL) {
+        strstr(fmt, "About") == NULL &&
+        strstr(fmt, "CODE PATH") == NULL &&
+        strstr(fmt, "TITLE:") == NULL &&
+        strstr(fmt, "DrawString") == NULL &&
+        strstr(fmt, "FM:") == NULL) {
         return;  /* Message not whitelisted - silently drop */
     }
 

@@ -120,7 +120,8 @@ void DrawText(const void* textBuf, short firstByte, short byteCount) {
     g_currentPort->pnLoc = pen;  /* Still local */
 }
 
-/* Font measurement functions */
+/* Font measurement functions - moved to FontManagerCore.c */
+#if 0
 short CharWidth(short ch) {
     if (ch >= 32 && ch <= 126) {
         ChicagoCharInfo info = chicago_ascii[ch - 32];
@@ -150,6 +151,7 @@ short TextWidth(const void* textBuf, short firstByte, short byteCount) {
     }
     return width;
 }
+#endif
 
 /* Utility function for debugging */
 void DrawCharAt(short x, short y, char ch) {

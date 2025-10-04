@@ -267,8 +267,10 @@ void WM_DrawDialogBorder(WindowPtr window) {
 }
 
 void WM_DrawWindowTitleBar(WindowPtr window) {
+    extern void serial_printf(const char* fmt, ...);
     if (window == NULL) return;
 
+    serial_printf("*** WM_DrawWindowTitleBar called in WindowParts.c ***\n");
     WM_DEBUG("WM_DrawWindowTitleBar: Drawing title bar");
 
     /* Get title bar rectangle */
@@ -287,9 +289,11 @@ void WM_DrawWindowTitleBar(WindowPtr window) {
 }
 
 void WM_DrawWindowTitle(WindowPtr window, const Rect* titleRect) {
+    extern void serial_printf(const char* fmt, ...);
     if (window == NULL || titleRect == NULL) return;
     if (window->titleHandle == NULL || *(window->titleHandle) == NULL) return;
 
+    serial_printf("*** CODE PATH A: WM_DrawWindowTitle in WindowParts.c ***\n");
     WM_DEBUG("WM_DrawWindowTitle: Drawing window title");
 
     /* Calculate title position (centered in title bar) */
