@@ -21,6 +21,7 @@
 /* External dependencies */
 extern void SysBeep(SInt16 duration);
 extern UInt32 TickCount(void);
+extern void ShowWindow(WindowPtr window);
 
 /* Global alert state */
 static struct {
@@ -46,6 +47,8 @@ static void DrawAlertIcon(DialogPtr alertDialog, SInt16 iconType);
  */
 void InitAlertDialogs(void)
 {
+    int i;
+
     if (gAlertState.initialized) {
         return;
     }
@@ -57,7 +60,7 @@ void InitAlertDialogs(void)
     gAlertState.alertPosition = 0; /* Center on main screen */
 
     /* Clear parameter text */
-    for (int i = 0; i < 4; i++) {
+    for (i = 0; i < 4; i++) {
         gAlertState.paramText[i][0] = 0;
     }
 
@@ -164,11 +167,13 @@ void GetParamText(SInt16 paramIndex, unsigned char* text)
  */
 void ClearParamText(void)
 {
+    int i;
+
     if (!gAlertState.initialized) {
         return;
     }
 
-    for (int i = 0; i < 4; i++) {
+    for (i = 0; i < 4; i++) {
         gAlertState.paramText[i][0] = 0;
     }
 }
@@ -395,6 +400,7 @@ static DialogPtr CreateAlertDialogFromTemplate(const AlertTemplate* alertTemplat
     DialogPtr alertDialog = NULL;
     Handle itemList = NULL;
     OSErr err;
+    static const unsigned char alertTitle[] = "\005Alert";  /* Pascal string: length byte + "Alert" */
 
     if (!alertTemplate) {
         return NULL;
@@ -410,7 +416,7 @@ static DialogPtr CreateAlertDialogFromTemplate(const AlertTemplate* alertTemplat
 
     /* Create the dialog window */
     /* Alert dialogs are always modal (procID = 1) */
-    alertDialog = NewDialog(NULL, &alertTemplate->boundsRect, (unsigned char*)"\pAlert",
+    alertDialog = NewDialog(NULL, &alertTemplate->boundsRect, alertTitle,
                            false, /* Start invisible */
                            1,     /* Modal dialog proc */
                            (WindowPtr)-1, /* Behind all windows */
