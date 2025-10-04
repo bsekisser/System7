@@ -44,7 +44,7 @@ extern void serial_puts(const char* str);
 /* Chicago font data */
 extern const uint8_t chicago_bitmap[];
 extern GrafPtr g_currentPort;
-#define CHICAGO_HEIGHT 16
+/* CHICAGO_HEIGHT is defined in chicago_font.h */
 #define CHICAGO_ASCENT 12
 #define CHICAGO_ROW_BYTES 140
 
@@ -85,9 +85,11 @@ static Boolean gVolumeIconVisible = false;   /* Is volume icon shown on desktop 
 static short gSelectedIcon = -1;             /* Index of selected icon (-1 = none) */
 static Boolean gDraggingIcon = false;        /* Currently dragging an icon */
 static Point gDragOffset = {0, 0};           /* Offset from icon origin to mouse */
-static Point gOriginalPos = {0, 0};          /* Original position before drag */
-static UInt32 gLastClickTime = 0;            /* For double-click detection */
-static Point gLastClickPos = {0, 0};         /* Last click position */
+/* Unused - reserved for future drag/click tracking:
+static Point gOriginalPos = {0, 0};
+static UInt32 gLastClickTime = 0;
+static Point gLastClickPos = {0, 0};
+*/
 
 /* Same-icon double-click tracking (Classic Finder behavior) */
 static short sLastClickIcon = -1;            /* Icon clicked last time */
@@ -504,6 +506,7 @@ static OSErr AllocateDesktopIcons(void)
     return noErr;
 }
 
+#if 0  /* Unused helper functions - reserved for future icon positioning features */
 /*
  * CalculateNextIconPosition - Calculate next available icon position
  */
@@ -536,6 +539,7 @@ static Boolean IsPositionOccupied(Point position)
     }
     return false;
 }
+#endif  /* Unused helper functions */
 
 /*
  * SnapToGrid - Snap position to grid (System 7 style)
@@ -1574,7 +1578,6 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
 OSErr HandleVolumeDoubleClick(Point clickPoint)
 {
     Rect iconRect;
-    WindowPtr volumeWindow;
     VolumeControlBlock vcb;
 
     /* Check if click is on volume icon */
