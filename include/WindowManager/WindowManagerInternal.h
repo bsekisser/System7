@@ -120,7 +120,7 @@ void Platform_SetNativeWindowTitle(WindowPtr window, ConstStr255Param title);
 void Platform_BringNativeWindowToFront(WindowPtr window);
 void Platform_SendNativeWindowBehind(WindowPtr window, WindowPtr behind);
 void Platform_UpdateNativeWindowOrder(void);
-void Platform_DisableWindow(WindowPtr window, Boolean disable);
+void Platform_DisableWindow(WindowPtr window);
 
 /*
  * Window drawing and updating
