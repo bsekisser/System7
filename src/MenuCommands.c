@@ -128,7 +128,8 @@ static void HandleAppleMenu(short item)
     switch (item) {
         case 1:  /* About This Macintosh */
             serial_printf("About This Macintosh...\n");
-            /* Show about window */
+            /* Show the About window */
+            extern void AboutWindow_ShowOrToggle(void);
             AboutWindow_ShowOrToggle();
             break;
 
@@ -139,9 +140,7 @@ static void HandleAppleMenu(short item)
             serial_printf("Launch Calculator DA\n");
             break;
 
-        case 4:  /* Separator */
-            break;
-
+        case 4:  /* Separator OR Shut Down (if no DAs installed) */
         case 5:  /* Shut Down */
             serial_printf("Apple Menu > Shut Down\n");
             serial_printf("System shutdown initiated...\n");

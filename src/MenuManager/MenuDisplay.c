@@ -72,7 +72,7 @@ static void SetupMenuDrawingColors(short menuID, short itemID);
 static void DrawMenuFrameInternal(const Rect* menuRect, Boolean selected);
 static void DrawMenuBackgroundInternal(const Rect* menuRect, short menuID);
 static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param itemText,
-                                   Style textStyle, Boolean enabled, Boolean selected);
+                                   short textStyle, Boolean enabled, Boolean selected);
 static void DrawMenuItemIconInternal(const Rect* iconRect, short iconID,
                                    Boolean enabled, Boolean selected);
 static void DrawMenuItemMarkInternal(const Rect* markRect, unsigned char markChar,
@@ -318,6 +318,7 @@ void HideMenu(void)
  */
 void DrawMenu(MenuHandle theMenu, const Rect* menuRect, short hiliteItem)
 {
+    serial_printf("DEBUG: DrawMenu (new) called with menuRect=%p, hiliteItem=%d\n", menuRect, hiliteItem);
     MenuDrawInfo drawInfo;
 
     if (theMenu == NULL || menuRect == NULL) {
@@ -348,8 +349,10 @@ void DrawMenu(MenuHandle theMenu, const Rect* menuRect, short hiliteItem)
 
     /* Draw menu items */
     short itemCount = CountMItems(theMenu);
+
     for (short i = 1; i <= itemCount; i++) {
         Rect itemRect;
+        Style tempStyle;
         CalcMenuItemRect(theMenu, i, menuRect, &itemRect);
 
         MenuItemDrawInfo itemDrawInfo;
@@ -367,7 +370,8 @@ void DrawMenu(MenuHandle theMenu, const Rect* menuRect, short hiliteItem)
         GetItemIcon(theMenu, i, (short*)&itemDrawInfo.iconID);
         GetItemMark(theMenu, i, (short*)&itemDrawInfo.markChar);
         GetItemCmd(theMenu, i, (short*)&itemDrawInfo.cmdChar);
-        GetItemStyle(theMenu, i, &itemDrawInfo.textStyle);
+        GetItemStyle(theMenu, i, &tempStyle);
+        itemDrawInfo.textStyle = tempStyle;
 
         DrawMenuItem(&itemDrawInfo);
     }
@@ -524,7 +528,13 @@ void DrawMenuSeparator(const Rect* itemRect, short menuID)
 
     /* serial_printf("Drawing separator line in menu %d\n", menuID); */
 
-    /* TODO: Draw actual separator line */
+    /* Draw separator line using gray color */
+    extern void ForeColor(long);
+    extern void FillRect(const Rect*);
+
+    ForeColor(8);  /* Gray color */
+    FillRect(&lineRect);
+    ForeColor(33);  /* Back to black */
 }
 
 /*
@@ -841,7 +851,7 @@ static void DrawMenuBackgroundInternal(const Rect* menuRect, short menuID)
  * DrawMenuItemTextInternal - Internal menu item text drawing
  */
 static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param itemText,
-                                   Style textStyle, Boolean enabled, Boolean selected)
+                                   short textStyle, Boolean enabled, Boolean selected)
 {
     short textLen = itemText[0];
     extern void serial_printf(const char* fmt, ...);
@@ -868,6 +878,12 @@ static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param item
     TextSize(12);
     TextFace(textStyle);  /* Apply style (bold, italic, etc.) */
 
+    /* Set text color based on enabled state */
+    if (!enabled) {
+        extern void ForeColor(long);
+        ForeColor(8);  /* Gray color for disabled items */
+    }
+
     /* Calculate text position (left-aligned with padding) */
     short textX = itemRect->left + 8;  /* 8 pixel left padding */
     short textY = itemRect->top + ((itemRect->bottom - itemRect->top) + 9) / 2; /* Vertically centered */
@@ -878,9 +894,11 @@ static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param item
     /* Draw the menu item text using Font Manager */
     DrawString(itemText);
 
-    /* Log what we drew */
-    serial_printf("Drew menu item: %.*s at (%d,%d) style=0x%02X\n",
-                  textLen, &itemText[1], textX, textY, textStyle);
+    /* Restore black color if we changed it */
+    if (!enabled) {
+        extern void ForeColor(long);
+        ForeColor(33);  /* Black */
+    }
 }
 
 /*
@@ -901,10 +919,43 @@ static void DrawMenuItemIconInternal(const Rect* iconRect, short iconID,
 static void DrawMenuItemMarkInternal(const Rect* markRect, unsigned char markChar,
                                    Boolean enabled, Boolean selected)
 {
+    extern void MoveTo(short, short);
+    extern void TextFont(short);
+    extern void TextSize(short);
+    extern void ForeColor(long);
+    Str255 markStr;
+
     /* serial_printf("Drawing item mark '%c' (enabled=%s, selected=%s)\n",
            markChar, enabled ? "Yes" : "No", selected ? "Yes" : "No"); */
 
-    /* TODO: Draw actual mark */
+    if (markChar == 0) {
+        return;
+    }
+
+    /* Set font for mark character */
+    TextFont(chicagoFont);
+    TextSize(12);
+
+    /* Set color based on enabled state */
+    if (!enabled) {
+        ForeColor(8);  /* Gray for disabled */
+    }
+
+    /* Position mark character in mark column */
+    short markX = markRect->left + 2;
+    short markY = markRect->bottom - 3;
+    MoveTo(markX, markY);
+
+    /* Draw mark character (typically checkMark = 18) */
+    markStr[0] = 1;
+    markStr[1] = markChar;
+    extern void DrawString(ConstStr255Param);
+    DrawString(markStr);
+
+    /* Restore color */
+    if (!enabled) {
+        ForeColor(33);  /* Black */
+    }
 }
 
 /*
@@ -913,10 +964,70 @@ static void DrawMenuItemMarkInternal(const Rect* markRect, unsigned char markCha
 static void DrawMenuItemCmdKeyInternal(const Rect* cmdRect, unsigned char cmdChar,
                                      Boolean enabled, Boolean selected)
 {
-    /* serial_printf("Drawing cmd key '%c' (enabled=%s, selected=%s)\n",
-           cmdChar, enabled ? "Yes" : "No", selected ? "Yes" : "No"); */
+    extern void MoveTo(short, short);
+    extern void TextFont(short);
+    extern void TextSize(short);
+    extern void ForeColor(long);
+    extern void DrawString(ConstStr255Param);
+    extern short StringWidth(ConstStr255Param);
+    extern void serial_printf(const char*, ...);
+    Str255 cmdStr;
+    short cmdWidth;
+    char upperChar;
 
-    /* TODO: Draw actual command key */
+    serial_printf("DEBUG: DrawMenuItemCmdKeyInternal called, cmdChar=%d\n", (int)cmdChar);
+
+    if (cmdChar == 0) {
+        serial_printf("DEBUG: cmdChar is 0, returning\n");
+        return;
+    }
+
+    /* Set font for command key */
+    TextFont(chicagoFont);
+    TextSize(12);
+
+    serial_printf("DEBUG: Font set, checking enabled\n");
+
+    /* Set color based on enabled state */
+    if (!enabled) {
+        ForeColor(8);  /* Gray for disabled */
+    }
+
+    /* Convert command key to uppercase for display */
+    upperChar = cmdChar;
+    if (upperChar >= 'a' && upperChar <= 'z') {
+        upperChar = upperChar - 'a' + 'A';
+    }
+
+    serial_printf("DEBUG: Building cmd string\n");
+
+    /* Build command key string with ⌘ symbol (0x11) and key */
+    cmdStr[0] = 2;
+    cmdStr[1] = 0x11;  /* Command symbol */
+    cmdStr[2] = upperChar;
+
+    serial_printf("DEBUG: Calling StringWidth\n");
+
+    /* Calculate width and right-align in command rectangle */
+    cmdWidth = StringWidth(cmdStr);
+
+    serial_printf("DEBUG: StringWidth returned, calculating position\n");
+
+    short cmdX = cmdRect->right - cmdWidth - 4;
+    short cmdY = cmdRect->bottom - 3;
+    MoveTo(cmdX, cmdY);
+
+    serial_printf("DEBUG: About to DrawString cmd key\n");
+
+    /* Draw command key */
+    DrawString(cmdStr);
+
+    serial_printf("DEBUG: Drew cmd key successfully\n");
+
+    /* Restore color */
+    if (!enabled) {
+        ForeColor(33);  /* Black */
+    }
 }
 
 /*

@@ -539,20 +539,25 @@ static void HandleMenuChoice(long menuChoice)
     short menuID = HiWord(menuChoice);
     short menuItem = LoWord(menuChoice);
 
+    /* Call the centralized menu command dispatcher */
+    extern void DoMenuCommand(short menuID, short item);
+    DoMenuCommand(menuID, menuItem);
+
+    /* Old implementation - kept for reference
     switch (menuID) {
-        case 128:  /* Apple Menu */
+        case 128:  * Apple Menu *
             if (menuItem == 1) {
                 AboutWindow_ShowOrToggle();
             } else {
-                /* Get item text to check if it's Shut Down */
+                * Get item text to check if it's Shut Down *
                 Str255 itemName;
                 GetMenuItemText(gAppleMenu, menuItem, itemName);
 
-                /* Check if this is the Shut Down item */
+                * Check if this is the Shut Down item *
                 if (itemName[0] == 9 &&
                     itemName[1] == 'S' && itemName[2] == 'h' &&
                     itemName[3] == 'u' && itemName[4] == 't') {
-                    /* Shut Down */
+                    * Shut Down *
                     (void)HandleShutDown();
                 } else {
                     /* Handle desk accessories */

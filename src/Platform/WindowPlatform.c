@@ -133,15 +133,9 @@ Boolean Platform_InitializeColorWindowPort(WindowPtr window) {
 void Platform_CleanupWindowPort(WindowPtr window) {
     if (!window) return;
 
-    /* Dispose of regions */
-    if (window->port.clipRgn) {
-        DisposeRgn(window->port.clipRgn);
-        window->port.clipRgn = NULL;
-    }
-    if (window->port.visRgn) {
-        DisposeRgn(window->port.visRgn);
-        window->port.visRgn = NULL;
-    }
+    /* Regions are already disposed in CloseWindow() */
+    /* Disposing them again here causes a freeze, so skip it */
+    /* TODO: Investigate proper region lifecycle management */
 }
 
 /* Destroy native window */

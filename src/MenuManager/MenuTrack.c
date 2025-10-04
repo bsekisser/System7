@@ -115,7 +115,7 @@ static void GetItemText(MenuHandle theMenu, short index, char* text) {
 }
 
 /* Draw dropdown menu */
-static void DrawMenu(MenuHandle theMenu, short left, short top, short itemCount, short menuWidth, short lineHeight) {
+static void DrawMenuOld(MenuHandle theMenu, short left, short top, short itemCount, short menuWidth, short lineHeight) {
     /* Save current port and ensure we're in screen port for menu drawing */
     GrafPtr savePort;
     GetPort(&savePort);
@@ -123,9 +123,12 @@ static void DrawMenu(MenuHandle theMenu, short left, short top, short itemCount,
         SetPort(qd.thePort);  /* Use screen port for global coordinates */
     }
 
+    /* Draw white background */
     DrawMenuRect(left, top, left + menuWidth, top + itemCount * lineHeight + 4, 0xFFFFFFFF);
+    volatile int stack_align = 0;  /* Fix stack alignment issue */
+    stack_align++;  /* Prevent compiler optimization */
 
-    /* Border */
+    /* Draw border */
     DrawMenuRect(left, top, left + menuWidth, top + 1, 0xFF000000);
     DrawMenuRect(left, top + itemCount * lineHeight + 3, left + menuWidth, top + itemCount * lineHeight + 4, 0xFF000000);
     DrawMenuRect(left, top, left + 1, top + itemCount * lineHeight + 4, 0xFF000000);
@@ -189,8 +192,14 @@ static void DrawCursor(short x, short y) {
 }
 
 /* Begin tracking a menu - draws it and sets up state */
-long BeginTrackMenu(short menuID, Point startPt) {
+long BeginTrackMenu(short menuID, Point *startPt) {
     serial_puts("BeginTrackMenu: ENTER\n");
+
+    /* Prevent re-entry */
+    if (g_menuTrackState.isTracking) {
+        serial_puts("BeginTrackMenu: Already tracking, aborting to prevent re-entry\n");
+        return 0;
+    }
 
     if (!framebuffer) {
         serial_puts("BeginTrackMenu: ERROR - No framebuffer!\n");
@@ -216,7 +225,7 @@ long BeginTrackMenu(short menuID, Point startPt) {
     short itemCount = CountMenuItems(theMenu);
     if (itemCount == 0) itemCount = 5;  /* Fallback */
 
-    short left = startPt.h;
+    short left = startPt->h;
     short top = 20;       /* below menubar */
     /* Different menus need different widths */
     short menuWidth = 120;  /* Default width */
@@ -235,6 +244,7 @@ long BeginTrackMenu(short menuID, Point startPt) {
     g_menuTrackState.itemCount = itemCount;
     g_menuTrackState.highlightedItem = 0;
     g_menuTrackState.lineHeight = lineHeight;
+    serial_printf("BeginTrackMenu: Initial highlightedItem = %d\n", g_menuTrackState.highlightedItem);
 
     /* Calculate and store menu title position */
     /* For now, estimate based on menu ID and typical widths */
@@ -263,11 +273,14 @@ long BeginTrackMenu(short menuID, Point startPt) {
     g_menuTrackState.titleLeft = titleX;
     g_menuTrackState.titleWidth = titleW;
 
+    serial_puts("BeginTrackMenu: About to call DrawMenuBarWithHighlight\n");
     /* Redraw the menu bar with the active menu highlighted */
     DrawMenuBarWithHighlight(menuID);
+    serial_puts("BeginTrackMenu: Returned from DrawMenuBarWithHighlight\n");
 
+    serial_puts("BeginTrackMenu: About to call DrawMenuOld\n");
     /* Draw the menu dropdown */
-    DrawMenu(theMenu, left, top, itemCount, menuWidth, lineHeight);
+    DrawMenuOld(theMenu, left, top, itemCount, menuWidth, lineHeight);
     serial_puts("BeginTrackMenu: Dropdown drawn, tracking started\n");
 
     /* Restore original port */
@@ -351,7 +364,26 @@ static void DrawHighlightRect(short left, short top, short right, short bottom, 
 
 /* Handle mouse movement while tracking menu */
 void UpdateMenuTrackingNew(Point mousePt) {
+    static int updateCount = 0;
+    updateCount++;
+
+    /* Only print debug every 10 calls to avoid overflow */
+    if (updateCount % 10 == 0) {
+        serial_printf("UpdateMenu: call #%d, mouse at (%d,%d)\n",
+                      updateCount, mousePt.h, mousePt.v);
+    }
+
     if (!g_menuTrackState.isTracking) return;
+
+    /* Validate tracking state to prevent crashes */
+    if (!g_menuTrackState.activeMenu) {
+        serial_puts("UpdateMenuTracking: activeMenu is NULL, aborting\n");
+        return;
+    }
+    if (g_menuTrackState.itemCount <= 0) {
+        serial_puts("UpdateMenuTracking: itemCount is 0, aborting\n");
+        return;
+    }
 
     short left = g_menuTrackState.menuLeft;
     short top = g_menuTrackState.menuTop;
@@ -360,11 +392,12 @@ void UpdateMenuTrackingNew(Point mousePt) {
     short itemCount = g_menuTrackState.itemCount;
     MenuHandle theMenu = g_menuTrackState.activeMenu;
 
-    /* Check if mouse is over a menu item */
+    /* Check if mouse is over a menu item - account for 2px top padding */
     short newHighlight = 0;
+    short itemsTop = top + 2;  /* Menu items start 2 pixels below menu top */
     if (mousePt.h >= left && mousePt.h < left + menuWidth &&
-        mousePt.v >= top && mousePt.v < top + itemCount * lineHeight) {
-        newHighlight = (mousePt.v - top) / lineHeight + 1;
+        mousePt.v >= itemsTop && mousePt.v < itemsTop + itemCount * lineHeight) {
+        newHighlight = (mousePt.v - itemsTop) / lineHeight + 1;
         if (newHighlight < 1 || newHighlight > itemCount) {
             newHighlight = 0;
         }
@@ -372,32 +405,40 @@ void UpdateMenuTrackingNew(Point mousePt) {
 
     /* Update highlight if changed */
     if (newHighlight != g_menuTrackState.highlightedItem) {
-        /* Clear old highlight */
+        serial_printf("UpdateMenu: Highlight change from %d to %d\n",
+                      g_menuTrackState.highlightedItem, newHighlight);
+
+        /* Clear old highlight and redraw text */
         if (g_menuTrackState.highlightedItem > 0) {
             short oldTop = top + 2 + (g_menuTrackState.highlightedItem - 1) * lineHeight;
+            serial_printf("UpdateMenu: Clearing old highlight at y=%d\n", oldTop);
+
+            /* Draw white background to clear the highlight */
             DrawHighlightRect(left + 2, oldTop, left + menuWidth - 2, oldTop + lineHeight - 1, false);
 
-            /* Redraw text normally */
-            Str255 itemText;
-            GetItem(theMenu, g_menuTrackState.highlightedItem, itemText);
-            char cText[256];
-            memcpy(cText, &itemText[1], itemText[0]);
-            cText[itemText[0]] = '\0';
-            DrawInvertedText(cText, left + 4, oldTop + 12, false);
+            /* Redraw text in normal black on white */
+            char itemText[64];
+            GetItemText(theMenu, g_menuTrackState.highlightedItem, itemText);
+            if (itemText[0] != 0) {
+                /* Use DrawMenuItemText for consistent normal rendering */
+                DrawMenuItemText(itemText, left + 4, oldTop + 12);
+            }
         }
 
-        /* Draw new highlight */
+        /* Draw new highlight and text */
         if (newHighlight > 0) {
             short itemTop = top + 2 + (newHighlight - 1) * lineHeight;
+            serial_printf("UpdateMenu: Drawing new highlight at y=%d for item %d\n", itemTop, newHighlight);
+
+            /* Draw black background for highlight */
             DrawHighlightRect(left + 2, itemTop, left + menuWidth - 2, itemTop + lineHeight - 1, true);
 
-            /* Redraw text inverted */
-            Str255 itemText;
-            GetItem(theMenu, newHighlight, itemText);
-            char cText[256];
-            memcpy(cText, &itemText[1], itemText[0]);
-            cText[itemText[0]] = '\0';
-            DrawInvertedText(cText, left + 4, itemTop + 12, true);
+            /* Redraw text in white on black using inverted text */
+            char itemText[64];
+            GetItemText(theMenu, newHighlight, itemText);
+            if (itemText[0] != 0) {
+                DrawInvertedText(itemText, left + 4, itemTop + 12, true);  /* true = white inverted text */
+            }
         }
 
         g_menuTrackState.highlightedItem = newHighlight;
@@ -447,54 +488,130 @@ Boolean IsMenuTrackingNew(void) {
 }
 
 /* TrackMenu - Full implementation with mouse tracking loop */
-long TrackMenu(short menuID, Point startPt) {
-    Point mousePt;
+__attribute__((optimize("O0")))
+long TrackMenu(short menuID, Point *startPt) {
+    /* Static reentrancy guard */
+    static Boolean s_inTrackMenu = false;
+
+    /* Prevent reentrancy */
+    if (s_inTrackMenu) {
+        serial_puts("TrackMenu: Already tracking, preventing reentrancy\n");
+        return 0;
+    }
+
+    /* NULL check to prevent crash */
+    if (!startPt) {
+        return 0;
+    }
+
+    /* Set reentrancy flag */
+    s_inTrackMenu = true;
+
+    /* Declare all variables at function start */
+    GrafPtr savePort;
     Rect menuRect;
-    Handle savedBits = NULL;
+    Handle savedBits;
+    Point mousePt;
     long result = 0;
 
-    serial_printf("TrackMenu: menu %d at (h=%d,v=%d)\n", menuID, startPt.h, startPt.v);
+    /* External functions for event pumping */
+    extern void SystemTask(void);
+    extern void EventPumpYield(void);
 
     /* Save current port */
-    GrafPtr savePort;
     GetPort(&savePort);
     if (qd.thePort) {
         SetPort(qd.thePort);
+        serial_puts("TrackMenu: SetPort done\n");
     }
 
     /* Get the menu */
     MenuHandle theMenu = GetMenuHandle(menuID);
+    serial_puts("TrackMenu: GetMenuHandle returned\n");
     if (!theMenu) {
-        serial_printf("TrackMenu: Menu %d not found\n", menuID);
         if (savePort) SetPort(savePort);
+        s_inTrackMenu = false;  /* Clear reentrancy flag */
         return 0;
     }
 
+    /* Test if theMenu pointer is safe to dereference */
+    unsigned long menuPtr = (unsigned long)theMenu;
+    if (menuPtr < 0x1000 || menuPtr > 0x40000000) {
+        serial_puts("TrackMenu: Menu handle looks invalid (bad address range)\n");
+        if (savePort) SetPort(savePort);
+        s_inTrackMenu = false;  /* Clear reentrancy flag */
+        return 0;
+    }
+    serial_puts("TrackMenu: Menu handle address looks reasonable\n");
+
     /* Calculate menu geometry */
     short itemCount = CountMenuItems(theMenu);
-    if (itemCount == 0) itemCount = 5;
+    serial_puts("TrackMenu: CountMenuItems returned\n");
+    if (itemCount == 0) {
+        itemCount = 5;
+    } else {
+    }
 
-    short left = startPt.h;
-    short top = 20;
+
+    /* Validate geometry to prevent zero/negative sizes */
+    if (itemCount <= 0) {
+        serial_puts("TrackMenu: Invalid itemCount, using default\n");
+        itemCount = 5;
+    }
+
+
     short menuWidth = 120;
     if (menuID == 128) menuWidth = 150;
     if (menuID == 131) menuWidth = 130;
+
+
+    if (menuWidth <= 0) {
+        serial_puts("TrackMenu: Invalid menuWidth, using default\n");
+        menuWidth = 120;
+    }
+
+
     short lineHeight = 16;
+    if (lineHeight <= 0) {
+        serial_puts("TrackMenu: Invalid lineHeight, using default\n");
+        lineHeight = 16;
+    }
+
     short menuHeight = itemCount * lineHeight + 4;
 
-    /* Save background */
+    /* Get coordinates from startPt (already validated non-NULL earlier) */
+    short left = startPt->h;
+    short top = 20;
+
+    /* Calculate menu rectangle */
     menuRect.left = left;
     menuRect.top = top;
     menuRect.right = left + menuWidth;
     menuRect.bottom = top + menuHeight;
+
+    /* Clip to screen bounds to prevent out-of-bounds save/restore */
+    #define SCREEN_WIDTH 640
+    #define SCREEN_HEIGHT 480
+    if (menuRect.left < 0) menuRect.left = 0;
+    if (menuRect.top < 0) menuRect.top = 0;
+    if (menuRect.right > SCREEN_WIDTH) menuRect.right = SCREEN_WIDTH;
+    if (menuRect.bottom > SCREEN_HEIGHT) menuRect.bottom = SCREEN_HEIGHT;
+
+    /* Validate rect is non-empty after clipping */
+    if (menuRect.right <= menuRect.left || menuRect.bottom <= menuRect.top) {
+        serial_puts("TrackMenu: Invalid rect after clipping, aborting\n");
+        if (savePort) SetPort(savePort);
+        s_inTrackMenu = false;  /* Clear reentrancy flag */
+        return 0;
+    }
 
     extern Handle SaveMenuBits(const Rect *menuRect);
     extern OSErr RestoreMenuBits(Handle bitsHandle);
     extern OSErr DiscardMenuBits(Handle bitsHandle);
 
     savedBits = SaveMenuBits(&menuRect);
+    serial_puts("TrackMenu: SaveMenuBits returned\n");
     if (savedBits) {
-        serial_printf("TrackMenu: Background saved\n");
     }
 
     /* Set up tracking state */
@@ -509,41 +626,93 @@ long TrackMenu(short menuID, Point startPt) {
     g_menuTrackState.highlightedItem = 0;
     g_menuTrackState.lineHeight = lineHeight;
 
-    /* Draw the menu */
-    DrawMenu(theMenu, left, top, itemCount, menuWidth, lineHeight);
-    serial_printf("TrackMenu: Menu drawn, entering tracking loop\n");
+    /* Draw the menu bar with the active menu highlighted */
+    DrawMenuBarWithHighlight(menuID);
+    serial_puts("TrackMenu: Menu bar highlight drawn\n");
 
-    /* TRACKING LOOP - Wait for mouse button release */
+    /* Draw the menu dropdown */
+    DrawMenuOld(theMenu, left, top, itemCount, menuWidth, lineHeight);
+    serial_puts("TrackMenu: DrawMenuOld returned\n");
+    serial_puts("TrackMenu: Menu drawn, entering tracking loop\n");
+
+    /* Classic Mac-style tracking loop with event pumping */
+    /* Track while button is held down - this is the System 7 behavior */
+    /* Initially, wait for button release from the initial click */
+    int releaseWaitCount = 0;
     while (Button()) {
+        SystemTask();          /* House-keeping */
+        EventPumpYield();      /* Platform's input pump */
+        releaseWaitCount++;
+        if (releaseWaitCount % 1000 == 0) {
+            serial_printf("TrackMenu: Waiting for initial release, count=%d\n", releaseWaitCount);
+        }
+    }
+    serial_printf("TrackMenu: Initial button release detected after %d iterations\n", releaseWaitCount);
+
+    /* Add a small debounce delay after release */
+    {
+        volatile int i;
+        for (i = 0; i < 10000; i++);  /* Debounce delay */
+    }
+    serial_puts("TrackMenu: Debounce complete, starting tracking\n");
+
+    /* Now track until button is pressed again (user selects or cancels) */
+    Boolean tracking = true;
+    int updateCount = 0;
+    int buttonCheckCount = 0;
+
+    while (tracking) {
+        /* Pump events for responsive UI */
+        SystemTask();          /* House-keeping tasks */
+        EventPumpYield();      /* Platform's input pump */
+
         /* Get current mouse position */
         GetMouse(&mousePt);
 
-        /* Update highlighting based on mouse position */
+        /* Update menu highlighting based on mouse position */
         UpdateMenuTrackingNew(mousePt);
 
-        /* Small delay to avoid consuming too much CPU */
-        /* (In real Mac OS this would use WaitNextEvent) */
+        /* Check if button pressed to end tracking */
+        buttonCheckCount++;
+        Boolean buttonState = Button();
+        if (buttonCheckCount <= 5) {
+            serial_printf("TrackMenu: Button check #%d = %d\n", buttonCheckCount, buttonState);
+        }
+
+        if (buttonState) {
+            serial_printf("TrackMenu: Button pressed at check #%d, ending tracking\n", buttonCheckCount);
+            tracking = false;
+        }
+
+        /* Small delay to prevent CPU hogging (optional) */
+        /* In real Classic Mac, WaitNextEvent would provide this */
         {
             volatile int i;
-            for (i = 0; i < 1000; i++);
+            for (i = 0; i < 100; i++);  /* Much smaller delay with event pumping */
+        }
+
+        /* Debug output every 100 updates to avoid spam */
+        updateCount++;
+        if (updateCount % 100 == 0) {
+            serial_printf("TrackMenu: Still tracking, update %d\n", updateCount);
         }
     }
 
-    serial_printf("TrackMenu: Mouse released\n");
+    serial_puts("TrackMenu: Mouse released\n");
 
     /* Get final selection */
     if (g_menuTrackState.highlightedItem > 0) {
         result = ((long)menuID << 16) | g_menuTrackState.highlightedItem;
-        serial_printf("TrackMenu: Selected item %d\n", g_menuTrackState.highlightedItem);
+        serial_puts("TrackMenu: Item selected\n");
     } else {
-        serial_printf("TrackMenu: No selection\n");
+        serial_puts("TrackMenu: No selection\n");
     }
 
     /* Restore background */
     if (savedBits) {
         RestoreMenuBits(savedBits);
         DiscardMenuBits(savedBits);
-        serial_printf("TrackMenu: Background restored\n");
+        serial_puts("TrackMenu: Background restored\n");
     }
 
     /* Clear tracking state */
@@ -553,6 +722,9 @@ long TrackMenu(short menuID, Point startPt) {
 
     /* Restore port */
     if (savePort) SetPort(savePort);
+
+    /* Clear reentrancy flag before returning */
+    s_inTrackMenu = false;
 
     return result;
 }

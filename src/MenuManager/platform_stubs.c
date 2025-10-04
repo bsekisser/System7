@@ -62,23 +62,23 @@ void Platform_MenuFeedback(short feedbackType, short menuID, short item)
 }
 
 /* Menu item functions */
-char GetItemMark(void* theMenu, short item)
-{
-    /* TODO: Get item mark character */
-    return 0;
-}
+// char GetItemMark(void* theMenu, short item)
+// {
+//     /* TODO: Get item mark character */
+//     return 0;
+// }
 
-char GetItemCmd(void* theMenu, short item)
-{
-    /* TODO: Get item command key */
-    return 0;
-}
+// char GetItemCmd(void* theMenu, short item)
+// {
+//     /* TODO: Get item command key */
+//     return 0;
+// }
 
-short GetItemStyle(void* theMenu, short item)
-{
-    /* TODO: Get item text style */
-    return 0; /* normal */
-}
+// short GetItemStyle(void* theMenu, short item)
+// {
+//     /* TODO: Get item text style */
+//     return 0; /* normal */
+// }
 
 void Platform_HiliteMenuItem(void* theMenu, short item, Boolean hilite)
 {
@@ -93,11 +93,11 @@ Handle Platform_SaveScreenBits(const Rect* rect)
     return (Handle)1; /* Dummy handle */
 }
 
-short GetItemIcon(void* theMenu, short item)
-{
-    /* TODO: Get item icon ID */
-    return 0;
-}
+// short GetItemIcon(void* theMenu, short item)
+// {
+//     /* TODO: Get item icon ID */
+//     return 0;
+// }
 
 OSErr GetMenuTitleRect(short menuID, Rect* theRect)
 {

@@ -1,69 +1,317 @@
-/* #include "SystemTypes.h" */
 /*
  * MenuItems.c - Menu Item Management Implementation
  *
- * This file implements menu item management including creation, modification,
- * property management, and state handling for individual menu items.
+ * System 7.1-compatible menu item management with full support for:
+ * - Command key shortcuts (/X suffix parsing)
+ * - Checkmarks and custom marks
+ * - Icons
+ * - Text styles
+ * - Enable/disable states
+ * - Separators
  *
  * Copyright (c) 2025 - System 7.1 Portable Project
- * Derived from System 7 ROM analysis (Ghidra) Menu Manager
  */
 
-// #include "CompatibilityFix.h" // Removed
+#include <stdlib.h>
+#include <string.h>
 #include "SystemTypes.h"
 #include "System71StdLib.h"
-
 #include "MenuManager/MenuManager.h"
 #include "MenuManager/MenuTypes.h"
-
-
-/* Menu item parsing and management */
-static void ParseMenuData(MenuHandle theMenu);
-static short ParseMenuItems(const unsigned char* data, short dataLen);
-static void UpdateMenuItemCount(MenuHandle theMenu);
 
 /* External debug output */
 extern void serial_printf(const char* format, ...);
 
-/* Menu item operations */
-void AppendMenu(MenuHandle menu, ConstStr255Param data) {
-    if (!menu || !data) return;
-    serial_printf("Appending menu items: %.*s\n", data[0], &data[1]);
-    ParseMenuItems(&data[1], data[0]);
-}
+/* ============================================================================
+ * Menu Item Internal Storage
+ * ============================================================================ */
 
-void InsertMenuItem(MenuHandle theMenu, ConstStr255Param itemString, short afterItem) {
-    if (!theMenu || !itemString) return;
-    serial_printf("Inserting menu item after %d: %.*s\n", afterItem, itemString[0], &itemString[1]);
-}
+#define MAX_MENU_ITEMS 64
 
-void DeleteMenuItem(MenuHandle theMenu, short item) {
-    if (!theMenu || item < 1) return;
-    serial_printf("Deleting menu item %d\n", item);
-}
+/* Menu item record - stored as array in menu handle's extended data */
+typedef struct MenuItemRec {
+    Str255 text;       /* Display text (no /X suffix) */
+    short enabled;     /* 0 = disabled, 1 = enabled */
+    short checked;     /* 0 = unchecked, 1 = checked */
+    char mark;         /* Mark character (0 = none, checkMark = check) */
+    char cmdKey;       /* Command key (lowercase, 0 = none) */
+    short iconID;      /* Icon ID (0 = none) */
+    Style style;       /* Text style (bold, italic, etc.) */
+    short isSeparator; /* 1 if separator item */
+} MenuItemRec;
 
-short CountMItems(MenuHandle theMenu) {
-    if (!theMenu) return 0;
+/* Extended menu data - attached to menu handle */
+typedef struct MenuExtData {
+    short itemCount;
+    MenuItemRec items[MAX_MENU_ITEMS];
+} MenuExtData;
 
-    /* Return actual item counts based on menu ID */
-    MenuInfo* menu = *theMenu;
-    short menuID = menu->menuID;
-    switch (menuID) {
-        case 128:  /* Apple Menu */
-            return 5;  /* About, separator, Calculator, separator, Shut Down */
-        case 129:  /* File Menu */
-            return 13; /* 13 items in File menu */
-        case 130:  /* Edit Menu */
-            return 7;  /* 7 items in Edit menu */
-        case 131:  /* View Menu */
-            return 9;  /* 9 items in View menu */
-        case 132:  /* Label Menu */
-            return 8;  /* 8 label items */
-        case 133:  /* Special Menu */
-            return 6;  /* 6 items in Special menu */
-        default:
-            return 5;  /* Default for unknown menus */
+/* Checkmark character constant */
+#define checkMark 18
+
+/* Global storage for menu extended data (keyed by menuID) */
+#define MAX_MENUS 32
+static struct {
+    short menuID;
+    MenuExtData* extData;
+} gMenuExtData[MAX_MENUS];
+static int gNumMenuExtData = 0;
+
+/* ============================================================================
+ * Internal Helper Functions
+ * ============================================================================ */
+
+/*
+ * GetMenuExtData - Get or create extended data for menu
+ */
+static MenuExtData* GetMenuExtData(MenuHandle theMenu) {
+    int i;
+    short menuID;
+    MenuExtData* extData;
+
+    serial_printf("GetMenuExtData: theMenu=%p\n", (void*)theMenu);
+    if (!theMenu || !*theMenu) {
+        serial_puts("GetMenuExtData: NULL check failed\n");
+        return NULL;
     }
+
+    serial_printf("GetMenuExtData: *theMenu=%p\n", (void*)*theMenu);
+    menuID = (*(MenuInfo**)theMenu)->menuID;
+    serial_printf("GetMenuExtData: menuID=%d\n", menuID);
+
+    /* Search for existing extended data */
+    for (i = 0; i < gNumMenuExtData; i++) {
+        if (gMenuExtData[i].menuID == menuID) {
+            return gMenuExtData[i].extData;
+        }
+    }
+
+    /* Create new extended data */
+    if (gNumMenuExtData >= MAX_MENUS) {
+        return NULL;
+    }
+
+    extData = (MenuExtData*)malloc(sizeof(MenuExtData));
+    if (!extData) {
+        return NULL;
+    }
+
+    memset(extData, 0, sizeof(MenuExtData));
+
+    gMenuExtData[gNumMenuExtData].menuID = menuID;
+    gMenuExtData[gNumMenuExtData].extData = extData;
+    gNumMenuExtData++;
+
+    serial_printf("Created extended data for menu ID %d\n", menuID);
+
+    return extData;
+}
+
+/*
+ * ParseItemText - Parse item text and extract command key
+ *
+ * Parses "/X" suffix where X is the command key.
+ * Modifies itemText to remove suffix, returns lowercase command key.
+ */
+static char ParseItemText(Str255 itemText) {
+    short len;
+    char cmdKey = 0;
+
+    len = itemText[0];
+
+    /* Check for /X suffix (minimum length 2: "X/Y") */
+    if (len >= 2 && itemText[len - 1] != '/' && itemText[len - 2] == '/') {
+        /* Extract command key */
+        cmdKey = itemText[len];
+
+        /* Convert to lowercase */
+        if (cmdKey >= 'A' && cmdKey <= 'Z') {
+            cmdKey = cmdKey - 'A' + 'a';
+        }
+
+        /* Remove /X from text */
+        itemText[0] = len - 2;
+
+        serial_printf("Parsed command key: '%c' from item '%.*s'\n",
+                     cmdKey, len - 2, &itemText[1]);
+    }
+
+    return cmdKey;
+}
+
+/*
+ * IsSeparatorText - Check if text represents a separator
+ */
+static short IsSeparatorText(ConstStr255Param text) {
+    /* Separator if exactly "-" */
+    return (text[0] == 1 && text[1] == '-');
+}
+
+/* ============================================================================
+ * Menu Item Operations
+ * ============================================================================ */
+
+/*
+ * AppendMenu - Add items to end of menu
+ *
+ * Parses semicolon-separated item list.
+ * Supports /X suffix for command keys.
+ * "-" creates separator line.
+ */
+void AppendMenu(MenuHandle menu, ConstStr255Param data) {
+    MenuExtData* extData;
+    Str255 itemText;
+    short dataLen, pos, itemStart, itemLen;
+    MenuItemRec* item;
+
+    if (!menu || !data) return;
+
+    extData = GetMenuExtData(menu);
+    if (!extData) return;
+
+    dataLen = data[0];
+    pos = 1;
+    itemStart = 1;
+
+    serial_printf("AppendMenu: parsing '%.*s'\n", dataLen, &data[1]);
+
+    /* Parse semicolon-separated items */
+    while (pos <= dataLen) {
+        /* Find next semicolon or end */
+        while (pos <= dataLen && data[pos] != ';') {
+            pos++;
+        }
+
+        /* Extract item text */
+        itemLen = pos - itemStart;
+        if (itemLen > 0 && itemLen <= 255) {
+            itemText[0] = itemLen;
+            memcpy(&itemText[1], &data[itemStart], itemLen);
+
+            /* Add item if we have room */
+            if (extData->itemCount < MAX_MENU_ITEMS) {
+                item = &extData->items[extData->itemCount];
+
+                /* Parse command key and remove /X suffix */
+                item->cmdKey = ParseItemText(itemText);
+
+                /* Copy cleaned text */
+                memcpy(item->text, itemText, itemText[0] + 1);
+
+                /* Check for separator */
+                item->isSeparator = IsSeparatorText(itemText);
+
+                /* Default properties */
+                item->enabled = !item->isSeparator; /* Separators disabled */
+                item->checked = 0;
+                item->mark = 0;
+                item->iconID = 0;
+                item->style = normal;
+
+                extData->itemCount++;
+
+                serial_printf("  Added item %d: '%.*s' (cmd='%c', sep=%d)\n",
+                             extData->itemCount, item->text[0], &item->text[1],
+                             item->cmdKey ? item->cmdKey : ' ', item->isSeparator);
+            }
+        }
+
+        /* Skip semicolon */
+        pos++;
+        itemStart = pos;
+    }
+}
+
+/*
+ * InsertMenuItem - Insert item into menu
+ */
+void InsertMenuItem(MenuHandle theMenu, ConstStr255Param itemString, short afterItem) {
+    MenuExtData* extData;
+    MenuItemRec* item;
+    Str255 itemText;
+    int i;
+
+    if (!theMenu || !itemString) return;
+
+    extData = GetMenuExtData(theMenu);
+    if (!extData) return;
+
+    /* Validate afterItem */
+    if (afterItem < 0 || afterItem > extData->itemCount) {
+        afterItem = extData->itemCount; /* Append */
+    }
+
+    /* Check room */
+    if (extData->itemCount >= MAX_MENU_ITEMS) {
+        return;
+    }
+
+    /* Copy and parse item text */
+    memcpy(itemText, itemString, itemString[0] + 1);
+
+    /* Shift items down to make room */
+    for (i = extData->itemCount; i > afterItem; i--) {
+        extData->items[i] = extData->items[i - 1];
+    }
+
+    /* Insert new item */
+    item = &extData->items[afterItem];
+    item->cmdKey = ParseItemText(itemText);
+    memcpy(item->text, itemText, itemText[0] + 1);
+    item->isSeparator = IsSeparatorText(itemText);
+    item->enabled = !item->isSeparator;
+    item->checked = 0;
+    item->mark = 0;
+    item->iconID = 0;
+    item->style = normal;
+
+    extData->itemCount++;
+
+    serial_printf("InsertMenuItem: item %d after %d: '%.*s'\n",
+                 afterItem + 1, afterItem, item->text[0], &item->text[1]);
+}
+
+/*
+ * DeleteMenuItem - Remove item from menu
+ */
+void DeleteMenuItem(MenuHandle theMenu, short item) {
+    MenuExtData* extData;
+    int i;
+
+    if (!theMenu || item < 1) return;
+
+    extData = GetMenuExtData(theMenu);
+    if (!extData) return;
+
+    if (item > extData->itemCount) return;
+
+    serial_printf("DeleteMenuItem: item %d\n", item);
+
+    /* Shift items up */
+    for (i = item - 1; i < extData->itemCount - 1; i++) {
+        extData->items[i] = extData->items[i + 1];
+    }
+
+    extData->itemCount--;
+}
+
+/*
+ * CountMItems - Count items in menu
+ */
+short CountMItems(MenuHandle theMenu) {
+    MenuExtData* extData;
+
+
+    if (!theMenu) {
+        return 0;
+    }
+
+    extData = GetMenuExtData(theMenu);
+    if (!extData) {
+        return 0;
+    }
+
+    return extData->itemCount;
 }
 
 /* Alias for compatibility */
@@ -71,190 +319,371 @@ short CountMenuItems(MenuHandle theMenu) {
     return CountMItems(theMenu);
 }
 
-/* Menu item properties */
+/* ============================================================================
+ * Menu Item Properties - Get/Set
+ * ============================================================================ */
+
+/*
+ * GetMenuItemText - Get item text
+ */
 void GetMenuItemText(MenuHandle theMenu, short item, Str255 itemString) {
+    MenuExtData* extData;
+
     if (!theMenu || !itemString || item < 1) {
+        if (itemString) itemString[0] = 0;
+        return;
+    }
+
+    extData = GetMenuExtData(theMenu);
+    if (!extData || item > extData->itemCount) {
         itemString[0] = 0;
         return;
     }
 
-    /* Return actual menu text based on menu ID and item index */
-    MenuInfo* menu = *theMenu;
-    short menuID = menu->menuID;
-    const char* text = NULL;
+    /* Copy item text */
+    memcpy(itemString, extData->items[item - 1].text,
+           extData->items[item - 1].text[0] + 1);
+}
 
-    switch (menuID) {
-        case 128:  /* Apple Menu */
-            switch (item) {
-                case 1: text = "About This Macintosh"; break;
-                case 2: text = "-"; break;
-                case 3: text = "Calculator"; break;  /* Sample DA */
-                case 4: text = "-"; break;
-                case 5: text = "Shut Down"; break;
-                default: text = "Apple Item"; break;
-            }
-            break;
+/*
+ * SetMenuItemText - Set item text
+ */
+void SetMenuItemText(MenuHandle theMenu, short item, ConstStr255Param itemString) {
+    MenuExtData* extData;
+    Str255 itemText;
 
-        case 129:  /* File Menu */
-            switch (item) {
-                case 1: text = "New Folder"; break;
-                case 2: text = "Open"; break;
-                case 3: text = "Print"; break;
-                case 4: text = "Close"; break;
-                case 5: text = "-"; break;
-                case 6: text = "Get Info"; break;
-                case 7: text = "Sharing..."; break;
-                case 8: text = "Duplicate"; break;
-                case 9: text = "Make Alias"; break;
-                case 10: text = "Put Away"; break;
-                case 11: text = "-"; break;
-                case 12: text = "Find..."; break;
-                case 13: text = "Find Again"; break;
-                default: text = "File Item"; break;
-            }
-            break;
+    if (!theMenu || !itemString || item < 1) return;
 
-        case 130:  /* Edit Menu */
-            switch (item) {
-                case 1: text = "Undo"; break;
-                case 2: text = "-"; break;
-                case 3: text = "Cut"; break;
-                case 4: text = "Copy"; break;
-                case 5: text = "Paste"; break;
-                case 6: text = "Clear"; break;
-                case 7: text = "Select All"; break;
-                default: text = "Edit Item"; break;
-            }
-            break;
+    extData = GetMenuExtData(theMenu);
+    if (!extData || item > extData->itemCount) return;
 
-        case 131:  /* View Menu */
-            switch (item) {
-                case 1: text = "by Icon"; break;
-                case 2: text = "by Name"; break;
-                case 3: text = "by Size"; break;
-                case 4: text = "by Kind"; break;
-                case 5: text = "by Label"; break;
-                case 6: text = "by Date"; break;
-                case 7: text = "-"; break;
-                case 8: text = "Clean Up Window"; break;
-                case 9: text = "Clean Up Selection"; break;
-                default: text = "View Item"; break;
-            }
-            break;
+    /* Copy and parse */
+    memcpy(itemText, itemString, itemString[0] + 1);
+    extData->items[item - 1].cmdKey = ParseItemText(itemText);
+    memcpy(extData->items[item - 1].text, itemText, itemText[0] + 1);
+    extData->items[item - 1].isSeparator = IsSeparatorText(itemText);
 
-        case 132:  /* Label Menu */
-            switch (item) {
-                case 1: text = "None"; break;
-                case 2: text = "Essential"; break;
-                case 3: text = "Hot"; break;
-                case 4: text = "In Progress"; break;
-                case 5: text = "Cool"; break;
-                case 6: text = "Personal"; break;
-                case 7: text = "Project 1"; break;
-                case 8: text = "Project 2"; break;
-                default: text = "Label Item"; break;
-            }
-            break;
+    serial_printf("SetMenuItemText: item %d = '%.*s'\n",
+                 item, itemText[0], &itemText[1]);
+}
 
-        case 133:  /* Special Menu */
-            switch (item) {
-                case 1: text = "Clean Up Desktop"; break;
-                case 2: text = "Empty Trash"; break;
-                case 3: text = "-"; break;
-                case 4: text = "Eject"; break;
-                case 5: text = "Erase Disk"; break;
-                case 6: text = "-"; break;
-                case 7: text = "Restart"; break;
-                default: text = "Special Item"; break;
-            }
-            break;
+/*
+ * EnableItem - Enable menu item
+ */
+void EnableItem(MenuHandle theMenu, short item) {
+    MenuExtData* extData;
+    MenuInfo* menu;
 
-        default:
-        {
-            /* Create a simple text for unknown menus */
-            const char* defaultText = "Item ";
-            short len = strlen(defaultText);
-            memcpy(&itemString[1], defaultText, len);
-            /* Add item number */
-            if (item < 10) {
-                itemString[len + 1] = '0' + item;
-                itemString[0] = len + 1;
-            } else {
-                itemString[len + 1] = '0' + (item / 10);
-                itemString[len + 2] = '0' + (item % 10);
-                itemString[0] = len + 2;
-            }
-            itemString[0] = strlen((char*)&itemString[1]);
-            return;
+    if (!theMenu) return;
+
+    menu = *theMenu;
+
+    if (item == 0) {
+        /* Enable entire menu */
+        menu->enableFlags = 0xFFFFFFFF;
+        serial_printf("EnableItem: enabled entire menu\n");
+    } else {
+        extData = GetMenuExtData(theMenu);
+        if (!extData || item > extData->itemCount) return;
+
+        /* Don't enable separators */
+        if (!extData->items[item - 1].isSeparator) {
+            extData->items[item - 1].enabled = 1;
+            serial_printf("EnableItem: enabled item %d\n", item);
         }
     }
-
-    if (text) {
-        short len = strlen(text);
-        if (len > 255) len = 255;
-        memcpy(&itemString[1], text, len);
-        itemString[0] = len;
-    } else {
-        itemString[0] = 0;
-    }
 }
 
-void SetMenuItemText(MenuHandle theMenu, short item, ConstStr255Param itemString) {
-    if (!theMenu || !itemString || item < 1) return;
-    serial_printf("Setting item %d text: %.*s\n", item, itemString[0], &itemString[1]);
-}
-
-void EnableItem(MenuHandle theMenu, short item) {
-    if (!theMenu) return;
-    MenuInfo* menu = *theMenu;
-    if (item == 0) {
-        menu->enableFlags = 0xFFFFFFFF;
-    } else {
-        EnableMenuFlag(menu->enableFlags, item);
-    }
-}
-
+/*
+ * DisableItem - Disable menu item
+ */
 void DisableItem(MenuHandle theMenu, short item) {
+    MenuExtData* extData;
+    MenuInfo* menu;
+
     if (!theMenu) return;
-    MenuInfo* menu = *theMenu;
+
+    menu = *theMenu;
+
     if (item == 0) {
+        /* Disable entire menu */
         menu->enableFlags = 0;
+        serial_printf("DisableItem: disabled entire menu\n");
     } else {
-        DisableMenuFlag(menu->enableFlags, item);
+        extData = GetMenuExtData(theMenu);
+        if (!extData || item > extData->itemCount) return;
+
+        extData->items[item - 1].enabled = 0;
+        serial_printf("DisableItem: disabled item %d\n", item);
     }
 }
 
 /*
  * CheckItem - Set item check mark
- *
- * Sets or removes a check mark for a menu item.
- *
- * Parameters:
- *   theMenu: Handle to the menu
- *   item: Menu item number (1-based)
- *   checked: true to add check, false to remove
  */
 void CheckItem(MenuHandle theMenu, short item, Boolean checked) {
+    MenuExtData* extData;
+
     if (!theMenu || item < 1) return;
 
-    /* For now, just log the operation */
-    serial_printf("CheckItem: menu %p, item %d, checked %d\n", theMenu, item, checked);
+    extData = GetMenuExtData(theMenu);
+    if (!extData || item > extData->itemCount) return;
 
-    /* In a full implementation, this would update the menu item's check state
-     * in the menu data structure and potentially redraw the menu if visible */
+    extData->items[item - 1].checked = checked ? 1 : 0;
+
+    /* Set mark to checkmark if checked */
+    if (checked) {
+        extData->items[item - 1].mark = checkMark;
+    } else {
+        extData->items[item - 1].mark = 0;
+    }
+
+    serial_printf("CheckItem: item %d checked=%d\n", item, checked);
 }
 
-/* Helper functions */
-static void ParseMenuData(MenuHandle theMenu) {
-    if (!theMenu) return;
-    /* TODO: Parse actual menu data structure */
+/*
+ * SetItemMark - Set item mark character
+ */
+void SetItemMark(MenuHandle theMenu, short item, short markChar) {
+    MenuExtData* extData;
+
+    if (!theMenu || item < 1) return;
+
+    extData = GetMenuExtData(theMenu);
+    if (!extData || item > extData->itemCount) return;
+
+    extData->items[item - 1].mark = (char)markChar;
+    extData->items[item - 1].checked = (markChar != 0);
+
+    serial_printf("SetItemMark: item %d mark='%c' (0x%02X)\n",
+                 item, markChar ? markChar : ' ', (unsigned char)markChar);
 }
 
-static short ParseMenuItems(const unsigned char* data, short dataLen) {
-    /* TODO: Parse menu item data */
-    return 0;
+/*
+ * GetItemMark - Get item mark character
+ */
+void GetItemMark(MenuHandle theMenu, short item, short* markChar) {
+    MenuExtData* extData;
+
+    if (!theMenu || !markChar || item < 1) {
+        if (markChar) *markChar = 0;
+        return;
+    }
+
+    extData = GetMenuExtData(theMenu);
+    if (!extData || item > extData->itemCount) {
+        *markChar = 0;
+        return;
+    }
+
+    *markChar = extData->items[item - 1].mark;
 }
 
-static void UpdateMenuItemCount(MenuHandle theMenu) {
-    /* TODO: Update item count in menu */
+/*
+ * SetItemCmd - Set item command key
+ */
+void SetItemCmd(MenuHandle theMenu, short item, short cmdChar) {
+    MenuExtData* extData;
+    char key;
+
+    if (!theMenu || item < 1) return;
+
+    extData = GetMenuExtData(theMenu);
+    if (!extData || item > extData->itemCount) return;
+
+    /* Convert to lowercase */
+    key = (char)cmdChar;
+    if (key >= 'A' && key <= 'Z') {
+        key = key - 'A' + 'a';
+    }
+
+    extData->items[item - 1].cmdKey = key;
+
+    serial_printf("SetItemCmd: item %d cmd='%c'\n", item, key ? key : ' ');
+}
+
+/*
+ * GetItemCmd - Get item command key
+ */
+void GetItemCmd(MenuHandle theMenu, short item, short* cmdChar) {
+    MenuExtData* extData;
+
+    if (!theMenu || !cmdChar || item < 1) {
+        if (cmdChar) *cmdChar = 0;
+        return;
+    }
+
+    extData = GetMenuExtData(theMenu);
+    if (!extData || item > extData->itemCount) {
+        *cmdChar = 0;
+        return;
+    }
+
+    *cmdChar = extData->items[item - 1].cmdKey;
+}
+
+/*
+ * SetItemIcon - Set item icon
+ */
+void SetItemIcon(MenuHandle theMenu, short item, short iconIndex) {
+    MenuExtData* extData;
+
+    if (!theMenu || item < 1) return;
+
+    extData = GetMenuExtData(theMenu);
+    if (!extData || item > extData->itemCount) return;
+
+    extData->items[item - 1].iconID = iconIndex;
+
+    serial_printf("SetItemIcon: item %d icon=%d\n", item, iconIndex);
+}
+
+/*
+ * GetItemIcon - Get item icon
+ */
+void GetItemIcon(MenuHandle theMenu, short item, short* iconIndex) {
+    MenuExtData* extData;
+
+    if (!theMenu || !iconIndex || item < 1) {
+        if (iconIndex) *iconIndex = 0;
+        return;
+    }
+
+    extData = GetMenuExtData(theMenu);
+    if (!extData || item > extData->itemCount) {
+        *iconIndex = 0;
+        return;
+    }
+
+    *iconIndex = extData->items[item - 1].iconID;
+}
+
+/*
+ * SetItemStyle - Set item text style
+ */
+void SetItemStyle(MenuHandle theMenu, short item, short chStyle) {
+    MenuExtData* extData;
+
+    if (!theMenu || item < 1) return;
+
+    extData = GetMenuExtData(theMenu);
+    if (!extData || item > extData->itemCount) return;
+
+    extData->items[item - 1].style = chStyle;
+
+    serial_printf("SetItemStyle: item %d style=0x%02X\n", item, chStyle);
+}
+
+/*
+ * GetItemStyle - Get item text style
+ */
+void GetItemStyle(MenuHandle theMenu, short item, Style* chStyle) {
+    MenuExtData* extData;
+
+    if (!theMenu || !chStyle || item < 1) {
+        if (chStyle) *chStyle = normal;
+        return;
+    }
+
+    extData = GetMenuExtData(theMenu);
+    if (!extData || item > extData->itemCount) {
+        *chStyle = normal;
+        return;
+    }
+
+    *chStyle = extData->items[item - 1].style;
+}
+
+/* ============================================================================
+ * Menu Item Query Functions - For MDEF
+ * ============================================================================ */
+
+/*
+ * IsMenuItemEnabled - Check if item is enabled
+ */
+Boolean CheckMenuItemEnabled(MenuHandle theMenu, short item) {
+    MenuExtData* extData;
+
+    if (!theMenu || item < 1) return false;
+
+    extData = GetMenuExtData(theMenu);
+    if (!extData || item > extData->itemCount) return false;
+
+    return extData->items[item - 1].enabled != 0;
+}
+
+/*
+ * IsMenuItemSeparator - Check if item is separator
+ */
+Boolean CheckMenuItemSeparator(MenuHandle theMenu, short item) {
+    MenuExtData* extData;
+
+    if (!theMenu || item < 1) return false;
+
+    extData = GetMenuExtData(theMenu);
+    if (!extData || item > extData->itemCount) return false;
+
+    return extData->items[item - 1].isSeparator != 0;
+}
+
+/*
+ * GetMenuItemCmdKey - Get item command key (for MenuKey search)
+ */
+char GetMenuItemCmdKey(MenuHandle theMenu, short item) {
+    MenuExtData* extData;
+
+    if (!theMenu || item < 1) return 0;
+
+    extData = GetMenuExtData(theMenu);
+    if (!extData || item > extData->itemCount) return 0;
+
+    return extData->items[item - 1].cmdKey;
+}
+
+/* ============================================================================
+ * CalcMenuSize - Calculate menu dimensions
+ * ============================================================================ */
+
+/*
+ * CalcMenuSize - Calculate and set menu width/height
+ */
+void CalcMenuSize(MenuHandle theMenu) {
+    MenuExtData* extData;
+    MenuInfo* menu;
+    short i, itemCount, maxWidth, totalHeight;
+    short itemWidth;
+    extern short StringWidth(ConstStr255Param str);
+
+    if (!theMenu || !*theMenu) return;
+
+    menu = *theMenu;
+    extData = GetMenuExtData(theMenu);
+    if (!extData) return;
+
+    itemCount = extData->itemCount;
+    maxWidth = 100; /* Minimum width */
+    totalHeight = 8; /* Top/bottom margins */
+
+    /* Measure each item */
+    for (i = 0; i < itemCount; i++) {
+        /* Text width + margins + mark column + cmd column */
+        itemWidth = 6 + /* Left margin */
+                    12 + /* Mark column */
+                    StringWidth(extData->items[i].text) +
+                    6 + /* Text gutter */
+                    (extData->items[i].cmdKey ? 24 : 0) + /* Cmd key column */
+                    10; /* Right margin */
+
+        if (itemWidth > maxWidth) {
+            maxWidth = itemWidth;
+        }
+
+        totalHeight += 16; /* Standard item height */
+    }
+
+    menu->menuWidth = maxWidth;
+    menu->menuHeight = totalHeight;
+
+    serial_printf("CalcMenuSize: menu ID %d size %d x %d (%d items)\n",
+                 menu->menuID, maxWidth, totalHeight, itemCount);
 }

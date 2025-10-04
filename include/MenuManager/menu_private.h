@@ -93,6 +93,11 @@ OSErr DrawMBARString(const unsigned char *text, SInt16 script, Rect *bounds, SIn
 Boolean IsSystemMenu(SInt16 menuID);
 OSErr CalcMenuBar(void);
 
+/* Menu item query functions (for MDEF and MenuKey) */
+Boolean CheckMenuItemEnabled(MenuHandle theMenu, short item);
+Boolean CheckMenuItemSeparator(MenuHandle theMenu, short item);
+char GetMenuItemCmdKey(MenuHandle theMenu, short item);
+
 Handle SaveBits(const Rect *bounds, SInt16 mode);
 OSErr RestoreBits(Handle bitsHandle);
 OSErr DiscardBits(Handle bitsHandle);

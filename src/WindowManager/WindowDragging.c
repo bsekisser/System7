@@ -110,6 +110,12 @@ static DragState g_dragState = {
     NULL, 0
 };
 
+/* Implementation of Local_GetPreferredDragFeedback */
+static DragFeedbackMode_Local Local_GetPreferredDragFeedback(void) {
+    /* Return outline feedback mode as default */
+    return kDragFeedbackOutline_Local;
+}
+
 /* ============================================================================
  * Window Movement Functions
  * ============================================================================ */

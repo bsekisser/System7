@@ -319,6 +319,7 @@ void serial_print_hex(uint32_t value) {
  *   - "VFS_Enumerate"         : VFS directory enumeration
  *
  * Menu System:
+ *   - "DEBUG"                 : Debug messages for crash investigation
  *   - "MenuSelect"            : Menu selection handling
  *
  * Window Management:
@@ -353,6 +354,7 @@ void serial_printf(const char* fmt, ...) {
     /* WHITELIST CHECK: Message must contain at least one of these strings */
     if (strstr(fmt, "HandleMouseDown") == NULL &&
         strstr(fmt, "MenuSelect") == NULL &&
+        strstr(fmt, "DoMenuCommand") == NULL &&
         strstr(fmt, "PostEvent") == NULL &&
         strstr(fmt, "HandleDesktopClick") == NULL &&
         strstr(fmt, "Desktop icon") == NULL &&
@@ -397,10 +399,23 @@ void serial_printf(const char* fmt, ...) {
         strstr(fmt, "MM:") == NULL &&
         strstr(fmt, "ATA:") == NULL &&
         strstr(fmt, "About") == NULL &&
+        strstr(fmt, "CenterPStringInRect") == NULL &&
+        strstr(fmt, "CloseWindow") == NULL &&
         strstr(fmt, "CODE PATH") == NULL &&
         strstr(fmt, "TITLE:") == NULL &&
         strstr(fmt, "DrawString") == NULL &&
-        strstr(fmt, "FM:") == NULL) {
+        strstr(fmt, "FM:") == NULL &&
+        strstr(fmt, "DEBUG") == NULL &&
+        strstr(fmt, "Apple Menu") == NULL &&
+        strstr(fmt, "Shut Down") == NULL &&
+        strstr(fmt, "System") == NULL &&
+        strstr(fmt, "===") == NULL &&
+        strstr(fmt, "safe") == NULL &&
+        strstr(fmt, "Version:") == NULL &&
+        strstr(fmt, "Build:") == NULL &&
+        strstr(fmt, "compatible") == NULL &&
+        strstr(fmt, "Macintosh") == NULL &&
+        strstr(fmt, "portable") == NULL) {
         return;  /* Message not whitelisted - silently drop */
     }
 

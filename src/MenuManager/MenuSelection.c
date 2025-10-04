@@ -12,6 +12,10 @@
  */
 
 // #include "CompatibilityFix.h" // Removed
+
+/* Disable optimization for this file to avoid stack alignment issues */
+#pragma GCC optimize ("O0")
+
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 
@@ -100,7 +104,7 @@ extern void Platform_MenuFeedback(short feedbackType, short menuID, short item);
 extern short FindMenuAtPoint_Internal(Point pt);
 
 /* External function from MenuTrack.c */
-extern long TrackMenu(short menuID, Point startPt);
+extern long TrackMenu(short menuID, Point *startPt);
 
 /* Internal function prototypes */
 static void InitializeTrackingState(MenuTrackInfo* state);
@@ -139,7 +143,16 @@ long MenuSelect(Point startPt)
     extern void SetPort(GrafPtr port);
     extern void GetWMgrPort(GrafPtr* wmgrPort);
 
+    /* Declare ALL local variables at function start to avoid mid-function stack issues */
     GrafPtr savedPort, wmgrPort;
+    short menuID;
+    Rect titleRect;
+    Point dropdownPt;
+    long trackResult;
+    long result;
+    short item;
+    volatile int stack_align;
+
     GetPort(&savedPort);
     GetWMgrPort(&wmgrPort);
     /* MUST use WMgrPort for all menu drawing */
@@ -159,7 +172,7 @@ long MenuSelect(Point startPt)
     }
 
     /* Find which menu was clicked using the tracking system */
-    short menuID = FindMenuAtPoint_Internal(startPt);
+    menuID = FindMenuAtPoint_Internal(startPt);
 
     if (menuID != 0) {
         serial_printf("MenuSelect: Found menu ID %d at (h=%d,v=%d)\n",
@@ -168,30 +181,39 @@ long MenuSelect(Point startPt)
         /* Highlight the menu title */
         extern void HiliteMenu(short menuID);
         HiliteMenu(menuID);
+        serial_puts("DEBUG: Returned from HiliteMenu\n");
+        stack_align = 0;  /* Fix stack alignment after HiliteMenu */
+        stack_align++;
+        serial_puts("DEBUG: After stack_align\n");
 
         /* Get the actual menu title position for proper dropdown placement */
-        Rect titleRect;
-        Point dropdownPt;
 
         extern Boolean GetMenuTitleRectByID(short menuID, Rect* outRect);
+        serial_puts("DEBUG: About to call GetMenuTitleRectByID\n");
         if (GetMenuTitleRectByID(menuID, &titleRect)) {
+            serial_puts("DEBUG: GetMenuTitleRectByID returned TRUE\n");
             /* Use the left edge of the menu title */
+            serial_printf("DEBUG: titleRect.left=%d\n", titleRect.left);
             dropdownPt.h = titleRect.left;
+            serial_puts("DEBUG: Set dropdownPt.h\n");
             dropdownPt.v = 20; /* Position below menu bar */
+            serial_puts("DEBUG: Set dropdownPt.v\n");
         } else {
             /* Fallback to mouse position if title rect not found */
             dropdownPt.h = startPt.h;
             dropdownPt.v = 20;
         }
 
+        serial_puts("DEBUG: About to call TrackMenu\n");
+        stack_align = 0;  /* Fix stack before TrackMenu call */
+        stack_align++;
         /* Show dropdown and track item selection */
-        long trackResult = TrackMenu(menuID, dropdownPt);
+        trackResult = TrackMenu(menuID, &dropdownPt);
 
-        long result;
         if (trackResult != 0) {
             /* User selected an item - TrackMenu already returns packed format */
             result = trackResult;
-            short item = trackResult & 0xFFFF;
+            item = trackResult & 0xFFFF;
             serial_printf("MenuSelect: User selected item %d from menu %d\n", item, menuID);
         } else {
             /* User cancelled or clicked outside */
@@ -537,26 +559,41 @@ short TrackPullDownMenu(MenuHandle theMenu, const Rect* menuRect,
  */
 Boolean FindMenuCommand(short cmdChar, unsigned long modifiers, MenuCmdSearch* search)
 {
-    /* TODO: Need proper implementation that doesn't access MenuManagerState internals */
+    Handle menuBarHandle;
+    MenuBarList* menuBar;
+    int m, i;
+    char searchChar;
+
+    /* Forward declarations for internal query functions */
+    extern Boolean CheckMenuItemEnabled(MenuHandle theMenu, short item);
+    extern char GetMenuItemCmdKey(MenuHandle theMenu, short item);
+
     if (search == NULL) {
         return false;
     }
 
+    /* Initialize search result */
     search->found = false;
     search->foundMenuID = 0;
     search->foundItem = 0;
     search->enabled = false;
 
-    /* Simplified implementation for now - just return false */
-    return false;
+    /* Get menu bar */
+    menuBarHandle = GetMenuBar();
+    if (menuBarHandle == NULL) {
+        return false;
+    }
 
-#if 0  /* Original code that needs refactoring */
-    MenuManagerState* state = GetMenuManagerState();
-    Handle menuList;
-    MenuBarList* menuBar;
+    menuBar = (MenuBarList*)menuBarHandle;
+
+    /* Convert command key to lowercase for comparison (our storage is lowercase) */
+    searchChar = cmdChar;
+    if (searchChar >= 'A' && searchChar <= 'Z') {
+        searchChar = searchChar - 'A' + 'a';
+    }
 
     /* Search through all menus in menu bar */
-    for (int m = 0; m < menuBar->numMenus; m++) {
+    for (m = 0; m < menuBar->numMenus; m++) {
         MenuHandle theMenu = GetMenuHandle(menuBar->menus[m].menuID);
         if (theMenu == NULL) {
             continue;
@@ -565,22 +602,15 @@ Boolean FindMenuCommand(short cmdChar, unsigned long modifiers, MenuCmdSearch* s
         short itemCount = CountMItems(theMenu);
 
         /* Search through all items in menu */
-        for (short i = 1; i <= itemCount; i++) {
-            short itemCmd;
-            GetItemCmd(theMenu, i, &itemCmd);
+        for (i = 1; i <= itemCount; i++) {
+            char itemCmd = GetMenuItemCmdKey(theMenu, i);
 
-            if (itemCmd == cmdChar) {
+            if (itemCmd == searchChar && itemCmd != 0) {
                 /* Found matching command key */
                 search->found = true;
-                search->foundMenu = theMenu;
+                search->foundMenuID = menuBar->menus[m].menuID;
                 search->foundItem = i;
-
-                /* Check if item is enabled */
-                long enableFlags = (*theMenu)->enableFlags;
-                search->enabled = IsMenuItemEnabled(enableFlags, i);
-
-                serial_printf("Found command key '%c' in menu %d, item %d (enabled: %s)\n",
-                       cmdChar, (*theMenu)->menuID, i, search->enabled ? "Yes" : "No");
+                search->enabled = CheckMenuItemEnabled(theMenu, i);
 
                 return true;
             }
@@ -588,7 +618,6 @@ Boolean FindMenuCommand(short cmdChar, unsigned long modifiers, MenuCmdSearch* s
     }
 
     return false;
-#endif
 }
 
 /*

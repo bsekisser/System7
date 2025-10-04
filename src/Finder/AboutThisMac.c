@@ -98,9 +98,13 @@ typedef struct {
 
 /* --- String helpers (use QuickDraw widths, not char counts) --- */
 static void CenterPStringInRect(const Str255 s, const Rect* r, short baseline) {
+    serial_printf("CenterPStringInRect: ENTRY, s[0]=%d\n", s[0]);
     short w = StringWidth((ConstStr255Param)s);
+    serial_printf("CenterPStringInRect: StringWidth returned w=%d\n", w);
     MoveTo(r->left + ((r->right - r->left) - w) / 2, baseline);
+    serial_printf("CenterPStringInRect: About to call DrawString\n");
     DrawString((ConstStr255Param)s);
+    serial_printf("CenterPStringInRect: DrawString returned\n");
 }
 
 static void RightAlignPStringAt(const Str255 s, short rightEdge, short baseline) {
@@ -309,14 +313,15 @@ static void AboutWindow_CreateIfNeeded(void)
     }
 
     /* Position window centered-ish on screen (classic About box position) */
-    bounds.top = 80;
-    bounds.left = 120;
-    bounds.bottom = bounds.top + 240;  /* Height: 240 pixels */
-    bounds.right = bounds.left + 400;  /* Width: 400 pixels */
+    bounds.top = 70;
+    bounds.left = 80;
+    bounds.bottom = bounds.top + 280;  /* Height: 280 pixels */
+    bounds.right = bounds.left + 540;  /* Width: 540 pixels */
 
     /* Create window with movable dialog box proc, close box enabled */
-    strcpy((char*)&title[1], "About This Macintosh");
-    title[0] = (unsigned char)strlen((char*)&title[1]);
+    const char* titleText = "About This Macintosh";
+    title[0] = (unsigned char)strlen(titleText);
+    strcpy((char*)&title[1], titleText);
 
     sAboutWin = NewWindow(NULL, &bounds, title,
                          1,  /* visible */
@@ -367,14 +372,20 @@ void AboutWindow_ShowOrToggle(void)
  */
 void AboutWindow_CloseIf(WindowPtr w)
 {
+    serial_printf("AboutThisMac: CloseIf ENTRY, w=%p, sAboutWin=%p\n", (void*)w, (void*)sAboutWin);
+
     if (!w || w != sAboutWin) {
+        serial_printf("AboutThisMac: CloseIf - window mismatch, returning\n");
         return;
     }
 
     serial_printf("AboutThisMac: Closing window\n");
 
+    serial_printf("AboutThisMac: About to call DisposeWindow\n");
     DisposeWindow(sAboutWin);
+    serial_printf("AboutThisMac: DisposeWindow returned\n");
     sAboutWin = NULL;
+    serial_printf("AboutThisMac: CloseIf EXIT\n");
 }
 
 /*
@@ -418,16 +429,36 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     }
     sLastUpdateTicks = currentTicks;
 
-    /* Clear */
-    EraseRect(&w->port.portRect);
+    /* Get window content rect - use local coordinates */
+    Rect contentRect;
+    extern GrafPtr g_currentPort;
+    if (g_currentPort) {
+        contentRect = g_currentPort->portRect;
+    } else {
+        /* Fallback: use window dimensions from structure rect */
+        contentRect.top = 0;
+        contentRect.left = 0;
+        contentRect.right = w->port.portBits.bounds.right - w->port.portBits.bounds.left;
+        contentRect.bottom = w->port.portBits.bounds.bottom - w->port.portBits.bounds.top;
+    }
 
-    /* Title: "Macintosh x86" - Chicago (System), ~18 px, centered */
+    serial_printf("AboutThisMac: contentRect=(%d,%d,%d,%d)\n",
+                 contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
+
+    /* Clear */
+    EraseRect(&contentRect);
+
+    /* Title: "Macintosh x86" - Chicago (System), 12pt, centered */
     Str255 title;
     TextFont(0);            /* System (Chicago) */
-    TextSize(18);
-    TextFace(1);            /* bold */
+    TextSize(12);           /* Use 12pt to avoid scaling */
+    TextFace(0);            /* normal - bold synthesis crashes */
+    serial_printf("AboutThisMac: About to call ToPStr\n");
     ToPStr("Macintosh x86", title);
-    CenterPStringInRect(title, &w->port.portRect, w->port.portRect.top + 26);
+    serial_printf("AboutThisMac: ToPStr returned, title[0]=%d, about to center\n", title[0]);
+    serial_printf("AboutThisMac: About to call CenterPStringInRect\n");
+    CenterPStringInRect(title, &contentRect, contentRect.top + 20);
+    serial_printf("AboutThisMac: Title centered\n");
 
     /* Version: "System 7" - Chicago 12, normal */
     Str255 ver;
@@ -451,15 +482,15 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     box.bottom = box.top + 152;
     FrameRect(&box);
 
+    /* Labels left; values right aligned */
+    const short leftCol  = box.left  + 10;
+    const short rightCol = box.right - 70;
+
     /* "Memory" label */
     Str255 memLbl;
     ToPStr("Memory", memLbl);
-    MoveTo(box.left + 8, box.top + 14);
+    MoveTo(leftCol, box.top + 14);
     DrawString(memLbl);
-
-    /* Labels left; values right aligned */
-    const short leftCol  = box.left  + 10;
-    const short rightCol = box.right - 10;
     short y = box.top + 32;             /* first line baseline */
     const short dy = 14;                 /* line spacing */
 
@@ -491,7 +522,7 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
 
     /* Bar rect under stats */
     bar.left  = box.left + 10;
-    bar.right = box.right - 10;
+    bar.right = box.right - 30;
     bar.top   = box.top + 80;           /* looks right under three lines */
     bar.bottom= bar.top + 12;
     FrameRect(&bar);
@@ -549,11 +580,18 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     DrawString(appS);
     RightAlignPStringAt(unusedS, bar.right, bar.bottom + 12);
 
-    /* Footer line (copyright) placement */
+    /* Footer line - Geneva 10, move higher up */
     Str255 cpy;
-    TextSize(6);
-    ToPStr("\xA9 2025 Kelsi Davis", cpy);
-    CenterPStringInRect(cpy, &w->port.portRect, w->port.portRect.bottom - 10);
+    TextFont(3);           /* Geneva */
+    TextSize(10);          /* Slightly larger for visibility */
+    TextFace(0);           /* normal */
+    ToPStr("2025 Kelsi Davis", cpy);
+    /* Place below memory box - move higher to ensure visibility */
+    short cpyY = box.bottom + 18;
+    serial_printf("Drawing footer at Y=%d: '2025 Kelsi Davis'\n", cpyY);
+    MoveTo(contentRect.left + ((contentRect.right - contentRect.left) - StringWidth((ConstStr255Param)cpy)) / 2, cpyY);
+    DrawString((ConstStr255Param)cpy);
+    serial_printf("Footer drawn\n");
 
     EndUpdate(w);
 
@@ -583,6 +621,7 @@ Boolean AboutWindow_HandleMouseDown(WindowPtr w, short part, Point localPt)
 
     switch (part) {
         case inDrag:
+            serial_printf("AboutThisMac: In inDrag case\n");
             /* Select window before dragging (Mac OS standard behavior) */
             SelectWindow(w);
             /* Allow window to be dragged */
@@ -592,10 +631,11 @@ Boolean AboutWindow_HandleMouseDown(WindowPtr w, short part, Point localPt)
             return 1;  /* true */
 
         case inGoAway:
-            /* Handle close box */
-            if (TrackGoAway(w, localPt)) {
-                AboutWindow_CloseIf(w);
-            }
+            serial_printf("AboutThisMac: In inGoAway case\n");
+            /* Handle close box - TrackGoAway hangs, so just close directly */
+            serial_printf("AboutThisMac: Close box clicked, closing window\n");
+            AboutWindow_CloseIf(w);
+            serial_printf("AboutThisMac: After AboutWindow_CloseIf\n");
             return 1;  /* true */
 
         case inContent:
