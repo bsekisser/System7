@@ -18,14 +18,12 @@
 #include "SystemTypes.h"
 #include <string.h>
 #include <stdlib.h>  /* For abs() */
-#include <stdio.h>   /* For sprintf, snprintf */
 
 #include "Finder/finder.h"
 #include "Finder/finder_types.h"
 #include "FileMgr/file_manager.h"
 /* Use local headers instead of system headers */
 #include "MemoryMgr/memory_manager_types.h"
-#include "MemoryMgr/MemoryManager.h"  /* For NewPtr */
 #include "ResourceManager.h"
 #include "PatternMgr/pattern_manager.h"
 #include "FS/vfs.h"
@@ -34,9 +32,6 @@
 #include "Finder/Icon/icon_label.h"
 #include "Finder/Icon/icon_system.h"
 #include "QuickDrawConstants.h"
-#include "WindowManager/WindowFunctions.h"  /* For NewWindow, ShowWindow, SelectWindow, InvalRect */
-#include "EventManager/EventManager.h"      /* For EventAvail, GetNextEvent */
-#include "sys71_stubs.h"                    /* For SetDeskHook */
 
 /* HD Icon data - still needed by icon_system.c */
 extern const uint8_t g_HDIcon[128];
@@ -49,20 +44,12 @@ extern void serial_puts(const char* str);
 /* External function declarations */
 extern int sprintf(char* str, const char* format, ...);
 extern int snprintf(char* str, size_t size, const char* format, ...);
-extern void* NewPtr(long byteCount);
+extern Ptr NewPtr(Size byteCount);
 extern void InvalRect(const Rect* badRect);
 extern void SetDeskHook(void (*hookProc)(RgnHandle));
-extern short FSMakeFSSpec(short vRefNum, long dirID, const unsigned char *fileName, FSSpec *spec);
-extern short FSpCreate(const FSSpec *spec, OSType creator, OSType fileType, short scriptTag);
-extern short FSpOpenDF(const FSSpec *spec, short permission, short *refNum);
-extern short FSClose(short refNum);
-extern short FSRead(short refNum, long *count, void *buffPtr);
-extern short FSWrite(short refNum, long *count, const void *buffPtr);
-extern short SetEOF(short refNum, long logEOF);
-extern short PBHGetVInfoSync(void *paramBlock);
-extern short PBGetCatInfoSync(void *paramBlock);
 extern Boolean EventAvail(short eventMask, EventRecord *theEvent);
 extern Boolean GetNextEvent(short eventMask, EventRecord *theEvent);
+extern SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg);
 extern WindowPtr NewWindow(void *wStorage, const Rect *boundsRect, const unsigned char *title,
                            Boolean visible, short procID, WindowPtr behind, Boolean goAwayFlag, long refCon);
 extern void ShowWindow(WindowPtr theWindow);
@@ -1018,7 +1005,6 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     }
 
     /* Post updateEvt to defer desktop redraw (no reentrancy) */
-    extern OSErr PostEvent(EventKind eventNum, UInt32 eventMsg);
     PostEvent(updateEvt, 0);  /* desktop repaint */
     serial_printf("TrackIconDragSync: posted updateEvt\n");
 
@@ -1370,7 +1356,6 @@ OSErr Desktop_AddAliasIcon(const char* name, Point position, FileID targetID,
                  gDesktopIconCount - 1, gDesktopIconCount);
 
     /* Request desktop redraw */
-    extern OSErr PostEvent(EventKind eventNum, UInt32 eventMsg);
     PostEvent(updateEvt, 0);  /* 0 = desktop update */
 
     return noErr;
@@ -1576,7 +1561,6 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
         sLastClickIcon = hitIcon;
         sLastClickTicks = TickCount();
 
-        extern OSErr PostEvent(EventKind eventNum, UInt32 eventMsg);
         PostEvent(updateEvt, 0);  /* selection redraw deferred */
 
         serial_printf("Single-click: icon %d selected, sLastClickIcon=%d\n", hitIcon, sLastClickIcon);
@@ -1743,7 +1727,6 @@ void SelectNextDesktopIcon(void)
                  prevSelected, gSelectedIcon);
 
     /* Post updateEvt to defer redraw to event loop (avoids re-entrancy freeze) */
-    extern OSErr PostEvent(EventKind eventNum, UInt32 eventMsg);
     PostEvent(updateEvt, 0);  /* NULL window = desktop/background */
 }
 
