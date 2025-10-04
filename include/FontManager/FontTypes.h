@@ -19,6 +19,53 @@ extern "C" {
 #endif
 
 /* Font Constants */
+enum {
+    systemFont = 0,
+    applFont = 1,
+    newYork = 2,
+    geneva = 3,
+    monaco = 4,
+    venice = 5,
+    london = 6,
+    athens = 7,
+    sanFran = 8,
+    toronto = 9,
+    cairo = 11,
+    losAngeles = 12,
+    times = 20,
+    helvetica = 21,
+    courier = 22,
+    symbol = 23,
+    mobile = 24
+};
+
+/* Resource Type Constants */
+enum {
+    kFONTResourceType = 'FONT',
+    kNFNTResourceType = 'NFNT'
+};
+
+/* Font Error Codes */
+enum {
+    fontNotFoundErr = -4960,
+    fontCacheFullErr = -4961
+};
+
+/* Font Manager State */
+typedef struct FontManagerState {
+    Boolean initialized;
+    Boolean fractEnable;
+    Boolean scaleDisable;
+    Boolean outlinePreferred;
+    Boolean preserveGlyph;
+    Boolean fontLock;
+    void *cache;
+    void *substitutions;
+    short substitutionCount;
+    Fixed fontGamma;
+    Boolean hintingEnabled;
+    Boolean smoothingEnabled;
+} FontManagerState;
 
 /* Font Manager Input Record */
 
@@ -47,10 +94,44 @@ typedef struct FMOutput {
 /* Font Family Record - FOND Resource Header */
 
 /* Font Metrics Record */
+typedef struct FontMetrics {
+    Fixed ascent;
+    Fixed descent;
+    Fixed leading;
+    Fixed widMax;
+    Fixed lineHeight;
+} FontMetrics;
+
+/* Character Metrics Structure */
+typedef struct CharMetrics {
+    Fixed width;
+    Fixed height;
+    Fixed advanceX;
+    Fixed advanceY;
+    Rect bounds;
+} CharMetrics;
+
+/* Text Metrics Structure */
+typedef struct TextMetrics {
+    Fixed width;
+    Fixed height;
+    Fixed ascent;
+    Fixed descent;
+    Fixed leading;
+    short lineCount;
+} TextMetrics;
 
 /* Width Entry */
+typedef struct WidthEntry {
+    char character;
+    Fixed width;
+} WidthEntry;
 
 /* Width Table */
+typedef struct WidthTable {
+    short count;
+    WidthEntry entries[256];
+} WidthTable;
 
 /* Font Association Entry */
 
@@ -61,6 +142,11 @@ typedef struct FMOutput {
 /* Name Table */
 
 /* Kern Pair */
+typedef struct KernPair {
+    char first;
+    char second;
+    Fixed kerning;
+} KernPair;
 
 /* Kern Entry */
 
@@ -81,12 +167,24 @@ typedef struct FMOutput {
 /* Modern Font Format Structures */
 
 /* OpenType Font Structure */
+typedef struct OpenTypeFont {
+    UInt32 placeholder;
+} OpenTypeFont;
 
 /* WOFF Font Structure */
+typedef struct WOFFFont {
+    UInt32 placeholder;
+} WOFFFont;
 
 /* System Font Structure */
+typedef struct SystemFont {
+    UInt32 placeholder;
+} SystemFont;
 
 /* Font Collection Structure */
+typedef struct FontCollection {
+    UInt32 placeholder;
+} FontCollection;
 
 /* Modern Font Structure (Union of all types) */
 typedef struct ModernFont {
@@ -94,10 +192,29 @@ typedef struct ModernFont {
 } ModernFont;
 
 /* Web Font Metadata */
+typedef struct WebFontMetadata {
+    short familyID;
+    Str255 familyName;
+} WebFontMetadata;
 
 /* Font Directory Entry */
+typedef struct FontDirectoryEntry {
+    short familyID;
+    Str255 familyName;
+} FontDirectoryEntry;
 
 /* Font Directory */
+typedef struct FontDirectory {
+    short count;
+    FontDirectoryEntry *entries;
+} FontDirectory;
+
+/* Font Match Criteria */
+typedef struct FontMatchCriteria {
+    Str255 familyName;
+    short size;
+    short style;
+} FontMatchCriteria;
 
 #ifdef __cplusplus
 }

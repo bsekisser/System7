@@ -84,10 +84,17 @@ void DrawChar(short ch) {
 }
 
 void DrawString(ConstStr255Param s) {
-    if (!s || s[0] == 0) return;
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("DrawString called: s=%p, len=%d\n", s, s ? s[0] : -1);
+    if (!s || s[0] == 0) {
+        serial_printf("DrawString: null or empty string\n");
+        return;
+    }
+    serial_printf("DrawString: about to draw %d chars\n", s[0]);
     for (int i = 1; i <= s[0]; i++) {
         DrawChar(s[i]);
     }
+    serial_printf("DrawString: done\n");
 }
 
 void DrawText(const void* textBuf, short firstByte, short byteCount) {

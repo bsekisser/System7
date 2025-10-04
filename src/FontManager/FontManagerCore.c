@@ -16,9 +16,35 @@
 #include "FontManager/TrueTypeFonts.h"
 #include "FontManager/FontMetrics.h"
 #include "FontManager/ModernFonts.h"
-#include <Memory.h>
-#include <Resources.h>
-#include <Errors.h>
+#include "MemoryMgr/MemoryManager.h"
+#include "ResourceMgr/resource_manager.h"
+
+/* Helper to compare pascal strings */
+static Boolean EqualString(const unsigned char *s1, const unsigned char *s2, Boolean caseSensitive, Boolean diacSensitive) {
+    short len1 = s1[0];
+    short len2 = s2[0];
+    if (len1 != len2) return FALSE;
+    for (short i = 1; i <= len1; i++) {
+        unsigned char c1 = s1[i];
+        unsigned char c2 = s2[i];
+        if (!caseSensitive) {
+            if (c1 >= 'a' && c1 <= 'z') c1 -= 32;
+            if (c2 >= 'a' && c2 <= 'z') c2 -= 32;
+        }
+        if (c1 != c2) return FALSE;
+    }
+    return TRUE;
+}
+
+/* Helper to create pascal string from C string */
+static void CStrToPStr(const char *cstr, unsigned char *pstr) {
+    short len = 0;
+    while (cstr[len] && len < 255) {
+        pstr[len + 1] = cstr[len];
+        len++;
+    }
+    pstr[0] = len;
+}
 
 
 /* Font Manager Global State */
@@ -500,26 +526,27 @@ void SetFontErrorCallback(void (*callback)(OSErr error, const char *message))
 
 static OSErr InitializeFontFamilyTable(void)
 {
+    Str255 pstr;
     gFontFamilyCount = 0;
 
     /* Register built-in system fonts */
-    RegisterFontFamily(systemFont, "\pChicago");
-    RegisterFontFamily(applFont, "\pGeneva");
-    RegisterFontFamily(newYork, "\pNew York");
-    RegisterFontFamily(geneva, "\pGeneva");
-    RegisterFontFamily(monaco, "\pMonaco");
-    RegisterFontFamily(venice, "\pVenice");
-    RegisterFontFamily(london, "\pLondon");
-    RegisterFontFamily(athens, "\pAthens");
-    RegisterFontFamily(sanFran, "\pSan Francisco");
-    RegisterFontFamily(toronto, "\pToronto");
-    RegisterFontFamily(cairo, "\pCairo");
-    RegisterFontFamily(losAngeles, "\pLos Angeles");
-    RegisterFontFamily(times, "\pTimes");
-    RegisterFontFamily(helvetica, "\pHelvetica");
-    RegisterFontFamily(courier, "\pCourier");
-    RegisterFontFamily(symbol, "\pSymbol");
-    RegisterFontFamily(mobile, "\pMobile");
+    CStrToPStr("Chicago", pstr); RegisterFontFamily(systemFont, pstr);
+    CStrToPStr("Geneva", pstr); RegisterFontFamily(applFont, pstr);
+    CStrToPStr("New York", pstr); RegisterFontFamily(newYork, pstr);
+    CStrToPStr("Geneva", pstr); RegisterFontFamily(geneva, pstr);
+    CStrToPStr("Monaco", pstr); RegisterFontFamily(monaco, pstr);
+    CStrToPStr("Venice", pstr); RegisterFontFamily(venice, pstr);
+    CStrToPStr("London", pstr); RegisterFontFamily(london, pstr);
+    CStrToPStr("Athens", pstr); RegisterFontFamily(athens, pstr);
+    CStrToPStr("San Francisco", pstr); RegisterFontFamily(sanFran, pstr);
+    CStrToPStr("Toronto", pstr); RegisterFontFamily(toronto, pstr);
+    CStrToPStr("Cairo", pstr); RegisterFontFamily(cairo, pstr);
+    CStrToPStr("Los Angeles", pstr); RegisterFontFamily(losAngeles, pstr);
+    CStrToPStr("Times", pstr); RegisterFontFamily(times, pstr);
+    CStrToPStr("Helvetica", pstr); RegisterFontFamily(helvetica, pstr);
+    CStrToPStr("Courier", pstr); RegisterFontFamily(courier, pstr);
+    CStrToPStr("Symbol", pstr); RegisterFontFamily(symbol, pstr);
+    CStrToPStr("Mobile", pstr); RegisterFontFamily(mobile, pstr);
 
     return noErr;
 }

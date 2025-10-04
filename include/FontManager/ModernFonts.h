@@ -56,8 +56,8 @@ OSErr GetAvailableSystemFonts(char ***fontNames, unsigned long *count);
 /* Font Collection Support */
 OSErr LoadFontCollection(ConstStr255Param filePath, FontCollection **collection);
 OSErr UnloadFontCollection(FontCollection *collection);
-OSErr GetFontFromCollection(FontCollection *collection, unsigned long index, OpenTypeFont **font);
-OSErr GetCollectionFontCount(FontCollection *collection, unsigned long *count);
+OSErr GetFontFromCollection(FontCollection *collection, short index, ModernFont **font);
+OSErr GetCollectionFontCount(FontCollection *collection, short *count);
 OSErr GetCollectionFontInfo(FontCollection *collection, unsigned long index,
                            char **familyName, char **styleName);
 
@@ -84,12 +84,11 @@ OSErr ExtractFontMetrics(ModernFont *font, FMetricRec *metrics);
 OSErr CreateMacFontRecord(ModernFont *font, FontRec **fontRec);
 
 /* Web Font Support */
-OSErr DownloadWebFont(ConstStr255Param url, ConstStr255Param cachePath,
-                     WebFontMetadata *metadata);
+OSErr DownloadWebFont(ConstStr255Param url, ConstStr255Param cachePath, short *familyID);
 OSErr LoadWebFont(ConstStr255Param filePath, WebFontMetadata *metadata, ModernFont **font);
 OSErr ParseWebFontCSS(ConstStr255Param cssPath, WebFontMetadata **metadataArray,
                      unsigned long *count);
-OSErr ValidateWebFont(ConstStr255Param filePath, WebFontMetadata *metadata);
+OSErr ValidateWebFont(ConstStr255Param filePath);
 
 /* Font Rendering Support */
 OSErr RenderModernGlyph(ModernFont *font, unsigned short glyphID, unsigned short size,
