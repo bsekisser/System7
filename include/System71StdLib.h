@@ -37,5 +37,7 @@ int serial_data_ready(void);
 char serial_getchar(void);
 void serial_print_hex(uint32_t value);
 void serial_printf(const char* fmt, ...);
+int sprintf(char* str, const char* format, ...);
+int snprintf(char* str, size_t size, const char* format, ...);
 
 #endif /* SYSTEM71_STDLIB_H */
