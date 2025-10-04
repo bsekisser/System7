@@ -99,8 +99,10 @@ static UInt32 sLastClickTicks = 0;           /* When it was clicked */
 static OSErr LoadDesktopDatabase(short vRefNum);
 static OSErr SaveDesktopDatabase(short vRefNum);
 static OSErr AllocateDesktopIcons(void);
+/* Unused functions in #if 0 block:
 static Point CalculateNextIconPosition(void);
 static Boolean IsPositionOccupied(Point position);
+*/
 static OSErr ScanDirectoryForDesktopEntries(short vRefNum, long dirID, short databaseRefNum);
 static Point SnapToGrid(Point p);
 static void UpdateIconRect(short iconIndex, Rect *outRect);
