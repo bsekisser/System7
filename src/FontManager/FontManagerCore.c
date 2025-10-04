@@ -32,11 +32,53 @@ extern void serial_printf(const char* fmt, ...);
 
 /* External dependencies */
 extern GrafPtr g_currentPort;
-extern void DrawString(ConstStr255Param s);
-extern short StringWidth(ConstStr255Param s);
+
+/* External framebuffer from multiboot */
+extern void* framebuffer;
+extern uint32_t fb_width;
+extern uint32_t fb_height;
+extern uint32_t fb_pitch;
+extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 
 /* Global Font Manager state */
 static FontManagerState g_fmState = {0};
+
+/* ============================================================================
+ * Internal Low-Level Character Drawing
+ * ============================================================================ */
+
+/* Helper to get a bit from MSB-first bitmap */
+static inline uint8_t get_bit(const uint8_t *row, int bitOff) {
+    return (row[bitOff >> 3] >> (7 - (bitOff & 7))) & 1;
+}
+
+/*
+ * FM_DrawChicagoCharInternal - Internal function to draw a Chicago character at pixel level
+ * This is the core drawing function used by all Font Manager rendering
+ */
+void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color) {
+    if (!framebuffer) return;
+    if (ch < 32 || ch > 126) return;
+
+    ChicagoCharInfo info = chicago_ascii[ch - 32];
+    x += info.left_offset;
+
+    uint32_t *fb = (uint32_t*)framebuffer;
+
+    for (int row = 0; row < CHICAGO_HEIGHT; row++) {
+        if (y + row >= fb_height) break;
+        const uint8_t *strike_row = chicago_bitmap + (row * CHICAGO_ROW_BYTES);
+
+        for (int col = 0; col < info.bit_width; col++) {
+            if (x + col >= fb_width) break;
+            int bit_position = info.bit_start + col;
+            if (get_bit(strike_row, bit_position)) {
+                int fb_offset = (y + row) * (fb_pitch / 4) + (x + col);
+                fb[fb_offset] = color;
+            }
+        }
+    }
+}
 
 /* Built-in Chicago font strike (from chicago_font.h) */
 static FontStrike g_chicagoStrike12 = {
@@ -386,6 +428,102 @@ void FM_DrawRun(const unsigned char* bytes, short len, Point baseline) {
 
     /* Restore pen (DrawChar advances it) */
     /* Actually leave pen advanced for proper text flow */
+}
+
+/* ============================================================================
+ * QuickDraw Coordinate Conversion
+ * ============================================================================ */
+
+/*
+ * QD_LocalToPixel - Convert QuickDraw local coordinates to pixel coordinates
+ */
+void QD_LocalToPixel(short localX, short localY, short* pixelX, short* pixelY) {
+    if (!g_currentPort || !pixelX || !pixelY) return;
+
+    /* Convert from QuickDraw coordinates to framebuffer pixels */
+    /* Account for the port's origin */
+    *pixelX = localX - g_currentPort->portRect.left + g_currentPort->portBits.bounds.left;
+    *pixelY = localY - g_currentPort->portRect.top + g_currentPort->portBits.bounds.top;
+}
+
+/* ============================================================================
+ * QuickDraw Text Drawing Functions
+ * ============================================================================ */
+
+/*
+ * DrawChar - Draw a single character at the current pen location
+ */
+void DrawChar(short ch) {
+    if (!g_currentPort) return;
+
+    /* Get current pen location and convert to pixels */
+    Point pen = g_currentPort->pnLoc;
+    short px, py;
+    QD_LocalToPixel(pen.h, pen.v - CHICAGO_ASCENT, &px, &py);
+
+    /* Draw the character using internal function */
+    FM_DrawChicagoCharInternal(px, py, (char)ch, pack_color(0, 0, 0));
+
+    /* Advance pen by character width */
+    g_currentPort->pnLoc.h += CharWidth(ch);
+}
+
+/*
+ * DrawString - Draw a Pascal string at the current pen location
+ */
+void DrawString(ConstStr255Param s) {
+    if (!s || s[0] == 0 || !g_currentPort) return;
+
+    unsigned char len = s[0];
+    Point pen = g_currentPort->pnLoc;
+    short px, py;
+
+    /* Get pixel position for drawing */
+    QD_LocalToPixel(pen.h, pen.v - CHICAGO_ASCENT, &px, &py);
+
+    /* Draw each character and update position */
+    for (int i = 1; i <= len; i++) {
+        FM_DrawChicagoCharInternal(px, py, s[i], pack_color(0, 0, 0));
+        ChicagoCharInfo info = chicago_ascii[s[i] - 32];
+        short width = info.bit_width + 2;
+        if (s[i] == ' ') width += 3;
+        px += width;
+        pen.h += width;
+    }
+
+    /* Update pen position */
+    g_currentPort->pnLoc = pen;
+}
+
+/*
+ * DrawText - Draw text buffer at current pen location
+ * Different from DrawString - takes a buffer pointer and length
+ */
+void DrawText(const void* textBuf, short firstByte, short byteCount) {
+    if (!textBuf || byteCount <= 0 || !g_currentPort) return;
+
+    const unsigned char* text = (const unsigned char*)textBuf;
+    Point pen = g_currentPort->pnLoc;
+    short px, py;
+
+    /* Get pixel position for drawing */
+    QD_LocalToPixel(pen.h, pen.v - CHICAGO_ASCENT, &px, &py);
+
+    /* Draw each character */
+    for (short i = 0; i < byteCount; i++) {
+        unsigned char ch = text[firstByte + i];
+        if (ch >= 32 && ch <= 126) {
+            FM_DrawChicagoCharInternal(px, py, ch, pack_color(0, 0, 0));
+            ChicagoCharInfo info = chicago_ascii[ch - 32];
+            short width = info.bit_width + 2;
+            if (ch == ' ') width += 3;
+            px += width;
+            pen.h += width;
+        }
+    }
+
+    /* Update pen position */
+    g_currentPort->pnLoc = pen;
 }
 
 /* ============================================================================

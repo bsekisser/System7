@@ -31,7 +31,9 @@ extern void serial_printf(const char* fmt, ...);
 
 /* External dependencies */
 extern GrafPtr g_currentPort;
-extern void DrawRealChicagoChar(short x, short y, char ch, uint32_t color);
+
+/* Internal Font Manager drawing function */
+extern void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color);
 
 /* Style synthesis parameters (per System 7.1) */
 #define BOLD_OFFSET         1    /* Horizontal emboldening pixels */
@@ -56,10 +58,10 @@ void FM_SynthesizeBold(short x, short y, char ch, uint32_t color) {
     FSS_LOG("SynthesizeBold: char='%c' at (%d,%d)\n", ch, x, y);
 
     /* Draw original character */
-    DrawRealChicagoChar(x, y, ch, color);
+    FM_DrawChicagoCharInternal(x, y, ch, color);
 
     /* Draw offset copy for emboldening */
-    DrawRealChicagoChar(x + BOLD_OFFSET, y, ch, color);
+    FM_DrawChicagoCharInternal(x + BOLD_OFFSET, y, ch, color);
 }
 
 /*
@@ -86,7 +88,7 @@ void FM_SynthesizeItalic(short x, short y, char ch, uint32_t color) {
 
     /* Draw character with top shifted right */
     /* This is simplified - real implementation needs bitmap manipulation */
-    DrawRealChicagoChar(x, y, ch, color);
+    FM_DrawChicagoCharInternal(x, y, ch, color);
 }
 
 /*
@@ -130,10 +132,10 @@ void FM_SynthesizeShadow(short x, short y, char ch, uint32_t foreColor, uint32_t
     FSS_LOG("SynthesizeShadow: char='%c' at (%d,%d)\n", ch, x, y);
 
     /* Draw shadow first (offset and in shadow color) */
-    DrawRealChicagoChar(x + SHADOW_OFFSET_X, y + SHADOW_OFFSET_Y, ch, shadowColor);
+    FM_DrawChicagoCharInternal(x + SHADOW_OFFSET_X, y + SHADOW_OFFSET_Y, ch, shadowColor);
 
     /* Draw main character on top */
-    DrawRealChicagoChar(x, y, ch, foreColor);
+    FM_DrawChicagoCharInternal(x, y, ch, foreColor);
 }
 
 /*
@@ -159,13 +161,13 @@ void FM_SynthesizeOutline(short x, short y, char ch, uint32_t outlineColor, uint
     for (short dx = -OUTLINE_THICKNESS; dx <= OUTLINE_THICKNESS; dx++) {
         for (short dy = -OUTLINE_THICKNESS; dy <= OUTLINE_THICKNESS; dy++) {
             if (dx != 0 || dy != 0) {
-                DrawRealChicagoChar(x + dx, y + dy, ch, outlineColor);
+                FM_DrawChicagoCharInternal(x + dx, y + dy, ch, outlineColor);
             }
         }
     }
 
     /* Draw fill in center */
-    DrawRealChicagoChar(x, y, ch, fillColor);
+    FM_DrawChicagoCharInternal(x, y, ch, fillColor);
 }
 
 /*
@@ -240,7 +242,7 @@ void FM_SynthesizeStyledChar(short x, short y, char ch, Style face, uint32_t col
         FM_SynthesizeItalic(x, y, ch, color);
     } else {
         /* Plain character */
-        DrawRealChicagoChar(x, y, ch, color);
+        FM_DrawChicagoCharInternal(x, y, ch, color);
     }
 
     /* Add underline if needed (drawn after character) */

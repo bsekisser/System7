@@ -32,7 +32,9 @@ extern void serial_printf(const char* fmt, ...);
 
 /* External dependencies */
 extern GrafPtr g_currentPort;
-extern void DrawRealChicagoChar(short x, short y, char ch, uint32_t color);
+
+/* Internal Font Manager drawing function */
+extern void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color);
 
 /* Standard Mac font sizes (in points) */
 static const short g_standardSizes[] = {9, 10, 12, 14, 18, 24};
@@ -118,14 +120,14 @@ static void FM_ScaleCharNearestNeighbor(short srcX, short srcY, char ch,
         /* Scaling up - draw multiple pixels for each source pixel */
         int scaleInt = (int)(scale + 0.5f);
         for (int rep = 0; rep < scaleInt; rep++) {
-            DrawRealChicagoChar(srcX + rep, srcY, ch, color);
+            FM_DrawChicagoCharInternal(srcX + rep, srcY, ch, color);
         }
     } else if (scale < 1.0f) {
         /* Scaling down - skip pixels */
-        DrawRealChicagoChar(srcX, srcY, ch, color);
+        FM_DrawChicagoCharInternal(srcX, srcY, ch, color);
     } else {
         /* No scaling needed */
-        DrawRealChicagoChar(srcX, srcY, ch, color);
+        FM_DrawChicagoCharInternal(srcX, srcY, ch, color);
     }
 }
 
@@ -201,7 +203,7 @@ void FM_SynthesizeSize(short x, short y, char ch, short targetSize, uint32_t col
     /* Apply scaling */
     if (baseSize == 12 && targetSize == 12) {
         /* No scaling needed for Chicago 12 */
-        DrawRealChicagoChar(x, y, ch, color);
+        FM_DrawChicagoCharInternal(x, y, ch, color);
     } else {
         /* Scale from base size */
         FM_ScaleCharNearestNeighbor(x, y, ch, scale, color);
