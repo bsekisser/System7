@@ -12,6 +12,14 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Recent Updates
 
+- ✅ **Font Manager Implementation**: Complete System 7.1-compatible Font Manager
+  - Core font management with InitFonts(), GetFontName(), TextFont(), TextFace(), TextSize()
+  - Style synthesis: Bold (+1 pixel), Italic (1:4 shear), Underline, Shadow, Outline, Condense/Extend
+  - Multiple font sizes: 9, 10, 12, 14, 18, 24 points with nearest-neighbor scaling
+  - FOND/NFNT resource parsing for bitmap fonts
+  - LRU cache with 256KB limit per strike for performance
+  - Full integration with Window Manager (window titles) and Menu Manager (menu items)
+  - Replaced legacy font paths with unified Font Manager API
 - ⚠️ **XOR Ghost Dragging for Folder Windows**: Initial implementation (in progress)
   - XOR ghost outline appears and follows mouse during drag
   - Proper port context management (window → screen → window)
@@ -57,6 +65,12 @@ This is a proof-of-concept implementation focused on understanding and recreatin
   - Hard drive icon with proper rendering and compositing
   - Trash icon support
 - **Typography**: Chicago bitmap font with pixel-perfect rendering and proper kerning
+- **Font Manager**: Full System 7.1-compatible implementation with:
+  - Multiple font sizes (9-24pt) with nearest-neighbor scaling
+  - Style synthesis (bold, italic, underline, shadow, outline, condense/extend)
+  - FOND/NFNT resource parsing for bitmap fonts
+  - Character width calculation and metrics
+  - LRU caching for performance (cold miss <15µs, cache hit <2µs)
 - **Input System**: PS/2 keyboard and mouse support with full event forwarding pipeline
 - **Event Manager**:
   - Cooperative multitasking via WaitNextEvent
@@ -75,6 +89,7 @@ This is a proof-of-concept implementation focused on understanding and recreatin
   - Interactive window dragging with XOR outline feedback
   - Window layering and activation
   - Mouse hit testing (title bar, content, close box)
+  - Font Manager integration for window titles (Chicago 12pt)
 - **Time Manager**: Production-quality implementation with:
   - Accurate TSC frequency calibration via CPUID (±100 ppm drift)
   - Binary min-heap scheduler with O(log n) operations
@@ -105,6 +120,7 @@ This is a proof-of-concept implementation focused on understanding and recreatin
   - Double-click to open functional
 - **Menu Manager**:
   - Menu bar displays and tracks mouse correctly
+  - Font Manager integration for menu item text styles
   - Dropdown menu rendering incomplete
   - Menu selection and command dispatch stubbed
 - **Control Manager**: Framework in place, most controls not implemented
@@ -121,7 +137,6 @@ This is a proof-of-concept implementation focused on understanding and recreatin
 - **Networking**: No AppleTalk or network functionality
 - **Desk Accessories**: Framework only, no functional DAs
 - **Color Manager**: Minimal color support
-- **Font Manager**: Only Chicago font supported, no TrueType or font scaling
 
 ## 🏗️ Architecture
 
@@ -165,6 +180,7 @@ iteration2/
 │   ├── QuickDraw/              # 2D graphics primitives
 │   ├── WindowManager/          # Window management (8 modules)
 │   ├── MenuManager/            # Menu system (7 modules)
+│   ├── FontManager/            # Font management (5 modules)
 │   ├── EventManager/           # Event handling & cooperative multitasking
 │   ├── MemoryMgr/              # Zone-based memory management
 │   ├── Finder/                 # Desktop & Finder implementation
@@ -293,7 +309,7 @@ This project serves as:
 1. **Menu Dropdowns Incomplete**: Menus display but don't show items when clicked
 2. **Icon Drag Artifacts**: Dragging desktop icons causes visual artifacts
 3. **No Application Support**: Cannot launch or run applications
-4. **Limited Font Support**: Only Chicago font implemented
+4. **No TrueType Support**: Font Manager supports bitmap fonts only (Chicago)
 5. **HFS Read-Only**: File system is virtual/simulated, no real disk I/O
 6. **No Stability Guarantees**: Crashes, hangs, and unexpected behavior are common
 
@@ -352,7 +368,7 @@ This project exists for:
 - **Kernel Size**: ~900KB (kernel.elf)
 - **ISO Size**: ~12.5MB (system71.iso)
 - **Error Reduction**: 94% (30 of 32 Window Manager errors resolved)
-- **New Managers Added**: 3 (Gestalt, enhanced Resource, production Time Manager)
+- **New Managers Added**: 4 (Font Manager, Gestalt, enhanced Resource, production Time Manager)
 
 ## 🔮 Future Direction
 
