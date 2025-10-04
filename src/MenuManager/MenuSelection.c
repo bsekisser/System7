@@ -55,7 +55,7 @@ typedef struct MenuTrackingState {
     Handle savedRegion;
     Point lastMousePoint;
     Point mousePoint;
-    Boolean mouseDown;
+    Boolean buttonDown;
     Boolean mouseMoved;
     short h;
     short v;
@@ -223,7 +223,6 @@ long MenuSelect(Point startPt)
 short MenuSelectEx(Point startPt, MenuTrackInfo* trackInfo, MenuSelection* selection)
 {
     Point currentPt;
-    Boolean mouseDown;
     unsigned long modifiers;
     Boolean isInMenuBar, isInMenu;
     short currentMenu = 0;
@@ -437,7 +436,6 @@ long MenuChoice(void)
 short TrackMenuBar(Point startPt, MenuTrackInfo* trackInfo)
 {
     Point currentPt;
-    Boolean mouseDown;
     short menuUnderMouse = 0;
 
     if (!IsPointInMenuBar(startPt)) {
@@ -478,7 +476,6 @@ short TrackPullDownMenu(MenuHandle theMenu, const Rect* menuRect,
                        Point startPt, MenuTrackInfo* trackInfo)
 {
     Point currentPt;
-    Boolean mouseDown;
     short itemUnderMouse = 0;
     short lastItem = 0;
 
@@ -668,7 +665,7 @@ void EndMenuTracking(MenuTrackInfo* trackInfo)
 /*
  * UpdateMenuTracking - Update menu tracking state
  */
-void UpdateMenuTracking(MenuTrackInfo* trackInfo, Point mousePt, Boolean mouseDown)
+void UpdateMenuTracking(MenuTrackInfo* trackInfo, Point mousePt, Boolean buttonDown)
 {
     if (trackInfo == NULL) {
         return;
@@ -676,7 +673,7 @@ void UpdateMenuTracking(MenuTrackInfo* trackInfo, Point mousePt, Boolean mouseDo
 
     trackInfo->lastMousePoint = trackInfo->mousePoint;
     trackInfo->mousePoint = mousePt;
-    trackInfo->mouseDown = mouseDown;
+    trackInfo->mouseDown = buttonDown;
     trackInfo->mouseMoved = (mousePt.h != (trackInfo)->h ||
                             mousePt.v != (trackInfo)->v);
     trackInfo->lastMoveTime = GetCurrentTime();
@@ -805,9 +802,9 @@ Boolean CompareMenuChoices(long choice1, long choice2)
 /*
  * GetMenuMouseState - Get current mouse state for menus
  */
-void GetMenuMouseState(Point* mousePt, Boolean* mouseDown, unsigned long* modifiers)
+void GetMenuMouseState(Point* mousePt, Boolean* buttonDown, unsigned long* modifiers)
 {
-    GetCurrentMouseState(mousePt, mouseDown, modifiers);
+    GetCurrentMouseState(mousePt, buttonDown, modifiers);
 }
 
 /*
@@ -1041,7 +1038,7 @@ static void FlashMenuFeedback(short menuID, short item)
 /*
  * GetCurrentMouseState - Get current mouse state
  */
-static void GetCurrentMouseState(Point* mousePt, Boolean* mouseDown, unsigned long* modifiers)
+static void GetCurrentMouseState(Point* mousePt, Boolean* buttonDown, unsigned long* modifiers)
 {
     extern void GetMouse(Point* mouseLoc);
     extern Boolean Button(void);
@@ -1051,9 +1048,9 @@ static void GetCurrentMouseState(Point* mousePt, Boolean* mouseDown, unsigned lo
         GetMouse(mousePt);
     }
 
-    if (mouseDown != NULL) {
+    if (buttonDown != NULL) {
         /* Get actual mouse button state */
-        *mouseDown = Button();
+        *buttonDown = Button();
     }
 
     if (modifiers != NULL) {
