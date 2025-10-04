@@ -590,7 +590,9 @@ static void InitializeWMgrPort(void) {
 
     /* Get screen bounds for gray region */
     g_wmState.grayRgn = NewRgn();
-    Platform_GetScreenBounds(g_wmState.grayRgn);
+    Rect screenBounds;
+    Platform_GetScreenBounds(&screenBounds);
+    Platform_SetRectRgn(g_wmState.grayRgn, &screenBounds);
 
     /* Initialize Color Window Manager port if available */
     if (g_wmState.colorQDAvailable) {

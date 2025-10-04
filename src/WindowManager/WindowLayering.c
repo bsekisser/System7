@@ -29,17 +29,17 @@
 
 /* [WM-019] Forward declarations for file-local Z-order helpers */
 /* Provenance: IM:Windows Vol I pp. 2-54 to 2-58 "Window Ordering" */
-static long WM_CalculateWindowStackLevel(WindowPtr window);
-static Boolean WM_IsFloatingWindow(WindowPtr window);
-static Boolean WM_IsAlertDialog(WindowPtr window);
-static void WM_RecalculateAllVisibleRegions(void);
-static void WM_ClipVisibleRegionsByHigherWindows(WindowPtr baseWindow);
-static void WM_UpdateWindowVisibilityStats(WindowPtr window, RgnHandle visibleRgn);
-static long WM_CalculateRegionArea(RgnHandle rgn);
-static void WM_DisableWindowsBehindModal(WindowPtr modalWindow);
-static void WM_UpdatePlatformWindowOrder(void);
-static void WM_CalculateWindowVisibility(WindowPtr window);
-static Boolean WM_WindowsOverlap(WindowPtr window1, WindowPtr window2);
+static long Local_CalculateWindowStackLevel(WindowPtr window);
+static Boolean Local_IsFloatingWindow(WindowPtr window);
+static Boolean Local_IsAlertDialog(WindowPtr window);
+static void Local_RecalculateAllVisibleRegions(void);
+static void Local_ClipVisibleRegionsByHigherWindows(WindowPtr baseWindow);
+static void Local_UpdateWindowVisibilityStats(WindowPtr window, RgnHandle visibleRgn);
+static long Local_CalculateRegionArea(RgnHandle rgn);
+static void Local_DisableWindowsBehindModal(WindowPtr modalWindow);
+static void Local_UpdatePlatformWindowOrder(void);
+static void Local_CalculateWindowVisibility(WindowPtr window);
+static Boolean Local_WindowsOverlap(WindowPtr window1, WindowPtr window2);
 
 /* ============================================================================
  * Window Layer Constants and Types
@@ -79,7 +79,7 @@ static struct {
  * Window Layer Queries and Management
  * ============================================================================ */
 
-static WindowLayer WM_GetWindowLayer(WindowPtr window) {
+static WindowLayer Local_GetWindowLayer(WindowPtr window) {
     if (window == NULL) return kLayerNormal;
 
     /* Determine layer based on window kind and properties */
@@ -90,7 +90,7 @@ static WindowLayer WM_GetWindowLayer(WindowPtr window) {
                 return kLayerModal;
             }
             /* Check for alert style */
-            if (WM_IsAlertDialog(window)) {
+            if (Local_IsAlertDialog(window)) {
                 return kLayerAlert;
             }
             return kLayerFloating;
@@ -101,14 +101,14 @@ static WindowLayer WM_GetWindowLayer(WindowPtr window) {
         case userKind:  /* deskKind and userKind are same value (8) */
         default:
             /* Check for floating window attribute */
-            if (WM_IsFloatingWindow(window)) {
+            if (Local_IsFloatingWindow(window)) {
                 return kLayerFloating;
             }
             return kLayerNormal;
     }
 }
 
-static Boolean WM_IsFloatingWindow(WindowPtr window) {
+static Boolean Local_IsFloatingWindow(WindowPtr window) {
     if (window == NULL) return false;
 
     /* Check auxiliary window record for floating attribute */
@@ -123,7 +123,7 @@ static Boolean WM_IsFloatingWindow(WindowPtr window) {
     return false;
 }
 
-static Boolean WM_IsAlertDialog(WindowPtr window) {
+static Boolean Local_IsAlertDialog(WindowPtr window) {
     if (window == NULL) return false;
 
     /* [WM-021] Provenance: IM:Windows Vol I p.2-90 "Alert and Dialog WDEFs" */
@@ -131,7 +131,7 @@ static Boolean WM_IsAlertDialog(WindowPtr window) {
     return (window->windowKind == dialogKind);
 }
 
-static void WM_SetWindowLayer(WindowPtr window, WindowLayer layer) {
+static void Local_SetWindowLayer(WindowPtr window, WindowLayer layer) {
     if (window == NULL) return;
 
     WM_DEBUG("WM_SetWindowLayer: Setting window to layer %d", layer);
@@ -170,7 +170,7 @@ void WM_RecalculateWindowOrder(void) {
 
     while (current != NULL) {
         next = current->nextWindow;
-        WindowLayer layer = WM_GetWindowLayer(current);
+        WindowLayer layer = Local_GetWindowLayer(current);
         int layerIndex = (layer / 100) % 6;
 
         /* Add to appropriate layer list */
@@ -199,7 +199,7 @@ void WM_RecalculateWindowOrder(void) {
     }
 
     /* Update platform layer ordering */
-    WM_UpdatePlatformWindowOrder();
+    Local_UpdatePlatformWindowOrder();
 
     /* Recalculate visibility for all windows */
     WM_RecalculateAllVisibility();
@@ -210,19 +210,14 @@ void WM_RecalculateWindowOrder(void) {
     WM_DEBUG("WM_RecalculateWindowOrder: Window order recalculated");
 }
 
-static void WM_UpdatePlatformWindowOrder(void) {
+static void Local_UpdatePlatformWindowOrder(void) {
     WindowManagerState* wmState = GetWindowManagerState();
     WindowPtr current = wmState->windowList;
 
     WM_DEBUG("WM_UpdatePlatformWindowOrder: Updating platform window order");
 
     /* Update native window stacking order */
-    while (current != NULL) {
-        if (current->visible) {
-            Platform_UpdateNativeWindowOrder(current);
-        }
-        current = current->nextWindow;
-    }
+    Platform_UpdateNativeWindowOrder();
 }
 
 /* ============================================================================
@@ -237,7 +232,7 @@ void WM_RecalculateAllVisibility(void) {
 
     while (current != NULL) {
         if (current->visible) {
-            WM_CalculateWindowVisibility(current);
+            Local_CalculateWindowVisibility(current);
         }
         current = current->nextWindow;
     }
@@ -245,7 +240,7 @@ void WM_RecalculateAllVisibility(void) {
     WM_DEBUG("WM_RecalculateAllVisibility: Visibility recalculation complete");
 }
 
-static void WM_CalculateWindowVisibility(WindowPtr window) {
+static void Local_CalculateWindowVisibility(WindowPtr window) {
     if (window == NULL || !window->visible) return;
 
     WM_DEBUG("WM_CalculateWindowVisibility: Calculating visibility for window");
@@ -263,7 +258,7 @@ static void WM_CalculateWindowVisibility(WindowPtr window) {
     while (current != window && current != NULL) {
         if (current->visible && current->strucRgn) {
             /* Check if windows overlap */
-            if (WM_WindowsOverlap(current, window)) {
+            if (Local_WindowsOverlap(current, window)) {
                 Platform_DiffRgn(workingRgn, current->strucRgn, workingRgn);
             }
         }
@@ -276,14 +271,14 @@ static void WM_CalculateWindowVisibility(WindowPtr window) {
     }
 
     /* Calculate visibility statistics */
-    WM_UpdateWindowVisibilityStats(window, workingRgn);
+    Local_UpdateWindowVisibilityStats(window, workingRgn);
 
     Platform_DisposeRgn(workingRgn);
 
     WM_DEBUG("WM_CalculateWindowVisibility: Visibility calculated");
 }
 
-static Boolean WM_WindowsOverlap(WindowPtr window1, WindowPtr window2) {
+static Boolean Local_WindowsOverlap(WindowPtr window1, WindowPtr window2) {
     if (window1 == NULL || window2 == NULL) return false;
     if (window1->strucRgn == NULL || window2->strucRgn == NULL) return false;
 
@@ -298,12 +293,12 @@ static Boolean WM_WindowsOverlap(WindowPtr window1, WindowPtr window2) {
     return overlap;
 }
 
-static void WM_UpdateWindowVisibilityStats(WindowPtr window, RgnHandle visibleRgn) {
+static void Local_UpdateWindowVisibilityStats(WindowPtr window, RgnHandle visibleRgn) {
     if (window == NULL || visibleRgn == NULL) return;
 
     /* Calculate visibility percentage */
-    long totalArea = WM_CalculateRegionArea(window->strucRgn);
-    long visibleArea = WM_CalculateRegionArea(visibleRgn);
+    long totalArea = Local_CalculateRegionArea(window->strucRgn);
+    long visibleArea = Local_CalculateRegionArea(visibleRgn);
 
     short visibilityPercent = 0;
     if (totalArea > 0) {
@@ -324,7 +319,7 @@ static void WM_UpdateWindowVisibilityStats(WindowPtr window, RgnHandle visibleRg
     WM_DEBUG("WM_UpdateWindowVisibilityStats: Window is %d%% visible", visibilityPercent);
 }
 
-static long WM_CalculateRegionArea(RgnHandle rgn) {
+static long Local_CalculateRegionArea(RgnHandle rgn) {
     if (rgn == NULL) return 0;
 
     /* Get region bounding rectangle and calculate area */
@@ -357,13 +352,13 @@ void WM_SetModalWindow(WindowPtr window) {
 
     if (window != NULL) {
         /* Move modal window to modal layer */
-        WM_SetWindowLayer(window, kLayerModal);
+        Local_SetWindowLayer(window, kLayerModal);
 
         /* Bring to front */
         BringToFront(window);
 
         /* Disable windows behind modal window */
-        WM_DisableWindowsBehindModal(window);
+        Local_DisableWindowsBehindModal(window);
     }
 
     /* Recalculate window order */
@@ -384,7 +379,7 @@ void WM_ClearModalWindow(void) {
     WM_EnableAllWindows();
 
     /* Move modal window back to normal layer */
-    WM_SetWindowLayer(modalWindow, kLayerNormal);
+    Local_SetWindowLayer(modalWindow, kLayerNormal);
 
     /* Recalculate window order */
     WM_RecalculateWindowOrder();
@@ -396,7 +391,7 @@ WindowPtr WM_GetModalWindow(void) {
     return g_layerState.modalWindow;
 }
 
-static void WM_DisableWindowsBehindModal(WindowPtr modalWindow) {
+static void Local_DisableWindowsBehindModal(WindowPtr modalWindow) {
     if (modalWindow == NULL) return;
 
     WM_DEBUG("WM_DisableWindowsBehindModal: Disabling windows behind modal");
@@ -457,7 +452,7 @@ void WM_AddFloatingWindow(WindowPtr window) {
     }
 
     /* Set floating layer */
-    WM_SetWindowLayer(window, kLayerFloating);
+    Local_SetWindowLayer(window, kLayerFloating);
 
     /* Add to floating window list */
     /* TODO: Maintain separate floating window list if needed */
@@ -482,7 +477,7 @@ void WM_RemoveFloatingWindow(WindowPtr window) {
     }
 
     /* Move to normal layer */
-    WM_SetWindowLayer(window, kLayerNormal);
+    Local_SetWindowLayer(window, kLayerNormal);
 
     /* Recalculate window order */
     WM_RecalculateWindowOrder();
@@ -635,8 +630,8 @@ void WM_DumpWindowLayerInfo(void) {
     int windowIndex = 0;
 
     while (current != NULL) {
-        WindowLayer layer = WM_GetWindowLayer(current);
-        Boolean floating = WM_IsFloatingWindow(current);
+        WindowLayer layer = Local_GetWindowLayer(current);
+        Boolean floating = Local_IsFloatingWindow(current);
         Boolean modal = (current == g_layerState.modalWindow);
 
         printf("Window %d: Layer=%d, Visible=%s, Floating=%s, Modal=%s\n",

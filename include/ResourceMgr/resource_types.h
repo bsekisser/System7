@@ -28,13 +28,14 @@
 #define kResourceDataHeaderSize    4
 
 /* Resource Type Constants */
-/*
-#define kKeyboardCharResourceType    0x4B434852  /* 'KCHR' */
-#define kKeyboardMapResourceType     0x4B4D4150  /* 'KMAP' */
-#define kKeyboardCapsResourceType    0x4B434150  /* 'KCAP' */
-#define kFileRefResourceType         0x46524546  /* 'FREF' */
-#define kIconListResourceType        0x49434E23  /* 'ICN#' */
-#define kCacheResourceType           0x43414348  /* 'CACH' */
+/* Commented out - may conflict with other definitions
+#define kKeyboardCharResourceType    0x4B434852
+#define kKeyboardMapResourceType     0x4B4D4150
+#define kKeyboardCapsResourceType    0x4B434150
+#define kFileRefResourceType         0x46524546
+#define kIconListResourceType        0x49434E23
+#define kCacheResourceType           0x43414348
+*/
 #define kControlDefResourceType      0x43444546  /* 'CDEF' */
 
 /* Resource Attributes */

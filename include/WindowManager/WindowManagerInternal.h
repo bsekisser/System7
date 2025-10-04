@@ -78,8 +78,8 @@ Boolean Platform_HasColorQuickDraw(void);
 Boolean Platform_IsMouseDown(void);
 void Platform_GetMousePosition(Point* pt);
 void Platform_WaitTicks(short ticks);
-short Platform_LocalToGlobalPoint(WindowPtr window, Point* pt);
-short Platform_GlobalToLocalPoint(WindowPtr window, Point* pt);
+Point Platform_LocalToGlobalPoint(WindowPtr window, Point localPt);
+Point Platform_GlobalToLocalPoint(WindowPtr window, Point globalPt);
 
 /*
  * Port and region management
@@ -102,7 +102,7 @@ void Platform_IntersectRgn(RgnHandle srcA, RgnHandle srcB, RgnHandle dst);
 void Platform_DiffRgn(RgnHandle srcA, RgnHandle srcB, RgnHandle dst);
 Boolean Platform_PtInRgn(Point pt, RgnHandle rgn);
 void Platform_GetRegionBounds(RgnHandle rgn, Rect* bounds);
-void Platform_EmptyRgn(RgnHandle rgn);
+Boolean Platform_EmptyRgn(RgnHandle rgn);
 void Platform_CopyRgn(RgnHandle src, RgnHandle dst);
 void Platform_SetEmptyRgn(RgnHandle rgn);
 void Platform_OffsetRgn(RgnHandle rgn, short dh, short dv);
@@ -272,10 +272,10 @@ void WM_InitializeSnapSizes(void);
 void WM_AddSnapSize(short width, short height);
 void WM_ApplySnapToSize(Rect* rect);
 void WM_ApplySnapToEdges(Rect* rect);
-void WM_CalculateNewSize(Rect* bounds, Point newCorner);
-short WM_CalculateConstrainedWindowPosition(const Rect* bounds, const Rect* screenBounds);
-short WM_CalculateFinalWindowPosition(const Rect* bounds);
-void WM_CalculateRegionArea(RgnHandle rgn);
+Rect WM_CalculateNewSize(WindowPtr window, Point currentPt, const Rect* limits);
+Point WM_CalculateConstrainedWindowPosition(WindowPtr window, Point proposedPos);
+Point WM_CalculateFinalWindowPosition(WindowPtr window, Point startPt, Point currentPt);
+long WM_CalculateRegionArea(RgnHandle rgn);
 
 /*
  * Window parts and capabilities (WindowParts.c)
@@ -305,7 +305,6 @@ void WM_CopyPascalString(ConstStr255Param source, Str255 dest);
 void WM_SetPascalString(Str255 dest, const char* source);
 short WM_GetPascalStringLength(ConstStr255Param str);
 Boolean WM_ComparePascalStrings(ConstStr255Param str1, ConstStr255Param str2);
-short GetPascalStringLength(const unsigned char* str);
 
 /*
  * Geometry utilities

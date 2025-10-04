@@ -31,25 +31,25 @@
 /* Provenance: Standard C practice for static functions called before definition */
 typedef struct WindowStateData WindowStateData;
 typedef struct ResizeState ResizeState;
-static void WM_InitializeResizeState(WindowPtr window, Point startPt, const Rect* bBox);
-static void WM_CleanupResizeState(void);
-static void WM_InitializeSnapSizes(WindowPtr window);
-static void WM_AddSnapSize(short width, short height);
-static long WM_CalculateNewSize(Point currentPt);
-static Point WM_ApplySnapToSize(short width, short height);
-static void WM_StartResizeFeedback(void);
-static void WM_UpdateResizeFeedback(long newSize);
-static void WM_EndResizeFeedback(void);
+static void Local_InitializeResizeState(WindowPtr window, Point startPt, const Rect* bBox);
+static void Local_CleanupResizeState(void);
+static void Local_InitializeSnapSizes(WindowPtr window);
+static void Local_AddSnapSize(short width, short height);
+static long Local_CalculateNewSize(Point currentPt);
+static Point Local_ApplySnapToSize(short width, short height);
+static void Local_StartResizeFeedback(void);
+static void Local_UpdateResizeFeedback(long newSize);
+static void Local_EndResizeFeedback(void);
 static WindowStateData* WM_GetWindowStateData(WindowPtr window);
 static WindowStateData* WM_CreateWindowStateData(WindowPtr window);
 static void WM_CalculateStandardState(WindowPtr window, Rect* stdState);
 static void WM_UpdateWindowUserState(WindowPtr window);
-static Boolean WM_ValidateStateChecksum(WindowStateData* stateData);
-static void WM_UpdateStateChecksum(WindowStateData* stateData);
-static long WM_CalculateStateChecksum(WindowStateData* stateData);
-static void WM_AnimateZoom(WindowPtr window, const Rect* fromBounds, const Rect* toBounds);
-static void WM_InterpolateRect(const Rect* fromRect, const Rect* toRect, int step, int steps, Rect* result);
-static void WM_GenerateResizeUpdateEvents(WindowPtr window, short oldWidth, short oldHeight, short newWidth, short newHeight);
+static Boolean Local_ValidateStateChecksum(WindowStateData* stateData);
+static void Local_UpdateStateChecksum(WindowStateData* stateData);
+static long Local_CalculateStateChecksum(WindowStateData* stateData);
+static void Local_AnimateZoom(WindowPtr window, const Rect* fromBounds, const Rect* toBounds);
+static void Local_InterpolateRect(const Rect* fromRect, const Rect* toRect, int step, int steps, Rect* result);
+static void Local_GenerateResizeUpdateEvents(WindowPtr window, short oldWidth, short oldHeight, short newWidth, short newHeight);
 
 /* ============================================================================
  * Resizing Constants and Configuration
@@ -83,6 +83,7 @@ typedef struct ResizeState {
     Point startPoint;           /* Initial mouse position */
     Point currentPoint;         /* Current mouse position */
     Rect originalBounds;        /* Original window bounds */
+    Rect currentBounds;         /* Current bounds during resize */
     Rect constraintRect;        /* Size constraints */
     Rect snapSizes[8];          /* Predefined snap sizes */
     short snapCount;            /* Number of snap sizes */
@@ -94,7 +95,7 @@ typedef struct ResizeState {
 
 /* Global resize state */
 static ResizeState g_resizeState = {
-    NULL, {0, 0}, {0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0},
+    NULL, {0, 0}, {0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0},
     {{0}}, 0, false, false, false, 0
 };
 
@@ -143,7 +144,7 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
 
     /* Generate update events for newly exposed areas if requested */
     if (fUpdate && theWindow->visible) {
-        WM_GenerateResizeUpdateEvents(theWindow, currentWidth, currentHeight, w, h);
+        Local_GenerateResizeUpdateEvents(theWindow, currentWidth, currentHeight, w, h);
     }
 
     /* Invalidate old and new window areas */
@@ -186,7 +187,7 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
     }
 
     /* Initialize resize state */
-    WM_InitializeResizeState(theWindow, startPt, bBox);
+    Local_InitializeResizeState(theWindow, startPt, bBox);
 
     /* Check if mouse is still down */
     if (!Platform_IsMouseDown()) {
@@ -195,7 +196,7 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
     }
 
     /* Start resize feedback */
-    WM_StartResizeFeedback();
+    Local_StartResizeFeedback();
 
     /* Main resize tracking loop */
     Boolean resizeContinues = true;
@@ -212,11 +213,11 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
         g_resizeState.currentPoint = currentPt;
 
         /* Calculate new window size */
-        long newSize = WM_CalculateNewSize(currentPt);
+        long newSize = Local_CalculateNewSize(currentPt);
 
         /* Update feedback if size changed */
         if (newSize != lastSize) {
-            WM_UpdateResizeFeedback(newSize);
+            Local_UpdateResizeFeedback(newSize);
             lastSize = newSize;
             g_resizeState.hasMoved = true;
         }
@@ -226,13 +227,13 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
     }
 
     /* End resize feedback */
-    WM_EndResizeFeedback();
+    Local_EndResizeFeedback();
 
     /* Calculate final size */
-    long finalSize = g_resizeState.hasMoved ? WM_CalculateNewSize(currentPt) : 0;
+    long finalSize = g_resizeState.hasMoved ? Local_CalculateNewSize(currentPt) : 0;
 
     /* Clean up resize state */
-    WM_CleanupResizeState();
+    Local_CleanupResizeState();
 
     WM_DEBUG("GrowWindow: Grow tracking completed, result = 0x%08lX", finalSize);
     return finalSize;
@@ -299,7 +300,7 @@ void ZoomWindow(WindowPtr theWindow, short partCode, Boolean front) {
     /* Perform zoom animation */
     if (Platform_IsZoomAnimationEnabled()) {
         /* [WM-009] Provenance: IM:Windows p.2-13 */
-        WM_AnimateZoom(theWindow, &theWindow->port.portRect, &targetBounds);
+        Local_AnimateZoom(theWindow, &theWindow->port.portRect, &targetBounds);
     }
 
     /* Apply final size and position */
@@ -315,7 +316,7 @@ void ZoomWindow(WindowPtr theWindow, short partCode, Boolean front) {
     }
 
     /* Update state checksum */
-    WM_UpdateStateChecksum(stateData);
+    Local_UpdateStateChecksum(stateData);
 
     WM_DEBUG("ZoomWindow: Zoom operation completed");
 }
@@ -324,11 +325,11 @@ void ZoomWindow(WindowPtr theWindow, short partCode, Boolean front) {
  * Resize State Management
  * ============================================================================ */
 
-static void WM_InitializeResizeState(WindowPtr window, Point startPt, const Rect* bBox) {
-    WM_DEBUG("WM_InitializeResizeState: Initializing resize state");
+static void Local_InitializeResizeState(WindowPtr window, Point startPt, const Rect* bBox) {
+    WM_DEBUG("Local_InitializeResizeState: Initializing resize state");
 
     /* Clear previous state */
-    WM_CleanupResizeState();
+    Local_CleanupResizeState();
 
     /* Initialize resize state */
     g_resizeState.window = window;
@@ -336,6 +337,7 @@ static void WM_InitializeResizeState(WindowPtr window, Point startPt, const Rect
     g_resizeState.currentPoint = startPt;
     /* [WM-009] Provenance: IM:Windows p.2-13 */
     g_resizeState.originalBounds = window->port.portRect;
+    g_resizeState.currentBounds = window->port.portRect;
     g_resizeState.active = true;
     g_resizeState.hasMoved = false;
     g_resizeState.showFeedback = Platform_IsResizeFeedbackEnabled();
@@ -351,30 +353,30 @@ static void WM_InitializeResizeState(WindowPtr window, Point startPt, const Rect
     }
 
     /* Set up snap sizes */
-    WM_InitializeSnapSizes(window);
+    Local_InitializeSnapSizes(window);
 
-    WM_DEBUG("WM_InitializeResizeState: Resize state initialized");
+    WM_DEBUG("Local_InitializeResizeState: Resize state initialized");
 }
 
-static void WM_CleanupResizeState(void) {
+static void Local_CleanupResizeState(void) {
     if (!g_resizeState.active) return;
 
-    WM_DEBUG("WM_CleanupResizeState: Cleaning up resize state");
+    WM_DEBUG("Local_CleanupResizeState: Cleaning up resize state");
 
     /* Clear state */
     memset(&g_resizeState, 0, sizeof(ResizeState));
 
-    WM_DEBUG("WM_CleanupResizeState: Cleanup complete");
+    WM_DEBUG("Local_CleanupResizeState: Cleanup complete");
 }
 
-static void WM_InitializeSnapSizes(WindowPtr window) {
+static void Local_InitializeSnapSizes(WindowPtr window) {
     g_resizeState.snapCount = 0;
 
     /* Add common snap sizes */
-    WM_AddSnapSize(320, 240);   /* Classic small */
-    WM_AddSnapSize(640, 480);   /* Classic VGA */
-    WM_AddSnapSize(800, 600);   /* Classic SVGA */
-    WM_AddSnapSize(1024, 768);  /* Classic XGA */
+    Local_AddSnapSize(320, 240);   /* Classic small */
+    Local_AddSnapSize(640, 480);   /* Classic VGA */
+    Local_AddSnapSize(800, 600);   /* Classic SVGA */
+    Local_AddSnapSize(1024, 768);  /* Classic XGA */
 
     /* Add screen-based sizes */
     Rect screenBounds;
@@ -382,14 +384,14 @@ static void WM_InitializeSnapSizes(WindowPtr window) {
     short screenWidth = screenBounds.right - screenBounds.left;
     short screenHeight = screenBounds.bottom - screenBounds.top;
 
-    WM_AddSnapSize(screenWidth / 2, screenHeight / 2);  /* Quarter screen */
-    WM_AddSnapSize(screenWidth * 2 / 3, screenHeight * 2 / 3); /* Two-thirds */
-    WM_AddSnapSize(screenWidth - 40, screenHeight - 80); /* Almost full screen */
+    Local_AddSnapSize(screenWidth / 2, screenHeight / 2);  /* Quarter screen */
+    Local_AddSnapSize(screenWidth * 2 / 3, screenHeight * 2 / 3); /* Two-thirds */
+    Local_AddSnapSize(screenWidth - 40, screenHeight - 80); /* Almost full screen */
 
-    WM_DEBUG("WM_InitializeSnapSizes: Added %d snap sizes", g_resizeState.snapCount);
+    WM_DEBUG("Local_InitializeSnapSizes: Added %d snap sizes", g_resizeState.snapCount);
 }
 
-static void WM_AddSnapSize(short width, short height) {
+static void Local_AddSnapSize(short width, short height) {
     if (g_resizeState.snapCount >= 8) return;
 
     /* Validate size against constraints */
@@ -408,7 +410,7 @@ static void WM_AddSnapSize(short width, short height) {
  * Size Calculation and Constraints
  * ============================================================================ */
 
-static long WM_CalculateNewSize(Point currentPt) {
+static long Local_CalculateNewSize(Point currentPt) {
     /* Calculate size change from mouse movement */
     short deltaH = currentPt.h - g_resizeState.startPoint.h;
     short deltaV = currentPt.v - g_resizeState.startPoint.v;
@@ -433,7 +435,7 @@ static long WM_CalculateNewSize(Point currentPt) {
 
     /* Apply snap sizes if enabled */
     if (Platform_IsSnapToSizeEnabled()) {
-        Point snapSize = WM_ApplySnapToSize(newWidth, newHeight);
+        Point snapSize = Local_ApplySnapToSize(newWidth, newHeight);
         newWidth = snapSize.h;
         newHeight = snapSize.v;
     }
@@ -442,7 +444,7 @@ static long WM_CalculateNewSize(Point currentPt) {
     return ((long)newWidth << 16) | (newHeight & 0xFFFF);
 }
 
-static Point WM_ApplySnapToSize(short width, short height) {
+static Point Local_ApplySnapToSize(short width, short height) {
     Point result = {width, height};
 
     /* Check against predefined snap sizes */
@@ -467,36 +469,37 @@ static Point WM_ApplySnapToSize(short width, short height) {
  * Resize Feedback
  * ============================================================================ */
 
-static void WM_StartResizeFeedback(void) {
+static void Local_StartResizeFeedback(void) {
     if (!g_resizeState.showFeedback) return;
 
     WM_DEBUG("WM_StartResizeFeedback: Starting resize feedback");
 
     /* Show initial size feedback */
-    short width = WM_RECT_WIDTH(&g_resizeState.originalBounds);
-    short height = WM_RECT_HEIGHT(&g_resizeState.originalBounds);
-    Platform_ShowSizeFeedback(width, height, &g_resizeState.originalBounds);
+    Platform_ShowSizeFeedback(&g_resizeState.originalBounds);
+    g_resizeState.currentBounds = g_resizeState.originalBounds;
 }
 
-static void WM_UpdateResizeFeedback(long newSize) {
+static void Local_UpdateResizeFeedback(long newSize) {
     if (!g_resizeState.showFeedback) return;
 
     short width = (short)(newSize >> 16);
     short height = (short)(newSize & 0xFFFF);
 
     /* Calculate new window bounds */
+    Rect oldBounds = g_resizeState.currentBounds;
     Rect newBounds = g_resizeState.originalBounds;
     newBounds.right = newBounds.left + width;
     newBounds.bottom = newBounds.top + height;
 
-    Platform_UpdateSizeFeedback(width, height, &newBounds);
+    Platform_UpdateSizeFeedback(&oldBounds, &newBounds);
+    g_resizeState.currentBounds = newBounds;
 }
 
-static void WM_EndResizeFeedback(void) {
+static void Local_EndResizeFeedback(void) {
     if (!g_resizeState.showFeedback) return;
 
     WM_DEBUG("WM_EndResizeFeedback: Ending resize feedback");
-    Platform_HideSizeFeedback();
+    Platform_HideSizeFeedback(&g_resizeState.currentBounds);
 }
 
 /* ============================================================================
@@ -514,7 +517,7 @@ static WindowStateData* WM_GetWindowStateData(WindowPtr window) {
             if ((**auxWin).dialogCItem != NULL) {
                 /* Verify this is our state data */
                 WindowStateData* stateData = (WindowStateData*)((**auxWin).dialogCItem);
-                if (WM_ValidateStateChecksum(stateData)) {
+                if (Local_ValidateStateChecksum(stateData)) {
                     return stateData;
                 }
             }
@@ -541,7 +544,7 @@ static WindowStateData* WM_CreateWindowStateData(WindowPtr window) {
     stateData->hasStdState = false;
     stateData->isZoomed = false;
 
-    WM_UpdateStateChecksum(stateData);
+    Local_UpdateStateChecksum(stateData);
 
     WM_DEBUG("WM_CreateWindowStateData: Created new window state data");
     return stateData;
@@ -592,25 +595,25 @@ static void WM_UpdateWindowUserState(WindowPtr window) {
         /* [WM-009] Provenance: IM:Windows p.2-13 */
         stateData->userState = window->port.portRect;
         stateData->hasUserState = true;
-        WM_UpdateStateChecksum(stateData);
+        Local_UpdateStateChecksum(stateData);
         WM_DEBUG("WM_UpdateWindowUserState: Updated user state");
     }
 }
 
-static Boolean WM_ValidateStateChecksum(WindowStateData* stateData) {
+static Boolean Local_ValidateStateChecksum(WindowStateData* stateData) {
     if (stateData == NULL) return false;
 
-    long checksum = WM_CalculateStateChecksum(stateData);
+    long checksum = Local_CalculateStateChecksum(stateData);
     return (checksum == stateData->stateChecksum);
 }
 
-static void WM_UpdateStateChecksum(WindowStateData* stateData) {
+static void Local_UpdateStateChecksum(WindowStateData* stateData) {
     if (stateData == NULL) return;
 
-    stateData->stateChecksum = WM_CalculateStateChecksum(stateData);
+    stateData->stateChecksum = Local_CalculateStateChecksum(stateData);
 }
 
-static long WM_CalculateStateChecksum(WindowStateData* stateData) {
+static long Local_CalculateStateChecksum(WindowStateData* stateData) {
     if (stateData == NULL) return 0;
 
     /* Simple checksum based on state data */
@@ -629,7 +632,7 @@ static long WM_CalculateStateChecksum(WindowStateData* stateData) {
  * Zoom Animation
  * ============================================================================ */
 
-static void WM_AnimateZoom(WindowPtr window, const Rect* fromBounds, const Rect* toBounds) {
+static void Local_AnimateZoom(WindowPtr window, const Rect* fromBounds, const Rect* toBounds) {
     if (!Platform_IsZoomAnimationEnabled()) return;
 
     WM_DEBUG("WM_AnimateZoom: Animating zoom transition");
@@ -637,7 +640,7 @@ static void WM_AnimateZoom(WindowPtr window, const Rect* fromBounds, const Rect*
     /* Calculate animation steps */
     for (int step = 1; step <= ZOOM_ANIMATION_STEPS; step++) {
         Rect currentBounds;
-        WM_InterpolateRect(fromBounds, toBounds, step, ZOOM_ANIMATION_STEPS, &currentBounds);
+        Local_InterpolateRect(fromBounds, toBounds, step, ZOOM_ANIMATION_STEPS, &currentBounds);
 
         /* Show animation frame */
         Platform_ShowZoomFrame(&currentBounds);
@@ -647,12 +650,12 @@ static void WM_AnimateZoom(WindowPtr window, const Rect* fromBounds, const Rect*
     }
 
     /* Hide final animation frame */
-    Platform_HideZoomFrame();
+    Platform_HideZoomFrame(toBounds);
 
     WM_DEBUG("WM_AnimateZoom: Zoom animation completed");
 }
 
-static void WM_InterpolateRect(const Rect* fromRect, const Rect* toRect,
+static void Local_InterpolateRect(const Rect* fromRect, const Rect* toRect,
                               int step, int totalSteps, Rect* result) {
     if (fromRect == NULL || toRect == NULL || result == NULL) return;
 
@@ -669,11 +672,11 @@ static void WM_InterpolateRect(const Rect* fromRect, const Rect* toRect,
  * Update Event Generation
  * ============================================================================ */
 
-static void WM_GenerateResizeUpdateEvents(WindowPtr window, short oldWidth, short oldHeight,
+static void Local_GenerateResizeUpdateEvents(WindowPtr window, short oldWidth, short oldHeight,
                                         short newWidth, short newHeight) {
     if (window == NULL || window->updateRgn == NULL) return;
 
-    WM_DEBUG("WM_GenerateResizeUpdateEvents: Generating update events for resize");
+    WM_DEBUG("Local_GenerateResizeUpdateEvents: Generating update events for resize");
 
     /* Calculate newly exposed areas */
     if (newWidth > oldWidth) {
@@ -710,7 +713,7 @@ static void WM_GenerateResizeUpdateEvents(WindowPtr window, short oldWidth, shor
         }
     }
 
-    WM_DEBUG("WM_GenerateResizeUpdateEvents: Update events generated");
+    WM_DEBUG("Local_GenerateResizeUpdateEvents: Update events generated");
 }
 
 /* Platform functions are in WindowPlatform.c */

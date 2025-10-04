@@ -144,16 +144,16 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
     }
 
     /* Track mouse while button is down */
-    Boolean mouseDown = true;
+    Boolean buttonDown = true;
     Boolean inPart = true;
     Boolean lastInPart = true;
     Point currentPt = thePt;
 
-    while (mouseDown) {
+    while (buttonDown) {
         /* Get current mouse position and button state */
         /* TODO: Get actual mouse state from platform */
-        mouseDown = WM_IsMouseDown();
-        if (mouseDown) {
+        buttonDown = WM_IsMouseDown();
+        if (buttonDown) {
             Platform_GetMousePosition(&currentPt);
         }
 
@@ -328,8 +328,8 @@ void BeginUpdate(WindowPtr theWindow) {
     WM_DEBUG("BeginUpdate: Beginning window update");
 
     /* Save current port */
-    GrafPtr savePort = WM_GetCurrentPort();
-    Platform_SetUpdatePort(theWindow, savePort);
+    GrafPtr savePort = Platform_GetCurrentPort();
+    Platform_SetUpdatePort(savePort);
 
     /* Set port to window */
     Platform_SetCurrentPort(&theWindow->port);
@@ -343,12 +343,12 @@ void BeginUpdate(WindowPtr theWindow) {
         RgnHandle updateClip = Platform_NewRgn();
         if (updateClip) {
             Platform_IntersectRgn(theWindow->contRgn, theWindow->updateRgn, updateClip);
-            Platform_SetClipRgn(updateClip);
+            Platform_SetClipRgn(&theWindow->port, updateClip);
             Platform_DisposeRgn(updateClip);
         }
     } else if (theWindow->contRgn) {
         /* If no updateRgn, just use contRgn to prevent overdrawing chrome */
-        Platform_SetClipRgn(theWindow->contRgn);
+        Platform_SetClipRgn(&theWindow->port, theWindow->contRgn);
     }
 
     WM_DEBUG("BeginUpdate: Update session started");
@@ -370,11 +370,11 @@ void EndUpdate(WindowPtr theWindow) {
     /* CRITICAL: Restore clipping to content region (not visRgn!)
      * to prevent content from overdrawing chrome */
     if (theWindow->contRgn) {
-        Platform_SetClipRgn(theWindow->contRgn);
+        Platform_SetClipRgn(&theWindow->port, theWindow->contRgn);
     }
 
     /* Restore previous port */
-    GrafPtr savedPort = WM_GetUpdatePort(theWindow);
+    GrafPtr savedPort = Platform_GetUpdatePort(theWindow);
     if (savedPort) {
         Platform_SetCurrentPort(savedPort);
     }
@@ -453,15 +453,21 @@ long DragGrayRgn(RgnHandle theRgn, Point startPt, const Rect* limitRect,
     Point currentPt = startPt;
     Point lastPt = startPt;
     Point offset = {0, 0};
-    Boolean mouseDown = true;
+    Boolean buttonDown = true;
 
-    /* Show initial gray outline */
-    Platform_ShowDragOutline(theRgn, startPt);
+    /* Get region bounds */
+    Rect rgnBounds;
+    Platform_GetRegionBounds(theRgn, &rgnBounds);
 
-    while (mouseDown) {
+    /* Show initial gray outline at start position */
+    Rect dragRect = rgnBounds;
+    WM_OffsetRect(&dragRect, startPt.h - rgnBounds.left, startPt.v - rgnBounds.top);
+    Platform_ShowDragOutline(&dragRect);
+
+    while (buttonDown) {
         /* Get current mouse position and state */
-        mouseDown = WM_IsMouseDown();
-        if (mouseDown) {
+        buttonDown = WM_IsMouseDown();
+        if (buttonDown) {
             Platform_GetMousePosition(&currentPt);
         }
 
@@ -500,7 +506,14 @@ long DragGrayRgn(RgnHandle theRgn, Point startPt, const Rect* limitRect,
 
         /* Update drag outline if position changed */
         if (currentPt.h != lastPt.h || currentPt.v != lastPt.v) {
-            Platform_UpdateDragOutline(theRgn, currentPt);
+            Rect oldDragRect = rgnBounds;
+            WM_OffsetRect(&oldDragRect, lastPt.h - rgnBounds.left, lastPt.v - rgnBounds.top);
+
+            Rect newDragRect = rgnBounds;
+            WM_OffsetRect(&newDragRect, currentPt.h - rgnBounds.left, currentPt.v - rgnBounds.top);
+
+            Platform_UpdateDragOutline(&oldDragRect, &newDragRect);
+            dragRect = newDragRect;
             lastPt = currentPt;
 
             /* Call action procedure if provided */
@@ -514,7 +527,7 @@ long DragGrayRgn(RgnHandle theRgn, Point startPt, const Rect* limitRect,
     }
 
     /* Hide drag outline */
-    Platform_HideDragOutline();
+    Platform_HideDragOutline(&dragRect);
 
     WM_DEBUG("DragGrayRgn: Drag complete, offset = (%d, %d)", offset.h, offset.v);
 

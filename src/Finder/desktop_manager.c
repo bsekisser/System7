@@ -1160,8 +1160,6 @@ static OSErr ScanDirectoryForDesktopEntries(short vRefNum, long dirID, short dat
 }
 
 /*
-
-/*
  * InitializeVolumeIcon - Initialize boot volume icon on desktop
  * Integrates with VFS to show Macintosh HD
  */

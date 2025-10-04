@@ -32,15 +32,10 @@
 
 #endif
 
-/*
 /* Point type defined in MacTypes.h */
 
-/*
 /* Rect type defined in MacTypes.h */
 
-/*
-
-/*
 /* BitMap is in WindowManager/WindowTypes.h */
 
 /* Forward declarations */
@@ -52,16 +47,7 @@
 /* Handle is defined in MacTypes.h */
 /* Ptr is defined in MacTypes.h */
 
-/*
 /* GrafPort defined in WindowTypes.h */
-
-/*
-
-/*
-
-/*
-
-/*
 
 /* Trap 0xA912 - Initialize Window Manager */
 void InitWindows(void);

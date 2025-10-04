@@ -28,17 +28,17 @@
 
 /* Forward declarations */
 Boolean WM_ValidateWindowPosition(WindowPtr window, const Rect* bounds);
-static Point WM_ApplySnapToEdges(Point windowPos);
+static Point Local_ApplySnapToEdges(Point windowPos);
 void WM_ConstrainWindowPosition(WindowPtr window, Rect* bounds);
 void WM_UpdateWindowVisibility(WindowPtr window);
 void WM_OffsetRect(Rect* rect, short deltaH, short deltaV);
-static Point WM_ConstrainToRect(Point windowPos, const Rect* constraintRect);
-static Point WM_ConstrainToScreen(Point windowPos);
-static Point WM_CalculateConstrainedWindowPosition(Point mousePt);
-static void WM_EndDragFeedback(void);
-static void WM_UpdateDragFeedback(Point currentPt);
-static void WM_StartDragFeedback(void);
-static void WM_CleanupDragState(void);
+static Point Local_ConstrainToRect(Point windowPos, const Rect* constraintRect);
+static Point Local_ConstrainToScreen(Point windowPos);
+static Point Local_CalculateConstrainedWindowPosition(Point mousePt);
+static void Local_EndDragFeedback(void);
+static void Local_UpdateDragFeedback(Point currentPt);
+static void Local_StartDragFeedback(void);
+static void Local_CleanupDragState(void);
 
 
 /* ============================================================================
@@ -66,12 +66,18 @@ typedef enum {
 } DragFeedbackMode;
 
 /* Forward declarations for platform functions */
-DragFeedbackMode Platform_GetPreferredDragFeedback(void);
+typedef enum {
+    kDragFeedbackNone_Local = 0,
+    kDragFeedbackOutline_Local = 1,
+    kDragFeedbackWindow_Local = 2,
+    kDragFeedbackSolid_Local = 3
+} DragFeedbackMode_Local;
+static DragFeedbackMode_Local Local_GetPreferredDragFeedback(void);
 Boolean Platform_IsSnapToEdgesEnabled(void);
-static void WM_InvalidateScreenRegion(RgnHandle region);
-static Boolean WM_RectsIntersect(const Rect* rect1, const Rect* rect2);
-static Point WM_CalculateFinalWindowPosition(Point mousePt);
-static void WM_InitializeDragState(WindowPtr theWindow, Point startPt, const Rect* bounds);
+static void Local_InvalidateScreenRegion(RgnHandle region);
+static Boolean Local_RectsIntersect(const Rect* rect1, const Rect* rect2);
+static Point Local_CalculateFinalWindowPosition(Point mousePt);
+static void Local_InitializeDragState(WindowPtr theWindow, Point startPt, const Rect* bounds);
 
 /* Drag constraint modes */
 typedef enum {
@@ -189,10 +195,10 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
     /* Invalidate old and new positions */
     if (theWindow->visible) {
         if (oldStrucRgn) {
-            WM_InvalidateScreenRegion(oldStrucRgn);
+            Local_InvalidateScreenRegion(oldStrucRgn);
         }
         if (theWindow->strucRgn) {
-            WM_InvalidateScreenRegion(theWindow->strucRgn);
+            Local_InvalidateScreenRegion(theWindow->strucRgn);
         }
     }
 
@@ -478,11 +484,11 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
  * Drag State Management
  * ============================================================================ */
 
-static void WM_InitializeDragState(WindowPtr window, Point startPt, const Rect* boundsRect) {
-    WM_DEBUG("WM_InitializeDragState: Initializing drag state");
+static void Local_InitializeDragState(WindowPtr window, Point startPt, const Rect* boundsRect) {
+    WM_DEBUG("Local_InitializeDragState: Initializing drag state");
 
     /* Clear previous state */
-    WM_CleanupDragState();
+    Local_CleanupDragState();
 
     /* Initialize drag state */
     g_dragState.window = window;
@@ -507,7 +513,7 @@ static void WM_InitializeDragState(WindowPtr window, Point startPt, const Rect* 
     }
 
     /* Configure drag feedback mode */
-    g_dragState.feedback = Platform_GetPreferredDragFeedback();
+    g_dragState.feedback = Local_GetPreferredDragFeedback();
 
     /* Create drag region if needed for outline feedback */
     if (g_dragState.feedback == kDragFeedbackOutline) {
@@ -517,13 +523,13 @@ static void WM_InitializeDragState(WindowPtr window, Point startPt, const Rect* 
         }
     }
 
-    WM_DEBUG("WM_InitializeDragState: Drag state initialized");
+    WM_DEBUG("Local_InitializeDragState: Drag state initialized");
 }
 
-static void WM_CleanupDragState(void) {
+static void Local_CleanupDragState(void) {
     if (!g_dragState.active) return;
 
-    WM_DEBUG("WM_CleanupDragState: Cleaning up drag state");
+    WM_DEBUG("Local_CleanupDragState: Cleaning up drag state");
 
     /* Dispose of drag region */
     if (g_dragState.dragRgn) {
@@ -534,20 +540,22 @@ static void WM_CleanupDragState(void) {
     /* Clear state */
     memset(&g_dragState, 0, sizeof(DragState));
 
-    WM_DEBUG("WM_CleanupDragState: Cleanup complete");
+    WM_DEBUG("Local_CleanupDragState: Cleanup complete");
 }
 
 /* ============================================================================
  * Drag Feedback Management
  * ============================================================================ */
 
-static void WM_StartDragFeedback(void) {
-    WM_DEBUG("WM_StartDragFeedback: Starting drag feedback, mode = %d", g_dragState.feedback);
+static void Local_StartDragFeedback(void) {
+    WM_DEBUG("Local_StartDragFeedback: Starting drag feedback, mode = %d", g_dragState.feedback);
 
     switch (g_dragState.feedback) {
         case kDragFeedbackOutline:
             if (g_dragState.dragRgn) {
-                Platform_ShowDragOutline(g_dragState.dragRgn, g_dragState.startPoint);
+                Rect rgnBounds;
+                Platform_GetRegionBounds(g_dragState.dragRgn, &rgnBounds);
+                Platform_ShowDragOutline(&rgnBounds);
             }
             break;
 
@@ -566,13 +574,19 @@ static void WM_StartDragFeedback(void) {
     }
 }
 
-static void WM_UpdateDragFeedback(Point currentPt) {
-    Point windowPos = WM_CalculateConstrainedWindowPosition(currentPt);
+static void Local_UpdateDragFeedback(Point currentPt) {
+    Point windowPos = Local_CalculateConstrainedWindowPosition(currentPt);
 
     switch (g_dragState.feedback) {
         case kDragFeedbackOutline:
             if (g_dragState.dragRgn) {
-                Platform_UpdateDragOutline(g_dragState.dragRgn, windowPos);
+                Rect oldRgnBounds, newRgnBounds;
+                Platform_GetRegionBounds(g_dragState.dragRgn, &oldRgnBounds);
+                newRgnBounds = oldRgnBounds;
+                WM_OffsetRect(&newRgnBounds,
+                             windowPos.h - g_dragState.currentPoint.h,
+                             windowPos.v - g_dragState.currentPoint.v);
+                Platform_UpdateDragOutline(&oldRgnBounds, &newRgnBounds);
             }
             break;
 
@@ -583,11 +597,15 @@ static void WM_UpdateDragFeedback(Point currentPt) {
 
         case kDragFeedbackSolid:
             {
-                Rect dragRect = g_dragState.originalBounds;
-                WM_OffsetRect(&dragRect,
+                Rect oldDragRect = g_dragState.originalBounds;
+                WM_OffsetRect(&oldDragRect,
+                             g_dragState.currentPoint.h - g_dragState.originalBounds.left,
+                             g_dragState.currentPoint.v - g_dragState.originalBounds.top);
+                Rect newDragRect = g_dragState.originalBounds;
+                WM_OffsetRect(&newDragRect,
                              windowPos.h - g_dragState.originalBounds.left,
                              windowPos.v - g_dragState.originalBounds.top);
-                Platform_UpdateDragRect(&dragRect);
+                Platform_UpdateDragRect(&oldDragRect, &newDragRect);
             }
             break;
 
@@ -598,12 +616,16 @@ static void WM_UpdateDragFeedback(Point currentPt) {
     }
 }
 
-static void WM_EndDragFeedback(void) {
-    WM_DEBUG("WM_EndDragFeedback: Ending drag feedback");
+static void Local_EndDragFeedback(void) {
+    WM_DEBUG("Local_EndDragFeedback: Ending drag feedback");
 
     switch (g_dragState.feedback) {
         case kDragFeedbackOutline:
-            Platform_HideDragOutline();
+            if (g_dragState.dragRgn) {
+                Rect rgnBounds;
+                Platform_GetRegionBounds(g_dragState.dragRgn, &rgnBounds);
+                Platform_HideDragOutline(&rgnBounds);
+            }
             break;
 
         case kDragFeedbackWindow:
@@ -611,7 +633,13 @@ static void WM_EndDragFeedback(void) {
             break;
 
         case kDragFeedbackSolid:
-            Platform_HideDragRect();
+            {
+                Rect dragRect = g_dragState.originalBounds;
+                WM_OffsetRect(&dragRect,
+                             g_dragState.currentPoint.h - g_dragState.originalBounds.left,
+                             g_dragState.currentPoint.v - g_dragState.originalBounds.top);
+                Platform_HideDragRect(&dragRect);
+            }
             break;
 
         case kDragFeedbackNone:
@@ -625,7 +653,7 @@ static void WM_EndDragFeedback(void) {
  * Position Calculation and Constraints
  * ============================================================================ */
 
-static Point WM_CalculateConstrainedWindowPosition(Point mousePt) {
+static Point Local_CalculateConstrainedWindowPosition(Point mousePt) {
     /* Calculate unconstrained window position */
     Point windowPos;
     windowPos.h = mousePt.h - g_dragState.windowOffset.h;
@@ -634,11 +662,11 @@ static Point WM_CalculateConstrainedWindowPosition(Point mousePt) {
     /* Apply constraints */
     switch (g_dragState.constraint) {
         case kDragConstraintScreen:
-            windowPos = WM_ConstrainToScreen(windowPos);
+            windowPos = Local_ConstrainToScreen(windowPos);
             break;
 
         case kDragConstraintRect:
-            windowPos = WM_ConstrainToRect(windowPos, &g_dragState.constraintRect);
+            windowPos = Local_ConstrainToRect(windowPos, &g_dragState.constraintRect);
             break;
 
         case kDragConstraintCustom:
@@ -654,12 +682,12 @@ static Point WM_CalculateConstrainedWindowPosition(Point mousePt) {
     return windowPos;
 }
 
-static Point WM_CalculateFinalWindowPosition(Point mousePt) {
-    Point windowPos = WM_CalculateConstrainedWindowPosition(mousePt);
+static Point Local_CalculateFinalWindowPosition(Point mousePt) {
+    Point windowPos = Local_CalculateConstrainedWindowPosition(mousePt);
 
     /* Apply snapping if enabled */
     if (Platform_IsSnapToEdgesEnabled()) {
-        windowPos = WM_ApplySnapToEdges(windowPos);
+        windowPos = Local_ApplySnapToEdges(windowPos);
     }
 
     /* Return offset from original position */
@@ -670,7 +698,7 @@ static Point WM_CalculateFinalWindowPosition(Point mousePt) {
     return offset;
 }
 
-static Point WM_ConstrainToScreen(Point windowPos) {
+static Point Local_ConstrainToScreen(Point windowPos) {
     Rect screenBounds;
     Platform_GetScreenBounds(&screenBounds);
 
@@ -702,7 +730,7 @@ static Point WM_ConstrainToScreen(Point windowPos) {
     return windowPos;
 }
 
-static Point WM_ConstrainToRect(Point windowPos, const Rect* constraintRect) {
+static Point Local_ConstrainToRect(Point windowPos, const Rect* constraintRect) {
     if (constraintRect == NULL) return windowPos;
 
     /* Calculate window bounds at proposed position */
@@ -728,7 +756,7 @@ static Point WM_ConstrainToRect(Point windowPos, const Rect* constraintRect) {
     return windowPos;
 }
 
-static Point WM_ApplySnapToEdges(Point windowPos) {
+static Point Local_ApplySnapToEdges(Point windowPos) {
     Rect screenBounds;
     Platform_GetScreenBounds(&screenBounds);
 
@@ -794,7 +822,7 @@ Boolean WM_ValidateWindowPosition(WindowPtr window, const Rect* bounds) {
     titleBarRect.top -= TITLE_BAR_HEIGHT;
     titleBarRect.bottom = bounds->top;
 
-    if (!WM_RectsIntersect(&titleBarRect, &screenBounds)) {
+    if (!Local_RectsIntersect(&titleBarRect, &screenBounds)) {
         WM_DEBUG("WM_ValidateWindowPosition: Title bar not visible");
         return false;
     }
@@ -861,7 +889,7 @@ void WM_ConstrainWindowPosition(WindowPtr window, Rect* bounds) {
  * Utility Functions
  * ============================================================================ */
 
-static Boolean WM_RectsIntersect(const Rect* rect1, const Rect* rect2) {
+static Boolean Local_RectsIntersect(const Rect* rect1, const Rect* rect2) {
     if (rect1 == NULL || rect2 == NULL) return false;
 
     return !(rect1->right <= rect2->left ||
@@ -870,12 +898,12 @@ static Boolean WM_RectsIntersect(const Rect* rect1, const Rect* rect2) {
              rect1->top >= rect2->bottom);
 }
 
-static void WM_InvalidateScreenRegion(RgnHandle rgn) {
+static void Local_InvalidateScreenRegion(RgnHandle rgn) {
     if (rgn == NULL) return;
 
     /* Convert region to screen coordinates and invalidate */
     /* TODO: Implement screen invalidation when graphics system is available */
-    WM_DEBUG("WM_InvalidateScreenRegion: Invalidating screen region");
+    WM_DEBUG("Local_InvalidateScreenRegion: Invalidating screen region");
 }
 
 /* Platform functions are defined in Platform/WindowPlatform.c */

@@ -69,9 +69,8 @@ int main(void)
     /* Initialize the Finder subsystems */
     err = InitializeFinder();
     if (err != noErr) {
-        /*
-        ShowErrorDialog("\pCould not initialize Finder", err);
-        return err;
+        /* ShowErrorDialog("\pCould not initialize Finder", err); */
+        /* return err; */
     }
 
     /* Enter the main event loop */

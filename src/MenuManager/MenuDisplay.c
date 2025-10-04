@@ -986,7 +986,7 @@ void PrintMenuDisplayState(void)
         /* serial_printf("  Menu ID: %d\n", (*gCurrentlyShownMenu)->menuID); */
         /* serial_printf("  Menu rect: (%d,%d,%d,%d)\n",
                gCurrentMenuRect.left, gCurrentMenuRect.top,
-               gCurrentMenuRect.right, gCurrentMenuRect.bottom);
+               gCurrentMenuRect.right, gCurrentMenuRect.bottom); */
     }
     /* serial_printf("Saved bits: %s\n", gCurrentSavedBits ? "Yes" : "No"); */
     /* serial_printf("========================\n"); */

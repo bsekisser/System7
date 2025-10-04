@@ -37,25 +37,20 @@
 /* Ptr is defined in MacTypes.h */
 
 /* Basic geometric types - Point and Rect are defined in MacTypes.h */
-/*
 
 /* Pattern type */
 /* Pattern type defined in MacTypes.h */
-/*
 
 /* Color types */
 /* RGBColor is in QuickDraw/QDTypes.h */
-/*
 
 /* BitMap is defined in WindowManager/WindowTypes.h */
 
 /* PixMap is defined in SystemTypes.h - no need to redefine */
-/*
 
 /* GrafPort is defined in WindowManager/WindowTypes.h */
 
 /* Region structure */
-/*
 
 /* Cursor is defined in QDTypes.h */
 
