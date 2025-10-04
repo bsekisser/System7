@@ -452,7 +452,7 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     Str255 title;
     TextFont(0);            /* System (Chicago) */
     TextSize(12);           /* Use 12pt to avoid scaling */
-    TextFace(0);            /* normal - bold synthesis crashes */
+    TextFace(0);            /* normal */
     serial_printf("AboutThisMac: About to call ToPStr\n");
     ToPStr("Macintosh x86", title);
     serial_printf("AboutThisMac: ToPStr returned, title[0]=%d, about to center\n", title[0]);

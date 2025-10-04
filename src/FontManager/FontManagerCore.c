@@ -477,18 +477,50 @@ void DrawString(ConstStr255Param s) {
     unsigned char len = s[0];
     Point pen = g_currentPort->pnLoc;
     short px, py;
+    Style face = g_currentPort->txFace;
+    short startX = pen.h;  /* Save start for underline */
 
     /* Get pixel position for drawing */
     QD_LocalToPixel(pen.h, pen.v - CHICAGO_ASCENT, &px, &py);
 
     /* Draw each character and update position */
     for (int i = 1; i <= len; i++) {
-        FM_DrawChicagoCharInternal(px, py, s[i], pack_color(0, 0, 0));
-        ChicagoCharInfo info = chicago_ascii[s[i] - 32];
+        char ch = s[i];
+        uint32_t color = pack_color(0, 0, 0);
+
+        /* Handle style combinations */
+        if (face & bold) {
+            /* Bold: draw character twice offset by 1 pixel */
+            FM_DrawChicagoCharInternal(px, py, ch, color);
+            FM_DrawChicagoCharInternal(px + 1, py, ch, color);
+        } else {
+            FM_DrawChicagoCharInternal(px, py, ch, color);
+        }
+
+        /* Note: Italic would require bitmap shearing - not implemented yet */
+        /* For now italic is drawn as normal text */
+
+        ChicagoCharInfo info = chicago_ascii[ch - 32];
         short width = info.bit_width + 2;
-        if (s[i] == ' ') width += 3;
+        if (ch == ' ') width += 3;
+
+        /* Add extra width for bold */
+        if (face & bold) width += 1;
+
+        /* Add extra width for italic (simple approximation) */
+        if (face & italic) width += 1;
+
         px += width;
         pen.h += width;
+    }
+
+    /* Draw underline if needed */
+    if (face & underline) {
+        Point oldPen = g_currentPort->pnLoc;
+        short underlineY = pen.v + 2;  /* 2 pixels below baseline */
+        MoveTo(startX, underlineY);
+        LineTo(pen.h, underlineY);
+        g_currentPort->pnLoc = oldPen;  /* Restore pen position */
     }
 
     /* Update pen position */
