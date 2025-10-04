@@ -12,6 +12,15 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Recent Updates
 
+- ✅ **Menu Manager Dropdown Fix**: Fixed critical bug where menus wouldn't display dropdowns
+  - Root cause: SaveBits/RestoreBits were stubs that didn't actually save/restore framebuffer pixels
+  - TrackMenu() had no tracking loop - returned immediately after drawing menu
+  - Fixed SaveBits to copy actual framebuffer pixels (32-bit RGBA) to save buffer
+  - Rewrote TrackMenu() with complete mouse tracking loop using Button()/GetMouse()
+  - Added live item highlighting during tracking with UpdateMenuTrackingNew()
+  - Background properly saved before menu display and restored on exit
+  - Menus now fully functional: dropdowns appear, items highlight on hover, selection works
+  - Fixes Known Issue #1 - SimpleText menus now fully operational
 - ✅ **Scrap Manager & SimpleText Integration**: Complete clipboard system with classic Mac OS API
   - Classic System 7.1 API: ZeroScrap, GetScrap, PutScrap, LoadScrap, UnloadScrap, InfoScrap
   - Multiple flavor support (TEXT, PICT, etc.) with handle-based memory management
@@ -93,7 +102,13 @@ This is a proof-of-concept implementation focused on understanding and recreatin
 - **Resource System**: Pattern (PAT) and pixel pattern (ppat) resources from JSON
 - **Icon System**: Small icons (SICN) and 32-bit color icons (ARGB) with mask compositing
 - **Memory Manager**: Zone-based memory management (8MB total: System and App zones)
-- **Menu System**: Menu bar rendering with File, Edit, View, and Label menus
+- **Menu Manager**: Complete menu system with full dropdown functionality
+  - Menu bar rendering with File, Edit, View, and Label menus
+  - Pull-down menu display with proper background save/restore
+  - Mouse tracking with live item highlighting
+  - MenuSelect() tracking loop with Button()/GetMouse()
+  - SaveBits/RestoreBits for flicker-free menu display
+  - Fully functional with SimpleText application
 - **File System**: HFS virtual file system with B-tree implementation and trash folder integration
   - VFS layer with directory enumeration (VFS_Enumerate)
   - Folder windows display actual file system contents
