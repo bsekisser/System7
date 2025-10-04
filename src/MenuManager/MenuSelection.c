@@ -85,7 +85,7 @@ enum {
  * ============================================================================ */
 
 static MenuTrackingState gTrackingState;
-static MenuSelection gLastSelection;
+/* static MenuSelection gLastSelection; */  /* Unused - reserved for future use */
 static Boolean gTrackingActive = false;
 static long gLastMenuChoice = 0;
 
@@ -114,7 +114,7 @@ static Boolean IsPointInMenu(Point pt, const Rect* menuRect);
 static void UpdateMenuHighlight(MenuTrackInfo* state, short newMenu, short newItem);
 static void ShowMenuAtPoint(short menuID, Point pt);
 static void HideCurrentMenu(void);
-static Boolean ProcessMenuCommand(short cmdChar, unsigned long modifiers, MenuSelection* result);
+/* static Boolean ProcessMenuCommand(short cmdChar, unsigned long modifiers, MenuSelection* result); */  /* Reserved for keyboard shortcut handling */
 static void FlashMenuFeedback(short menuID, short item);
 static Boolean ValidateMenuSelection(short menuID, short item);
 
@@ -973,11 +973,13 @@ static void UpdateMenuHighlight(MenuTrackInfo* state, short newMenu, short newIt
 
     /* Update item highlight */
     if (newItem != state->currentItem) {
-        if (state->currentMenu != NULL && state->currentItem > 0) {
-            HiliteMenuItem(state->currentMenu, state->currentItem, false);
+        if (state->currentMenu != 0 && state->currentItem > 0) {
+            MenuHandle menuHandle = GetMenuHandle(state->currentMenu);
+            if (menuHandle) HiliteMenuItem(menuHandle, state->currentItem, false);
         }
-        if (state->currentMenu != NULL && newItem > 0) {
-            HiliteMenuItem(state->currentMenu, newItem, true);
+        if (state->currentMenu != 0 && newItem > 0) {
+            MenuHandle menuHandle = GetMenuHandle(state->currentMenu);
+            if (menuHandle) HiliteMenuItem(menuHandle, newItem, true);
         }
         state->currentItem = newItem;
     }
