@@ -38,7 +38,7 @@ extern QDGlobals qd;  /* QuickDraw globals from main.c */
 
 /* Global Variables */
 static Boolean gFinderInitialized = false;
-static Str255 gFinderVersion = "\pMacintosh Finder Version 7.1";
+static Str255 gFinderVersion = "\033Macintosh Finder Version 7.1";
 static MenuHandle gAppleMenu, gFileMenu, gEditMenu, gViewMenu, gLabelMenu, gSpecialMenu;
 
 /* Forward Declarations */
@@ -193,78 +193,78 @@ static OSErr SetupMenus(void)
     /* Apple Menu - Evidence: "About The Finder" */
     static unsigned char appleTitle[] = {1, 0x14};  /* Pascal string: Apple symbol */
     gAppleMenu = NewMenu(128, appleTitle);
-    AppendMenu(gAppleMenu, "\pAbout This Macintosh");
-    AppendMenu(gAppleMenu, "\p(-");
+    AppendMenu(gAppleMenu, "\025About This Macintosh");
+    AppendMenu(gAppleMenu, "\002(-");
     AddResMenu(gAppleMenu, 'DRVR');
-    AppendMenu(gAppleMenu, "\p(-");
-    AppendMenu(gAppleMenu, "\pShut Down");
+    AppendMenu(gAppleMenu, "\002(-");
+    AppendMenu(gAppleMenu, "\011Shut Down");
 
     /* File Menu - Evidence: "Get Info", "Find", "Find Again" */
     static unsigned char fileTitle[] = {4, 'F', 'i', 'l', 'e'};  /* Pascal string: "File" */
     gFileMenu = NewMenu(129, fileTitle);
-    AppendMenu(gFileMenu, "\pNew Folder/N");
-    AppendMenu(gFileMenu, "\pOpen/O");
-    AppendMenu(gFileMenu, "\pPrint/P");
-    AppendMenu(gFileMenu, "\pClose/W");
-    AppendMenu(gFileMenu, "\p(-");
-    AppendMenu(gFileMenu, "\pGet Info/I");
-    AppendMenu(gFileMenu, "\pSharing...");
-    AppendMenu(gFileMenu, "\pDuplicate/D");
-    AppendMenu(gFileMenu, "\pMake Alias");
-    AppendMenu(gFileMenu, "\pPut Away/Y");
-    AppendMenu(gFileMenu, "\p(-");
-    AppendMenu(gFileMenu, "\pFind.../F");
-    AppendMenu(gFileMenu, "\pFind Again/G");
-    AppendMenu(gFileMenu, "\p(-");
-    AppendMenu(gFileMenu, "\p[Test] Open File...");
-    AppendMenu(gFileMenu, "\p[Test] Save File...");
+    AppendMenu(gFileMenu, "\015New Folder/N");
+    AppendMenu(gFileMenu, "\007Open/O");
+    AppendMenu(gFileMenu, "\010Print/P");
+    AppendMenu(gFileMenu, "\010Close/W");
+    AppendMenu(gFileMenu, "\002(-");
+    AppendMenu(gFileMenu, "\013Get Info/I");
+    AppendMenu(gFileMenu, "\013Sharing...");
+    AppendMenu(gFileMenu, "\014Duplicate/D");
+    AppendMenu(gFileMenu, "\012Make Alias");
+    AppendMenu(gFileMenu, "\012Put Away/Y");
+    AppendMenu(gFileMenu, "\002(-");
+    AppendMenu(gFileMenu, "\011Find.../F");
+    AppendMenu(gFileMenu, "\015Find Again/G");
+    AppendMenu(gFileMenu, "\002(-");
+    AppendMenu(gFileMenu, "\023[Test] Open File...");
+    AppendMenu(gFileMenu, "\023[Test] Save File...");
 
     /* Edit Menu */
     static unsigned char editTitle[] = {4, 'E', 'd', 'i', 't'};  /* Pascal string: "Edit" */
     gEditMenu = NewMenu(130, editTitle);
-    AppendMenu(gEditMenu, "\pUndo/Z");
-    AppendMenu(gEditMenu, "\p(-");
-    AppendMenu(gEditMenu, "\pCut/X");
-    AppendMenu(gEditMenu, "\pCopy/C");
-    AppendMenu(gEditMenu, "\pPaste/V");
-    AppendMenu(gEditMenu, "\pClear");
-    AppendMenu(gEditMenu, "\pSelect All/A");
+    AppendMenu(gEditMenu, "\007Undo/Z");
+    AppendMenu(gEditMenu, "\002(-");
+    AppendMenu(gEditMenu, "\006Cut/X");
+    AppendMenu(gEditMenu, "\007Copy/C");
+    AppendMenu(gEditMenu, "\010Paste/V");
+    AppendMenu(gEditMenu, "\005Clear");
+    AppendMenu(gEditMenu, "\015Select All/A");
 
     /* View Menu - Evidence: "Icon Views", "List Views", "Clean Up" */
     static unsigned char viewTitle[] = {4, 'V', 'i', 'e', 'w'};  /* Pascal string: "View" */
     gViewMenu = NewMenu(131, viewTitle);
-    AppendMenu(gViewMenu, "\pby Icon");
-    AppendMenu(gViewMenu, "\pby Name");
-    AppendMenu(gViewMenu, "\pby Size");
-    AppendMenu(gViewMenu, "\pby Kind");
-    AppendMenu(gViewMenu, "\pby Label");
-    AppendMenu(gViewMenu, "\pby Date");
-    AppendMenu(gViewMenu, "\p(-");
-    AppendMenu(gViewMenu, "\pClean Up Window");
-    AppendMenu(gViewMenu, "\pClean Up Selection");
+    AppendMenu(gViewMenu, "\007by Icon");
+    AppendMenu(gViewMenu, "\007by Name");
+    AppendMenu(gViewMenu, "\007by Size");
+    AppendMenu(gViewMenu, "\007by Kind");
+    AppendMenu(gViewMenu, "\010by Label");
+    AppendMenu(gViewMenu, "\007by Date");
+    AppendMenu(gViewMenu, "\002(-");
+    AppendMenu(gViewMenu, "\017Clean Up Window");
+    AppendMenu(gViewMenu, "\022Clean Up Selection");
 
     /* Label Menu */
     static unsigned char labelTitle[] = {5, 'L', 'a', 'b', 'e', 'l'};  /* Pascal string: "Label" */
     gLabelMenu = NewMenu(132, labelTitle);
-    AppendMenu(gLabelMenu, "\pNone");
-    AppendMenu(gLabelMenu, "\pEssential");
-    AppendMenu(gLabelMenu, "\pHot");
-    AppendMenu(gLabelMenu, "\pIn Progress");
-    AppendMenu(gLabelMenu, "\pCool");
-    AppendMenu(gLabelMenu, "\pPersonal");
-    AppendMenu(gLabelMenu, "\pProject 1");
-    AppendMenu(gLabelMenu, "\pProject 2");
+    AppendMenu(gLabelMenu, "\004None");
+    AppendMenu(gLabelMenu, "\011Essential");
+    AppendMenu(gLabelMenu, "\003Hot");
+    AppendMenu(gLabelMenu, "\013In Progress");
+    AppendMenu(gLabelMenu, "\004Cool");
+    AppendMenu(gLabelMenu, "\010Personal");
+    AppendMenu(gLabelMenu, "\011Project 1");
+    AppendMenu(gLabelMenu, "\011Project 2");
 
     /* Special Menu - Evidence: "Empty Trash", "Clean Up Desktop", "Eject" */
     static unsigned char specialTitle[] = {7, 'S', 'p', 'e', 'c', 'i', 'a', 'l'};  /* Pascal string: "Special" */
     gSpecialMenu = NewMenu(133, specialTitle);
-    AppendMenu(gSpecialMenu, "\pClean Up Desktop");
-    AppendMenu(gSpecialMenu, "\pEmpty Trash");
-    AppendMenu(gSpecialMenu, "\p(-");
-    AppendMenu(gSpecialMenu, "\pEject/E");
-    AppendMenu(gSpecialMenu, "\pErase Disk");
-    AppendMenu(gSpecialMenu, "\p(-");
-    AppendMenu(gSpecialMenu, "\pRestart");
+    AppendMenu(gSpecialMenu, "\020Clean Up Desktop");
+    AppendMenu(gSpecialMenu, "\013Empty Trash");
+    AppendMenu(gSpecialMenu, "\002(-");
+    AppendMenu(gSpecialMenu, "\010Eject/E");
+    AppendMenu(gSpecialMenu, "\012Erase Disk");
+    AppendMenu(gSpecialMenu, "\002(-");
+    AppendMenu(gSpecialMenu, "\007Restart");
 
     /* Insert menus into menu bar in correct order: Apple, File, Edit, View, Label, Special */
     /* InsertMenu with 0 adds to end, so insert in order */
@@ -593,7 +593,7 @@ static void HandleMenuChoice(long menuChoice)
                     {
                         StandardFileReply reply;
                         serial_printf("[TEST] StandardPutFile called\n");
-                        StandardPutFile("\pSave As:", "\pUntitled", &reply);
+                        StandardPutFile("\010Save As:", "\010Untitled", &reply);
                         if (reply.sfGood) {
                             serial_printf("[TEST] Save location: vRefNum=%d parID=%ld name='%.*s'\n",
                                          reply.sfFile.vRefNum, reply.sfFile.parID,
@@ -659,7 +659,7 @@ OSErr ShowErrorDialog(StringPtr message, OSErr errorCode)
     BlockMoveData(message, errorText, message[0] + 1);
 
     /* Show alert dialog */
-    ParamText(errorText, "\p", "\p", "\p");
+    ParamText(errorText, "\000", "\000", "\000");
     Alert(128, nil);  /* Error alert dialog */
 
     return noErr;

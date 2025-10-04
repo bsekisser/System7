@@ -27,7 +27,7 @@
 
 
 /* Trash Folder Constants */
-#define kTrashFolderName        "\pTrash"
+#define kTrashFolderName        "\005Trash"
 #define kMaxTrashItems          512
 #define kFloppyDiskSize         409600L     /* 400K floppy disk size */
 
@@ -181,7 +181,7 @@ OSErr MoveToTrash(FSSpec *items, short count)
         err = FSpCatMove(&items[itemIndex], &gTrashFolder);
         if (err != noErr) {
             /* Show error for this item and continue */
-            ShowErrorDialog("\pCould not move item to Trash.", err);
+            ShowErrorDialog("\036Could not move item to Trash.", err);
         }
     }
 
@@ -298,7 +298,7 @@ static OSErr FindTrashFolder(FSSpec *trashSpec)
     /* Get system volume */
     err = FindFolder(kOnSystemDisk, kTrashFolderType, kDontCreateFolder, &vRefNum, &dirID);
     if (err == noErr) {
-        err = FSMakeFSSpec(vRefNum, dirID, "\p", trashSpec);
+        err = FSMakeFSSpec(vRefNum, dirID, "\000", trashSpec);
     } else {
         /* If FindFolder fails, look for Trash folder in root directory */
         err = FSMakeFSSpec(0, fsRtDirID, kTrashFolderName, trashSpec);
@@ -414,7 +414,7 @@ static OSErr ConfirmEmptyTrash(Boolean *confirmed)
     sprintf((char *)message + 1, "Are you sure you want to permanently remove the items in the Trash?");
     message[0] = strlen((char *)message + 1);
 
-    ParamText(message, "\p", "\p", "\p");
+    ParamText(message, "\000", "\000", "\000");
     itemHit = Alert(129, nil); /* Confirmation alert */
 
     *confirmed = (itemHit == 1); /* OK button */

@@ -33,6 +33,7 @@
 #include "../include/ListManager/ListManager.h"
 #include "../include/TextEdit/TextEdit.h"
 #include "../include/FontManager/FontManager.h"
+#include "../include/sys71_stubs.h"
 
 /* DeskHook type definition if not in headers */
 typedef void (*DeskHookProc)(RgnHandle invalidRgn);
