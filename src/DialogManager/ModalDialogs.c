@@ -17,6 +17,7 @@
 #include "DialogManager/DialogEvents.h"
 #include "DialogManager/DialogItems.h"
 #include "DialogManager/DialogManagerStateExt.h"
+#include "DialogManager/DialogHelpers.h"
 #include <stdbool.h>
 
 /* Event constants - matching Mac System 7.1 */
@@ -128,174 +129,95 @@ void InitModalDialogs(void)
  */
 void ModalDialog(ModalFilterProcPtr filterProc, SInt16* itemHit)
 {
-    DialogPtr theDialog;
-    EventRecord theEvent;
-    Boolean done = false;
-    SInt16 eventMask = 0xFFFF; /* All events */
-    UInt32 timeoutTime = 0;
-
-    if (!gModalState.initialized) {
-        serial_printf("Error: Modal dialog system not initialized\n");
-        if (itemHit) *itemHit = 0;
-        return;
-    }
-
-    /* Get the current front modal dialog */
-    theDialog = GetFrontModalDialog();
-    if (!theDialog) {
-        serial_printf("Error: No modal dialog to process\n");
-        if (itemHit) *itemHit = 0;
-        return;
-    }
-
-    /* Set up modal state */
-    gModalState.inModalLoop = true;
-    gModalState.currentModal = theDialog;
-    gModalState.lastEventTime = TickCount();
+    DialogPtr dlg;
+    EventRecord evt;
+    SInt16 everyEvent = 0xFFFF;
 
     if (itemHit) *itemHit = 0;
 
-    serial_printf("Starting modal dialog loop for dialog at %p\n", (void*)theDialog);
+    dlg = FrontDialog();
+    if (!dlg) {
+        serial_printf("ModalDialog: No dialog to process\n");
+        return;
+    }
 
-    /* Main modal event loop */
-    while (!done) {
-        /* Check for timeout if configured */
-        if (timeoutTime > 0 && TickCount() > timeoutTime) {
-            HandleModalTimeout(theDialog, itemHit);
-            break;
-        }
+    /* Draw once */
+    UpdateDialog(dlg, ((WindowPtr)dlg)->port.clipRgn);
 
-        /* Get next event */
-        if (GetNextEvent(eventMask, &theEvent)) {
-            gModalState.lastEventTime = theEvent.when;
+    serial_printf("ModalDialog: Starting modal loop for dialog %p\n", (void*)dlg);
 
-            /* Call custom filter first if provided */
-            if (filterProc) {
-                if (filterProc(theDialog, &theEvent, itemHit)) {
-                    /* Filter handled the event */
-                    if (itemHit && *itemHit != 0) {
-                        done = true;
-                    }
-                    continue;
-                }
-            }
-
-            /* Call installed filter if any */
-            if (CallModalFilter(theDialog, &theEvent, itemHit)) {
-                if (itemHit && *itemHit != 0) {
-                    done = true;
-                }
-                continue;
-            }
-
-            /* Process the event for the dialog */
-            if (ProcessModalEvent(theDialog, &theEvent, itemHit)) {
-                if (itemHit && *itemHit != 0) {
-                    done = true;
-                }
-            }
-        } else {
-            /* No event - give time to system and handle idle processing */
+    for (;;) {
+        /* Wait for next event (use GetNextEvent if WaitNextEvent unavailable) */
+        if (!GetNextEvent(everyEvent, &evt)) {
             SystemTask();
-            ProcessDialogIdle(theDialog);
-
-            /* Small delay to prevent spinning */
-            UInt32 finalTicks;
-            Delay(1, &finalTicks);
+            continue;
         }
 
-        /* Update modal state */
-        UpdateModalState(theDialog);
-    }
+        /* Filter first (can swallow / modify events) */
+        if (filterProc && (*filterProc)(dlg, &evt, itemHit)) {
+            if (itemHit && *itemHit) {
+                serial_printf("ModalDialog: Filter returned item %d\n", *itemHit);
+                return;
+            }
+            continue;
+        }
 
-    /* Clean up modal state */
-    gModalState.inModalLoop = false;
-    gModalState.currentModal = NULL;
+        /* Dialog hit-testing & dispatch */
+        if (IsDialogEvent(&evt)) {
+            DialogPtr hitDlg = NULL;
+            SInt16 hitItem = 0;
+            if (DialogSelect(&evt, &hitDlg, &hitItem)) {
+                if (itemHit) *itemHit = hitItem;
+                serial_printf("ModalDialog: DialogSelect returned item %d\n", hitItem);
+                return;
+            }
+            continue;
+        }
 
-    serial_printf("Modal dialog loop ended, item hit: %d\n", itemHit ? *itemHit : 0);
-}
+        /* Esc / Cmd-. as cancel, Return activates default */
+        if (evt.what == keyDown || evt.what == autoKey) {
+            unsigned char ch = (unsigned char)(evt.message & 0xFF);
+            Boolean cmd = (evt.modifiers & cmdKey) != 0;
 
-/*
- * IsDialogEvent - Check if an event belongs to a dialog
- */
-Boolean IsDialogEvent(const EventRecord* theEvent)
-{
-    if (!theEvent || !gModalState.initialized) {
-        return false;
-    }
+            if (cmd && ch == '.') {
+                if (itemHit) *itemHit = GetDialogCancelItem(dlg);
+                serial_printf("ModalDialog: Cmd-. -> cancel item %d\n", *itemHit);
+                return;
+            }
+            if (ch == 0x1B /* ESC */) {
+                if (itemHit) *itemHit = GetDialogCancelItem(dlg);
+                serial_printf("ModalDialog: ESC -> cancel item %d\n", *itemHit);
+                return;
+            }
+            if (ch == '\r' || ch == 0x03) {
+                if (itemHit) *itemHit = GetDialogDefaultItem(dlg);
+                serial_printf("ModalDialog: Return -> default item %d\n", *itemHit);
+                return;
+            }
+            /* Tab focus between edit fields (optional for now) */
+        }
 
-    /* Check if event is for the current modal dialog */
-    if (gModalState.currentModal) {
-        return IsEventForDialog(gModalState.currentModal, theEvent);
-    }
-
-    /* Check all dialogs in modal stack */
-    for (int i = 0; i < gModalState.modalLevel; i++) {
-        if (gModalState.modalStack[i]) {
-            DialogPtr dialog = (DialogPtr)gModalState.modalStack[i];
-            if (IsEventForDialog(dialog, theEvent)) {
-                return true;
+        /* Mouse in dialog? Let DialogSelect process click tracking */
+        if (evt.what == mouseDown || evt.what == mouseUp) {
+            DialogPtr hitDlg = NULL;
+            SInt16 hitItem = 0;
+            if (DialogSelect(&evt, &hitDlg, &hitItem) && hitItem) {
+                if (itemHit) *itemHit = hitItem;
+                serial_printf("ModalDialog: Mouse hit item %d\n", hitItem);
+                return;
             }
         }
-    }
 
-    return false;
-}
-
-/*
- * DialogSelect - Handle dialog event
- */
-Boolean DialogSelect(const EventRecord* theEvent, DialogPtr* theDialog, SInt16* itemHit)
-{
-    if (!theEvent || !gModalState.initialized) {
-        if (theDialog) *theDialog = NULL;
-        if (itemHit) *itemHit = 0;
-        return false;
-    }
-
-    /* Initialize return values */
-    if (theDialog) *theDialog = NULL;
-    if (itemHit) *itemHit = 0;
-
-    /* Check if this is a dialog event */
-    if (!IsDialogEvent(theEvent)) {
-        return false;
-    }
-
-    /* Find which dialog should handle this event */
-    DialogPtr targetDialog = NULL;
-
-    if (gModalState.currentModal && IsEventForDialog(gModalState.currentModal, theEvent)) {
-        targetDialog = gModalState.currentModal;
-    } else {
-        /* Check modal stack */
-        for (int i = gModalState.modalLevel - 1; i >= 0; i--) {
-            if (gModalState.modalStack[i]) {
-                DialogPtr dialog = (DialogPtr)gModalState.modalStack[i];
-                if (IsEventForDialog(dialog, theEvent)) {
-                    targetDialog = dialog;
-                    break;
-                }
-            }
+        /* Idle update pipeline */
+        if (evt.what == updateEvt) {
+            BeginUpdate((WindowPtr)dlg);
+            UpdateDialog(dlg, ((WindowPtr)dlg)->updateRgn);
+            EndUpdate((WindowPtr)dlg);
         }
     }
-
-    if (!targetDialog) {
-        return false;
-    }
-
-    /* Process the event for the target dialog */
-    EventRecord eventCopy = *theEvent;
-    SInt16 hit = 0;
-    Boolean handled = ProcessModalEvent(targetDialog, &eventCopy, &hit);
-
-    if (handled) {
-        if (theDialog) *theDialog = targetDialog;
-        if (itemHit) *itemHit = hit;
-    }
-
-    return handled;
 }
+
+/* IsDialogEvent and DialogSelect are now in DialogEvents.c */
 
 /*
  * BeginModalDialog - Begin modal dialog processing
@@ -530,46 +452,11 @@ void EnableNonModalWindows(void)
  * Private implementation functions
  */
 
+/* ProcessModalEvent - DEPRECATED - now uses DialogSelect */
 Boolean ProcessModalEvent(DialogPtr theDialog, EventRecord* theEvent, SInt16* itemHit)
 {
-    if (!theDialog || !theEvent) {
-        return false;
-    }
-
-    Boolean handled = false;
-    SInt16 hit = 0;
-
-    switch (theEvent->what) {
-        case kDialogEvent_MouseDown:
-            handled = HandleModalMouse(theDialog, theEvent, &hit);
-            break;
-
-        case kDialogEvent_KeyDown:
-        case kDialogEvent_AutoKey:
-            handled = HandleModalKeyboard(theDialog, theEvent, &hit);
-            break;
-
-        case kDialogEvent_Update:
-            HandleDialogUpdate(theDialog, theEvent);
-            handled = true;
-            break;
-
-        case kDialogEvent_Activate:
-            HandleDialogActivate(theDialog, theEvent, true);
-            handled = true;
-            break;
-
-        default:
-        {
-            /* Let dialog events module handle other events */
-            SInt16 result = ProcessDialogEvent(theDialog, theEvent, &hit);
-            handled = (result != kDialogEventResult_NotHandled);
-            break;
-        }
-    }
-
-    if (itemHit) *itemHit = hit;
-    return handled;
+    /* Forward to DialogSelect */
+    return DialogSelect(theEvent, &theDialog, itemHit);
 }
 
 static Boolean CallModalFilter(DialogPtr theDialog, EventRecord* theEvent, SInt16* itemHit)

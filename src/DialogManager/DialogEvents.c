@@ -2,6 +2,7 @@
  * DialogEvents.c - Dialog Event Handling Implementation
  *
  * This module provides event handling for dialogs in Mac System 7.1.
+ * Implements IsDialogEvent and DialogSelect for modeless dialog support.
  */
 
 #include <stdlib.h>
@@ -13,48 +14,12 @@
 #include "DialogManager/DialogEvents.h"
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/DialogTypes.h"
+#include "DialogManager/DialogHelpers.h"
+#include "DialogManager/DialogItems.h"
 
-/* Event constants - matching Mac System 7.1 */
-#define kDialogEvent_Null         0
-#define kDialogEvent_MouseDown    1
-#define kDialogEvent_MouseUp      2
-#define kDialogEvent_KeyDown      3
-#define kDialogEvent_KeyUp        4
-#define kDialogEvent_AutoKey      5
-#define kDialogEvent_Update       6
-#define kDialogEvent_DiskEvt      7
-#define kDialogEvent_Activate     8
-#define kDialogEvent_OsEvt        15
-
-/* Key codes */
-#define kDialogKey_Return         0x0D
-#define kDialogKey_Enter          0x03
-#define kDialogKey_Escape         0x1B
-#define kDialogKey_Tab            0x09
-
-/* Modifiers */
-#define kDialogModifier_Shift     0x0200
-#define kDialogModifier_Command   0x0100
-#define kDialogModifier_Option    0x0800
-#define kDialogModifier_Control   0x1000
-
-/* Dialog item type constants */
-#define itemTypeMask              0x7F
-#define ctrlItem                  4
-#define btnCtrl                   0
-#define chkCtrl                   1
-#define radCtrl                   2
-#define resCtrl                   3
-#define statText                  8
-#define editText                  16
-#define iconItem                  32
-#define picItem                   64
-#define userItem                  0
-#define itemDisable               128
-
-/* Dialog event result codes */
-#define kDialogEventResult_NotHandled   0
-#define kDialogEventResult_Handled      1
+/* External Window Manager dependencies */
+extern void BeginUpdate(WindowPtr window);
+extern void EndUpdate(WindowPtr window);
 
 /* Global event state */
 static struct {
@@ -75,31 +40,118 @@ void InitDialogEvents(void)
 }
 
 /*
- * ProcessDialogEvent - Process an event for a dialog
+ * IsDialogEvent - Determine if event targets a dialog
+ *
+ * Returns true if the event should be handled by a dialog.
  */
-SInt16 ProcessDialogEvent(DialogPtr theDialog, const EventRecord* theEvent, SInt16* itemHit)
+Boolean IsDialogEvent(const EventRecord* evt)
 {
-    if (!theDialog || !theEvent) {
-        return kDialogEventResult_NotHandled;
+    if (!evt) {
+        return false;
     }
 
-    /* Stub - would process the event */
-    if (itemHit) *itemHit = 0;
+    switch (evt->what) {
+        case mouseDown:
+        case mouseUp:
+        case keyDown:
+        case autoKey:
+        case updateEvt:
+            /* If front window is a dialog, claim it */
+            return FrontWindowIsDialog();
 
-    return kDialogEventResult_NotHandled;
+        default:
+            return false;
+    }
 }
 
 /*
- * HandleDialogUpdate - Handle update event for dialog
+ * DialogSelect - Handle event for modeless dialogs
+ *
+ * Returns true and sets *itemHit when an item is "activated" (clicked button, etc.)
  */
-void HandleDialogUpdate(DialogPtr theDialog, const EventRecord* theEvent)
+Boolean DialogSelect(const EventRecord* evt, DialogPtr* which, SInt16* itemHit)
 {
-    if (!theDialog) {
-        return;
+    DialogPtr dlg;
+    Point local;
+    SInt16 hit;
+
+    if (!evt || !which || !itemHit) {
+        return false;
     }
 
-    /* Stub - would redraw dialog */
-    printf("HandleDialogUpdate: dialog=%p\n", (void*)theDialog);
+    dlg = FrontDialog();
+    if (!dlg) {
+        return false;
+    }
+
+    *which = dlg;
+    *itemHit = 0;
+
+    /* Handle update events */
+    if (evt->what == updateEvt) {
+        BeginUpdate((WindowPtr)dlg);
+        UpdateDialog(dlg, ((WindowPtr)dlg)->updateRgn);
+        EndUpdate((WindowPtr)dlg);
+        return false;
+    }
+
+    /* Handle mouse down */
+    if (evt->what == mouseDown) {
+        local = evt->where;
+        GlobalToLocalDialog(dlg, &local);
+
+        hit = DialogHitTest(dlg, local);
+        if (!hit) {
+            return false;
+        }
+
+        serial_printf("Dialog: DialogSelect hit item %d\n", hit);
+
+        /* Track push button - press feedback then release to commit */
+        if (DialogItemIsPushButton(dlg, hit)) {
+            DialogTrackButton(dlg, hit, local, true);
+            *itemHit = hit;
+            return true;
+        }
+
+        /* Toggle checkbox */
+        if (DialogItemIsCheckbox(dlg, hit)) {
+            ToggleDialogCheckbox(dlg, hit);
+            InvalDialogItem(dlg, hit);
+            *itemHit = hit;
+            return true;
+        }
+
+        /* Select radio button (exclusive) */
+        if (DialogItemIsRadio(dlg, hit)) {
+            SelectRadioInGroup(dlg, hit);
+            InvalDialogItem(dlg, hit);
+            *itemHit = hit;
+            return true;
+        }
+
+        /* Set edit field focus */
+        if (DialogItemIsEditText(dlg, hit)) {
+            SetDialogEditFocus(dlg, hit);
+            InvalDialogItem(dlg, hit);
+            return false;
+        }
+    }
+
+    /* Handle key down / auto key */
+    if (evt->what == keyDown || evt->what == autoKey) {
+        /* Type into focused edit field */
+        if (HasEditFocus(dlg)) {
+            char ch = (char)(evt->message & 0xFF);
+            if (DialogEditKey(dlg, ch)) {
+                SInt16 focus = GetEditFocusItem(dlg);
+                InvalDialogItem(dlg, focus);
+            }
+            return false;
+        }
+    }
+
+    return false;
 }
 
 /*
