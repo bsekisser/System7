@@ -45,16 +45,13 @@ static MenuHandle gAppleMenu, gFileMenu, gEditMenu, gViewMenu, gLabelMenu, gSpec
 OSErr InitializeFinder(void);  /* Made public for kernel integration */
 static OSErr SetupMenus(void);
 extern OSErr InitializeDesktopDB(void);  /* From desktop_manager.c */
+extern OSErr InitializeTrashFolder(void);  /* From trash_manager.c */
 static OSErr InitializeWindowManager(void);
-static OSErr InitializeTrash(void);
 static OSErr HandleShutDown(void);
 static void HandleMenuChoice(long menuChoice);
-static void HandleMouseDown(EventRecord *event);
-static void HandleKeyDown(EventRecord *event);
-static void MainEventLoop(void);
-static void DoUpdate(WindowPtr w);
-static void DoActivate(WindowPtr w, Boolean becomingActive);
-static void DoBackgroundTasks(void);
+/* HandleMouseDown, HandleKeyDown declared in #if 0 block below */
+/* DoUpdate, DoActivate, DoBackgroundTasks declared in #if 0 block below */
+/* MainEventLoop declared in #if 0 block below */
 extern void DrawFolderWindowContents(WindowPtr window, Boolean isTrash);
 
 #if 0  /* Disabled - Finder is now integrated into kernel, not standalone */
@@ -288,6 +285,7 @@ static OSErr SetupMenus(void)
     return noErr;
 }
 
+#if 0  /* Disabled - Event loop helper functions only used in standalone mode */
 /*
  * DoUpdate - Handle window update events
  * System 7 Finder style: Draw window contents inside BeginUpdate/EndUpdate
@@ -427,6 +425,7 @@ static void DoBackgroundTasks(void)
     /* Background tasks like checking for disk insertions */
 }
 
+#if 0  /* Disabled - MainEventLoop only used in standalone mode */
 /*
  * MainEventLoop - Main event processing loop
 
@@ -475,6 +474,7 @@ static void MainEventLoop(void)
         DoBackgroundTasks();
     }
 }
+#endif
 
 /*
  * HandleMouseDown - Process mouse down events
@@ -530,6 +530,7 @@ static void HandleMouseDown(EventRecord *event)
             break;
     }
 }
+#endif  /* Event loop helper functions */
 
 /*
  * HandleMenuChoice - Process menu selections
