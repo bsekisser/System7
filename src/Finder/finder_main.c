@@ -331,6 +331,7 @@ static void DoUpdate(WindowPtr w)
 
     SetPort(savePort);
 }
+#endif
 
 /*
  * Finder_OpenDesktopItem - Bulletproof window opener with immediate paint
@@ -414,6 +415,7 @@ static void DoActivate(WindowPtr w, Boolean becomingActive)
     }
 }
 
+#if 0  /* Disabled - Background task functions only used in standalone mode */
 /*
  * DoBackgroundTasks - Perform idle-time tasks
  */
@@ -422,7 +424,6 @@ static void DoBackgroundTasks(void)
     /* Background tasks like checking for disk insertions */
 }
 
-#if 0  /* Disabled - MainEventLoop only used in standalone mode */
 /*
  * MainEventLoop - Main event processing loop
 
@@ -473,6 +474,7 @@ static void MainEventLoop(void)
 }
 #endif
 
+#if 0  /* Disabled - Standalone event handlers only used in standalone mode */
 /*
  * HandleMouseDown - Process mouse down events
 

@@ -251,7 +251,7 @@ short MenuSelectEx(Point startPt, MenuTrackInfo* trackInfo, MenuSelection* selec
     BeginMenuTracking(trackInfo);
 
     /* Check initial mouse position */
-    GetCurrentMouseState(&currentPt, &mouseDown, &modifiers);
+    GetCurrentMouseState(&currentPt, &buttonDown, &modifiers);
     isInMenuBar = IsPointInMenuBar(startPt); /* Use startPt, not currentPt for initial check */
 
     if (!isInMenuBar) {

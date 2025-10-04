@@ -980,7 +980,6 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
             FileID newID = 0;
             if (VFS_Copy(vref, sourceDir, item->iconID, targetDir, copyName, &newID)) {
                 serial_printf("TrackIconDragSync: Copy succeeded, newID=%u\n", newID);
-                operationSucceeded = true;
             } else {
                 serial_printf("TrackIconDragSync: Copy operation failed\n");
                 invalidDrop = true;
@@ -992,7 +991,6 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
                 extern bool VFS_Move(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* newName);
                 if (VFS_Move(vref, sourceDir, item->iconID, targetDir, NULL)) {
                     serial_printf("TrackIconDragSync: Moved to folder\n");
-                    operationSucceeded = true;
                     /* Remove from desktop */
                     for (short i = iconIndex; i < gDesktopIconCount - 1; i++) {
                         gDesktopIcons[i] = gDesktopIcons[i + 1];
@@ -1006,7 +1004,6 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
                 snapped = SnapToGrid(snapped);
                 gDesktopIcons[iconIndex].position = snapped;
                 serial_printf("TrackIconDragSync: Repositioned to (%d,%d)\n", snapped.h, snapped.v);
-                operationSucceeded = true;
             }
         }
     }
