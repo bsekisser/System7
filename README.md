@@ -12,6 +12,20 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Recent Updates
 
+- ✅ **Scrap Manager & SimpleText Integration**: Complete clipboard system with classic Mac OS API
+  - Classic System 7.1 API: ZeroScrap, GetScrap, PutScrap, LoadScrap, UnloadScrap, InfoScrap
+  - Multiple flavor support (TEXT, PICT, etc.) with handle-based memory management
+  - Full TextEdit integration via TEFromScrap/TEToScrap
+  - SimpleText application with functional Cut/Copy/Paste operations
+  - Change counting for clipboard update detection
+  - End-to-end clipboard stack: SimpleText → TextEdit API → Scrap Manager → Global Clipboard
+- ✅ **SimpleText Application**: Complete text editor implementation
+  - Full MDI support with multiple document windows
+  - Complete menu system (Apple, File, Edit, Font, Size, Style)
+  - TextEdit API integration for editing, selection, and clipboard operations
+  - File I/O with type/creator codes (TEXT/ttxt)
+  - Document state tracking (dirty flag, undo support)
+  - Authentic System 7.1 UI with menu bar and document windows
 - ✅ **Font Manager Implementation**: Complete System 7.1-compatible Font Manager
   - Core font management with InitFonts(), GetFontName(), TextFont(), TextFace(), TextSize()
   - Style synthesis: Bold (+1 pixel), Italic (1:4 shear), Underline, Shadow, Outline, Condense/Extend
@@ -105,7 +119,26 @@ This is a proof-of-concept implementation focused on understanding and recreatin
   - Architecture detection (x86/ARM/RISC-V/PowerPC)
   - Built-in selectors (sysv, mach, proc, fpu, init bits)
   - GetSysEnv compatibility layer
-- **TextEdit**: Fully integrated text editor with window creation and event handling
+- **TextEdit Manager**: Complete System 7.1-compatible text editing engine with:
+  - Core editing operations (TENew, TEDispose, TEKey, TEClick, TECut, TECopy, TEPaste)
+  - Selection management with click/drag and keyboard navigation
+  - Clipboard integration via Scrap Manager (TEFromScrap/TEToScrap)
+  - Multi-line text support with word wrap and scrolling
+  - Handle-based text storage with dynamic resizing
+- **Scrap Manager**: Classic Mac OS clipboard system with:
+  - System 7.1 API compatibility (ZeroScrap, GetScrap, PutScrap, LoadScrap, UnloadScrap, InfoScrap)
+  - Multiple clipboard flavors (TEXT, PICT, style runs)
+  - Handle-based memory management for clipboard data
+  - Change counting for detecting clipboard updates
+  - Process ownership tracking
+  - Helper functions (ScrapHasFlavor, ScrapGetFlavorSize)
+- **SimpleText Application**: Full-featured text editor with:
+  - Multiple document interface (MDI) support
+  - Complete menu system (Apple, File, Edit, Font, Size, Style menus)
+  - Cut/Copy/Paste/Clear/Select All operations
+  - File open/save with TEXT/ttxt type/creator codes
+  - Document state management (dirty tracking, undo support)
+  - TextEdit API integration for all editing operations
 
 ### Partially Working ⚠️
 
@@ -130,7 +163,6 @@ This is a proof-of-concept implementation focused on understanding and recreatin
 ### Not Yet Implemented ❌
 
 - **Application Launching**: No process management or application loading
-- **Clipboard/Scrap Manager**: Copy/paste functionality incomplete, scrap manager implemented.
 - **List Manager**: List controls not working
 - **Sound Manager**: No audio support
 - **Printing**: No print system
@@ -193,7 +225,9 @@ iteration2/
 │   ├── TimeManager/            # Production timer scheduler (7 modules)
 │   ├── ResourceMgr/            # High-performance resource manager
 │   ├── Gestalt/                # System information manager
-│   ├── TextEdit/               # Complete text editing application
+│   ├── TextEdit/               # TextEdit Manager (7 modules)
+│   ├── ScrapManager/           # Clipboard/Scrap Manager (Classic Mac OS API)
+│   ├── Apps/SimpleText/        # SimpleText application (7 modules)
 │   ├── FileMgr/                # File Manager subsystems
 │   ├── FileManager.c           # File Manager API
 │   └── PS2Controller.c         # Hardware input driver
@@ -382,8 +416,8 @@ This project is in **active development** with no guaranteed timeline. Planned w
 **Medium Term** (Core Toolbox):
 - Complete Window Definition Procedure (WDEF) dispatch
 - Implement standard controls (buttons, scrollbars, text fields)
-- Enhance TextEdit with full editing capabilities (cut/copy/paste)
 - Implement functional dialog boxes with standard items
+- Add TrueType font support to Font Manager
 
 **Long Term** (Application Support):
 - Resource Manager with .rsrc file support
