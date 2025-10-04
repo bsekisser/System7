@@ -2255,6 +2255,12 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     DrawVolumeIcon();
     serial_puts("MAIN: DrawVolumeIcon returned\n");
 
+    /* Run alert dialog smoke tests */
+    extern void DoAlertSmokeTests(void);
+    serial_puts("MAIN: Running alert smoke tests\n");
+    DoAlertSmokeTests();
+    serial_puts("MAIN: Alert smoke tests complete\n");
+
     /* Track mouse position for movement detection */
     extern struct {
         int16_t x;

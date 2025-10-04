@@ -129,6 +129,7 @@ C_SOURCES = src/main.c \
             src/DialogManager/DialogManagerStubs.c \
             src/DialogManager/ModalDialogs.c \
             src/DialogManager/AlertDialogs.c \
+            src/DialogManager/AlertSmoke.c \
             src/DialogManager/DialogEvents.c \
             src/DialogManager/DialogItems.c \
             src/DialogManager/DialogResourceParser.c \
