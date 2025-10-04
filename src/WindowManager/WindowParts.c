@@ -25,6 +25,8 @@
 #include "System71StdLib.h"
 
 #include "WindowManager/WindowManagerInternal.h"
+#include "FontManager/FontManager.h"
+#include "FontManager/FontTypes.h"
 #include <math.h>
 
 /* [WM-031] File-local helpers; provenance: IM:Windows "Window Definition Procedures" */
@@ -290,23 +292,47 @@ void WM_DrawWindowTitleBar(WindowPtr window) {
 
 void WM_DrawWindowTitle(WindowPtr window, const Rect* titleRect) {
     extern void serial_printf(const char* fmt, ...);
+    extern void TextFont(short);
+    extern void TextSize(short);
+    extern void TextFace(Style);
+    extern short StringWidth(ConstStr255Param);
+    extern void DrawString(ConstStr255Param);
+    extern void MoveTo(short, short);
+
     if (window == NULL || titleRect == NULL) return;
     if (window->titleHandle == NULL || *(window->titleHandle) == NULL) return;
 
     serial_printf("*** CODE PATH A: WM_DrawWindowTitle in WindowParts.c ***\n");
-    WM_DEBUG("WM_DrawWindowTitle: Drawing window title");
+    WM_DEBUG("WM_DrawWindowTitle: Drawing window title with Font Manager");
 
-    /* Calculate title position (centered in title bar) */
+    /* Get title string */
     unsigned char* title = *(window->titleHandle);
     short titleLength = title[0];
 
     if (titleLength > 0) {
-        /* TODO: Implement actual text drawing when text system is available */
-        /* For now, just log the title being drawn */
+        /* Set font for window title (Chicago 12pt) */
+        TextFont(chicagoFont);
+        TextSize(12);
+        TextFace(normal);
+
+        /* Calculate title width for centering */
+        short titleWidth = StringWidth(title);
+
+        /* Calculate centered position in title bar */
+        short centerX = titleRect->left + ((titleRect->right - titleRect->left) - titleWidth) / 2;
+        short centerY = titleRect->top + ((titleRect->bottom - titleRect->top) + 9) / 2; /* 9 = Chicago font ascent */
+
+        /* Move to drawing position */
+        MoveTo(centerX, centerY);
+
+        /* Draw the title string using Font Manager */
+        DrawString(title);
+
+        /* Log the title being drawn */
         char titleStr[256];
         memcpy(titleStr, &title[1], titleLength);
         titleStr[titleLength] = '\0';
-        WM_DEBUG("WM_DrawWindowTitle: Title = \"%s\"", titleStr);
+        WM_DEBUG("WM_DrawWindowTitle: Drew title \"%s\" at (%d, %d)", titleStr, centerX, centerY);
     }
 }
 

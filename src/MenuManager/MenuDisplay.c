@@ -19,6 +19,8 @@
 #include "MenuManager/MenuTypes.h"
 #include "MenuManager/MenuInternalTypes.h"
 #include "MenuManager/MenuDisplay.h"
+#include "FontManager/FontManager.h"
+#include "FontManager/FontTypes.h"
 
 #include <math.h>
 
@@ -843,6 +845,13 @@ static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param item
 {
     short textLen = itemText[0];
     extern void serial_printf(const char* fmt, ...);
+    extern void TextFont(short);
+    extern void TextSize(short);
+    extern void TextFace(Style);
+    extern short StringWidth(ConstStr255Param);
+    extern void DrawString(ConstStr255Param);
+    extern void MoveTo(short, short);
+    extern void InvertRect(const Rect* rect);
 
     /* serial_printf("Drawing item text: %.*s (enabled=%s, selected=%s)\n",
            textLen, &itemText[1], enabled ? "Yes" : "No", selected ? "Yes" : "No"); */
@@ -850,12 +859,28 @@ static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param item
     /* Draw menu title with highlighting if selected */
     if (selected) {
         /* Draw inverse video background for selected menu title */
-        extern void InvertRect(const Rect* rect);
         InvertRect(itemRect);
         serial_printf("Highlighted menu title: %.*s\n", textLen, &itemText[1]);
     }
 
-    /* TODO: Draw actual text - for now just rely on existing text drawing */
+    /* Set font for menu items (Chicago 12pt) */
+    TextFont(chicagoFont);
+    TextSize(12);
+    TextFace(textStyle);  /* Apply style (bold, italic, etc.) */
+
+    /* Calculate text position (left-aligned with padding) */
+    short textX = itemRect->left + 8;  /* 8 pixel left padding */
+    short textY = itemRect->top + ((itemRect->bottom - itemRect->top) + 9) / 2; /* Vertically centered */
+
+    /* Move to drawing position */
+    MoveTo(textX, textY);
+
+    /* Draw the menu item text using Font Manager */
+    DrawString(itemText);
+
+    /* Log what we drew */
+    serial_printf("Drew menu item: %.*s at (%d,%d) style=0x%02X\n",
+                  textLen, &itemText[1], textX, textY, textStyle);
 }
 
 /*
