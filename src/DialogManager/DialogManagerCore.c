@@ -20,6 +20,7 @@
 #include "DialogManager/DialogItems.h"
 #include "DialogManager/DialogResources.h"
 #include "DialogManager/DialogEvents.h"
+#include "DialogManager/AlertDialogs.h"
 #include "DialogManager/DialogManagerStateExt.h"
 #include <assert.h>
 
@@ -99,6 +100,7 @@ void InitDialogs(ResumeProcPtr resumeProc)
     InitDialogItems();
     InitDialogResources();
     InitDialogEvents();
+    InitAlertDialogs();
 
     gDialogManagerInitialized = true;
 
