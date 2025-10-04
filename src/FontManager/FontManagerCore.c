@@ -280,9 +280,11 @@ short CharWidth(short ch) {
         short width = info.bit_width + 2;  /* Corrected spacing */
         if (ch == ' ') width += 3;  /* Extra space width */
 
-        /* Apply style modifications */
-        if (g_currentPort && (g_currentPort->txFace & bold)) {
-            width += 1;  /* Bold adds 1 pixel */
+        /* Apply full style synthesis if we have styles */
+        if (g_currentPort && g_currentPort->txFace != normal) {
+            /* Use style synthesis for complex styles */
+            extern short FM_GetStyledCharWidth(char ch, Style face);
+            return FM_GetStyledCharWidth(ch, g_currentPort->txFace);
         }
 
         return width;

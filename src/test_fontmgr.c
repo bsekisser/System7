@@ -74,6 +74,31 @@ void TestFontManager(void) {
     width = StringWidth(testStr1);
     serial_printf("FM: Width of 'System 7' (bold) = %d pixels\n", width);
 
+    /* Test 7b: Italic face */
+    TextFace(italic);
+    width = StringWidth(testStr1);
+    serial_printf("FM: Width of 'System 7' (italic) = %d pixels\n", width);
+
+    /* Test 7c: Bold+Italic */
+    TextFace(bold | italic);
+    width = StringWidth(testStr1);
+    serial_printf("FM: Width of 'System 7' (bold+italic) = %d pixels\n", width);
+
+    /* Test 7d: Underline */
+    TextFace(underline);
+    width = StringWidth(testStr1);
+    serial_printf("FM: Width of 'System 7' (underline) = %d pixels\n", width);
+
+    /* Test 7e: Shadow */
+    TextFace(shadow);
+    width = StringWidth(testStr1);
+    serial_printf("FM: Width of 'System 7' (shadow) = %d pixels\n", width);
+
+    /* Test 7f: Outline */
+    TextFace(outline);
+    width = StringWidth(testStr1);
+    serial_printf("FM: Width of 'System 7' (outline) = %d pixels\n", width);
+
     /* Test 8: FMSwapFont */
     FMInput input = {chicagoFont, 12, normal, 0, 1, 1}; /* FALSE = 0 */
     FMOutPtr output = FMSwapFont(&input);

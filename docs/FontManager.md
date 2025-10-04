@@ -97,17 +97,28 @@ Test program (test_fontmgr.c) validates:
 ### Known Limitations
 
 1. Only Chicago 12 is fully implemented
-2. No FOND/NFNT resource loading yet
+2. No runtime FOND/NFNT resource loading (structures ready)
 3. No TrueType support
-4. No style synthesis (bold/italic are width-adjusted only)
-5. Geneva and Monaco are registered but use Chicago metrics
+4. Geneva and Monaco are registered but use Chicago metrics
+5. Style synthesis uses simplified algorithms (not full bitmap transforms)
+
+### Phase 3: Style Synthesis ✓
+
+**Completed:**
+- FontStyleSynthesis.h/c: Complete style synthesis implementation
+
+**Features:**
+- FM_SynthesizeBold(): Horizontal emboldening (+1 pixel)
+- FM_SynthesizeItalic(): 1:4 shear ratio (~14 degrees)
+- FM_SynthesizeUnderline(): Line at descent/2 from baseline
+- FM_SynthesizeShadow(): 1px offset right and down
+- FM_SynthesizeOutline(): 1px stroke around glyph
+- FM_GetCondensedWidth(): -10% horizontal spacing
+- FM_GetExtendedWidth(): +10% horizontal spacing
+- Combined style support for multiple effects
+- Width calculations for all styles
 
 ### Next Steps
-
-**Phase 3: Style Synthesis**
-- Bold emboldening algorithm
-- Italic shearing transform
-- Underline/outline/shadow rendering
 
 **Phase 4: Multiple Sizes**
 - 9, 10, 12, 14, 18, 24 point strikes

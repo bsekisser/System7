@@ -23,7 +23,7 @@ static inline uint8_t get_bit(const uint8_t *row, int bitOff) {
 }
 
 /* Draw a character from the real Chicago font */
-static void DrawRealChicagoChar(short x, short y, char ch, uint32_t color) {
+void DrawRealChicagoChar(short x, short y, char ch, uint32_t color) {
     if (!framebuffer) return;
     if (ch < 32 || ch > 126) return;
 
