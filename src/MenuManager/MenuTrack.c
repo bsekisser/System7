@@ -446,9 +446,115 @@ Boolean IsMenuTrackingNew(void) {
     return g_menuTrackState.isTracking;
 }
 
-/* Legacy TrackMenu for compatibility - now just begins tracking */
+/* TrackMenu - Full implementation with mouse tracking loop */
 long TrackMenu(short menuID, Point startPt) {
-    return BeginTrackMenu(menuID, startPt);
+    Point mousePt;
+    Rect menuRect;
+    Handle savedBits = NULL;
+    long result = 0;
+
+    serial_printf("TrackMenu: menu %d at (h=%d,v=%d)\n", menuID, startPt.h, startPt.v);
+
+    /* Save current port */
+    GrafPtr savePort;
+    GetPort(&savePort);
+    if (qd.thePort) {
+        SetPort(qd.thePort);
+    }
+
+    /* Get the menu */
+    MenuHandle theMenu = GetMenuHandle(menuID);
+    if (!theMenu) {
+        serial_printf("TrackMenu: Menu %d not found\n", menuID);
+        if (savePort) SetPort(savePort);
+        return 0;
+    }
+
+    /* Calculate menu geometry */
+    short itemCount = CountMenuItems(theMenu);
+    if (itemCount == 0) itemCount = 5;
+
+    short left = startPt.h;
+    short top = 20;
+    short menuWidth = 120;
+    if (menuID == 128) menuWidth = 150;
+    if (menuID == 131) menuWidth = 130;
+    short lineHeight = 16;
+    short menuHeight = itemCount * lineHeight + 4;
+
+    /* Save background */
+    menuRect.left = left;
+    menuRect.top = top;
+    menuRect.right = left + menuWidth;
+    menuRect.bottom = top + menuHeight;
+
+    extern Handle SaveMenuBits(const Rect *menuRect);
+    extern OSErr RestoreMenuBits(Handle bitsHandle);
+    extern OSErr DiscardMenuBits(Handle bitsHandle);
+
+    savedBits = SaveMenuBits(&menuRect);
+    if (savedBits) {
+        serial_printf("TrackMenu: Background saved\n");
+    }
+
+    /* Set up tracking state */
+    g_menuTrackState.isTracking = true;
+    g_menuTrackState.activeMenu = theMenu;
+    g_menuTrackState.menuID = menuID;
+    g_menuTrackState.menuLeft = left;
+    g_menuTrackState.menuTop = top;
+    g_menuTrackState.menuWidth = menuWidth;
+    g_menuTrackState.menuHeight = menuHeight;
+    g_menuTrackState.itemCount = itemCount;
+    g_menuTrackState.highlightedItem = 0;
+    g_menuTrackState.lineHeight = lineHeight;
+
+    /* Draw the menu */
+    DrawMenu(theMenu, left, top, itemCount, menuWidth, lineHeight);
+    serial_printf("TrackMenu: Menu drawn, entering tracking loop\n");
+
+    /* TRACKING LOOP - Wait for mouse button release */
+    while (Button()) {
+        /* Get current mouse position */
+        GetMouse(&mousePt);
+
+        /* Update highlighting based on mouse position */
+        UpdateMenuTrackingNew(mousePt);
+
+        /* Small delay to avoid consuming too much CPU */
+        /* (In real Mac OS this would use WaitNextEvent) */
+        {
+            volatile int i;
+            for (i = 0; i < 1000; i++);
+        }
+    }
+
+    serial_printf("TrackMenu: Mouse released\n");
+
+    /* Get final selection */
+    if (g_menuTrackState.highlightedItem > 0) {
+        result = ((long)menuID << 16) | g_menuTrackState.highlightedItem;
+        serial_printf("TrackMenu: Selected item %d\n", g_menuTrackState.highlightedItem);
+    } else {
+        serial_printf("TrackMenu: No selection\n");
+    }
+
+    /* Restore background */
+    if (savedBits) {
+        RestoreMenuBits(savedBits);
+        DiscardMenuBits(savedBits);
+        serial_printf("TrackMenu: Background restored\n");
+    }
+
+    /* Clear tracking state */
+    g_menuTrackState.isTracking = false;
+    g_menuTrackState.activeMenu = NULL;
+    g_menuTrackState.highlightedItem = 0;
+
+    /* Restore port */
+    if (savePort) SetPort(savePort);
+
+    return result;
 }
 
 /* Draw inverted Apple icon for highlighted Apple menu */

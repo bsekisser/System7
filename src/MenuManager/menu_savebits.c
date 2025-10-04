@@ -24,11 +24,17 @@ typedef struct {
     Boolean valid;      /* Handle is valid */
 } SavedBitsRec, *SavedBitsPtr, **SavedBitsHandle;
 
+/* External framebuffer access */
+extern void* framebuffer;
+extern uint32_t fb_width;
+extern uint32_t fb_height;
+extern uint32_t fb_pitch;
+
 /*
  * SaveBits - Save screen bits for menu display
  */
 Handle SaveBits(const Rect *bounds, SInt16 mode) {
-    if (!bounds) {
+    if (!bounds || !framebuffer) {
         return NULL;
     }
 
@@ -52,8 +58,8 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
     savedBits->bounds = *bounds;
     savedBits->mode = mode;
 
-    /* Calculate data size (assume 8 bits per pixel for now) */
-    savedBits->dataSize = width * height;
+    /* Calculate data size (32 bits per pixel = 4 bytes) */
+    savedBits->dataSize = width * height * 4;
 
     /* Allocate memory for pixel data */
     savedBits->bitsData = malloc(savedBits->dataSize);
@@ -62,10 +68,25 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
         return NULL;
     }
 
-    /* TODO: Platform-specific screen capture implementation */
-    /* This would interface with the graphics system to copy pixels */
-    /* For now, zero the data as a placeholder */
-    memset(savedBits->bitsData, 0, savedBits->dataSize);
+    /* Copy pixels from framebuffer to save buffer */
+    {
+        uint32_t* fb = (uint32_t*)framebuffer;
+        uint32_t* savePtr = (uint32_t*)savedBits->bitsData;
+        int pitch = fb_pitch / 4;
+        int y, x;
+
+        for (y = 0; y < height; y++) {
+            int screenY = bounds->top + y;
+            if (screenY < 0 || screenY >= (int)fb_height) continue;
+
+            for (x = 0; x < width; x++) {
+                int screenX = bounds->left + x;
+                if (screenX < 0 || screenX >= (int)fb_width) continue;
+
+                savePtr[y * width + x] = fb[screenY * pitch + screenX];
+            }
+        }
+    }
 
     savedBits->valid = true;
 
@@ -76,7 +97,7 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
  * RestoreBits - Restore saved screen bits
  */
 OSErr RestoreBits(Handle bitsHandle) {
-    if (!bitsHandle || !*bitsHandle) {
+    if (!bitsHandle || !*bitsHandle || !framebuffer) {
         return paramErr;
     }
 
@@ -86,9 +107,27 @@ OSErr RestoreBits(Handle bitsHandle) {
         return paramErr;
     }
 
-    /* TODO: Platform-specific screen restore implementation */
-    /* This would interface with the graphics system to restore pixels */
-    /* For now, just validate the operation */
+    /* Restore pixels from save buffer to framebuffer */
+    {
+        uint32_t* fb = (uint32_t*)framebuffer;
+        uint32_t* savePtr = (uint32_t*)savedBits->bitsData;
+        int pitch = fb_pitch / 4;
+        SInt16 width = savedBits->bounds.right - savedBits->bounds.left;
+        SInt16 height = savedBits->bounds.bottom - savedBits->bounds.top;
+        int y, x;
+
+        for (y = 0; y < height; y++) {
+            int screenY = savedBits->bounds.top + y;
+            if (screenY < 0 || screenY >= (int)fb_height) continue;
+
+            for (x = 0; x < width; x++) {
+                int screenX = savedBits->bounds.left + x;
+                if (screenX < 0 || screenX >= (int)fb_width) continue;
+
+                fb[screenY * pitch + screenX] = savePtr[y * width + x];
+            }
+        }
+    }
 
     return noErr;
 }
