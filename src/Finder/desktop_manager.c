@@ -46,6 +46,28 @@ extern const uint8_t g_HDIconMask[128];
 extern void serial_printf(const char* fmt, ...);
 extern void serial_puts(const char* str);
 
+/* External function declarations */
+extern int sprintf(char* str, const char* format, ...);
+extern int snprintf(char* str, size_t size, const char* format, ...);
+extern void* NewPtr(long byteCount);
+extern void InvalRect(const Rect* badRect);
+extern void SetDeskHook(void (*hookProc)(RgnHandle));
+extern short FSMakeFSSpec(short vRefNum, long dirID, const unsigned char *fileName, FSSpec *spec);
+extern short FSpCreate(const FSSpec *spec, OSType creator, OSType fileType, short scriptTag);
+extern short FSpOpenDF(const FSSpec *spec, short permission, short *refNum);
+extern short FSClose(short refNum);
+extern short FSRead(short refNum, long *count, void *buffPtr);
+extern short FSWrite(short refNum, long *count, const void *buffPtr);
+extern short SetEOF(short refNum, long logEOF);
+extern short PBHGetVInfoSync(void *paramBlock);
+extern short PBGetCatInfoSync(void *paramBlock);
+extern Boolean EventAvail(short eventMask, EventRecord *theEvent);
+extern Boolean GetNextEvent(short eventMask, EventRecord *theEvent);
+extern WindowPtr NewWindow(void *wStorage, const Rect *boundsRect, const unsigned char *title,
+                           Boolean visible, short procID, WindowPtr behind, Boolean goAwayFlag, long refCon);
+extern void ShowWindow(WindowPtr theWindow);
+extern void SelectWindow(WindowPtr theWindow);
+
 /* Chicago font data */
 extern const uint8_t chicago_bitmap[];
 extern GrafPtr g_currentPort;

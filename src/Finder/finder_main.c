@@ -160,7 +160,6 @@ OSErr InitializeFinder(void)
     }
 
     /* Initialize volume icon on desktop */
-    extern OSErr InitializeVolumeIcon(void);
     err = InitializeVolumeIcon();
     if (err != noErr) {
         serial_puts("Finder: Failed to initialize volume icon\n");
