@@ -8,9 +8,7 @@
 #include "QuickDraw/QuickDrawPlatform.h"
 #include "QuickDrawConstants.h"  /* For paint, frame, erase, patCopy */
 #include <stdlib.h>  /* For abs() */
-#include "System71StdLib.h"
-
-#define QD_LOG_TRACE(fmt, ...) serial_logf(kLogModuleSystem, kLogLevelTrace, "[QD] " fmt, ##__VA_ARGS__)
+#include "QuickDraw/QDLogging.h"
 
 /* External framebuffer from main.c */
 extern void* framebuffer;

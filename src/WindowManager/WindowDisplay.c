@@ -4,16 +4,9 @@
 #include "QuickDraw/QuickDraw.h"
 #include "ControlManager/ControlTypes.h"
 #include "SystemTheme.h"
-
-/* Debug macros */
-#ifdef DEBUG_WINDOW_MANAGER
-    #define WM_DEBUG(...) serial_printf("WM: " __VA_ARGS__)
-#else
-    #define WM_DEBUG(...)
-#endif
+#include "WindowManager/WMLogging.h"
 
 /* External functions */
-extern void serial_printf(const char* fmt, ...);
 extern void DrawString(const unsigned char* str);
 extern void LineTo(short h, short v);
 extern void MoveTo(short h, short v);
@@ -53,7 +46,6 @@ void CheckWindowsNeedingUpdate(void) {
     extern SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg);
     extern WindowPtr FrontWindow(void);
     extern Boolean EmptyRgn(RgnHandle rgn);
-    extern void serial_printf(const char* fmt, ...);
 
     static int call_count = 0;
     call_count++;
@@ -62,7 +54,7 @@ void CheckWindowsNeedingUpdate(void) {
     WindowPtr window = FrontWindow();
 
     if (call_count <= 10 || (call_count % 500) == 0) {
-        serial_printf("CheckWindowsNeedingUpdate: #%d, frontWindow=0x%08x\n", call_count, (unsigned int)window);
+        WM_LOG_TRACE("CheckWindowsNeedingUpdate: #%d, frontWindow=0x%08x\n", call_count, (unsigned int)window);
     }
 
     int windowCount = 0;
@@ -72,17 +64,17 @@ void CheckWindowsNeedingUpdate(void) {
         Boolean isEmpty = hasUpdateRgn ? EmptyRgn(window->updateRgn) : true;
 
         if (call_count <= 10 || (call_count % 500) == 0) {
-            serial_printf("CheckWindowsNeedingUpdate:   Window %d: 0x%08x, visible=%d, updateRgn=0x%08x, empty=%d\n",
+            WM_LOG_TRACE("CheckWindowsNeedingUpdate:   Window %d: 0x%08x, visible=%d, updateRgn=0x%08x, empty=%d\n",
                          windowCount, (unsigned int)window, window->visible, (unsigned int)window->updateRgn, isEmpty);
             if (hasUpdateRgn) {
                 Region* rgn = *(window->updateRgn);
-                serial_printf("CheckWindowsNeedingUpdate:     updateRgn bbox=(%d,%d,%d,%d)\n",
+                WM_LOG_TRACE("CheckWindowsNeedingUpdate:     updateRgn bbox=(%d,%d,%d,%d)\n",
                              rgn->rgnBBox.left, rgn->rgnBBox.top, rgn->rgnBBox.right, rgn->rgnBBox.bottom);
             }
         }
 
         if (window->visible && window->updateRgn && !EmptyRgn(window->updateRgn)) {
-            serial_printf("CheckWindowsNeedingUpdate: Posting update event for window 0x%08x\n", (unsigned int)window);
+            WM_LOG_TRACE("CheckWindowsNeedingUpdate: Posting update event for window 0x%08x\n", (unsigned int)window);
             PostEvent(6 /* updateEvt */, (SInt32)window);
             /* Don't clear updateRgn here - BeginUpdate/EndUpdate will handle it */
         }
@@ -97,16 +89,15 @@ static void DrawWindowFrame(WindowPtr window);
 static void DrawWindowControls(WindowPtr window);
 
 void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("PaintOne: ENTRY, window=%p, visible=%d\n", window, window ? window->visible : -1);
+    WM_LOG_TRACE("PaintOne: ENTRY, window=%p, visible=%d\n", window, window ? window->visible : -1);
 
     if (!window || !window->visible) {
-        serial_printf("PaintOne: Early return\n");
+        WM_LOG_TRACE("PaintOne: Early return\n");
         return;
     }
 
     WM_DEBUG("PaintOne: Painting window");
-    serial_printf("PaintOne: About to GetPort/SetPort\n");
+    WM_LOG_TRACE("PaintOne: About to GetPort/SetPort\n");
 
     /* Save current port */
     extern void GetWMgrPort(GrafPtr* port);
@@ -117,7 +108,7 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     /* CRITICAL: Fill window with white in WMgrPort using GLOBAL strucRgn coordinates
      * This ensures we always fill the correct screen position regardless of port state */
     SetPort(wmgrPort);
-    serial_printf("PaintOne: Switched to WMgr port for backfill\n");
+    WM_LOG_TRACE("PaintOne: Switched to WMgr port for backfill\n");
 
     /* Reset clip in WMgr port */
     extern RgnHandle NewRgn(void);
@@ -130,31 +121,31 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
 
     /* Window backfill is handled by chrome (title bar) and content drawing */
     /* No need to fill the entire window structure here */
-    serial_printf("PaintOne: Skipping window backfill (handled by chrome+content)\n");
+    WM_LOG_TRACE("PaintOne: Skipping window backfill (handled by chrome+content)\n");
 
     /* NOW draw chrome on top of backfill */
-    serial_printf("PaintOne: Drawing window chrome\n");
-    serial_printf("PaintOne: About to call DrawWindowFrame, window=%p\n", window);
+    WM_LOG_TRACE("PaintOne: Drawing window chrome\n");
+    WM_LOG_TRACE("PaintOne: About to call DrawWindowFrame, window=%p\n", window);
     DrawWindowFrame(window);
-    serial_printf("PaintOne: DrawWindowFrame returned\n");
+    WM_LOG_TRACE("PaintOne: DrawWindowFrame returned\n");
     DrawWindowControls(window);
-    serial_printf("PaintOne: DrawWindowControls returned\n");
+    WM_LOG_TRACE("PaintOne: DrawWindowControls returned\n");
 
     /* Test content drawing temporarily disabled until Font Manager is linked */
-    serial_printf("[TEXT] Text drawing disabled - Font Manager not linked\n");
+    WM_LOG_TRACE("[TEXT] Text drawing disabled - Font Manager not linked\n");
 
     /* Window Manager draws chrome only - content is application's job */
     /* Application must draw content via BeginUpdate/EndUpdate in update event handler */
 
     SetPort(savePort);
-    serial_printf("PaintOne: EXIT\n");
+    WM_LOG_TRACE("PaintOne: EXIT\n");
 }
 
 void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn) {
     WindowManagerState* wmState = GetWindowManagerState();
     if (!wmState) return;
 
-    serial_printf("[PaintBehind] Starting, startWindow=%p\n", startWindow);
+    WM_LOG_TRACE("[PaintBehind] Starting, startWindow=%p\n", startWindow);
     DumpWindowList("PaintBehind - START");
 
     /* Build list of windows in reverse order (back to front) */
@@ -177,7 +168,7 @@ void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn) {
         /* DEFENSIVE: Check for circular list by detecting revisited windows */
         for (int i = 0; i < visitedCount; i++) {
             if (visited[i] == window) {
-                serial_printf("[PaintBehind] ERROR: Circular list detected at window %p! Breaking loop.\n", window);
+                WM_LOG_TRACE("[PaintBehind] ERROR: Circular list detected at window %p! Breaking loop.\n", window);
                 goto paint_windows;  /* Break out and paint what we have */
             }
         }
@@ -201,12 +192,12 @@ paint_windows:
         WindowPtr w = windows[i];
 
         /* Phase 1: Paint chrome */
-        serial_printf("[PaintBehind] Painting chrome for window %p (index %d of %d)\n", w, i, count);
+        WM_LOG_TRACE("[PaintBehind] Painting chrome for window %p (index %d of %d)\n", w, i, count);
         PaintOne(w, clobberedRgn);
 
         /* Phase 2: Paint content with proper clipping */
         if (w->contRgn) {
-            serial_printf("[PaintBehind] Painting content for window %p\n", w);
+            WM_LOG_TRACE("[PaintBehind] Painting content for window %p\n", w);
             extern void InvalRgn(RgnHandle badRgn);
             GrafPtr savePort;
             GetPort(&savePort);
@@ -223,7 +214,7 @@ paint_windows:
             /* WORKAROUND: Directly redraw folder window content since update events may not flow */
             if (w->refCon == 0x4449534b || w->refCon == 0x54525348) {  /* 'DISK' or 'TRSH' */
                 extern void FolderWindow_Draw(WindowPtr window);
-                serial_printf("[PaintBehind] Drawing content for window %p (index %d of %d), refCon=0x%08x\n",
+                WM_LOG_TRACE("[PaintBehind] Drawing content for window %p (index %d of %d), refCon=0x%08x\n",
                              w, i, count, (unsigned int)w->refCon);
                 FolderWindow_Draw(w);
             }
@@ -232,7 +223,7 @@ paint_windows:
         }
     }
 
-    serial_printf("[PaintBehind] Complete, painted %d windows back-to-front\n", count);
+    WM_LOG_TRACE("[PaintBehind] Complete, painted %d windows back-to-front\n", count);
 }
 
 void CalcVis(WindowPtr window) {
@@ -316,9 +307,7 @@ void SaveOld(WindowPtr window) {
 
 void DrawNew(WindowPtr window, Boolean update) {
     if (!window) return;
-
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("DrawNew: ENTRY, window=%p\n", window);
+    WM_LOG_TRACE("DrawNew: ENTRY, window=%p\n", window);
 
     WM_DEBUG("DrawNew: Drawing window");
 
@@ -330,7 +319,7 @@ void DrawNew(WindowPtr window, Boolean update) {
 
     /* Draw chrome in WMgr port */
     SetPort(wmgrPort);
-    serial_printf("DrawNew: Drawing frame\n");
+    WM_LOG_TRACE("DrawNew: Drawing frame\n");
     DrawWindowFrame(window);
     DrawWindowControls(window);
 
@@ -343,38 +332,38 @@ void DrawNew(WindowPtr window, Boolean update) {
     }
 
     /* Content backfill is handled by application (Finder) draw code, not here */
-    serial_printf("DrawNew: Content backfill handled by application draw code\n");
+    WM_LOG_TRACE("DrawNew: Content backfill handled by application draw code\n");
 
     SetPort(savePort);
-    serial_printf("DrawNew: EXIT\n");
+    WM_LOG_TRACE("DrawNew: EXIT\n");
 }
 
 static void DrawWindowFrame(WindowPtr window) {
-    serial_printf("DrawWindowFrame: ENTRY, window=%p\n", window);
+    WM_LOG_TRACE("DrawWindowFrame: ENTRY, window=%p\n", window);
 
     if (!window) {
-        serial_printf("DrawWindowFrame: window is NULL, returning\n");
+        WM_LOG_TRACE("DrawWindowFrame: window is NULL, returning\n");
         return;
     }
 
-    serial_printf("DrawWindowFrame: window->visible=%d\n", window->visible);
+    WM_LOG_TRACE("DrawWindowFrame: window->visible=%d\n", window->visible);
     if (!window->visible) {
-        serial_printf("DrawWindowFrame: window not visible, returning\n");
+        WM_LOG_TRACE("DrawWindowFrame: window not visible, returning\n");
         return;
     }
 
     /* CRITICAL: strucRgn must be set to draw the window
      * strucRgn contains GLOBAL screen coordinates
      * portRect contains LOCAL coordinates (0,0,width,height) and must NEVER be used for positioning! */
-    serial_printf("DrawWindowFrame: Checking strucRgn=%p\n", window->strucRgn);
+    WM_LOG_TRACE("DrawWindowFrame: Checking strucRgn=%p\n", window->strucRgn);
     if (!window->strucRgn) {
-        serial_printf("WindowManager: DrawWindowFrame - strucRgn is NULL, cannot draw\n");
+        WM_LOG_TRACE("WindowManager: DrawWindowFrame - strucRgn is NULL, cannot draw\n");
         return;
     }
 
-    serial_printf("DrawWindowFrame: Checking *strucRgn=%p\n", *window->strucRgn);
+    WM_LOG_TRACE("DrawWindowFrame: Checking *strucRgn=%p\n", *window->strucRgn);
     if (!*window->strucRgn) {
-        serial_printf("WindowManager: DrawWindowFrame - *strucRgn is NULL, cannot draw\n");
+        WM_LOG_TRACE("WindowManager: DrawWindowFrame - *strucRgn is NULL, cannot draw\n");
         return;
     }
 
@@ -384,7 +373,7 @@ static void DrawWindowFrame(WindowPtr window) {
     GetWMgrPort(&wmgrPort);
     SetPort(wmgrPort);
 
-    serial_printf("WindowManager: DrawWindowFrame START\n");
+    WM_LOG_TRACE("WindowManager: DrawWindowFrame START\n");
 
     /* Set up pen for drawing black frames */
     extern void PenNormal(void);
@@ -397,12 +386,12 @@ static void DrawWindowFrame(WindowPtr window) {
     /* Get window's global bounds from structure region */
     Rect frame = (*window->strucRgn)->rgnBBox;
 
-    serial_printf("WindowManager: Frame rect (%d,%d,%d,%d)\n",
+    WM_LOG_TRACE("WindowManager: Frame rect (%d,%d,%d,%d)\n",
                   frame.left, frame.top, frame.right, frame.bottom);
 
     /* Draw frame outline using QuickDraw (not direct framebuffer) */
     FrameRect(&frame);
-    serial_printf("WindowManager: Drew frame using FrameRect\n");
+    WM_LOG_TRACE("WindowManager: Drew frame using FrameRect\n");
 
     /* Add 3D black highlights for depth effect */
     extern void* framebuffer;
@@ -440,10 +429,10 @@ static void DrawWindowFrame(WindowPtr window) {
     }
 
     /* Draw title bar BEFORE filling content area */
-    serial_printf("WindowManager: About to check titleWidth=%d\n", window->titleWidth);
+    WM_LOG_TRACE("WindowManager: About to check titleWidth=%d\n", window->titleWidth);
 
     if (window->titleWidth > 0) {
-        serial_printf("WindowManager: titleWidth > 0, drawing title bar\n");
+        WM_LOG_TRACE("WindowManager: titleWidth > 0, drawing title bar\n");
         /* Title bar background should be INSIDE the frame, not overlap it */
         Rect titleBar;
         titleBar.left = frame.left + 1;    /* Inset from left frame edge */
@@ -645,14 +634,14 @@ static void DrawWindowFrame(WindowPtr window) {
         LineTo(frame.right - 1, frame.top + 20);
 
         /* Draw window title with System 7 lozenge */
-        serial_printf("TITLE_DRAW: titleHandle=%p, *titleHandle=%p\n",
+        WM_LOG_TRACE("TITLE_DRAW: titleHandle=%p, *titleHandle=%p\n",
                      window->titleHandle, window->titleHandle ? *window->titleHandle : NULL);
 
         if (window->titleHandle && *window->titleHandle) {
             unsigned char* titleStr = (unsigned char*)*window->titleHandle;
             unsigned char titleLen = titleStr[0];
 
-            serial_printf("TITLE_DRAW: titleLen=%d\n", titleLen);
+            WM_LOG_TRACE("TITLE_DRAW: titleLen=%d\n", titleLen);
 
             /* Basic validation: just check length is positive and not obviously corrupt */
             if (titleLen > 0 && titleLen < 128) {
@@ -708,14 +697,14 @@ static void DrawWindowFrame(WindowPtr window) {
                     }
 
                     /* Draw title text in normal black */
-                    serial_printf("*** CODE PATH B: DrawWindowFrame in WindowDisplay.c ***\n");
-                    serial_printf("TITLE: About to draw title, titleStr=%p\n", titleStr);
+                    WM_LOG_TRACE("*** CODE PATH B: DrawWindowFrame in WindowDisplay.c ***\n");
+                    WM_LOG_TRACE("TITLE: About to draw title, titleStr=%p\n", titleStr);
                     PenPat(&qd.black);
                     TextFace(0);  /* normal */
                     MoveTo(textLeft, textBaseline);
-                    serial_printf("TITLE: Calling DrawString now\n");
+                    WM_LOG_TRACE("TITLE: Calling DrawString now\n");
                     DrawString(titleStr);
-                    serial_printf("TITLE: DrawString returned\n");
+                    WM_LOG_TRACE("TITLE: DrawString returned\n");
                 } else {
                     /* Inactive window: no lozenge, gray text */
                     PenPat(&qd.gray);
@@ -725,15 +714,15 @@ static void DrawWindowFrame(WindowPtr window) {
                     PenPat(&qd.black);  /* reset to black */
                 }
 
-                serial_printf("TITLE_DRAW: Drew title at baseline %d\n", textBaseline);
+                WM_LOG_TRACE("TITLE_DRAW: Drew title at baseline %d\n", textBaseline);
             } else {
-                serial_printf("TITLE_DRAW: titleLen %d out of range\n", titleLen);
+                WM_LOG_TRACE("TITLE_DRAW: titleLen %d out of range\n", titleLen);
             }
         } else {
-            serial_printf("TITLE_DRAW: No titleHandle or empty\n");
+            WM_LOG_TRACE("TITLE_DRAW: No titleHandle or empty\n");
         }
     } else {
-        serial_printf("WindowManager: titleWidth is 0, skipping title bar\n");
+        WM_LOG_TRACE("WindowManager: titleWidth is 0, skipping title bar\n");
     }
 
     SetPort(savePort);
@@ -820,11 +809,11 @@ static void DrawWindowControls(WindowPtr window) {
 
 void DrawWindow(WindowPtr window) {
     if (!window || !window->visible) {
-        serial_printf("WindowManager: DrawWindow - window NULL or not visible\n");
+        WM_LOG_TRACE("WindowManager: DrawWindow - window NULL or not visible\n");
         return;
     }
 
-    serial_printf("WindowManager: DrawWindow ENTRY for window '%s'\n",
+    WM_LOG_TRACE("WindowManager: DrawWindow ENTRY for window '%s'\n",
                   window->titleHandle ? (char*)*window->titleHandle : "Untitled");
 
     /* Save current port */
@@ -843,13 +832,13 @@ void DrawWindow(WindowPtr window) {
 
     /* Fill content area - LOCAL coords */
     Rect contentRect = window->port.portRect;
-    serial_printf("DrawWindow: Filling content rect (local) (%d,%d,%d,%d)\n",
+    WM_LOG_TRACE("DrawWindow: Filling content rect (local) (%d,%d,%d,%d)\n",
         contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
     EraseRect(&contentRect);
-    serial_printf("DrawWindow: Content filled\n");
+    WM_LOG_TRACE("DrawWindow: Content filled\n");
 
     SetPort(savePort);
-    serial_printf("DrawWindow: EXIT\n");
+    WM_LOG_TRACE("DrawWindow: EXIT\n");
 }
 
 void DrawGrowIcon(WindowPtr window) {
@@ -886,36 +875,35 @@ void DrawGrowIcon(WindowPtr window) {
 /*-----------------------------------------------------------------------*/
 
 void ShowWindow(WindowPtr window) {
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("ShowWindow: ENTRY, window=%p\n", window);
+    WM_LOG_TRACE("ShowWindow: ENTRY, window=%p\n", window);
 
     if (!window || window->visible) {
-        serial_printf("ShowWindow: Early return (window=%p, visible=%d)\n", window, window ? window->visible : -1);
+        WM_LOG_TRACE("ShowWindow: Early return (window=%p, visible=%d)\n", window, window ? window->visible : -1);
         return;
     }
 
     WM_DEBUG("ShowWindow: Making window visible");
-    serial_printf("ShowWindow: About to set visible=true\n");
+    WM_LOG_TRACE("ShowWindow: About to set visible=true\n");
 
     window->visible = true;
 
     /* Calculate window regions (structure and content) */
-    serial_printf("ShowWindow: Calculating window regions\n");
+    WM_LOG_TRACE("ShowWindow: Calculating window regions\n");
     extern void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode);
     WM_CalculateStandardWindowRegions(window, 0);
 
     /* Calculate visible region */
-    serial_printf("ShowWindow: About to call CalcVis\n");
+    WM_LOG_TRACE("ShowWindow: About to call CalcVis\n");
     CalcVis(window);
 
     /* Paint the window */
-    serial_printf("ShowWindow: About to call PaintOne\n");
+    WM_LOG_TRACE("ShowWindow: About to call PaintOne\n");
     PaintOne(window, NULL);
-    serial_printf("ShowWindow: PaintOne returned\n");
+    WM_LOG_TRACE("ShowWindow: PaintOne returned\n");
 
     /* Invalidate content region to generate update event for application to draw content */
     if (window->contRgn) {
-        serial_printf("ShowWindow: Invalidating content region to trigger update event\n");
+        WM_LOG_TRACE("ShowWindow: Invalidating content region to trigger update event\n");
         extern void InvalRgn(RgnHandle badRgn);
         extern void SetPort(GrafPtr port);
 
@@ -932,7 +920,7 @@ void ShowWindow(WindowPtr window) {
         /* WORKAROUND: Directly draw folder window content since update events may not flow yet */
         if (window->refCon == 0x4449534b || window->refCon == 0x54525348) {  /* 'DISK' or 'TRSH' */
             extern void FolderWindow_Draw(WindowPtr window);
-            serial_printf("ShowWindow: Drawing content for window %p, refCon=0x%08x\n",
+            WM_LOG_TRACE("ShowWindow: Drawing content for window %p, refCon=0x%08x\n",
                          window, (unsigned int)window->refCon);
             FolderWindow_Draw(window);
         }
@@ -946,7 +934,7 @@ void ShowWindow(WindowPtr window) {
     /* Don't call PaintBehind here - background windows are already painted.
      * Calling PaintBehind would cause background windows to paint over the front window. */
 
-    serial_printf("ShowWindow: EXIT\n");
+    WM_LOG_TRACE("ShowWindow: EXIT\n");
 }
 
 void HideWindow(WindowPtr window) {
@@ -1009,11 +997,11 @@ void HiliteWindow(WindowPtr window, Boolean fHilite) {
     if (!window) return;
 
     if (window->hilited == fHilite) {
-        serial_printf("[HILITE] Window %p already has hilite=%d, skipping\n", window, fHilite);
+        WM_LOG_TRACE("[HILITE] Window %p already has hilite=%d, skipping\n", window, fHilite);
         return;
     }
 
-    serial_printf("[HILITE] Window %p: changing hilite %d -> %d\n", window, window->hilited, fHilite);
+    WM_LOG_TRACE("[HILITE] Window %p: changing hilite %d -> %d\n", window, window->hilited, fHilite);
 
     window->hilited = fHilite;
 
@@ -1022,7 +1010,7 @@ void HiliteWindow(WindowPtr window, Boolean fHilite) {
     DrawWindowFrame(window);
     DrawWindowControls(window);
 
-    serial_printf("[HILITE] Window %p: frame redrawn with hilite=%d\n", window, fHilite);
+    WM_LOG_TRACE("[HILITE] Window %p: frame redrawn with hilite=%d\n", window, fHilite);
 }
 
 /*-----------------------------------------------------------------------*/
@@ -1032,24 +1020,24 @@ void HiliteWindow(WindowPtr window, Boolean fHilite) {
 static void DumpWindowList(const char* context) {
     WindowManagerState* wmState = GetWindowManagerState();
     if (!wmState) {
-        serial_printf("[WINLIST] %s: No WM state\n", context);
+        WM_LOG_TRACE("[WINLIST] %s: No WM state\n", context);
         return;
     }
 
-    serial_printf("[WINLIST] === %s ===\n", context);
+    WM_LOG_TRACE("[WINLIST] === %s ===\n", context);
     int count = 0;
     WindowPtr w = wmState->windowList;
     while (w && count < 20) {
-        serial_printf("[WINLIST]   [%d] Win=%p visible=%d hilited=%d next=%p refCon=0x%08x\n",
+        WM_LOG_TRACE("[WINLIST]   [%d] Win=%p visible=%d hilited=%d next=%p refCon=0x%08x\n",
                      count, w, w->visible, w->hilited, w->nextWindow, (unsigned int)w->refCon);
         if (w == w->nextWindow) {
-            serial_printf("[WINLIST]   ERROR: Circular reference detected!\n");
+            WM_LOG_TRACE("[WINLIST]   ERROR: Circular reference detected!\n");
             break;
         }
         w = w->nextWindow;
         count++;
     }
-    serial_printf("[WINLIST] === Total: %d windows ===\n", count);
+    WM_LOG_TRACE("[WINLIST] === Total: %d windows ===\n", count);
 }
 
 /*-----------------------------------------------------------------------*/
@@ -1070,7 +1058,7 @@ void BringToFront(WindowPtr window) {
 
     /* If already at front, just ensure it's hilited */
     if (prevFront == window) {
-        serial_printf("[HILITE] Window already at front, ensuring hilited\n");
+        WM_LOG_TRACE("[HILITE] Window already at front, ensuring hilited\n");
         HiliteWindow(window, true);
         return;
     }
@@ -1100,7 +1088,7 @@ void BringToFront(WindowPtr window) {
 
     /* Unhighlight the window that will be demoted (if any) */
     if (prevFront) {
-        serial_printf("[HILITE] Unhiliting previous front window %p\n", prevFront);
+        WM_LOG_TRACE("[HILITE] Unhiliting previous front window %p\n", prevFront);
         HiliteWindow(prevFront, false);
     }
 
@@ -1202,7 +1190,7 @@ void SelectWindow(WindowPtr window) {
 WindowPtr FrontWindow(void) {
     WindowManagerState* wmState = GetWindowManagerState();
     if (!wmState) {
-        serial_printf("WindowManager: FrontWindow - wmState is NULL\n");
+        WM_LOG_TRACE("WindowManager: FrontWindow - wmState is NULL\n");
         return NULL;
     }
 
@@ -1213,30 +1201,30 @@ WindowPtr FrontWindow(void) {
     WindowPtr window = wmState->windowList;
 
     if (call_count <= 5 || (call_count % 5000) == 0) {
-        serial_printf("WindowManager: FrontWindow #%d - list head=%p\n", call_count, window);
+        WM_LOG_TRACE("WindowManager: FrontWindow #%d - list head=%p\n", call_count, window);
     }
 
     int count = 0;
     while (window) {
         if (call_count <= 5 || (call_count % 5000) == 0) {
-            serial_printf("WindowManager: FrontWindow - checking window %p, visible=%d\n", window, window->visible);
+            WM_LOG_TRACE("WindowManager: FrontWindow - checking window %p, visible=%d\n", window, window->visible);
         }
         if (window->visible) {
             if (call_count <= 5 || (call_count % 5000) == 0) {
-                serial_printf("WindowManager: FrontWindow - returning visible window %p\n", window);
+                WM_LOG_TRACE("WindowManager: FrontWindow - returning visible window %p\n", window);
             }
             return window;
         }
         window = window->nextWindow;
         count++;
         if (count > 100) {
-            serial_printf("WindowManager: FrontWindow - LOOP DETECTED, breaking\n");
+            WM_LOG_TRACE("WindowManager: FrontWindow - LOOP DETECTED, breaking\n");
             break;
         }
     }
 
     if (call_count <= 5 || (call_count % 5000) == 0) {
-        serial_printf("WindowManager: FrontWindow - returning NULL (no visible window found)\n");
+        WM_LOG_TRACE("WindowManager: FrontWindow - returning NULL (no visible window found)\n");
     }
     return NULL;
 }

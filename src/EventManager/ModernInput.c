@@ -17,12 +17,12 @@
 #include "EventManager/EventGlobals.h"
 #include "EventManager/MouseEvents.h"
 #include "EventManager/KeyboardEvents.h"
+#include "EventManager/EventLogging.h"
 #include <string.h>
 
 /* External functions */
 extern SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg);
 extern UInt32 TickCount(void);
-extern void serial_printf(const char* fmt, ...);
 
 /* Tracking guard to suppress events during modal drag loops */
 extern volatile Boolean gInMouseTracking;
@@ -133,10 +133,10 @@ SInt16 InitModernInput(const char* platform)
     if (platform && strcmp(platform, "PS2") == 0) {
         /* Initialize PS/2 controller for keyboard and mouse */
         if (!InitPS2Controller()) {
-            serial_printf("ModernInput: Failed to initialize PS/2 controller\n");
+            EVT_LOG_ERROR("ModernInput failed to initialize PS/2 controller\n");
             return -1;
         }
-        serial_printf("ModernInput: PS/2 controller initialized\n");
+        EVT_LOG_INFO("ModernInput PS/2 controller initialized\n");
     }
     /* Add other platform initializations here (USB, etc.) */
 
@@ -164,7 +164,7 @@ void EventPumpYield(void)
 {
     static int pumpCount = 0;
     if (++pumpCount % 200 == 0) {
-        serial_printf("[EventPumpYield] Called %d times\n", pumpCount);
+        EVT_LOG_TRACE("[MI] EventPumpYield called %d times\n", pumpCount);
     }
     ProcessModernInput();
 }
@@ -180,7 +180,7 @@ void ProcessModernInput(void)
 
     /* ALWAYS log first 5 calls and every 60th */
     if (entryCount <= 5 || entryCount % 60 == 0) {
-        serial_printf("[MI] ProcessModernInput ENTRY #%d\n", entryCount);
+        EVT_LOG_TRACE("[MI] ProcessModernInput entry #%d\n", entryCount);
     }
 
     Point currentMousePos;
@@ -188,7 +188,7 @@ void ProcessModernInput(void)
     KeyMap currentKeyMap;
 
     if (!g_modernInput.initialized) {
-        serial_printf("[MI] NOT INITIALIZED, returning early!\n");
+        EVT_LOG_TRACE("[MI] not initialized, returning early\n");
         return;
     }
 
@@ -213,7 +213,7 @@ void ProcessModernInput(void)
     /* DEBUG: Check if g_mousePos is actually being read */
     static int posReadCount = 0;
     if (++posReadCount % 60 == 1) {
-        serial_printf("[MI] g_mousePos read: (%d,%d)\n",
+        EVT_LOG_TRACE("[MI] g_mousePos read: (%d,%d)\n",
                      (int)g_mousePos.h, (int)g_mousePos.v);
     }
 
@@ -221,7 +221,7 @@ void ProcessModernInput(void)
     extern volatile UInt8 gCurrentButtons;
     static int updateCount = 0;
     if (currentButtonState != gCurrentButtons) {
-        serial_printf("[MI] gCurrentButtons: 0x%02x -> 0x%02x (update #%d)\n",
+        EVT_LOG_TRACE("[MI] gCurrentButtons: 0x%02x -> 0x%02x (update #%d)\n",
                      gCurrentButtons, currentButtonState, ++updateCount);
     }
     gCurrentButtons = currentButtonState;
@@ -230,7 +230,7 @@ void ProcessModernInput(void)
     static int pollCount = 0;
     pollCount++;
     if (pollCount % 60 == 0) {  /* Every ~1 second at 60Hz */
-        serial_printf("[MI] Poll #%d: curr=%d, last=%d\n",
+        EVT_LOG_TRACE("[MI] Poll #%d: curr=%d, last=%d\n",
                      pollCount, currentButtonState, g_modernInput.lastButtonState);
     }
 
@@ -255,7 +255,7 @@ void ProcessModernInput(void)
     static int btnChangeCount = 0;
     if (currentButtonState != g_modernInput.lastButtonState) {
         btnChangeCount++;
-        serial_printf("[MI] Button change #%d: curr=%d, last=%d\n",
+        EVT_LOG_TRACE("[MI] Button change #%d: curr=%d, last=%d\n",
                      btnChangeCount, currentButtonState, g_modernInput.lastButtonState);
 
         UInt32 currentTime = TickCount();
@@ -263,7 +263,7 @@ void ProcessModernInput(void)
         if ((currentButtonState & 1) && !(g_modernInput.lastButtonState & 1)) {
             /* Mouse button pressed - down transition */
             extern volatile Boolean gInMouseTracking;
-            serial_printf("[MI] mouseDown detected, gInMouseTracking=%d\n", (int)gInMouseTracking);
+            EVT_LOG_TRACE("[MI] mouseDown detected, gInMouseTracking=%d\n", (int)gInMouseTracking);
 
 #if QEMU_JITTER_HACK
             /* QEMU PS/2 jitter: coalesce rapid downs in same tick AND same position */
@@ -271,7 +271,7 @@ void ProcessModernInput(void)
                 currentMousePos.h == g_modernInput.lastClickPos.h &&
                 currentMousePos.v == g_modernInput.lastClickPos.v) {
                 g_modernInput.coalescedPolls++;
-                serial_printf("[MI] Coalesce down: sameTick=%u samePos polls=%u\n",
+                EVT_LOG_TRACE("[MI] Coalesce down: sameTick=%u samePos polls=%u\n",
                              (unsigned)currentTime, g_modernInput.coalescedPolls);
                 /* Skip duplicate down event - already posted */
                 g_modernInput.lastButtonState = currentButtonState;
@@ -290,7 +290,7 @@ void ProcessModernInput(void)
             SInt16 dx = currentMousePos.h - g_modernInput.lastClickPos.h;
             SInt16 dy = currentMousePos.v - g_modernInput.lastClickPos.v;
 
-            serial_printf("[MI] DELTA: curr=(%d,%d) last=(%d,%d) dx=%d dy=%d\n",
+            EVT_LOG_TRACE("[MI] DELTA: curr=(%d,%d) last=(%d,%d) dx=%d dy=%d\n",
                          (int)currentMousePos.h, (int)currentMousePos.v,
                          (int)g_modernInput.lastClickPos.h, (int)g_modernInput.lastClickPos.v,
                          (int)dx, (int)dy);
@@ -302,7 +302,7 @@ void ProcessModernInput(void)
             if (g_modernInput.lastClickTime == 0) {
                 /* First click since boot - always single click */
                 g_modernInput.clickCount = 1;
-                serial_printf("[MI] First click since boot\n");
+                EVT_LOG_TRACE("[MI] First click since boot\n");
             } else {
                 UInt32 dt = currentTime - g_modernInput.lastClickTime;
 
@@ -314,22 +314,22 @@ void ProcessModernInput(void)
                 UInt32 effectiveThreshold = threshold;
 #endif
 
-                serial_printf("[MI] Click timing: dt=%u, thresh=%u, dx=%d, dy=%d, slop=6\n",
+                EVT_LOG_TRACE("[MI] Click timing: dt=%u, thresh=%u, dx=%d, dy=%d, slop=6\n",
                              (unsigned)dt, (unsigned)effectiveThreshold, (int)dx, (int)dy);
 
                 if (dt <= effectiveThreshold && dx <= kClickSlop && dy <= kClickSlop) {
                     /* Within time and distance - increment click count (cap at 3) */
                     g_modernInput.clickCount = (g_modernInput.clickCount < 3)
                         ? (g_modernInput.clickCount + 1) : 3;
-                    serial_printf("[MI] Multi-click: count=%d dt=%u dx=%d dy=%d\n",
+                    EVT_LOG_TRACE("[MI] Multi-click: count=%d dt=%u dx=%d dy=%d\n",
                                  g_modernInput.clickCount, (unsigned)dt, dx, dy);
                 } else {
                     /* Outside window - reset to single click */
                     g_modernInput.clickCount = 1;
                     if (dt > effectiveThreshold) {
-                        serial_printf("[MI] Reset: dt=%u > thresh=%u\n", (unsigned)dt, (unsigned)effectiveThreshold);
+                        EVT_LOG_TRACE("[MI] Reset: dt=%u > thresh=%u\n", (unsigned)dt, (unsigned)effectiveThreshold);
                     } else {
-                        serial_printf("[MI] Reset: dx=%d or dy=%d > slop=6\n", dx, dy);
+                        EVT_LOG_TRACE("[MI] Reset: dx=%d or dy=%d > slop=6\n", dx, dy);
                     }
                 }
             }
@@ -345,7 +345,7 @@ void ProcessModernInput(void)
             if (!gInMouseTracking) {
                 SInt16 partCode = 0;  /* Desktop default; FindWindow may update later */
                 SInt32 message = ((SInt32)g_modernInput.clickCount << 16) | (SInt16)partCode;
-                serial_printf("[MI] PostEvent mouseDown: clickCount=%d, msg=0x%08x\n",
+                EVT_LOG_TRACE("[MI] PostEvent mouseDown: clickCount=%d, msg=0x%08x\n",
                              g_modernInput.clickCount, message);
                 PostEvent(mouseDown, message);
             }
@@ -432,7 +432,7 @@ void ConfigureModernInput(Boolean multiTouch, Boolean gestures, Boolean accessib
 
     /* Configure platform-specific features */
     if (g_modernInput.platform) {
-        serial_printf("ModernInput: Features configured - MultiTouch:%d Gestures:%d Accessibility:%d\n",
+        EVT_LOG_INFO("ModernInput features configured MultiTouch:%d Gestures:%d Accessibility:%d\n",
                      multiTouch, gestures, accessibility);
     }
 }

@@ -15,6 +15,7 @@
 #include "SystemTypes.h"
 #include "QuickDrawConstants.h"
 #include "System71StdLib.h"
+#include "QuickDraw/QDLogging.h"
 
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/QDRegions.h"
@@ -102,8 +103,7 @@ void InitGraf(void *globalPtr) {
     /* Create and initialize a default screen port */
     static GrafPort screenPort;
 
-    extern void serial_puts(const char* str);
-    serial_puts("InitGraf: Creating screen port\n");
+    QD_LOG_TRACE("InitGraf creating screen port\n");
 
     InitPort(&screenPort);
 
@@ -115,7 +115,7 @@ void InitGraf(void *globalPtr) {
     qd.thePort = &screenPort;
     SetPort(&screenPort);
 
-    serial_puts("InitGraf: qd.thePort and g_currentPort set\n");
+    QD_LOG_TRACE("InitGraf port ready\n");
 }
 
 void InitPort(GrafPtr port) {
@@ -447,21 +447,20 @@ void PaintRect(const Rect *r) {
 }
 
 void EraseRect(const Rect *r) {
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("EraseRect: ENTRY, rect=(%d,%d,%d,%d)\n",
-                  r ? r->left : -1, r ? r->top : -1, r ? r->right : -1, r ? r->bottom : -1);
+    QD_LOG_TRACE("EraseRect entry rect=(%d,%d,%d,%d)\n",
+                r ? r->left : -1, r ? r->top : -1, r ? r->right : -1, r ? r->bottom : -1);
 
     assert(g_currentPort != NULL);
     assert(r != NULL);
 
     if (EmptyRect(r)) {
-        serial_printf("EraseRect: EmptyRect returned TRUE, returning early\n");
+        QD_LOG_TRACE("EraseRect empty rect early exit\n");
         return;
     }
 
-    serial_printf("EraseRect: About to call DrawPrimitive\n");
+    QD_LOG_TRACE("EraseRect dispatch DrawPrimitive\n");
     DrawPrimitive(erase, r, 0, &g_currentPort->bkPat);
-    serial_printf("EraseRect: DrawPrimitive returned\n");
+    QD_LOG_TRACE("EraseRect DrawPrimitive returned\n");
 }
 
 void InvertRect(const Rect *r) {
@@ -555,18 +554,17 @@ QDErr QDError(void) {
 
 static void DrawPrimitive(GrafVerb verb, const void *shape, int shapeType,
                          ConstPatternParam pat) {
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("DrawPrimitive: verb=%d ENTRY\n", verb);
+    QD_LOG_TRACE("DrawPrimitive entry verb=%d\n", verb);
 
     if (!PrepareDrawing(g_currentPort)) {
-        serial_printf("DrawPrimitive: PrepareDrawing FAILED\n");
+        QD_LOG_WARN("DrawPrimitive PrepareDrawing failed\n");
         return;
     }
 
     const Rect *rect = (const Rect *)shape;
     Rect drawRect = *rect;
-    serial_printf("DrawPrimitive: original rect=(%d,%d,%d,%d)\n",
-                  drawRect.left, drawRect.top, drawRect.right, drawRect.bottom);
+    QD_LOG_TRACE("DrawPrimitive original rect=(%d,%d,%d,%d)\n",
+                drawRect.left, drawRect.top, drawRect.right, drawRect.bottom);
 
     /* Apply pen size for frame operations */
     if (verb == frame) {
@@ -575,8 +573,8 @@ static void DrawPrimitive(GrafVerb verb, const void *shape, int shapeType,
 
     /* Clip to port and visible region */
     ClipToPort(g_currentPort, &drawRect);
-    serial_printf("DrawPrimitive: clipped rect=(%d,%d,%d,%d)\n",
-                  drawRect.left, drawRect.top, drawRect.right, drawRect.bottom);
+    QD_LOG_TRACE("DrawPrimitive clipped rect=(%d,%d,%d,%d)\n",
+                drawRect.left, drawRect.top, drawRect.right, drawRect.bottom);
 
     /* CRITICAL: Convert LOCAL coordinates to GLOBAL using portBits.bounds!
      * portRect is in LOCAL coords (0,0,width,height)
@@ -588,14 +586,14 @@ static void DrawPrimitive(GrafVerb verb, const void *shape, int shapeType,
     globalRect.right += g_currentPort->portBits.bounds.left;
     globalRect.bottom += g_currentPort->portBits.bounds.top;
 
-    serial_printf("DrawPrimitive: globalRect=(%d,%d,%d,%d) offset by portBits(%d,%d)\n",
-                  globalRect.left, globalRect.top, globalRect.right, globalRect.bottom,
-                  g_currentPort->portBits.bounds.left, g_currentPort->portBits.bounds.top);
+    QD_LOG_TRACE("DrawPrimitive global rect=(%d,%d,%d,%d) offset by portBits(%d,%d)\n",
+                globalRect.left, globalRect.top, globalRect.right, globalRect.bottom,
+                g_currentPort->portBits.bounds.left, g_currentPort->portBits.bounds.top);
 
     /* Call platform layer to do actual drawing */
-    serial_printf("DrawPrimitive: calling QDPlatform_DrawShape\n");
+    QD_LOG_TRACE("DrawPrimitive call QDPlatform_DrawShape\n");
     QDPlatform_DrawShape(g_currentPort, verb, &globalRect, shapeType, pat);
-    serial_printf("DrawPrimitive: QDPlatform_DrawShape returned\n");
+    QD_LOG_TRACE("DrawPrimitive QDPlatform_DrawShape returned\n");
 }
 
 static void ClipToPort(GrafPtr port, Rect *rect) {

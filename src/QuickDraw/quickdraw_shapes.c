@@ -6,6 +6,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/quickdraw_types.h"
 #include "SystemTypes.h"
+#include "QuickDraw/QDLogging.h"
 
 /* Global current port - from QuickDrawCore.c */
 extern GrafPtr g_currentPort;
@@ -19,16 +20,15 @@ void FrameRoundRect(const Rect* r, short ovalWidth, short ovalHeight)
 {
     if (thePort == NULL || r == NULL) return;
 
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("FrameRoundRect: Drawing rounded rect (%d,%d,%d,%d) radius=(%d,%d)\n",
-                  r->left, r->top, r->right, r->bottom, ovalWidth, ovalHeight);
+    QD_LOG_TRACE("FrameRoundRect (%d,%d,%d,%d) radius=(%d,%d)\n",
+                r->left, r->top, r->right, r->bottom, ovalWidth, ovalHeight);
 
     /* Get framebuffer info */
     extern void* framebuffer;
     extern uint32_t fb_width, fb_height, fb_pitch;
 
     if (!framebuffer) {
-        serial_printf("FrameRoundRect: No framebuffer available\n");
+        QD_LOG_WARN("FrameRoundRect framebuffer unavailable\n");
         return;
     }
 
@@ -124,16 +124,15 @@ void PaintRoundRect(const Rect* r, short ovalWidth, short ovalHeight)
 {
     if (thePort == NULL || r == NULL) return;
 
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("PaintRoundRect: Filling rounded rect (%d,%d,%d,%d) radius=(%d,%d)\n",
-                  r->left, r->top, r->right, r->bottom, ovalWidth, ovalHeight);
+    QD_LOG_TRACE("PaintRoundRect (%d,%d,%d,%d) radius=(%d,%d)\n",
+                r->left, r->top, r->right, r->bottom, ovalWidth, ovalHeight);
 
     /* Get framebuffer info */
     extern void* framebuffer;
     extern uint32_t fb_width, fb_height, fb_pitch;
 
     if (!framebuffer) {
-        serial_printf("PaintRoundRect: No framebuffer available\n");
+        QD_LOG_WARN("PaintRoundRect framebuffer unavailable\n");
         return;
     }
 

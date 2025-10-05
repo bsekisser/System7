@@ -8,6 +8,7 @@
 #include "SystemTypes.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include "SoundManager/SoundLogging.h"
 
 /* Error codes */
 #define unimpErr -4  /* Unimplemented trap */
@@ -27,28 +28,27 @@ static bool g_soundManagerInitialized = false;
  * Returns noErr on success
  */
 OSErr SoundManagerInit(void) {
-    extern void serial_printf(const char* fmt, ...);
 
-    serial_printf("SoundManagerInit: ENTRY (initialized=%d)\n", g_soundManagerInitialized);
+    SND_LOG_TRACE("SoundManagerInit: ENTRY (initialized=%d)\n", g_soundManagerInitialized);
 
     if (g_soundManagerInitialized) {
-        serial_printf("SoundManagerInit: Already initialized, returning\n");
+        SND_LOG_DEBUG("SoundManagerInit: Already initialized, returning\n");
         return noErr;
     }
 
-    serial_printf("SoundManagerInit: Initializing bare-metal Sound Manager\n");
+    SND_LOG_INFO("SoundManagerInit: Initializing bare-metal Sound Manager\n");
 
     /* Initialize PC speaker hardware */
     int pcspkr_result = PCSpkr_Init();
-    serial_printf("SoundManagerInit: PCSpkr_Init returned %d\n", pcspkr_result);
+    SND_LOG_DEBUG("SoundManagerInit: PCSpkr_Init returned %d\n", pcspkr_result);
 
     if (pcspkr_result != 0) {
-        serial_printf("SoundManagerInit: Failed to initialize PC speaker\n");
+        SND_LOG_ERROR("SoundManagerInit: Failed to initialize PC speaker\n");
         return -1;
     }
 
     g_soundManagerInitialized = true;
-    serial_printf("SoundManagerInit: Sound Manager initialized successfully (flag=%d)\n", g_soundManagerInitialized);
+    SND_LOG_INFO("SoundManagerInit: Sound Manager initialized successfully (flag=%d)\n", g_soundManagerInitialized);
 
     return noErr;
 }
@@ -73,10 +73,9 @@ void SoundManagerShutdown(void) {
  * Classic Mac OS standard beep sound (1000 Hz tone).
  */
 void SysBeep(short duration) {
-    extern void serial_printf(const char* fmt, ...);
 
     if (!g_soundManagerInitialized) {
-        serial_printf("SysBeep: Sound Manager not initialized\n");
+        SND_LOG_WARN("SysBeep: Sound Manager not initialized\n");
         return;
     }
 
@@ -88,7 +87,7 @@ void SysBeep(short duration) {
         duration_ms = 200;
     }
 
-    serial_printf("SysBeep: duration=%d ticks (%u ms)\n", duration, duration_ms);
+    SND_LOG_TRACE("SysBeep: duration=%d ticks (%u ms)\n", duration, duration_ms);
 
     /* Generate 1000 Hz beep (classic Mac beep frequency) */
     PCSpkr_Beep(1000, duration_ms);
@@ -101,14 +100,13 @@ void SysBeep(short duration) {
  * This recreates the classic "boooong" sound that Mac users know and love.
  */
 void StartupChime(void) {
-    extern void serial_printf(const char* fmt, ...);
 
     if (!g_soundManagerInitialized) {
-        serial_printf("StartupChime: Sound Manager not initialized\n");
+        SND_LOG_WARN("StartupChime: Sound Manager not initialized\n");
         return;
     }
 
-    serial_printf("StartupChime: Playing System 7 startup chime\n");
+    SND_LOG_INFO("StartupChime: Playing System 7 startup chime\n");
 
     /* Classic Mac startup chime - C major chord arpeggio
      * Played as a quick succession of notes to create the iconic sound
@@ -121,19 +119,19 @@ void StartupChime(void) {
      */
 
     /* Play the chord as an arpeggio with longer sustain for audibility */
-    serial_printf("StartupChime: Playing C4 (262 Hz)\n");
+    SND_LOG_TRACE("StartupChime: Playing C4 (262 Hz)\n");
     PCSpkr_Beep(262, 300);  /* C4 - 300ms */
 
-    serial_printf("StartupChime: Playing E4 (330 Hz)\n");
+    SND_LOG_TRACE("StartupChime: Playing E4 (330 Hz)\n");
     PCSpkr_Beep(330, 300);  /* E4 - 300ms */
 
-    serial_printf("StartupChime: Playing G4 (392 Hz)\n");
+    SND_LOG_TRACE("StartupChime: Playing G4 (392 Hz)\n");
     PCSpkr_Beep(392, 300);  /* G4 - 300ms */
 
-    serial_printf("StartupChime: Playing C5 (523 Hz)\n");
+    SND_LOG_TRACE("StartupChime: Playing C5 (523 Hz)\n");
     PCSpkr_Beep(523, 600);  /* C5 - 600ms (longer sustain on final note) */
 
-    serial_printf("StartupChime: Complete\n");
+    SND_LOG_INFO("StartupChime: Complete\n");
 }
 
 /*
