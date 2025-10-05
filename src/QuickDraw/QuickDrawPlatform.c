@@ -8,6 +8,7 @@
 #include "QuickDraw/QuickDrawPlatform.h"
 #include "QuickDrawConstants.h"  /* For paint, frame, erase, patCopy */
 #include <stdlib.h>  /* For abs() */
+#include <math.h>
 #include "QuickDraw/QDLogging.h"
 
 /* External framebuffer from main.c */
@@ -19,6 +20,24 @@ extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 
 /* Platform framebuffer instance */
 static PlatformFramebuffer g_platformFB;
+
+static inline Boolean QDPointInEllipse(SInt32 x, SInt32 y, const Rect* rect) {
+    SInt32 width = rect->right - rect->left;
+    SInt32 height = rect->bottom - rect->top;
+    if (width <= 0 || height <= 0) {
+        return false;
+    }
+
+    double rx = width / 2.0;
+    double ry = height / 2.0;
+    double cx = rect->left + rx;
+    double cy = rect->top + ry;
+
+    double dx = (x + 0.5 - cx) / rx;
+    double dy = (y + 0.5 - cy) / ry;
+
+    return (dx * dx + dy * dy) <= 1.0;
+}
 
 /* Initialize platform layer */
 Boolean QDPlatform_Initialize(void) {
@@ -321,6 +340,65 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
                     /* Get current pixel color */
                     UInt32 current = QDPlatform_GetPixel(x + offsetX, y + offsetY);
                     /* XOR with white to invert */
+                    UInt32 inverted = current ^ 0x00FFFFFF;
+                    QDPlatform_SetPixel(x + offsetX, y + offsetY, inverted);
+                }
+            }
+        }
+    } else if (shapeType == 1) {  /* Oval */
+        if (verb == paint || verb == fill || verb == erase) {
+            UInt32 fallbackColor = (verb == erase) ? pack_color(255, 255, 255)
+                                                   : pack_color(0, 0, 0);
+            for (SInt32 y = rect->top; y < rect->bottom; y++) {
+                if (y < 0 || y >= (SInt32)fb_height) continue;
+                for (SInt32 x = rect->left; x < rect->right; x++) {
+                    if (x < 0 || x >= (SInt32)fb_width) continue;
+                    if (!QDPointInEllipse(x, y, rect)) continue;
+
+                    UInt32 color = fallbackColor;
+                    if (pat) {
+                        SInt32 patY = (verb == paint) ? ((y - rect->top) & 7) : (y & 7);
+                        SInt32 patX = (verb == paint) ? ((x - rect->left) & 7) : (x & 7);
+                        UInt8 patByte = pat->pat[patY];
+                        Boolean bit = (patByte >> (7 - patX)) & 1;
+                        color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
+                    }
+
+                    QDPlatform_SetPixel(x + offsetX, y + offsetY, color);
+                }
+            }
+        } else if (verb == frame) {
+            for (SInt32 y = rect->top; y < rect->bottom; y++) {
+                if (y < 0 || y >= (SInt32)fb_height) continue;
+                for (SInt32 x = rect->left; x < rect->right; x++) {
+                    if (x < 0 || x >= (SInt32)fb_width) continue;
+                    if (!QDPointInEllipse(x, y, rect)) continue;
+
+                    Boolean neighborOutside =
+                        !QDPointInEllipse(x - 1, y, rect) ||
+                        !QDPointInEllipse(x + 1, y, rect) ||
+                        !QDPointInEllipse(x, y - 1, rect) ||
+                        !QDPointInEllipse(x, y + 1, rect);
+
+                    if (neighborOutside) {
+                        UInt32 color = pack_color(0, 0, 0);
+                        if (pat) {
+                            UInt8 patByte = pat->pat[(y - rect->top) & 7];
+                            Boolean bit = (patByte >> (7 - ((x - rect->left) & 7))) & 1;
+                            color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
+                        }
+                        QDPlatform_SetPixel(x + offsetX, y + offsetY, color);
+                    }
+                }
+            }
+        } else if (verb == invert) {
+            for (SInt32 y = rect->top; y < rect->bottom; y++) {
+                if (y < 0 || y >= (SInt32)fb_height) continue;
+                for (SInt32 x = rect->left; x < rect->right; x++) {
+                    if (x < 0 || x >= (SInt32)fb_width) continue;
+                    if (!QDPointInEllipse(x, y, rect)) continue;
+
+                    UInt32 current = QDPlatform_GetPixel(x + offsetX, y + offsetY);
                     UInt32 inverted = current ^ 0x00FFFFFF;
                     QDPlatform_SetPixel(x + offsetX, y + offsetY, inverted);
                 }
