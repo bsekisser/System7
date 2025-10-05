@@ -43,8 +43,8 @@ static const Pattern g_standardPatterns[] = {
 };
 
 /* Forward declarations */
-static void DrawPrimitive(GrafVerb verb, const void *shape, int shapeType,
-                         ConstPatternParam pat);
+static void DrawPrimitive(GrafVerb verb, const Rect *shape, int shapeType,
+                         ConstPatternParam pat, SInt16 ovalWidth, SInt16 ovalHeight);
 static void ClipToPort(GrafPtr port, Rect *rect);
 static Boolean PrepareDrawing(GrafPtr port);
 static void ApplyPenToRect(GrafPtr port, Rect *rect);
@@ -470,7 +470,7 @@ void ColorBit(SInt16 whichBit) {
 
 void FrameRect(const Rect *r) {
     if (!g_currentPort || !r || EmptyRect(r)) return;
-    DrawPrimitive(frame, r, 0, &g_currentPort->pnPat);
+    DrawPrimitive(frame, r, 0, &g_currentPort->pnPat, 0, 0);
 }
 
 void PaintRect(const Rect *r) {
@@ -478,7 +478,7 @@ void PaintRect(const Rect *r) {
     assert(r != NULL);
     if (EmptyRect(r)) return;
 
-    DrawPrimitive(paint, r, 0, &g_currentPort->pnPat);
+    DrawPrimitive(paint, r, 0, &g_currentPort->pnPat, 0, 0);
 }
 
 void EraseRect(const Rect *r) {
@@ -494,7 +494,7 @@ void EraseRect(const Rect *r) {
     }
 
     QD_LOG_TRACE("EraseRect dispatch DrawPrimitive\n");
-    DrawPrimitive(erase, r, 0, &g_currentPort->bkPat);
+    DrawPrimitive(erase, r, 0, &g_currentPort->bkPat, 0, 0);
     QD_LOG_TRACE("EraseRect DrawPrimitive returned\n");
 }
 
@@ -503,7 +503,7 @@ void InvertRect(const Rect *r) {
     assert(r != NULL);
     if (EmptyRect(r)) return;
 
-    DrawPrimitive(invert, r, 0, NULL);
+    DrawPrimitive(invert, r, 0, NULL, 0, 0);
 }
 
 void FillRect(const Rect *r, ConstPatternParam pat) {
@@ -512,7 +512,7 @@ void FillRect(const Rect *r, ConstPatternParam pat) {
     assert(pat != NULL);
     if (EmptyRect(r)) return;
 
-    DrawPrimitive(fill, r, 0, pat);
+    DrawPrimitive(fill, r, 0, pat, 0, 0);
 }
 
 /* ================================================================
@@ -524,7 +524,7 @@ void FrameOval(const Rect *r) {
     assert(r != NULL);
     if (EmptyRect(r)) return;
 
-    DrawPrimitive(frame, r, 1, &g_currentPort->pnPat);
+    DrawPrimitive(frame, r, 1, &g_currentPort->pnPat, 0, 0);
 }
 
 void PaintOval(const Rect *r) {
@@ -532,7 +532,7 @@ void PaintOval(const Rect *r) {
     assert(r != NULL);
     if (EmptyRect(r)) return;
 
-    DrawPrimitive(paint, r, 1, &g_currentPort->pnPat);
+    DrawPrimitive(paint, r, 1, &g_currentPort->pnPat, 0, 0);
 }
 
 void EraseOval(const Rect *r) {
@@ -540,7 +540,7 @@ void EraseOval(const Rect *r) {
     assert(r != NULL);
     if (EmptyRect(r)) return;
 
-    DrawPrimitive(erase, r, 1, &g_currentPort->bkPat);
+    DrawPrimitive(erase, r, 1, &g_currentPort->bkPat, 0, 0);
 }
 
 void InvertOval(const Rect *r) {
@@ -548,7 +548,7 @@ void InvertOval(const Rect *r) {
     assert(r != NULL);
     if (EmptyRect(r)) return;
 
-    DrawPrimitive(invert, r, 1, NULL);
+    DrawPrimitive(invert, r, 1, NULL, 0, 0);
 }
 
 void FillOval(const Rect *r, ConstPatternParam pat) {
@@ -557,7 +557,37 @@ void FillOval(const Rect *r, ConstPatternParam pat) {
     assert(pat != NULL);
     if (EmptyRect(r)) return;
 
-    DrawPrimitive(fill, r, 1, pat);
+    DrawPrimitive(fill, r, 1, pat, 0, 0);
+}
+
+/* ================================================================
+ * ROUNDED RECTANGLE OPERATIONS
+ * ================================================================ */
+
+void FrameRoundRect(const Rect *r, SInt16 ovalWidth, SInt16 ovalHeight) {
+    if (!g_currentPort || !r || EmptyRect(r)) return;
+    DrawPrimitive(frame, r, 2, &g_currentPort->pnPat, ovalWidth, ovalHeight);
+}
+
+void PaintRoundRect(const Rect *r, SInt16 ovalWidth, SInt16 ovalHeight) {
+    if (!g_currentPort || !r || EmptyRect(r)) return;
+    DrawPrimitive(paint, r, 2, &g_currentPort->pnPat, ovalWidth, ovalHeight);
+}
+
+void EraseRoundRect(const Rect *r, SInt16 ovalWidth, SInt16 ovalHeight) {
+    if (!g_currentPort || !r || EmptyRect(r)) return;
+    DrawPrimitive(erase, r, 2, &g_currentPort->bkPat, ovalWidth, ovalHeight);
+}
+
+void InvertRoundRect(const Rect *r, SInt16 ovalWidth, SInt16 ovalHeight) {
+    if (!g_currentPort || !r || EmptyRect(r)) return;
+    DrawPrimitive(invert, r, 2, NULL, ovalWidth, ovalHeight);
+}
+
+void FillRoundRect(const Rect *r, SInt16 ovalWidth, SInt16 ovalHeight,
+                   ConstPatternParam pat) {
+    if (!g_currentPort || !r || !pat || EmptyRect(r)) return;
+    DrawPrimitive(fill, r, 2, pat, ovalWidth, ovalHeight);
 }
 
 /* ================================================================
@@ -587,8 +617,8 @@ QDErr QDError(void) {
  * INTERNAL HELPER FUNCTIONS
  * ================================================================ */
 
-static void DrawPrimitive(GrafVerb verb, const void *shape, int shapeType,
-                         ConstPatternParam pat) {
+static void DrawPrimitive(GrafVerb verb, const Rect *shape, int shapeType,
+                         ConstPatternParam pat, SInt16 ovalWidth, SInt16 ovalHeight) {
     QD_LOG_TRACE("DrawPrimitive entry verb=%d\n", verb);
 
     if (!PrepareDrawing(g_currentPort)) {
@@ -596,8 +626,7 @@ static void DrawPrimitive(GrafVerb verb, const void *shape, int shapeType,
         return;
     }
 
-    const Rect *rect = (const Rect *)shape;
-    Rect drawRect = *rect;
+    Rect drawRect = *shape;
     QD_LOG_TRACE("DrawPrimitive original rect=(%d,%d,%d,%d)\n",
                 drawRect.left, drawRect.top, drawRect.right, drawRect.bottom);
 
@@ -627,7 +656,16 @@ static void DrawPrimitive(GrafVerb verb, const void *shape, int shapeType,
 
     /* Call platform layer to do actual drawing */
     QD_LOG_TRACE("DrawPrimitive call QDPlatform_DrawShape\n");
-    QDPlatform_DrawShape(g_currentPort, verb, &globalRect, shapeType, pat);
+    /* Clamp oval dimensions after clipping */
+    if (shapeType == 2) {
+        SInt16 width = globalRect.right - globalRect.left;
+        SInt16 height = globalRect.bottom - globalRect.top;
+        if (ovalWidth > width) ovalWidth = width;
+        if (ovalHeight > height) ovalHeight = height;
+    }
+
+    QDPlatform_DrawShape(g_currentPort, verb, &globalRect, shapeType, pat,
+                         ovalWidth, ovalHeight);
     QD_LOG_TRACE("DrawPrimitive QDPlatform_DrawShape returned\n");
 }
 

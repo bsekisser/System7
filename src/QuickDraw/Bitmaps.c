@@ -23,6 +23,9 @@
 /* Platform abstraction layer */
 #include "QuickDrawPlatform.h"
 
+/* Current QuickDraw port from QuickDrawCore.c */
+extern GrafPtr g_currentPort;
+
 
 /* Transfer mode operation structures */
 typedef struct {
@@ -321,6 +324,98 @@ void CopyDeepMask(const BitMap *srcBits, const BitMap *maskBits,
                             dstRect->left + x,
                             dstRect->top + y,
                             resultPixel);
+            }
+        }
+    }
+}
+
+/* ================================================================
+ * RECTANGLE SCROLLING
+ * ================================================================ */
+
+void ScrollRect(const Rect *r, SInt16 dh, SInt16 dv, RgnHandle updateRgn) {
+    if (!r || !g_currentPort) {
+        if (updateRgn && *updateRgn) {
+            SetEmptyRgn(updateRgn);
+        }
+        return;
+    }
+
+    Rect scrollRect = *r;
+
+    if (EmptyRect(&scrollRect) || (dh == 0 && dv == 0)) {
+        if (updateRgn && *updateRgn) {
+            SetEmptyRgn(updateRgn);
+        }
+        return;
+    }
+
+    /* Confine scroll region to the current port */
+    Rect srcRectLocal;
+    if (!SectRect(&scrollRect, &g_currentPort->portRect, &srcRectLocal)) {
+        if (updateRgn && *updateRgn) {
+            SetEmptyRgn(updateRgn);
+        }
+        return;
+    }
+
+    Rect dstRectLocal = srcRectLocal;
+    OffsetRect(&dstRectLocal, dh, dv);
+
+    /* Determine on-screen destination area */
+    Rect copyDstLocal;
+    if (!SectRect(&dstRectLocal, &g_currentPort->portRect, &copyDstLocal)) {
+        if (updateRgn && *updateRgn) {
+            RectRgn(updateRgn, &srcRectLocal);
+        }
+        return;
+    }
+
+    /* Map destination back to the source space to get scroll payload */
+    Rect copySrcLocal = copyDstLocal;
+    OffsetRect(&copySrcLocal, -dh, -dv);
+
+    if (!SectRect(&copySrcLocal, &srcRectLocal, &copySrcLocal)) {
+        if (updateRgn && *updateRgn) {
+            RectRgn(updateRgn, &srcRectLocal);
+        }
+        return;
+    }
+
+    /* Destination aligned with the clipped source */
+    Rect copyDstAligned = copySrcLocal;
+    OffsetRect(&copyDstAligned, dh, dv);
+
+    /* Convert rectangles to global coordinates for CopyBits */
+    Rect srcRectGlobal = copySrcLocal;
+    Rect dstRectGlobal = copyDstAligned;
+    OffsetRect(&srcRectGlobal,
+               g_currentPort->portBits.bounds.left,
+               g_currentPort->portBits.bounds.top);
+    OffsetRect(&dstRectGlobal,
+               g_currentPort->portBits.bounds.left,
+               g_currentPort->portBits.bounds.top);
+
+    RgnHandle maskRgn = NULL;
+    if (g_currentPort->clipRgn && *g_currentPort->clipRgn) {
+        maskRgn = g_currentPort->clipRgn;
+    }
+
+    CopyBits(&g_currentPort->portBits, &g_currentPort->portBits,
+             &srcRectGlobal, &dstRectGlobal, srcCopy, maskRgn);
+
+    if (updateRgn && *updateRgn) {
+        RectRgn(updateRgn, &srcRectLocal);
+
+        Rect overlapLocal;
+        if (SectRect(&srcRectLocal, &dstRectLocal, &overlapLocal)) {
+            RgnHandle overlapRgn = NewRgn();
+            if (overlapRgn && *overlapRgn) {
+                RectRgn(overlapRgn, &overlapLocal);
+                DiffRgn(updateRgn, overlapRgn, updateRgn);
+                DisposeRgn(overlapRgn);
+            } else if (overlapRgn) {
+                DisposeRgn(overlapRgn);
             }
         }
     }

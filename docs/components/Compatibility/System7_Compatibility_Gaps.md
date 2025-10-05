@@ -4,7 +4,6 @@ This checklist captures the most significant differences between the current too
 
 ## QuickDraw & Graphics Pipeline
 - `src/QuickDraw/Bitmaps.c:134` – `CopyBits` still needs full mask handling, colour depth conversion, and transfer-mode coverage to match the System 7 trap.
-- `src/QuickDraw/Bitmaps.c:207` – `ScrollRect` relies on `CopyBits` but leaves `updateRgn` empty; the classic implementation reports newly exposed areas for redraw.
 - `src/QuickDraw/quickdraw_drawing.c:41` / `:68` – `LineTo`, `DrawString`, and `DrawText` are placeholders that only advance the pen; they should rasterize using the active pen/pattern and integrate with the Font Manager for glyph metrics.
 - `src/QuickDraw/PatternManager.c:177`–`257` – All patterned fill variants (`FillRect`, `FillOval`, `FillRgn`, etc.) are stubs that set patterns but never rasterize geometry.
 - `src/QuickDraw/quickdraw_pictures.c:44`–`96` – `DrawPicture` frames the destination rect instead of executing PICT opcodes; full QuickDraw opcode parsing, scaling, and region copying remain to be implemented.
