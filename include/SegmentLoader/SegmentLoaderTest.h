@@ -9,6 +9,8 @@
 #define SEGMENT_LOADER_TEST_H
 
 #include "SystemTypes.h"
+#include "SegmentLoader/SegmentLoader.h"
+#include "CPU/CPUBackend.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,7 +53,7 @@ void SegmentLoader_TestBoot(void);
  * - jtBase == a5Base + jtOffsetFromA5
  * - All JT slots are materialized as stubs
  */
-OSErr SegmentLoader_RunSmokeChecks(struct SegmentLoaderContext* ctx);
+OSErr SegmentLoader_RunSmokeChecks(SegmentLoaderContext* ctx);
 
 /*
  * Test Trap Handlers

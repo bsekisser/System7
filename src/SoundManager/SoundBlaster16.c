@@ -10,8 +10,10 @@
 #include "SoundManager/SoundLogging.h"
 
 /* I/O port access */
-extern void outb(uint16_t port, uint8_t value);
-extern uint8_t inb(uint16_t port);
+#include "Platform/include/io.h"
+
+#define inb(port) hal_inb(port)
+#define outb(port, value) hal_outb(port, value)
 
 /* Sound Blaster 16 I/O ports (base 0x220) */
 #define SB16_BASE_PORT      0x220

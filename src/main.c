@@ -1780,14 +1780,14 @@ static void init_system71(void) {
     InitMenus();
     serial_puts("  Menu Manager initialized\n");
 
-    /* ATA/IDE Driver */
-    extern OSErr ATA_Init(void);
-    serial_puts("  Initializing ATA/IDE driver...\n");
-    OSErr ata_err = ATA_Init();
+    /* Storage HAL (ATA/IDE Driver) */
+    extern OSErr hal_storage_init(void);
+    serial_puts("  Initializing storage subsystem...\n");
+    OSErr ata_err = hal_storage_init();
     if (ata_err != noErr) {
-        serial_puts("  WARNING: ATA initialization failed\n");
+        serial_puts("  WARNING: Storage initialization failed\n");
     } else {
-        serial_puts("  ATA/IDE driver initialized\n");
+        serial_puts("  Storage subsystem initialized\n");
     }
 
     /* Virtual File System */
@@ -1900,11 +1900,11 @@ static void init_system71(void) {
         serial_puts("  Finder initialized\n");
 
         /* Now mount ATA volumes (callback is registered) */
-        extern int ATA_GetDeviceCount(void);
+        extern int hal_storage_get_drive_count(void);
         extern bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref);
         extern bool VFS_FormatATA(int ata_device_index, const char* volName);
 
-        int ata_count = ATA_GetDeviceCount();
+        int ata_count = hal_storage_get_drive_count();
         if (ata_count > 0) {
             serial_puts("  Mounting detected ATA volumes...\n");
             for (int i = 0; i < ata_count; i++) {

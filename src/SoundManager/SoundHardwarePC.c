@@ -12,8 +12,10 @@
 #include "SoundManager/SoundLogging.h"
 
 /* I/O port access functions (implemented in platform code) */
-extern void outb(uint16_t port, uint8_t value);
-extern uint8_t inb(uint16_t port);
+#include "Platform/include/io.h"
+
+#define inb(port) hal_inb(port)
+#define outb(port, value) hal_outb(port, value)
 
 /* PC Speaker hardware ports */
 #define PC_SPEAKER_PORT     0x61    /* PC speaker control */

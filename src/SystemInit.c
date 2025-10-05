@@ -458,13 +458,13 @@ static SystemError InitializeInputSystem(void) {
  * ============================================================================ */
 
 static SystemError InitializeFileSystem(void) {
-    extern OSErr ATA_Init(void);
+    extern OSErr hal_storage_init(void);
 
-    /* Initialize ATA/IDE disk driver */
-    serial_puts("SystemInit: Initializing ATA/IDE driver\n");
-    OSErr ata_err = ATA_Init();
+    /* Initialize storage subsystem */
+    serial_puts("SystemInit: Initializing storage subsystem\n");
+    OSErr ata_err = hal_storage_init();
     if (ata_err != noErr) {
-        serial_puts("SystemInit: WARNING - ATA initialization failed\n");
+        serial_puts("SystemInit: WARNING - Storage initialization failed\n");
         /* Non-fatal - continue without disk access */
     }
 

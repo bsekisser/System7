@@ -90,7 +90,8 @@ _start:
     outb %al, %dx
     movb $'T', %al
     outb %al, %dx
-    movb $'\n', %al
+    movb $'
+', %al
     outb %al, %dx
 
     /* Reset EFLAGS */
@@ -101,10 +102,10 @@ _start:
     pushl %esi                       /* Multiboot2 info pointer */
     pushl %edi                       /* Multiboot2 magic */
 
-    /* Call kernel main */
-    call kernel_main
+    /* Call boot main */
+    call boot_main
 
-    /* Hang if kernel_main returns */
+    /* Hang if boot_main returns */
 hang:
     cli
     hlt
@@ -113,4 +114,3 @@ hang:
 #ifndef _WIN32
 .size _start, . - _start
 #endif
-

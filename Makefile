@@ -94,8 +94,11 @@ C_SOURCES = src/main.c \
             src/QuickDraw/Regions.c \
             src/QuickDraw/quickdraw_shapes.c \
             src/Platform/WindowPlatform.c \
-            src/Platform/x86_io.c \
-            src/Platform/ATA_Driver.c \
+            src/Platform/x86/io.c \
+            src/Platform/x86/ata.c \
+            src/Platform/x86/ps2.c \
+            src/Platform/x86/hal_boot.c \
+            src/Platform/x86/hal_input.c \
             src/SoundManager/SoundManagerBareMetal.c \
             src/SoundManager/SoundHardwarePC.c \
             src/MenuManager/MenuManagerCore.c \
@@ -119,7 +122,6 @@ C_SOURCES = src/main.c \
             src/FontManager/FontStyleSynthesis.c \
             src/FontManager/FontScaling.c \
             src/test_fontmgr.c \
-            src/PS2Controller.c \
             src/PatternMgr/pattern_manager.c \
             src/PatternMgr/pattern_resources.c \
             src/PatternMgr/pram_prefs.c \
@@ -262,7 +264,7 @@ ifeq ($(ALERT_SMOKE_TEST),1)
 CFLAGS += -DALERT_SMOKE_TEST=1
 endif
 
-ASM_SOURCES = $(HAL_DIR)/boot.S
+ASM_SOURCES = $(HAL_DIR)/platform_boot.S
 
 # Object files
 C_OBJECTS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(notdir $(C_SOURCES)))
@@ -320,7 +322,7 @@ vpath %.c src:src/System:src/QuickDraw:src/WindowManager:src/MenuManager:src/Con
           src/ScrapManager:src/ProcessMgr:src/TimeManager:src/SoundManager:src/FontManager \
           src/Gestalt:src/MemoryMgr:src/ResourceMgr:src/FileMgr:src/FS:src/Finder \
           src/Finder/Icon:src/DeskManager:src/ControlPanels:src/PatternMgr:src/Resources \
-          src/Resources/Icons:src/Apps/SimpleText:src/Platform:src/PrintManager \
+          src/Resources/Icons:src/Apps/SimpleText:src/Platform:src/Platform/x86:src/PrintManager \
           src/HelpManager:src/ComponentManager:src/EditionManager:src/NotificationManager \
           src/PackageManager:src/NetworkExtension:src/ColorManager:src/CommunicationToolbox \
           src/FontResources:src/GestaltManager:src/SpeechManager:src/BootLoader \

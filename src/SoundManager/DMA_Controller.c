@@ -9,8 +9,10 @@
 #include "SoundManager/SoundLogging.h"
 
 /* I/O port access */
-extern void outb(uint16_t port, uint8_t value);
-extern uint8_t inb(uint16_t port);
+#include "Platform/include/io.h"
+
+#define inb(port) hal_inb(port)
+#define outb(port, value) hal_outb(port, value)
 
 /* DMA Controller ports */
 #define DMA1_STATUS         0x08  /* DMA 1 status (channels 0-3) */

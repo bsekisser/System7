@@ -53,12 +53,10 @@ void QDPlatform_UnlockFramebuffer(PlatformFramebuffer* fb) {
 #define VGA_INPUT_STATUS_1 0x3DA
 #define VGA_VRETRACE_BIT 0x08
 
+#include "Platform/include/io.h"
+
 /* Inline assembly helpers for VGA I/O */
-static inline uint8_t inb_vga(uint16_t port) {
-    uint8_t value;
-    __asm__ volatile ("inb %1, %0" : "=a"(value) : "Nd"(port));
-    return value;
-}
+#define inb_vga(port) hal_inb(port)
 
 /* Wait for VGA vertical retrace (vsync) to ensure screen update */
 static void vga_wait_vsync(void) {

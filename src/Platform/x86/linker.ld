@@ -1,4 +1,5 @@
 /* Linker script for System 7.1 kernel with Multiboot2 */
+/* Ensures multiboot header is in first 32KB */
 
 ENTRY(_start)
 
@@ -7,16 +8,16 @@ SECTIONS
     /* Kernel loads at 1MB */
     . = 0x100000;
 
-    /* Multiboot2 header must be at the beginning */
-    .multiboot2 ALIGN(8) :
+    /* Combine multiboot header and entry point in first section */
+    .boot ALIGN(8) :
     {
-        KEEP(*(.multiboot2))
+        KEEP(build/obj/platform_boot.o(.multiboot2))
+        KEEP(build/obj/platform_boot.o(.text))
     }
 
     /* Text section */
     .text ALIGN(4K) :
     {
-        KEEP(build/obj/multiboot2.o(.text))  /* Ensure _start comes first */
         *(.text)
         *(.text.*)
     }

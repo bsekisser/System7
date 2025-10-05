@@ -6,7 +6,8 @@
  */
 
 #include "ATA_Driver.h"
-#include "x86_io.h"
+#include "Platform/include/storage.h"
+#include "Platform/include/io.h"
 #include "FileManagerTypes.h"
 #include <stddef.h>
 #include "Platform/PlatformLogging.h"
@@ -24,7 +25,7 @@ static bool g_ata_initialized = false;
 /* 400ns delay by reading alternate status register */
 static inline void ata_io_delay(uint16_t control_io) {
     for (int i = 0; i < 4; i++) {
-        inb(control_io + ATA_REG_ALT_STATUS);
+        hal_inb(control_io + ATA_REG_ALT_STATUS);
     }
 }
 
@@ -32,7 +33,7 @@ static inline void ata_io_delay(uint16_t control_io) {
  * ATA_ReadStatus - Read status register
  */
 uint8_t ATA_ReadStatus(uint16_t base_io) {
-    return inb(base_io + ATA_REG_STATUS);
+    return hal_inb(base_io + ATA_REG_STATUS);
 }
 
 /*
@@ -100,7 +101,7 @@ bool ATA_WaitDRQ(uint16_t base_io) {
  */
 void ATA_SelectDrive(uint16_t base_io, bool is_slave) {
     uint8_t drive_select = is_slave ? ATA_DRIVE_SLAVE : ATA_DRIVE_MASTER;
-    outb(base_io + ATA_REG_DRIVE_HEAD, drive_select);
+    hal_outb(base_io + ATA_REG_DRIVE_HEAD, drive_select);
     ata_io_delay(base_io == ATA_PRIMARY_IO ? ATA_PRIMARY_CONTROL : ATA_SECONDARY_CONTROL);
 }
 
@@ -109,11 +110,11 @@ void ATA_SelectDrive(uint16_t base_io, bool is_slave) {
  */
 static void ATA_SoftReset(uint16_t control_io) {
     /* Set SRST bit */
-    outb(control_io + ATA_REG_DEV_CONTROL, ATA_CTRL_SRST | ATA_CTRL_NIEN);
+    hal_outb(control_io + ATA_REG_DEV_CONTROL, ATA_CTRL_SRST | ATA_CTRL_NIEN);
     ata_io_delay(control_io);
 
     /* Clear SRST bit */
-    outb(control_io + ATA_REG_DEV_CONTROL, ATA_CTRL_NIEN);
+    hal_outb(control_io + ATA_REG_DEV_CONTROL, ATA_CTRL_NIEN);
     ata_io_delay(control_io);
 
     /* Wait for reset to complete */
@@ -132,7 +133,7 @@ static bool ATA_IdentifyDevice(uint16_t base_io, bool is_slave, uint16_t* buffer
     ATA_WaitReady(base_io);
 
     /* Send IDENTIFY command */
-    outb(base_io + ATA_REG_COMMAND, ATA_CMD_IDENTIFY);
+    hal_outb(base_io + ATA_REG_COMMAND, ATA_CMD_IDENTIFY);
     ata_io_delay(control_io);
 
     /* Check if drive exists */
@@ -148,7 +149,7 @@ static bool ATA_IdentifyDevice(uint16_t base_io, bool is_slave, uint16_t* buffer
 
     /* Read 256 words (512 bytes) of identification data */
     for (int i = 0; i < 256; i++) {
-        buffer[i] = inw(base_io + ATA_REG_DATA);
+        hal_inw(base_io + ATA_REG_DATA);
     }
 
     return true;
@@ -225,8 +226,8 @@ bool ATA_DetectDevice(uint16_t base_io, bool is_slave, ATADevice* device) {
     }
 
     /* Check device type based on signature */
-    uint8_t cl = inb(base_io + ATA_REG_LBA_MID);
-    uint8_t ch = inb(base_io + ATA_REG_LBA_HIGH);
+    uint8_t cl = hal_inb(base_io + ATA_REG_LBA_MID);
+    uint8_t ch = hal_inb(base_io + ATA_REG_LBA_HIGH);
 
     if (cl == 0x14 && ch == 0xEB) {
         device->type = ATA_DEVICE_PATAPI;
@@ -251,7 +252,7 @@ bool ATA_DetectDevice(uint16_t base_io, bool is_slave, ATADevice* device) {
 /*
  * ATA_Init - Initialize ATA driver and detect devices
  */
-OSErr ATA_Init(void) {
+OSErr hal_storage_init(void) {
     PLATFORM_LOG_DEBUG("ATA: Initializing ATA/IDE driver\n");
 
     if (g_ata_initialized) {
@@ -309,7 +310,7 @@ OSErr ATA_Init(void) {
 /*
  * ATA_Shutdown - Shut down ATA driver
  */
-void ATA_Shutdown(void) {
+OSErr hal_storage_shutdown(void) {
     if (!g_ata_initialized) {
         return;
     }
@@ -328,7 +329,7 @@ void ATA_Shutdown(void) {
 /*
  * ATA_GetDeviceCount - Get number of detected devices
  */
-int ATA_GetDeviceCount(void) {
+int hal_storage_get_drive_count(void) {
     return g_device_count;
 }
 
@@ -358,25 +359,16 @@ OSErr ATA_ReadSectors(ATADevice* device, uint32_t lba, uint8_t count, void* buff
     uint16_t control_io = device->control_io;
     uint16_t* buf16 = (uint16_t*)buffer;
 
-    PLATFORM_LOG_DEBUG("ATA: Reading %u sector(s) from LBA %u\n", count, lba);
-
-    /* Wait for drive to be ready */
-    ATA_WaitReady(base_io);
-
     /* Select drive and set LBA mode */
     uint8_t drive_head = (device->is_slave ? ATA_DRIVE_SLAVE : ATA_DRIVE_MASTER) |
                          ATA_DRIVE_LBA | ((lba >> 24) & 0x0F);
-    outb(base_io + ATA_REG_DRIVE_HEAD, drive_head);
+    hal_outb(base_io + ATA_REG_DRIVE_HEAD, drive_head);
     ata_io_delay(control_io);
 
     /* Set sector count and LBA */
-    outb(base_io + ATA_REG_SECCOUNT, count);
-    outb(base_io + ATA_REG_LBA_LOW, lba & 0xFF);
-    outb(base_io + ATA_REG_LBA_MID, (lba >> 8) & 0xFF);
-    outb(base_io + ATA_REG_LBA_HIGH, (lba >> 16) & 0xFF);
-
-    /* Send READ SECTORS command */
-    outb(base_io + ATA_REG_COMMAND, ATA_CMD_READ_SECTORS);
+    hal_outb(base_io + ATA_REG_SECCOUNT, count);
+    hal_outb(base_io + ATA_REG_LBA_LOW, lba & 0xFF);
+    hal_outb(base_io + ATA_REG_COMMAND, ATA_CMD_READ_SECTORS);
     ata_io_delay(control_io);
 
     /* Read each sector */
@@ -389,13 +381,13 @@ OSErr ATA_ReadSectors(ATADevice* device, uint32_t lba, uint8_t count, void* buff
 
         /* Read 256 words (512 bytes) */
         for (int i = 0; i < 256; i++) {
-            buf16[sector * 256 + i] = inw(base_io + ATA_REG_DATA);
+            buf16[sector * 256 + i] = hal_inw(base_io + ATA_REG_DATA);
         }
 
         /* Check for errors */
         uint8_t status = ATA_ReadStatus(base_io);
         if (status & ATA_STATUS_ERR) {
-            uint8_t error = inb(base_io + ATA_REG_ERROR);
+            uint8_t error = hal_inb(base_io + ATA_REG_ERROR);
             PLATFORM_LOG_DEBUG("ATA: Read error (status=0x%02x, error=0x%02x)\n", status, error);
             return ioErr;
         }
@@ -429,17 +421,17 @@ OSErr ATA_WriteSectors(ATADevice* device, uint32_t lba, uint8_t count, const voi
     /* Select drive and set LBA mode */
     uint8_t drive_head = (device->is_slave ? ATA_DRIVE_SLAVE : ATA_DRIVE_MASTER) |
                          ATA_DRIVE_LBA | ((lba >> 24) & 0x0F);
-    outb(base_io + ATA_REG_DRIVE_HEAD, drive_head);
+    hal_outb(base_io + ATA_REG_DRIVE_HEAD, drive_head);
     ata_io_delay(control_io);
 
     /* Set sector count and LBA */
-    outb(base_io + ATA_REG_SECCOUNT, count);
-    outb(base_io + ATA_REG_LBA_LOW, lba & 0xFF);
-    outb(base_io + ATA_REG_LBA_MID, (lba >> 8) & 0xFF);
-    outb(base_io + ATA_REG_LBA_HIGH, (lba >> 16) & 0xFF);
+    hal_outb(base_io + ATA_REG_SECCOUNT, count);
+    hal_outb(base_io + ATA_REG_LBA_LOW, lba & 0xFF);
+    hal_outb(base_io + ATA_REG_LBA_MID, (lba >> 8) & 0xFF);
+    hal_outb(base_io + ATA_REG_LBA_HIGH, (lba >> 16) & 0xFF);
 
     /* Send WRITE SECTORS command */
-    outb(base_io + ATA_REG_COMMAND, ATA_CMD_WRITE_SECTORS);
+    hal_outb(base_io + ATA_REG_COMMAND, ATA_CMD_WRITE_SECTORS);
     ata_io_delay(control_io);
 
     /* Write each sector */
@@ -452,7 +444,7 @@ OSErr ATA_WriteSectors(ATADevice* device, uint32_t lba, uint8_t count, const voi
 
         /* Write 256 words (512 bytes) */
         for (int i = 0; i < 256; i++) {
-            outw(base_io + ATA_REG_DATA, buf16[sector * 256 + i]);
+            hal_outw(base_io + ATA_REG_DATA, buf16[sector * 256 + i]);
         }
 
         /* Wait for completion */
@@ -461,7 +453,7 @@ OSErr ATA_WriteSectors(ATADevice* device, uint32_t lba, uint8_t count, const voi
         /* Check for errors */
         uint8_t status = ATA_ReadStatus(base_io);
         if (status & ATA_STATUS_ERR) {
-            uint8_t error = inb(base_io + ATA_REG_ERROR);
+            uint8_t error = hal_inb(base_io + ATA_REG_ERROR);
             PLATFORM_LOG_DEBUG("ATA: Write error (status=0x%02x, error=0x%02x)\n", status, error);
             return ioErr;
         }
@@ -492,7 +484,7 @@ OSErr ATA_FlushCache(ATADevice* device) {
     ATA_SelectDrive(base_io, device->is_slave);
 
     /* Send FLUSH CACHE command */
-    outb(base_io + ATA_REG_COMMAND, ATA_CMD_FLUSH_CACHE);
+    hal_outb(base_io + ATA_REG_COMMAND, ATA_CMD_FLUSH_CACHE);
     ata_io_delay(control_io);
 
     /* Wait for completion */
@@ -534,4 +526,87 @@ void ATA_PrintDeviceInfo(ATADevice* device) {
                  (device->sectors / 2048));  /* sectors * 512 / 1024 / 1024 */
     PLATFORM_LOG_DEBUG("ATA:   LBA48: %s\n", device->lba48_supported ? "Yes" : "No");
     PLATFORM_LOG_DEBUG("ATA:   DMA: %s\n", device->dma_supported ? "Yes" : "No");
+}
+
+/*
+ * HAL Storage Interface Implementation
+ */
+
+OSErr hal_storage_get_drive_info(int drive_index, hal_storage_info_t* info) {
+    if (!info) {
+        return paramErr;
+    }
+
+    ATADevice* device = ATA_GetDevice(drive_index);
+    if (!device) {
+        return paramErr;
+    }
+
+    info->block_size = 512;  /* ATA sectors are always 512 bytes */
+    info->block_count = device->sectors;
+
+    return noErr;
+}
+
+OSErr hal_storage_read_blocks(int drive_index, uint64_t start_block, uint32_t block_count, void* buffer) {
+    ATADevice* device = ATA_GetDevice(drive_index);
+    if (!device) {
+        return paramErr;
+    }
+
+    /* ATA uses LBA28, so we can only address 28 bits */
+    if (start_block > 0x0FFFFFFF) {
+        return paramErr;
+    }
+
+    /* Read in chunks of 255 sectors (max for LBA28) */
+    uint8_t* buf = (uint8_t*)buffer;
+    uint32_t remaining = block_count;
+    uint32_t current_lba = (uint32_t)start_block;
+
+    while (remaining > 0) {
+        uint8_t count = (remaining > 255) ? 255 : (uint8_t)remaining;
+        OSErr err = ATA_ReadSectors(device, current_lba, count, buf);
+        if (err != noErr) {
+            return err;
+        }
+
+        remaining -= count;
+        current_lba += count;
+        buf += (count * 512);
+    }
+
+    return noErr;
+}
+
+OSErr hal_storage_write_blocks(int drive_index, uint64_t start_block, uint32_t block_count, const void* buffer) {
+    ATADevice* device = ATA_GetDevice(drive_index);
+    if (!device) {
+        return paramErr;
+    }
+
+    /* ATA uses LBA28, so we can only address 28 bits */
+    if (start_block > 0x0FFFFFFF) {
+        return paramErr;
+    }
+
+    /* Write in chunks of 255 sectors (max for LBA28) */
+    const uint8_t* buf = (const uint8_t*)buffer;
+    uint32_t remaining = block_count;
+    uint32_t current_lba = (uint32_t)start_block;
+
+    while (remaining > 0) {
+        uint8_t count = (remaining > 255) ? 255 : (uint8_t)remaining;
+        OSErr err = ATA_WriteSectors(device, current_lba, count, buf);
+        if (err != noErr) {
+            return err;
+        }
+
+        remaining -= count;
+        current_lba += count;
+        buf += (count * 512);
+    }
+
+    /* Flush cache after write */
+    return ATA_FlushCache(device);
 }
