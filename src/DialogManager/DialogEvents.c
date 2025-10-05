@@ -7,7 +7,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#define printf(...) serial_printf(__VA_ARGS__)
+#define printf(...) DIALOG_LOG_DEBUG(__VA_ARGS__)
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
@@ -16,6 +16,7 @@
 #include "DialogManager/DialogTypes.h"
 #include "DialogManager/DialogHelpers.h"
 #include "DialogManager/DialogItems.h"
+#include "DialogManager/DialogLogging.h"
 
 /* External Window Manager dependencies */
 extern void BeginUpdate(WindowPtr window);
@@ -105,7 +106,7 @@ Boolean DialogSelect(const EventRecord* evt, DialogPtr* which, SInt16* itemHit)
             return false;
         }
 
-        serial_printf("Dialog: DialogSelect hit item %d\n", hit);
+        DIALOG_LOG_DEBUG("Dialog: DialogSelect hit item %d\n", hit);
 
         /* Track push button - press feedback then release to commit */
         if (DialogItemIsPushButton(dlg, hit)) {

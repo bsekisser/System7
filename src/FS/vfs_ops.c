@@ -4,6 +4,7 @@
 
 #include "FS/vfs_ops.h"
 #include <string.h>
+#include "FS/FSLogging.h"
 
 /* Stub implementations - will connect to actual HFS later */
 
@@ -27,8 +28,7 @@ bool VFS_Move(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* n
      * 2. Change parent directory ID
      * 3. Optionally rename
      */
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("VFS_Move: id=%u from dir=%u to dir=%u, newName=%s\n",
+    FS_LOG_DEBUG("VFS_Move: id=%u from dir=%u to dir=%u, newName=%s\n",
                  id, fromDir, toDir, newName ? newName : "(null)");
     return true;
 }
@@ -40,10 +40,9 @@ bool VFS_Copy(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* n
      * 3. Copy file data blocks
      * 4. Copy resource fork if present
      */
-    extern void serial_printf(const char* fmt, ...);
     static FileID nextCopyID = 10000;
 
-    serial_printf("VFS_Copy: id=%u from dir=%u to dir=%u, newName=%s\n",
+    FS_LOG_DEBUG("VFS_Copy: id=%u from dir=%u to dir=%u, newName=%s\n",
                  id, fromDir, toDir, newName ? newName : "(null)");
 
     if (newID) {
@@ -144,10 +143,9 @@ VRefNum VFS_GetVRefByID(FileID id) {
 
 bool VFS_GetParentDir(VRefNum vref, FileID id, DirID* parentDir) {
     /* In real implementation: read catalog entry to get parent dirID */
-    extern void serial_printf(const char* fmt, ...);
     if (parentDir) {
         *parentDir = 2;  /* HFS_ROOT_CNID - For now, assume root */
-        serial_printf("VFS_GetParentDir: id=%u -> parent=%u\n", id, *parentDir);
+        FS_LOG_DEBUG("VFS_GetParentDir: id=%u -> parent=%u\n", id, *parentDir);
         return true;
     }
     return false;

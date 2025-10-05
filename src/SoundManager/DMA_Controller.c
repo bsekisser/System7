@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "SoundManager/SoundLogging.h"
 
 /* I/O port access */
 extern void outb(uint16_t port, uint8_t value);
@@ -50,17 +51,16 @@ static const uint16_t dma2_page_ports[] = { 0x8F, 0x8B, 0x89, 0x8A };
  * Set up DMA for audio playback (8-bit, channel 1)
  */
 int DMA_Setup8Bit(const void* buffer, uint32_t size) {
-    extern void serial_printf(const char* fmt, ...);
 
     const uint8_t channel = 1;  /* SB16 uses DMA channel 1 for 8-bit */
     uint32_t addr = (uint32_t)buffer;
 
-    serial_printf("DMA: Setting up 8-bit DMA on channel %d\n", channel);
-    serial_printf("DMA: Buffer at 0x%08x, size %u bytes\n", addr, size);
+    SND_LOG_DEBUG("DMA: Setting up 8-bit DMA on channel %d\n", channel);
+    SND_LOG_DEBUG("DMA: Buffer at 0x%08x, size %u bytes\n", addr, size);
 
     /* Check alignment */
     if (size > 65536) {
-        serial_printf("DMA: Size too large (max 64KB)\n");
+        SND_LOG_DEBUG("DMA: Size too large (max 64KB)\n");
         return -1;
     }
 
@@ -88,7 +88,7 @@ int DMA_Setup8Bit(const void* buffer, uint32_t size) {
     /* Enable DMA on channel */
     outb(DMA1_MASK, channel);  /* Clear mask bit */
 
-    serial_printf("DMA: 8-bit DMA setup complete\n");
+    SND_LOG_DEBUG("DMA: 8-bit DMA setup complete\n");
     return 0;
 }
 
@@ -96,28 +96,27 @@ int DMA_Setup8Bit(const void* buffer, uint32_t size) {
  * Set up DMA for audio playback (16-bit, channel 5)
  */
 int DMA_Setup16Bit(const void* buffer, uint32_t size) {
-    extern void serial_printf(const char* fmt, ...);
 
     const uint8_t channel = 5;  /* SB16 uses DMA channel 5 for 16-bit */
     const uint8_t channel_offset = channel - 4;  /* DMA2 uses channels 4-7 */
     uint32_t addr = (uint32_t)buffer;
 
-    serial_printf("DMA: Setting up 16-bit DMA on channel %d\n", channel);
-    serial_printf("DMA: Buffer at 0x%08x, size %u bytes\n", addr, size);
+    SND_LOG_DEBUG("DMA: Setting up 16-bit DMA on channel %d\n", channel);
+    SND_LOG_DEBUG("DMA: Buffer at 0x%08x, size %u bytes\n", addr, size);
 
     /* 16-bit DMA works in words, so size and address must be word-aligned */
     if (addr & 1) {
-        serial_printf("DMA: Address not word-aligned\n");
+        SND_LOG_DEBUG("DMA: Address not word-aligned\n");
         return -1;
     }
 
     if (size & 1) {
-        serial_printf("DMA: Size not word-aligned\n");
+        SND_LOG_DEBUG("DMA: Size not word-aligned\n");
         return -1;
     }
 
     if (size > 131072) {  /* 64K words = 128KB */
-        serial_printf("DMA: Size too large (max 128KB)\n");
+        SND_LOG_DEBUG("DMA: Size too large (max 128KB)\n");
         return -1;
     }
 
@@ -148,7 +147,7 @@ int DMA_Setup16Bit(const void* buffer, uint32_t size) {
     /* Enable DMA on channel */
     outb(DMA2_MASK, channel_offset);  /* Clear mask bit */
 
-    serial_printf("DMA: 16-bit DMA setup complete\n");
+    SND_LOG_DEBUG("DMA: 16-bit DMA setup complete\n");
     return 0;
 }
 
@@ -160,7 +159,6 @@ extern bool sb16_dsp_write(uint8_t value);
  */
 int SB16_PlayDMA(const uint8_t* data, uint32_t size,
                  uint32_t sample_rate, uint8_t channels, uint8_t bits_per_sample) {
-    extern void serial_printf(const char* fmt, ...);
 
     /* DSP commands */
     #define DSP_CMD_DMA_16BIT_STEREO   0xB6
@@ -168,7 +166,7 @@ int SB16_PlayDMA(const uint8_t* data, uint32_t size,
     #define DSP_CMD_DMA_8BIT_STEREO    0xC6
     #define DSP_CMD_DMA_8BIT_MONO      0xC4
 
-    serial_printf("DMA: Starting playback\n");
+    SND_LOG_DEBUG("DMA: Starting playback\n");
 
     /* Set up DMA */
     int dma_result;
@@ -179,7 +177,7 @@ int SB16_PlayDMA(const uint8_t* data, uint32_t size,
     }
 
     if (dma_result != 0) {
-        serial_printf("DMA: Setup failed\n");
+        SND_LOG_DEBUG("DMA: Setup failed\n");
         return -1;
     }
 
@@ -188,7 +186,7 @@ int SB16_PlayDMA(const uint8_t* data, uint32_t size,
     uint32_t sample_count = size / sample_size;
     uint32_t dma_count = sample_count - 1;
 
-    serial_printf("DMA: %u samples (%u bytes per sample)\n", sample_count, sample_size);
+    SND_LOG_DEBUG("DMA: %u samples (%u bytes per sample)\n", sample_count, sample_size);
 
     /* Select DSP command based on bit depth and channels */
     uint8_t dsp_cmd;
@@ -200,33 +198,33 @@ int SB16_PlayDMA(const uint8_t* data, uint32_t size,
 
     /* Send DMA playback command */
     if (!sb16_dsp_write(dsp_cmd)) {
-        serial_printf("DMA: Failed to send DSP command\n");
+        SND_LOG_DEBUG("DMA: Failed to send DSP command\n");
         return -1;
     }
 
     /* Send mode (unsigned PCM, stereo/mono) */
     uint8_t mode = (channels == 2) ? 0x20 : 0x00;  /* Bit 5 = stereo */
     if (!sb16_dsp_write(mode)) {
-        serial_printf("DMA: Failed to send mode\n");
+        SND_LOG_DEBUG("DMA: Failed to send mode\n");
         return -1;
     }
 
     /* Send count (low byte, high byte) */
     if (!sb16_dsp_write(dma_count & 0xFF)) {
-        serial_printf("DMA: Failed to send count low\n");
+        SND_LOG_DEBUG("DMA: Failed to send count low\n");
         return -1;
     }
 
     if (!sb16_dsp_write((dma_count >> 8) & 0xFF)) {
-        serial_printf("DMA: Failed to send count high\n");
+        SND_LOG_DEBUG("DMA: Failed to send count high\n");
         return -1;
     }
 
-    serial_printf("DMA: Playback started\n");
+    SND_LOG_DEBUG("DMA: Playback started\n");
 
     /* Don't wait - let DMA play in background while system continues */
     /* In a real implementation, we'd use an interrupt handler to know when done */
-    serial_printf("DMA: Playback running in background\n");
+    SND_LOG_DEBUG("DMA: Playback running in background\n");
 
     return 0;
 }

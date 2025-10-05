@@ -23,6 +23,7 @@
 
 #include "SoundManager/SoundSynthesis.h"
 #include "SoundManager/SoundTypes.h"
+#include "SoundManager/SoundLogging.h"
 
 
 /* Mathematical constants */

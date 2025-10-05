@@ -35,13 +35,13 @@ typedef struct TEExtRec {
 
 typedef TEExtRec *TEExtPtr, **TEExtHandle;
 #include <string.h>
+#include "TextEdit/TELogging.h"
 
 /* Debug logging */
 #define TES_DEBUG 1
 
 #if TES_DEBUG
-extern void serial_printf(const char* fmt, ...);
-#define TES_LOG(...) serial_printf("TES: " __VA_ARGS__)
+#define TES_LOG(...) TE_LOG_DEBUG("TES: " __VA_ARGS__)
 #else
 #define TES_LOG(...)
 #endif

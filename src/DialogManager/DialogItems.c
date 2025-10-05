@@ -18,6 +18,7 @@
 #include "DialogManager/DialogDrawing.h"
 #include "DialogManager/DialogResourceParser.h"
 #include <assert.h>
+#include "DialogManager/DialogLogging.h"
 
 
 /* Private structures for item management */
@@ -81,7 +82,7 @@ void InitDialogItems(void)
         gDialogItemState.cache[i].lastUpdateTime = 0;
     }
 
-    serial_printf("Dialog item subsystem initialized\n");
+    DIALOG_LOG_DEBUG("Dialog item subsystem initialized\n");
 }
 
 /*
@@ -103,11 +104,11 @@ void GetDialogItem(DialogPtr theDialog, SInt16 itemNo, SInt16* itemType,
 
     itemEx = GetDialogItemEx(theDialog, itemNo);
     if (!itemEx) {
-        serial_printf("GetDialogItem: GetDialogItemEx returned NULL for item %d\n", itemNo);
+        DIALOG_LOG_DEBUG("GetDialogItem: GetDialogItemEx returned NULL for item %d\n", itemNo);
         return;
     }
 
-    serial_printf("GetDialogItem: item %d, index=%d, bounds=(%d,%d,%d,%d)\n",
+    DIALOG_LOG_DEBUG("GetDialogItem: item %d, index=%d, bounds=(%d,%d,%d,%d)\n",
                  itemNo, (itemEx)->index, (itemEx)->bounds.top, (itemEx)->bounds.left,
                  (itemEx)->bounds.bottom, (itemEx)->bounds.right);
 
@@ -122,7 +123,7 @@ void GetDialogItem(DialogPtr theDialog, SInt16 itemNo, SInt16* itemType,
         *box = (itemEx)->bounds;
     }
 
-    serial_printf("GetDialogItem: item %d, type %d\n", itemNo, (itemEx)->type);
+    DIALOG_LOG_DEBUG("GetDialogItem: item %d, type %d\n", itemNo, (itemEx)->type);
 }
 
 /*
@@ -150,7 +151,7 @@ void SetDialogItem(DialogPtr theDialog, SInt16 itemNo, SInt16 itemType,
     /* Mark for redraw */
     InvalDialogItem(theDialog, itemNo);
 
-    serial_printf("SetDialogItem: item %d, type %d\n", itemNo, itemType);
+    DIALOG_LOG_DEBUG("SetDialogItem: item %d, type %d\n", itemNo, itemType);
 }
 
 /*
@@ -175,7 +176,7 @@ void HideDialogItem(DialogPtr theDialog, SInt16 itemNo)
         InvalidateItemRect(theDialog, &(itemEx)->bounds);
     }
 
-    serial_printf("Hid dialog item %d\n", itemNo);
+    DIALOG_LOG_DEBUG("Hid dialog item %d\n", itemNo);
 }
 
 /*
@@ -200,7 +201,7 @@ void ShowDialogItem(DialogPtr theDialog, SInt16 itemNo)
         DrawDialogItem(theDialog, itemNo);
     }
 
-    serial_printf("Showed dialog item %d\n", itemNo);
+    DIALOG_LOG_DEBUG("Showed dialog item %d\n", itemNo);
 }
 
 /*
@@ -233,7 +234,7 @@ SInt16 FindDialogItem(DialogPtr theDialog, Point thePt)
         }
     }
 
-    serial_printf("FindDialogItem at (%d, %d): found item %d\n", thePt.h, thePt.v, foundItem);
+    DIALOG_LOG_DEBUG("FindDialogItem at (%d, %d): found item %d\n", thePt.h, thePt.v, foundItem);
     return foundItem;
 }
 
@@ -251,7 +252,7 @@ void GetDialogItemText(Handle item, unsigned char* text)
     /* For now, just return empty string */
     text[0] = 0;
 
-    serial_printf("GetDialogItemText: retrieved text from item handle\n");
+    DIALOG_LOG_DEBUG("GetDialogItemText: retrieved text from item handle\n");
 }
 
 /*
@@ -264,7 +265,7 @@ void SetDialogItemText(Handle item, const unsigned char* text)
     }
 
     /* In a full implementation, this would set text in the item handle */
-    serial_printf("SetDialogItemText: set text '%.*s'\n", text[0], &text[1]);
+    DIALOG_LOG_DEBUG("SetDialogItemText: set text '%.*s'\n", text[0], &text[1]);
 }
 
 /*
@@ -290,7 +291,7 @@ void SelectDialogItemText(DialogPtr theDialog, SInt16 itemNo, SInt16 strtSel, SI
     }
 
     /* In a full implementation, this would work with TextEdit */
-    serial_printf("SelectDialogItemText: item %d, selection %d-%d\n", itemNo, strtSel, endSel);
+    DIALOG_LOG_DEBUG("SelectDialogItemText: item %d, selection %d-%d\n", itemNo, strtSel, endSel);
 }
 
 /*
@@ -317,7 +318,7 @@ void EnableDialogItem(DialogPtr theDialog, SInt16 itemNo)
         InvalDialogItem(theDialog, itemNo);
     }
 
-    serial_printf("Enabled dialog item %d\n", itemNo);
+    DIALOG_LOG_DEBUG("Enabled dialog item %d\n", itemNo);
 }
 
 /*
@@ -344,7 +345,7 @@ void DisableDialogItem(DialogPtr theDialog, SInt16 itemNo)
         InvalDialogItem(theDialog, itemNo);
     }
 
-    serial_printf("Disabled dialog item %d\n", itemNo);
+    DIALOG_LOG_DEBUG("Disabled dialog item %d\n", itemNo);
 }
 
 /*
@@ -407,7 +408,7 @@ void AppendDITL(DialogPtr theDialog, Handle theHandle, DITLMethod method)
     /* Parse the new item list */
     err = ParseDialogItemList(theHandle, &newItems, &newItemCount);
     if (err != 0 || !newItems || newItemCount == 0) {
-        serial_printf("Error: Failed to parse DITL for append (error %d)\n", err);
+        DIALOG_LOG_DEBUG("Error: Failed to parse DITL for append (error %d)\n", err);
         return;
     }
 
@@ -442,7 +443,7 @@ void AppendDITL(DialogPtr theDialog, Handle theHandle, DITLMethod method)
                                                          totalItems * sizeof(DialogItemEx));
     if (!expandedItems) {
         free(newItems);
-        serial_printf("Error: Failed to expand item cache\n");
+        DIALOG_LOG_DEBUG("Error: Failed to expand item cache\n");
         return;
     }
 
@@ -455,7 +456,7 @@ void AppendDITL(DialogPtr theDialog, Handle theHandle, DITLMethod method)
 
     free(newItems);
 
-    serial_printf("Appended %d items to dialog (method %d), total now %d\n",
+    DIALOG_LOG_DEBUG("Appended %d items to dialog (method %d), total now %d\n",
            newItemCount, method, totalItems);
 }
 
@@ -516,7 +517,7 @@ void ShortenDITL(DialogPtr theDialog, SInt16 numberItems)
 
     cache->needsUpdate = true;
 
-    serial_printf("Shortened DITL by %d items, %d items remaining\n",
+    DIALOG_LOG_DEBUG("Shortened DITL by %d items, %d items remaining\n",
            numberItems, cache->itemCount);
 }
 
@@ -545,7 +546,7 @@ void SetUserItemProc(DialogPtr theDialog, SInt16 itemNo, UserItemProcPtr procPtr
     /* Set the procedure as the item handle */
     (itemEx)->handle = (Handle)procPtr;
 
-    serial_printf("Set user item procedure for item %d\n", itemNo);
+    DIALOG_LOG_DEBUG("Set user item procedure for item %d\n", itemNo);
 }
 
 /*
@@ -592,7 +593,7 @@ void DrawDialogItem(DialogPtr theDialog, SInt16 itemNo)
     /* Use the new unified drawing dispatcher */
     DrawDialogItemByType(theDialog, itemNo, itemEx);
 
-    serial_printf("Drew dialog item %d (type %d)\n", itemNo, itemEx->type & itemTypeMask);
+    DIALOG_LOG_DEBUG("Drew dialog item %d (type %d)\n", itemNo, itemEx->type & itemTypeMask);
 }
 
 /*
@@ -638,7 +639,7 @@ void FrameDialogItem(DialogPtr theDialog, SInt16 itemNo)
     frameRect.bottom += 4;
 
     /* In a full implementation, this would draw an actual frame */
-    serial_printf("Framing dialog item %d at (%d,%d,%d,%d)\n",
+    DIALOG_LOG_DEBUG("Framing dialog item %d at (%d,%d,%d,%d)\n",
            itemNo, frameRect.left, frameRect.top, frameRect.right, frameRect.bottom);
 }
 
@@ -681,14 +682,14 @@ static DialogItemCache* CreateDialogItemCache(DialogPtr theDialog)
     if (itemList) {
         OSErr err = ParseDialogItemList(itemList, &cache->items, &cache->itemCount);
         if (err != 0) {
-            serial_printf("Error: Failed to parse dialog item list (error %d)\n", err);
+            DIALOG_LOG_DEBUG("Error: Failed to parse dialog item list (error %d)\n", err);
             return NULL;
         }
     }
 
     gDialogItemState.cacheCount++;
 
-    serial_printf("Created item cache for dialog at %p with %d items\n",
+    DIALOG_LOG_DEBUG("Created item cache for dialog at %p with %d items\n",
            (void*)theDialog, cache->itemCount);
 
     return cache;
@@ -796,7 +797,7 @@ void CleanupDialogItems(void)
     gDialogItemState.cacheCount = 0;
     gDialogItemState.initialized = false;
 
-    serial_printf("Dialog item subsystem cleaned up\n");
+    DIALOG_LOG_DEBUG("Dialog item subsystem cleaned up\n");
 }
 
 static void DisposeDialogItemCache(DialogItemCache* cache)

@@ -15,8 +15,8 @@
 #include "MemoryMgr/MemoryManager.h"
 #include "Errors/ErrorCodes.h"
 #include <string.h>
+#include "TextEdit/TELogging.h"
 
-extern void serial_printf(const char* fmt, ...);
 
 /* Application state */
 static WindowPtr gTextEditWindow = NULL;
@@ -33,7 +33,7 @@ OSErr TextEdit_InitApp(void)
     Rect destRect;
     Rect viewRect;
 
-    serial_printf("TextEdit_InitApp: Initializing TextEdit application\n");
+    TE_LOG_DEBUG("TextEdit_InitApp: Initializing TextEdit application\n");
 
     /* Create window */
     SetRect(&windRect, 100, 100, 500, 400);
@@ -43,7 +43,7 @@ OSErr TextEdit_InitApp(void)
                                 0 /* documentProc */, (WindowPtr)-1, true, 0);
 
     if (!gTextEditWindow) {
-        serial_printf("TextEdit_InitApp: Failed to create window\n");
+        TE_LOG_DEBUG("TextEdit_InitApp: Failed to create window\n");
         return memFullErr;
     }
 
@@ -58,7 +58,7 @@ OSErr TextEdit_InitApp(void)
     gTextEditTE = TENew(&viewRect, &viewRect);
 
     if (!gTextEditTE) {
-        serial_printf("TextEdit_InitApp: Failed to create TE handle\n");
+        TE_LOG_DEBUG("TextEdit_InitApp: Failed to create TE handle\n");
         DisposeWindow(gTextEditWindow);
         gTextEditWindow = NULL;
         return memFullErr;
@@ -70,7 +70,7 @@ OSErr TextEdit_InitApp(void)
 
     gAppRunning = true;
 
-    serial_printf("TextEdit_InitApp: Application initialized successfully\n");
+    TE_LOG_DEBUG("TextEdit_InitApp: Application initialized successfully\n");
     return noErr;
 }
 
@@ -147,7 +147,7 @@ void TextEdit_CleanupApp(void)
 
     gAppRunning = false;
 
-    serial_printf("TextEdit_CleanupApp: Application cleaned up\n");
+    TE_LOG_DEBUG("TextEdit_CleanupApp: Application cleaned up\n");
 }
 
 /*
@@ -170,36 +170,36 @@ OSErr TextEdit_LoadFile(ConstStr255Param fileName, VolumeRefNum vRefNum)
     UInt32 fileSize;
     char* buffer = NULL;
 
-    serial_printf("TextEdit_LoadFile: Loading file \"%.*s\"\n", fileName[0], fileName+1);
+    TE_LOG_DEBUG("TextEdit_LoadFile: Loading file \"%.*s\"\n", fileName[0], fileName+1);
 
     /* Make sure TextEdit is initialized */
     if (!gAppRunning || !gTextEditWindow || !gTextEditTE) {
-        serial_printf("TextEdit_LoadFile: TextEdit not initialized\n");
+        TE_LOG_DEBUG("TextEdit_LoadFile: TextEdit not initialized\n");
         return fnfErr;
     }
 
     /* Open the file */
     err = FSOpen(fileName, vRefNum, &refNum);
     if (err != noErr) {
-        serial_printf("TextEdit_LoadFile: FSOpen failed, err=%d\n", err);
+        TE_LOG_DEBUG("TextEdit_LoadFile: FSOpen failed, err=%d\n", err);
         return err;
     }
 
     /* Get file size */
     err = FSGetEOF(refNum, &fileSize);
     if (err != noErr) {
-        serial_printf("TextEdit_LoadFile: FSGetEOF failed, err=%d\n", err);
+        TE_LOG_DEBUG("TextEdit_LoadFile: FSGetEOF failed, err=%d\n", err);
         FSClose(refNum);
         return err;
     }
 
-    serial_printf("TextEdit_LoadFile: File size = %u bytes\n", fileSize);
+    TE_LOG_DEBUG("TextEdit_LoadFile: File size = %u bytes\n", fileSize);
 
     /* Allocate buffer for file content */
     if (fileSize > 0) {
         buffer = (char*)NewPtr(fileSize + 1);
         if (!buffer) {
-            serial_printf("TextEdit_LoadFile: Failed to allocate buffer\n");
+            TE_LOG_DEBUG("TextEdit_LoadFile: Failed to allocate buffer\n");
             FSClose(refNum);
             return memFullErr;
         }
@@ -208,14 +208,14 @@ OSErr TextEdit_LoadFile(ConstStr255Param fileName, VolumeRefNum vRefNum)
         UInt32 bytesToRead = fileSize;
         err = FSRead(refNum, &bytesToRead, buffer);
         if (err != noErr && err != eofErr) {
-            serial_printf("TextEdit_LoadFile: FSRead failed, err=%d\n", err);
+            TE_LOG_DEBUG("TextEdit_LoadFile: FSRead failed, err=%d\n", err);
             DisposePtr((Ptr)buffer);
             FSClose(refNum);
             return err;
         }
 
         buffer[bytesToRead] = '\0';
-        serial_printf("TextEdit_LoadFile: Read %u bytes\n", bytesToRead);
+        TE_LOG_DEBUG("TextEdit_LoadFile: Read %u bytes\n", bytesToRead);
 
         /* Clear existing text and insert file content */
         SetPort(gTextEditWindow);
@@ -235,6 +235,6 @@ OSErr TextEdit_LoadFile(ConstStr255Param fileName, VolumeRefNum vRefNum)
     /* Refresh window */
     InvalRect(&gTextEditWindow->port.portRect);
 
-    serial_printf("TextEdit_LoadFile: File loaded successfully\n");
+    TE_LOG_DEBUG("TextEdit_LoadFile: File loaded successfully\n");
     return noErr;
 }

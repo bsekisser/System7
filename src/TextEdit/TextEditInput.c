@@ -8,6 +8,7 @@
 #include "MemoryMgr/MemoryManager.h"
 #include "EventManager/EventManager.h"
 #include <string.h>
+#include "TextEdit/TELogging.h"
 
 /* Boolean constants */
 #ifndef TRUE
@@ -40,8 +41,7 @@ typedef TEExtRec *TEExtPtr, **TEExtHandle;
 #define TEI_DEBUG 1
 
 #if TEI_DEBUG
-extern void serial_printf(const char* fmt, ...);
-#define TEI_LOG(...) serial_printf("TEI: " __VA_ARGS__)
+#define TEI_LOG(...) TE_LOG_DEBUG("TEI: " __VA_ARGS__)
 #else
 #define TEI_LOG(...)
 #endif

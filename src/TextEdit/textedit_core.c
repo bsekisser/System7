@@ -22,6 +22,7 @@
 #include "System71StdLib.h"
 
 #include "TextEdit/TextEdit.h"
+#include "TextEdit/TELogging.h"
 
 
 /* Static TextEdit state - Evidence: System-wide TextEdit initialization */
@@ -274,9 +275,8 @@ void TECopy(TEHandle hTE)
         textPtr = (char*)pTE->hText;
         /* Copy to system clipboard using Scrap Manager */
         extern OSErr PutScrap(SInt32 length, ResType type, const void* data);
-        extern void serial_printf(const char* fmt, ...);
 
-        serial_printf("TECopy: Copying %ld chars to clipboard\n", (long)selLength);
+        TE_LOG_DEBUG("TECopy: Copying %ld chars to clipboard\n", (long)selLength);
         PutScrap(selLength, 'TEXT', textPtr + pTE->selStart);
     }
 }
@@ -290,7 +290,6 @@ void TEPaste(TEHandle hTE)
     /*
     /* Get text from system clipboard */
     extern OSErr GetScrap(Handle destHandle, ResType type, SInt32* offset);
-    extern void serial_printf(const char* fmt, ...);
 
     Handle scrapHandle = NULL;
     SInt32 offset = 0;
@@ -301,12 +300,12 @@ void TEPaste(TEHandle hTE)
         SInt32 length = GetHandleSize(scrapHandle);
         if (length > 0) {
             char* scrapText = (char*)*scrapHandle;
-            serial_printf("TEPaste: Pasting %ld chars from clipboard\n", (long)length);
+            TE_LOG_DEBUG("TEPaste: Pasting %ld chars from clipboard\n", (long)length);
             TEInsert(scrapText, length, hTE);
         }
         DisposeHandle(scrapHandle);
     } else {
-        serial_printf("TEPaste: No text available in clipboard\n");
+        TE_LOG_DEBUG("TEPaste: No text available in clipboard\n");
     }
 }
 
@@ -460,8 +459,7 @@ void TEIdle(TEHandle hTE)
         /* Toggle caret state for blinking */
         pTE->caretState = !pTE->caretState;
         /* Redraw caret at current position */
-        extern void serial_printf(const char* fmt, ...);
-        serial_printf("TEIdle: Caret state = %s\n", pTE->caretState ? "visible" : "hidden");
+        TE_LOG_DEBUG("TEIdle: Caret state = %s\n", pTE->caretState ? "visible" : "hidden");
 
         /* Calculate caret position and draw/erase */
         if (pTE->caretState) {
@@ -488,7 +486,6 @@ void TEUpdate(void *updateRgn, TEHandle hTE)
 
     /*
     /* Implement text drawing using QuickDraw */
-    extern void serial_printf(const char* fmt, ...);
     extern void DrawText(const void* textBuf, short firstByte, short byteCount);
     extern void MoveTo(short h, short v);
 
@@ -499,7 +496,7 @@ void TEUpdate(void *updateRgn, TEHandle hTE)
         /* Draw text at destination position */
         MoveTo(pTE->destRect.left, pTE->destRect.top + pTE->lineHeight);
 
-        serial_printf("TEUpdate: Drawing %d chars\n", pTE->teLength);
+        TE_LOG_DEBUG("TEUpdate: Drawing %d chars\n", pTE->teLength);
         DrawText(text, 0, pTE->teLength);
     }
 
@@ -519,9 +516,8 @@ void TEScroll(SInt16 dh, SInt16 dv, TEHandle hTE)
 
     /*
     /* Implement scrolling by adjusting view rectangles */
-    extern void serial_printf(const char* fmt, ...);
 
-    serial_printf("TEScroll: Scrolling by (dh=%d, dv=%d)\n", dh, dv);
+    TE_LOG_DEBUG("TEScroll: Scrolling by (dh=%d, dv=%d)\n", dh, dv);
 
     /* Adjust view and destination rectangles */
     pTE->viewRect.left += dh;
@@ -551,7 +547,6 @@ void TETextBox(void *text, SInt32 length, Rect *box, SInt16 just)
     /* Implement text drawing using QuickDraw */
     extern void DrawText(const void* textBuf, short firstByte, short byteCount);
     extern void MoveTo(short h, short v);
-    extern void serial_printf(const char* fmt, ...);
 
     /* Calculate text position based on justification */
     short x = box->left;
@@ -571,7 +566,7 @@ void TETextBox(void *text, SInt32 length, Rect *box, SInt16 just)
             break;
     }
 
-    serial_printf("TETextBox: Drawing %ld chars with just=%d at (%d,%d)\n",
+    TE_LOG_DEBUG("TETextBox: Drawing %ld chars with just=%d at (%d,%d)\n",
                   (long)length, just, x, y);
 
     MoveTo(x, y);

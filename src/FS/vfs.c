@@ -6,9 +6,9 @@
 #include "../../include/FS/hfs_endian.h"
 #include "../../include/MemoryMgr/MemoryManager.h"
 #include <string.h>
+#include "FS/FSLogging.h"
 
 /* Serial debug output */
-extern void serial_printf(const char* fmt, ...);
 
 /* Volume buffer - allocated from heap */
 
@@ -60,14 +60,14 @@ static VFSVolume* VFS_AllocVolume(void) {
 
 bool VFS_Init(void) {
     if (g_vfs.initialized) {
-        /* serial_printf("VFS: Already initialized\n"); */
+        /* FS_LOG_DEBUG("VFS: Already initialized\n"); */
         return true;
     }
 
     memset(&g_vfs, 0, sizeof(g_vfs));
     g_vfs.nextVRef = 1;  /* Start VRefs at 1 */
 
-    /* serial_printf("VFS: Initialized\n"); */
+    /* FS_LOG_DEBUG("VFS: Initialized\n"); */
     g_vfs.initialized = true;
     return true;
 }
@@ -89,19 +89,19 @@ void VFS_Shutdown(void) {
     }
 
     g_vfs.initialized = false;
-    /* serial_printf("VFS: Shutdown complete\n"); */
+    /* FS_LOG_DEBUG("VFS: Shutdown complete\n"); */
 }
 
 bool VFS_MountBootVolume(const char* volName) {
     if (!g_vfs.initialized) {
-        /* serial_printf("VFS: Not initialized\n"); */
+        /* FS_LOG_DEBUG("VFS: Not initialized\n"); */
         return false;
     }
 
     /* Allocate volume slot */
     VFSVolume* vol = VFS_AllocVolume();
     if (!vol) {
-        serial_printf("VFS: No free volume slots\n");
+        FS_LOG_DEBUG("VFS: No free volume slots\n");
         return false;
     }
 
@@ -109,13 +109,13 @@ bool VFS_MountBootVolume(const char* volName) {
     uint64_t volumeSize = 4 * 1024 * 1024;  /* 4MB */
     void* volumeData = malloc(volumeSize);
     if (!volumeData) {
-        /* serial_printf("VFS: Failed to allocate volume memory\n"); */
+        /* FS_LOG_DEBUG("VFS: Failed to allocate volume memory\n"); */
         return false;
     }
 
     /* Create blank HFS volume */
     if (!HFS_CreateBlankVolume(volumeData, volumeSize, volName)) {
-        /* serial_printf("VFS: Failed to create blank volume\n"); */
+        /* FS_LOG_DEBUG("VFS: Failed to create blank volume\n"); */
         free(volumeData);
         return false;
     }
@@ -125,7 +125,7 @@ bool VFS_MountBootVolume(const char* volName) {
 
     /* Mount the volume */
     if (!HFS_VolumeMountMemory(&vol->volume, volumeData, volumeSize, vol->vref)) {
-        /* serial_printf("VFS: Failed to mount volume\n"); */
+        /* FS_LOG_DEBUG("VFS: Failed to mount volume\n"); */
         free(volumeData);
         return false;
     }
@@ -134,7 +134,7 @@ bool VFS_MountBootVolume(const char* volName) {
     if (!HFS_CatalogInit(&vol->catalog, &vol->volume)) {
         HFS_VolumeUnmount(&vol->volume);
         free(volumeData);
-        /* serial_printf("VFS: Failed to initialize catalog\n"); */
+        /* FS_LOG_DEBUG("VFS: Failed to initialize catalog\n"); */
         return false;
     }
 
@@ -143,7 +143,7 @@ bool VFS_MountBootVolume(const char* volName) {
     strncpy(vol->name, volName, sizeof(vol->name) - 1);
     vol->name[sizeof(vol->name) - 1] = '\0';
 
-    /* serial_printf("VFS: Mounted boot volume successfully\n"); */
+    /* FS_LOG_DEBUG("VFS: Mounted boot volume successfully\n"); */
 
     /* Notify mount callback */
     if (g_vfs.mountCallback) {
@@ -158,28 +158,28 @@ bool VFS_FormatATA(int ata_device_index, const char* volName) {
     extern bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName);
 
     if (!g_vfs.initialized) {
-        serial_printf("VFS: Not initialized\n");
+        FS_LOG_DEBUG("VFS: Not initialized\n");
         return false;
     }
 
     /* Initialize temporary block device */
     HFS_BlockDev bd;
     if (!HFS_BD_InitATA(&bd, ata_device_index, false)) {
-        serial_printf("VFS: Failed to initialize ATA block device for formatting\n");
+        FS_LOG_DEBUG("VFS: Failed to initialize ATA block device for formatting\n");
         return false;
     }
 
     /* Format the volume */
-    serial_printf("VFS: Formatting ATA device %d as '%s'...\n", ata_device_index, volName);
+    FS_LOG_DEBUG("VFS: Formatting ATA device %d as '%s'...\n", ata_device_index, volName);
     bool result = HFS_FormatVolume(&bd, volName);
 
     /* Close block device */
     HFS_BD_Close(&bd);
 
     if (result) {
-        serial_printf("VFS: ATA device %d formatted successfully\n", ata_device_index);
+        FS_LOG_DEBUG("VFS: ATA device %d formatted successfully\n", ata_device_index);
     } else {
-        serial_printf("VFS: Failed to format ATA device %d\n", ata_device_index);
+        FS_LOG_DEBUG("VFS: Failed to format ATA device %d\n", ata_device_index);
     }
 
     return result;
@@ -187,14 +187,14 @@ bool VFS_FormatATA(int ata_device_index, const char* volName) {
 
 bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
     if (!g_vfs.initialized) {
-        serial_printf("VFS: Not initialized\n");
+        FS_LOG_DEBUG("VFS: Not initialized\n");
         return false;
     }
 
     /* Allocate volume slot */
     VFSVolume* vol = VFS_AllocVolume();
     if (!vol) {
-        serial_printf("VFS: No free volume slots\n");
+        FS_LOG_DEBUG("VFS: No free volume slots\n");
         return false;
     }
 
@@ -203,7 +203,7 @@ bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
 
     /* Initialize block device from ATA */
     if (!HFS_BD_InitATA(&vol->volume.bd, ata_device_index, false)) {
-        serial_printf("VFS: Failed to initialize ATA block device\n");
+        FS_LOG_DEBUG("VFS: Failed to initialize ATA block device\n");
         return false;
     }
 
@@ -211,7 +211,7 @@ bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
     uint8_t mdbSector[512];
 
     if (!HFS_BD_ReadSector(&vol->volume.bd, HFS_MDB_SECTOR, mdbSector)) {
-        serial_printf("VFS: Failed to read MDB sector\n");
+        FS_LOG_DEBUG("VFS: Failed to read MDB sector\n");
         HFS_BD_Close(&vol->volume.bd);
         return false;
     }
@@ -220,14 +220,14 @@ bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
     uint16_t sig = be16_read(&mdbSector[0]);
 
     if (sig != HFS_SIGNATURE) {
-        serial_printf("VFS: ERROR - Disk is not formatted with HFS (signature: 0x%04x)\n", sig);
-        serial_printf("VFS: Use VFS_FormatATA() to format this disk first\n");
+        FS_LOG_DEBUG("VFS: ERROR - Disk is not formatted with HFS (signature: 0x%04x)\n", sig);
+        FS_LOG_DEBUG("VFS: Use VFS_FormatATA() to format this disk first\n");
         HFS_BD_Close(&vol->volume.bd);
         return false;
     }
 
     /* Disk is formatted, proceed with mounting */
-    serial_printf("VFS: Found valid HFS signature, mounting...\n");
+    FS_LOG_DEBUG("VFS: Found valid HFS signature, mounting...\n");
 
     /* Parse MDB into volume structure */
     HFS_MDB* mdb = &vol->volume.mdb;
@@ -281,7 +281,7 @@ bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
 
     /* Try to initialize catalog */
     if (!HFS_CatalogInit(&vol->catalog, &vol->volume)) {
-        serial_printf("VFS: Warning - Failed to initialize catalog for ATA volume\n");
+        FS_LOG_DEBUG("VFS: Warning - Failed to initialize catalog for ATA volume\n");
         /* Continue anyway for empty formatted volumes */
     }
 
@@ -290,7 +290,7 @@ bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
     strncpy(vol->name, volName, sizeof(vol->name) - 1);
     vol->name[sizeof(vol->name) - 1] = '\0';
 
-    serial_printf("VFS: Mounted ATA volume '%s' as vRef %d\n", volName, vol->vref);
+    FS_LOG_DEBUG("VFS: Mounted ATA volume '%s' as vRef %d\n", volName, vol->vref);
 
     /* Return vref */
     if (vref) {
@@ -320,18 +320,18 @@ bool VFS_Unmount(VRefNum vref) {
     /* Mark as unmounted */
     vol->mounted = false;
 
-    serial_printf("VFS: Unmounted volume vRef %d\n", vref);
+    FS_LOG_DEBUG("VFS: Unmounted volume vRef %d\n", vref);
     return true;
 }
 
 /* Populate initial file system contents */
 bool VFS_PopulateInitialFiles(void) {
-    serial_printf("VFS: Populating initial file system...\n");
+    FS_LOG_DEBUG("VFS: Populating initial file system...\n");
 
     /* Find boot volume (vRef 1) */
     VFSVolume* vol = VFS_FindVolume(1);
     if (!vol || !vol->mounted) {
-        serial_printf("VFS: Cannot populate - boot volume not mounted\n");
+        FS_LOG_DEBUG("VFS: Cannot populate - boot volume not mounted\n");
         return false;
     }
 
@@ -341,59 +341,59 @@ bool VFS_PopulateInitialFiles(void) {
     /* Create System Folder */
     DirID systemID = 0;
     if (!VFS_CreateFolder(vref, rootDir, "System Folder", &systemID)) {
-        serial_printf("VFS: Failed to create System Folder\n");
+        FS_LOG_DEBUG("VFS: Failed to create System Folder\n");
         return false;
     }
-    serial_printf("VFS: Created System Folder (ID=%ld)\n", systemID);
+    FS_LOG_DEBUG("VFS: Created System Folder (ID=%ld)\n", systemID);
 
     /* Create Documents folder */
     DirID documentsID = 0;
     if (!VFS_CreateFolder(vref, rootDir, "Documents", &documentsID)) {
-        serial_printf("VFS: Failed to create Documents folder\n");
+        FS_LOG_DEBUG("VFS: Failed to create Documents folder\n");
         return false;
     }
-    serial_printf("VFS: Created Documents folder (ID=%ld)\n", documentsID);
+    FS_LOG_DEBUG("VFS: Created Documents folder (ID=%ld)\n", documentsID);
 
     /* Create Applications folder */
     DirID appsID = 0;
     if (!VFS_CreateFolder(vref, rootDir, "Applications", &appsID)) {
-        serial_printf("VFS: Failed to create Applications folder\n");
+        FS_LOG_DEBUG("VFS: Failed to create Applications folder\n");
         return false;
     }
-    serial_printf("VFS: Created Applications folder (ID=%ld)\n", appsID);
+    FS_LOG_DEBUG("VFS: Created Applications folder (ID=%ld)\n", appsID);
 
     /* Create README file in root */
     FileID readmeID = 0;
     if (!VFS_CreateFile(vref, rootDir, "Read Me", 'TEXT', 'ttxt', &readmeID)) {
-        serial_printf("VFS: Failed to create Read Me file\n");
+        FS_LOG_DEBUG("VFS: Failed to create Read Me file\n");
         return false;
     }
-    serial_printf("VFS: Created Read Me file (ID=%ld)\n", readmeID);
+    FS_LOG_DEBUG("VFS: Created Read Me file (ID=%ld)\n", readmeID);
 
     /* Create About This Mac file */
     FileID aboutID = 0;
     if (!VFS_CreateFile(vref, rootDir, "About This Mac", 'TEXT', 'ttxt', &aboutID)) {
-        serial_printf("VFS: Failed to create About This Mac file\n");
+        FS_LOG_DEBUG("VFS: Failed to create About This Mac file\n");
         return false;
     }
-    serial_printf("VFS: Created About This Mac file (ID=%ld)\n", aboutID);
+    FS_LOG_DEBUG("VFS: Created About This Mac file (ID=%ld)\n", aboutID);
 
     /* Create some sample documents */
     FileID doc1ID = 0;
     if (!VFS_CreateFile(vref, documentsID, "Sample Document", 'TEXT', 'ttxt', &doc1ID)) {
-        serial_printf("VFS: Failed to create Sample Document\n");
+        FS_LOG_DEBUG("VFS: Failed to create Sample Document\n");
         return false;
     }
-    serial_printf("VFS: Created Sample Document (ID=%ld)\n", doc1ID);
+    FS_LOG_DEBUG("VFS: Created Sample Document (ID=%ld)\n", doc1ID);
 
     FileID doc2ID = 0;
     if (!VFS_CreateFile(vref, documentsID, "Notes", 'TEXT', 'ttxt', &doc2ID)) {
-        serial_printf("VFS: Failed to create Notes file\n");
+        FS_LOG_DEBUG("VFS: Failed to create Notes file\n");
         return false;
     }
-    serial_printf("VFS: Created Notes file (ID=%ld)\n", doc2ID);
+    FS_LOG_DEBUG("VFS: Created Notes file (ID=%ld)\n", doc2ID);
 
-    serial_printf("VFS: Initial file system population complete\n");
+    FS_LOG_DEBUG("VFS: Initial file system population complete\n");
     return true;
 }
 
@@ -414,33 +414,32 @@ VRefNum VFS_GetBootVRef(void) {
 }
 
 bool VFS_Enumerate(VRefNum vref, DirID dir, CatEntry* entries, int maxEntries, int* count) {
-    extern void serial_printf(const char* fmt, ...);
 
-    serial_printf("VFS_Enumerate: ENTRY vref=%d dir=%d maxEntries=%d\n", (int)vref, (int)dir, maxEntries);
+    FS_LOG_DEBUG("VFS_Enumerate: ENTRY vref=%d dir=%d maxEntries=%d\n", (int)vref, (int)dir, maxEntries);
 
     if (!g_vfs.initialized || !entries || !count) {
-        serial_printf("VFS_Enumerate: Invalid params - init=%d entries=%08x count=%08x\n",
+        FS_LOG_DEBUG("VFS_Enumerate: Invalid params - init=%d entries=%08x count=%08x\n",
                      g_vfs.initialized, (unsigned int)entries, (unsigned int)count);
         return false;
     }
 
     VFSVolume* vol = VFS_FindVolume(vref);
     if (!vol || !vol->mounted) {
-        serial_printf("VFS_Enumerate: vref %d not found or not mounted\n", (int)vref);
+        FS_LOG_DEBUG("VFS_Enumerate: vref %d not found or not mounted\n", (int)vref);
         return false;
     }
 
     /* Check if B-tree is initialized */
     if (!vol->catalog.bt.nodeBuffer) {
-        serial_printf("VFS_Enumerate: nodeBuffer is NULL - returning empty list\n");
+        FS_LOG_DEBUG("VFS_Enumerate: nodeBuffer is NULL - returning empty list\n");
         *count = 0;
         return true;
     }
 
-    serial_printf("VFS_Enumerate: Calling HFS_CatalogEnumerate, nodeBuffer=%08x\n",
+    FS_LOG_DEBUG("VFS_Enumerate: Calling HFS_CatalogEnumerate, nodeBuffer=%08x\n",
                  (unsigned int)vol->catalog.bt.nodeBuffer);
     bool result = HFS_CatalogEnumerate(&vol->catalog, dir, entries, maxEntries, count);
-    serial_printf("VFS_Enumerate: HFS_CatalogEnumerate returned %d, count=%d\n", result, *count);
+    FS_LOG_DEBUG("VFS_Enumerate: HFS_CatalogEnumerate returned %d, count=%d\n", result, *count);
     return result;
 }
 
@@ -544,17 +543,17 @@ uint32_t VFS_GetFilePosition(VFSFile* file) {
 
 /* Write operations - stubs for now */
 bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID) {
-    serial_printf("VFS_CreateFolder: Creating folder '%s' in parent %ld\n", name, parent);
+    FS_LOG_DEBUG("VFS_CreateFolder: Creating folder '%s' in parent %ld\n", name, parent);
 
     /* Validate parameters */
     if (!name || !newID) {
-        serial_printf("VFS_CreateFolder: Invalid parameters\n");
+        FS_LOG_DEBUG("VFS_CreateFolder: Invalid parameters\n");
         return false;
     }
 
     /* Check volume - for now just validate vref */
     if (vref != 0 && vref != -1) {
-        serial_printf("VFS_CreateFolder: Invalid volume %d\n", vref);
+        FS_LOG_DEBUG("VFS_CreateFolder: Invalid volume %d\n", vref);
         return false;
     }
 
@@ -563,24 +562,24 @@ bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID
     *newID = nextDirID++;
 
     /* Log success for now - full implementation would update HFS catalog */
-    serial_printf("VFS_CreateFolder: Created folder '%s' with ID %ld\n", name, *newID);
+    FS_LOG_DEBUG("VFS_CreateFolder: Created folder '%s' with ID %ld\n", name, *newID);
     return true;
 }
 
 bool VFS_CreateFile(VRefNum vref, DirID parent, const char* name,
                    uint32_t type, uint32_t creator, FileID* newID) {
-    serial_printf("VFS_CreateFile: Creating file '%s' type='%.4s' creator='%.4s'\n",
+    FS_LOG_DEBUG("VFS_CreateFile: Creating file '%s' type='%.4s' creator='%.4s'\n",
                   name, (char*)&type, (char*)&creator);
 
     /* Validate parameters */
     if (!name || !newID) {
-        serial_printf("VFS_CreateFile: Invalid parameters\n");
+        FS_LOG_DEBUG("VFS_CreateFile: Invalid parameters\n");
         return false;
     }
 
     /* Check volume - for now just validate vref */
     if (vref != 0 && vref != -1) {
-        serial_printf("VFS_CreateFile: Invalid volume %d\n", vref);
+        FS_LOG_DEBUG("VFS_CreateFile: Invalid volume %d\n", vref);
         return false;
     }
 
@@ -589,46 +588,46 @@ bool VFS_CreateFile(VRefNum vref, DirID parent, const char* name,
     *newID = nextFileID++;
 
     /* Log success for now - full implementation would update HFS catalog */
-    serial_printf("VFS_CreateFile: Created file '%s' with ID %ld\n", name, *newID);
+    FS_LOG_DEBUG("VFS_CreateFile: Created file '%s' with ID %ld\n", name, *newID);
     return true;
 }
 
 bool VFS_Rename(VRefNum vref, FileID id, const char* newName) {
-    serial_printf("VFS_Rename: Renaming file/folder %ld to '%s'\n", id, newName);
+    FS_LOG_DEBUG("VFS_Rename: Renaming file/folder %ld to '%s'\n", id, newName);
 
     /* Validate parameters */
     if (!newName || strlen(newName) == 0 || strlen(newName) > 31) {
-        serial_printf("VFS_Rename: Invalid name\n");
+        FS_LOG_DEBUG("VFS_Rename: Invalid name\n");
         return false;
     }
 
     /* Check volume - for now just validate vref */
     if (vref != 0 && vref != -1) {
-        serial_printf("VFS_Rename: Invalid volume %d\n", vref);
+        FS_LOG_DEBUG("VFS_Rename: Invalid volume %d\n", vref);
         return false;
     }
 
     /* Log success for now - full implementation would update HFS catalog */
-    serial_printf("VFS_Rename: Successfully renamed ID %ld to '%s'\n", id, newName);
+    FS_LOG_DEBUG("VFS_Rename: Successfully renamed ID %ld to '%s'\n", id, newName);
     return true;
 }
 
 bool VFS_Delete(VRefNum vref, FileID id) {
-    serial_printf("VFS_Delete: Deleting file/folder ID %ld\n", id);
+    FS_LOG_DEBUG("VFS_Delete: Deleting file/folder ID %ld\n", id);
 
     /* Check volume - for now just validate vref */
     if (vref != 0 && vref != -1) {
-        serial_printf("VFS_Delete: Invalid volume %d\n", vref);
+        FS_LOG_DEBUG("VFS_Delete: Invalid volume %d\n", vref);
         return false;
     }
 
     /* Check for special folders that shouldn't be deleted */
     if (id == 1 || id == 2) {  /* Root (1) or System folder (2) */
-        serial_printf("VFS_Delete: Cannot delete system folder\n");
+        FS_LOG_DEBUG("VFS_Delete: Cannot delete system folder\n");
         return false;
     }
 
     /* Log success for now - full implementation would update HFS catalog */
-    serial_printf("VFS_Delete: Successfully deleted ID %ld\n", id);
+    FS_LOG_DEBUG("VFS_Delete: Successfully deleted ID %ld\n", id);
     return true;
 }

@@ -27,7 +27,6 @@
 #include "MenuManager/MenuDisplay.h"
 
 /* Serial output functions */
-extern void serial_MENU_LOG_TRACE(const char* format, ...);
 
 /* Menu item standard height */
 #define menuItemStdHeight 16

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 /* #include <stdio.h> */
-#define printf(...) serial_printf(__VA_ARGS__)
+#define printf(...) DIALOG_LOG_DEBUG(__VA_ARGS__)
 /*
  * DialogManagerCore.c - Core Dialog Manager Implementation
  *
@@ -23,6 +23,7 @@
 #include "DialogManager/AlertDialogs.h"
 #include "DialogManager/DialogManagerStateExt.h"
 #include <assert.h>
+#include "DialogManager/DialogLogging.h"
 
 
 /* Global Dialog Manager state */
@@ -104,7 +105,7 @@ void InitDialogs(ResumeProcPtr resumeProc)
 
     gDialogManagerInitialized = true;
 
-    serial_printf("Dialog Manager initialized successfully\n");
+    DIALOG_LOG_DEBUG("Dialog Manager initialized successfully\n");
 }
 
 /*
@@ -373,7 +374,7 @@ void UpdateDialog(DialogPtr theDialog, RgnHandle updateRgn)
     /* Restore port */
     SetPort(savePort);
 
-    serial_printf("Dialog: Updated dialog %p\n", (void*)theDialog);
+    DIALOG_LOG_DEBUG("Dialog: Updated dialog %p\n", (void*)theDialog);
 }
 
 /*

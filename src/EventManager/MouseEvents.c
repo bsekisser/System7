@@ -21,6 +21,7 @@
 #include "EventManager/MouseEvents.h"
 #include "EventManager/EventManager.h"
 #include "EventManager/EventStructs.h"
+#include "EventManager/EventLogging.h"
 /* Simple integer square root for distance calculations */
 static inline int isqrt(int n) {
     if (n < 0) return -1;
@@ -353,8 +354,7 @@ SInt16 ProcessRawMouseEvent(SInt16 x, SInt16 y, SInt16 buttonMask,
                 /* Generate mouse down event */
                 SInt32 message = 0;
                 if (mappedButton == kMouseButtonLeft) {
-                    extern void serial_printf(const char* fmt, ...);
-                    serial_printf("MouseEvents: Posting mouseDown event at (%d,%d)\n", newPos.h, newPos.v);
+                    EVT_LOG_DEBUG("MouseEvents: Posting mouseDown event at (%d,%d)\n", newPos.h, newPos.v);
                     PostEvent(mouseDown, message);
                     eventsGenerated++;
                 }

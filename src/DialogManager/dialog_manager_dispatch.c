@@ -15,6 +15,7 @@
 #include "System71StdLib.h"
 #include "DialogManager/dialog_manager_dispatch.h"
 #include "DialogManager/dialog_manager_core.h"
+#include "DialogManager/DialogLogging.h"
 
 
 /* String conversion utilities - evidence from implementation c2pstr/p2cstr usage */

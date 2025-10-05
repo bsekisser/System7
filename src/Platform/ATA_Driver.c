@@ -9,9 +9,9 @@
 #include "x86_io.h"
 #include "FileManagerTypes.h"
 #include <stddef.h>
+#include "Platform/PlatformLogging.h"
 
 /* External functions */
-extern void serial_printf(const char* fmt, ...);
 extern void* memset(void* s, int c, size_t n);
 extern void* memcpy(void* dest, const void* src, size_t n);
 extern size_t strlen(const char* s);
@@ -49,7 +49,7 @@ void ATA_WaitBusy(uint16_t base_io) {
         }
     }
 
-    serial_printf("ATA: Timeout waiting for BSY to clear (status=0x%02x)\n", status);
+    PLATFORM_LOG_DEBUG("ATA: Timeout waiting for BSY to clear (status=0x%02x)\n", status);
 }
 
 /*
@@ -68,7 +68,7 @@ void ATA_WaitReady(uint16_t base_io) {
         }
     }
 
-    serial_printf("ATA: Timeout waiting for DRDY (status=0x%02x)\n", status);
+    PLATFORM_LOG_DEBUG("ATA: Timeout waiting for DRDY (status=0x%02x)\n", status);
 }
 
 /*
@@ -86,12 +86,12 @@ bool ATA_WaitDRQ(uint16_t base_io) {
             return true;
         }
         if (status & ATA_STATUS_ERR) {
-            serial_printf("ATA: Error waiting for DRQ (status=0x%02x)\n", status);
+            PLATFORM_LOG_DEBUG("ATA: Error waiting for DRQ (status=0x%02x)\n", status);
             return false;
         }
     }
 
-    serial_printf("ATA: Timeout waiting for DRQ (status=0x%02x)\n", status);
+    PLATFORM_LOG_DEBUG("ATA: Timeout waiting for DRQ (status=0x%02x)\n", status);
     return false;
 }
 
@@ -237,7 +237,7 @@ bool ATA_DetectDevice(uint16_t base_io, bool is_slave, ATADevice* device) {
     } else if (cl == 0x00 && ch == 0x00) {
         device->type = ATA_DEVICE_PATA;
     } else {
-        serial_printf("ATA: Unknown device signature: 0x%02x 0x%02x\n", cl, ch);
+        PLATFORM_LOG_DEBUG("ATA: Unknown device signature: 0x%02x 0x%02x\n", cl, ch);
         return false;
     }
 
@@ -252,10 +252,10 @@ bool ATA_DetectDevice(uint16_t base_io, bool is_slave, ATADevice* device) {
  * ATA_Init - Initialize ATA driver and detect devices
  */
 OSErr ATA_Init(void) {
-    serial_printf("ATA: Initializing ATA/IDE driver\n");
+    PLATFORM_LOG_DEBUG("ATA: Initializing ATA/IDE driver\n");
 
     if (g_ata_initialized) {
-        serial_printf("ATA: Already initialized\n");
+        PLATFORM_LOG_DEBUG("ATA: Already initialized\n");
         return noErr;
     }
 
@@ -264,43 +264,43 @@ OSErr ATA_Init(void) {
     g_device_count = 0;
 
     /* Reset primary and secondary buses */
-    serial_printf("ATA: Resetting primary bus\n");
+    PLATFORM_LOG_DEBUG("ATA: Resetting primary bus\n");
     ATA_SoftReset(ATA_PRIMARY_CONTROL);
 
-    serial_printf("ATA: Resetting secondary bus\n");
+    PLATFORM_LOG_DEBUG("ATA: Resetting secondary bus\n");
     ATA_SoftReset(ATA_SECONDARY_CONTROL);
 
     /* Detect devices on primary bus */
-    serial_printf("ATA: Detecting primary master\n");
+    PLATFORM_LOG_DEBUG("ATA: Detecting primary master\n");
     if (ATA_DetectDevice(ATA_PRIMARY_IO, false, &g_ata_devices[g_device_count])) {
-        serial_printf("ATA: Found primary master\n");
+        PLATFORM_LOG_DEBUG("ATA: Found primary master\n");
         ATA_PrintDeviceInfo(&g_ata_devices[g_device_count]);
         g_device_count++;
     }
 
-    serial_printf("ATA: Detecting primary slave\n");
+    PLATFORM_LOG_DEBUG("ATA: Detecting primary slave\n");
     if (ATA_DetectDevice(ATA_PRIMARY_IO, true, &g_ata_devices[g_device_count])) {
-        serial_printf("ATA: Found primary slave\n");
+        PLATFORM_LOG_DEBUG("ATA: Found primary slave\n");
         ATA_PrintDeviceInfo(&g_ata_devices[g_device_count]);
         g_device_count++;
     }
 
     /* Detect devices on secondary bus */
-    serial_printf("ATA: Detecting secondary master\n");
+    PLATFORM_LOG_DEBUG("ATA: Detecting secondary master\n");
     if (ATA_DetectDevice(ATA_SECONDARY_IO, false, &g_ata_devices[g_device_count])) {
-        serial_printf("ATA: Found secondary master\n");
+        PLATFORM_LOG_DEBUG("ATA: Found secondary master\n");
         ATA_PrintDeviceInfo(&g_ata_devices[g_device_count]);
         g_device_count++;
     }
 
-    serial_printf("ATA: Detecting secondary slave\n");
+    PLATFORM_LOG_DEBUG("ATA: Detecting secondary slave\n");
     if (ATA_DetectDevice(ATA_SECONDARY_IO, true, &g_ata_devices[g_device_count])) {
-        serial_printf("ATA: Found secondary slave\n");
+        PLATFORM_LOG_DEBUG("ATA: Found secondary slave\n");
         ATA_PrintDeviceInfo(&g_ata_devices[g_device_count]);
         g_device_count++;
     }
 
-    serial_printf("ATA: Detected %d device(s)\n", g_device_count);
+    PLATFORM_LOG_DEBUG("ATA: Detected %d device(s)\n", g_device_count);
 
     g_ata_initialized = true;
     return noErr;
@@ -358,7 +358,7 @@ OSErr ATA_ReadSectors(ATADevice* device, uint32_t lba, uint8_t count, void* buff
     uint16_t control_io = device->control_io;
     uint16_t* buf16 = (uint16_t*)buffer;
 
-    serial_printf("ATA: Reading %u sector(s) from LBA %u\n", count, lba);
+    PLATFORM_LOG_DEBUG("ATA: Reading %u sector(s) from LBA %u\n", count, lba);
 
     /* Wait for drive to be ready */
     ATA_WaitReady(base_io);
@@ -383,7 +383,7 @@ OSErr ATA_ReadSectors(ATADevice* device, uint32_t lba, uint8_t count, void* buff
     for (int sector = 0; sector < count; sector++) {
         /* Wait for DRQ */
         if (!ATA_WaitDRQ(base_io)) {
-            serial_printf("ATA: Read failed at sector %d\n", sector);
+            PLATFORM_LOG_DEBUG("ATA: Read failed at sector %d\n", sector);
             return ioErr;
         }
 
@@ -396,12 +396,12 @@ OSErr ATA_ReadSectors(ATADevice* device, uint32_t lba, uint8_t count, void* buff
         uint8_t status = ATA_ReadStatus(base_io);
         if (status & ATA_STATUS_ERR) {
             uint8_t error = inb(base_io + ATA_REG_ERROR);
-            serial_printf("ATA: Read error (status=0x%02x, error=0x%02x)\n", status, error);
+            PLATFORM_LOG_DEBUG("ATA: Read error (status=0x%02x, error=0x%02x)\n", status, error);
             return ioErr;
         }
     }
 
-    serial_printf("ATA: Read complete\n");
+    PLATFORM_LOG_DEBUG("ATA: Read complete\n");
     return noErr;
 }
 
@@ -421,7 +421,7 @@ OSErr ATA_WriteSectors(ATADevice* device, uint32_t lba, uint8_t count, const voi
     uint16_t control_io = device->control_io;
     const uint16_t* buf16 = (const uint16_t*)buffer;
 
-    serial_printf("ATA: Writing %u sector(s) to LBA %u\n", count, lba);
+    PLATFORM_LOG_DEBUG("ATA: Writing %u sector(s) to LBA %u\n", count, lba);
 
     /* Wait for drive to be ready */
     ATA_WaitReady(base_io);
@@ -446,7 +446,7 @@ OSErr ATA_WriteSectors(ATADevice* device, uint32_t lba, uint8_t count, const voi
     for (int sector = 0; sector < count; sector++) {
         /* Wait for DRQ */
         if (!ATA_WaitDRQ(base_io)) {
-            serial_printf("ATA: Write failed at sector %d\n", sector);
+            PLATFORM_LOG_DEBUG("ATA: Write failed at sector %d\n", sector);
             return ioErr;
         }
 
@@ -462,7 +462,7 @@ OSErr ATA_WriteSectors(ATADevice* device, uint32_t lba, uint8_t count, const voi
         uint8_t status = ATA_ReadStatus(base_io);
         if (status & ATA_STATUS_ERR) {
             uint8_t error = inb(base_io + ATA_REG_ERROR);
-            serial_printf("ATA: Write error (status=0x%02x, error=0x%02x)\n", status, error);
+            PLATFORM_LOG_DEBUG("ATA: Write error (status=0x%02x, error=0x%02x)\n", status, error);
             return ioErr;
         }
     }
@@ -470,7 +470,7 @@ OSErr ATA_WriteSectors(ATADevice* device, uint32_t lba, uint8_t count, const voi
     /* Flush write cache */
     ATA_FlushCache(device);
 
-    serial_printf("ATA: Write complete\n");
+    PLATFORM_LOG_DEBUG("ATA: Write complete\n");
     return noErr;
 }
 
@@ -522,16 +522,16 @@ void ATA_PrintDeviceInfo(ATADevice* device) {
         return;
     }
 
-    serial_printf("ATA: Device Info:\n");
-    serial_printf("ATA:   Type: %s (%s)\n",
+    PLATFORM_LOG_DEBUG("ATA: Device Info:\n");
+    PLATFORM_LOG_DEBUG("ATA:   Type: %s (%s)\n",
                  ATA_GetDeviceTypeName(device->type),
                  device->is_slave ? "Slave" : "Master");
-    serial_printf("ATA:   Model: %s\n", device->model);
-    serial_printf("ATA:   Serial: %s\n", device->serial);
-    serial_printf("ATA:   Firmware: %s\n", device->firmware);
-    serial_printf("ATA:   Sectors: %u (%u MB)\n",
+    PLATFORM_LOG_DEBUG("ATA:   Model: %s\n", device->model);
+    PLATFORM_LOG_DEBUG("ATA:   Serial: %s\n", device->serial);
+    PLATFORM_LOG_DEBUG("ATA:   Firmware: %s\n", device->firmware);
+    PLATFORM_LOG_DEBUG("ATA:   Sectors: %u (%u MB)\n",
                  device->sectors,
                  (device->sectors / 2048));  /* sectors * 512 / 1024 / 1024 */
-    serial_printf("ATA:   LBA48: %s\n", device->lba48_supported ? "Yes" : "No");
-    serial_printf("ATA:   DMA: %s\n", device->dma_supported ? "Yes" : "No");
+    PLATFORM_LOG_DEBUG("ATA:   LBA48: %s\n", device->lba48_supported ? "Yes" : "No");
+    PLATFORM_LOG_DEBUG("ATA:   DMA: %s\n", device->dma_supported ? "Yes" : "No");
 }

@@ -18,6 +18,7 @@
 #include <Memory.h>
 #include <Errors.h>
 #include <QuickDraw.h>
+#include "FontManager/FontLogging.h"
 
 
 /* Metrics cache for performance */

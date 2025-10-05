@@ -5,6 +5,7 @@
  */
 
 #include "EventManager/EventGlobals.h"
+#include "EventManager/EventLogging.h"
 
 /* Double-click timing: ~500ms at 60 Hz (Classic Mac OS standard) */
 UInt32 gDoubleTimeTicks = 30;

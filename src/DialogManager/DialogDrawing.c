@@ -13,6 +13,7 @@
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/DialogTypes.h"
 #include "DialogManager/DialogManagerInternal.h"
+#include "DialogManager/DialogLogging.h"
 
 /* External QuickDraw dependencies */
 extern void SetPort(GrafPtr port);
@@ -75,7 +76,7 @@ void DrawDialogButton(DialogPtr theDialog, const Rect* bounds, const unsigned ch
         SetPort((GrafPtr)theDialog);
     }
 
-    serial_printf("Dialog: DrawButton '%.*s' default=%d enabled=%d\n",
+    DIALOG_LOG_DEBUG("Dialog: DrawButton '%.*s' default=%d enabled=%d\n",
                  title ? title[0] : 0, title ? (const char*)&title[1] : "",
                  isDefault, isEnabled);
 
@@ -133,7 +134,7 @@ void DrawDialogCheckBox(const Rect* bounds, const unsigned char* title,
 
     GetPort(&savePort);
 
-    serial_printf("Dialog: DrawCheckBox '%.*s' checked=%d enabled=%d\n",
+    DIALOG_LOG_DEBUG("Dialog: DrawCheckBox '%.*s' checked=%d enabled=%d\n",
                  title ? title[0] : 0, title ? (const char*)&title[1] : "",
                  isChecked, isEnabled);
 
@@ -192,7 +193,7 @@ void DrawDialogRadioButton(const Rect* bounds, const unsigned char* title,
 
     GetPort(&savePort);
 
-    serial_printf("Dialog: DrawRadioButton '%.*s' selected=%d enabled=%d\n",
+    DIALOG_LOG_DEBUG("Dialog: DrawRadioButton '%.*s' selected=%d enabled=%d\n",
                  title ? title[0] : 0, title ? (const char*)&title[1] : "",
                  isSelected, isEnabled);
 
@@ -248,7 +249,7 @@ void DrawDialogStaticText(DialogPtr theDialog, const Rect* bounds, const unsigne
         return;
     }
 
-    serial_printf("Dialog: DrawStaticText '%.*s'\n",
+    DIALOG_LOG_DEBUG("Dialog: DrawStaticText '%.*s'\n",
                  text[0], (const char*)&text[1]);
 
     /* Erase background */
@@ -266,7 +267,7 @@ void DrawDialogStaticText(DialogPtr theDialog, const Rect* bounds, const unsigne
         GrafPtr currentPort;
         GetPort(&currentPort);
         if (currentPort) {
-            serial_printf("  portBits.bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
+            DIALOG_LOG_DEBUG("  portBits.bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
                          currentPort->portBits.bounds.left, currentPort->portBits.bounds.top,
                          currentPort->portBits.bounds.right, currentPort->portBits.bounds.bottom,
                          currentPort->portRect.left, currentPort->portRect.top,
@@ -290,7 +291,7 @@ void DrawDialogEditText(const Rect* bounds, const unsigned char* text,
 
     GetPort(&savePort);
 
-    serial_printf("Dialog: DrawEditText '%.*s' enabled=%d focus=%d\n",
+    DIALOG_LOG_DEBUG("Dialog: DrawEditText '%.*s' enabled=%d focus=%d\n",
                  text ? text[0] : 0, text ? (const char*)&text[1] : "",
                  isEnabled, hasFocus);
 
@@ -337,7 +338,7 @@ void DrawDialogIcon(const Rect* bounds, SInt16 iconID, Boolean isEnabled) {
 
     GetPort(&savePort);
 
-    serial_printf("Dialog: DrawIcon id=%d at (%d,%d,%d,%d)\n",
+    DIALOG_LOG_DEBUG("Dialog: DrawIcon id=%d at (%d,%d,%d,%d)\n",
                  iconID, bounds->top, bounds->left, bounds->bottom, bounds->right);
 
     /* For now, just draw a placeholder frame */
@@ -365,7 +366,7 @@ void DrawDialogUserItem(DialogPtr theDialog, SInt16 itemNo, const Rect* bounds,
 
     GetPort(&savePort);
 
-    serial_printf("Dialog: DrawUserItem %d\n", itemNo);
+    DIALOG_LOG_DEBUG("Dialog: DrawUserItem %d\n", itemNo);
 
     if (userProc) {
         /* Call user's drawing procedure */
@@ -411,7 +412,7 @@ void DrawDialogItemByType(DialogPtr theDialog, SInt16 itemNo,
                                 item->enabled);
         } else {
             /* Unknown control type */
-            serial_printf("Dialog: Unknown control type %d\n", controlType);
+            DIALOG_LOG_DEBUG("Dialog: Unknown control type %d\n", controlType);
             FrameRect(&item->bounds);
         }
         return;
@@ -443,7 +444,7 @@ void DrawDialogItemByType(DialogPtr theDialog, SInt16 itemNo,
         }
 
         default:
-            serial_printf("Dialog: Unknown item type %d\n", baseType);
+            DIALOG_LOG_DEBUG("Dialog: Unknown item type %d\n", baseType);
             FrameRect(&item->bounds);
             break;
     }

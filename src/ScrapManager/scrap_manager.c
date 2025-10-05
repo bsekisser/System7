@@ -14,6 +14,7 @@
 #include "System71StdLib.h"
 
 #include "scrap_manager.h"
+#include "ScrapManager/ScrapLogging.h"
 
 
 /* Global scrap state (normally in low memory) */

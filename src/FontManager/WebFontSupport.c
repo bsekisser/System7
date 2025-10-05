@@ -20,6 +20,7 @@
 #include <wininet.h>
 #elif defined(__APPLE__) || defined(__linux__)
 #include <curl/curl.h>
+#include "FontManager/FontLogging.h"
 
 #endif
 

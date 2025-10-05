@@ -10,6 +10,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "SystemTypes.h"
 #include <string.h>
+#include "FontManager/FontLogging.h"
 
 /* Ensure boolean constants */
 #ifndef TRUE
@@ -23,8 +24,7 @@
 #define FSS_DEBUG 1
 
 #if FSS_DEBUG
-extern void serial_printf(const char* fmt, ...);
-#define FSS_LOG(...) serial_printf("FSS: " __VA_ARGS__)
+#define FSS_LOG(...) FONT_LOG_DEBUG("FSS: " __VA_ARGS__)
 #else
 #define FSS_LOG(...)
 #endif

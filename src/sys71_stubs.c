@@ -34,6 +34,7 @@
 #include "../include/TextEdit/TextEdit.h"
 #include "../include/FontManager/FontManager.h"
 #include "../include/sys71_stubs.h"
+#include "../include/System/SystemLogging.h"
 
 /* DeskHook type definition if not in headers */
 typedef void (*DeskHookProc)(RgnHandle invalidRgn);
@@ -121,25 +122,24 @@ static struct {
 } g_eventQueue = {0};
 
 Boolean GetNextEvent_DISABLED(short eventMask, EventRecord* theEvent) {
-    extern void serial_printf(const char* fmt, ...);
 
     /* Debug: log every call with detailed mask info */
-    serial_printf("GetNextEvent: Called with mask=0x%04x, queue count=%d\n",
+    SYSTEM_LOG_DEBUG("GetNextEvent: Called with mask=0x%04x, queue count=%d\n",
                   eventMask, g_eventQueue.count);
 
     /* Log what events we're looking for */
-    if (eventMask & mDownMask) serial_printf("  Looking for: mouseDown\n");
-    if (eventMask & mUpMask) serial_printf("  Looking for: mouseUp\n");
-    if (eventMask & keyDownMask) serial_printf("  Looking for: keyDown\n");
-    if (eventMask & keyUpMask) serial_printf("  Looking for: keyUp\n");
-    if (eventMask & autoKeyMask) serial_printf("  Looking for: autoKey\n");
-    if (eventMask & updateMask) serial_printf("  Looking for: update\n");
-    if (eventMask & diskMask) serial_printf("  Looking for: disk\n");
-    if (eventMask & activMask) serial_printf("  Looking for: activate\n");
+    if (eventMask & mDownMask) SYSTEM_LOG_DEBUG("  Looking for: mouseDown\n");
+    if (eventMask & mUpMask) SYSTEM_LOG_DEBUG("  Looking for: mouseUp\n");
+    if (eventMask & keyDownMask) SYSTEM_LOG_DEBUG("  Looking for: keyDown\n");
+    if (eventMask & keyUpMask) SYSTEM_LOG_DEBUG("  Looking for: keyUp\n");
+    if (eventMask & autoKeyMask) SYSTEM_LOG_DEBUG("  Looking for: autoKey\n");
+    if (eventMask & updateMask) SYSTEM_LOG_DEBUG("  Looking for: update\n");
+    if (eventMask & diskMask) SYSTEM_LOG_DEBUG("  Looking for: disk\n");
+    if (eventMask & activMask) SYSTEM_LOG_DEBUG("  Looking for: activate\n");
 
     /* Check if queue has events */
     if (g_eventQueue.count == 0) {
-        serial_printf("GetNextEvent: Queue empty, returning false\n");
+        SYSTEM_LOG_DEBUG("GetNextEvent: Queue empty, returning false\n");
         return false;
     }
 
@@ -168,15 +168,15 @@ Boolean GetNextEvent_DISABLED(short eventMask, EventRecord* theEvent) {
                 case 23: eventName = "highLevel"; break;
                 default: eventName = "unknown"; break;
             }
-            serial_printf("GetNextEvent: Found matching event: %s (type=%d) at index=%d\n",
+            SYSTEM_LOG_DEBUG("GetNextEvent: Found matching event: %s (type=%d) at index=%d\n",
                          eventName, evt->what, index);
-            serial_printf("GetNextEvent: Event where={x=%d,y=%d}, msg=0x%08x, modifiers=0x%04x\n",
+            SYSTEM_LOG_DEBUG("GetNextEvent: Event where={x=%d,y=%d}, msg=0x%08x, modifiers=0x%04x\n",
                          evt->where.h, evt->where.v, evt->message, evt->modifiers);
 
             /* Copy event to caller */
             if (theEvent) {
                 *theEvent = *evt;
-                serial_printf("GetNextEvent: Copied to caller, where={v=%d,h=%d}\n",
+                SYSTEM_LOG_DEBUG("GetNextEvent: Copied to caller, where={v=%d,h=%d}\n",
                              theEvent->where.v, theEvent->where.h);
             }
 
@@ -197,9 +197,8 @@ Boolean GetNextEvent_DISABLED(short eventMask, EventRecord* theEvent) {
                 g_eventQueue.count--;
             }
 
-            extern void serial_printf(const char* fmt, ...);
             if (evt->what == mouseDown) {
-                serial_printf("GetNextEvent: Returning mouseDown at (%d,%d)\n",
+                SYSTEM_LOG_DEBUG("GetNextEvent: Returning mouseDown at (%d,%d)\n",
                              theEvent->where.h, theEvent->where.v);
             }
 
@@ -216,7 +215,6 @@ Boolean GetNextEvent_DISABLED(short eventMask, EventRecord* theEvent) {
 
 #if 0  /* DISABLED - PostEvent now provided by EventManager/event_manager.c */
 SInt16 PostEvent_DISABLED(SInt16 eventNum, SInt32 eventMsg) {
-    extern void serial_printf(const char* fmt, ...);
     extern void GetMouse(Point* mouseLoc);
 
     /* Debug: log post with event name */
@@ -235,12 +233,12 @@ SInt16 PostEvent_DISABLED(SInt16 eventNum, SInt32 eventMsg) {
         case 23: eventName = "highLevel"; break;
         default: eventName = "unknown"; break;
     }
-    serial_printf("PostEvent: Posting %s (type=%d), msg=0x%08x, queue count=%d\n",
+    SYSTEM_LOG_DEBUG("PostEvent: Posting %s (type=%d), msg=0x%08x, queue count=%d\n",
                   eventName, eventNum, eventMsg, g_eventQueue.count);
 
     /* Check if queue is full */
     if (g_eventQueue.count >= MAX_EVENTS) {
-        serial_printf("PostEvent: Event queue full!\n");
+        SYSTEM_LOG_DEBUG("PostEvent: Event queue full!\n");
         return queueFull;
     }
 
@@ -257,21 +255,21 @@ SInt16 PostEvent_DISABLED(SInt16 eventNum, SInt32 eventMsg) {
     if (eventNum == mouseDown || eventNum == mouseUp) {
         /* Message high word contains click count for mouse down */
         /* Message low word may contain button/modifier info */
-        serial_printf("PostEvent: Mouse event with message=0x%08x at (%d,%d)\n",
+        SYSTEM_LOG_DEBUG("PostEvent: Mouse event with message=0x%08x at (%d,%d)\n",
                      eventMsg, evt->where.h, evt->where.v);
     }
 
     evt->modifiers = 0;  /* TODO: Get keyboard modifiers */
 
     /* Debug: Print actual coordinates we're storing */
-    serial_printf("PostEvent: Successfully posted %s at position %d, queue now has %d events\n",
+    SYSTEM_LOG_DEBUG("PostEvent: Successfully posted %s at position %d, queue now has %d events\n",
                  eventName, g_eventQueue.tail, g_eventQueue.count + 1);
 
     g_eventQueue.tail = (g_eventQueue.tail + 1) % MAX_EVENTS;
     g_eventQueue.count++;
 
     if (eventNum == mouseDown) {
-        serial_printf("PostEvent: Added mouseDown at (%d,%d) to queue (count=%d)\n",
+        SYSTEM_LOG_DEBUG("PostEvent: Added mouseDown at (%d,%d) to queue (count=%d)\n",
                      evt->where.h, evt->where.v, g_eventQueue.count);
     }
 
@@ -286,43 +284,42 @@ extern void GenerateSystemEvent(short eventType, int message, Point where, short
 /* SystemTask provided by DeskManagerCore.c */
 
 /* External functions we use */
-extern void serial_printf(const char* fmt, ...);
 
 /* ExpandMem stubs for SystemInit */
 void ExpandMemInit(void) {
-    serial_printf("ExpandMemInit: Initializing expanded memory\n");
+    SYSTEM_LOG_DEBUG("ExpandMemInit: Initializing expanded memory\n");
     /* Set up expanded memory globals if needed */
 }
 void ExpandMemInitKeyboard(void) {
-    serial_printf("ExpandMemInitKeyboard: Initializing keyboard expanded memory\n");
+    SYSTEM_LOG_DEBUG("ExpandMemInitKeyboard: Initializing keyboard expanded memory\n");
     /* Initialize keyboard-specific memory areas */
 }
 void ExpandMemSetAppleTalkInactive(void) {
-    serial_printf("ExpandMemSetAppleTalkInactive: Disabling AppleTalk\n");
+    SYSTEM_LOG_DEBUG("ExpandMemSetAppleTalkInactive: Disabling AppleTalk\n");
     /* Mark AppleTalk as inactive in expanded memory */
 }
 void SetAutoDecompression(Boolean enable) {
-    serial_printf("SetAutoDecompression: %s\n", enable ? "Enabled" : "Disabled");
+    SYSTEM_LOG_DEBUG("SetAutoDecompression: %s\n", enable ? "Enabled" : "Disabled");
     /* Set resource decompression flag */
 }
 void ResourceManager_SetDecompressionCacheSize(Size size) {
-    serial_printf("ResourceManager_SetDecompressionCacheSize: Setting cache to %lu bytes\n", (unsigned long)size);
+    SYSTEM_LOG_DEBUG("ResourceManager_SetDecompressionCacheSize: Setting cache to %lu bytes\n", (unsigned long)size);
     /* Configure decompression cache */
 }
 void InstallDecompressHook(DecompressHookProc proc) {
-    serial_printf("InstallDecompressHook: Installing hook at %p\n", proc);
+    SYSTEM_LOG_DEBUG("InstallDecompressHook: Installing hook at %p\n", proc);
     /* Install custom decompression routine */
 }
 void ExpandMemInstallDecompressor(void) {
-    serial_printf("ExpandMemInstallDecompressor: Installing default decompressor\n");
+    SYSTEM_LOG_DEBUG("ExpandMemInstallDecompressor: Installing default decompressor\n");
     /* Install default resource decompressor */
 }
 void ExpandMemCleanup(void) {
-    serial_printf("ExpandMemCleanup: Cleaning up expanded memory\n");
+    SYSTEM_LOG_DEBUG("ExpandMemCleanup: Cleaning up expanded memory\n");
     /* Release expanded memory resources */
 }
 void ExpandMemDump(void) {
-    serial_printf("ExpandMemDump: Dumping expanded memory state\n");
+    SYSTEM_LOG_DEBUG("ExpandMemDump: Dumping expanded memory state\n");
     /* Debug dump of expanded memory contents */
 }
 Boolean ExpandMemValidate(void) { return true; }
@@ -363,7 +360,7 @@ void FlushEvents_DISABLED(short eventMask, short stopMask) {
 /* Window stubs for functions not yet implemented elsewhere */
 #if !defined(SYS71_STUBS_DISABLED)
 void InitWindows(void) {
-    serial_printf("InitWindows: Initializing window manager\n");
+    SYSTEM_LOG_DEBUG("InitWindows: Initializing window manager\n");
 
     /* Set up window list chain */
     extern WindowPtr g_firstWindow;
@@ -373,7 +370,7 @@ void InitWindows(void) {
     extern QDGlobals qd;
     if (qd.thePort == NULL) {
         /* Create default desktop port */
-        serial_printf("InitWindows: Creating default desktop port\n");
+        SYSTEM_LOG_DEBUG("InitWindows: Creating default desktop port\n");
     }
 }
 
@@ -384,7 +381,7 @@ void InitWindows(void) {
 WindowPtr NewWindow(void* storage, const Rect* boundsRect, ConstStr255Param title,
                     Boolean visible, short procID, WindowPtr behind, Boolean goAwayFlag,
                     long refCon) {
-    serial_printf("NewWindow (STUB): Creating window procID=%d visible=%d\n", procID, visible);
+    SYSTEM_LOG_DEBUG("NewWindow (STUB): Creating window procID=%d visible=%d\n", procID, visible);
 
     /* Allocate window structure if no storage provided */
     WindowPtr window;
@@ -396,7 +393,7 @@ WindowPtr NewWindow(void* storage, const Rect* boundsRect, ConstStr255Param titl
         static int nextWindow = 0;
 
         if (nextWindow >= 10) {
-            serial_printf("NewWindow: Out of window slots!\n");
+            SYSTEM_LOG_DEBUG("NewWindow: Out of window slots!\n");
             return NULL;
         }
 
@@ -425,7 +422,7 @@ WindowPtr NewWindow(void* storage, const Rect* boundsRect, ConstStr255Param titl
     /* Copy title if provided */
     if (title && title[0] > 0) {
         /* Would copy to window's title storage */
-        serial_printf("NewWindow: Title length = %d\n", title[0]);
+        SYSTEM_LOG_DEBUG("NewWindow: Title length = %d\n", title[0]);
     }
 
     /* Insert into window chain */
@@ -457,18 +454,18 @@ WindowPtr NewWindow(void* storage, const Rect* boundsRect, ConstStr255Param titl
     port->portBits.rowBytes = 0;
     port->portBits.bounds = port->portRect;
 
-    serial_printf("NewWindow: Created window at %p\n", window);
+    SYSTEM_LOG_DEBUG("NewWindow: Created window at %p\n", window);
     return window;
 }
 #endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 
 void DisposeWindow(WindowPtr window) {
     if (!window) {
-        serial_printf("DisposeWindow: NULL window\n");
+        SYSTEM_LOG_DEBUG("DisposeWindow: NULL window\n");
         return;
     }
 
-    serial_printf("DisposeWindow: Disposing window at %p\n", window);
+    SYSTEM_LOG_DEBUG("DisposeWindow: Disposing window at %p\n", window);
 
     /* Remove from window chain */
     extern WindowPtr g_firstWindow;
@@ -521,11 +518,11 @@ void MoveWindow(WindowPtr window, short h, short v, Boolean front) {
 #if !defined(SYS71_STUBS_DISABLED)
 void CloseWindow(WindowPtr window) {
     if (!window) {
-        serial_printf("CloseWindow: NULL window\n");
+        SYSTEM_LOG_DEBUG("CloseWindow: NULL window\n");
         return;
     }
 
-    serial_printf("CloseWindow: Closing window at %p\n", window);
+    SYSTEM_LOG_DEBUG("CloseWindow: Closing window at %p\n", window);
 
     /* Hide the window */
     window->visible = false;
@@ -538,11 +535,11 @@ void CloseWindow(WindowPtr window) {
 #if !defined(SYS71_STUBS_DISABLED)
 void ShowWindow(WindowPtr window) {
     if (!window) {
-        serial_printf("ShowWindow: NULL window\n");
+        SYSTEM_LOG_DEBUG("ShowWindow: NULL window\n");
         return;
     }
 
-    serial_printf("ShowWindow (sys71_stubs.c): Showing window at %p\n", window);
+    SYSTEM_LOG_DEBUG("ShowWindow (sys71_stubs.c): Showing window at %p\n", window);
 
     window->visible = true;
 
@@ -557,11 +554,11 @@ void ShowWindow(WindowPtr window) {
 }
 void HideWindow(WindowPtr window) {
     if (!window) {
-        serial_printf("HideWindow: NULL window\n");
+        SYSTEM_LOG_DEBUG("HideWindow: NULL window\n");
         return;
     }
 
-    serial_printf("HideWindow: Hiding window at %p\n", window);
+    SYSTEM_LOG_DEBUG("HideWindow: Hiding window at %p\n", window);
 
     window->visible = false;
 
@@ -572,11 +569,11 @@ void HideWindow(WindowPtr window) {
 }
 void SelectWindow(WindowPtr window) {
     if (!window) {
-        serial_printf("SelectWindow: NULL window\n");
+        SYSTEM_LOG_DEBUG("SelectWindow: NULL window\n");
         return;
     }
 
-    serial_printf("SelectWindow: Selecting window at %p\n", window);
+    SYSTEM_LOG_DEBUG("SelectWindow: Selecting window at %p\n", window);
 
     /* Move window to front of chain */
     extern WindowPtr g_firstWindow;
@@ -615,12 +612,12 @@ WindowPtr FrontWindow(void) {
 #endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 void SetWTitle(WindowPtr window, ConstStr255Param title) {
     if (!window) {
-        serial_printf("SetWTitle: NULL window\n");
+        SYSTEM_LOG_DEBUG("SetWTitle: NULL window\n");
         return;
     }
 
     if (!title) {
-        serial_printf("SetWTitle: NULL title\n");
+        SYSTEM_LOG_DEBUG("SetWTitle: NULL title\n");
         return;
     }
 
@@ -628,7 +625,7 @@ void SetWTitle(WindowPtr window, ConstStr255Param title) {
     unsigned char len = title[0];
     if (len > 255) len = 255;
 
-    serial_printf("SetWTitle: Setting window title length %d\n", len);
+    SYSTEM_LOG_DEBUG("SetWTitle: Setting window title length %d\n", len);
 
     /* Log title for debugging */
     char titleBuf[256];
@@ -636,7 +633,7 @@ void SetWTitle(WindowPtr window, ConstStr255Param title) {
         titleBuf[i] = title[i+1];
     }
     titleBuf[len] = 0;
-    serial_printf("SetWTitle: Title = '%s'\n", titleBuf);
+    SYSTEM_LOG_DEBUG("SetWTitle: Title = '%s'\n", titleBuf);
 
     /* CRITICAL: Allocate and store title in titleHandle */
     if (window->titleHandle) {
@@ -661,7 +658,7 @@ void SetWTitle(WindowPtr window, ConstStr255Param title) {
                 for (int i = 0; i < len; i++) {
                     (*window->titleHandle)[i + 1] = title[i + 1];
                 }
-                serial_printf("SetWTitle: Allocated titleHandle=%p, string=%p\n",
+                SYSTEM_LOG_DEBUG("SetWTitle: Allocated titleHandle=%p, string=%p\n",
                              window->titleHandle, *window->titleHandle);
             }
         }
@@ -674,7 +671,7 @@ void SetWTitle(WindowPtr window, ConstStr255Param title) {
     } else {
         window->titleWidth = 0;
     }
-    serial_printf("SetWTitle: titleWidth = %d, titleHandle = %p\n", window->titleWidth, window->titleHandle);
+    SYSTEM_LOG_DEBUG("SetWTitle: titleWidth = %d, titleHandle = %p\n", window->titleWidth, window->titleHandle);
 
     /* Invalidate title bar area */
     GrafPort* port = (GrafPort*)window;
@@ -686,7 +683,7 @@ void SetWTitle(WindowPtr window, ConstStr255Param title) {
 #if !defined(SYS71_STUBS_DISABLED)
 void DrawGrowIcon(WindowPtr window) {
     if (!window) {
-        serial_printf("DrawGrowIcon: NULL window\n");
+        SYSTEM_LOG_DEBUG("DrawGrowIcon: NULL window\n");
         return;
     }
 
@@ -694,7 +691,7 @@ void DrawGrowIcon(WindowPtr window) {
         return;
     }
 
-    serial_printf("DrawGrowIcon: Drawing grow icon for window at %p\n", window);
+    SYSTEM_LOG_DEBUG("DrawGrowIcon: Drawing grow icon for window at %p\n", window);
 
     /* Draw grow icon in bottom-right corner */
     GrafPort* port = (GrafPort*)window;
@@ -711,11 +708,11 @@ void DrawGrowIcon(WindowPtr window) {
 #endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 void WM_UpdateWindowVisibility(WindowPtr window) {
     if (!window) {
-        serial_printf("WM_UpdateWindowVisibility: NULL window\n");
+        SYSTEM_LOG_DEBUG("WM_UpdateWindowVisibility: NULL window\n");
         return;
     }
 
-    serial_printf("WM_UpdateWindowVisibility: Updating visibility for window at %p\n", window);
+    SYSTEM_LOG_DEBUG("WM_UpdateWindowVisibility: Updating visibility for window at %p\n", window);
 
     /* Update window visibility state */
     if (window->visible) {
@@ -728,7 +725,6 @@ void WM_UpdateWindowVisibility(WindowPtr window) {
 
 #if !defined(SYS71_STUBS_DISABLED)
 short FindWindow(Point thePt, WindowPtr *window) {
-    extern void serial_printf(const char* fmt, ...);
 
     if (window) {
         *window = NULL;
@@ -736,7 +732,7 @@ short FindWindow(Point thePt, WindowPtr *window) {
 
     /* Check if click is in menu bar (top 20 pixels) */
     if (thePt.v >= 0 && thePt.v < 20) {
-        serial_printf("FindWindow: Click in menu bar at v=%d\n", thePt.v);
+        SYSTEM_LOG_DEBUG("FindWindow: Click in menu bar at v=%d\n", thePt.v);
         return inMenuBar;
     }
 
@@ -957,7 +953,6 @@ void DoBackgroundTasks(void) {
 #if 0  /* DISABLED - EventAvail now provided by EventManager/event_manager.c */
 /* EventAvail - check if an event is available without removing it */
 Boolean EventAvail_DISABLED(short eventMask, EventRecord* theEvent) {
-    extern void serial_printf(const char* fmt, ...);
 
     /* Check if queue has matching events without removing them */
     if (g_eventQueue.count == 0) {

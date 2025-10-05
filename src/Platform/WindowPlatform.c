@@ -8,6 +8,7 @@
 #include "WindowManager/WindowManagerInternal.h"
 #include "QuickDraw/QuickDraw.h"
 #include "System71StdLib.h"
+#include "Platform/PlatformLogging.h"
 
 /* External framebuffer and QuickDraw globals */
 extern void* framebuffer;
@@ -29,7 +30,7 @@ Boolean Platform_HasColorQuickDraw(void) {
 Boolean Platform_InitializeWindowPort(WindowPtr window) {
     if (!window) return false;
 
-    serial_printf("[Platform_InitializeWindowPort] START: window=%p, portRect=(%d,%d,%d,%d)\n",
+    PLATFORM_LOG_DEBUG("[Platform_InitializeWindowPort] START: window=%p, portRect=(%d,%d,%d,%d)\n",
                   window,
                   window->port.portRect.top, window->port.portRect.left,
                   window->port.portRect.bottom, window->port.portRect.right);
@@ -38,7 +39,7 @@ Boolean Platform_InitializeWindowPort(WindowPtr window) {
     window->port.portBits.baseAddr = (Ptr)framebuffer;
     window->port.portBits.rowBytes = fb_width * 4;  /* Assuming 32-bit color */
 
-    serial_printf("[Platform_InitializeWindowPort] After setting baseAddr/rowBytes: portRect=(%d,%d,%d,%d)\n",
+    PLATFORM_LOG_DEBUG("[Platform_InitializeWindowPort] After setting baseAddr/rowBytes: portRect=(%d,%d,%d,%d)\n",
                   window->port.portRect.top, window->port.portRect.left,
                   window->port.portRect.bottom, window->port.portRect.right);
 
@@ -58,7 +59,7 @@ Boolean Platform_InitializeWindowPort(WindowPtr window) {
         short w = window->port.portRect.right;
         short h = window->port.portRect.bottom;
 
-        serial_printf("[Platform_InitializeWindowPort] Read portRect: w=%d, h=%d, portRect=(%d,%d,%d,%d)\n",
+        PLATFORM_LOG_DEBUG("[Platform_InitializeWindowPort] Read portRect: w=%d, h=%d, portRect=(%d,%d,%d,%d)\n",
                       w, h,
                       window->port.portRect.top, window->port.portRect.left,
                       window->port.portRect.bottom, window->port.portRect.right);
@@ -66,7 +67,7 @@ Boolean Platform_InitializeWindowPort(WindowPtr window) {
         /* This mapping makes local (0,0) → global (gx,gy) */
         SetRect(&window->port.portBits.bounds, gx, gy, gx + w, gy + h);
 
-        serial_printf("[Platform_InitializeWindowPort] FINAL: portBits.bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
+        PLATFORM_LOG_DEBUG("[Platform_InitializeWindowPort] FINAL: portBits.bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
                       window->port.portBits.bounds.left, window->port.portBits.bounds.top,
                       window->port.portBits.bounds.right, window->port.portBits.bounds.bottom,
                       window->port.portRect.left, window->port.portRect.top,
@@ -88,14 +89,14 @@ Boolean Platform_InitializeWindowPort(WindowPtr window) {
         window->port.visRgn = NewRgn();
     }
 
-    serial_printf("[Platform_InitializeWindowPort] Before RectRgn: portRect=(%d,%d,%d,%d)\n",
+    PLATFORM_LOG_DEBUG("[Platform_InitializeWindowPort] Before RectRgn: portRect=(%d,%d,%d,%d)\n",
                   window->port.portRect.top, window->port.portRect.left,
                   window->port.portRect.bottom, window->port.portRect.right);
 
     RectRgn(window->port.clipRgn, &window->port.portRect);
     RectRgn(window->port.visRgn, &window->port.portRect);
 
-    serial_printf("[Platform_InitializeWindowPort] DONE: portRect=(%d,%d,%d,%d)\n",
+    PLATFORM_LOG_DEBUG("[Platform_InitializeWindowPort] DONE: portRect=(%d,%d,%d,%d)\n",
                   window->port.portRect.top, window->port.portRect.left,
                   window->port.portRect.bottom, window->port.portRect.right);
 

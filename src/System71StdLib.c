@@ -309,7 +309,12 @@ static SystemLogLevel g_moduleLevels[kLogModuleCount] = {
     [kLogModuleResource] = kLogLevelDebug,
     [kLogModuleStandardFile] = kLogLevelDebug,
     [kLogModuleListManager] = kLogLevelDebug,
-    [kLogModuleSystem] = kLogLevelInfo
+    [kLogModuleSystem] = kLogLevelInfo,
+    [kLogModuleTextEdit] = kLogLevelDebug,
+    [kLogModulePlatform] = kLogLevelDebug,
+    [kLogModuleScrap] = kLogLevelDebug,
+    [kLogModuleMemory] = kLogLevelInfo,
+    [kLogModuleProcess] = kLogLevelInfo
 };
 
 static const SysLogTag kLogTagTable[] = {
@@ -353,7 +358,7 @@ static const SysLogKeyword kLogKeywords[] = {
     { "HFS", kLogMatchSubstring, kLogModuleFileSystem, kLogLevelDebug },
     { "VFS_Enumerate", kLogMatchSubstring, kLogModuleFileSystem, kLogLevelDebug },
     { "read_btree_data", kLogMatchSubstring, kLogModuleFileSystem, kLogLevelDebug },
-    { "ATA:", kLogMatchSubstring, kLogModuleFileSystem, kLogLevelDebug },
+    { "ATA:", kLogMatchSubstring, kLogModulePlatform, kLogLevelDebug },
     { "WindowManager", kLogMatchSubstring, kLogModuleWindow, kLogLevelDebug },
     { "CheckWindowsNeedingUpdate", kLogMatchSubstring, kLogModuleWindow, kLogLevelDebug },
     { "DoUpdate", kLogMatchSubstring, kLogModuleWindow, kLogLevelDebug },
@@ -680,6 +685,11 @@ const char* SysLogModuleName(SystemLogModule module) {
         case kLogModuleStandardFile: return "standardfile";
         case kLogModuleListManager: return "list";
         case kLogModuleSystem: return "system";
+        case kLogModuleTextEdit: return "textedit";
+        case kLogModulePlatform: return "platform";
+        case kLogModuleScrap: return "scrap";
+        case kLogModuleMemory: return "memory";
+        case kLogModuleProcess: return "process";
         default: return "general";
     }
 }

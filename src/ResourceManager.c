@@ -20,6 +20,7 @@
 #define _GNU_SOURCE  /* For strdup */
 #include "ResourceManager.h"
 #include "ResourceDecompression.h"
+#include "ResourceManager/ResourceLogging.h"
 
 
 /* ---- Global Variables (Thread-Local Storage) ------------------------------------- */
@@ -1332,8 +1333,7 @@ Handle ResourceManager_CheckLoadHook(ResourceEntry* entry, ResourceMap* map) {
 /* ---- Stub Functions (To be implemented) ------------------------------------------ */
 
 void CreateResFile(const char* fileName) {
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("CreateResFile: Creating resource file '%s'\n", fileName);
+    RESOURCE_LOG_DEBUG("CreateResFile: Creating resource file '%s'\n", fileName);
 
     /* Would create a new resource file with resource fork */
     /* For now, just log and return success */
@@ -1341,8 +1341,7 @@ void CreateResFile(const char* fileName) {
 }
 
 void UpdateResFile(RefNum refNum) {
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("UpdateResFile: Updating resource file %d\n", refNum);
+    RESOURCE_LOG_DEBUG("UpdateResFile: Updating resource file %d\n", refNum);
 
     /* Find resource file by reference number */
     if (refNum < 0 || refNum >= MAX_RESOURCE_FILES) {
@@ -1357,7 +1356,7 @@ void UpdateResFile(RefNum refNum) {
     }
 
     /* Mark as needing update - actual write would happen here */
-    serial_printf("UpdateResFile: Would write changes to %s\n", resFile->fileName);
+    RESOURCE_LOG_DEBUG("UpdateResFile: Would write changes to %s\n", resFile->fileName);
     SetResError(noErr);
 }
 
@@ -1368,14 +1367,13 @@ void WriteResource(Handle theResource) {
 }
 
 void AddResource(Handle theData, ResType theType, ResID theID, const char* name) {
-    extern void serial_printf(const char* fmt, ...);
 
     if (!theData) {
         SetResError(nilHandleErr);
         return;
     }
 
-    serial_printf("AddResource: Adding resource type='%.4s' id=%d name='%s'\n",
+    RESOURCE_LOG_DEBUG("AddResource: Adding resource type='%.4s' id=%d name='%s'\n",
                   (char*)&theType, theID, name ? name : "(none)");
 
     /* Would add resource to current resource file */
@@ -1395,14 +1393,13 @@ void RemoveResource(Handle theResource) {
 }
 
 void ChangedResource(Handle theResource) {
-    extern void serial_printf(const char* fmt, ...);
 
     if (!theResource) {
         SetResError(nilHandleErr);
         return;
     }
 
-    serial_printf("ChangedResource: Marking resource at %p as changed\n", theResource);
+    RESOURCE_LOG_DEBUG("ChangedResource: Marking resource at %p as changed\n", theResource);
 
     /* Would mark resource as needing to be written to disk */
     /* For now just log it */
@@ -1410,10 +1407,9 @@ void ChangedResource(Handle theResource) {
 }
 
 SInt16 CountResources(ResType theType) {
-    extern void serial_printf(const char* fmt, ...);
     SInt16 count = 0;
 
-    serial_printf("CountResources: Counting type='%.4s'\n", (char*)&theType);
+    RESOURCE_LOG_DEBUG("CountResources: Counting type='%.4s'\n", (char*)&theType);
 
     /* Count resources of given type in all open resource files */
     for (int i = 0; i < g_resourceCount; i++) {
@@ -1422,7 +1418,7 @@ SInt16 CountResources(ResType theType) {
         }
     }
 
-    serial_printf("CountResources: Found %d resources\n", count);
+    RESOURCE_LOG_DEBUG("CountResources: Found %d resources\n", count);
     return count;
 }
 
@@ -1433,10 +1429,9 @@ SInt16 Count1Resources(ResType theType) {
 }
 
 Handle GetIndResource(ResType theType, SInt16 index) {
-    extern void serial_printf(const char* fmt, ...);
     SInt16 count = 0;
 
-    serial_printf("GetIndResource: Getting type='%.4s' index=%d\n",
+    RESOURCE_LOG_DEBUG("GetIndResource: Getting type='%.4s' index=%d\n",
                   (char*)&theType, index);
 
     if (index < 1) {
@@ -1490,7 +1485,6 @@ void Get1IndType(ResType* theType, SInt16 index) {
 }
 
 ResID UniqueID(ResType theType) {
-    extern void serial_printf(const char* fmt, ...);
     ResID maxID = 127;  /* Start above system resources */
 
     /* Find highest ID for this type */
@@ -1501,7 +1495,7 @@ ResID UniqueID(ResType theType) {
     }
 
     ResID newID = maxID + 1;
-    serial_printf("UniqueID: Generated ID %d for type='%.4s'\n",
+    RESOURCE_LOG_DEBUG("UniqueID: Generated ID %d for type='%.4s'\n",
                   newID, (char*)&theType);
     return newID;
 }

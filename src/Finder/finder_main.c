@@ -31,6 +31,7 @@
 #include "ToolboxCompat.h"
 #include "System71StdLib.h"
 #include "Finder/AboutThisMac.h"
+#include "Finder/FinderLogging.h"
 
 #define FINDER_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelDebug, fmt, ##__VA_ARGS__)
 #define FINDER_LOG_TRACE(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelTrace, fmt, ##__VA_ARGS__)

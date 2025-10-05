@@ -31,6 +31,7 @@
 
 #include "MemoryMgr/memory_manager_types.h"
 #include <assert.h>
+#include "MemoryMgr/MemoryLogging.h"
 
 
 /* Forward declarations */

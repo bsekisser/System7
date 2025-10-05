@@ -689,7 +689,6 @@ MenuHandle NewMenu(short menuID, ConstStr255Param menuTitle)
         gNumMenuHandles++;
 
         /* Debug output */
-        extern void MENU_LOG_TRACE(const char* fmt, ...);
         MENU_LOG_TRACE("NewMenu: Created menu ID %d, title '%.*s' (handle %p, total menus: %d)\n",
                       menuID, titleLen, &menuTitle[1], theMenu, gNumMenuHandles);
     }
@@ -808,7 +807,6 @@ void InsertMenu(MenuHandle theMenu, short beforeID)
     menuBar->numMenus++;
 
     /* Debug output */
-    extern void MENU_LOG_TRACE(const char* fmt, ...);
     MENU_LOG_TRACE("InsertMenu: Inserted menu ID %d at position %d (total in bar: %d)\n",
                   (*theMenu)->menuID, insertIndex, menuBar->numMenus);
 
@@ -1011,13 +1009,11 @@ static MenuHandle FindMenuInList(short menuID)
     /* Look up in tracking array */
     for (int i = 0; i < gNumMenuHandles; i++) {
         if (gMenuHandles[i].menuID == menuID) {
-            extern void MENU_LOG_TRACE(const char* fmt, ...);
             MENU_LOG_TRACE("FindMenuInList: Found menu ID %d at index %d (handle %p)\n",
                           menuID, i, gMenuHandles[i].handle);
             return gMenuHandles[i].handle;
         }
     }
-    extern void MENU_LOG_TRACE(const char* fmt, ...);
     MENU_LOG_TRACE("FindMenuInList: Menu ID %d not found (searched %d menus)\n",
                   menuID, gNumMenuHandles);
     return NULL;

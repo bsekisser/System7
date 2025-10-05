@@ -38,6 +38,7 @@ typedef uint32_t u32;
 #include "System71StdLib.h"
 #include "MemoryMgr/memory_manager_types.h"
 #include <assert.h>
+#include "MemoryMgr/MemoryLogging.h"
 
 
 /* Global Memory Manager state */

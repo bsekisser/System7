@@ -16,6 +16,7 @@
 #include <Memory.h>
 #include <Resources.h>
 #include <Errors.h>
+#include "FontManager/FontLogging.h"
 
 
 /* TrueType table directory entry */

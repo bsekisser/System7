@@ -37,10 +37,10 @@ typedef struct TEExtRec {
 typedef TEExtRec *TEExtPtr, **TEExtHandle;
 #include "MemoryMgr/MemoryManager.h"
 #include <string.h>
+#include "TextEdit/TELogging.h"
 
 /* Debug logging */
-extern void serial_printf(const char* fmt, ...);
-#define TEST_LOG(...) serial_printf("TETest: " __VA_ARGS__)
+#define TEST_LOG(...) TE_LOG_DEBUG("TETest: " __VA_ARGS__)
 
 /* Constants */
 #define kTestWindowID   128

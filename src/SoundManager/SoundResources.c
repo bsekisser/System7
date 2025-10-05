@@ -23,6 +23,7 @@
 
 #include "SoundManager/SoundManager.h"
 #include "SoundManager/SoundTypes.h"
+#include "SoundManager/SoundLogging.h"
 
 
 /* Sound Resource Format Detection */

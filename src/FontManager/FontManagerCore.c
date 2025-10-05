@@ -11,13 +11,13 @@
 #include "SystemTypes.h"
 #include "chicago_font.h"
 #include <string.h>
+#include "FontManager/FontLogging.h"
 
 /* Debug logging */
 #define FM_DEBUG 1
 
 #if FM_DEBUG
-extern void serial_printf(const char* fmt, ...);
-#define FM_LOG(...) serial_printf("FM: " __VA_ARGS__)
+#define FM_LOG(...) FONT_LOG_DEBUG("FM: " __VA_ARGS__)
 #else
 #define FM_LOG(...)
 #endif

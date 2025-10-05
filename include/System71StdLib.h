@@ -32,6 +32,11 @@ typedef enum {
     kLogModuleStandardFile,
     kLogModuleListManager,
     kLogModuleSystem,
+    kLogModuleTextEdit,
+    kLogModulePlatform,
+    kLogModuleScrap,
+    kLogModuleMemory,
+    kLogModuleProcess,
     kLogModuleCount
 } SystemLogModule;
 

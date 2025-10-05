@@ -36,6 +36,7 @@ static ModernFontCache *gModernFontCache = NULL;
 #include <freetype2/ft2build.h>
 
 #include FT_FREETYPE_H
+#include "FontManager/FontLogging.h"
 #endif
 
 /* Internal helper functions */

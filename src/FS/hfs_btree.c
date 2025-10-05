@@ -3,15 +3,15 @@
 #include "../../include/FS/hfs_endian.h"
 #include "../../include/MemoryMgr/MemoryManager.h"
 #include <string.h>
+#include "FS/FSLogging.h"
 
 /* Serial debug output */
-extern void serial_printf(const char* fmt, ...);
 
 /* Read data from B-tree file using extents */
 static bool read_btree_data(HFS_BTree* bt, uint32_t offset, void* buffer, uint32_t length) {
     if (!bt || !buffer) return false;
 
-    serial_printf("read_btree_data: offset=%d length=%d fileSize=%d vol=%08x bd.data=%08x\n",
+    FS_LOG_DEBUG("read_btree_data: offset=%d length=%d fileSize=%d vol=%08x bd.data=%08x\n",
                  (int)offset, (int)length, (int)bt->fileSize,
                  (unsigned int)bt->vol, (unsigned int)bt->vol->bd.data);
 
@@ -21,10 +21,10 @@ static bool read_btree_data(HFS_BTree* bt, uint32_t offset, void* buffer, uint32
     /* Read from first 3 extents */
     for (int i = 0; i < 3 && bytesRead < length; i++) {
         if (bt->extents[i].blockCount == 0) {
-            /* serial_printf("read_btree_data: Extent %d has 0 blocks\n", i); */
+            /* FS_LOG_DEBUG("read_btree_data: Extent %d has 0 blocks\n", i); */
             break;
         }
-        serial_printf("read_btree_data: Extent %d - startBlock=%u, blockCount=%u\n",
+        FS_LOG_DEBUG("read_btree_data: Extent %d - startBlock=%u, blockCount=%u\n",
                      i, bt->extents[i].startBlock, bt->extents[i].blockCount);
 
         uint32_t extentBytes = bt->extents[i].blockCount * bt->vol->alBlkSize;
@@ -64,10 +64,10 @@ static bool read_btree_data(HFS_BTree* bt, uint32_t offset, void* buffer, uint32
 }
 
 bool HFS_BT_Init(HFS_BTree* bt, HFS_Volume* vol, HFS_BTreeType type) {
-    /* serial_printf("HFS_BT_Init: ENTER (bt=%p, vol=%p, type=%d)\n", bt, vol, type); */
+    /* FS_LOG_DEBUG("HFS_BT_Init: ENTER (bt=%p, vol=%p, type=%d)\n", bt, vol, type); */
 
     if (!bt || !vol || !vol->mounted) {
-        serial_printf("HFS_BT_Init: Invalid params (bt=%p, vol=%p, mounted=%d)\n",
+        FS_LOG_DEBUG("HFS_BT_Init: Invalid params (bt=%p, vol=%p, mounted=%d)\n",
                      bt, vol, vol ? vol->mounted : 0);
         return false;
     }
@@ -80,38 +80,38 @@ bool HFS_BT_Init(HFS_BTree* bt, HFS_Volume* vol, HFS_BTreeType type) {
     if (type == kBTreeCatalog) {
         bt->fileSize = vol->catFileSize;
         memcpy(bt->extents, vol->catExtents, sizeof(bt->extents));
-        /* serial_printf("HFS_BT_Init: Catalog tree, fileSize=%u\n", bt->fileSize); */
+        /* FS_LOG_DEBUG("HFS_BT_Init: Catalog tree, fileSize=%u\n", bt->fileSize); */
     } else if (type == kBTreeExtents) {
         bt->fileSize = vol->extFileSize;
         memcpy(bt->extents, vol->extExtents, sizeof(bt->extents));
-        /* serial_printf("HFS_BT_Init: Extents tree, fileSize=%u\n", bt->fileSize); */
+        /* FS_LOG_DEBUG("HFS_BT_Init: Extents tree, fileSize=%u\n", bt->fileSize); */
     } else {
-        /* serial_printf("HFS_BT_Init: Unknown tree type %d\n", type); */
+        /* FS_LOG_DEBUG("HFS_BT_Init: Unknown tree type %d\n", type); */
         return false;
     }
 
     /* Check if we have valid extents */
     if (bt->fileSize == 0 || bt->extents[0].blockCount == 0) {
-        serial_printf("HFS_BT_Init: No valid extents for B-tree (fileSize=%u, extent0.blocks=%u)\n",
+        FS_LOG_DEBUG("HFS_BT_Init: No valid extents for B-tree (fileSize=%u, extent0.blocks=%u)\n",
                      bt->fileSize, bt->extents[0].blockCount);
         return false;
     }
 
     /* Read header node (node 0) */
     uint8_t headerNode[512];  /* Start with minimum size */
-    /* serial_printf("HFS_BT_Init: About to read header node from offset 0, size %u\n", sizeof(headerNode)); */
+    /* FS_LOG_DEBUG("HFS_BT_Init: About to read header node from offset 0, size %u\n", sizeof(headerNode)); */
     if (!read_btree_data(bt, 0, headerNode, sizeof(headerNode))) {
-        /* serial_printf("HFS_BT_Init: Failed to read header node\n"); */
+        /* FS_LOG_DEBUG("HFS_BT_Init: Failed to read header node\n"); */
         return false;
     }
-    /* serial_printf("HFS_BT_Init: Successfully read header node\n"); */
+    /* FS_LOG_DEBUG("HFS_BT_Init: Successfully read header node\n"); */
 
     /* Parse node descriptor */
     HFS_BTNodeDesc* nodeDesc = (HFS_BTNodeDesc*)headerNode;
-    serial_printf("HFS_BT_Init: Node descriptor - kind=%d, numRecords=%u\n",
+    FS_LOG_DEBUG("HFS_BT_Init: Node descriptor - kind=%d, numRecords=%u\n",
                  nodeDesc->kind, be16_read(&nodeDesc->numRecords));
     if (nodeDesc->kind != kBTHeaderNode) {
-        serial_printf("HFS BTree: Invalid header node kind %d (expected %d)\n",
+        FS_LOG_DEBUG("HFS BTree: Invalid header node kind %d (expected %d)\n",
                      nodeDesc->kind, kBTHeaderNode);
         return false;
     }
@@ -129,11 +129,11 @@ bool HFS_BT_Init(HFS_BTree* bt, HFS_Volume* vol, HFS_BTreeType type) {
     /* Allocate node buffer */
     bt->nodeBuffer = malloc(bt->nodeSize);
     if (!bt->nodeBuffer) {
-        /* serial_printf("HFS BTree: Failed to allocate node buffer\n"); */
+        /* FS_LOG_DEBUG("HFS BTree: Failed to allocate node buffer\n"); */
         return false;
     }
 
-    serial_printf("HFS BTree: Initialized %s tree (nodeSize=%u, root=%u, depth=%u)\n",
+    FS_LOG_DEBUG("HFS BTree: Initialized %s tree (nodeSize=%u, root=%u, depth=%u)\n",
                   type == kBTreeCatalog ? "Catalog" : "Extents",
                   bt->nodeSize, bt->rootNode, bt->treeDepth);
 
@@ -175,7 +175,7 @@ bool HFS_BT_GetRecord(void* node, uint16_t nodeSize, uint16_t recordNum,
 
     /* DEBUG: Show offset details for first few records */
     if (recordNum < 3) {
-        serial_printf("HFS_BT_GetRecord: rec=%d offset=%d offsetAddr=%08x\n",
+        FS_LOG_DEBUG("HFS_BT_GetRecord: rec=%d offset=%d offsetAddr=%08x\n",
                      recordNum, offset, (unsigned int)&offsets[-(recordNum)]);
     }
 

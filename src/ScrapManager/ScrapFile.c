@@ -16,6 +16,7 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "FileManager.h"
+#include "ScrapManager/ScrapLogging.h"
 /* #include "ErrorCodes.h"
  - error codes in MacTypes.h */
 

@@ -5,6 +5,7 @@
 #include "SystemTypes.h"
 #include "DialogManager/DialogManager.h"
 #include "EventManager/EventManager.h"
+#include "DialogManager/DialogLogging.h"
 
 /*
  * IsDialogEvent - Check if event is for a dialog

@@ -15,6 +15,7 @@
 #include <Resources.h>
 #include <Errors.h>
 #include <QuickDraw.h>
+#include "FontManager/FontLogging.h"
 
 
 /* Internal structures for bitmap font parsing */

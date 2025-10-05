@@ -16,6 +16,7 @@
 #include "../include/EventManager/EventTypes.h"  /* Include EventTypes first to define activeFlag */
 #include "../include/EventManager/EventManager.h"
 #include "../include/System71StdLib.h"                 /* for serial_printf & friends */
+#include "../include/System/SystemLogging.h"
 #include "../include/MenuManager/MenuManager.h"
 
 /* Menu command dispatcher */
@@ -235,7 +236,7 @@ static void process_serial_command(void) {
                 short item = (short)(menuChoice & 0xFFFF);
 
                 if (menuID && item) {
-                    serial_printf("Menu selection: menu %d, item %d\n", menuID, item);
+                    SYSTEM_LOG_DEBUG("Menu selection: menu %d, item %d\n", menuID, item);
                     DoMenuCommand(menuID, item);
                 }
                 DrawMenuBar();
@@ -252,7 +253,7 @@ static void process_serial_command(void) {
                 short item = (short)(menuChoice & 0xFFFF);
 
                 if (menuID && item) {
-                    serial_printf("Menu selection: menu %d, item %d\n", menuID, item);
+                    SYSTEM_LOG_DEBUG("Menu selection: menu %d, item %d\n", menuID, item);
                     DoMenuCommand(menuID, item);
                 }
                 DrawMenuBar();
@@ -284,7 +285,7 @@ static void process_serial_command(void) {
                 } else if (err == gestaltUnknownErr) {
                     serial_puts("Selector not found\n");
                 } else {
-                    serial_printf("Error: %d\n", err);
+                    SYSTEM_LOG_DEBUG("Error: %d\n", err);
                 }
             }
             break;
@@ -300,7 +301,7 @@ static void process_serial_command(void) {
                 short item = (short)(menuChoice & 0xFFFF);
 
                 if (menuID && item) {
-                    serial_printf("Menu selection: menu %d, item %d\n", menuID, item);
+                    SYSTEM_LOG_DEBUG("Menu selection: menu %d, item %d\n", menuID, item);
                     DoMenuCommand(menuID, item);
                 }
                 DrawMenuBar();
@@ -320,10 +321,10 @@ static void process_serial_command(void) {
                 short item = (short)(menuChoice & 0xFFFF);
 
                 if (menuID && item) {
-                    serial_printf("MenuKey found: menu %d, item %d for key '%c'\n", menuID, item, key);
+                    SYSTEM_LOG_DEBUG("MenuKey found: menu %d, item %d for key '%c'\n", menuID, item, key);
                     DoMenuCommand(menuID, item);
                 } else {
-                    serial_printf("No menu command for key '%c'\n", key);
+                    SYSTEM_LOG_DEBUG("No menu command for key '%c'\n", key);
                 }
             }
             break;
@@ -346,7 +347,7 @@ static void process_serial_command(void) {
             break;
 
         default:
-            serial_printf("Unknown command '%c' (0x%02x). Press 'h' for help.\n", cmd, cmd);
+            SYSTEM_LOG_DEBUG("Unknown command '%c' (0x%02x). Press 'h' for help.\n", cmd, cmd);
             break;
     }
 #endif /* DEBUG_SERIAL_MENU_COMMANDS */
@@ -2349,7 +2350,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     /* Add cursor update counter to throttle cursor redraws */
     static uint32_t cursor_update_counter = 0;
 
-    serial_printf("MAIN: Entering main event loop NOW!\n");
+    SYSTEM_LOG_DEBUG("MAIN: Entering main event loop NOW!\n");
 
     while (1) {
         /* IMPORTANT: Call TimerISR each iteration for high-cadence timer checking */
@@ -2361,11 +2362,11 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         static EventRecord evt;
         if (GetNextEvent(everyEvent, &evt)) {
             /* Got an event - dispatch it */
-            serial_printf("MAIN: GetNextEvent -> 1, what=%d at (%d,%d)\n",
+            SYSTEM_LOG_DEBUG("MAIN: GetNextEvent -> 1, what=%d at (%d,%d)\n",
                          evt.what, evt.where.h, evt.where.v);
-            serial_printf("MAIN: About to call DispatchEvent(&evt) where evt.what=%d\n", evt.what);
+            SYSTEM_LOG_DEBUG("MAIN: About to call DispatchEvent(&evt) where evt.what=%d\n", evt.what);
             DispatchEvent(&evt);
-            serial_printf("MAIN: DispatchEvent returned\n");
+            SYSTEM_LOG_DEBUG("MAIN: DispatchEvent returned\n");
         } else {
             /* No events - yield to other processes */
             Proc_Yield();
@@ -2378,7 +2379,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         if ((simple_counter % 1000000) == 0) {
             serial_puts(".");  /* Just print a dot to show we're alive */
             if ((simple_counter % 10000000) == 0) {
-                serial_printf("\nLOOP: counter=%u\n", simple_counter);
+                SYSTEM_LOG_DEBUG("\nLOOP: counter=%u\n", simple_counter);
                 simple_counter = 0;
             }
         }
@@ -2397,15 +2398,15 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         /* Debug: before GetNextEvent */
         static int call_count = 0;
         if ((call_count++ % 10000) == 0) {
-            serial_printf("MAIN: Calling GetNextEvent (call #%d)\n", call_count);
+            SYSTEM_LOG_DEBUG("MAIN: Calling GetNextEvent (call #%d)\n", call_count);
         }
 
         if (GetNextEvent(everyEvent, &evt)) {
             /* Debug: show what events we're getting */
-            serial_printf("MAIN: Got event type=%d at (%d,%d)\n",
+            SYSTEM_LOG_DEBUG("MAIN: Got event type=%d at (%d,%d)\n",
                          evt.what, evt.where.h, evt.where.v);
             if (evt.what == mouseDown) {
-                serial_printf("MAIN: Got mouseDown at (%d,%d)\n", evt.where.h, evt.where.v);
+                SYSTEM_LOG_DEBUG("MAIN: Got mouseDown at (%d,%d)\n", evt.where.h, evt.where.v);
             }
             DispatchEvent(&evt);
         }
@@ -2497,7 +2498,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
             static int movement_count = 0;
             movement_count++;
             if (movement_count > 10000) {  /* Redraw desktop every 10000 movements (basically never during normal use) */
-                serial_printf("MAIN: Full redraw after %d movements\n", movement_count);
+                SYSTEM_LOG_DEBUG("MAIN: Full redraw after %d movements\n", movement_count);
                 /* WM_Update();  */ /* Full redraw - WM_Update quarantined, TODO: Use real Toolbox APIs */
                 /* Cursor will be redrawn on next movement */
                 movement_count = 0;
@@ -2527,7 +2528,7 @@ skip_cursor_drawing:
         /* Only do this when NOT using ProcessMgr (already handled above) */
         if (GetNextEvent(everyEvent, &event)) {
             /* Log event retrieval */
-            serial_printf("MAIN: GetNextEvent -> 1, what=%d at (%d,%d)\n",
+            SYSTEM_LOG_DEBUG("MAIN: GetNextEvent -> 1, what=%d at (%d,%d)\n",
                          event.what, event.where.h, event.where.v);
             /* Let DispatchEvent handle all events */
             DispatchEvent(&event);
@@ -2552,13 +2553,13 @@ skip_cursor_drawing:
 
                         /* Check if click is in menu bar (top 20 pixels) */
                         if (pt.v >= 0 && pt.v < 20) {
-                            serial_printf("MAIN: mouseDown at (%d,%d) in menu bar - calling MenuSelect\n", pt.h, pt.v);
+                            SYSTEM_LOG_DEBUG("MAIN: mouseDown at (%d,%d) in menu bar - calling MenuSelect\n", pt.h, pt.v);
                             long menuChoice = MenuSelect(pt);
                             short menuID = (short)(menuChoice >> 16);
                             short item = (short)(menuChoice & 0xFFFF);
 
                             if (menuID && item) {
-                                serial_printf("Menu selection: menu %d, item %d\n", menuID, item);
+                                SYSTEM_LOG_DEBUG("Menu selection: menu %d, item %d\n", menuID, item);
                                 DoMenuCommand(menuID, item);
                             }
 
@@ -2569,14 +2570,14 @@ skip_cursor_drawing:
                             WindowPtr window;
                             short part = FindWindow(event.where, &window);
 
-                            serial_printf("MAIN: mouseDown part=%d, window=%p at (%d,%d)\n",
+                            SYSTEM_LOG_DEBUG("MAIN: mouseDown part=%d, window=%p at (%d,%d)\n",
                                          part, window, event.where.h, event.where.v);
 
                             switch (part) {
                                 case inDrag:
                                     if (window) {
                                         Rect dragBounds = {20, 0, 768, 1024};
-                                        serial_printf("MAIN: Calling DragWindow\n");
+                                        SYSTEM_LOG_DEBUG("MAIN: Calling DragWindow\n");
                                         DragWindow(window, event.where, &dragBounds);
                                     }
                                     break;
@@ -2595,7 +2596,7 @@ skip_cursor_drawing:
                                     break;
 
                                 default:
-                                    serial_printf("Mouse down outside windows (part=%d)\n", part);
+                                    SYSTEM_LOG_DEBUG("Mouse down outside windows (part=%d)\n", part);
                                     break;
                             }
                         }
@@ -2607,7 +2608,7 @@ skip_cursor_drawing:
                         char key = event.message & 0xFF;
                         Boolean cmdDown = (event.modifiers & cmdKey) != 0;
 
-                        serial_printf("Key event: key='%c' (0x%02X), cmd=%s\n",
+                        SYSTEM_LOG_DEBUG("Key event: key='%c' (0x%02X), cmd=%s\n",
                                      key, key, cmdDown ? "Yes" : "No");
 
                         /* Check for menu keyboard shortcuts */
@@ -2617,7 +2618,7 @@ skip_cursor_drawing:
                             short item = (short)(menuChoice & 0xFFFF);
 
                             if (menuID && item) {
-                                serial_printf("Menu key shortcut: menu %d, item %d\n", menuID, item);
+                                SYSTEM_LOG_DEBUG("Menu key shortcut: menu %d, item %d\n", menuID, item);
                                 DoMenuCommand(menuID, item);
 
                                 /* Flash menu title briefly */

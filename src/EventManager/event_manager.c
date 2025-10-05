@@ -14,9 +14,9 @@
 #include "../../include/EventManager/EventTypes.h"
 #include "../../include/EventManager/EventManager.h"
 #include "../../include/ProcessMgr/ProcessMgr.h"
+#include "EventManager/EventLogging.h"
 
 /* External serial print for debug logging */
-extern void serial_printf(const char* fmt, ...);
 
 /* Simple event queue implementation */
 #define MAX_EVENTS 32
@@ -48,19 +48,19 @@ Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
 
     /* Always log first few calls and then periodically */
     if (gne_calls <= 5 || (gne_calls % 1000) == 0) {
-        serial_printf("GetNextEvent: Call #%d with mask=0x%04x, queue count=%d\n",
+        EVT_LOG_DEBUG("GetNextEvent: Call #%d with mask=0x%04x, queue count=%d\n",
                       gne_calls, eventMask, g_eventQueue.count);
     }
 
     /* Log what events we're looking for */
-    if (eventMask & mDownMask) serial_printf("  Looking for: mouseDown\n");
-    if (eventMask & mUpMask) serial_printf("  Looking for: mouseUp\n");
-    if (eventMask & keyDownMask) serial_printf("  Looking for: keyDown\n");
-    if (eventMask & keyUpMask) serial_printf("  Looking for: keyUp\n");
-    if (eventMask & autoKeyMask) serial_printf("  Looking for: autoKey\n");
-    if (eventMask & updateMask) serial_printf("  Looking for: update\n");
-    if (eventMask & diskMask) serial_printf("  Looking for: disk\n");
-    if (eventMask & activMask) serial_printf("  Looking for: activate\n");
+    if (eventMask & mDownMask) EVT_LOG_DEBUG("  Looking for: mouseDown\n");
+    if (eventMask & mUpMask) EVT_LOG_DEBUG("  Looking for: mouseUp\n");
+    if (eventMask & keyDownMask) EVT_LOG_DEBUG("  Looking for: keyDown\n");
+    if (eventMask & keyUpMask) EVT_LOG_DEBUG("  Looking for: keyUp\n");
+    if (eventMask & autoKeyMask) EVT_LOG_DEBUG("  Looking for: autoKey\n");
+    if (eventMask & updateMask) EVT_LOG_DEBUG("  Looking for: update\n");
+    if (eventMask & diskMask) EVT_LOG_DEBUG("  Looking for: disk\n");
+    if (eventMask & activMask) EVT_LOG_DEBUG("  Looking for: activate\n");
 
     /* Generate update events for windows with non-empty updateRgn (System 7 way) */
     extern void CheckWindowsNeedingUpdate(void);
@@ -68,7 +68,7 @@ Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
 
     /* Check if queue has events */
     if (g_eventQueue.count == 0) {
-        serial_printf("GetNextEvent: Queue empty, returning false\n");
+        EVT_LOG_DEBUG("GetNextEvent: Queue empty, returning false\n");
         return false;
     }
 
@@ -96,15 +96,15 @@ Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
                 case 15: eventName = "osEvt"; break;
                 case 23: eventName = "highLevel"; break;
             }
-            serial_printf("GetNextEvent: Found matching event: %s (type=%d) at index=%d\n",
+            EVT_LOG_DEBUG("GetNextEvent: Found matching event: %s (type=%d) at index=%d\n",
                          eventName, evt->what, index);
-            serial_printf("GetNextEvent: Event where={x=%d,y=%d}, msg=0x%08x, modifiers=0x%04x\n",
+            EVT_LOG_DEBUG("GetNextEvent: Event where={x=%d,y=%d}, msg=0x%08x, modifiers=0x%04x\n",
                          evt->where.h, evt->where.v, evt->message, evt->modifiers);
 
             /* Copy event to caller */
             if (theEvent) {
                 *theEvent = *evt;
-                serial_printf("GetNextEvent: Copied to caller, where={v=%d,h=%d}\n",
+                EVT_LOG_DEBUG("GetNextEvent: Copied to caller, where={v=%d,h=%d}\n",
                              theEvent->where.v, theEvent->where.h);
             }
 
@@ -126,7 +126,7 @@ Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
             }
 
             if (evt->what == mouseDown) {
-                serial_printf("GetNextEvent: Returning mouseDown at (%d,%d)\n",
+                EVT_LOG_DEBUG("GetNextEvent: Returning mouseDown at (%d,%d)\n",
                              theEvent->where.h, theEvent->where.v);
             }
 
@@ -137,7 +137,7 @@ Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
         checked++;
     }
 
-    serial_printf("GetNextEvent: No matching event found\n");
+    EVT_LOG_DEBUG("GetNextEvent: No matching event found\n");
     return false;
 }
 #endif /* !ENABLE_PROCESS_COOP */
@@ -148,12 +148,12 @@ Boolean GetNextEvent(short eventMask, EventRecord* theEvent) {
  */
 #ifndef ENABLE_PROCESS_COOP
 Boolean EventAvail(short eventMask, EventRecord* theEvent) {
-    serial_printf("EventAvail: Called with mask=0x%04x, queue count=%d\n",
+    EVT_LOG_DEBUG("EventAvail: Called with mask=0x%04x, queue count=%d\n",
                   eventMask, g_eventQueue.count);
 
     /* Check if queue has events */
     if (g_eventQueue.count == 0) {
-        serial_printf("EventAvail: Queue empty, returning false\n");
+        EVT_LOG_DEBUG("EventAvail: Queue empty, returning false\n");
         return false;
     }
 
@@ -180,13 +180,13 @@ Boolean EventAvail(short eventMask, EventRecord* theEvent) {
                 case 15: eventName = "osEvt"; break;
                 case 23: eventName = "highLevel"; break;
             }
-            serial_printf("EventAvail: Found matching event: %s (type=%d) at index=%d\n",
+            EVT_LOG_DEBUG("EventAvail: Found matching event: %s (type=%d) at index=%d\n",
                          eventName, evt->what, index);
 
             /* Copy event to caller WITHOUT removing from queue */
             if (theEvent) {
                 *theEvent = *evt;
-                serial_printf("EventAvail: Copied to caller (not removed), where={v=%d,h=%d}\n",
+                EVT_LOG_DEBUG("EventAvail: Copied to caller (not removed), where={v=%d,h=%d}\n",
                              theEvent->where.v, theEvent->where.h);
             }
 
@@ -197,7 +197,7 @@ Boolean EventAvail(short eventMask, EventRecord* theEvent) {
         checked++;
     }
 
-    serial_printf("EventAvail: No matching event found\n");
+    EVT_LOG_DEBUG("EventAvail: No matching event found\n");
     return false;
 }
 #endif /* !ENABLE_PROCESS_COOP */
@@ -223,12 +223,12 @@ SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
         case 15: eventName = "osEvt"; break;
         case 23: eventName = "highLevel"; break;
     }
-    serial_printf("PostEvent: Posting %s (type=%d), msg=0x%08x, queue count=%d\n",
+    EVT_LOG_DEBUG("PostEvent: Posting %s (type=%d), msg=0x%08x, queue count=%d\n",
                   eventName, eventNum, eventMsg, g_eventQueue.count);
 
     /* Check if queue is full */
     if (g_eventQueue.count >= MAX_EVENTS) {
-        serial_printf("PostEvent: Event queue full!\n");
+        EVT_LOG_DEBUG("PostEvent: Event queue full!\n");
         return -1; /* queueFull error */
     }
 
@@ -244,21 +244,21 @@ SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
 
     /* For mouse events, message contains additional data like click count */
     if (eventNum == mouseDown || eventNum == mouseUp) {
-        serial_printf("PostEvent: Mouse event with message=0x%08x at (%d,%d)\n",
+        EVT_LOG_DEBUG("PostEvent: Mouse event with message=0x%08x at (%d,%d)\n",
                      eventMsg, evt->where.h, evt->where.v);
     }
 
     evt->modifiers = 0;  /* TODO: Get keyboard modifiers */
 
     /* Debug: Print actual coordinates we're storing */
-    serial_printf("PostEvent: Successfully posted %s at position %d, queue now has %d events\n",
+    EVT_LOG_DEBUG("PostEvent: Successfully posted %s at position %d, queue now has %d events\n",
                  eventName, g_eventQueue.tail, g_eventQueue.count + 1);
 
     g_eventQueue.tail = (g_eventQueue.tail + 1) % MAX_EVENTS;
     g_eventQueue.count++;
 
     if (eventNum == mouseDown) {
-        serial_printf("PostEvent: Added mouseDown at (%d,%d) to queue (count=%d)\n",
+        EVT_LOG_DEBUG("PostEvent: Added mouseDown at (%d,%d) to queue (count=%d)\n",
                      evt->where.h, evt->where.v, g_eventQueue.count);
     }
 
@@ -334,7 +334,7 @@ Boolean WaitNextEvent(short eventMask, EventRecord* theEvent, UInt32 sleep, RgnH
  */
 #ifndef ENABLE_PROCESS_COOP
 void FlushEvents(short whichMask, short stopMask) {
-    serial_printf("FlushEvents: Flushing events with mask=0x%04x, stop=0x%04x\n",
+    EVT_LOG_DEBUG("FlushEvents: Flushing events with mask=0x%04x, stop=0x%04x\n",
                   whichMask, stopMask);
 
     int index = g_eventQueue.head;
@@ -345,13 +345,13 @@ void FlushEvents(short whichMask, short stopMask) {
 
         /* Check if we should stop */
         if ((1 << evt->what) & stopMask) {
-            serial_printf("FlushEvents: Stopping at event type %d\n", evt->what);
+            EVT_LOG_DEBUG("FlushEvents: Stopping at event type %d\n", evt->what);
             break;
         }
 
         /* Check if this event should be flushed */
         if ((1 << evt->what) & whichMask) {
-            serial_printf("FlushEvents: Removing event type %d\n", evt->what);
+            EVT_LOG_DEBUG("FlushEvents: Removing event type %d\n", evt->what);
 
             /* Remove this event */
             if (index == g_eventQueue.head) {
@@ -375,7 +375,7 @@ void FlushEvents(short whichMask, short stopMask) {
         }
     }
 
-    serial_printf("FlushEvents: Complete, queue now has %d events\n", g_eventQueue.count);
+    EVT_LOG_DEBUG("FlushEvents: Complete, queue now has %d events\n", g_eventQueue.count);
 }
 #endif /* !ENABLE_PROCESS_COOP */
 
@@ -396,7 +396,7 @@ extern void UpdateMouseState(Point newPos, UInt8 buttonState);
  * Used by other system components to post events
  */
 void GenerateSystemEvent(short eventType, int message, Point where, short modifiers) {
-    serial_printf("GenerateSystemEvent: type=%d, msg=0x%x, where=(%d,%d), mod=0x%04x\n",
+    EVT_LOG_DEBUG("GenerateSystemEvent: type=%d, msg=0x%x, where=(%d,%d), mod=0x%04x\n",
                   eventType, message, where.h, where.v, modifiers);
 
     /* Update cached mouse position if provided */

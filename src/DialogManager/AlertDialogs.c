@@ -7,7 +7,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#define printf(...) serial_printf(__VA_ARGS__)
+#define printf(...) DIALOG_LOG_DEBUG(__VA_ARGS__)
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
@@ -19,6 +19,7 @@
 #include "DialogManager/DialogItems.h"
 #include "ControlManager/ControlManager.h"
 #include "ControlManager/ControlTypes.h"
+#include "DialogManager/DialogLogging.h"
 
 /* External dependencies */
 extern void SysBeep(SInt16 duration);
@@ -568,7 +569,7 @@ static void Alert_RealizeButtons(DialogPtr d)
         itemHandle = NULL;
 
         GetDialogItem(d, i, &itemType, &itemHandle, &r);
-        serial_printf("[ALERT] GetDialogItem returned: item=%d, type=%d, rect=(%d,%d,%d,%d)\n",
+        DIALOG_LOG_DEBUG("[ALERT] GetDialogItem returned: item=%d, type=%d, rect=(%d,%d,%d,%d)\n",
                       i, itemType, r.top, r.left, r.bottom, r.right);
 
         /* Classic Mac encoding: low 7 bits carry the base type */
@@ -579,7 +580,7 @@ static void Alert_RealizeButtons(DialogPtr d)
             title[2] = 'K';
 
             /* Create the standard push button control */
-            serial_printf("[ALERT] About to create button control for item %d\n", i);
+            DIALOG_LOG_DEBUG("[ALERT] About to create button control for item %d\n", i);
             c = NewControl(
                 (WindowPtr)d,
                 &r,
@@ -595,20 +596,20 @@ static void Alert_RealizeButtons(DialogPtr d)
             if (c) {
                 /* Store handle back into the dialog item */
                 SetDialogItem(d, i, itemType, (Handle)c, &r);
-                serial_printf("[ALERT] Realized button item=%d, rect=(%d,%d,%d,%d)\n",
+                DIALOG_LOG_DEBUG("[ALERT] Realized button item=%d, rect=(%d,%d,%d,%d)\n",
                               i, r.left, r.top, r.right, r.bottom);
 
                 /* Verify control was linked to window */
                 {
                     ControlHandle first = _GetFirstControl((WindowPtr)d);
                     if (first) {
-                        serial_printf("[ALERT] _GetFirstControl after NewControl: found control\n");
+                        DIALOG_LOG_DEBUG("[ALERT] _GetFirstControl after NewControl: found control\n");
                     } else {
-                        serial_printf("[ALERT] _GetFirstControl after NewControl: NULL\n");
+                        DIALOG_LOG_DEBUG("[ALERT] _GetFirstControl after NewControl: NULL\n");
                     }
                 }
             } else {
-                serial_printf("[ALERT] Failed to realize button item=%d\n", i);
+                DIALOG_LOG_DEBUG("[ALERT] Failed to realize button item=%d\n", i);
             }
         }
     }

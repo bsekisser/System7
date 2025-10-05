@@ -32,6 +32,7 @@
 #ifdef PLATFORM_REMOVED_APPLE
 #include <CoreText/CoreText.h>
 #include <ApplicationServices/ApplicationServices.h>
+#include "FontManager/FontLogging.h"
 
 #endif
 

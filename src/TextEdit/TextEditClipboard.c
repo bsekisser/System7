@@ -9,6 +9,7 @@
 #include "ScrapManager/ScrapManager.h"
 #include "ErrorCodes.h"
 #include <string.h>
+#include "TextEdit/TELogging.h"
 
 /* Boolean constants */
 #ifndef TRUE
@@ -44,8 +45,7 @@ extern void BlockMove(const void *src, void *dest, Size size);
 #define TEC_DEBUG 1
 
 #if TEC_DEBUG
-extern void serial_printf(const char* fmt, ...);
-#define TEC_LOG(...) serial_printf("TEC: " __VA_ARGS__)
+#define TEC_LOG(...) TE_LOG_DEBUG("TEC: " __VA_ARGS__)
 #else
 #define TEC_LOG(...)
 #endif

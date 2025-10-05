@@ -4,9 +4,9 @@
 #include "../../include/FS/hfs_btree.h"
 #include <string.h>
 #include <stdlib.h>
+#include "FS/FSLogging.h"
 
 /* Serial debug output */
-extern void serial_printf(const char* fmt, ...);
 
 /* Pascal string to C string conversion */
 static void pstr_to_cstr(char* dst, const uint8_t* src, size_t maxlen) {
@@ -44,7 +44,7 @@ bool HFS_VolumeMount(HFS_Volume* vol, const char* imagePath, VRefNum vRefNum) {
     /* Verify HFS signature */
     uint16_t sig = be16_read(&mdbBuffer[0]);
     if (sig != HFS_SIGNATURE) {
-        /* serial_printf("HFS: Invalid signature 0x%04x (expected 0x4244)\n", sig); */
+        /* FS_LOG_DEBUG("HFS: Invalid signature 0x%04x (expected 0x4244)\n", sig); */
         HFS_BD_Close(&vol->bd);
         return false;
     }
@@ -112,44 +112,44 @@ bool HFS_VolumeMount(HFS_Volume* vol, const char* imagePath, VRefNum vRefNum) {
     vol->mounted     = true;
     vol->vRefNum     = vRefNum;
 
-    /* serial_printf("HFS: Mounted volume (vRef=%d)\n", vRefNum); */
-    /* serial_printf("  Volume name: %s\n", vol->volName); */
-    /* serial_printf("  Allocation blocks: %u x %u bytes\n", vol->numAlBlks, vol->alBlkSize); */
-    /* serial_printf("  Catalog size: %u bytes\n", vol->catFileSize); */
+    /* FS_LOG_DEBUG("HFS: Mounted volume (vRef=%d)\n", vRefNum); */
+    /* FS_LOG_DEBUG("  Volume name: %s\n", vol->volName); */
+    /* FS_LOG_DEBUG("  Allocation blocks: %u x %u bytes\n", vol->numAlBlks, vol->alBlkSize); */
+    /* FS_LOG_DEBUG("  Catalog size: %u bytes\n", vol->catFileSize); */
 
     return true;
 }
 
 bool HFS_VolumeMountMemory(HFS_Volume* vol, void* buffer, uint64_t size, VRefNum vRefNum) {
-    serial_printf("HFS: VolumeMountMemory: ENTRY vol=%08x buffer=%08x size=%d\n",
+    FS_LOG_DEBUG("HFS: VolumeMountMemory: ENTRY vol=%08x buffer=%08x size=%d\n",
                  (unsigned int)vol, (unsigned int)buffer, (int)size);
 
     if (!vol || !buffer || size < 1024 * 1024) {
-        /* serial_printf("HFS: Invalid parameters for mount\n"); */
+        /* FS_LOG_DEBUG("HFS: Invalid parameters for mount\n"); */
         return false;  /* Minimum 1MB */
     }
 
-    serial_printf("HFS: VolumeMountMemory: About to memset vol structure\n");
+    FS_LOG_DEBUG("HFS: VolumeMountMemory: About to memset vol structure\n");
     memset(vol, 0, sizeof(HFS_Volume));
 
     /* Initialize block device from memory */
-    serial_printf("HFS: VolumeMountMemory: calling HFS_BD_InitMemory with vol=%08x buffer=%08x\n",
+    FS_LOG_DEBUG("HFS: VolumeMountMemory: calling HFS_BD_InitMemory with vol=%08x buffer=%08x\n",
                  (unsigned int)vol, (unsigned int)buffer);
     if (!HFS_BD_InitMemory(&vol->bd, buffer, size)) {
-        /* serial_printf("HFS: Failed to init block device\n"); */
+        /* FS_LOG_DEBUG("HFS: Failed to init block device\n"); */
         return false;
     }
-    serial_printf("HFS: VolumeMountMemory: After BD_InitMemory, vol->bd.data=%08x\n",
+    FS_LOG_DEBUG("HFS: VolumeMountMemory: After BD_InitMemory, vol->bd.data=%08x\n",
                  (unsigned int)vol->bd.data);
 
     /* Try to read existing MDB */
     uint8_t mdbBuffer[512];
     if (HFS_BD_ReadSector(&vol->bd, HFS_MDB_SECTOR, mdbBuffer)) {
         uint16_t sig = be16_read(&mdbBuffer[0]);
-        /* serial_printf("HFS: Read MDB signature: 0x%04x (expected 0x%04x)\n", sig, HFS_SIGNATURE); */
+        /* FS_LOG_DEBUG("HFS: Read MDB signature: 0x%04x (expected 0x%04x)\n", sig, HFS_SIGNATURE); */
         if (sig == HFS_SIGNATURE) {
             /* Valid HFS volume - mount it properly */
-            /* serial_printf("HFS: Found valid HFS signature, mounting...\n"); */
+            /* FS_LOG_DEBUG("HFS: Found valid HFS signature, mounting...\n"); */
 
             /* Parse MDB directly here instead of calling HFS_VolumeMount */
             vol->mdb.drSigWord = sig;
@@ -180,16 +180,16 @@ bool HFS_VolumeMountMemory(HFS_Volume* vol, void* buffer, uint64_t size, VRefNum
             /* Get volume name */
             pstr_to_cstr(vol->volName, &mdbBuffer[38], sizeof(vol->volName));
 
-            /* serial_printf("HFS: Mounted volume from memory\n"); */
+            /* FS_LOG_DEBUG("HFS: Mounted volume from memory\n"); */
             return true;
         } else {
-            /* serial_printf("HFS: MDB signature mismatch: got 0x%04x\n", sig); */
+            /* FS_LOG_DEBUG("HFS: MDB signature mismatch: got 0x%04x\n", sig); */
         }
     } else {
-        /* serial_printf("HFS: Failed to read MDB sector %d\n", HFS_MDB_SECTOR); */
+        /* FS_LOG_DEBUG("HFS: Failed to read MDB sector %d\n", HFS_MDB_SECTOR); */
     }
 
-    /* serial_printf("HFS: No valid MDB found, volume was not created properly\n"); */
+    /* FS_LOG_DEBUG("HFS: No valid MDB found, volume was not created properly\n"); */
     return false;
 }
 
@@ -197,7 +197,7 @@ void HFS_VolumeUnmount(HFS_Volume* vol) {
     if (!vol) return;
 
     if (vol->mounted) {
-        /* serial_printf("HFS: Unmounting volume\n"); */
+        /* FS_LOG_DEBUG("HFS: Unmounting volume\n"); */
     }
 
     HFS_BD_Close(&vol->bd);
@@ -299,7 +299,7 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
 
     /* Debug: verify MDB was written correctly */
     uint16_t check_sig = be16_read((uint8_t*)buffer + (HFS_MDB_SECTOR * 512));
-    serial_printf("HFS: Created blank volume, MDB signature at sector %d: 0x%04x\n",
+    FS_LOG_DEBUG("HFS: Created blank volume, MDB signature at sector %d: 0x%04x\n",
                  HFS_MDB_SECTOR, check_sig);
 
     /* Initialize Volume Bitmap */
@@ -465,7 +465,7 @@ bool HFS_CreateBlankVolume(void* buffer, uint64_t size, const char* volName) {
     be32_write(&extHeader->totalNodes, 6);      /* 3 blocks * 512 / 512 */
     be32_write(&extHeader->freeNodes, 5);       /* All but header free */
 
-    /* serial_printf("HFS: Created blank volume (%u MB) with B-trees\n", (uint32_t)(size / 1024 / 1024)); */
+    /* FS_LOG_DEBUG("HFS: Created blank volume (%u MB) with B-trees\n", (uint32_t)(size / 1024 / 1024)); */
     return true;
 }
 
@@ -478,7 +478,7 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
 
     /* Calculate volume size from block device */
     uint64_t size = bd->size;
-    serial_printf("HFS: Formatting volume '%s' (size=%u MB)\n",
+    FS_LOG_DEBUG("HFS: Formatting volume '%s' (size=%u MB)\n",
                   volName, (uint32_t)(size / 1024 / 1024));
 
     /* Calculate volume parameters */
@@ -501,14 +501,14 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
     /* Allocate temporary buffer for sectors */
     uint8_t* sectorBuf = (uint8_t*)malloc(alBlkSize);
     if (!sectorBuf) {
-        serial_printf("HFS: Failed to allocate sector buffer\n");
+        FS_LOG_DEBUG("HFS: Failed to allocate sector buffer\n");
         return false;
     }
 
     /* Write boot blocks (sectors 0-1) - all zeros for now */
     memset(sectorBuf, 0, 512);
     if (!HFS_BD_WriteSector(bd, 0, sectorBuf) || !HFS_BD_WriteSector(bd, 1, sectorBuf)) {
-        serial_printf("HFS: Failed to write boot blocks\n");
+        FS_LOG_DEBUG("HFS: Failed to write boot blocks\n");
         free(sectorBuf);
         return false;
     }
@@ -552,12 +552,12 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
     be32_write(&mdb[86], 0);                         /* drFilCnt */
 
     if (!HFS_BD_WriteSector(bd, HFS_MDB_SECTOR, mdb)) {
-        serial_printf("HFS: Failed to write MDB\n");
+        FS_LOG_DEBUG("HFS: Failed to write MDB\n");
         free(sectorBuf);
         return false;
     }
 
-    serial_printf("HFS: Wrote MDB at sector %d\n", HFS_MDB_SECTOR);
+    FS_LOG_DEBUG("HFS: Wrote MDB at sector %d\n", HFS_MDB_SECTOR);
 
     /* Write volume bitmap - clear all bits (all blocks free) */
     memset(sectorBuf, 0, alBlkSize);
@@ -569,7 +569,7 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
         uint32_t sector = vbmStart * (alBlkSize / 512) + i * (alBlkSize / 512);
         for (uint32_t j = 0; j < alBlkSize / 512; j++) {
             if (!HFS_BD_WriteSector(bd, sector + j, sectorBuf + j * 512)) {
-                serial_printf("HFS: Failed to write VBM\n");
+                FS_LOG_DEBUG("HFS: Failed to write VBM\n");
                 free(sectorBuf);
                 return false;
             }
@@ -578,7 +578,7 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
         memset(sectorBuf, 0, alBlkSize);
     }
 
-    serial_printf("HFS: Wrote volume bitmap\n");
+    FS_LOG_DEBUG("HFS: Wrote volume bitmap\n");
 
     /* Write catalog B-tree */
     memset(sectorBuf, 0, alBlkSize);
@@ -606,7 +606,7 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
     uint32_t catStart = alBlSt * (alBlkSize / 512);
     for (uint32_t i = 0; i < alBlkSize / 512; i++) {
         if (!HFS_BD_WriteSector(bd, catStart + i, sectorBuf + i * 512)) {
-            serial_printf("HFS: Failed to write catalog header\n");
+            FS_LOG_DEBUG("HFS: Failed to write catalog header\n");
             free(sectorBuf);
             return false;
         }
@@ -617,14 +617,14 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
     for (uint32_t block = 1; block < 10; block++) {
         for (uint32_t i = 0; i < alBlkSize / 512; i++) {
             if (!HFS_BD_WriteSector(bd, catStart + block * (alBlkSize / 512) + i, sectorBuf + i * 512)) {
-                serial_printf("HFS: Failed to write catalog blocks\n");
+                FS_LOG_DEBUG("HFS: Failed to write catalog blocks\n");
                 free(sectorBuf);
                 return false;
             }
         }
     }
 
-    serial_printf("HFS: Wrote catalog B-tree\n");
+    FS_LOG_DEBUG("HFS: Wrote catalog B-tree\n");
 
     /* Write extents B-tree */
     memset(sectorBuf, 0, alBlkSize);
@@ -651,7 +651,7 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
     uint32_t extStart = (alBlSt + 10) * (alBlkSize / 512);
     for (uint32_t i = 0; i < alBlkSize / 512; i++) {
         if (!HFS_BD_WriteSector(bd, extStart + i, sectorBuf + i * 512)) {
-            serial_printf("HFS: Failed to write extents header\n");
+            FS_LOG_DEBUG("HFS: Failed to write extents header\n");
             free(sectorBuf);
             return false;
         }
@@ -662,19 +662,19 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
     for (uint32_t block = 1; block < 3; block++) {
         for (uint32_t i = 0; i < alBlkSize / 512; i++) {
             if (!HFS_BD_WriteSector(bd, extStart + block * (alBlkSize / 512) + i, sectorBuf + i * 512)) {
-                serial_printf("HFS: Failed to write extents blocks\n");
+                FS_LOG_DEBUG("HFS: Failed to write extents blocks\n");
                 free(sectorBuf);
                 return false;
             }
         }
     }
 
-    serial_printf("HFS: Wrote extents B-tree\n");
+    FS_LOG_DEBUG("HFS: Wrote extents B-tree\n");
 
     /* Flush cache */
     HFS_BD_Flush(bd);
 
     free(sectorBuf);
-    serial_printf("HFS: Format complete\n");
+    FS_LOG_DEBUG("HFS: Format complete\n");
     return true;
 }

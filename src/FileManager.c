@@ -13,6 +13,7 @@
 #include <string.h>
 #include "System71StdLib.h"
 #include "FileManager_Internal.h"
+#include "FS/FSLogging.h"
 
 
 /* Global file system state */
@@ -1665,30 +1666,30 @@ void FM_DumpVolumeInfo(VolumeRefNum vRefNum)
 
     err = FM_GetVolumeFromRefNum(vRefNum, &vcb);
     if (err != noErr) {
-        serial_printf("Volume not found: %d\n", vRefNum);
+        FS_LOG_DEBUG("Volume not found: %d\n", vRefNum);
         return;
     }
 
-    serial_printf("Volume Info:\n");
-    serial_printf("  Name: %.*s\n", vcb->base.vcbVN[0], &vcb->base.vcbVN[1]);
-    serial_printf("  VRefNum: %d\n", vcb->base.vcbVRefNum);
-    serial_printf("  Signature: 0x%04X\n", vcb->base.vcbSigWord);
-    serial_printf("  Files: %u\n", (unsigned)vcb->vcbFilCnt);
-    serial_printf("  Directories: %u\n", (unsigned)vcb->vcbDirCnt);
-    serial_printf("  Free blocks: %u\n", vcb->base.vcbFreeBks);
-    serial_printf("  Block size: %u\n", (unsigned)vcb->base.vcbAlBlkSiz);
+    FS_LOG_DEBUG("Volume Info:\n");
+    FS_LOG_DEBUG("  Name: %.*s\n", vcb->base.vcbVN[0], &vcb->base.vcbVN[1]);
+    FS_LOG_DEBUG("  VRefNum: %d\n", vcb->base.vcbVRefNum);
+    FS_LOG_DEBUG("  Signature: 0x%04X\n", vcb->base.vcbSigWord);
+    FS_LOG_DEBUG("  Files: %u\n", (unsigned)vcb->vcbFilCnt);
+    FS_LOG_DEBUG("  Directories: %u\n", (unsigned)vcb->vcbDirCnt);
+    FS_LOG_DEBUG("  Free blocks: %u\n", vcb->base.vcbFreeBks);
+    FS_LOG_DEBUG("  Block size: %u\n", (unsigned)vcb->base.vcbAlBlkSiz);
 }
 
 void FM_DumpOpenFiles(void)
 {
     int openCount = 0;
 
-    serial_printf("Open Files:\n");
+    FS_LOG_DEBUG("Open Files:\n");
 
     for (int i = 0; i < g_FSGlobals.fcbCount; i++) {
         FCB* fcb = &g_FSGlobals.fcbArray[i];
         if (fcb->base.fcbFlNm != 0) {
-            serial_printf("  RefNum %d: File %u, Pos %u, EOF %u\n",
+            FS_LOG_DEBUG("  RefNum %d: File %u, Pos %u, EOF %u\n",
                    fcb->fcbRefNum,
                    (unsigned)fcb->base.fcbFlNm,
                    (unsigned)fcb->base.fcbCrPs,
@@ -1697,5 +1698,5 @@ void FM_DumpOpenFiles(void)
         }
     }
 
-    serial_printf("Total open files: %d\n", openCount);
+    FS_LOG_DEBUG("Total open files: %d\n", openCount);
 }

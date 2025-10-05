@@ -11,6 +11,7 @@
 #include "SystemTypes.h"
 #include "chicago_font.h"
 #include <string.h>
+#include "FontManager/FontLogging.h"
 
 /* Ensure boolean constants */
 #ifndef TRUE
@@ -24,8 +25,7 @@
 #define FSC_DEBUG 1
 
 #if FSC_DEBUG
-extern void serial_printf(const char* fmt, ...);
-#define FSC_LOG(...) serial_printf("FSC: " __VA_ARGS__)
+#define FSC_LOG(...) FONT_LOG_DEBUG("FSC: " __VA_ARGS__)
 #else
 #define FSC_LOG(...)
 #endif

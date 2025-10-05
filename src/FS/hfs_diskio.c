@@ -3,13 +3,13 @@
 #include "../../include/MemoryMgr/MemoryManager.h"
 #include "../../include/ATA_Driver.h"
 #include <string.h>
+#include "FS/FSLogging.h"
 
 /* For now, we'll use memory-based implementation */
 /* Later this can be extended to use real file I/O */
 
 bool HFS_BD_InitMemory(HFS_BlockDev* bd, void* buffer, uint64_t size) {
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("HFS: BD_InitMemory: buffer=%08x size=%d\n",
+    FS_LOG_DEBUG("HFS: BD_InitMemory: buffer=%08x size=%d\n",
                  (unsigned int)buffer, (int)size);
 
     if (!bd || !buffer || size == 0) return false;
@@ -17,7 +17,7 @@ bool HFS_BD_InitMemory(HFS_BlockDev* bd, void* buffer, uint64_t size) {
     bd->type = HFS_BD_TYPE_MEMORY;
     bd->data = buffer;
     bd->ata_device = -1;
-    serial_printf("HFS: BD_InitMemory: stored bd->data=%08x\n", (unsigned int)bd->data);
+    FS_LOG_DEBUG("HFS: BD_InitMemory: stored bd->data=%08x\n", (unsigned int)bd->data);
     bd->size = size;
     bd->sectorSize = 512;
     bd->readonly = false;
@@ -45,24 +45,23 @@ bool HFS_BD_InitFile(HFS_BlockDev* bd, const char* path, bool readonly) {
 }
 
 bool HFS_BD_InitATA(HFS_BlockDev* bd, int device_index, bool readonly) {
-    extern void serial_printf(const char* fmt, ...);
 
     if (!bd) return false;
 
     /* Get ATA device */
     ATADevice* ata_dev = ATA_GetDevice(device_index);
     if (!ata_dev || !ata_dev->present) {
-        serial_printf("HFS: ATA device %d not found\n", device_index);
+        FS_LOG_DEBUG("HFS: ATA device %d not found\n", device_index);
         return false;
     }
 
     /* Only support PATA hard disks for now */
     if (ata_dev->type != ATA_DEVICE_PATA) {
-        serial_printf("HFS: Device %d is not a PATA hard disk\n", device_index);
+        FS_LOG_DEBUG("HFS: Device %d is not a PATA hard disk\n", device_index);
         return false;
     }
 
-    serial_printf("HFS: Initializing block device for ATA device %d\n", device_index);
+    FS_LOG_DEBUG("HFS: Initializing block device for ATA device %d\n", device_index);
 
     bd->type = HFS_BD_TYPE_ATA;
     bd->data = NULL;
@@ -71,7 +70,7 @@ bool HFS_BD_InitATA(HFS_BlockDev* bd, int device_index, bool readonly) {
     bd->sectorSize = 512;
     bd->readonly = readonly;
 
-    serial_printf("HFS: ATA block device initialized (size=%u MB)\n",
+    FS_LOG_DEBUG("HFS: ATA block device initialized (size=%u MB)\n",
                  (uint32_t)(bd->size / (1024 * 1024)));
 
     return true;

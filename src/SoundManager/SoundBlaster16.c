@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "SoundManager/SoundLogging.h"
 
 /* I/O port access */
 extern void outb(uint16_t port, uint8_t value);
@@ -97,7 +98,6 @@ static bool sb16_dsp_read(uint8_t* value) {
  * Reset the DSP
  */
 static bool sb16_dsp_reset(void) {
-    extern void serial_printf(const char* fmt, ...);
 
     /* Send reset command */
     outb(SB16_DSP_RESET, 1);
@@ -110,12 +110,12 @@ static bool sb16_dsp_reset(void) {
     /* Wait for DSP ready (should return 0xAA) */
     uint8_t response;
     if (!sb16_dsp_read(&response)) {
-        serial_printf("SB16: DSP reset timeout\n");
+        SND_LOG_DEBUG("SB16: DSP reset timeout\n");
         return false;
     }
 
     if (response != 0xAA) {
-        serial_printf("SB16: DSP reset failed (got 0x%02x)\n", response);
+        SND_LOG_DEBUG("SB16: DSP reset failed (got 0x%02x)\n", response);
         return false;
     }
 
@@ -126,7 +126,6 @@ static bool sb16_dsp_reset(void) {
  * Get DSP version
  */
 static bool sb16_get_version(void) {
-    extern void serial_printf(const char* fmt, ...);
 
     if (!sb16_dsp_write(DSP_CMD_GET_VERSION)) {
         return false;
@@ -140,7 +139,7 @@ static bool sb16_get_version(void) {
         return false;
     }
 
-    serial_printf("SB16: DSP version %d.%d\n", g_dsp_version_major, g_dsp_version_minor);
+    SND_LOG_DEBUG("SB16: DSP version %d.%d\n", g_dsp_version_major, g_dsp_version_minor);
     return true;
 }
 
@@ -161,29 +160,28 @@ static void sb16_set_volume(uint8_t left, uint8_t right) {
  * Initialize Sound Blaster 16
  */
 int SB16_Init(void) {
-    extern void serial_printf(const char* fmt, ...);
 
     if (g_sb16_initialized) {
         return 0;
     }
 
-    serial_printf("SB16: Initializing Sound Blaster 16...\n");
+    SND_LOG_DEBUG("SB16: Initializing Sound Blaster 16...\n");
 
     /* Reset DSP */
     if (!sb16_dsp_reset()) {
-        serial_printf("SB16: Failed to reset DSP\n");
+        SND_LOG_DEBUG("SB16: Failed to reset DSP\n");
         return -1;
     }
 
     /* Get version */
     if (!sb16_get_version()) {
-        serial_printf("SB16: Failed to get DSP version\n");
+        SND_LOG_DEBUG("SB16: Failed to get DSP version\n");
         return -1;
     }
 
     /* Check if we have at least SB16 (version 4.x) */
     if (g_dsp_version_major < 4) {
-        serial_printf("SB16: DSP version too old (need 4.x, got %d.%d)\n",
+        SND_LOG_DEBUG("SB16: DSP version too old (need 4.x, got %d.%d)\n",
                      g_dsp_version_major, g_dsp_version_minor);
         return -1;
     }
@@ -195,7 +193,7 @@ int SB16_Init(void) {
     sb16_dsp_write(DSP_CMD_TURN_ON_SPEAKER);
 
     g_sb16_initialized = true;
-    serial_printf("SB16: Initialized successfully\n");
+    SND_LOG_DEBUG("SB16: Initialized successfully\n");
 
     return 0;
 }
@@ -221,9 +219,8 @@ void SB16_Shutdown(void) {
  * Set sample rate (SB16 4.xx and later)
  */
 static bool sb16_set_sample_rate(uint32_t sample_rate) {
-    extern void serial_printf(const char* fmt, ...);
 
-    serial_printf("SB16: Setting sample rate to %u Hz\n", sample_rate);
+    SND_LOG_DEBUG("SB16: Setting sample rate to %u Hz\n", sample_rate);
 
     if (!sb16_dsp_write(DSP_CMD_SET_SAMPLE_RATE)) {
         return false;
@@ -253,19 +250,18 @@ extern int SB16_PlayDMA(const uint8_t* data, uint32_t size,
  */
 int SB16_PlayWAV(const uint8_t* data, uint32_t size,
                  uint32_t sample_rate, uint8_t channels, uint8_t bits_per_sample) {
-    extern void serial_printf(const char* fmt, ...);
 
     if (!g_sb16_initialized) {
-        serial_printf("SB16: Not initialized\n");
+        SND_LOG_DEBUG("SB16: Not initialized\n");
         return -1;
     }
 
-    serial_printf("SB16: Playing WAV - %u Hz, %u channels, %u bits, %u bytes\n",
+    SND_LOG_DEBUG("SB16: Playing WAV - %u Hz, %u channels, %u bits, %u bytes\n",
                  sample_rate, channels, bits_per_sample, size);
 
     /* Set sample rate */
     if (!sb16_set_sample_rate(sample_rate)) {
-        serial_printf("SB16: Failed to set sample rate\n");
+        SND_LOG_DEBUG("SB16: Failed to set sample rate\n");
         return -1;
     }
 

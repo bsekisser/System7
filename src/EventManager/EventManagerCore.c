@@ -29,6 +29,7 @@
 #include <windows.h>
 #elif defined(__APPLE__)
 #include <mach/mach_time.h>
+#include "EventManager/EventLogging.h"
 #elif defined(__linux__)
 
 #endif

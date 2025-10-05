@@ -22,6 +22,7 @@
 
 
 #include "SoundManager/SoundHardware.h"
+#include "SoundManager/SoundLogging.h"
 
 
 /* Standard audio formats */

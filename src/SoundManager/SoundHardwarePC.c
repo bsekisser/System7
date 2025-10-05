@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "SoundManager/SoundLogging.h"
 
 /* I/O port access functions (implemented in platform code) */
 extern void outb(uint16_t port, uint8_t value);
@@ -76,9 +77,8 @@ static void delay_ms(uint32_t ms) {
 }
 
 void PCSpkr_Beep(uint32_t frequency, uint32_t duration_ms) {
-    extern void serial_printf(const char* fmt, ...);
 
-    serial_printf("PCSpkr_Beep: freq=%u Hz, duration=%u ms\n", frequency, duration_ms);
+    SND_LOG_DEBUG("PCSpkr_Beep: freq=%u Hz, duration=%u ms\n", frequency, duration_ms);
 
     /* Start tone */
     PCSpkr_SetFrequency(frequency);

@@ -33,6 +33,7 @@
 #include "Finder/Icon/icon_system.h"
 #include "QuickDrawConstants.h"
 #include "System71StdLib.h"
+#include "Finder/FinderLogging.h"
 
 #define FINDER_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelDebug, fmt, ##__VA_ARGS__)
 #define FINDER_LOG_TRACE(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelTrace, fmt, ##__VA_ARGS__)
@@ -1606,7 +1607,7 @@ OSErr HandleVolumeDoubleClick(Point clickPoint)
 
                 /* Open root directory window */
                 /* TODO: Create folder window for root directory */
-                /* serial_printf("Opening volume: %s (root ID=%d)\n", vcb.name, vcb.rootID); */
+                /* FINDER_LOG_DEBUG("Opening volume: %s (root ID=%d)\n", vcb.name, vcb.rootID); */
 
                 return noErr;
             }

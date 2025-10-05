@@ -9,6 +9,7 @@
 #include "FontManager/FontManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include <string.h>
+#include "TextEdit/TELogging.h"
 
 /* Boolean constants */
 #ifndef TRUE
@@ -41,8 +42,7 @@ typedef TEExtRec *TEExtPtr, **TEExtHandle;
 #define TED_DEBUG 1
 
 #if TED_DEBUG
-extern void serial_printf(const char* fmt, ...);
-#define TED_LOG(...) serial_printf("TED: " __VA_ARGS__)
+#define TED_LOG(...) TE_LOG_DEBUG("TED: " __VA_ARGS__)
 #else
 #define TED_LOG(...)
 #endif

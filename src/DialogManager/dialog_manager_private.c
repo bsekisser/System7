@@ -13,6 +13,7 @@
 #include "SystemTypes.h"
 #include "dialog_manager_private.h"
 #include "DialogManager/dialog_manager_core.h"
+#include "DialogManager/DialogLogging.h"
 
 
 /* Private global state access - evidence from DialogMgrGlobals */

@@ -30,6 +30,7 @@
 #include "System71StdLib.h"
 
 #include "ProcessMgr/ProcessMgr.h"
+#include "ProcessMgr/ProcessLogging.h"
 /* #include <Traps.h> - not available */
 /* #include <ToolUtils.h> - not available */
 

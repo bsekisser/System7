@@ -2,10 +2,10 @@
 #include "SystemTypes.h"
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/AlertDialogs.h"
+#include "DialogManager/DialogLogging.h"
 
 #ifdef ALERT_SMOKE_TEST
 
-extern void serial_printf(const char*, ...);
 extern void CenterDialogOnScreen(DialogPtr dlg);
 extern void ShowWindow(WindowPtr w);
 extern void HideWindow(WindowPtr w);
@@ -20,14 +20,14 @@ static short kCautionAlert = 131;
 
 static void ShowAlertAndLog(const char* name, short id) {
     short item = 0;
-    serial_printf("[ALERT] Opening %s (id=%d)\n", name, id);
+    DIALOG_LOG_DEBUG("[ALERT] Opening %s (id=%d)\n", name, id);
 
     /* For smoke testing: inject a Return key event to auto-dismiss the alert */
     /* keyDown event (3), Return character (0x0D) in low byte */
     PostEvent(3 /* keyDown */, 0x0D /* '\r' */);
 
     item = Alert(id, NULL);  /* uses your RunAlertDialog + ModalDialog pipeline */
-    serial_printf("[ALERT] %s dismissed with item=%d\n", name, item);
+    DIALOG_LOG_DEBUG("[ALERT] %s dismissed with item=%d\n", name, item);
 }
 
 void DoAlertSmokeTests(void) {
@@ -65,9 +65,9 @@ void DoAlertSmokeTests(void) {
  * InitAlertSmokeTest - Initialize and run alert smoke tests
  */
 void InitAlertSmokeTest(void) {
-    serial_printf("[ALERT SMOKE] Enabled\n");
+    DIALOG_LOG_DEBUG("[ALERT SMOKE] Enabled\n");
     DoAlertSmokeTests();
-    serial_printf("[ALERT SMOKE] Completed\n");
+    DIALOG_LOG_DEBUG("[ALERT SMOKE] Completed\n");
 }
 
 #else

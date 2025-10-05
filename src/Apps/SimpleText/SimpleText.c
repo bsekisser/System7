@@ -13,7 +13,7 @@
 extern UInt32 TickCount(void);
 
 /* Debug logging */
-extern void serial_printf(const char* fmt, ...);
+#include "System/SystemLogging.h"
 #define ST_DEBUG 1
 
 #if ST_DEBUG
@@ -37,7 +37,7 @@ void ST_Log(const char* fmt, ...) {
     }
     buf[i] = '\0';
 
-    serial_printf("%s", buf);
+    SYSTEM_LOG_DEBUG("%s", buf);
 }
 #else
 #define ST_Log(...)

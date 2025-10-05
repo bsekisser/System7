@@ -19,6 +19,7 @@
 #include "DialogManager/DialogManagerStateExt.h"
 #include "DialogManager/DialogHelpers.h"
 #include <stdbool.h>
+#include "DialogManager/DialogLogging.h"
 
 /* Event constants - matching Mac System 7.1 */
 #define kDialogEvent_Null         0
@@ -118,7 +119,7 @@ void InitModalDialogs(void)
         gModalState.filterUserData[i] = NULL;
     }
 
-    serial_printf("Modal dialog subsystem initialized\n");
+    DIALOG_LOG_DEBUG("Modal dialog subsystem initialized\n");
 }
 
 /*
@@ -137,14 +138,14 @@ void ModalDialog(ModalFilterProcPtr filterProc, SInt16* itemHit)
 
     dlg = FrontDialog();
     if (!dlg) {
-        serial_printf("ModalDialog: No dialog to process\n");
+        DIALOG_LOG_DEBUG("ModalDialog: No dialog to process\n");
         return;
     }
 
     /* Draw once */
     UpdateDialog(dlg, ((WindowPtr)dlg)->port.clipRgn);
 
-    serial_printf("ModalDialog: Starting modal loop for dialog %p\n", (void*)dlg);
+    DIALOG_LOG_DEBUG("ModalDialog: Starting modal loop for dialog %p\n", (void*)dlg);
 
     /* Test-only: auto-dismiss after timeout for smoke tests */
     UInt32 startTime = TickCount();
@@ -154,7 +155,7 @@ void ModalDialog(ModalFilterProcPtr filterProc, SInt16* itemHit)
     for (;;) {
         /* Test-only: auto-dismiss for smoke testing */
         if (TickCount() - startTime > kTestTimeout) {
-            serial_printf("ModalDialog: Test timeout, auto-dismissing with default item\n");
+            DIALOG_LOG_DEBUG("ModalDialog: Test timeout, auto-dismissing with default item\n");
             if (itemHit) *itemHit = GetDialogDefaultItem(dlg);
             return;
         }
@@ -166,12 +167,12 @@ void ModalDialog(ModalFilterProcPtr filterProc, SInt16* itemHit)
             continue;
         }
 
-        serial_printf("ModalDialog: Got event what=%d, message=0x%lx\n", evt.what, evt.message);
+        DIALOG_LOG_DEBUG("ModalDialog: Got event what=%d, message=0x%lx\n", evt.what, evt.message);
 
         /* Filter first (can swallow / modify events) */
         if (filterProc && (*filterProc)(dlg, &evt, itemHit)) {
             if (itemHit && *itemHit) {
-                serial_printf("ModalDialog: Filter returned item %d\n", *itemHit);
+                DIALOG_LOG_DEBUG("ModalDialog: Filter returned item %d\n", *itemHit);
                 return;
             }
             continue;
@@ -183,7 +184,7 @@ void ModalDialog(ModalFilterProcPtr filterProc, SInt16* itemHit)
             if (DM_HandleDialogKey((WindowPtr)dlg, &evt, &keyItem)) {
                 if (keyItem) {
                     if (itemHit) *itemHit = keyItem;
-                    serial_printf("ModalDialog: Keyboard activated item %d\n", keyItem);
+                    DIALOG_LOG_DEBUG("ModalDialog: Keyboard activated item %d\n", keyItem);
                     return;
                 }
                 /* Key was handled (focus/toggle) but didn't dismiss dialog */
@@ -194,7 +195,7 @@ void ModalDialog(ModalFilterProcPtr filterProc, SInt16* itemHit)
             Boolean cmd = (evt.modifiers & cmdKey) != 0;
             if (cmd && ch == '.') {
                 if (itemHit) *itemHit = GetDialogCancelItem(dlg);
-                serial_printf("ModalDialog: Cmd-. -> cancel item %d\n", *itemHit);
+                DIALOG_LOG_DEBUG("ModalDialog: Cmd-. -> cancel item %d\n", *itemHit);
                 return;
             }
         }
@@ -205,7 +206,7 @@ void ModalDialog(ModalFilterProcPtr filterProc, SInt16* itemHit)
             SInt16 hitItem = 0;
             if (DialogSelect(&evt, &hitDlg, &hitItem) && hitItem) {
                 if (itemHit) *itemHit = hitItem;
-                serial_printf("ModalDialog: Mouse hit item %d\n", hitItem);
+                DIALOG_LOG_DEBUG("ModalDialog: Mouse hit item %d\n", hitItem);
                 return;
             }
         }
@@ -249,7 +250,7 @@ OSErr BeginModalDialog(DialogPtr theDialog)
     /* Disable non-modal windows */
     DisableNonModalWindows();
 
-    serial_printf("Began modal processing for dialog at %p (level %d)\n",
+    DIALOG_LOG_DEBUG("Began modal processing for dialog at %p (level %d)\n",
            (void*)theDialog, gModalState.modalLevel);
 
     return 0; /* noErr */
@@ -289,7 +290,7 @@ void EndModalDialog(DialogPtr theDialog)
         }
     }
 
-    serial_printf("Ended modal processing for dialog at %p (level %d)\n",
+    DIALOG_LOG_DEBUG("Ended modal processing for dialog at %p (level %d)\n",
            (void*)theDialog, gModalState.modalLevel);
 }
 
@@ -427,7 +428,7 @@ void BringModalToFront(DialogPtr theDialog)
     }
 
     /* In a full implementation, this would call SelectWindow or similar */
-    serial_printf("Bringing modal dialog at %p to front\n", (void*)theDialog);
+    DIALOG_LOG_DEBUG("Bringing modal dialog at %p to front\n", (void*)theDialog);
 }
 
 /*
@@ -437,7 +438,7 @@ void DisableNonModalWindows(void)
 {
     /* In a full implementation, this would iterate through all windows
        and disable those that are not modal dialogs */
-    serial_printf("Disabling non-modal windows\n");
+    DIALOG_LOG_DEBUG("Disabling non-modal windows\n");
 }
 
 /*
@@ -446,7 +447,7 @@ void DisableNonModalWindows(void)
 void EnableNonModalWindows(void)
 {
     /* In a full implementation, this would re-enable previously disabled windows */
-    serial_printf("Re-enabling non-modal windows\n");
+    DIALOG_LOG_DEBUG("Re-enabling non-modal windows\n");
 }
 
 /*
@@ -512,7 +513,7 @@ static void HandleModalTimeout(DialogPtr theDialog, SInt16* itemHit)
         FlashButtonInternal(theDialog, defaultItem);
     }
 
-    serial_printf("Modal dialog timeout - activated default item %d\n", defaultItem);
+    DIALOG_LOG_DEBUG("Modal dialog timeout - activated default item %d\n", defaultItem);
 }
 
 static Boolean ProcessStandardModalKeys(DialogPtr theDialog, EventRecord* theEvent, SInt16* itemHit)
@@ -582,7 +583,7 @@ static void FlashButtonInternal(DialogPtr theDialog, SInt16 itemNo)
     }
 
     /* Flash the button by briefly highlighting it */
-    serial_printf("Flashing button %d in dialog at %p\n", itemNo, (void*)theDialog);
+    DIALOG_LOG_DEBUG("Flashing button %d in dialog at %p\n", itemNo, (void*)theDialog);
 
     /* In a full implementation, this would:
        1. Invert the button
@@ -607,26 +608,26 @@ static void FlashButtonInternal(DialogPtr theDialog, SInt16 itemNo)
 void SetModalDialogTimeout(DialogPtr theDialog, UInt32 timeoutTicks, SInt16 defaultItem)
 {
     /* This would be implemented with a timer system */
-    serial_printf("Set modal dialog timeout: %u ticks, default item %d\n",
+    DIALOG_LOG_DEBUG("Set modal dialog timeout: %u ticks, default item %d\n",
            timeoutTicks, defaultItem);
 }
 
 void ClearModalDialogTimeout(DialogPtr theDialog)
 {
-    serial_printf("Cleared modal dialog timeout\n");
+    DIALOG_LOG_DEBUG("Cleared modal dialog timeout\n");
 }
 
 void SetModalDialogDismissButton(DialogPtr theDialog, SInt16 itemNo)
 {
     /* This would configure which button dismisses the dialog */
-    serial_printf("Set dismiss button to item %d\n", itemNo);
+    DIALOG_LOG_DEBUG("Set dismiss button to item %d\n", itemNo);
 }
 
 SInt16 ShowNativeModal(const char* message, const char* title,
                        const char* buttons, SInt16 iconType)
 {
     /* Platform-specific native modal dialog */
-    serial_printf("Native modal: %s - %s (buttons: %s, icon: %d)\n",
+    DIALOG_LOG_DEBUG("Native modal: %s - %s (buttons: %s, icon: %d)\n",
            title, message, buttons, iconType);
     return 1; /* Default to OK */
 }
@@ -642,5 +643,5 @@ void CleanupModalDialogs(void)
     gModalState.currentModal = NULL;
     gModalState.inModalLoop = false;
 
-    serial_printf("Modal dialog subsystem cleaned up\n");
+    DIALOG_LOG_DEBUG("Modal dialog subsystem cleaned up\n");
 }

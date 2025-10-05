@@ -18,6 +18,7 @@
 #include "WindowManager/WindowManager.h"
 #include "DialogManager/dialog_manager_core.h"
 #include "DialogManager/dialog_manager_dispatch.h"
+#include "DialogManager/DialogLogging.h"
 
 
 static DialogMgrGlobals gDialogMgrGlobals = {
@@ -189,7 +190,6 @@ void GetDialogItemText(Handle item, Str255 text) {
     text[0] = 0;  /* Empty string by default */
 
     /* Extract text from dialog item handle */
-    extern void serial_printf(const char* fmt, ...);
 
     /* Check if item contains text data */
     /* Dialog items store text after the item type/rect data */
@@ -207,7 +207,7 @@ void GetDialogItemText(Handle item, Str255 text) {
             text[i+1] = textData[i+1];
         }
 
-        serial_printf("GetDialogItemText: Retrieved %d chars\n", len);
+        DIALOG_LOG_DEBUG("GetDialogItemText: Retrieved %d chars\n", len);
     } else {
         /* No text data */
         text[0] = 0;
@@ -225,7 +225,6 @@ void SetDialogItemText(Handle item, const Str255 text) {
     /* Real implementation would set text in item based on item type */
 
     /* Set text in dialog item handle */
-    extern void serial_printf(const char* fmt, ...);
 
     unsigned char len = text[0];
     if (len > 255) len = 255;
@@ -245,9 +244,9 @@ void SetDialogItemText(Handle item, const Str255 text) {
             textData[i+1] = text[i+1];
         }
 
-        serial_printf("SetDialogItemText: Set %d chars\n", len);
+        DIALOG_LOG_DEBUG("SetDialogItemText: Set %d chars\n", len);
     } else {
-        serial_printf("SetDialogItemText: Failed to resize handle\n");
+        DIALOG_LOG_DEBUG("SetDialogItemText: Failed to resize handle\n");
     }
 }
 
@@ -267,7 +266,6 @@ SInt16 FindDialogItem(DialogPtr theDialog, Point thePt) {
     /* Real implementation would iterate through DITL and test each item rect */
 
     /* Implement hit testing against dialog item rectangles */
-    extern void serial_printf(const char* fmt, ...);
 
     /* DITL format: count word followed by items */
     short* ditlData = (short*)*itemList;
@@ -287,7 +285,7 @@ SInt16 FindDialogItem(DialogPtr theDialog, Point thePt) {
         /* Check if point is in this item's rect */
         if (thePt.h >= itemRect->left && thePt.h < itemRect->right &&
             thePt.v >= itemRect->top && thePt.v < itemRect->bottom) {
-            serial_printf("FindDialogItem: Hit item %d at (%d,%d)\n", i, thePt.h, thePt.v);
+            DIALOG_LOG_DEBUG("FindDialogItem: Hit item %d at (%d,%d)\n", i, thePt.h, thePt.v);
             return i;
         }
 

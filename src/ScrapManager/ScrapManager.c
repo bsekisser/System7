@@ -17,18 +17,18 @@
 #endif
 #include "Gestalt/Gestalt.h"
 #include "System71StdLib.h"
+#include "ScrapManager/ScrapLogging.h"
 
 /* Additional function declarations */
 extern OSErr Gestalt_RegisterSelector(OSType selector, SInt32 value);
 extern void BlockMoveData(const void* src, void* dest, Size size);
 extern OSErr MemError(void);
-extern void serial_printf(const char* fmt, ...);
 
 /* Debug logging control */
 #define SCRAP_DEBUG 1
 
 #if SCRAP_DEBUG
-#define SCRAP_LOG(...) serial_printf("[Scrap] " __VA_ARGS__)
+#define SCRAP_LOG(...) SCRAP_LOG_DEBUG("[Scrap] " __VA_ARGS__)
 #else
 #define SCRAP_LOG(...)
 #endif

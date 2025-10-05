@@ -8,13 +8,14 @@
 
 #include <stdlib.h>
 #include <string.h>
-#define printf(...) serial_printf(__VA_ARGS__)
+#define printf(...) DIALOG_LOG_DEBUG(__VA_ARGS__)
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "DialogManager/DialogResources.h"
 #include "DialogManager/DialogTypes.h"
 #include "DialogManager/DialogItems.h"
+#include "DialogManager/DialogLogging.h"
 
 /* External Resource Manager functions */
 extern Handle GetResource(ResType theType, SInt16 theID);

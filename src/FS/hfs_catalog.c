@@ -3,9 +3,9 @@
 #include "../../include/FS/hfs_endian.h"
 #include "../../include/MemoryMgr/MemoryManager.h"
 #include <string.h>
+#include "FS/FSLogging.h"
 
 /* Serial debug output */
-extern void serial_printf(const char* fmt, ...);
 
 /* MacRoman to ASCII conversion table (simplified) */
 static const uint8_t macRomanToASCII[128] = {
@@ -88,7 +88,7 @@ bool HFS_ParseCatalogRecord(const HFS_CatKey* key, const void* data, uint16_t da
         return false;
 
     default:
-        /* serial_printf("HFS Catalog: Unknown record type 0x%04x\n", recordType); */
+        /* FS_LOG_DEBUG("HFS Catalog: Unknown record type 0x%04x\n", recordType); */
         return false;
     }
 }
@@ -105,19 +105,18 @@ typedef struct {
 static bool enum_callback(void* keyPtr, uint16_t keyLen,
                          void* dataPtr, uint16_t dataLen,
                          void* context) {
-    extern void serial_printf(const char* fmt, ...);
     EnumContext* ctx = (EnumContext*)context;
     HFS_CatKey* key = (HFS_CatKey*)keyPtr;
 
     /* Debug: show first 8 bytes of key */
     uint8_t* bytes = (uint8_t*)keyPtr;
-    serial_printf("HFS enum_callback: keyBytes=[%02x %02x %02x %02x %02x %02x %02x %02x]\n",
+    FS_LOG_DEBUG("HFS enum_callback: keyBytes=[%02x %02x %02x %02x %02x %02x %02x %02x]\n",
                  bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7]);
 
     /* Check if this entry belongs to our parent */
     uint32_t entryParent = be32_read(&key->parentID);
 
-    serial_printf("HFS enum_callback: entryParent=%d target=%d nameLen=%d\n",
+    FS_LOG_DEBUG("HFS enum_callback: entryParent=%d target=%d nameLen=%d\n",
                  (int)entryParent, (int)ctx->parentID, key->nameLength);
 
     if (entryParent != ctx->parentID) {
@@ -126,14 +125,14 @@ static bool enum_callback(void* keyPtr, uint16_t keyLen,
 
     /* Check if we have room */
     if (ctx->count >= ctx->maxEntries) {
-        serial_printf("HFS enum_callback: out of room\n");
+        FS_LOG_DEBUG("HFS enum_callback: out of room\n");
         return false;  /* Stop iteration */
     }
 
     /* Parse the record */
     CatEntry entry;
     if (HFS_ParseCatalogRecord(key, dataPtr, dataLen, &entry)) {
-        serial_printf("HFS enum_callback: matched! adding entry '%s'\n", entry.name);
+        FS_LOG_DEBUG("HFS enum_callback: matched! adding entry '%s'\n", entry.name);
         ctx->entries[ctx->count++] = entry;
     }
 
@@ -141,10 +140,10 @@ static bool enum_callback(void* keyPtr, uint16_t keyLen,
 }
 
 bool HFS_CatalogInit(HFS_Catalog* cat, HFS_Volume* vol) {
-    /* serial_printf("HFS_CatalogInit: ENTER (cat=%p, vol=%p)\n", cat, vol); */
+    /* FS_LOG_DEBUG("HFS_CatalogInit: ENTER (cat=%p, vol=%p)\n", cat, vol); */
 
     if (!cat || !vol || !vol->mounted) {
-        serial_printf("HFS_CatalogInit: Invalid params (cat=%p, vol=%p, mounted=%d)\n",
+        FS_LOG_DEBUG("HFS_CatalogInit: Invalid params (cat=%p, vol=%p, mounted=%d)\n",
                      cat, vol, vol ? vol->mounted : 0);
         return false;
     }
@@ -153,14 +152,14 @@ bool HFS_CatalogInit(HFS_Catalog* cat, HFS_Volume* vol) {
     cat->vol = vol;
 
     /* Initialize B-tree */
-    serial_printf("HFS_CatalogInit: About to initialize catalog B-tree (vol=%p, catFileSize=%u)\n",
+    FS_LOG_DEBUG("HFS_CatalogInit: About to initialize catalog B-tree (vol=%p, catFileSize=%u)\n",
                  vol, vol->catFileSize);
     if (!HFS_BT_Init(&cat->bt, vol, kBTreeCatalog)) {
-        /* serial_printf("HFS_CatalogInit: B-tree init failed\n"); */
+        /* FS_LOG_DEBUG("HFS_CatalogInit: B-tree init failed\n"); */
         return false;
     }
 
-    /* serial_printf("HFS_CatalogInit: Success\n"); */
+    /* FS_LOG_DEBUG("HFS_CatalogInit: Success\n"); */
     return true;
 }
 
@@ -173,12 +172,11 @@ void HFS_CatalogClose(HFS_Catalog* cat) {
 
 bool HFS_CatalogEnumerate(HFS_Catalog* cat, DirID parentID,
                          CatEntry* entries, int maxEntries, int* count) {
-    extern void serial_printf(const char* fmt, ...);
 
-    serial_printf("HFS_CatalogEnumerate: ENTRY parentID=%d maxEntries=%d\n", (int)parentID, maxEntries);
+    FS_LOG_DEBUG("HFS_CatalogEnumerate: ENTRY parentID=%d maxEntries=%d\n", (int)parentID, maxEntries);
 
     if (!cat || !entries || maxEntries <= 0 || !count) {
-        serial_printf("HFS_CatalogEnumerate: Invalid params\n");
+        FS_LOG_DEBUG("HFS_CatalogEnumerate: Invalid params\n");
         return false;
     }
 
@@ -189,13 +187,13 @@ bool HFS_CatalogEnumerate(HFS_Catalog* cat, DirID parentID,
         .count = 0
     };
 
-    serial_printf("HFS_CatalogEnumerate: Calling HFS_BT_IterateLeaves, firstLeaf=%d\n",
+    FS_LOG_DEBUG("HFS_CatalogEnumerate: Calling HFS_BT_IterateLeaves, firstLeaf=%d\n",
                  (int)cat->bt.firstLeaf);
 
     /* Iterate through all leaf nodes */
     bool result = HFS_BT_IterateLeaves(&cat->bt, enum_callback, &ctx);
 
-    serial_printf("HFS_CatalogEnumerate: IterateLeaves returned %d, found %d entries\n",
+    FS_LOG_DEBUG("HFS_CatalogEnumerate: IterateLeaves returned %d, found %d entries\n",
                  result, ctx.count);
 
     *count = ctx.count;

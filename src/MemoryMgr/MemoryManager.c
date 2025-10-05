@@ -1,9 +1,9 @@
 /* Classic Mac Memory Manager Implementation */
 #include "../../include/MemoryMgr/MemoryManager.h"
 #include <string.h>
+#include "MemoryMgr/MemoryLogging.h"
 
 /* Serial debug output */
-extern void serial_printf(const char* fmt, ...);
 
 /* Alignment */
 #define ALIGN     8u
@@ -575,8 +575,7 @@ void InitMemoryManager(void) {
 
     /* Report detected memory (comes from multiboot2) */
     extern uint32_t g_total_memory_kb;
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("MM: Total memory: %u KB (%u MB)\n",
+    MEMORY_LOG_DEBUG("MM: Total memory: %u KB (%u MB)\n",
                  g_total_memory_kb, g_total_memory_kb / 1024);
 
     serial_puts("MM: InitMemoryManager complete\n");
@@ -608,7 +607,7 @@ void CheckHeap(ZoneInfo* zone) {
         scan += b->size;
     }
 
-    serial_printf("Heap check: %u blocks, %u used, %u free, %u total\n",
+    MEMORY_LOG_DEBUG("Heap check: %u blocks, %u used, %u free, %u total\n",
                   blockCount, usedSize, freeSize, totalSize);
 }
 
@@ -616,7 +615,7 @@ void DumpHeap(ZoneInfo* zone) {
     if (!zone) zone = gCurrentZone;
     if (!zone) return;
 
-    serial_printf("=== Heap Dump: %s ===\n", zone->name);
+    MEMORY_LOG_DEBUG("=== Heap Dump: %s ===\n", zone->name);
 
     u8* scan = zone->base;
     while (scan < zone->limit) {
@@ -633,23 +632,23 @@ void DumpHeap(ZoneInfo* zone) {
             }
         }
 
-        serial_printf("  %08x: %s size=%5u prev=%5u",
+        MEMORY_LOG_DEBUG("  %08x: %s size=%5u prev=%5u",
                       (u32)scan, type, b->size, b->prevSize);
 
         if (b->flags & BF_HANDLE && b->masterPtr) {
-            serial_printf(" mp=%08x", (u32)b->masterPtr);
+            MEMORY_LOG_DEBUG(" mp=%08x", (u32)b->masterPtr);
             if (*b->masterPtr) {
-                serial_printf(" *mp=%08x", (u32)*b->masterPtr);
+                MEMORY_LOG_DEBUG(" *mp=%08x", (u32)*b->masterPtr);
             }
         }
-        serial_printf("\n");
+        MEMORY_LOG_DEBUG("\n");
 
         scan += b->size;
         if (scan > zone->limit) {
-            serial_printf("  ERROR: Block extends past zone limit!\n");
+            MEMORY_LOG_DEBUG("  ERROR: Block extends past zone limit!\n");
             break;
         }
     }
 
-    serial_printf("=== End Heap Dump ===\n");
+    MEMORY_LOG_DEBUG("=== End Heap Dump ===\n");
 }

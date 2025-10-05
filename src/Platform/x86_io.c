@@ -5,6 +5,7 @@
  */
 
 #include <stdint.h>
+#include "Platform/PlatformLogging.h"
 
 /*
  * outb - Write byte to I/O port

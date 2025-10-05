@@ -14,6 +14,7 @@
 #include "FontManager/TrueTypeFonts.h"
 #include <Memory.h>
 #include <Errors.h>
+#include "FontManager/FontLogging.h"
 
 
 /* Font cache global state */

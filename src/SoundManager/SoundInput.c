@@ -18,6 +18,7 @@
 
 #include "SoundManager/SoundManager.h"
 #include "SoundManager/SoundHardware.h"
+#include "SoundManager/SoundLogging.h"
 
 
 /* Audio Recording Implementation */

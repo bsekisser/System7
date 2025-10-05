@@ -17,6 +17,7 @@
 #include "EventManager/EventManager.h"
 #include "QuickDrawConstants.h"
 #include "System71StdLib.h"
+#include "DialogManager/DialogLogging.h"
 
 /* Logging helpers */
 #define DM_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleDialog, kLogLevelDebug, "[DM] " fmt, ##__VA_ARGS__)

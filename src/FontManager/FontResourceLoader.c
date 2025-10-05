@@ -9,6 +9,7 @@
 #include "FontManager/FontTypes.h"
 #include "SystemTypes.h"
 #include <string.h>
+#include "FontManager/FontLogging.h"
 
 /* Ensure boolean constants */
 #ifndef TRUE
@@ -27,8 +28,7 @@ static int fm_abs(int x) {
 #define FRL_DEBUG 1
 
 #if FRL_DEBUG
-extern void serial_printf(const char* fmt, ...);
-#define FRL_LOG(...) serial_printf("FRL: " __VA_ARGS__)
+#define FRL_LOG(...) FONT_LOG_DEBUG("FRL: " __VA_ARGS__)
 #else
 #define FRL_LOG(...)
 #endif

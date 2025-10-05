@@ -1,6 +1,7 @@
 #include "SystemTypes.h"
 #include "multiboot.h"
 #include "System71StdLib.h"
+#include "System/SystemLogging.h"
 /*
  * System 7.1 Portable - System Initialization Implementation
  *
@@ -599,12 +600,12 @@ SystemError SystemShutdown(Boolean restart) {
 }
 
 void SystemPanic(SystemError error_code, const char* message) {
-    serial_printf( "\n*** SYSTEM PANIC ***\n");
-    serial_printf( "Error Code: %d\n", error_code);
+    SYSTEM_LOG_ERROR( "\n*** SYSTEM PANIC ***\n");
+    SYSTEM_LOG_ERROR( "Error Code: %d\n", error_code);
     if (message) {
-        serial_printf( "Message: %s\n", message);
+        SYSTEM_LOG_ERROR( "Message: %s\n", message);
     }
-    serial_printf( "System Stage: %d\n", g_system.init_stage);
+    SYSTEM_LOG_ERROR( "System Stage: %d\n", g_system.init_stage);
 
     /* Minimal cleanup */
     if (g_system.callbacks.errorCallback) {
@@ -718,5 +719,5 @@ static void ReportError(SystemError error, const char* message) {
         g_system.callbacks.errorCallback(error, message);
     }
 
-    serial_printf( "[ERROR] Code %d: %s\n", error, message ? message : "");
+    SYSTEM_LOG_ERROR( "[ERROR] Code %d: %s\n", error, message ? message : "");
 }

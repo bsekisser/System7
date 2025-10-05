@@ -11,6 +11,7 @@
 #include "TimeManager/TimeManager.h"
 #include "EventManager/EventTypes.h"
 #include "System71StdLib.h"
+#include "ProcessMgr/ProcessLogging.h"
 
 /* Process states */
 #define PROC_FREE     0

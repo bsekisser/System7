@@ -13,6 +13,7 @@
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/DialogTypes.h"
 #include "DialogManager/DialogManagerInternal.h"
+#include "DialogManager/DialogLogging.h"
 
 /* DITL resource format (System 7.1):
  *
@@ -34,12 +35,12 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
     DialogItemEx* itemArray;
 
     if (!ditlHandle || !items || !itemCount) {
-        serial_printf("Dialog: ParseDITL - invalid parameters\n");
+        DIALOG_LOG_DEBUG("Dialog: ParseDITL - invalid parameters\n");
         return -1;
     }
 
     if (!*ditlHandle) {
-        serial_printf("Dialog: ParseDITL - null handle data\n");
+        DIALOG_LOG_DEBUG("Dialog: ParseDITL - null handle data\n");
         return -1;
     }
 
@@ -51,17 +52,17 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
     p += 2;
 
     if (count < 0 || count > 256) {
-        serial_printf("Dialog: ParseDITL - invalid item count %d\n", count);
+        DIALOG_LOG_DEBUG("Dialog: ParseDITL - invalid item count %d\n", count);
         return -1;
     }
 
     *itemCount = count;
-    serial_printf("Dialog: Parsing DITL with %d items\n", count);
+    DIALOG_LOG_DEBUG("Dialog: Parsing DITL with %d items\n", count);
 
     /* Allocate item array */
     itemArray = (DialogItemEx*)malloc(count * sizeof(DialogItemEx));
     if (!itemArray) {
-        serial_printf("Dialog: ParseDITL - malloc failed\n");
+        DIALOG_LOG_DEBUG("Dialog: ParseDITL - malloc failed\n");
         return -108;  /* memFullErr */
     }
 
@@ -138,7 +139,7 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
             p++;
         }
 
-        serial_printf("Dialog: Item %d: type=%d bounds=(%d,%d,%d,%d)\n",
+        DIALOG_LOG_DEBUG("Dialog: Item %d: type=%d bounds=(%d,%d,%d,%d)\n",
                      i+1, itemType, bounds.top, bounds.left, bounds.bottom, bounds.right);
     }
 

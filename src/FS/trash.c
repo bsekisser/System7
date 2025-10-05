@@ -5,6 +5,7 @@
 #include "FS/trash.h"
 #include "FS/vfs_ops.h"
 #include <string.h>
+#include "FS/FSLogging.h"
 
 #define TRASH_NAME "Trash"   /* classic 7.x name (hidden) */
 static TrashInfo gTrash[8];  /* small mount table (grow if needed) */

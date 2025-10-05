@@ -29,6 +29,7 @@
 #include "SoundManager/SoundSynthesis.h"
 #include "SoundManager/SoundHardware.h"
 #include "Resources/ResourceData.h"
+#include "SoundManager/SoundLogging.h"
 
 
 /* Sound Manager Global State */

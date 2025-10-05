@@ -24,6 +24,7 @@
 /* Use local headers instead of system headers */
 #include "MemoryMgr/memory_manager_types.h"
 #include "ResourceManager.h"
+#include "Finder/FinderLogging.h"
 /* Note: Aliases.h may not exist yet */
 
 

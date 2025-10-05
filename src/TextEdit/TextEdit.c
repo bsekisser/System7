@@ -17,6 +17,7 @@
 #include "FontManager/FontManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "WindowManager/WindowManager.h"
+#include "TextEdit/TELogging.h"
 
 /* Boolean constants */
 #ifndef TRUE
@@ -30,8 +31,7 @@
 #define TE_DEBUG 1
 
 #if TE_DEBUG
-extern void serial_printf(const char* fmt, ...);
-#define TE_LOG(...) serial_printf("TE: " __VA_ARGS__)
+#define TE_LOG(...) TE_LOG_DEBUG("TE: " __VA_ARGS__)
 #else
 #define TE_LOG(...)
 #endif

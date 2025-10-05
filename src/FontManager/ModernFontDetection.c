@@ -15,6 +15,7 @@
 
 #include "FontManager/ModernFonts.h"
 #include "FontManager/FontManager.h"
+#include "FontManager/FontLogging.h"
 
 
 /* Font format detection functions */

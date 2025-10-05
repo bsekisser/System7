@@ -22,6 +22,7 @@
 #include "ErrorCodes.h"
 #include "System71StdLib.h"
 #include "ErrorCodes.h"
+#include "ScrapManager/ScrapLogging.h"
 
 /* Platform detection */
 #ifdef PLATFORM_REMOVED_WIN32

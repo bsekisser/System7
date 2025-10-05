@@ -9,7 +9,6 @@
 #include "MemoryMgr/MemoryManager.h"
 #include "FS/vfs.h"
 
-extern void serial_printf(const char* fmt, ...);
 
 /* Read file into document */
 Boolean STIO_ReadFile(STDocument* doc, const char* path)

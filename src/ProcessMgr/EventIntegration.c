@@ -8,6 +8,7 @@
 
 #include "SystemTypes.h"
 #include "EventManager/EventTypes.h"
+#include "ProcessMgr/ProcessLogging.h"
 
 /* Event queue - ring buffer */
 #define EVENT_QUEUE_SIZE 64
@@ -17,7 +18,6 @@ static UInt16 gQueueTail = 0;
 static UInt16 gQueueCount = 0;
 
 /* External functions */
-extern void serial_printf(const char* fmt, ...);
 extern void Proc_UnblockEvent(EventRecord* evt);
 extern UInt32 TickCount(void);
 extern void GetMouse(Point* pt);
@@ -125,7 +125,7 @@ OSErr Proc_PostEvent(EventKind what, UInt32 message) {
     EventRecord evt;
 
     if (gQueueCount >= EVENT_QUEUE_SIZE) {
-        serial_printf("EventMgr: Queue full, dropping event %d\n", what);
+        PROCESS_LOG_DEBUG("EventMgr: Queue full, dropping event %d\n", what);
         return evtNotEnb;  /* Event queue full */
     }
 
@@ -143,7 +143,7 @@ OSErr Proc_PostEvent(EventKind what, UInt32 message) {
     gQueueTail = (gQueueTail + 1) % EVENT_QUEUE_SIZE;
     gQueueCount++;
 
-    serial_printf("EventMgr: Posted event %d msg=0x%08x\n", what, message);
+    PROCESS_LOG_DEBUG("EventMgr: Posted event %d msg=0x%08x\n", what, message);
 
     /* Unblock any process waiting for this event */
     Proc_UnblockEvent(&evt);
@@ -159,7 +159,7 @@ static void Proc_FlushEvents(EventMask whichMask, EventMask stopMask) {
     UInt16 writeIdx = gQueueHead;
     UInt16 count = gQueueCount;
 
-    serial_printf("EventMgr: Flushing events mask=0x%04x stop=0x%04x\n",
+    PROCESS_LOG_DEBUG("EventMgr: Flushing events mask=0x%04x stop=0x%04x\n",
                   whichMask, stopMask);
 
     while (count > 0) {
@@ -213,7 +213,7 @@ static Boolean DequeueEvent(EventMask mask, EventRecord* evt) {
             gQueueHead = (gQueueHead + 1) % EVENT_QUEUE_SIZE;
             gQueueCount--;
 
-            serial_printf("EventMgr: Dequeued event %d\n", evt->what);
+            PROCESS_LOG_DEBUG("EventMgr: Dequeued event %d\n", evt->what);
             return true;
         }
 
@@ -284,7 +284,7 @@ void Event_InitQueue(void) {
     gQueueCount = 0;
     memset(gEventQueue, 0, sizeof(gEventQueue));
 
-    serial_printf("EventMgr: Event queue initialized\n");
+    PROCESS_LOG_DEBUG("EventMgr: Event queue initialized\n");
 }
 
 UInt16 Event_QueueCount(void) {
@@ -296,8 +296,8 @@ void Event_DumpQueue(void) {
     UInt16 count = gQueueCount;
     UInt16 i = 0;
 
-    serial_printf("\n=== Event Queue ===\n");
-    serial_printf("Head=%d Tail=%d Count=%d\n",
+    PROCESS_LOG_DEBUG("\n=== Event Queue ===\n");
+    PROCESS_LOG_DEBUG("Head=%d Tail=%d Count=%d\n",
                   gQueueHead, gQueueTail, gQueueCount);
 
     while (count > 0) {
@@ -319,7 +319,7 @@ void Event_DumpQueue(void) {
             case kHighLevelEvent: typeStr = "hlev"; break;
         }
 
-        serial_printf("[%2d] %-4s msg=0x%08x time=%lu pos=(%d,%d)\n",
+        PROCESS_LOG_DEBUG("[%2d] %-4s msg=0x%08x time=%lu pos=(%d,%d)\n",
                      i, typeStr, evt->message, evt->when,
                      evt->where.h, evt->where.v);
 
@@ -327,7 +327,7 @@ void Event_DumpQueue(void) {
         count--;
         i++;
     }
-    serial_printf("==================\n\n");
+    PROCESS_LOG_DEBUG("==================\n\n");
 }
 
 /*

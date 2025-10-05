@@ -3,9 +3,9 @@
 #include "../../include/FS/hfs_endian.h"
 #include "../../include/MemoryMgr/MemoryManager.h"
 #include <string.h>
+#include "FS/FSLogging.h"
 
 /* Serial debug output */
-extern void serial_printf(const char* fmt, ...);
 
 /* Find file record in catalog by ID */
 static bool find_file_record(HFS_Catalog* cat, FileID id, HFS_CatFileRec* fileRec) {
@@ -111,7 +111,7 @@ static bool read_from_extents(HFS_Volume* vol, const HFS_Extent* extents,
 
     /* TODO: Handle overflow extents for large files */
     if (remaining > 0 && *bytesRead == 0) {
-        /* serial_printf("HFS File: Need overflow extents (not implemented)\n"); */
+        /* FS_LOG_DEBUG("HFS File: Need overflow extents (not implemented)\n"); */
     }
 
     return true;
@@ -123,7 +123,7 @@ HFSFile* HFS_FileOpen(HFS_Catalog* cat, FileID id, bool resourceFork) {
     /* Find the file record */
     HFS_CatFileRec fileRec;
     if (!find_file_record(cat, id, &fileRec)) {
-        /* serial_printf("HFS File: File ID %u not found\n", id); */
+        /* FS_LOG_DEBUG("HFS File: File ID %u not found\n", id); */
         return NULL;
     }
 
@@ -150,7 +150,7 @@ HFSFile* HFS_FileOpen(HFS_Catalog* cat, FileID id, bool resourceFork) {
 
     file->position = 0;
 
-    serial_printf("HFS File: Opened file ID %u (%s fork, %u bytes)\n",
+    FS_LOG_DEBUG("HFS File: Opened file ID %u (%s fork, %u bytes)\n",
                   id, resourceFork ? "rsrc" : "data",
                   resourceFork ? file->rsrcSize : file->dataSize);
 
@@ -162,7 +162,7 @@ HFSFile* HFS_FileOpenByPath(HFS_Catalog* cat, const char* path, bool resourceFor
 
     /* TODO: Implement path parsing without strtok */
     /* For now, just return NULL - path-based opening not critical for initial testing */
-    /* serial_printf("HFS File: Path-based opening not yet implemented\n"); */
+    /* FS_LOG_DEBUG("HFS File: Path-based opening not yet implemented\n"); */
     return NULL;
 }
 

@@ -20,6 +20,7 @@
 
 #include "SoundManager/SoundManager.h"
 #include "SoundManager/SoundSynthesis.h"
+#include "SoundManager/SoundLogging.h"
 
 
 /* MIDI Constants */

@@ -17,9 +17,9 @@
 #include "MenuManager/MenuManager.h"
 #include "Finder/AboutThisMac.h"  /* About This Macintosh window */
 #include <stdlib.h>  /* For abs() */
+#include "EventManager/EventLogging.h"
 
 /* External functions */
-extern void serial_printf(const char* fmt, ...);
 extern short FindWindow(Point thePoint, WindowPtr* theWindow);
 extern WindowPtr FrontWindow(void);
 extern void SelectWindow(WindowPtr theWindow);
@@ -90,17 +90,16 @@ void InitEventDispatcher(void)
 Boolean DispatchEvent(EventRecord* event)
 {
     extern void serial_puts(const char* s);
-    extern void serial_printf(const char* fmt, ...);
 
-    serial_printf("[DISP] >>> DispatchEvent ENTRY event=%p\n", event);
+    EVT_LOG_DEBUG("[DISP] >>> DispatchEvent ENTRY event=%p\n", event);
 
     if (!event || !g_dispatcher.initialized) {
-        serial_printf("[DISP] Early return: event=%p, init=%d\n", event, g_dispatcher.initialized);
+        EVT_LOG_DEBUG("[DISP] Early return: event=%p, init=%d\n", event, g_dispatcher.initialized);
         return false;
     }
 
     /* Entry log for all events */
-    serial_printf("[DISP] DispatchEvent: event->what=%d\n", event->what);
+    EVT_LOG_DEBUG("[DISP] DispatchEvent: event->what=%d\n", event->what);
 
     switch (event->what) {
         case nullEvent:
@@ -120,7 +119,7 @@ Boolean DispatchEvent(EventRecord* event)
             return HandleKeyUp(event);
 
         case updateEvt:
-            serial_printf("[DISP] Case updateEvt reached, calling HandleUpdate\n");
+            EVT_LOG_DEBUG("[DISP] Case updateEvt reached, calling HandleUpdate\n");
             return HandleUpdate(event);
 
         case activateEvt:
@@ -184,9 +183,9 @@ Boolean HandleMouseDown(EventRecord* event)
     /* Find which window part was clicked */
     windowPart = FindWindow(event->where, &whichWindow);
 
-    serial_printf("HandleMouseDown: event=0x%08x, where={v=%d,h=%d}, modifiers=0x%04x\n",
+    EVT_LOG_DEBUG("HandleMouseDown: event=0x%08x, where={v=%d,h=%d}, modifiers=0x%04x\n",
                  (unsigned int)event, (int)event->where.v, (int)event->where.h, event->modifiers);
-    serial_printf("HandleMouseDown: part=%d, window=0x%08x at (%d,%d)\n",
+    EVT_LOG_DEBUG("HandleMouseDown: part=%d, window=0x%08x at (%d,%d)\n",
                  windowPart, (unsigned int)whichWindow, (int)event->where.h, (int)event->where.v);
 
     /* Check if this is the About This Macintosh window - handle specially */
@@ -218,48 +217,48 @@ Boolean HandleMouseDown(EventRecord* event)
 
         case inContent:
             /* Click in window content */
-            serial_printf("HandleMouseDown: inContent case - whichWindow=0x%08x\n", (unsigned int)whichWindow);
+            EVT_LOG_DEBUG("HandleMouseDown: inContent case - whichWindow=0x%08x\n", (unsigned int)whichWindow);
 
             WindowPtr frontWin = FrontWindow();
-            serial_printf("HandleMouseDown: FrontWindow returned 0x%08x\n", (unsigned int)frontWin);
+            EVT_LOG_DEBUG("HandleMouseDown: FrontWindow returned 0x%08x\n", (unsigned int)frontWin);
 
             if (whichWindow != frontWin) {
                 /* Bring window to front first */
-                serial_printf("HandleMouseDown: Calling SelectWindow(0x%08x)\n", (unsigned int)whichWindow);
+                EVT_LOG_DEBUG("HandleMouseDown: Calling SelectWindow(0x%08x)\n", (unsigned int)whichWindow);
                 SelectWindow(whichWindow);
-                serial_printf("HandleMouseDown: SelectWindow returned\n");
+                EVT_LOG_DEBUG("HandleMouseDown: SelectWindow returned\n");
                 return true;
             }
 
             /* Window is already front - handle click in content */
-            serial_printf("HandleMouseDown: Window already front, checking type\n");
+            EVT_LOG_DEBUG("HandleMouseDown: Window already front, checking type\n");
 
             /* Check if this is a folder window and route to folder window handler */
             extern Boolean IsFolderWindow(WindowPtr w);
             extern Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleClick);
 
-            serial_printf("HandleMouseDown: Calling IsFolderWindow with window=0x%08x, refCon=0x%08x\n",
+            EVT_LOG_DEBUG("HandleMouseDown: Calling IsFolderWindow with window=0x%08x, refCon=0x%08x\n",
                          (unsigned int)whichWindow, (unsigned int)whichWindow->refCon);
             Boolean isFolderWin = IsFolderWindow(whichWindow);
-            serial_printf("HandleMouseDown: IsFolderWindow returned %d\n", isFolderWin);
+            EVT_LOG_DEBUG("HandleMouseDown: IsFolderWindow returned %d\n", isFolderWin);
             if (isFolderWin) {
-                serial_printf("HandleMouseDown: Folder window detected, processing click\n");
+                EVT_LOG_DEBUG("HandleMouseDown: Folder window detected, processing click\n");
                 /* Extract double-click flag from event message (same as desktop) */
                 UInt16 clickCount = (event->message >> 16) & 0xFFFF;
                 Boolean doubleClick = (clickCount >= 2);
 
-                serial_printf("HandleMouseDown: clickCount=%d, doubleClick=%d\n", clickCount, doubleClick);
+                EVT_LOG_DEBUG("HandleMouseDown: clickCount=%d, doubleClick=%d\n", clickCount, doubleClick);
 
-                serial_printf("HandleMouseDown: Calling HandleFolderWindowClick...\n");
+                EVT_LOG_DEBUG("HandleMouseDown: Calling HandleFolderWindowClick...\n");
                 Boolean handled = HandleFolderWindowClick(whichWindow, event, doubleClick);
-                serial_printf("HandleMouseDown: HandleFolderWindowClick returned %d\n", handled);
+                EVT_LOG_DEBUG("HandleMouseDown: HandleFolderWindowClick returned %d\n", handled);
                 if (handled) {
                     return true;
                 }
             } else {
                 /* Pass click to window content handler */
                 /* Application would handle this */
-                serial_printf("Click in content of window 0x%08x\n", (unsigned int)whichWindow);
+                EVT_LOG_DEBUG("Click in content of window 0x%08x\n", (unsigned int)whichWindow);
             }
             return true;
 
@@ -268,7 +267,7 @@ Boolean HandleMouseDown(EventRecord* event)
             if (whichWindow) {
                 /* CRITICAL: Select window first to bring it to front and activate it! */
                 SelectWindow(whichWindow);
-                serial_printf("HandleMouseDown: inDrag - called SelectWindow for window=0x%08x\n",
+                EVT_LOG_DEBUG("HandleMouseDown: inDrag - called SelectWindow for window=0x%08x\n",
                              (unsigned int)whichWindow);
 
                 /* Set up drag bounds (entire screen minus menu bar) */
@@ -277,13 +276,13 @@ Boolean HandleMouseDown(EventRecord* event)
                 dragBounds.bottom = 768;  /* Screen height */
                 dragBounds.right = 1024;  /* Screen width */
 
-                serial_printf("HandleMouseDown: inDrag window=0x%08x bounds=(%d,%d,%d,%d)\n",
+                EVT_LOG_DEBUG("HandleMouseDown: inDrag window=0x%08x bounds=(%d,%d,%d,%d)\n",
                              (unsigned int)whichWindow, dragBounds.top, dragBounds.left,
                              dragBounds.bottom, dragBounds.right);
                 DragWindow(whichWindow, event->where, &dragBounds);
-                serial_printf("HandleMouseDown: DragWindow returned\n");
+                EVT_LOG_DEBUG("HandleMouseDown: DragWindow returned\n");
             } else {
-                serial_printf("HandleMouseDown: inDrag but whichWindow is NULL!\n");
+                EVT_LOG_DEBUG("HandleMouseDown: inDrag but whichWindow is NULL!\n");
             }
             return true;
 
@@ -291,14 +290,14 @@ Boolean HandleMouseDown(EventRecord* event)
             /* Resize window */
             if (whichWindow) {
                 /* TODO: Implement window resizing */
-                serial_printf("Grow window 0x%08x\n", (unsigned int)whichWindow);
+                EVT_LOG_DEBUG("Grow window 0x%08x\n", (unsigned int)whichWindow);
             }
             return true;
 
         case inGoAway:
             /* Close box clicked - directly close without tracking (TrackGoAway not fully implemented) */
             if (whichWindow) {
-                serial_printf("DISP: Close box clicked, closing window 0x%08x\n", (unsigned int)whichWindow);
+                EVT_LOG_DEBUG("DISP: Close box clicked, closing window 0x%08x\n", (unsigned int)whichWindow);
                 CloseWindow(whichWindow);
             }
             return true;
@@ -308,7 +307,7 @@ Boolean HandleMouseDown(EventRecord* event)
             /* Zoom box clicked */
             if (whichWindow) {
                 /* TODO: Implement window zooming */
-                serial_printf("Zoom window 0x%08x\n", (unsigned int)whichWindow);
+                EVT_LOG_DEBUG("Zoom window 0x%08x\n", (unsigned int)whichWindow);
             }
             return true;
 
@@ -319,23 +318,23 @@ Boolean HandleMouseDown(EventRecord* event)
                 UInt16 clickCount = (event->message >> 16) & 0xFFFF;
                 Boolean doubleClick = (clickCount >= 2);
 
-                serial_printf("[DESK CLICK] clickCount=%d, doubleClick=%d, where=(%d,%d)\n",
+                EVT_LOG_DEBUG("[DESK CLICK] clickCount=%d, doubleClick=%d, where=(%d,%d)\n",
                              clickCount, doubleClick, event->where.h, event->where.v);
 
                 /* Check if click was on a desktop icon */
                 extern Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick);
                 if (HandleDesktopClick(event->where, doubleClick)) {
-                    serial_printf("Desktop icon clicked (clickCount=%d), trackingDesktop=true\n", clickCount);
+                    EVT_LOG_DEBUG("Desktop icon clicked (clickCount=%d), trackingDesktop=true\n", clickCount);
                     /* Start tracking for potential drag */
                     g_dispatcher.trackingDesktop = true;
                     return true;
                 } else {
-                    serial_printf("[DESK CLICK] No icon hit, trackingDesktop stays %d\n",
+                    EVT_LOG_DEBUG("[DESK CLICK] No icon hit, trackingDesktop stays %d\n",
                                  g_dispatcher.trackingDesktop);
                 }
 
                 /* Otherwise just a desktop click */
-                serial_printf("Click on desktop (no icon)\n");
+                EVT_LOG_DEBUG("Click on desktop (no icon)\n");
             }
             return true;
 
@@ -386,7 +385,7 @@ Boolean HandleKeyDownEvent(EventRecord* event)
     char key = event->message & charCodeMask;
     Boolean cmdKeyDown = (event->modifiers & cmdKey) != 0;
 
-    serial_printf("HandleKeyDownEvent: key='%c' (0x%02x), cmd=%d\n",
+    EVT_LOG_DEBUG("HandleKeyDownEvent: key='%c' (0x%02x), cmd=%d\n",
                  (key >= 32 && key < 127) ? key : '?', key, cmdKeyDown);
 
     /* Handle special keys without command modifier */
@@ -396,7 +395,7 @@ Boolean HandleKeyDownEvent(EventRecord* event)
                 {
                     extern void SelectNextDesktopIcon(void);
                     SelectNextDesktopIcon();
-                    serial_printf("Tab pressed - selecting next desktop icon\n");
+                    EVT_LOG_DEBUG("Tab pressed - selecting next desktop icon\n");
                 }
                 return true;
 
@@ -404,7 +403,7 @@ Boolean HandleKeyDownEvent(EventRecord* event)
                 {
                     extern void OpenSelectedDesktopIcon(void);
                     OpenSelectedDesktopIcon();
-                    serial_printf("Enter pressed - opening selected icon\n");
+                    EVT_LOG_DEBUG("Enter pressed - opening selected icon\n");
                 }
                 return true;
         }
@@ -419,7 +418,7 @@ Boolean HandleKeyDownEvent(EventRecord* event)
             case 'q':
             case 'Q':
                 /* Quit */
-                serial_printf("Quit requested\n");
+                EVT_LOG_DEBUG("Quit requested\n");
                 return true;
 
             case 'w':
@@ -436,13 +435,13 @@ Boolean HandleKeyDownEvent(EventRecord* event)
             case 'n':
             case 'N':
                 /* New */
-                serial_printf("New requested\n");
+                EVT_LOG_DEBUG("New requested\n");
                 return true;
 
             case 'o':
             case 'O':
                 /* Open */
-                serial_printf("Open requested\n");
+                EVT_LOG_DEBUG("Open requested\n");
                 return true;
 
             default:
@@ -458,14 +457,14 @@ Boolean HandleKeyDownEvent(EventRecord* event)
         extern void TextEdit_HandleEvent(EventRecord* event);
 
         if (TextEdit_IsRunning()) {
-            serial_printf("Key '%c' (0x%02x) → TextEdit window 0x%08x\n",
+            EVT_LOG_DEBUG("Key '%c' (0x%02x) → TextEdit window 0x%08x\n",
                          (key >= 32 && key < 127) ? key : '?', key, (unsigned int)frontWindow);
             TextEdit_HandleEvent(event);
             return true;
         }
 
         /* Other applications would handle their own keys */
-        serial_printf("Key '%c' to window 0x%08x (no handler)\n", key, (unsigned int)frontWindow);
+        EVT_LOG_DEBUG("Key '%c' to window 0x%08x (no handler)\n", key, (unsigned int)frontWindow);
     }
 
     return true;
@@ -485,10 +484,10 @@ Boolean HandleKeyUp(EventRecord* event)
  */
 Boolean HandleUpdate(EventRecord* event)
 {
-    serial_printf("[HandleUpdate] ENTRY, event=%p\n", event);
+    EVT_LOG_DEBUG("[HandleUpdate] ENTRY, event=%p\n", event);
     WindowPtr updateWindow = (WindowPtr)(event->message);
 
-    serial_printf("HandleUpdate: window=0x%08x\n", (unsigned int)updateWindow);
+    EVT_LOG_DEBUG("HandleUpdate: window=0x%08x\n", (unsigned int)updateWindow);
 
     if (updateWindow) {
         /* Check if this is the About This Macintosh window */
@@ -527,10 +526,10 @@ Boolean HandleUpdate(EventRecord* event)
         EndUpdate(updateWindow);
 
         /* Log successful update */
-        serial_printf("UPDATE: drew content for window=%p\n", updateWindow);
+        EVT_LOG_DEBUG("UPDATE: drew content for window=%p\n", updateWindow);
     } else {
         /* NULL window = desktop/background update */
-        serial_printf("HandleUpdate: NULL window, redrawing desktop\n");
+        EVT_LOG_DEBUG("HandleUpdate: NULL window, redrawing desktop\n");
         extern void DrawDesktop(void);
         extern void DrawVolumeIcon(void);
         DrawDesktop();
@@ -548,7 +547,7 @@ Boolean HandleActivate(EventRecord* event)
     WindowPtr window = (WindowPtr)(event->message);
     Boolean activating = (event->modifiers & activeFlag) != 0;
 
-    serial_printf("HandleActivate: window=0x%08x, activating=%d\n",
+    EVT_LOG_DEBUG("HandleActivate: window=0x%08x, activating=%d\n",
                  (unsigned int)window, activating);
 
     if (window) {
@@ -587,7 +586,7 @@ Boolean HandleDisk(EventRecord* event)
 {
     /* Disk insertion/ejection events */
     /* Would be handled by File Manager */
-    serial_printf("HandleDisk: message=0x%08lx\n", event->message);
+    EVT_LOG_DEBUG("HandleDisk: message=0x%08lx\n", event->message);
     return true;
 }
 
@@ -601,19 +600,19 @@ Boolean HandleOSEvent(EventRecord* event)
 
     switch (osMessage) {
         case 1:  /* Suspend event */
-            serial_printf("Application suspended\n");
+            EVT_LOG_DEBUG("Application suspended\n");
             break;
 
         case 2:  /* Resume event */
-            serial_printf("Application resumed\n");
+            EVT_LOG_DEBUG("Application resumed\n");
             break;
 
         case 0xFA:  /* Mouse moved out of region */
-            serial_printf("Mouse moved out of region\n");
+            EVT_LOG_DEBUG("Mouse moved out of region\n");
             break;
 
         default:
-            serial_printf("OS Event: 0x%02x\n", osMessage);
+            EVT_LOG_DEBUG("OS Event: 0x%02x\n", osMessage);
             break;
     }
 

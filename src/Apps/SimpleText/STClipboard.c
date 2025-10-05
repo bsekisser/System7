@@ -9,7 +9,6 @@
 #include "MemoryMgr/MemoryManager.h"
 #include "ScrapManager/ScrapManager.h"
 
-extern void serial_printf(const char* fmt, ...);
 
 /* Save current selection for undo */
 void STClip_SaveUndo(STDocument* doc)
