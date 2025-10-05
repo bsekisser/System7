@@ -6,12 +6,12 @@
 
 #include "SystemTypes.h"
 #include "MenuManager/MenuManager.h"
+#include "MenuManager/MenuLogging.h"
 #include "MenuManager/MenuTypes.h"
 #include "QuickDraw/QuickDraw.h"
 #include "EventManager/EventTypes.h"  /* For mouse masks */
 
 /* External functions */
-extern int serial_printf(const char* format, ...);
 extern void serial_puts(const char* str);
 extern QDGlobals qd;
 extern void DrawDesktop(void);
@@ -91,7 +91,7 @@ static void DrawMenuItemText(const char* text, short x, short y) {
     while (text[len] != 0) len++;
     if (len > 0) DrawText(text, 0, len);
 
-    serial_printf("Drawing menu item: %s at (%d,%d)\n", text, x, y);
+    MENU_LOG_TRACE("Drawing menu item: %s at (%d,%d)\n", text, x, y);
 }
 
 /* --- Get actual menu items from menu handle --- */
@@ -216,7 +216,7 @@ long BeginTrackMenu(short menuID, Point *startPt) {
     /* Get the actual menu handle for this menu ID */
     MenuHandle theMenu = GetMenuHandle(menuID);
     if (!theMenu) {
-        serial_printf("BeginTrackMenu: Menu %d not found\n", menuID);
+        MENU_LOG_TRACE("BeginTrackMenu: Menu %d not found\n", menuID);
         if (savePort) SetPort(savePort);
         return 0;
     }
@@ -244,7 +244,7 @@ long BeginTrackMenu(short menuID, Point *startPt) {
     g_menuTrackState.itemCount = itemCount;
     g_menuTrackState.highlightedItem = 0;
     g_menuTrackState.lineHeight = lineHeight;
-    serial_printf("BeginTrackMenu: Initial highlightedItem = %d\n", g_menuTrackState.highlightedItem);
+    MENU_LOG_TRACE("BeginTrackMenu: Initial highlightedItem = %d\n", g_menuTrackState.highlightedItem);
 
     /* Calculate and store menu title position */
     /* For now, estimate based on menu ID and typical widths */
@@ -369,7 +369,7 @@ void UpdateMenuTrackingNew(Point mousePt) {
 
     /* Only print debug every 10 calls to avoid overflow */
     if (updateCount % 10 == 0) {
-        serial_printf("UpdateMenu: call #%d, mouse at (%d,%d)\n",
+        MENU_LOG_TRACE("UpdateMenu: call #%d, mouse at (%d,%d)\n",
                       updateCount, mousePt.h, mousePt.v);
     }
 
@@ -405,13 +405,13 @@ void UpdateMenuTrackingNew(Point mousePt) {
 
     /* Update highlight if changed */
     if (newHighlight != g_menuTrackState.highlightedItem) {
-        serial_printf("UpdateMenu: Highlight change from %d to %d\n",
+        MENU_LOG_TRACE("UpdateMenu: Highlight change from %d to %d\n",
                       g_menuTrackState.highlightedItem, newHighlight);
 
         /* Clear old highlight and redraw text */
         if (g_menuTrackState.highlightedItem > 0) {
             short oldTop = top + 2 + (g_menuTrackState.highlightedItem - 1) * lineHeight;
-            serial_printf("UpdateMenu: Clearing old highlight at y=%d\n", oldTop);
+            MENU_LOG_TRACE("UpdateMenu: Clearing old highlight at y=%d\n", oldTop);
 
             /* Draw white background to clear the highlight */
             DrawHighlightRect(left + 2, oldTop, left + menuWidth - 2, oldTop + lineHeight - 1, false);
@@ -428,7 +428,7 @@ void UpdateMenuTrackingNew(Point mousePt) {
         /* Draw new highlight and text */
         if (newHighlight > 0) {
             short itemTop = top + 2 + (newHighlight - 1) * lineHeight;
-            serial_printf("UpdateMenu: Drawing new highlight at y=%d for item %d\n", itemTop, newHighlight);
+            MENU_LOG_TRACE("UpdateMenu: Drawing new highlight at y=%d for item %d\n", itemTop, newHighlight);
 
             /* Draw black background for highlight */
             DrawHighlightRect(left + 2, itemTop, left + menuWidth - 2, itemTop + lineHeight - 1, true);
@@ -453,7 +453,7 @@ long EndMenuTrackingNew(void) {
     if (g_menuTrackState.highlightedItem > 0) {
         /* Pack menuID in high word, item in low word */
         result = ((long)g_menuTrackState.menuID << 16) | g_menuTrackState.highlightedItem;
-        serial_printf("EndMenuTracking: Selected item %d from menu %d\n",
+        MENU_LOG_TRACE("EndMenuTracking: Selected item %d from menu %d\n",
                      g_menuTrackState.highlightedItem, g_menuTrackState.menuID);
     }
 
@@ -644,10 +644,10 @@ long TrackMenu(short menuID, Point *startPt) {
         EventPumpYield();      /* Platform's input pump */
         releaseWaitCount++;
         if (releaseWaitCount % 1000 == 0) {
-            serial_printf("TrackMenu: Waiting for initial release, count=%d\n", releaseWaitCount);
+            MENU_LOG_TRACE("TrackMenu: Waiting for initial release, count=%d\n", releaseWaitCount);
         }
     }
-    serial_printf("TrackMenu: Initial button release detected after %d iterations\n", releaseWaitCount);
+    MENU_LOG_TRACE("TrackMenu: Initial button release detected after %d iterations\n", releaseWaitCount);
 
     /* Add a small debounce delay after release */
     {
@@ -676,11 +676,11 @@ long TrackMenu(short menuID, Point *startPt) {
         buttonCheckCount++;
         Boolean buttonState = Button();
         if (buttonCheckCount <= 5) {
-            serial_printf("TrackMenu: Button check #%d = %d\n", buttonCheckCount, buttonState);
+            MENU_LOG_TRACE("TrackMenu: Button check #%d = %d\n", buttonCheckCount, buttonState);
         }
 
         if (buttonState) {
-            serial_printf("TrackMenu: Button pressed at check #%d, ending tracking\n", buttonCheckCount);
+            MENU_LOG_TRACE("TrackMenu: Button pressed at check #%d, ending tracking\n", buttonCheckCount);
             tracking = false;
         }
 
@@ -694,7 +694,7 @@ long TrackMenu(short menuID, Point *startPt) {
         /* Debug output every 100 updates to avoid spam */
         updateCount++;
         if (updateCount % 100 == 0) {
-            serial_printf("TrackMenu: Still tracking, update %d\n", updateCount);
+            MENU_LOG_TRACE("TrackMenu: Still tracking, update %d\n", updateCount);
         }
     }
 

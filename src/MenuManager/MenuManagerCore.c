@@ -18,12 +18,12 @@
 
 #include "../include/MenuManager/MenuManager.h"
 #include "../include/MenuManager/MenuTypes.h"
+#include "../include/MenuManager/MenuLogging.h"
 
 /* QuickDraw globals */
 extern QDGlobals qd;
 
 /* Serial printf for debugging */
-extern void serial_printf(const char* format, ...);
 extern void serial_puts(const char* str);
 
 /* ============================================================================
@@ -291,7 +291,7 @@ void SetupDefaultMenus(void)
     MenuBarList* menuBar;
 
     if (!gMenuList) {
-        serial_printf("SetupDefaultMenus: gMenuList is NULL, cannot setup\n");
+        MENU_LOG_ERROR("SetupDefaultMenus: gMenuList is NULL, cannot setup\n");
         return;
     }
 
@@ -340,7 +340,7 @@ void SetupDefaultMenus(void)
         gMenuMgrState->menuBar = (Handle)menuBar;
     }
 
-    serial_printf("SetupDefaultMenus: Manually set up %d menus\n", menuBar->numMenus);
+    MENU_LOG_INFO("SetupDefaultMenus: Manually set up %d menus\n", menuBar->numMenus);
 }
 
 /* Apple menu glyph, 16×16, MSB-first, with bite */
@@ -372,10 +372,10 @@ static void DrawAppleIcon(short x, short y) {
     extern uint32_t fb_pitch;
     extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 
-    /* serial_printf("DrawAppleIcon: x=%d, y=%d, fb=%p\n", x, y, framebuffer); */
+    /* MENU_LOG_TRACE("DrawAppleIcon: x=%d, y=%d, fb=%p\n", x, y, framebuffer); */
 
     if (!framebuffer) {
-        /* serial_printf("DrawAppleIcon: No framebuffer!\n"); */
+        /* MENU_LOG_TRACE("DrawAppleIcon: No framebuffer!\n"); */
         return;
     }
 
@@ -464,21 +464,21 @@ void DrawMenuBar(void)
         if (gMenuMgrState->menuBar) {
             MenuBarList* menuBar = (MenuBarList*)gMenuMgrState->menuBar;
             serial_puts("DrawMenuBar: menuBar exists\n");
-            /* serial_printf might not be working, use serial_puts for now */
+            /* MENU_LOG_TRACE used to debug drawing when serial IO is unstable */
 
-            serial_printf("DrawMenuBar: numMenus = %d\n", menuBar->numMenus);
+            MENU_LOG_DEBUG("DrawMenuBar: numMenus = %d\n", menuBar->numMenus);
 
             for (int i = 0; i < menuBar->numMenus; i++) {
-                serial_printf("DrawMenuBar: Processing menu %d\n", i);
+                MENU_LOG_DEBUG("DrawMenuBar: Processing menu %d\n", i);
                 MenuHandle menu = GetMenuHandle(menuBar->menus[i].menuID);
                 if (menu) {
                     /* serial_puts("DrawMenuBar: Menu handle found\n"); */
 
                     /* Debug: show MenuInfo offsets */
                     MenuInfo* mptr = *menu;
-                    /* serial_printf("  MenuID: %d\n", mptr->menuID); */
-                    /* serial_printf("  sizeof(MenuInfo): %d\n", sizeof(MenuInfo)); */
-                    /* serial_printf("  offsetof menuData: %d\n", ((char*)&(mptr->menuData) - (char*)mptr)); */
+                    /* MENU_LOG_TRACE("  MenuID: %d\n", mptr->menuID); */
+                    /* MENU_LOG_TRACE("  sizeof(MenuInfo): %d\n", sizeof(MenuInfo)); */
+                    /* MENU_LOG_TRACE("  offsetof menuData: %d\n", ((char*)&(mptr->menuData) - (char*)mptr)); */
 
                     /* Get menu title */
                     unsigned char titleLen = (**menu).menuData[0];
@@ -488,11 +488,11 @@ void DrawMenuBar(void)
                         titleLen = 4; /* Default to 4 for "File", "Edit", etc */
                     }
 
-                    /* serial_printf("DrawMenuBar: Got title length: %d (0x%02x)\n", titleLen, titleLen); */
+                    /* MENU_LOG_TRACE("DrawMenuBar: Got title length: %d (0x%02x)\n", titleLen, titleLen); */
 
                     /* Also show first few bytes of menuData for debugging */
                     /* Commented out debug output
-                    serial_printf("  menuData[0-7]: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+                    MENU_LOG_TRACE("  menuData[0-7]: %02x %02x %02x %02x %02x %02x %02x %02x\n",
                                   (**menu).menuData[0], (**menu).menuData[1],
                                   (**menu).menuData[2], (**menu).menuData[3],
                                   (**menu).menuData[4], (**menu).menuData[5],
@@ -501,7 +501,7 @@ void DrawMenuBar(void)
 
                     /* Check if title is at wrong offset */
                     unsigned char alt_len = (**menu).menuData[1];
-                    /* serial_printf("  Alt titleLen at [1]: %d\n", alt_len); */
+                    /* MENU_LOG_TRACE("  Alt titleLen at [1]: %d\n", alt_len); */
                     if (titleLen > 0 && titleLen <= 20) { /* More restrictive sanity check */
                         short menuWidth = 0;
                         char titleText[256] = {0};
@@ -510,14 +510,14 @@ void DrawMenuBar(void)
                         /* ID 1 appears to be a duplicate that should be ignored */
                         if (mptr->menuID == 128) {
                             /* Draw Apple icon instead of text */
-                            /* serial_printf("Drawing Apple icon for menu %d at x=%d\n", mptr->menuID, x); */
+                            /* MENU_LOG_TRACE("Drawing Apple icon for menu %d at x=%d\n", mptr->menuID, x); */
                             DrawAppleIcon(8, 2);  /* Draw icon at original position x=8 */
                             menuWidth = 30;  /* Wider click region from left edge */
                             AddMenuTitle(mptr->menuID, 0, 30, "Apple");  /* Click region from x=0 to x=30 */
                             x = 30;  /* Next menu starts after Apple menu region */
                         } else if (mptr->menuID == 1) {
                             /* Skip menu ID 1 - it's a duplicate Apple menu */
-                            /* serial_printf("Skipping duplicate Apple menu (ID 1)\n"); */
+                            /* MENU_LOG_TRACE("Skipping duplicate Apple menu (ID 1)\n"); */
                             continue;
                         } else {
                             /* Draw normal text title - moved 4px right and 1px down */
@@ -543,7 +543,7 @@ void DrawMenuBar(void)
                             }
 
                             if (hardcodedTitle) {
-                                serial_printf("DrawMenuBar: Drawing hardcoded title '%s' len=%d\n", hardcodedTitle, titleLen);
+                                MENU_LOG_DEBUG("DrawMenuBar: Drawing hardcoded title '%s' len=%d\n", hardcodedTitle, titleLen);
                                 DrawText(hardcodedTitle, 0, titleLen);
                             } else {
                                 /* Fall back to menu data if not a known menu */
@@ -593,13 +593,13 @@ void InvalMenuBar(void)
  */
 void HiliteMenu(short menuID)
 {
-    serial_printf("HiliteMenu ENTER: menuID=%d\n", menuID);
+    MENU_LOG_TRACE("HiliteMenu ENTER: menuID=%d\n", menuID);
     if (!gMenuMgrInitialized) {
         serial_puts("HiliteMenu: Not initialized\n");
         return;
     }
 
-    serial_printf("HiliteMenu: Current hilite=%d\n", gMenuMgrState->hiliteMenu);
+    MENU_LOG_TRACE("HiliteMenu: Current hilite=%d\n", gMenuMgrState->hiliteMenu);
     /* Unhighlight previous menu if any */
     if (gMenuMgrState->hiliteMenu != 0 && gMenuMgrState->hiliteMenu != menuID) {
         extern void HiliteMenuTitle(short menuID, Boolean hilite);
@@ -689,8 +689,8 @@ MenuHandle NewMenu(short menuID, ConstStr255Param menuTitle)
         gNumMenuHandles++;
 
         /* Debug output */
-        extern void serial_printf(const char* fmt, ...);
-        serial_printf("NewMenu: Created menu ID %d, title '%.*s' (handle %p, total menus: %d)\n",
+        extern void MENU_LOG_TRACE(const char* fmt, ...);
+        MENU_LOG_TRACE("NewMenu: Created menu ID %d, title '%.*s' (handle %p, total menus: %d)\n",
                       menuID, titleLen, &menuTitle[1], theMenu, gNumMenuHandles);
     }
 
@@ -808,8 +808,8 @@ void InsertMenu(MenuHandle theMenu, short beforeID)
     menuBar->numMenus++;
 
     /* Debug output */
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("InsertMenu: Inserted menu ID %d at position %d (total in bar: %d)\n",
+    extern void MENU_LOG_TRACE(const char* fmt, ...);
+    MENU_LOG_TRACE("InsertMenu: Inserted menu ID %d at position %d (total in bar: %d)\n",
                   (*theMenu)->menuID, insertIndex, menuBar->numMenus);
 
     /* Update layout and display */
@@ -1011,14 +1011,14 @@ static MenuHandle FindMenuInList(short menuID)
     /* Look up in tracking array */
     for (int i = 0; i < gNumMenuHandles; i++) {
         if (gMenuHandles[i].menuID == menuID) {
-            extern void serial_printf(const char* fmt, ...);
-            serial_printf("FindMenuInList: Found menu ID %d at index %d (handle %p)\n",
+            extern void MENU_LOG_TRACE(const char* fmt, ...);
+            MENU_LOG_TRACE("FindMenuInList: Found menu ID %d at index %d (handle %p)\n",
                           menuID, i, gMenuHandles[i].handle);
             return gMenuHandles[i].handle;
         }
     }
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("FindMenuInList: Menu ID %d not found (searched %d menus)\n",
+    extern void MENU_LOG_TRACE(const char* fmt, ...);
+    MENU_LOG_TRACE("FindMenuInList: Menu ID %d not found (searched %d menus)\n",
                   menuID, gNumMenuHandles);
     return NULL;
 }

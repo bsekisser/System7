@@ -22,6 +22,7 @@
 // #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "WindowManager/WMLogging.h"
 
 #include "WindowManager/WindowManagerInternal.h"
 #include <math.h>
@@ -230,7 +231,7 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
 void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     if (theWindow == NULL) return;
 
-    serial_printf("DragWindow ENTRY: window=%p from (%d,%d)\n", theWindow, startPt.h, startPt.v);
+    WM_LOG_TRACE("DragWindow ENTRY: window=%p from (%d,%d)\n", theWindow, startPt.h, startPt.v);
 
     /* Get GLOBAL window bounds from strucRgn - System 7 faithful */
     Rect frameG;
@@ -238,7 +239,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         frameG = (*(theWindow->strucRgn))->rgnBBox;  /* GLOBAL coords */
     } else {
         /* Should never happen if Window Manager initialized properly */
-        serial_printf("DragWindow: ERROR - no strucRgn!\n");
+        WM_LOG_ERROR("DragWindow: ERROR - no strucRgn!\n");
         return;
     }
 
@@ -330,7 +331,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
                 /* Erase old outline if it exists (XOR erases by redrawing) */
                 if (outlineDrawn) {
                     extern void InvertRect(const Rect* rect);
-                    serial_printf("DragWindow: Erasing old outline at (%d,%d,%d,%d)\n",
+                    WM_LOG_TRACE("DragWindow: Erasing old outline at (%d,%d,%d,%d)\n",
                                  dragOutline.left, dragOutline.top, dragOutline.right, dragOutline.bottom);
                     InvertRect(&dragOutline);  /* Use InvertRect for simple XOR */
                     QDPlatform_FlushScreen();  /* Force screen update */
@@ -344,7 +345,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
 
                 /* Draw new outline */
                 extern void InvertRect(const Rect* rect);
-                serial_printf("DragWindow: Drawing new outline at (%d,%d,%d,%d)\n",
+                WM_LOG_TRACE("DragWindow: Drawing new outline at (%d,%d,%d,%d)\n",
                              dragOutline.left, dragOutline.top, dragOutline.right, dragOutline.bottom);
                 InvertRect(&dragOutline);  /* Use InvertRect for simple XOR */
                 QDPlatform_FlushScreen();  /* Force screen update */
@@ -360,14 +361,14 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     /* Erase final outline before moving window (XOR erases by redrawing) */
     if (outlineDrawn) {
         extern void InvertRect(const Rect* rect);
-        serial_printf("DragWindow: Erasing final outline\n");
+        WM_LOG_TRACE("DragWindow: Erasing final outline\n");
         InvertRect(&dragOutline);
         QDPlatform_FlushScreen();  /* Force screen update */
     }
 
     /* Move window to final position if it changed */
     if (moved) {
-        serial_printf("DragWindow: Final MoveWindow to (%d,%d)\n", dragOutline.left, dragOutline.top);
+        WM_LOG_DEBUG("DragWindow: Final MoveWindow to (%d,%d)\n", dragOutline.left, dragOutline.top);
 
         /* Create a region for the old window position to invalidate */
         extern RgnHandle NewRgn(void);
@@ -380,7 +381,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         RgnHandle oldRgn = NewRgn();
         RectRgn(oldRgn, &oldBounds);
 
-        serial_printf("DragWindow: Created oldRgn for bounds (%d,%d,%d,%d)\n",
+        WM_LOG_TRACE("DragWindow: Created oldRgn for bounds (%d,%d,%d,%d)\n",
                      oldBounds.left, oldBounds.top, oldBounds.right, oldBounds.bottom);
 
         /* Move the window to new position */
@@ -400,7 +401,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         /* Compute: oldRgn - newRgn = region that was uncovered */
         DiffRgn(oldRgn, newRgn, uncoveredRgn);
 
-        serial_printf("DragWindow: Computed uncovered region\n");
+        WM_LOG_TRACE("DragWindow: Computed uncovered region\n");
 
         /* Paint the desktop pattern in the uncovered region FIRST */
         extern void GetWMgrPort(GrafPtr* port);
@@ -419,7 +420,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
 
         /* Call the desk hook to paint the desktop pattern in the uncovered region */
         if (g_deskHook) {
-            serial_printf("DragWindow: Calling DeskHook for uncovered region\n");
+            WM_LOG_TRACE("DragWindow: Calling DeskHook for uncovered region\n");
             g_deskHook(uncoveredRgn);
         }
 
@@ -431,11 +432,11 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         DisposeRgn(fullClip);
 
         SetPort(savePort);
-        serial_printf("DragWindow: Desktop repainted in uncovered region\n");
+        WM_LOG_TRACE("DragWindow: Desktop repainted in uncovered region\n");
 
         /* Repaint windows behind in the uncovered region */
         PaintBehind(theWindow->nextWindow, uncoveredRgn);
-        serial_printf("DragWindow: PaintBehind called for uncovered region\n");
+        WM_LOG_TRACE("DragWindow: PaintBehind called for uncovered region\n");
 
         /* Restore window visibility if it was visible before drag */
         if (wasVisible) {
@@ -444,7 +445,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
 
         /* Repaint the window itself at new position */
         PaintOne(theWindow, NULL);
-        serial_printf("DragWindow: PaintOne called for window at new position\n");
+        WM_LOG_TRACE("DragWindow: PaintOne called for window at new position\n");
 
         /* Invalidate window content to trigger updateEvt for content redraw */
         if (theWindow->contRgn) {
@@ -454,19 +455,19 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
             SetPort((GrafPtr)theWindow);
             InvalRgn(theWindow->contRgn);
             SetPort(savePort);
-            serial_printf("DragWindow: Invalidated window content region\n");
+            WM_LOG_TRACE("DragWindow: Invalidated window content region\n");
         }
 
         /* WORKAROUND: Directly redraw window content since update events aren't flowing through */
-        serial_printf("DragWindow: Checking refCon=0x%08lx (DISK=0x%08x, TRSH=0x%08x)\n",
+        WM_LOG_TRACE("DragWindow: Checking refCon=0x%08lx (DISK=0x%08x, TRSH=0x%08x)\n",
                      theWindow->refCon, 'DISK', 'TRSH');
         if (theWindow->refCon == 'DISK' || theWindow->refCon == 'TRSH') {
             extern void FolderWindow_Draw(WindowPtr w);
-            serial_printf("DragWindow: Calling FolderWindow_Draw\n");
+            WM_LOG_TRACE("DragWindow: Calling FolderWindow_Draw\n");
             FolderWindow_Draw(theWindow);
-            serial_printf("DragWindow: Direct content redraw complete\n");
+            WM_LOG_TRACE("DragWindow: Direct content redraw complete\n");
         } else {
-            serial_printf("DragWindow: refCon doesn't match, skipping content redraw\n");
+            WM_LOG_TRACE("DragWindow: refCon doesn't match, skipping content redraw\n");
         }
 
         /* Clean up new regions */
@@ -474,16 +475,16 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         DisposeRgn(newRgn);
 
         /* Clean up */
-        serial_printf("DragWindow: About to DisposeRgn\n");
+        WM_LOG_TRACE("DragWindow: About to DisposeRgn\n");
         DisposeRgn(oldRgn);
-        serial_printf("DragWindow: DisposeRgn completed\n");
+        WM_LOG_TRACE("DragWindow: DisposeRgn completed\n");
 
         /* Force screen update */
         extern void QDPlatform_FlushScreen(void);
         QDPlatform_FlushScreen();
     }
 
-    serial_printf("DragWindow EXIT: moved=%d\n", moved);
+    WM_LOG_TRACE("DragWindow EXIT: moved=%d\n", moved);
 }
 
 /* ============================================================================

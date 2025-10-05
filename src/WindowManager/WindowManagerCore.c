@@ -29,6 +29,7 @@
 #include "WindowManager/WindowKinds.h"
 #include "WindowManager/LayoutGuards.h"
 #include "DialogManager/DialogManager.h"
+#include "WindowManager/WMLogging.h"
 
 /* ============================================================================
  * Global Window Manager State
@@ -148,51 +149,51 @@ WindowPtr NewWindow(void* wStorage, const Rect* boundsRect,
                    short theProc, WindowPtr behind,
                    Boolean goAwayFlag, long refCon) {
 
-    serial_printf("[NEWWIN] A - ENTERED\n");
+    WM_LOG_TRACE("[NEWWIN] A - ENTERED\n");
 
     if (!g_wmState.initialized) {
-        serial_printf("[NEWWIN] B - calling InitWindows\n");
+        WM_LOG_TRACE("[NEWWIN] B - calling InitWindows\n");
         InitWindows();
     }
 
     if (boundsRect == NULL) {
-        serial_printf("[NEWWIN] C - boundsRect NULL, returning\n");
+        WM_LOG_TRACE("[NEWWIN] C - boundsRect NULL, returning\n");
         #ifdef DEBUG_WINDOW_MANAGER
         printf("NewWindow: boundsRect is NULL\n");
         #endif
         return NULL;
     }
 
-    serial_printf("[NEWWIN] D - after boundsRect check\n");
+    WM_LOG_TRACE("[NEWWIN] D - after boundsRect check\n");
 
     WindowPtr window;
 
     /* Allocate window storage if not provided */
     if (wStorage == NULL) {
-        serial_printf("[NEWWIN] E - allocating storage\n");
+        WM_LOG_TRACE("[NEWWIN] E - allocating storage\n");
         window = AllocateWindowRecord(false); /* Black & white window */
         if (window == NULL) {
-            serial_printf("[NEWWIN] F - allocation failed\n");
+            WM_LOG_ERROR("[NEWWIN] F - allocation failed\n");
             #ifdef DEBUG_WINDOW_MANAGER
             printf("NewWindow: Failed to allocate window record\n");
             #endif
             return NULL;
         }
     } else {
-        serial_printf("[NEWWIN] G - using provided storage\n");
+        WM_LOG_TRACE("[NEWWIN] G - using provided storage\n");
         window = (WindowPtr)wStorage;
         memset(window, 0, sizeof(WindowRecord));
     }
 
-    serial_printf("[NEWWIN] H - calling InitializeWindowRecord\n");
+    WM_LOG_TRACE("[NEWWIN] H - calling InitializeWindowRecord\n");
     /* Initialize the window record */
     InitializeWindowRecord(window, boundsRect, title, theProc, visible, goAwayFlag);
     window->refCon = refCon;
 
-    serial_printf("[NEWWIN] I - initializing port\n");
+    WM_LOG_TRACE("[NEWWIN] I - initializing port\n");
     /* Initialize the window's graphics port */
     if (!Platform_InitializeWindowPort(window)) {
-        serial_printf("[NEWWIN] J - port init failed\n");
+        WM_LOG_ERROR("[NEWWIN] J - port init failed\n");
         if (wStorage == NULL) {
             DeallocateWindowRecord(window);
         }
@@ -202,23 +203,23 @@ WindowPtr NewWindow(void* wStorage, const Rect* boundsRect,
     /* Regions already initialized in InitializeWindowRecord - don't recalculate */
     /* Platform_CalculateWindowRegions would overwrite with local coordinates */
 
-    serial_printf("[NEWWIN] K - adding to window list\n");
+    WM_LOG_TRACE("[NEWWIN] K - adding to window list\n");
     /* Add window to the window list */
     AddWindowToList(window, behind);
 
-    serial_printf("[NEWWIN] L - creating native window\n");
+    WM_LOG_TRACE("[NEWWIN] L - creating native window\n");
     /* Create native platform window */
     Platform_CreateNativeWindow(window);
 
-    serial_printf("[NEWWIN] M - checking visible flag\n");
+    WM_LOG_TRACE("[NEWWIN] M - checking visible flag\n");
     /* Make visible if requested */
     if (visible) {
-        serial_printf("[NEWWIN] N - calling ShowWindow\n");
+        WM_LOG_TRACE("[NEWWIN] N - calling ShowWindow\n");
         ShowWindow(window);
-        serial_printf("[NEWWIN] O - ShowWindow returned\n");
+        WM_LOG_TRACE("[NEWWIN] O - ShowWindow returned\n");
     }
 
-    serial_printf("[NEWWIN] P - returning window\n");
+    WM_LOG_TRACE("[NEWWIN] P - returning window\n");
     #ifdef DEBUG_WINDOW_MANAGER
     printf("NewWindow: Created window at (%d,%d) size (%d,%d)\n",
            boundsRect->left, boundsRect->top,
@@ -364,53 +365,52 @@ WindowPtr GetNewCWindow(short windowID, void* wStorage, WindowPtr behind) {
  * ============================================================================ */
 
 void CloseWindow(WindowPtr theWindow) {
-    extern void serial_printf(const char* fmt, ...);
     extern void CleanupFolderWindow(WindowPtr w);
 
-    serial_printf("CloseWindow: ENTRY, window=%p\n", theWindow);
+    WM_LOG_TRACE("CloseWindow: ENTRY, window=%p\n", theWindow);
     if (theWindow == NULL) {
-        serial_printf("CloseWindow: NULL window, returning\n");
+        WM_LOG_WARN("CloseWindow: NULL window, returning\n");
         return;
     }
 
     /* Clean up folder window state if this is a folder window */
-    serial_printf("CloseWindow: Calling CleanupFolderWindow\n");
+    WM_LOG_TRACE("CloseWindow: Calling CleanupFolderWindow\n");
     CleanupFolderWindow(theWindow);
-    serial_printf("CloseWindow: CleanupFolderWindow returned\n");
+    WM_LOG_TRACE("CloseWindow: CleanupFolderWindow returned\n");
 
     #ifdef DEBUG_WINDOW_MANAGER
     printf("CloseWindow: Closing window\n");
     #endif
 
     /* Hide the window if it's visible */
-    serial_printf("CloseWindow: Checking visible flag=%d\n", theWindow->visible);
+    WM_LOG_TRACE("CloseWindow: Checking visible flag=%d\n", theWindow->visible);
     if (theWindow->visible) {
-        serial_printf("CloseWindow: Calling HideWindow\n");
+        WM_LOG_TRACE("CloseWindow: Calling HideWindow\n");
         HideWindow(theWindow);
-        serial_printf("CloseWindow: HideWindow returned\n");
+        WM_LOG_TRACE("CloseWindow: HideWindow returned\n");
     }
 
     /* Remove from window list */
-    serial_printf("CloseWindow: Calling RemoveWindowFromList\n");
+    WM_LOG_TRACE("CloseWindow: Calling RemoveWindowFromList\n");
     RemoveWindowFromList(theWindow);
-    serial_printf("CloseWindow: RemoveWindowFromList returned\n");
+    WM_LOG_TRACE("CloseWindow: RemoveWindowFromList returned\n");
 
     /* Dispose of auxiliary window record if it exists */
-    serial_printf("CloseWindow: Checking for AuxWin\n");
+    WM_LOG_TRACE("CloseWindow: Checking for AuxWin\n");
     AuxWinHandle auxWin;
     if (GetAuxWin(theWindow, &auxWin)) {
-        serial_printf("CloseWindow: Disposing AuxWin\n");
+        WM_LOG_TRACE("CloseWindow: Disposing AuxWin\n");
         DisposeAuxiliaryWindowRecord(auxWin);
-        serial_printf("CloseWindow: AuxWin disposed\n");
+        WM_LOG_TRACE("CloseWindow: AuxWin disposed\n");
     }
 
     /* Destroy native platform window */
-    serial_printf("CloseWindow: Destroying native window\n");
+    WM_LOG_TRACE("CloseWindow: Destroying native window\n");
     Platform_DestroyNativeWindow(theWindow);
-    serial_printf("CloseWindow: Native window destroyed\n");
+    WM_LOG_TRACE("CloseWindow: Native window destroyed\n");
 
     /* Dispose of window regions */
-    serial_printf("CloseWindow: Disposing regions\n");
+    WM_LOG_TRACE("CloseWindow: Disposing regions\n");
     if (theWindow->strucRgn) {
         Platform_DisposeRgn(theWindow->strucRgn);
         theWindow->strucRgn = NULL;
@@ -427,10 +427,10 @@ void CloseWindow(WindowPtr theWindow) {
         Platform_DisposeRgn(theWindow->updateRgn);
         theWindow->updateRgn = NULL;
     }
-    serial_printf("CloseWindow: Regions disposed\n");
+    WM_LOG_TRACE("CloseWindow: Regions disposed\n");
 
     /* Dispose of title */
-    serial_printf("CloseWindow: Disposing title\n");
+    WM_LOG_TRACE("CloseWindow: Disposing title\n");
     if (theWindow->titleHandle) {
         if (*(theWindow->titleHandle)) {
             free(*(theWindow->titleHandle));
@@ -438,18 +438,18 @@ void CloseWindow(WindowPtr theWindow) {
         free(theWindow->titleHandle);
         theWindow->titleHandle = NULL;
     }
-    serial_printf("CloseWindow: Title disposed\n");
+    WM_LOG_TRACE("CloseWindow: Title disposed\n");
 
     /* Clean up the window's port */
-    serial_printf("CloseWindow: Cleaning up port\n");
+    WM_LOG_TRACE("CloseWindow: Cleaning up port\n");
     Platform_CleanupWindowPort(theWindow);
-    serial_printf("CloseWindow: Port cleaned up\n");
+    WM_LOG_TRACE("CloseWindow: Port cleaned up\n");
 
     /* Mark window as invisible and invalid - but DON'T zero memory yet!
      * Memory will be freed by DisposeWindow or reused by NewWindow.
      * Zeroing here causes crashes if any code has cached pointers. */
     theWindow->visible = false;
-    serial_printf("CloseWindow: EXIT\n");
+    WM_LOG_TRACE("CloseWindow: EXIT\n");
 }
 
 void DisposeWindow(WindowPtr theWindow) {
@@ -473,7 +473,6 @@ void DisposeWindow(WindowPtr theWindow) {
  * Window deactivation - suspend keyboard focus and hide focus ring
  */
 void WM_OnDeactivate(WindowPtr w) {
-    extern void serial_printf(const char* fmt, ...);
     if (!w) {
         return;
     }
@@ -482,14 +481,13 @@ void WM_OnDeactivate(WindowPtr w) {
     if (s_lastFocus) {
         DM_SetKeyboardFocus(w, NULL);
     }
-    serial_printf("[WM] Deactivate %p\n", (void*)w);
+    WM_LOG_TRACE("[WM] Deactivate %p\n", (void*)w);
 }
 
 /**
  * Window activation - restore keyboard focus and show focus ring
  */
 void WM_OnActivate(WindowPtr w) {
-    extern void serial_printf(const char* fmt, ...);
     if (!w) {
         return;
     }
@@ -500,7 +498,7 @@ void WM_OnActivate(WindowPtr w) {
         DM_FocusNextControl(w, false); /* pick first focusable */
     }
     s_lastFocus = NULL; /* one-shot */
-    serial_printf("[WM] Activate %p\n", (void*)w);
+    WM_LOG_TRACE("[WM] Activate %p\n", (void*)w);
 }
 
 /* ============================================================================
@@ -706,12 +704,12 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     /* Set window title */
     window->titleHandle = NULL;
     window->titleWidth = 0;
-    serial_printf("TITLE_INIT: title ptr=%p, len=%d\n", title, title ? title[0] : -1);
+    WM_LOG_TRACE("TITLE_INIT: title ptr=%p, len=%d\n", title, title ? title[0] : -1);
     if (title && title[0] > 0) {
-        serial_printf("TITLE_INIT: Calling SetWTitle\n");
+        WM_LOG_TRACE("TITLE_INIT: Calling SetWTitle\n");
         SetWTitle(window, title);
     } else {
-        serial_printf("TITLE_INIT: Skipping SetWTitle (NULL or empty title)\n");
+        WM_LOG_TRACE("TITLE_INIT: Skipping SetWTitle (NULL or empty title)\n");
     }
 
     /* Initialize control list */
@@ -741,7 +739,7 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
 
     SInt16 fullWidth = clampedBounds.right - clampedBounds.left;
     SInt16 fullHeight = clampedBounds.bottom - clampedBounds.top;
-    serial_printf("[NEWWIN] clampedBounds=(%d,%d,%d,%d) -> fullW=%d fullH=%d\n",
+    WM_LOG_TRACE("[NEWWIN] clampedBounds=(%d,%d,%d,%d) -> fullW=%d fullH=%d\n",
                  clampedBounds.left, clampedBounds.top, clampedBounds.right, clampedBounds.bottom,
                  fullWidth, fullHeight);
 
@@ -751,7 +749,7 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     SInt16 contentHeight = fullHeight - kTitleBar - kSeparator - 2;  /* Subtract title bar, separator, and bottom border */
 
     SetRect(&window->port.portRect, 0, 0, contentWidth, contentHeight);
-    serial_printf("[NEWWIN] portRect set to (0,0,%d,%d) from content w=%d h=%d\n",
+    WM_LOG_TRACE("[NEWWIN] portRect set to (0,0,%d,%d) from content w=%d h=%d\n",
                  window->port.portRect.right, window->port.portRect.bottom,
                  contentWidth, contentHeight);
 
@@ -774,38 +772,37 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     /* Initialize strucRgn with global bounds */
     if (window->strucRgn) {
         Platform_SetRectRgn(window->strucRgn, &clampedBounds);
-        serial_printf("InitializeWindowRecord: Set strucRgn to clampedBounds\n");
+        WM_LOG_TRACE("InitializeWindowRecord: Set strucRgn to clampedBounds\n");
     }
 
     /* CRITICAL: Initialize contRgn to match portBits.bounds EXACTLY!
      * contRgn must match the actual content area for proper clipping */
     if (window->contRgn) {
         Platform_SetRectRgn(window->contRgn, &window->port.portBits.bounds);
-        serial_printf("InitializeWindowRecord: Set contRgn to match portBits.bounds (%d,%d,%d,%d)\n",
+        WM_LOG_TRACE("InitializeWindowRecord: Set contRgn to match portBits.bounds (%d,%d,%d,%d)\n",
                      window->port.portBits.bounds.left, window->port.portBits.bounds.top,
                      window->port.portBits.bounds.right, window->port.portBits.bounds.bottom);
     }
 }
 
 static void AddWindowToList(WindowPtr window, WindowPtr behind) {
-    extern void serial_printf(const char* fmt, ...);
 
     if (window == NULL) return;
 
-    serial_printf("WindowManager: AddWindowToList window=%p, behind=%p\n", window, behind);
+    WM_LOG_TRACE("WindowManager: AddWindowToList window=%p, behind=%p\n", window, behind);
 
     /* Remove from list if already in it */
     RemoveWindowFromList(window);
 
     if (behind == NULL || behind == (WindowPtr)-1L) {
         /* Add to front of list */
-        serial_printf("WindowManager: Adding window %p to FRONT (behind=%p is NULL or -1)\n", window, behind);
+        WM_LOG_TRACE("WindowManager: Adding window %p to FRONT (behind=%p is NULL or -1)\n", window, behind);
         window->nextWindow = g_wmState.windowList;
         g_wmState.windowList = window;
-        serial_printf("WindowManager: Window list head is now %p\n", g_wmState.windowList);
+        WM_LOG_TRACE("WindowManager: Window list head is now %p\n", g_wmState.windowList);
     } else {
         /* Insert after 'behind' window */
-        serial_printf("WindowManager: Inserting window %p AFTER behind=%p\n", window, behind);
+        WM_LOG_TRACE("WindowManager: Inserting window %p AFTER behind=%p\n", window, behind);
         window->nextWindow = behind->nextWindow;
         behind->nextWindow = window;
     }

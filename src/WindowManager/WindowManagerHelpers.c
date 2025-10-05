@@ -8,9 +8,9 @@
 #include "SystemTypes.h"
 #include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowManagerInternal.h"
+#include "WindowManager/WMLogging.h"
 
-/* External functions */
-extern void serial_printf(const char* fmt, ...);
+/* External globals */
 extern QDGlobals qd;
 
 /* Forward declarations */
@@ -160,21 +160,6 @@ short GetPascalStringLength(const unsigned char* str) {
 
 /* CopyPascalString is defined in WindowManagerCore.c */
 extern void CopyPascalString(const unsigned char* src, unsigned char* dst);
-
-/* Debug output macros implementation */
-void WM_DebugPrint(const char* fmt, ...) {
-#ifdef DEBUG_WINDOW_MANAGER
-    serial_printf("WM_DEBUG: ");
-    /* Would need proper varargs handling here */
-    serial_printf("%s\n", fmt);
-#endif
-}
-
-void WM_ErrorPrint(const char* fmt, ...) {
-    serial_printf("WM_ERROR: ");
-    /* Would need proper varargs handling here */
-    serial_printf("%s\n", fmt);
-}
 
 /* Window visibility calculation */
 void WM_CalculateWindowVisibility(WindowPtr window) {

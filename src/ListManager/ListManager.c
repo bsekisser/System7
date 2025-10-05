@@ -40,9 +40,9 @@
 #include "ListManager/ListManagerInternal.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
+#include "ListManager/ListLogging.h"
 
 /* External functions */
-extern void serial_printf(const char* fmt, ...);
 extern OSErr MemError(void);
 extern void InvalRect(const Rect* r);
 
@@ -52,7 +52,7 @@ extern void InvalRect(const Rect* r);
 #endif
 
 #if LIST_DEBUG
-#define LIST_LOG(...) serial_printf("[LIST] " __VA_ARGS__)
+#define LIST_LOG(...) LIST_LOG_DEBUG(__VA_ARGS__)
 #else
 #define LIST_LOG(...)
 #endif
@@ -132,14 +132,14 @@ ListHandle LNew(const ListParams* params)
     short cellW, cellH;
 
     if (!params || !params->window) {
-        LIST_LOG("LNew: invalid parameters\n");
+        LIST_LOG_ERROR("LNew: invalid parameters\n");
         return NULL;
     }
 
     /* Allocate list handle */
     lh = (ListMgrHandle)NewHandleClear(sizeof(ListMgrRec));
     if (!lh) {
-        LIST_LOG("LNew: failed to allocate list handle\n");
+        LIST_LOG_ERROR("LNew: failed to allocate list handle\n");
         return NULL;
     }
     
@@ -291,7 +291,7 @@ OSErr LAddRow(ListHandle lh, short count, short afterRow)
     newRows = NewHandleClear((Size)(newRowCount * sizeof(RowData)));
     if (!newRows) {
         HUnlock((Handle)lh);
-        LIST_LOG("LAddRow: failed to allocate row array\n");
+        LIST_LOG_ERROR("LAddRow: failed to allocate row array\n");
         return memFullErr;
     }
     

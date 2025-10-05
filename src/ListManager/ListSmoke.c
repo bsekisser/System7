@@ -62,10 +62,10 @@
 #include "SystemTypes.h"
 #include "ListManager/ListManager.h"
 #include "WindowManager/WindowManager.h"
+#include "ListManager/ListLogging.h"
 #include "System71StdLib.h"
 
 /* External functions */
-extern void serial_printf(const char* fmt, ...);
 extern WindowPtr NewWindow(void* wStorage, const Rect* boundsRect,
                            ConstStr255Param title, Boolean visible,
                            short procID, WindowPtr behind,
@@ -97,7 +97,7 @@ void RunListSmokeTest(void)
     Boolean selChanged;
     short itemHit;
     
-    serial_printf("\n[LIST SMOKE] Starting List Manager smoke test\n");
+    LIST_LOG_INFO("\n[LIST SMOKE] Starting List Manager smoke test\n");
     
     /* Create test window */
     winRect.left = 100;
@@ -110,11 +110,11 @@ void RunListSmokeTest(void)
     
     testWin = NewWindow(NULL, &winRect, winTitle, true, 0, (WindowPtr)-1, true, 0);
     if (!testWin) {
-        serial_printf("[LIST SMOKE] FAIL: Could not create test window\n");
+        LIST_LOG_ERROR("[LIST SMOKE] FAIL: Could not create test window\n");
         return;
     }
 
-    serial_printf("[LIST SMOKE] Created test window\n");
+    LIST_LOG_INFO("[LIST SMOKE] Created test window\n");
     
     /* Create list */
     listRect.left = 20;
@@ -135,20 +135,20 @@ void RunListSmokeTest(void)
     
     testList = LNew(&params);
     if (!testList) {
-        serial_printf("[LIST SMOKE] FAIL: Could not create list\n");
+        LIST_LOG_ERROR("[LIST SMOKE] FAIL: Could not create list\n");
         return;
     }
 
-    serial_printf("[LIST SMOKE] Created list\n");
+    LIST_LOG_INFO("[LIST SMOKE] Created list\n");
     
     /* Add 60 rows */
     if (LAddRow(testList, 60, -1) != noErr) {
-        serial_printf("[LIST SMOKE] FAIL: Could not add rows\n");
+        LIST_LOG_ERROR("[LIST SMOKE] FAIL: Could not add rows\n");
         LDispose(testList);
         return;
     }
     
-    serial_printf("[LIST SMOKE] Added 60 rows\n");
+    LIST_LOG_INFO("[LIST SMOKE] Added 60 rows\n");
     
     /* Populate cells with "Item N" */
     for (i = 0; i < 60; i++) {
@@ -172,15 +172,15 @@ void RunListSmokeTest(void)
         }
 
         if (LSetCell(testList, itemText, len, c) != noErr) {
-            serial_printf("[LIST SMOKE] WARN: Failed to set cell(%d,0)\n", i);
+            LIST_LOG_WARN("[LIST SMOKE] WARN: Failed to set cell(%d,0)\n", i);
         }
     }
     
-    serial_printf("[LIST SMOKE] Populated all cells\n");
+    LIST_LOG_INFO("[LIST SMOKE] Populated all cells\n");
     
     /* Draw list */
     LDraw(testList);
-    serial_printf("[LIST SMOKE] Drew list\n");
+    LIST_LOG_INFO("[LIST SMOKE] Drew list\n");
     
     /* Test click on row 3 */
     {
@@ -190,31 +190,31 @@ void RunListSmokeTest(void)
         
         selChanged = LClick(testList, clickPt, 0, &itemHit);
         if (selChanged) {
-            serial_printf("[LIST SMOKE] Click changed selection: itemHit=%d\n", itemHit);
+            LIST_LOG_DEBUG("[LIST SMOKE] Click changed selection: itemHit=%d\n", itemHit);
         } else {
-            serial_printf("[LIST SMOKE] Click did not change selection\n");
+            LIST_LOG_DEBUG("[LIST SMOKE] Click did not change selection\n");
         }
     }
     
     /* Test scroll forward */
     LScroll(testList, 18, 0);
-    serial_printf("[LIST SMOKE] Scrolled forward 18 rows\n");
+    LIST_LOG_INFO("[LIST SMOKE] Scrolled forward 18 rows\n");
     
     /* Test scroll back */
     LScroll(testList, -10, 0);
-    serial_printf("[LIST SMOKE] Scrolled back 10 rows\n");
+    LIST_LOG_INFO("[LIST SMOKE] Scrolled back 10 rows\n");
     
     /* Test resize */
     LSize(testList, 260, 220);
-    serial_printf("[LIST SMOKE] Resized list to 260x220\n");
+    LIST_LOG_INFO("[LIST SMOKE] Resized list to 260x220\n");
     
     /* Test refCon */
     {
         long refCon = LGetRefCon(testList);
         if (refCon == 0x12345678) {
-            serial_printf("[LIST SMOKE] RefCon verified: 0x%08lx\n", refCon);
+            LIST_LOG_INFO("[LIST SMOKE] RefCon verified: 0x%08lx\n", refCon);
         } else {
-            serial_printf("[LIST SMOKE] WARN: RefCon mismatch: expected 0x12345678, got 0x%08lx\n", refCon);
+            LIST_LOG_WARN("[LIST SMOKE] WARN: RefCon mismatch: expected 0x12345678, got 0x%08lx\n", refCon);
         }
     }
     
@@ -226,21 +226,21 @@ void RunListSmokeTest(void)
         /* LGetSelect automatically resets iterator on first call */
         while (LGetSelect(testList, &selCell)) {
             selCount++;
-            serial_printf("[LIST SMOKE] Selected cell: row=%d col=%d\n", selCell.v, selCell.h);
+            LIST_LOG_INFO("[LIST SMOKE] Selected cell: row=%d col=%d\n", selCell.v, selCell.h);
             if (selCount > 100) break;  /* Safety */
         }
 
-        serial_printf("[LIST SMOKE] Total selected cells: %d\n", selCount);
+        LIST_LOG_INFO("[LIST SMOKE] Total selected cells: %d\n", selCount);
     }
     
     /* Test delete rows */
     if (LDelRow(testList, 10, 20) == noErr) {
-        serial_printf("[LIST SMOKE] Deleted 10 rows starting at row 20\n");
+        LIST_LOG_INFO("[LIST SMOKE] Deleted 10 rows starting at row 20\n");
     }
 
     /* Final redraw to ensure content is visible */
     LDraw(testList);
-    serial_printf("[LIST SMOKE] Final redraw complete\n");
+    LIST_LOG_INFO("[LIST SMOKE] Final redraw complete\n");
 
     /* Keep redrawing to ensure content persists */
     /* (Simulates application responding to update events) */
@@ -260,9 +260,9 @@ void RunListSmokeTest(void)
     /* Window will stay on screen for manual inspection */
     /* (In production, would dispose on window close event) */
 
-    serial_printf("[LIST SMOKE] Smoke test COMPLETE - List window remains visible\n\n");
-    serial_printf("[LIST SMOKE] Window contains list with %d items\n", 50);
-    serial_printf("[LIST SMOKE] Close window manually or it will persist in UI\n\n");
+    LIST_LOG_INFO("[LIST SMOKE] Smoke test COMPLETE - List window remains visible\n\n");
+    LIST_LOG_INFO("[LIST SMOKE] Window contains list with %d items\n", 50);
+    LIST_LOG_INFO("[LIST SMOKE] Close window manually or it will persist in UI\n\n");
 
     /* Note: testList and testWin NOT disposed - they remain in the UI */
 }

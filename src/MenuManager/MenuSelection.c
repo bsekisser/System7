@@ -20,13 +20,14 @@
 #include "System71StdLib.h"
 
 #include "MenuManager/MenuManager.h"
+#include "MenuManager/MenuLogging.h"
 #include "MenuManager/MenuTypes.h"
 #include "MenuManager/MenuInternalTypes.h"
 #include "MenuManager/MenuSelection.h"
 #include "MenuManager/MenuDisplay.h"
 
 /* Serial output functions */
-extern void serial_serial_printf(const char* format, ...);
+extern void serial_MENU_LOG_TRACE(const char* format, ...);
 
 /* Menu item standard height */
 #define menuItemStdHeight 16
@@ -160,12 +161,12 @@ long MenuSelect(Point startPt)
         SetPort(wmgrPort);
     }
 
-    serial_printf("MenuSelect: startPt = (h=%d, v=%d)\n", startPt.h, startPt.v);
+    MENU_LOG_TRACE("MenuSelect: startPt = (h=%d, v=%d)\n", startPt.h, startPt.v);
 
     /* Simple implementation - just detect which menu was clicked */
     /* Check if click is in menu bar */
     if (startPt.v < 0 || startPt.v >= 20) {
-        serial_printf("MenuSelect: Not in menu bar (v=%d)\n", startPt.v);
+        MENU_LOG_TRACE("MenuSelect: Not in menu bar (v=%d)\n", startPt.v);
         /* Restore port before returning */
         if (savedPort) SetPort(savedPort);
         return 0;
@@ -175,7 +176,7 @@ long MenuSelect(Point startPt)
     menuID = FindMenuAtPoint_Internal(startPt);
 
     if (menuID != 0) {
-        serial_printf("MenuSelect: Found menu ID %d at (h=%d,v=%d)\n",
+        MENU_LOG_TRACE("MenuSelect: Found menu ID %d at (h=%d,v=%d)\n",
                      menuID, startPt.h, startPt.v);
 
         /* Highlight the menu title */
@@ -193,7 +194,7 @@ long MenuSelect(Point startPt)
         if (GetMenuTitleRectByID(menuID, &titleRect)) {
             serial_puts("DEBUG: GetMenuTitleRectByID returned TRUE\n");
             /* Use the left edge of the menu title */
-            serial_printf("DEBUG: titleRect.left=%d\n", titleRect.left);
+            MENU_LOG_TRACE("DEBUG: titleRect.left=%d\n", titleRect.left);
             dropdownPt.h = titleRect.left;
             serial_puts("DEBUG: Set dropdownPt.h\n");
             dropdownPt.v = 20; /* Position below menu bar */
@@ -214,11 +215,11 @@ long MenuSelect(Point startPt)
             /* User selected an item - TrackMenu already returns packed format */
             result = trackResult;
             item = trackResult & 0xFFFF;
-            serial_printf("MenuSelect: User selected item %d from menu %d\n", item, menuID);
+            MENU_LOG_TRACE("MenuSelect: User selected item %d from menu %d\n", item, menuID);
         } else {
             /* User cancelled or clicked outside */
             result = 0;
-            serial_printf("MenuSelect: User cancelled menu selection\n");
+            MENU_LOG_TRACE("MenuSelect: User cancelled menu selection\n");
         }
 
         /* Unhighlight the menu title */
@@ -226,14 +227,14 @@ long MenuSelect(Point startPt)
         HiliteMenu(0);
 
         gLastMenuChoice = result;
-        serial_printf("MenuSelect: Returning 0x%08lX\n", result);
+        MENU_LOG_TRACE("MenuSelect: Returning 0x%08lX\n", result);
 
         /* Restore saved port before returning */
         if (savedPort) SetPort(savedPort);
         return result;
     }
 
-    serial_printf("MenuSelect: No menu found at (h=%d,v=%d)\n", startPt.h, startPt.v);
+    MENU_LOG_TRACE("MenuSelect: No menu found at (h=%d,v=%d)\n", startPt.h, startPt.v);
     /* Restore saved port before returning */
     if (savedPort) SetPort(savedPort);
     return 0;
@@ -283,7 +284,7 @@ short MenuSelectEx(Point startPt, MenuTrackInfo* trackInfo, MenuSelection* selec
         return kMenuSelectionCancelled;
     }
 
-    serial_printf("Starting menu selection at (%d,%d), inMenuBar=%s\n",
+    MENU_LOG_TRACE("Starting menu selection at (%d,%d), inMenuBar=%s\n",
            startPt.h, startPt.v, isInMenuBar ? "Yes" : "No");
 
     /* Main tracking loop */
@@ -353,7 +354,7 @@ short MenuSelectEx(Point startPt, MenuTrackInfo* trackInfo, MenuSelection* selec
                 /* Provide feedback */
                 FlashMenuFeedback(currentMenu, currentItem);
 
-                /* serial_printf("Menu selection: menu %d, item %d\n", currentMenu, currentItem); */
+                /* MENU_LOG_TRACE("Menu selection: menu %d, item %d\n", currentMenu, currentItem); */
                 break;
             } else {
                 /* Invalid selection - cancel */
@@ -425,14 +426,14 @@ long MenuKeyEx(short keyChar, unsigned long modifiers, MenuCmdSearch* search)
             /* Provide feedback */
             FlashMenuFeedback(search->foundMenuID, search->foundItem);
 
-            serial_printf("Command key '%c' found: menu %d, item %d\n",
+            MENU_LOG_TRACE("Command key '%c' found: menu %d, item %d\n",
                    keyChar, search->foundMenuID, search->foundItem);
         } else {
-            serial_printf("Command key '%c' found but disabled: menu %d, item %d\n",
+            MENU_LOG_TRACE("Command key '%c' found but disabled: menu %d, item %d\n",
                    keyChar, search->foundMenuID, search->foundItem);
         }
     } else {
-        /* serial_printf("Command key '%c' not found\n", keyChar); */
+        /* MENU_LOG_TRACE("Command key '%c' not found\n", keyChar); */
     }
 
     /* Store last choice */
@@ -469,7 +470,7 @@ short TrackMenuBar(Point startPt, MenuTrackInfo* trackInfo)
     /* Find menu under initial point */
     menuUnderMouse = FindMenuAtPoint(startPt);
 
-    /* serial_printf("Tracking menu bar starting at menu %d\n", menuUnderMouse); */
+    /* MENU_LOG_TRACE("Tracking menu bar starting at menu %d\n", menuUnderMouse); */
 
     /* Track mouse until it leaves menu bar or button is released */
     do {
@@ -508,7 +509,7 @@ short TrackPullDownMenu(MenuHandle theMenu, const Rect* menuRect,
         return 0;
     }
 
-    /* serial_printf("Tracking pull-down menu %d\n", (*(MenuInfo**)theMenu)->menuID); */
+    /* MENU_LOG_TRACE("Tracking pull-down menu %d\n", (*(MenuInfo**)theMenu)->menuID); */
 
     /* Track mouse in menu */
     do {
@@ -655,7 +656,7 @@ Boolean ExecuteMenuCommand(short menuID, short item, Boolean flash)
     /* Store as last choice */
     gLastMenuChoice = PackMenuChoice(menuID, item);
 
-    /* serial_printf("Executed menu command: menu %d, item %d\n", menuID, item); */
+    /* MENU_LOG_TRACE("Executed menu command: menu %d, item %d\n", menuID, item); */
 
     return true;
 }
@@ -676,7 +677,7 @@ void BeginMenuTracking(MenuTrackInfo* trackInfo)
     InitializeTrackingState(trackInfo);
     gTrackingActive = true;
 
-    /* serial_printf("Beginning menu tracking session\n"); */
+    /* MENU_LOG_TRACE("Beginning menu tracking session\n"); */
 }
 
 /*
@@ -691,7 +692,7 @@ void EndMenuTracking(MenuTrackInfo* trackInfo)
     CleanupTrackingState(trackInfo);
     gTrackingActive = false;
 
-    /* serial_printf("Ending menu tracking session\n"); */
+    /* MENU_LOG_TRACE("Ending menu tracking session\n"); */
 }
 
 /*
@@ -763,7 +764,7 @@ void AnimateMenuSelection(const MenuSelection* selection, short animation)
         return;
     }
 
-    serial_printf("Animating menu selection: menu %d, item %d (animation %d)\n",
+    MENU_LOG_TRACE("Animating menu selection: menu %d, item %d (animation %d)\n",
            selection->menuID, selection->itemID, animation);
 
     /* TODO: Implement selection animation */
@@ -774,7 +775,7 @@ void AnimateMenuSelection(const MenuSelection* selection, short animation)
  */
 void PlayMenuSound(short soundType)
 {
-    /* serial_printf("Playing menu sound type %d\n", soundType); */
+    /* MENU_LOG_TRACE("Playing menu sound type %d\n", soundType); */
 
     /* TODO: Implement sound playback */
 }
@@ -1117,19 +1118,19 @@ static unsigned long GetCurrentTime(void)
 #ifdef DEBUG
 void PrintMenuSelectionState(void)
 {
-    /* serial_printf("=== Menu Selection State ===\n"); */
-    /* serial_printf("Tracking active: %s\n", gTrackingActive ? "Yes" : "No"); */
-    /* serial_printf("Last menu choice: 0x%08lX\n", gLastMenuChoice); */
-    /* serial_printf("Last selection:\n"); */
-    /* serial_printf("  Menu ID: %d\n", gLastSelection.menuID); */
-    /* serial_printf("  Item ID: %d\n", gLastSelection.itemID); */
-    /* serial_printf("  Valid: %s\n", gLastSelection.valid ? "Yes" : "No"); */
-    /* serial_printf("  Cancelled: %s\n", gLastSelection.cancelled ? "Yes" : "No"); */
-    /* serial_printf("Tracking state:\n"); */
-    /* serial_printf("  State: %d\n", gTrackingState.trackingState); */
-    /* serial_printf("  Current menu: %s\n", gTrackingState.currentMenu ? "Yes" : "No"); */
-    /* serial_printf("  Current item: %d\n", gTrackingState.currentItem); */
-    /* serial_printf("  Mouse down: %s\n", gTrackingState.mouseDown ? "Yes" : "No"); */
-    /* serial_printf("==========================\n"); */
+    /* MENU_LOG_TRACE("=== Menu Selection State ===\n"); */
+    /* MENU_LOG_TRACE("Tracking active: %s\n", gTrackingActive ? "Yes" : "No"); */
+    /* MENU_LOG_TRACE("Last menu choice: 0x%08lX\n", gLastMenuChoice); */
+    /* MENU_LOG_TRACE("Last selection:\n"); */
+    /* MENU_LOG_TRACE("  Menu ID: %d\n", gLastSelection.menuID); */
+    /* MENU_LOG_TRACE("  Item ID: %d\n", gLastSelection.itemID); */
+    /* MENU_LOG_TRACE("  Valid: %s\n", gLastSelection.valid ? "Yes" : "No"); */
+    /* MENU_LOG_TRACE("  Cancelled: %s\n", gLastSelection.cancelled ? "Yes" : "No"); */
+    /* MENU_LOG_TRACE("Tracking state:\n"); */
+    /* MENU_LOG_TRACE("  State: %d\n", gTrackingState.trackingState); */
+    /* MENU_LOG_TRACE("  Current menu: %s\n", gTrackingState.currentMenu ? "Yes" : "No"); */
+    /* MENU_LOG_TRACE("  Current item: %d\n", gTrackingState.currentItem); */
+    /* MENU_LOG_TRACE("  Mouse down: %s\n", gTrackingState.mouseDown ? "Yes" : "No"); */
+    /* MENU_LOG_TRACE("==========================\n"); */
 }
 #endif

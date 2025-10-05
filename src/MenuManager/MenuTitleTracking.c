@@ -9,8 +9,8 @@
 #include "SystemTypes.h"
 
 /* Printf for debugging */
-extern int serial_printf(const char* format, ...);
 #include "MenuManager/MenuManager.h"
+#include "MenuManager/MenuLogging.h"
 #include "MenuManager/MenuTypes.h"
 
 /* Menu title tracking structure */
@@ -60,7 +60,7 @@ void AddMenuTitle(short menuID, short left, short width, const char* title)
 
     gMenuTitleCount++;
 
-    serial_printf("Added menu title: ID=%d, left=%d, width=%d, title='%s'\n",
+    MENU_LOG_TRACE("Added menu title: ID=%d, left=%d, width=%d, title='%s'\n",
                   menuID, left, width, title ? title : "");
 }
 

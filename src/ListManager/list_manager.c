@@ -13,9 +13,9 @@
 #include "WindowManager/WindowManager.h"
 #include "ControlManager/ControlManager.h"
 #include "System71StdLib.h"
+#include "ListManager/ListLogging.h"
 
 /* External functions */
-extern void serial_printf(const char* fmt, ...);
 extern void SetPort(GrafPtr port);
 extern void GetPort(GrafPtr* port);
 extern void ClipRect(const Rect* r);
@@ -41,7 +41,7 @@ extern struct QDGlobals qd;
 #endif
 
 #if LIST_DEBUG
-#define LIST_LOG(...) serial_printf("[LIST] " __VA_ARGS__)
+#define LIST_LOG(...) LIST_LOG_DEBUG(__VA_ARGS__)
 #else
 #define LIST_LOG(...)
 #endif

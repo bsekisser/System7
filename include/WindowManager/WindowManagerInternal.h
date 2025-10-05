@@ -15,6 +15,7 @@
 #include "SystemTypes.h"
 
 #include "../../include/WindowManager/WindowManager.h"
+#include "WindowManager/WMLogging.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -327,8 +328,6 @@ void WM_InterpolateRect(const Rect* from, const Rect* to, Rect* result, short fr
 /*
  * Error handling and debugging
  */
-void WM_DebugPrint(const char* format, ...);
-void WM_ErrorPrint(const char* format, ...);
 void WM_Assert(Boolean condition, const char* message);
 
 /* ============================================================================
@@ -379,8 +378,8 @@ WindowManagerState* GetWindowManagerState(void);
 
 /* Debug output macros */
 #ifdef DEBUG_WINDOW_MANAGER
-#define WM_DEBUG(fmt, ...) WM_DebugPrint("WM: " fmt "\n", ##__VA_ARGS__)
-#define WM_ERROR(fmt, ...) WM_ErrorPrint("WM ERROR: " fmt "\n", ##__VA_ARGS__)
+#define WM_DEBUG(fmt, ...) WM_LOG_DEBUG(fmt "\n", ##__VA_ARGS__)
+#define WM_ERROR(fmt, ...) WM_LOG_ERROR(fmt "\n", ##__VA_ARGS__)
 #else
 #define WM_DEBUG(fmt, ...)
 #define WM_ERROR(fmt, ...)

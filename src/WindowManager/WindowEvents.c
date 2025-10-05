@@ -20,6 +20,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowManagerInternal.h"
+#include "WindowManager/WMLogging.h"
 
 /* Forward declarations for internal helpers */
 static Boolean WM_IsMouseDown(void);
@@ -27,9 +28,8 @@ static GrafPtr WM_GetCurrentPort(void);
 static GrafPtr WM_GetUpdatePort(WindowPtr window);
 static Boolean WM_EmptyRgn(RgnHandle rgn);
 
-
 /* ============================================================================
- * Window Hit Testing and Finding
+ * Public Functions
  * ============================================================================ */
 
 short FindWindow(Point thePoint, WindowPtr* theWindow) {
@@ -221,17 +221,16 @@ void InvalRect(const Rect* badRect) {
 }
 
 void InvalRgn(RgnHandle badRgn) {
-    extern void serial_printf(const char* fmt, ...);
 
     if (badRgn == NULL) {
-        serial_printf("WindowManager: InvalRgn called with NULL region\n");
+        WM_LOG_WARN("WindowManager: InvalRgn called with NULL region\n");
         return;
     }
 
     /* Get current graphics port */
     GrafPtr currentPort = WM_GetCurrentPort();
     if (currentPort == NULL) {
-        serial_printf("WindowManager: InvalRgn - no current port\n");
+        WM_LOG_WARN("WindowManager: InvalRgn - no current port\n");
         return;
     }
 
@@ -239,21 +238,21 @@ void InvalRgn(RgnHandle badRgn) {
     WindowPtr window = (WindowPtr)currentPort;
 
     Region* badRgnData = *badRgn;
-    serial_printf("WindowManager: InvalRgn window=0x%08x, badRgn bbox=(%d,%d,%d,%d)\n",
+    WM_LOG_TRACE("WindowManager: InvalRgn window=0x%08x, badRgn bbox=(%d,%d,%d,%d)\n",
                  (unsigned int)window, badRgnData->rgnBBox.left, badRgnData->rgnBBox.top,
                  badRgnData->rgnBBox.right, badRgnData->rgnBBox.bottom);
 
     /* Add region to window's update region */
     if (window->updateRgn) {
         Region* updateBefore = *(window->updateRgn);
-        serial_printf("WindowManager: InvalRgn - BEFORE union, updateRgn bbox=(%d,%d,%d,%d)\n",
+        WM_LOG_TRACE("WindowManager: InvalRgn - BEFORE union, updateRgn bbox=(%d,%d,%d,%d)\n",
                      updateBefore->rgnBBox.left, updateBefore->rgnBBox.top,
                      updateBefore->rgnBBox.right, updateBefore->rgnBBox.bottom);
 
         Platform_UnionRgn(window->updateRgn, badRgn, window->updateRgn);
 
         Region* updateAfter = *(window->updateRgn);
-        serial_printf("WindowManager: InvalRgn - AFTER union, updateRgn bbox=(%d,%d,%d,%d)\n",
+        WM_LOG_TRACE("WindowManager: InvalRgn - AFTER union, updateRgn bbox=(%d,%d,%d,%d)\n",
                      updateAfter->rgnBBox.left, updateAfter->rgnBBox.top,
                      updateAfter->rgnBBox.right, updateAfter->rgnBBox.bottom);
 
@@ -266,9 +265,9 @@ void InvalRgn(RgnHandle badRgn) {
         /* Post update event to Event Manager so application can redraw */
         extern SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg);
         PostEvent(6 /* updateEvt */, (SInt32)window);
-        serial_printf("WindowManager: InvalRgn - Posted updateEvt for window=0x%08x\n", (unsigned int)window);
+        WM_LOG_DEBUG("WindowManager: InvalRgn - Posted updateEvt for window=0x%08x\n", (unsigned int)window);
     } else {
-        serial_printf("WindowManager: InvalRgn - window has NULL updateRgn!\n");
+        WM_LOG_WARN("WindowManager: InvalRgn - window has NULL updateRgn!\n");
     }
 }
 

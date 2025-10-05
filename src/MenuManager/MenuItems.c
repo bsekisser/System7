@@ -17,10 +17,10 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "MenuManager/MenuManager.h"
+#include "MenuManager/MenuLogging.h"
 #include "MenuManager/MenuTypes.h"
 
 /* External debug output */
-extern void serial_printf(const char* format, ...);
 
 /* ============================================================================
  * Menu Item Internal Storage
@@ -69,15 +69,15 @@ static MenuExtData* GetMenuExtData(MenuHandle theMenu) {
     short menuID;
     MenuExtData* extData;
 
-    serial_printf("GetMenuExtData: theMenu=%p\n", (void*)theMenu);
+    MENU_LOG_TRACE("GetMenuExtData: theMenu=%p\n", (void*)theMenu);
     if (!theMenu || !*theMenu) {
         serial_puts("GetMenuExtData: NULL check failed\n");
         return NULL;
     }
 
-    serial_printf("GetMenuExtData: *theMenu=%p\n", (void*)*theMenu);
+    MENU_LOG_TRACE("GetMenuExtData: *theMenu=%p\n", (void*)*theMenu);
     menuID = (*(MenuInfo**)theMenu)->menuID;
-    serial_printf("GetMenuExtData: menuID=%d\n", menuID);
+    MENU_LOG_TRACE("GetMenuExtData: menuID=%d\n", menuID);
 
     /* Search for existing extended data */
     for (i = 0; i < gNumMenuExtData; i++) {
@@ -102,7 +102,7 @@ static MenuExtData* GetMenuExtData(MenuHandle theMenu) {
     gMenuExtData[gNumMenuExtData].extData = extData;
     gNumMenuExtData++;
 
-    serial_printf("Created extended data for menu ID %d\n", menuID);
+    MENU_LOG_TRACE("Created extended data for menu ID %d\n", menuID);
 
     return extData;
 }
@@ -132,7 +132,7 @@ static char ParseItemText(Str255 itemText) {
         /* Remove /X from text */
         itemText[0] = len - 2;
 
-        serial_printf("Parsed command key: '%c' from item '%.*s'\n",
+        MENU_LOG_TRACE("Parsed command key: '%c' from item '%.*s'\n",
                      cmdKey, len - 2, &itemText[1]);
     }
 
@@ -173,7 +173,7 @@ void AppendMenu(MenuHandle menu, ConstStr255Param data) {
     pos = 1;
     itemStart = 1;
 
-    serial_printf("AppendMenu: parsing '%.*s'\n", dataLen, &data[1]);
+    MENU_LOG_TRACE("AppendMenu: parsing '%.*s'\n", dataLen, &data[1]);
 
     /* Parse semicolon-separated items */
     while (pos <= dataLen) {
@@ -210,7 +210,7 @@ void AppendMenu(MenuHandle menu, ConstStr255Param data) {
 
                 extData->itemCount++;
 
-                serial_printf("  Added item %d: '%.*s' (cmd='%c', sep=%d)\n",
+                MENU_LOG_TRACE("  Added item %d: '%.*s' (cmd='%c', sep=%d)\n",
                              extData->itemCount, item->text[0], &item->text[1],
                              item->cmdKey ? item->cmdKey : ' ', item->isSeparator);
             }
@@ -267,7 +267,7 @@ void InsertMenuItem(MenuHandle theMenu, ConstStr255Param itemString, short after
 
     extData->itemCount++;
 
-    serial_printf("InsertMenuItem: item %d after %d: '%.*s'\n",
+    MENU_LOG_TRACE("InsertMenuItem: item %d after %d: '%.*s'\n",
                  afterItem + 1, afterItem, item->text[0], &item->text[1]);
 }
 
@@ -285,7 +285,7 @@ void DeleteMenuItem(MenuHandle theMenu, short item) {
 
     if (item > extData->itemCount) return;
 
-    serial_printf("DeleteMenuItem: item %d\n", item);
+    MENU_LOG_TRACE("DeleteMenuItem: item %d\n", item);
 
     /* Shift items up */
     for (i = item - 1; i < extData->itemCount - 1; i++) {
@@ -363,7 +363,7 @@ void SetMenuItemText(MenuHandle theMenu, short item, ConstStr255Param itemString
     memcpy(extData->items[item - 1].text, itemText, itemText[0] + 1);
     extData->items[item - 1].isSeparator = IsSeparatorText(itemText);
 
-    serial_printf("SetMenuItemText: item %d = '%.*s'\n",
+    MENU_LOG_TRACE("SetMenuItemText: item %d = '%.*s'\n",
                  item, itemText[0], &itemText[1]);
 }
 
@@ -381,7 +381,7 @@ void EnableItem(MenuHandle theMenu, short item) {
     if (item == 0) {
         /* Enable entire menu */
         menu->enableFlags = 0xFFFFFFFF;
-        serial_printf("EnableItem: enabled entire menu\n");
+        MENU_LOG_TRACE("EnableItem: enabled entire menu\n");
     } else {
         extData = GetMenuExtData(theMenu);
         if (!extData || item > extData->itemCount) return;
@@ -389,7 +389,7 @@ void EnableItem(MenuHandle theMenu, short item) {
         /* Don't enable separators */
         if (!extData->items[item - 1].isSeparator) {
             extData->items[item - 1].enabled = 1;
-            serial_printf("EnableItem: enabled item %d\n", item);
+            MENU_LOG_TRACE("EnableItem: enabled item %d\n", item);
         }
     }
 }
@@ -408,13 +408,13 @@ void DisableItem(MenuHandle theMenu, short item) {
     if (item == 0) {
         /* Disable entire menu */
         menu->enableFlags = 0;
-        serial_printf("DisableItem: disabled entire menu\n");
+        MENU_LOG_TRACE("DisableItem: disabled entire menu\n");
     } else {
         extData = GetMenuExtData(theMenu);
         if (!extData || item > extData->itemCount) return;
 
         extData->items[item - 1].enabled = 0;
-        serial_printf("DisableItem: disabled item %d\n", item);
+        MENU_LOG_TRACE("DisableItem: disabled item %d\n", item);
     }
 }
 
@@ -438,7 +438,7 @@ void CheckItem(MenuHandle theMenu, short item, Boolean checked) {
         extData->items[item - 1].mark = 0;
     }
 
-    serial_printf("CheckItem: item %d checked=%d\n", item, checked);
+    MENU_LOG_TRACE("CheckItem: item %d checked=%d\n", item, checked);
 }
 
 /*
@@ -455,7 +455,7 @@ void SetItemMark(MenuHandle theMenu, short item, short markChar) {
     extData->items[item - 1].mark = (char)markChar;
     extData->items[item - 1].checked = (markChar != 0);
 
-    serial_printf("SetItemMark: item %d mark='%c' (0x%02X)\n",
+    MENU_LOG_TRACE("SetItemMark: item %d mark='%c' (0x%02X)\n",
                  item, markChar ? markChar : ' ', (unsigned char)markChar);
 }
 
@@ -499,7 +499,7 @@ void SetItemCmd(MenuHandle theMenu, short item, short cmdChar) {
 
     extData->items[item - 1].cmdKey = key;
 
-    serial_printf("SetItemCmd: item %d cmd='%c'\n", item, key ? key : ' ');
+    MENU_LOG_TRACE("SetItemCmd: item %d cmd='%c'\n", item, key ? key : ' ');
 }
 
 /*
@@ -535,7 +535,7 @@ void SetItemIcon(MenuHandle theMenu, short item, short iconIndex) {
 
     extData->items[item - 1].iconID = iconIndex;
 
-    serial_printf("SetItemIcon: item %d icon=%d\n", item, iconIndex);
+    MENU_LOG_TRACE("SetItemIcon: item %d icon=%d\n", item, iconIndex);
 }
 
 /*
@@ -571,7 +571,7 @@ void SetItemStyle(MenuHandle theMenu, short item, short chStyle) {
 
     extData->items[item - 1].style = chStyle;
 
-    serial_printf("SetItemStyle: item %d style=0x%02X\n", item, chStyle);
+    MENU_LOG_TRACE("SetItemStyle: item %d style=0x%02X\n", item, chStyle);
 }
 
 /*
@@ -684,6 +684,6 @@ void CalcMenuSize(MenuHandle theMenu) {
     menu->menuWidth = maxWidth;
     menu->menuHeight = totalHeight;
 
-    serial_printf("CalcMenuSize: menu ID %d size %d x %d (%d items)\n",
+    MENU_LOG_TRACE("CalcMenuSize: menu ID %d size %d x %d (%d items)\n",
                  menu->menuID, maxWidth, totalHeight, itemCount);
 }
