@@ -10,6 +10,8 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 
+#define SF_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleStandardFile, kLogLevelDebug, "[SF] " fmt, ##__VA_ARGS__)
+
 /*
  * StandardFile.c - Standard File Package Implementation
  * Provides standard file open/save dialogs for System 7.1
@@ -277,7 +279,7 @@ void CustomPutFile(ConstStr255Param prompt,
 
 handle_item:
         if (itemHit > 0) {
-            serial_printf("[SF] itemHit=%d\n", itemHit);
+            SF_LOG_DEBUG("itemHit=%d\n", itemHit);
         }
         switch (itemHit) {
             case sfItemOpenButton:  /* Save button */
@@ -470,7 +472,7 @@ void CustomGetFile(FileFilterYDProcPtr fileFilter,
 
 handle_item2:
         if (itemHit > 0) {
-            serial_printf("[SF] itemHit=%d\n", itemHit);
+            SF_LOG_DEBUG("itemHit=%d\n", itemHit);
         }
         switch (itemHit) {
             case sfItemOpenButton:

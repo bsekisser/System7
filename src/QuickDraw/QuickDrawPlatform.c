@@ -8,6 +8,9 @@
 #include "QuickDraw/QuickDrawPlatform.h"
 #include "QuickDrawConstants.h"  /* For paint, frame, erase, patCopy */
 #include <stdlib.h>  /* For abs() */
+#include "System71StdLib.h"
+
+#define QD_LOG_TRACE(fmt, ...) serial_logf(kLogModuleSystem, kLogLevelTrace, "[QD] " fmt, ##__VA_ARGS__)
 
 /* External framebuffer from main.c */
 extern void* framebuffer;
@@ -226,9 +229,8 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
     SInt32 offsetX = 0;
     SInt32 offsetY = 0;
 
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("QDPlatform_DrawShape: verb=%d, rect=(%d,%d,%d,%d), offset=(%d,%d)\n",
-                  verb, rect->left, rect->top, rect->right, rect->bottom, offsetX, offsetY);
+    QD_LOG_TRACE("QDPlatform_DrawShape: verb=%d rect=(%d,%d,%d,%d) offset=(%d,%d)\n",
+                 verb, rect->left, rect->top, rect->right, rect->bottom, offsetX, offsetY);
 
     /* For now, just draw rectangles */
     if (shapeType == 0) {  /* Rectangle */
@@ -316,7 +318,7 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
             }
         } else if (verb == invert) {
             /* XOR pixels with white for authentic Mac OS invert/XOR feedback */
-            serial_printf("QDPlatform_DrawShape: Inverting rect (%d,%d,%d,%d)\n",
+            QD_LOG_TRACE("QDPlatform_DrawShape: Inverting rect (%d,%d,%d,%d)\n",
                           rect->left, rect->top, rect->right, rect->bottom);
             for (SInt32 y = rect->top; y < rect->bottom; y++) {
                 for (SInt32 x = rect->left; x < rect->right; x++) {

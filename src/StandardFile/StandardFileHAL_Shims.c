@@ -18,10 +18,13 @@
 
 /* Debug logging */
 #ifdef SF_HAL_DEBUG
-#define SF_LOG(...) serial_printf(__VA_ARGS__)
+#define SF_HAL_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleStandardFile, kLogLevelTrace, "[SF HAL] " fmt, ##__VA_ARGS__)
 #else
-#define SF_LOG(...)
+#define SF_HAL_LOG_DEBUG(fmt, ...)
 #endif
+
+#define SF_HAL_LOG_INFO(fmt, ...)  serial_logf(kLogModuleStandardFile, kLogLevelInfo, "[SF HAL] " fmt, ##__VA_ARGS__)
+#define SF_HAL_LOG_WARN(fmt, ...)  serial_logf(kLogModuleStandardFile, kLogLevelWarn, "[SF HAL] " fmt, ##__VA_ARGS__)
 
 /* File list entry */
 typedef struct {
@@ -50,7 +53,7 @@ extern void SF_PopulateFileList(void);
  */
 void StandardFile_HAL_Init(void) {
     if (!gHALInitialized) {
-        SF_LOG("StandardFile HAL: Initializing\n");
+        SF_HAL_LOG_DEBUG("StandardFile HAL: Initializing\n");
 
         /* Allocate file list */
         gFileListCapacity = INITIAL_FILE_LIST_CAPACITY;
@@ -66,7 +69,7 @@ void StandardFile_HAL_Init(void) {
  * StandardFile_HAL_CreateOpenDialog - Create an open file dialog
  */
 OSErr StandardFile_HAL_CreateOpenDialog(DialogPtr *outDialog, ConstStr255Param prompt) {
-    SF_LOG("StandardFile HAL: CreateOpenDialog prompt='%s'\n", prompt ? prompt : "(null)");
+    SF_HAL_LOG_DEBUG("StandardFile HAL: CreateOpenDialog prompt='%s'\n", prompt ? prompt : "(null)");
 
     /* Create a simple modal dialog */
     Rect bounds = {100, 100, 350, 450};
@@ -85,7 +88,7 @@ OSErr StandardFile_HAL_CreateOpenDialog(DialogPtr *outDialog, ConstStr255Param p
  */
 OSErr StandardFile_HAL_CreateSaveDialog(DialogPtr *outDialog, ConstStr255Param prompt,
                                         ConstStr255Param defaultName) {
-    SF_LOG("StandardFile HAL: CreateSaveDialog prompt='%s' default='%s'\n",
+    SF_HAL_LOG_DEBUG("StandardFile HAL: CreateSaveDialog prompt='%s' default='%s'\n",
            prompt ? prompt : "(null)", defaultName ? defaultName : "(null)");
 
     /* Create a simple modal dialog */
@@ -104,7 +107,7 @@ OSErr StandardFile_HAL_CreateSaveDialog(DialogPtr *outDialog, ConstStr255Param p
  * StandardFile_HAL_DisposeOpenDialog - Dispose of open dialog
  */
 void StandardFile_HAL_DisposeOpenDialog(DialogPtr dialog) {
-    SF_LOG("StandardFile HAL: DisposeOpenDialog\n");
+    SF_HAL_LOG_DEBUG("StandardFile HAL: DisposeOpenDialog\n");
     if (dialog) {
         DisposeDialog(dialog);
     }
@@ -114,7 +117,7 @@ void StandardFile_HAL_DisposeOpenDialog(DialogPtr dialog) {
  * StandardFile_HAL_DisposeSaveDialog - Dispose of save dialog
  */
 void StandardFile_HAL_DisposeSaveDialog(DialogPtr dialog) {
-    SF_LOG("StandardFile HAL: DisposeSaveDialog\n");
+    SF_HAL_LOG_DEBUG("StandardFile HAL: DisposeSaveDialog\n");
     if (dialog) {
         DisposeDialog(dialog);
     }
@@ -124,7 +127,7 @@ void StandardFile_HAL_DisposeSaveDialog(DialogPtr dialog) {
  * StandardFile_HAL_RunDialog - Run modal dialog and return item hit
  */
 void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
-    SF_LOG("StandardFile HAL: RunDialog - starting modal loop\n");
+    SF_HAL_LOG_DEBUG("StandardFile HAL: RunDialog - starting modal loop\n");
 
     if (!dialog || !itemHit) {
         if (itemHit) *itemHit = sfItemCancelButton;
@@ -145,7 +148,7 @@ void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
             if (IsDialogEvent(&event)) {
                 if (DialogSelect(&event, &whichDialog, &item)) {
                     if (whichDialog == dialog) {
-                        SF_LOG("StandardFile HAL: Dialog item hit: %d\n", item);
+                        SF_HAL_LOG_DEBUG("StandardFile HAL: Dialog item hit: %d\n", item);
 
                         /* Handle button clicks */
                         if (item == sfItemOpenButton) {
@@ -154,7 +157,7 @@ void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
                                 /* Check if it's a folder */
                                 if (gFileList[gSelectedIndex].isFolder) {
                                     /* Navigate into folder - don't exit, repopulate */
-                                    SF_LOG("StandardFile HAL: Navigating into folder\n");
+                                    SF_HAL_LOG_DEBUG("StandardFile HAL: Navigating into folder\n");
                                     StandardFile_HAL_NavigateToFolder(&gFileList[gSelectedIndex].spec);
                                     /* Signal StandardFile.c to repopulate */
                                     *itemHit = sfItemOpenButton;  /* Will be handled by StandardFile.c */
@@ -166,7 +169,7 @@ void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
                                 }
                             } else {
                                 /* No valid selection - just log for now */
-                                SF_LOG("StandardFile HAL: Open clicked but no valid selection\n");
+                                SF_HAL_LOG_DEBUG("StandardFile HAL: Open clicked but no valid selection\n");
                             }
                         } else if (item == sfItemCancelButton) {
                             /* Cancel button */
@@ -213,14 +216,14 @@ void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
         SystemTask();
     }
 
-    SF_LOG("StandardFile HAL: RunDialog exiting with item %d\n", *itemHit);
+    SF_HAL_LOG_DEBUG("StandardFile HAL: RunDialog exiting with item %d\n", *itemHit);
 }
 
 /*
  * StandardFile_HAL_ClearFileList - Clear the file list
  */
 void StandardFile_HAL_ClearFileList(DialogPtr dialog) {
-    SF_LOG("StandardFile HAL: ClearFileList\n");
+    SF_HAL_LOG_DEBUG("StandardFile HAL: ClearFileList\n");
     gFileListCount = 0;
     gSelectedIndex = -1;
 }
@@ -260,7 +263,7 @@ void StandardFile_HAL_AddFileToList(DialogPtr dialog, const FSSpec *spec, OSType
     gFileList[gFileListCount].fileType = fileType;
     gFileList[gFileListCount].isFolder = isFolder;
 
-    SF_LOG("StandardFile HAL: AddFileToList [%d] name='%.*s' type='%.4s' isFolder=%d\n",
+    SF_HAL_LOG_DEBUG("StandardFile HAL: AddFileToList [%d] name='%.*s' type='%.4s' isFolder=%d\n",
            gFileListCount, spec->name[0], spec->name + 1,
            (char*)&fileType, isFolder);
 
@@ -271,7 +274,7 @@ void StandardFile_HAL_AddFileToList(DialogPtr dialog, const FSSpec *spec, OSType
  * StandardFile_HAL_UpdateFileList - Refresh the file list display
  */
 void StandardFile_HAL_UpdateFileList(DialogPtr dialog) {
-    SF_LOG("StandardFile HAL: UpdateFileList count=%d\n", gFileListCount);
+    SF_HAL_LOG_DEBUG("StandardFile HAL: UpdateFileList count=%d\n", gFileListCount);
     /* In a full implementation, this would redraw the list control */
 }
 
@@ -281,11 +284,11 @@ void StandardFile_HAL_UpdateFileList(DialogPtr dialog) {
 void StandardFile_HAL_SelectFile(DialogPtr dialog, short index) {
     if (index >= 0 && index < gFileListCount) {
         gSelectedIndex = index;
-        SF_LOG("StandardFile HAL: SelectFile index=%d name='%.*s'\n",
+        SF_HAL_LOG_DEBUG("StandardFile HAL: SelectFile index=%d name='%.*s'\n",
                index, gFileList[index].spec.name[0], gFileList[index].spec.name + 1);
     } else {
         gSelectedIndex = -1;
-        SF_LOG("StandardFile HAL: SelectFile index=%d (invalid, cleared)\n", index);
+        SF_HAL_LOG_DEBUG("StandardFile HAL: SelectFile index=%d (invalid, cleared)\n", index);
     }
 }
 
@@ -293,7 +296,7 @@ void StandardFile_HAL_SelectFile(DialogPtr dialog, short index) {
  * StandardFile_HAL_GetSelectedFile - Get the selected file index
  */
 short StandardFile_HAL_GetSelectedFile(DialogPtr dialog) {
-    SF_LOG("StandardFile HAL: GetSelectedFile returning %d\n", gSelectedIndex);
+    SF_HAL_LOG_DEBUG("StandardFile HAL: GetSelectedFile returning %d\n", gSelectedIndex);
     return gSelectedIndex;
 }
 
@@ -301,7 +304,7 @@ short StandardFile_HAL_GetSelectedFile(DialogPtr dialog) {
  * StandardFile_HAL_SetSaveFileName - Set the save file name field
  */
 void StandardFile_HAL_SetSaveFileName(DialogPtr dialog, ConstStr255Param name) {
-    SF_LOG("StandardFile HAL: SetSaveFileName name='%s'\n", name ? name : "(null)");
+    SF_HAL_LOG_DEBUG("StandardFile HAL: SetSaveFileName name='%s'\n", name ? name : "(null)");
     /* Stub: would set TEHandle text */
 }
 
@@ -309,7 +312,7 @@ void StandardFile_HAL_SetSaveFileName(DialogPtr dialog, ConstStr255Param name) {
  * StandardFile_HAL_GetSaveFileName - Get the save file name from field
  */
 void StandardFile_HAL_GetSaveFileName(DialogPtr dialog, Str255 name) {
-    SF_LOG("StandardFile HAL: GetSaveFileName\n");
+    SF_HAL_LOG_DEBUG("StandardFile HAL: GetSaveFileName\n");
     /* Stub: return default name */
     if (name) {
         const char *defaultName = "Untitled.txt";
@@ -323,7 +326,7 @@ void StandardFile_HAL_GetSaveFileName(DialogPtr dialog, Str255 name) {
  * StandardFile_HAL_ConfirmReplace - Ask user to confirm file replacement
  */
 Boolean StandardFile_HAL_ConfirmReplace(ConstStr255Param fileName) {
-    SF_LOG("StandardFile HAL: ConfirmReplace file='%s'\n", fileName ? fileName : "(null)");
+    SF_HAL_LOG_DEBUG("StandardFile HAL: ConfirmReplace file='%s'\n", fileName ? fileName : "(null)");
     /* Stub: auto-confirm for now */
     return true;
 }
@@ -332,7 +335,7 @@ Boolean StandardFile_HAL_ConfirmReplace(ConstStr255Param fileName) {
  * StandardFile_HAL_GetDefaultLocation - Get default save/open location
  */
 OSErr StandardFile_HAL_GetDefaultLocation(short *vRefNum, long *dirID) {
-    SF_LOG("StandardFile HAL: GetDefaultLocation\n");
+    SF_HAL_LOG_DEBUG("StandardFile HAL: GetDefaultLocation\n");
     /* Stub: return root directory */
     if (vRefNum) *vRefNum = 0;
     if (dirID) *dirID = 2;  /* Root directory */
@@ -343,7 +346,7 @@ OSErr StandardFile_HAL_GetDefaultLocation(short *vRefNum, long *dirID) {
  * StandardFile_HAL_EjectVolume - Eject the current volume
  */
 OSErr StandardFile_HAL_EjectVolume(short vRefNum) {
-    SF_LOG("StandardFile HAL: EjectVolume vRefNum=%d\n", vRefNum);
+    SF_HAL_LOG_DEBUG("StandardFile HAL: EjectVolume vRefNum=%d\n", vRefNum);
     /* Stub: not implemented */
     return noErr;
 }
@@ -352,7 +355,7 @@ OSErr StandardFile_HAL_EjectVolume(short vRefNum) {
  * StandardFile_HAL_NavigateToDesktop - Navigate to Desktop folder
  */
 OSErr StandardFile_HAL_NavigateToDesktop(short *vRefNum, long *dirID) {
-    SF_LOG("StandardFile HAL: NavigateToDesktop\n");
+    SF_HAL_LOG_DEBUG("StandardFile HAL: NavigateToDesktop\n");
     /* Stub: return desktop location */
     if (vRefNum) *vRefNum = 0;
     if (dirID) *dirID = 2;
@@ -365,7 +368,7 @@ OSErr StandardFile_HAL_NavigateToDesktop(short *vRefNum, long *dirID) {
  * StandardFile_HAL_GetNewFolderName - Prompt for new folder name
  */
 Boolean StandardFile_HAL_GetNewFolderName(Str255 folderName) {
-    SF_LOG("StandardFile HAL: GetNewFolderName\n");
+    SF_HAL_LOG_DEBUG("StandardFile HAL: GetNewFolderName\n");
     /* Stub: return default folder name */
     if (folderName) {
         const char *defaultName = "New Folder";
@@ -399,7 +402,7 @@ void StandardFile_HAL_NavigateToFolder(const FSSpec *folderSpec) {
             gCurrentVRefNum = folderSpec->vRefNum;
             gCurrentDirID = pb.u.dirInfo.ioDrDirID;
             gNavigationRequested = true;
-            SF_LOG("StandardFile HAL: Navigated to folder dirID=%ld\n", gCurrentDirID);
+            SF_HAL_LOG_DEBUG("StandardFile HAL: Navigated to folder dirID=%ld\n", gCurrentDirID);
         }
     }
 }
@@ -409,7 +412,7 @@ void StandardFile_HAL_NavigateToFolder(const FSSpec *folderSpec) {
  * For now, implements simple Desktop and Parent navigation
  */
 Boolean StandardFile_HAL_HandleDirPopup(DialogPtr dialog, long *selectedDir) {
-    SF_LOG("StandardFile HAL: HandleDirPopup\n");
+    SF_HAL_LOG_DEBUG("StandardFile HAL: HandleDirPopup\n");
 
     /* Simple implementation: navigate to parent directory */
     if (gCurrentDirID != 2) {  /* 2 = root directory */
@@ -428,7 +431,7 @@ Boolean StandardFile_HAL_HandleDirPopup(DialogPtr dialog, long *selectedDir) {
             gCurrentDirID = pb.u.dirInfo.ioDrParID;
             *selectedDir = gCurrentDirID;
             gNavigationRequested = true;
-            SF_LOG("StandardFile HAL: Navigated to parent dirID=%ld\n", gCurrentDirID);
+            SF_HAL_LOG_DEBUG("StandardFile HAL: Navigated to parent dirID=%ld\n", gCurrentDirID);
             return true;
         }
     }
