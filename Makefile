@@ -178,6 +178,7 @@ C_SOURCES = src/main.c \
             src/CPU/m68k_interp/M68KBackend.c \
             src/CPU/m68k_interp/M68KDecode.c \
             src/CPU/m68k_interp/M68KOpcodes.c \
+            src/CPU/m68k_interp/LowMemGlobals.c \
             src/SegmentLoader/SegmentLoader.c \
             src/SegmentLoader/CodeParser.c \
             src/SegmentLoader/A5World.c \

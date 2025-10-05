@@ -7,6 +7,7 @@
 
 #include "CPU/M68KInterp.h"
 #include "CPU/CPUBackend.h"
+#include "CPU/LowMemGlobals.h"
 #include "SegmentLoader/SegmentLoader.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
@@ -115,6 +116,9 @@ static OSErr M68K_CreateAddressSpace(void* processHandle, CPUAddressSpace* out)
     /* Initialize registers */
     memset(&as->regs, 0, sizeof(M68KRegs));
     as->regs.sr = 0x2700; /* Supervisor mode, interrupts disabled */
+
+    /* Initialize low memory globals system */
+    LMInit(as);
 
     *out = (CPUAddressSpace)as;
     return noErr;
