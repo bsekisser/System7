@@ -275,23 +275,12 @@ void serial_print_hex(uint32_t value) {
 /* -------------------------------------------------------------------------- */
 /* Logging infrastructure */
 
-typedef enum {
-    kLogMatchPrefix,
-    kLogMatchSubstring
-} SysLogMatchType;
 
 typedef struct {
     const char* tag;
     SystemLogModule module;
     SystemLogLevel level;
 } SysLogTag;
-
-typedef struct {
-    const char* token;
-    SysLogMatchType matchType;
-    SystemLogModule module;
-    SystemLogLevel level;
-} SysLogKeyword;
 
 static SystemLogLevel g_globalLogLevel = kLogLevelDebug;
 static SystemLogLevel g_moduleLevels[kLogModuleCount] = {
@@ -335,80 +324,8 @@ static const SysLogTag kLogTagTable[] = {
     { "FM", kLogModuleFont, kLogLevelDebug }
 };
 
-static const SysLogKeyword kLogKeywords[] = {
-    { "HandleMouseDown", kLogMatchSubstring, kLogModuleEvent, kLogLevelDebug },
-    { "GetNextEvent", kLogMatchSubstring, kLogModuleEvent, kLogLevelDebug },
-    { "WaitNextEvent", kLogMatchSubstring, kLogModuleEvent, kLogLevelDebug },
-    { "PostEvent", kLogMatchSubstring, kLogModuleEvent, kLogLevelDebug },
-    { "MenuSelect", kLogMatchSubstring, kLogModuleMenu, kLogLevelDebug },
-    { "DoMenuCommand", kLogMatchSubstring, kLogModuleMenu, kLogLevelDebug },
-    { "Apple Menu", kLogMatchSubstring, kLogModuleMenu, kLogLevelInfo },
-    { "Desktop icon", kLogMatchSubstring, kLogModuleDesktop, kLogLevelDebug },
-    { "IconAtPoint", kLogMatchSubstring, kLogModuleDesktop, kLogLevelDebug },
-    { "Hit icon", kLogMatchSubstring, kLogModuleDesktop, kLogLevelDebug },
-    { "Single-click", kLogMatchSubstring, kLogModuleDesktop, kLogLevelDebug },
-    { "DrawVolumeIcon", kLogMatchSubstring, kLogModuleFinder, kLogLevelDebug },
-    { "TrackIconDragSync", kLogMatchSubstring, kLogModuleFinder, kLogLevelTrace },
-    { "GhostXOR", kLogMatchSubstring, kLogModuleFinder, kLogLevelTrace },
-    { "Finder:", kLogMatchPrefix, kLogModuleFinder, kLogLevelInfo },
-    { "FW:", kLogMatchPrefix, kLogModuleFinder, kLogLevelInfo },
-    { "Icon_DrawWithLabel", kLogMatchSubstring, kLogModuleFinder, kLogLevelDebug },
-    { "FolderWindow_OpenFolder", kLogMatchSubstring, kLogModuleFinder, kLogLevelInfo },
-    { "InitializeFolderContents", kLogMatchSubstring, kLogModuleFinder, kLogLevelInfo },
-    { "HFS", kLogMatchSubstring, kLogModuleFileSystem, kLogLevelDebug },
-    { "VFS_Enumerate", kLogMatchSubstring, kLogModuleFileSystem, kLogLevelDebug },
-    { "read_btree_data", kLogMatchSubstring, kLogModuleFileSystem, kLogLevelDebug },
-    { "ATA:", kLogMatchSubstring, kLogModulePlatform, kLogLevelDebug },
-    { "WindowManager", kLogMatchSubstring, kLogModuleWindow, kLogLevelDebug },
-    { "CheckWindowsNeedingUpdate", kLogMatchSubstring, kLogModuleWindow, kLogLevelDebug },
-    { "DoUpdate", kLogMatchSubstring, kLogModuleWindow, kLogLevelDebug },
-    { "PaintOne", kLogMatchSubstring, kLogModuleWindow, kLogLevelDebug },
-    { "DrawNew", kLogMatchSubstring, kLogModuleWindow, kLogLevelDebug },
-    { "ShowWindow", kLogMatchSubstring, kLogModuleWindow, kLogLevelDebug },
-    { "CloseWindow", kLogMatchSubstring, kLogModuleWindow, kLogLevelInfo },
-    { "Button", kLogMatchSubstring, kLogModuleControl, kLogLevelDebug },
-    { "Checkbox", kLogMatchSubstring, kLogModuleControl, kLogLevelDebug },
-    { "Radio", kLogMatchSubstring, kLogModuleControl, kLogLevelDebug },
-    { "Scrollbar", kLogMatchSubstring, kLogModuleControl, kLogLevelDebug },
-    { "TrackScrollbar", kLogMatchSubstring, kLogModuleControl, kLogLevelTrace },
-    { "DrawString", kLogMatchSubstring, kLogModuleFont, kLogLevelDebug },
-    { "TITLE_INIT", kLogMatchSubstring, kLogModuleFont, kLogLevelDebug },
-    { "TITLE_DRAW", kLogMatchSubstring, kLogModuleFont, kLogLevelDebug },
-    { "TITLE:", kLogMatchSubstring, kLogModuleFont, kLogLevelDebug },
-    { "CenterPStringInRect", kLogMatchSubstring, kLogModuleFont, kLogLevelDebug },
-    { "FM:", kLogMatchPrefix, kLogModuleFont, kLogLevelDebug },
-    { "Sound", kLogMatchSubstring, kLogModuleSound, kLogLevelInfo },
-    { "SysBeep", kLogMatchSubstring, kLogModuleSound, kLogLevelInfo },
-    { "PCSpkr", kLogMatchSubstring, kLogModuleSound, kLogLevelTrace },
-    { "[SF]", kLogMatchPrefix, kLogModuleStandardFile, kLogLevelDebug },
-    { "LNew", kLogMatchSubstring, kLogModuleListManager, kLogLevelDebug },
-    { "LDispose", kLogMatchSubstring, kLogModuleListManager, kLogLevelDebug },
-    { "LUpdate", kLogMatchSubstring, kLogModuleListManager, kLogLevelDebug },
-    { "LClick", kLogMatchSubstring, kLogModuleListManager, kLogLevelDebug },
-    { "LScroll", kLogMatchSubstring, kLogModuleListManager, kLogLevelDebug },
-    { "LSize", kLogMatchSubstring, kLogModuleListManager, kLogLevelDebug },
-    { "LKey", kLogMatchSubstring, kLogModuleListManager, kLogLevelDebug },
-    { "DrawCell", kLogMatchSubstring, kLogModuleListManager, kLogLevelDebug },
-    { "EraseBackground", kLogMatchSubstring, kLogModuleListManager, kLogLevelDebug },
-    { "Startup", kLogMatchSubstring, kLogModuleSystem, kLogLevelInfo },
-    { "Version:", kLogMatchSubstring, kLogModuleSystem, kLogLevelInfo },
-    { "Build:", kLogMatchSubstring, kLogModuleSystem, kLogLevelInfo },
-    { "System", kLogMatchSubstring, kLogModuleSystem, kLogLevelInfo },
-    { "compatible", kLogMatchSubstring, kLogModuleSystem, kLogLevelInfo },
-    { "Macintosh", kLogMatchSubstring, kLogModuleSystem, kLogLevelInfo },
-    { "portable", kLogMatchSubstring, kLogModuleSystem, kLogLevelInfo },
-    { "safe", kLogMatchSubstring, kLogModuleSystem, kLogLevelInfo },
-    { "===", kLogMatchSubstring, kLogModuleSystem, kLogLevelInfo },
-    { "About", kLogMatchSubstring, kLogModuleDialog, kLogLevelInfo },
-    { "Dialog", kLogMatchSubstring, kLogModuleDialog, kLogLevelDebug },
-    { "Alert", kLogMatchSubstring, kLogModuleDialog, kLogLevelDebug },
-    { "Modal", kLogMatchSubstring, kLogModuleDialog, kLogLevelDebug },
-    { "DITL", kLogMatchSubstring, kLogModuleDialog, kLogLevelDebug },
-    { "DLOG", kLogMatchSubstring, kLogModuleDialog, kLogLevelDebug }
-};
 
 static const size_t kLogTagCount = sizeof(kLogTagTable) / sizeof(kLogTagTable[0]);
-static const size_t kLogKeywordCount = sizeof(kLogKeywords) / sizeof(kLogKeywords[0]);
 
 static SystemLogLevel SysLogLevelFromString(const char* levelStr) {
     if (!levelStr) {
@@ -480,6 +397,7 @@ static bool SysLogParseBracketTag(const char* fmt, SystemLogModule* module, Syst
     return false;
 }
 
+/* Deprecated: serial_printf() classifier - only parses bracket tags, defaults to General */
 static void SysLogClassifyMessage(const char* fmt, SystemLogModule* outModule, SystemLogLevel* outLevel) {
     SystemLogModule module = kLogModuleGeneral;
     SystemLogLevel level = kLogLevelDebug;
@@ -490,29 +408,10 @@ static void SysLogClassifyMessage(const char* fmt, SystemLogModule* outModule, S
         return;
     }
 
-    if (!SysLogParseBracketTag(fmt, &module, &level)) {
-        for (size_t i = 0; i < kLogKeywordCount; ++i) {
-            const SysLogKeyword* entry = &kLogKeywords[i];
-            bool match = false;
-            if (entry->matchType == kLogMatchPrefix) {
-                size_t len = strlen(entry->token);
-                if (strncmp(fmt, entry->token, len) == 0) {
-                    match = true;
-                }
-            } else {
-                if (strstr(fmt, entry->token) != NULL) {
-                    match = true;
-                }
-            }
+    /* Try to parse bracket tag like [WM], [DM], etc. */
+    SysLogParseBracketTag(fmt, &module, &level);
 
-            if (match) {
-                module = entry->module;
-                level = entry->level;
-                break;
-            }
-        }
-    }
-
+    /* If no bracket tag found, use defaults (General/Debug) */
     *outModule = module;
     *outLevel = level;
 }

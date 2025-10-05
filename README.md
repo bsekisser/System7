@@ -16,11 +16,10 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
   - Hierarchical log levels (Error, Warn, Info, Debug, Trace)
   - Module-specific filtering (Window Manager, Control Manager, Dialog Manager, Event Manager, etc.)
   - Runtime control via `SysLogSetGlobalLevel()` and `SysLogSetModuleLevel()`
-  - Auto-classification of legacy `serial_printf` calls via tag prefixes `[WM]`, `[CTRL]`, `[DM]`, etc.
-  - Custom tag support with explicit module/level: `[MODULE:LEVEL]`
+  - Module-specific macros: `WM_LOG_DEBUG()`, `CTRL_LOG_DEBUG()`, `DM_LOG_DEBUG()`, etc.
   - `serial_logf()` API for explicit module and level specification
-  - Standard File and QuickDraw platform logs integrated
-  - Process Manager logging refinements
+  - Legacy `serial_printf()` support via bracket tag parsing `[WM]`, `[CTRL]`, `[DM]`
+  - 100% migration complete: All 624+ calls now use module-specific logging
   - Full documentation in `docs/components/System/Logging.md`
 - ✅ **Keyboard Navigation Integration**: Complete System 7-style keyboard focus and navigation
   - Dialog Manager focus tracking with XOR toggle pattern for focus rings
@@ -123,9 +122,10 @@ This is a proof-of-concept implementation focused on understanding and recreatin
 - **Serial Logging System**: Module-based logging with runtime filtering and hierarchical levels
   - Log levels: Error, Warn, Info, Debug, Trace
   - Per-module control (Window Manager, Control Manager, Dialog Manager, etc.)
-  - Auto-classification of tagged messages and keyword heuristics
+  - Module-specific macros: `WM_LOG_DEBUG()`, `CTRL_LOG_DEBUG()`, `DM_LOG_DEBUG()`, etc.
   - `serial_logf()` API for structured logging with explicit module/level
   - Runtime configuration via `SysLogSetGlobalLevel()` and `SysLogSetModuleLevel()`
+  - Legacy `serial_printf()` supported via bracket tag parsing only
 - **Graphics Foundation**: VESA framebuffer (800x600x32) with QuickDraw primitives
   - PenMode support including XOR mode (patXor) for interactive drag feedback
   - Rect, Line, and Frame operations with mode-aware rendering
@@ -332,7 +332,7 @@ iteration2/
 ├── src/
 │   ├── main.c                  # Kernel entry point & initialization
 │   ├── SystemInit.c            # System startup sequence
-│   ├── System71StdLib.c        # Serial logging framework with module filtering
+│   ├── System71StdLib.c        # Serial logging framework with bracket tag parsing
 │   ├── QuickDraw/              # 2D graphics primitives
 │   ├── WindowManager/          # Window management (8 modules)
 │   ├── MenuManager/            # Menu system (7 modules)
