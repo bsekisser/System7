@@ -173,5 +173,14 @@ OSErr BuildJumpTable(SegmentLoaderContext* ctx)
     }
 
     SEG_LOG_INFO("All %d stubs installed successfully", jtCount);
+
+    /* Verify and log A5-relative JT layout */
+    SEG_LOG_INFO("Jump table A5-relative layout verification:");
+    for (UInt16 i = 0; i < jtCount; i++) {
+        SInt32 offsetFromA5 = ctx->code0Info.jtOffsetFromA5 + (i * ctx->a5World.jtEntrySize);
+        CPUAddr slotAddr = jtBase + (i * ctx->a5World.jtEntrySize);
+        SEG_LOG_INFO("  JT[%d] = A5%+d (0x%08X)", i, offsetFromA5, slotAddr);
+    }
+
     return noErr;
 }

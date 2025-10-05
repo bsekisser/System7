@@ -521,6 +521,10 @@ extern void M68K_Op_BSR(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_Bcc(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_RTS(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_TRAP(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_MOVEQ(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_TST(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_EXT(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_SWAP(M68KAddressSpace* as, UInt16 opcode);
 extern UInt16 M68K_Fetch16(M68KAddressSpace* as);
 extern void M68K_Fault(M68KAddressSpace* as, const char* reason);
 
@@ -593,9 +597,21 @@ OSErr M68K_Step(M68KAddressSpace* as)
         } else if ((opcode & 0xFF00) == 0x4600) {
             /* NOT */
             M68K_Op_NOT(as, opcode);
+        } else if ((opcode & 0xFF00) == 0x4A00) {
+            /* TST */
+            M68K_Op_TST(as, opcode);
+        } else if ((opcode & 0xFFF8) == 0x4840) {
+            /* SWAP */
+            M68K_Op_SWAP(as, opcode);
+        } else if ((opcode & 0xFFF8) == 0x4880 || (opcode & 0xFFF8) == 0x48C0) {
+            /* EXT.W or EXT.L */
+            M68K_Op_EXT(as, opcode);
         } else {
             M68K_Fault(as, "Unimplemented 4xxx opcode");
         }
+    } else if ((opcode & 0xF000) == 0x7000) {
+        /* 7xxx - MOVEQ */
+        M68K_Op_MOVEQ(as, opcode);
     } else if ((opcode & 0xF000) == 0x6000) {
         /* 6xxx - Branch instructions */
         if ((opcode & 0xFF00) == 0x6000) {

@@ -16,6 +16,24 @@
 extern void M68K_Fault(M68KAddressSpace* as, const char* reason);
 
 /*
+ * One-time logging flags
+ */
+static Boolean g_pcRelLogged = false;
+
+/*
+ * Logging helper - logs once per boot
+ */
+static void M68K_LogOnce(Boolean* flag, const char* message)
+{
+    if (!*flag) {
+        serial_puts("[M68K] ");
+        serial_puts(message);
+        serial_puts("\n");
+        *flag = true;
+    }
+}
+
+/*
  * Fetch16 - Fetch next 16-bit word from PC (big-endian)
  */
 UInt16 M68K_Fetch16(M68KAddressSpace* as)
@@ -65,6 +83,14 @@ UInt16 M68K_Read16(M68KAddressSpace* as, UInt32 addr)
 {
     UInt8 b0, b1;
 
+    /* Check word alignment */
+    if (addr & 1) {
+        serial_printf("[M68K] ADDRESS ERROR: Read16 PC=0x%08X EA=0x%08X (odd address)\n",
+                     as->regs.pc, addr);
+        M68K_Fault(as, "Address error: Read16 odd address");
+        return 0;
+    }
+
     if (addr + 1 >= as->memorySize) {
         M68K_Fault(as, "Read16 out of bounds");
         return 0;
@@ -80,8 +106,18 @@ UInt16 M68K_Read16(M68KAddressSpace* as, UInt32 addr)
  */
 UInt32 M68K_Read32(M68KAddressSpace* as, UInt32 addr)
 {
-    UInt32 hi = M68K_Read16(as, addr);
-    UInt32 lo = M68K_Read16(as, addr + 2);
+    UInt32 hi, lo;
+
+    /* Check word alignment */
+    if (addr & 1) {
+        serial_printf("[M68K] ADDRESS ERROR: Read32 PC=0x%08X EA=0x%08X (odd address)\n",
+                     as->regs.pc, addr);
+        M68K_Fault(as, "Address error: Read32 odd address");
+        return 0;
+    }
+
+    hi = M68K_Read16(as, addr);
+    lo = M68K_Read16(as, addr + 2);
     return (hi << 16) | lo;
 }
 
@@ -102,6 +138,14 @@ void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value)
  */
 void M68K_Write16(M68KAddressSpace* as, UInt32 addr, UInt16 value)
 {
+    /* Check word alignment */
+    if (addr & 1) {
+        serial_printf("[M68K] ADDRESS ERROR: Write16 PC=0x%08X EA=0x%08X (odd address)\n",
+                     as->regs.pc, addr);
+        M68K_Fault(as, "Address error: Write16 odd address");
+        return;
+    }
+
     if (addr + 1 >= as->memorySize) {
         M68K_Fault(as, "Write16 out of bounds");
         return;
@@ -115,6 +159,14 @@ void M68K_Write16(M68KAddressSpace* as, UInt32 addr, UInt16 value)
  */
 void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value)
 {
+    /* Check word alignment */
+    if (addr & 1) {
+        serial_printf("[M68K] ADDRESS ERROR: Write32 PC=0x%08X EA=0x%08X (odd address)\n",
+                     as->regs.pc, addr);
+        M68K_Fault(as, "Address error: Write32 odd address");
+        return;
+    }
+
     M68K_Write16(as, addr, value >> 16);
     M68K_Write16(as, addr + 2, value & 0xFFFF);
 }
@@ -194,12 +246,14 @@ UInt32 M68K_EA_ComputeAddress(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KS
 
                 case OTHER_PC_DISP:
                     /* d16(PC) - PC at start of extension word */
+                    M68K_LogOnce(&g_pcRelLogged, "PC-rel enabled: (d16,PC) & (d8,PC,Xn)");
                     addr = as->regs.pc;
                     disp = (SInt16)M68K_Fetch16(as);
                     return addr + disp;
 
                 case OTHER_PC_INDEX:
                     /* d8(PC,Xn) */
+                    M68K_LogOnce(&g_pcRelLogged, "PC-rel enabled: (d16,PC) & (d8,PC,Xn)");
                     addr = as->regs.pc;
                     ext = M68K_Fetch16(as);
                     disp = SIGN_EXTEND_BYTE(ext & 0xFF);

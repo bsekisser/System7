@@ -432,8 +432,14 @@ void M68K_Op_JSR(M68KAddressSpace* as, UInt16 opcode)
     /* Push return address */
     M68K_Push32(as, as->regs.pc);
 
-    /* Jump */
-    serial_printf("[M68K] JSR 0x%08X -> 0x%08X\n", as->regs.pc - 2, target);
+    /* Jump - log with A5-relative info if using d16(A5) */
+    if (mode == MODE_An_DISP && reg == 5) {
+        /* JSR d16(A5) - log A5-relative offset */
+        SInt32 offsetFromA5 = (SInt32)target - (SInt32)as->regs.a[5];
+        serial_printf("[M68K] JSR (A5%+d) -> 0x%08X\n", offsetFromA5, target);
+    } else {
+        serial_printf("[M68K] JSR 0x%08X -> 0x%08X\n", as->regs.pc - 2, target);
+    }
     as->regs.pc = target;
 
     /* JSR does not affect flags */
@@ -581,4 +587,135 @@ void M68K_Op_TRAP(M68KAddressSpace* as, UInt16 opcode)
 
     /* PC is now at next instruction (set by handler or unchanged) */
     /* TRAP does not affect flags */
+}
+
+/*
+ * MOVEQ - Move quick (sign-extended 8-bit immediate to Dn)
+ * Encoding: 0111 rrr0 dddd dddd
+ * Format: MOVEQ #imm8, Dn
+ */
+void M68K_Op_MOVEQ(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 dn = (opcode >> 9) & 7;
+    SInt8 imm = opcode & 0xFF;
+    SInt32 value = imm;  /* Sign-extend */
+
+    /* Write to Dn */
+    as->regs.d[dn] = value;
+
+    /* Set flags based on result */
+    M68K_ClearFlag(as, CCR_N | CCR_Z | CCR_V | CCR_C);
+    if (value == 0) {
+        M68K_SetFlag(as, CCR_Z);
+    }
+    if (value < 0) {
+        M68K_SetFlag(as, CCR_N);
+    }
+}
+
+/*
+ * TST - Test operand (set flags based on operand value)
+ * Encoding: 0100 1010 ssxx xrrr
+ * Format: TST.<size> <ea>
+ */
+void M68K_Op_TST(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 size_bits = (opcode >> 6) & 3;
+    UInt8 mode = (opcode >> 3) & 7;
+    UInt8 reg = opcode & 7;
+    M68KSize size;
+    UInt32 value;
+    SInt32 signed_value;
+
+    /* Decode size */
+    if (size_bits == 0) {
+        size = SIZE_BYTE;
+    } else if (size_bits == 1) {
+        size = SIZE_WORD;
+    } else if (size_bits == 2) {
+        size = SIZE_LONG;
+    } else {
+        M68K_Fault(as, "Invalid TST size");
+        return;
+    }
+
+    /* Read operand */
+    value = M68K_EA_Read(as, mode, reg, size);
+
+    /* Sign-extend for flag calculation */
+    if (size == SIZE_BYTE) {
+        signed_value = SIGN_EXTEND_BYTE(value);
+    } else if (size == SIZE_WORD) {
+        signed_value = SIGN_EXTEND_WORD(value);
+    } else {
+        signed_value = value;
+    }
+
+    /* Set flags */
+    M68K_ClearFlag(as, CCR_N | CCR_Z | CCR_V | CCR_C);
+    if (signed_value == 0) {
+        M68K_SetFlag(as, CCR_Z);
+    }
+    if (signed_value < 0) {
+        M68K_SetFlag(as, CCR_N);
+    }
+}
+
+/*
+ * EXT - Sign-extend data register
+ * Encoding: 0100 1000 1oxx xrrr (o=0: byte->word, o=1: word->long)
+ * Format: EXT.W Dn  (byte->word) or EXT.L Dn (word->long)
+ */
+void M68K_Op_EXT(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 dn = opcode & 7;
+    UInt8 opmode = (opcode >> 6) & 7;
+    SInt32 value;
+
+    if (opmode == 2) {
+        /* EXT.W - byte to word */
+        value = SIGN_EXTEND_BYTE(as->regs.d[dn] & 0xFF);
+        as->regs.d[dn] = (as->regs.d[dn] & 0xFFFF0000) | (value & 0xFFFF);
+    } else if (opmode == 3) {
+        /* EXT.L - word to long */
+        value = SIGN_EXTEND_WORD(as->regs.d[dn] & 0xFFFF);
+        as->regs.d[dn] = value;
+    } else {
+        M68K_Fault(as, "Invalid EXT opmode");
+        return;
+    }
+
+    /* Set flags */
+    M68K_ClearFlag(as, CCR_N | CCR_Z | CCR_V | CCR_C);
+    if (value == 0) {
+        M68K_SetFlag(as, CCR_Z);
+    }
+    if (value < 0) {
+        M68K_SetFlag(as, CCR_N);
+    }
+}
+
+/*
+ * SWAP - Swap register halves
+ * Encoding: 0100 1000 0100 0rrr
+ * Format: SWAP Dn
+ */
+void M68K_Op_SWAP(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 dn = opcode & 7;
+    UInt32 value = as->regs.d[dn];
+    UInt32 swapped;
+
+    /* Swap upper and lower 16 bits */
+    swapped = ((value & 0xFFFF) << 16) | ((value >> 16) & 0xFFFF);
+    as->regs.d[dn] = swapped;
+
+    /* Set flags based on result */
+    M68K_ClearFlag(as, CCR_N | CCR_Z | CCR_V | CCR_C);
+    if (swapped == 0) {
+        M68K_SetFlag(as, CCR_Z);
+    }
+    if (swapped & 0x80000000) {
+        M68K_SetFlag(as, CCR_N);
+    }
 }
