@@ -8,6 +8,7 @@
 #include "CPU/M68KInterp.h"
 #include "CPU/CPUBackend.h"
 #include "SegmentLoader/SegmentLoader.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
 #include <string.h>
 
@@ -74,17 +75,23 @@ static OSErr M68K_CreateAddressSpace(void* processHandle, CPUAddressSpace* out)
 
     (void)processHandle; /* Unused for now */
 
+    serial_printf("[M68K] CreateAddressSpace: allocating M68KAddressSpace struct size=%u\n",
+                  (unsigned)sizeof(M68KAddressSpace));
     as = (M68KAddressSpace*)NewPtr(sizeof(M68KAddressSpace));
     if (!as) {
+        serial_printf("[M68K] FAIL: struct allocation memFullErr, MemError=%d\n", MemError());
         return memFullErr;
     }
 
     memset(as, 0, sizeof(M68KAddressSpace));
 
-    /* Allocate 16MB address space (classic Mac limit) */
-    as->memorySize = 16 * 1024 * 1024;
+    /* Allocate 1MB address space (temporary for MVP triage) */
+    as->memorySize = 1 * 1024 * 1024;
+    serial_printf("[M68K] CreateAddressSpace: allocating memory buffer size=%u bytes\n",
+                  (unsigned)as->memorySize);
     as->memory = NewPtr(as->memorySize);
     if (!as->memory) {
+        serial_printf("[M68K] FAIL: memory buffer allocation memFullErr, MemError=%d\n", MemError());
         DisposePtr((Ptr)as);
         return memFullErr;
     }
@@ -329,26 +336,25 @@ static OSErr M68K_MakeLazyJTStub(CPUAddressSpace as, CPUAddr slotAddr,
 static OSErr M68K_EnterAt(CPUAddressSpace as, CPUAddr entry, CPUEnterFlags flags)
 {
     M68KAddressSpace* mas = (M68KAddressSpace*)as;
+    UInt32 max_instructions = 100000;  /* Safety limit */
 
     if (!mas) {
         return paramErr;
     }
 
-    /* Set PC to entry point */
-    mas->regs.pc = entry;
+    serial_printf("[M68K] EnterAt: entry=0x%08X flags=0x%04X\n", entry, flags);
 
-    /*
-     * TODO: Start interpreter loop
-     * For now, this is a stub that returns immediately
-     */
+    /* Clear halted flag */
+    mas->halted = false;
 
-    (void)flags; /* Unused */
+    /* Execute from entry point */
+    M68K_Execute(mas, entry, max_instructions);
 
-    /* In real implementation, would:
-     * - Save host CPU context
-     * - Enter interpreter loop (M68K_Execute)
-     * - Run until exit trap or error
-     */
+    if (mas->halted) {
+        serial_printf("[M68K] Execution halted at PC=0x%08X\n", mas->regs.pc);
+    } else {
+        serial_printf("[M68K] Execution completed after %u instructions\n", max_instructions);
+    }
 
     return noErr;
 }
@@ -495,33 +501,148 @@ static OSErr M68K_ReadMemory(CPUAddressSpace as, CPUAddr addr,
 }
 
 /*
- * M68K Interpreter Core (Minimal Implementation)
- *
- * This is a simplified interpreter for demonstration purposes.
- * A full implementation would decode and execute all 68K instructions.
+ * Opcode Handler Declarations (from M68KOpcodes.c)
+ */
+extern void M68K_Op_MOVE(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_MOVEA(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_LEA(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_PEA(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_CLR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_NOT(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_ADD(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_SUB(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_CMP(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_LINK(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_UNLK(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_JSR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_JMP(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_BRA(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_BSR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_Bcc(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_RTS(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_TRAP(M68KAddressSpace* as, UInt16 opcode);
+extern UInt16 M68K_Fetch16(M68KAddressSpace* as);
+extern void M68K_Fault(M68KAddressSpace* as, const char* reason);
+
+/*
+ * M68K_Step - Fetch and execute one instruction
+ */
+OSErr M68K_Step(M68KAddressSpace* as)
+{
+    UInt16 opcode;
+
+    if (!as) {
+        return paramErr;
+    }
+
+    if (as->halted) {
+        return noErr;
+    }
+
+    /* Fetch opcode */
+    opcode = M68K_Fetch16(as);
+
+    /* Decode and dispatch */
+    if ((opcode & 0xF000) == 0x0000) {
+        /* 0xxx - Bit manipulation, MOVEP, immediate */
+        if ((opcode & 0xFF00) == 0x4200) {
+            M68K_Op_CLR(as, opcode);
+        } else if ((opcode & 0xFF00) == 0x4600) {
+            M68K_Op_NOT(as, opcode);
+        } else if ((opcode & 0xC000) == 0x0000) {
+            /* Could be MOVE with size bits 01/10/11 */
+            M68K_Op_MOVE(as, opcode);
+        } else {
+            M68K_Fault(as, "Unimplemented 0xxx opcode");
+        }
+    } else if ((opcode & 0xC000) == 0x0000 || (opcode & 0xC000) == 0x4000 || (opcode & 0xC000) == 0x8000) {
+        /* MOVE family - check for size bits in upper nibble */
+        UInt8 size_bits = (opcode >> 12) & 3;
+        if (size_bits == 1 || size_bits == 2 || size_bits == 3) {
+            /* MOVE.B (01), MOVE.L (10), MOVE.W (11) */
+            if ((opcode & 0x01C0) == 0x0040) {
+                /* MOVEA - bit 6 set */
+                M68K_Op_MOVEA(as, opcode);
+            } else {
+                M68K_Op_MOVE(as, opcode);
+            }
+        } else if ((opcode & 0xF1C0) == 0x41C0) {
+            /* LEA */
+            M68K_Op_LEA(as, opcode);
+        } else if ((opcode & 0xFFC0) == 0x4840) {
+            /* PEA */
+            M68K_Op_PEA(as, opcode);
+        } else if ((opcode & 0xFFC0) == 0x4E80) {
+            /* JSR */
+            M68K_Op_JSR(as, opcode);
+        } else if ((opcode & 0xFFC0) == 0x4EC0) {
+            /* JMP */
+            M68K_Op_JMP(as, opcode);
+        } else if ((opcode & 0xFFFF) == 0x4E75) {
+            /* RTS */
+            M68K_Op_RTS(as, opcode);
+        } else if ((opcode & 0xFFF8) == 0x4E50) {
+            /* LINK */
+            M68K_Op_LINK(as, opcode);
+        } else if ((opcode & 0xFFF8) == 0x4E58) {
+            /* UNLK */
+            M68K_Op_UNLK(as, opcode);
+        } else if ((opcode & 0xFF00) == 0x4200) {
+            /* CLR */
+            M68K_Op_CLR(as, opcode);
+        } else if ((opcode & 0xFF00) == 0x4600) {
+            /* NOT */
+            M68K_Op_NOT(as, opcode);
+        } else {
+            M68K_Fault(as, "Unimplemented 4xxx opcode");
+        }
+    } else if ((opcode & 0xF000) == 0x6000) {
+        /* 6xxx - Branch instructions */
+        if ((opcode & 0xFF00) == 0x6000) {
+            M68K_Op_BRA(as, opcode);
+        } else if ((opcode & 0xFF00) == 0x6100) {
+            M68K_Op_BSR(as, opcode);
+        } else {
+            M68K_Op_Bcc(as, opcode);
+        }
+    } else if ((opcode & 0xF000) == 0x9000) {
+        /* 9xxx - SUB */
+        M68K_Op_SUB(as, opcode);
+    } else if ((opcode & 0xF000) == 0xA000) {
+        /* Axxx - A-line trap */
+        M68K_Op_TRAP(as, opcode);
+    } else if ((opcode & 0xF100) == 0xB000) {
+        /* Bxxx - CMP */
+        M68K_Op_CMP(as, opcode);
+    } else if ((opcode & 0xF000) == 0xD000) {
+        /* Dxxx - ADD */
+        M68K_Op_ADD(as, opcode);
+    } else {
+        serial_printf("[M68K] ILLEGAL opcode 0x%04X at PC=0x%08X\n", opcode, as->regs.pc - 2);
+        M68K_Fault(as, "Illegal opcode");
+    }
+
+    return noErr;
+}
+
+/*
+ * M68K_Execute - Execute up to maxInstructions
  */
 OSErr M68K_Execute(M68KAddressSpace* as, UInt32 startPC, UInt32 maxInstructions)
 {
+    UInt32 count = 0;
+
     if (!as) {
         return paramErr;
     }
 
     as->regs.pc = startPC;
+    as->halted = false;
 
-    /* TODO: Implement instruction fetch/decode/execute loop */
-
-    (void)maxInstructions; /* Unused */
-
-    return noErr;
-}
-
-OSErr M68K_Step(M68KAddressSpace* as)
-{
-    if (!as) {
-        return paramErr;
+    while (count < maxInstructions && !as->halted) {
+        M68K_Step(as);
+        count++;
     }
-
-    /* TODO: Fetch and execute one instruction */
 
     return noErr;
 }

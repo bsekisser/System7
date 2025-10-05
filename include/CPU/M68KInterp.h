@@ -45,6 +45,9 @@ typedef struct M68KAddressSpace {
     UInt32 codeSegBases[256];
     Size codeSegSizes[256];
     int numCodeSegs;
+
+    /* Execution state */
+    Boolean halted;           /* CPU halted due to fault or completion */
 } M68KAddressSpace;
 
 /*

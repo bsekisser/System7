@@ -16,6 +16,50 @@
 #include <string.h>
 
 /*
+ * Test-Only Resource Store
+ * Since AddResource is a stub, we maintain a simple in-memory store for testing
+ */
+#define MAX_TEST_RESOURCES 16
+static struct {
+    ResType type;
+    SInt16 id;
+    Handle data;
+    Boolean valid;
+} g_testResources[MAX_TEST_RESOURCES];
+
+
+static void TestResource_Add(Handle theData, ResType theType, SInt16 theID) {
+    for (int i = 0; i < MAX_TEST_RESOURCES; i++) {
+        if (!g_testResources[i].valid) {
+            g_testResources[i].type = theType;
+            g_testResources[i].id = theID;
+            g_testResources[i].data = theData;
+            g_testResources[i].valid = true;
+            SEG_LOG_INFO("TestResource_Add: stored %c%c%c%c %d at slot %d",
+                        (char)(theType >> 24), (char)(theType >> 16),
+                        (char)(theType >> 8), (char)theType, theID, i);
+            return;
+        }
+    }
+    SEG_LOG_ERROR("TestResource_Add: no free slots");
+}
+
+Handle TestResource_Get(ResType theType, SInt16 theID) {
+    for (int i = 0; i < MAX_TEST_RESOURCES; i++) {
+        if (g_testResources[i].valid &&
+            g_testResources[i].type == theType &&
+            g_testResources[i].id == theID) {
+            SEG_LOG_INFO("TestResource_Get: found %c%c%c%c %d in slot %d",
+                        (char)(theType >> 24), (char)(theType >> 16),
+                        (char)(theType >> 8), (char)theType, theID, i);
+            return g_testResources[i].data;
+        }
+    }
+    /* Not found - return NULL without error (might be in real RM) */
+    return NULL;
+}
+
+/*
  * Helper: Create handle from byte array
  */
 static Handle MakeHandleFromBytes(const UInt8* bytes, Size len)
@@ -42,6 +86,16 @@ static void InstallTestResources(void)
     UInt8 code0[16 + 8];  // Header + 1 JT entry
     UInt8 code1[12];      // Entry segment
     UInt8 code2[4];       // Trace segment
+    SInt16 savedResFile;
+
+    /* Save current resource file and use system resource file for tests */
+    savedResFile = CurResFile();
+    SEG_LOG_INFO("Current resource file before: refNum=%d", savedResFile);
+
+    /* Use system resource file (refNum 0) for synthetic resources */
+    UseResFile(0);
+    SInt16 sysResFile = CurResFile();
+    SEG_LOG_INFO("Switched to system resource file: refNum=%d", sysResFile);
 
     /* --- CODE 0: A5 World Metadata --- */
     /* Layout:
@@ -59,7 +113,9 @@ static void InstallTestResources(void)
     /* JT entry placeholder (loader will write stub) */
     memset(code0 + 16, 0x4E, 8);  // NOPs for now
 
-    AddResource(MakeHandleFromBytes(code0, sizeof(code0)), 'CODE', 0, "\p");
+    Handle h0 = MakeHandleFromBytes(code0, sizeof(code0));
+    SEG_LOG_INFO("InstallTestResources: CODE 0 handle=%p size=%u", h0, (unsigned)sizeof(code0));
+    TestResource_Add(h0, 'CODE', 0);
 
     /* --- CODE 1: Entry Segment --- */
     /* Layout:
@@ -79,7 +135,9 @@ static void InstallTestResources(void)
     code1[8] = 0xA9; code1[9] = 0xF0;   // _LoadSeg trap
     code1[10] = 0x4E; code1[11] = 0x75; // RTS
 
-    AddResource(MakeHandleFromBytes(code1, sizeof(code1)), 'CODE', 1, "\p");
+    Handle h1 = MakeHandleFromBytes(code1, sizeof(code1));
+    SEG_LOG_INFO("InstallTestResources: CODE 1 handle=%p size=%u", h1, (unsigned)sizeof(code1));
+    TestResource_Add(h1, 'CODE', 1);
 
     /* --- CODE 2: Trace Segment --- */
     /* Layout:
@@ -93,7 +151,13 @@ static void InstallTestResources(void)
     code2[0] = 0xA8; code2[1] = 0x00;   // TRAP #$A800
     code2[2] = 0x4E; code2[3] = 0x75;   // RTS
 
-    AddResource(MakeHandleFromBytes(code2, sizeof(code2)), 'CODE', 2, "\p");
+    Handle h2 = MakeHandleFromBytes(code2, sizeof(code2));
+    SEG_LOG_INFO("InstallTestResources: CODE 2 handle=%p size=%u", h2, (unsigned)sizeof(code2));
+    TestResource_Add(h2, 'CODE', 2);
+
+    /* Keep system resource file as current so GetResource() works */
+    SEG_LOG_INFO("System resource file refNum=%d is now current", sysResFile);
+    (void)savedResFile; /* Will stay on system file for the duration of test */
 }
 
 /*
@@ -240,6 +304,19 @@ void SegmentLoader_TestBoot(void)
     SEG_LOG_INFO("Installing synthetic CODE resources...");
     InstallTestResources();
 
+    /* Verify test resources are accessible */
+    Handle h0 = TestResource_Get('CODE', 0);
+    Handle h1 = TestResource_Get('CODE', 1);
+    Handle h2 = TestResource_Get('CODE', 2);
+
+    if (!h0 || !h1 || !h2) {
+        SEG_LOG_ERROR("FAIL: Test resources not accessible (h0=%p, h1=%p, h2=%p)", h0, h1, h2);
+        return;
+    }
+
+    SEG_LOG_INFO("Verified test resources: CODE 0=%p, CODE 1=%p, CODE 2=%p", h0, h1, h2);
+    SEG_LOG_INFO("NOTE: Segment loader will need test resource injection since RM AddResource is a stub");
+
     /* Create minimal PCB for test */
     memset(&testPCB, 0, sizeof(testPCB));
     testPCB.processID.lowLongOfPSN = 9999;  // Test PSN
@@ -297,14 +374,25 @@ void SegmentLoader_TestBoot(void)
     SEG_LOG_INFO("  Entry = 0x%08X (CODE 1)", entry);
     SEG_LOG_INFO("");
 
-    /* Simulate entry (for MVP, we don't actually execute) */
-    SEG_LOG_INFO("Would EnterAt(0x%08X) here", entry);
-    SEG_LOG_INFO("(M68K interpreter execution stubbed for MVP)");
+    /* Execute CODE 1 via M68K interpreter! */
+    SEG_LOG_INFO("");
+    SEG_LOG_INFO("========================================");
+    SEG_LOG_INFO("*** ENTERING M68K INTERPRETER ***");
+    SEG_LOG_INFO("Calling EnterAt(0x%08X) with timeslice...", entry);
+    SEG_LOG_INFO("========================================");
+    SEG_LOG_INFO("");
+
+    err = ctx->cpuBackend->EnterAt(ctx->cpuAS, entry, 0);
+    if (err != noErr) {
+        SEG_LOG_ERROR("FAIL: EnterAt returned %d", err);
+        SegmentLoader_Cleanup(ctx);
+        return;
+    }
 
     SEG_LOG_INFO("");
-    SEG_LOG_INFO("*** ALL SMOKE CHECKS PASSED ***");
-    SEG_LOG_INFO("Segment loader scaffolding validated!");
-    SEG_LOG_INFO("Next: Implement M68K_Execute() to run code");
+    SEG_LOG_INFO("========================================");
+    SEG_LOG_INFO("*** M68K EXECUTION COMPLETE ***");
+    SEG_LOG_INFO("EnterAt returned successfully");
     SEG_LOG_INFO("========================================");
     SEG_LOG_INFO("");
 

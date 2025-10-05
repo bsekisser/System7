@@ -44,7 +44,7 @@ ifeq ($(DEBUG_SYMBOLS),1)
   OPT_FLAGS += -g
 endif
 
-CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 -DTM_SMOKE_TEST \
+CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 -DTM_SMOKE_TEST -DSEGLOADER_TEST_BOOT \
          -ffreestanding -fno-builtin -fno-stack-protector -nostdlib \
          -Wall -Wextra -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wcast-qual \
          -Wpointer-arith -Wstrict-prototypes -Wno-unused-parameter \
@@ -176,6 +176,8 @@ C_SOURCES = src/main.c \
             src/ProcessMgr/ProcessManager.c \
             src/CPU/CPUBackend.c \
             src/CPU/m68k_interp/M68KBackend.c \
+            src/CPU/m68k_interp/M68KDecode.c \
+            src/CPU/m68k_interp/M68KOpcodes.c \
             src/SegmentLoader/SegmentLoader.c \
             src/SegmentLoader/CodeParser.c \
             src/SegmentLoader/A5World.c \

@@ -8,8 +8,20 @@
 #include "SegmentLoader/CodeParser.h"
 #include "SegmentLoader/SegmentLoaderLogging.h"
 #include "ResourceMgr/resource_manager.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
 #include <string.h>
+
+/* --- TEST HOOK: allow loader to fetch from the test store in SEGLOADER_TEST_BOOT --- */
+#ifndef SL_GETRESOURCE
+# ifdef SEGLOADER_TEST_BOOT
+   /* Implemented in SegmentLoaderTest.c — returns Handle from the in-memory test store */
+   extern Handle TestResource_Get(ResType theType, ResID theID);
+#  define SL_GETRESOURCE(type, id) TestResource_Get((type),(id))
+# else
+#  define SL_GETRESOURCE(type, id) GetResource((type),(id))
+# endif
+#endif
 
 /* Forward declarations */
 static OSErr LoadCODE0AndSetupA5(SegmentLoaderContext* ctx);
@@ -139,10 +151,12 @@ static OSErr LoadCODE0AndSetupA5(SegmentLoaderContext* ctx)
     }
 
     /* Load CODE 0 resource */
-    code0Handle = GetResource('CODE', 0);
+    code0Handle = SL_GETRESOURCE('CODE', 0);
     if (!code0Handle) {
+        SEG_LOG_ERROR("CODE 0 resource not found");
         return segmentNotFound;
     }
+    SEG_LOG_INFO("CODE 0 resource loaded: handle=%p", code0Handle);
 
     /* Lock handle */
     HLock(code0Handle);
@@ -153,6 +167,16 @@ static OSErr LoadCODE0AndSetupA5(SegmentLoaderContext* ctx)
         HUnlock(code0Handle);
         ReleaseResource(code0Handle);
         return err;
+    }
+
+    /* Defensive clamp: guard against bogus CODE 0 sizes */
+    const UInt32 MAX_A5 = 1 * 1024 * 1024; /* 1MB guard */
+    if (info.a5BelowSize > MAX_A5 || info.a5AboveSize > MAX_A5) {
+        SEG_LOG_ERROR("CODE 0 sizes too large: below=%u above=%u",
+                      info.a5BelowSize, info.a5AboveSize);
+        HUnlock(code0Handle);
+        ReleaseResource(code0Handle);
+        return memFullErr;
     }
 
     /* Store CODE 0 info */
@@ -219,11 +243,13 @@ OSErr LoadSegment(SegmentLoaderContext* ctx, SInt16 segID)
     SEG_LOG_INFO("Loading CODE %d...", segID);
 
     /* Load CODE resource */
-    codeHandle = GetResource('CODE', segID);
+    codeHandle = SL_GETRESOURCE('CODE', segID);
     if (!codeHandle) {
         SEG_LOG_ERROR("CODE %d resource not found", segID);
         return segmentNotFound;
     }
+    SEG_LOG_INFO("CODE %d resource loaded: handle=%p size=%u", segID, codeHandle,
+                 codeHandle ? GetHandleSize(codeHandle) : 0);
 
     HLock(codeHandle);
     codeData = (const UInt8*)*codeHandle;

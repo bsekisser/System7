@@ -298,7 +298,8 @@ static SystemLogLevel g_moduleLevels[kLogModuleCount] = {
     [kLogModulePlatform] = kLogLevelDebug,
     [kLogModuleScrap] = kLogLevelDebug,
     [kLogModuleMemory] = kLogLevelInfo,
-    [kLogModuleProcess] = kLogLevelInfo
+    [kLogModuleProcess] = kLogLevelInfo,
+    [kLogModuleSegmentLoader] = kLogLevelDebug
 };
 
 static const SysLogTag kLogTagTable[] = {
