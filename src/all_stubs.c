@@ -284,7 +284,7 @@ void QDPlatform_Initialize(void) {}
 void QDPlatform_SetPixel(void* port, int x, int y, unsigned long color) {}
 unsigned long QDPlatform_GetPixel(void* port, int x, int y) { return 0; }
 void QDPlatform_DrawLine(void* port, int x1, int y1, int x2, int y2) {}
-void QDPlatform_DrawRegion(void* port, void* rgn) {}
+void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {}
 void QDPlatform_DrawShape(void* port, int shape, void* rect) {}
 
 /* Global pointers */

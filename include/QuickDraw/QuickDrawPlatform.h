@@ -64,7 +64,9 @@ void QDPlatform_NativeToRGB(UInt32 native, UInt16* red, UInt16* green, UInt16* b
 void QDPlatform_DrawLine(GrafPtr port, Point startPt, Point endPt,
                         const Pattern* pat, SInt16 mode);
 void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
-                         SInt16 shapeType, const Pattern* pat);
+                         SInt16 shapeType, const Pattern* pat,
+                         SInt16 ovalWidth, SInt16 ovalHeight);
+void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat);
 
 #ifdef __cplusplus
 }

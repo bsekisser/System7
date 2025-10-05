@@ -39,6 +39,88 @@ static inline Boolean QDPointInEllipse(SInt32 x, SInt32 y, const Rect* rect) {
     return (dx * dx + dy * dy) <= 1.0;
 }
 
+static inline UInt32 QDPlatform_MapQDColor(SInt32 qdColor) {
+    switch (qdColor) {
+        case whiteColor:
+            return pack_color(255, 255, 255);
+        case redColor:
+            return pack_color(255, 0, 0);
+        case greenColor:
+            return pack_color(0, 255, 0);
+        case blueColor:
+            return pack_color(0, 0, 255);
+        case cyanColor:
+            return pack_color(0, 255, 255);
+        case magentaColor:
+            return pack_color(255, 0, 255);
+        case yellowColor:
+            return pack_color(255, 255, 0);
+        case blackColor:
+        default:
+            return pack_color(0, 0, 0);
+    }
+}
+
+static inline UInt32 QDPlatform_SelectPatternColor(GrafPtr port,
+                                                  const Pattern* pat,
+                                                  SInt32 x, SInt32 y,
+                                                  UInt32 fallback) {
+    if (!pat) {
+        return fallback;
+    }
+
+    SInt32 patY = y & 7;
+    SInt32 patX = x & 7;
+    UInt8 patByte = pat->pat[patY];
+    Boolean bit = (patByte >> (7 - patX)) & 1;
+
+    UInt32 fg = fallback;
+    UInt32 bg = pack_color(255, 255, 255);
+    if (port) {
+        fg = QDPlatform_MapQDColor(port->fgColor);
+        bg = QDPlatform_MapQDColor(port->bkColor);
+    }
+
+    return bit ? fg : bg;
+}
+
+static inline Boolean QDPointInRoundRect(SInt32 x, SInt32 y, const Rect* rect,
+                                         SInt16 radiusH, SInt16 radiusV) {
+    if (x < rect->left || x >= rect->right ||
+        y < rect->top || y >= rect->bottom) {
+        return false;
+    }
+
+    if (radiusH <= 0 || radiusV <= 0) {
+        return true; /* Degenerates to rectangle */
+    }
+
+    SInt32 innerLeft = rect->left + radiusH;
+    SInt32 innerRight = rect->right - radiusH;
+    SInt32 innerTop = rect->top + radiusV;
+    SInt32 innerBottom = rect->bottom - radiusV;
+
+    if ((x >= innerLeft && x < innerRight) ||
+        (y >= innerTop && y < innerBottom)) {
+        return true;
+    }
+
+    double rx = radiusH;
+    double ry = radiusV;
+    if (rx <= 0.0 || ry <= 0.0) {
+        return true;
+    }
+
+    double cx = (x < innerLeft) ? (rect->left + radiusH)
+                                : (rect->right - radiusH);
+    double cy = (y < innerTop) ? (rect->top + radiusV)
+                               : (rect->bottom - radiusV);
+
+    double dx = (x + 0.5 - cx) / rx;
+    double dy = (y + 0.5 - cy) / ry;
+    return (dx * dx + dy * dy) <= 1.0;
+}
+
 /* Initialize platform layer */
 Boolean QDPlatform_Initialize(void) {
     g_platformFB.baseAddr = framebuffer;
@@ -200,20 +282,58 @@ void QDPlatform_DrawLine(GrafPtr port, Point startPt, Point endPt,
     SInt32 sy = (y1 < y2) ? 1 : -1;
     SInt32 err = dx - dy;
 
-    /* Use black for drawing */
-    UInt32 drawColor = pack_color(0, 0, 0);
+    SInt32 penWidth = (port && port->pnSize.h > 0) ? port->pnSize.h : 1;
+    SInt32 penHeight = (port && port->pnSize.v > 0) ? port->pnSize.v : 1;
+    UInt32 fallbackColor = port ? QDPlatform_MapQDColor(port->fgColor)
+                                : pack_color(0, 0, 0);
 
     while (1) {
-        /* Handle XOR mode */
-        if (mode == patXor) {
-            /* Read current pixel */
-            UInt32 current = QDPlatform_GetPixel(x1, y1);
-            /* XOR with draw color */
-            UInt32 xored = current ^ drawColor;
-            QDPlatform_SetPixel(x1, y1, xored);
-        } else {
-            /* Normal copy mode */
-            QDPlatform_SetPixel(x1, y1, drawColor);
+        for (SInt32 penY = 0; penY < penHeight; penY++) {
+            for (SInt32 penX = 0; penX < penWidth; penX++) {
+                SInt32 drawX = x1 + penX;
+                SInt32 drawY = y1 + penY;
+
+                if (drawX < 0 || drawX >= (SInt32)fb_width ||
+                    drawY < 0 || drawY >= (SInt32)fb_height) {
+                    continue;
+                }
+
+                UInt32 patternColor = QDPlatform_SelectPatternColor(port, pat,
+                                                                     drawX, drawY,
+                                                                     fallbackColor);
+                UInt32 current = QDPlatform_GetPixel(drawX, drawY);
+                UInt32 outColor = patternColor;
+
+                switch (mode) {
+                    case patXor:
+                    case srcXor:
+                    case notSrcXor:
+                    case notPatXor:
+                        outColor = current ^ patternColor;
+                        break;
+                    case patOr:
+                    case srcOr:
+                    case notSrcOr:
+                    case notPatOr:
+                        outColor = current | patternColor;
+                        break;
+                    case patBic:
+                    case srcBic:
+                    case notSrcBic:
+                    case notPatBic:
+                        outColor = current & (~patternColor);
+                        break;
+                    case notSrcCopy:
+                    case notPatCopy:
+                        outColor = ~patternColor;
+                        break;
+                    default:
+                        outColor = patternColor;
+                        break;
+                }
+
+                QDPlatform_SetPixel(drawX, drawY, outColor);
+            }
         }
 
         if (x1 == x2 && y1 == y2) break;
@@ -235,7 +355,8 @@ extern bool PM_GetColorPattern(uint32_t** patternData);
 
 /* Draw a shape using platform capabilities - called from QuickDrawCore */
 void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
-                         SInt16 shapeType, const Pattern* pat) {
+                         SInt16 shapeType, const Pattern* pat,
+                         SInt16 ovalWidth, SInt16 ovalHeight) {
 
     /* CRITICAL: DrawPrimitive already converted LOCAL→GLOBAL!
      * rect parameter is already in GLOBAL coordinates.
@@ -397,6 +518,103 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
                 for (SInt32 x = rect->left; x < rect->right; x++) {
                     if (x < 0 || x >= (SInt32)fb_width) continue;
                     if (!QDPointInEllipse(x, y, rect)) continue;
+
+                    UInt32 current = QDPlatform_GetPixel(x + offsetX, y + offsetY);
+                    UInt32 inverted = current ^ 0x00FFFFFF;
+                    QDPlatform_SetPixel(x + offsetX, y + offsetY, inverted);
+                }
+            }
+        }
+    } else if (shapeType == 2) {  /* Rounded rectangle */
+        SInt16 width = rect->right - rect->left;
+        SInt16 height = rect->bottom - rect->top;
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+
+        SInt16 radiusH = ovalWidth / 2;
+        SInt16 radiusV = ovalHeight / 2;
+        if (radiusH < 0) radiusH = 0;
+        if (radiusV < 0) radiusV = 0;
+        if (radiusH > width / 2) radiusH = width / 2;
+        if (radiusV > height / 2) radiusV = height / 2;
+
+        SInt16 mode = port ? port->pnMode : patCopy;
+
+        if (verb == paint || verb == fill || verb == erase) {
+            UInt32 fallbackColor = (verb == erase) ? pack_color(255, 255, 255)
+                                                   : pack_color(0, 0, 0);
+            for (SInt32 y = rect->top; y < rect->bottom; y++) {
+                if (y < 0 || y >= (SInt32)fb_height) continue;
+                for (SInt32 x = rect->left; x < rect->right; x++) {
+                    if (x < 0 || x >= (SInt32)fb_width) continue;
+                    if (!QDPointInRoundRect(x, y, rect, radiusH, radiusV)) {
+                        continue;
+                    }
+
+                    UInt32 color = fallbackColor;
+                    if (pat) {
+                        SInt32 patY = (verb == paint) ? ((y - rect->top) & 7) : (y & 7);
+                        SInt32 patX = (verb == paint) ? ((x - rect->left) & 7) : (x & 7);
+                        UInt8 patByte = pat->pat[patY];
+                        Boolean bit = (patByte >> (7 - patX)) & 1;
+                        color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
+                    }
+
+                    if (verb == erase && pat == NULL) {
+                        color = pack_color(255, 255, 255);
+                    }
+
+                    if (mode == patXor && verb == paint) {
+                        UInt32 current = QDPlatform_GetPixel(x + offsetX, y + offsetY);
+                        color = current ^ color;
+                    }
+
+                    QDPlatform_SetPixel(x + offsetX, y + offsetY, color);
+                }
+            }
+        } else if (verb == frame) {
+            for (SInt32 y = rect->top; y < rect->bottom; y++) {
+                if (y < 0 || y >= (SInt32)fb_height) continue;
+                for (SInt32 x = rect->left; x < rect->right; x++) {
+                    if (x < 0 || x >= (SInt32)fb_width) continue;
+                    if (!QDPointInRoundRect(x, y, rect, radiusH, radiusV)) {
+                        continue;
+                    }
+
+                    Boolean neighborOutside =
+                        !QDPointInRoundRect(x - 1, y, rect, radiusH, radiusV) ||
+                        !QDPointInRoundRect(x + 1, y, rect, radiusH, radiusV) ||
+                        !QDPointInRoundRect(x, y - 1, rect, radiusH, radiusV) ||
+                        !QDPointInRoundRect(x, y + 1, rect, radiusH, radiusV);
+
+                    if (!neighborOutside) continue;
+
+                    UInt32 color = pack_color(0, 0, 0);
+                    if (pat) {
+                        SInt32 patY = (y - rect->top) & 7;
+                        SInt32 patX = (x - rect->left) & 7;
+                        UInt8 patByte = pat->pat[patY];
+                        Boolean bit = (patByte >> (7 - patX)) & 1;
+                        color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
+                    }
+
+                    if (mode == patXor) {
+                        UInt32 current = QDPlatform_GetPixel(x + offsetX, y + offsetY);
+                        color = current ^ color;
+                    }
+
+                    QDPlatform_SetPixel(x + offsetX, y + offsetY, color);
+                }
+            }
+        } else if (verb == invert) {
+            for (SInt32 y = rect->top; y < rect->bottom; y++) {
+                if (y < 0 || y >= (SInt32)fb_height) continue;
+                for (SInt32 x = rect->left; x < rect->right; x++) {
+                    if (x < 0 || x >= (SInt32)fb_width) continue;
+                    if (!QDPointInRoundRect(x, y, rect, radiusH, radiusV)) {
+                        continue;
+                    }
 
                     UInt32 current = QDPlatform_GetPixel(x + offsetX, y + offsetY);
                     UInt32 inverted = current ^ 0x00FFFFFF;
