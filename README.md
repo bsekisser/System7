@@ -12,6 +12,16 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Recent Updates
 
+- ✅ **Serial Logging System**: Comprehensive module-based logging framework
+  - Hierarchical log levels (Error, Warn, Info, Debug, Trace)
+  - Module-specific filtering (Window Manager, Control Manager, Dialog Manager, Event Manager, etc.)
+  - Runtime control via `SysLogSetGlobalLevel()` and `SysLogSetModuleLevel()`
+  - Auto-classification of legacy `serial_printf` calls via tag prefixes `[WM]`, `[CTRL]`, `[DM]`, etc.
+  - Custom tag support with explicit module/level: `[MODULE:LEVEL]`
+  - `serial_logf()` API for explicit module and level specification
+  - Standard File and QuickDraw platform logs integrated
+  - Process Manager logging refinements
+  - Full documentation in `docs/components/System/Logging.md`
 - ✅ **Keyboard Navigation Integration**: Complete System 7-style keyboard focus and navigation
   - Dialog Manager focus tracking with XOR toggle pattern for focus rings
   - Tab/Shift+Tab traversal with intelligent focus filtering (skips invisible/disabled/zero-sized controls)
@@ -23,7 +33,8 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
   - Automatic cleanup on window/control disposal (no ghost XOR rings)
   - StandardFile dialog integration with initial focus priming
   - Event dispatcher activation hooks for cross-window focus management
-  - Breadcrumb logging ([DM], [WM], [SF] tags) for debugging observability
+  - Alert & Modal Dialog keyboard integration fully implemented
+  - Full documentation in `docs/components/DialogManager/KeyboardIntegration.md`
 - ✅ **Scrollbar Controls Implementation**: Complete System 7-style scrollbar controls with classic Mac semantics
   - NewVScrollBar/NewHScrollBar creation functions with auto-orientation detection
   - Full CDEF implementation: drawing, hit-testing, tracking, and highlighting
@@ -109,6 +120,12 @@ This is a proof-of-concept implementation focused on understanding and recreatin
 ### What Works ✅
 
 - **Boot System**: Successfully boots via GRUB2/Multiboot2 on x86 hardware
+- **Serial Logging System**: Module-based logging with runtime filtering and hierarchical levels
+  - Log levels: Error, Warn, Info, Debug, Trace
+  - Per-module control (Window Manager, Control Manager, Dialog Manager, etc.)
+  - Auto-classification of tagged messages and keyword heuristics
+  - `serial_logf()` API for structured logging with explicit module/level
+  - Runtime configuration via `SysLogSetGlobalLevel()` and `SysLogSetModuleLevel()`
 - **Graphics Foundation**: VESA framebuffer (800x600x32) with QuickDraw primitives
   - PenMode support including XOR mode (patXor) for interactive drag feedback
   - Rect, Line, and Frame operations with mode-aware rendering
@@ -221,6 +238,8 @@ This is a proof-of-concept implementation focused on understanding and recreatin
   - Automatic cleanup on window/control disposal
   - Graphics state save/restore for isolated drawing operations
   - StandardFile dialog integration with initial focus priming
+  - Alert & Modal Dialog full keyboard integration
+  - Debounce protection prevents double-activation from concurrent mouse/keyboard events
 
 ### Partially Working ⚠️
 
@@ -233,14 +252,9 @@ This is a proof-of-concept implementation focused on understanding and recreatin
 - **Desktop Icons**:
   - Icons render and display correctly
   - Double-click to open functional
-- **Menu Manager**:
-  - Menu bar displays and tracks mouse correctly
-  - Font Manager integration for menu item text styles
-  - Dropdown menu rendering incomplete
-  - Menu selection and command dispatch stubbed
 - **Control Manager**: Framework in place, standard controls (buttons, checkboxes, radio buttons) and scrollbar controls complete
 - **Dialog Manager**: Core structure complete with full keyboard navigation support
-- **File Manager**: Core implemented, in progress.
+- **File Manager**: Core implemented, in progress
 
 ### Not Yet Implemented ❌
 
@@ -318,6 +332,7 @@ iteration2/
 ├── src/
 │   ├── main.c                  # Kernel entry point & initialization
 │   ├── SystemInit.c            # System startup sequence
+│   ├── System71StdLib.c        # Serial logging framework with module filtering
 │   ├── QuickDraw/              # 2D graphics primitives
 │   ├── WindowManager/          # Window management (8 modules)
 │   ├── MenuManager/            # Menu system (7 modules)
@@ -342,9 +357,17 @@ iteration2/
 │   ├── FileManager.c           # File Manager API
 │   └── PS2Controller.c         # Hardware input driver
 ├── include/                    # Public headers (Inside Mac API)
-├── docs/                       # Archaeological documentation
-│   ├── WM_STATUS_REPORT.md     # Window Manager implementation status
-│   └── WM_RESTRUCTURE_PLAN.md  # Architecture planning docs
+├── docs/                       # Component documentation
+│   ├── components/             # Subsystem guides
+│   │   ├── ControlManager/     # Control Manager docs & QA checklist
+│   │   ├── DialogManager/      # Dialog Manager & keyboard integration
+│   │   ├── FontManager/        # Font Manager documentation
+│   │   ├── System/             # Logging system documentation
+│   │   ├── EventManager.md     # Event Manager guide
+│   │   ├── MenuManager.md      # Menu Manager guide
+│   │   ├── WindowManager.md    # Window Manager guide
+│   │   └── ResourceManager.md  # Resource Manager guide
+│   └── layouts/                # System structure layouts
 └── System_Resources_Extracted/ # Original System 7.1 resources
     └── [69 resource type folders]
 ```
@@ -450,12 +473,11 @@ This project serves as:
 
 ## 🐛 Known Issues
 
-1. **Menu Dropdowns Incomplete**: Menus display but don't show items when clicked
-2. **Icon Drag Artifacts**: Dragging desktop icons causes visual artifacts
-3. **No Application Support**: Cannot launch or run applications
-4. **No TrueType Support**: Font Manager supports bitmap fonts only (Chicago)
-5. **HFS Read-Only**: File system is virtual/simulated, no real disk I/O
-6. **No Stability Guarantees**: Crashes, hangs, and unexpected behavior are common
+1. **Icon Drag Artifacts**: Dragging desktop icons may cause visual artifacts
+2. **No Application Support**: Cannot launch or run applications
+3. **No TrueType Support**: Font Manager supports bitmap fonts only (Chicago)
+4. **HFS Read-Only**: File system is virtual/simulated, no real disk I/O
+5. **No Stability Guarantees**: Crashes, hangs, and unexpected behavior are common
 
 ## 🤝 Contributing
 
@@ -465,6 +487,18 @@ This is primarily a learning/research project, but contributions are welcome:
 3. **Testing**: Test on different hardware/emulators and report results
 
 ## 📖 Resources
+
+### Project Documentation
+
+- **Component Guides** (`docs/components/`): Detailed subsystem documentation
+  - Control Manager: `docs/components/ControlManager/README.md` & QA checklist
+  - Dialog Manager: `docs/components/DialogManager/README.md` & keyboard integration guide
+  - Font Manager: `docs/components/FontManager/README.md`
+  - Serial Logging: `docs/components/System/Logging.md`
+  - Event Manager: `docs/components/EventManager.md`
+  - Menu Manager: `docs/components/MenuManager.md`
+  - Window Manager: `docs/components/WindowManager.md`
+  - Resource Manager: `docs/components/ResourceManager.md`
 
 ### Essential References
 
