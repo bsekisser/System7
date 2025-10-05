@@ -12,9 +12,6 @@
 #define __QUICKDRAW_H__
 
 #include "SystemTypes.h"
-
-#include "SystemTypes.h"
-
 #include "QDTypes.h"
 
 #ifdef __cplusplus
