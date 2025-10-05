@@ -16,48 +16,9 @@
 #include <string.h>
 
 /*
- * Test-Only Resource Store
- * Since AddResource is a stub, we maintain a simple in-memory store for testing
+ * Resource Management
+ * Now using the real Resource Manager with AddResource
  */
-#define MAX_TEST_RESOURCES 16
-static struct {
-    ResType type;
-    SInt16 id;
-    Handle data;
-    Boolean valid;
-} g_testResources[MAX_TEST_RESOURCES];
-
-
-static void TestResource_Add(Handle theData, ResType theType, SInt16 theID) {
-    for (int i = 0; i < MAX_TEST_RESOURCES; i++) {
-        if (!g_testResources[i].valid) {
-            g_testResources[i].type = theType;
-            g_testResources[i].id = theID;
-            g_testResources[i].data = theData;
-            g_testResources[i].valid = true;
-            SEG_LOG_INFO("TestResource_Add: stored %c%c%c%c %d at slot %d",
-                        (char)(theType >> 24), (char)(theType >> 16),
-                        (char)(theType >> 8), (char)theType, theID, i);
-            return;
-        }
-    }
-    SEG_LOG_ERROR("TestResource_Add: no free slots");
-}
-
-Handle TestResource_Get(ResType theType, SInt16 theID) {
-    for (int i = 0; i < MAX_TEST_RESOURCES; i++) {
-        if (g_testResources[i].valid &&
-            g_testResources[i].type == theType &&
-            g_testResources[i].id == theID) {
-            SEG_LOG_INFO("TestResource_Get: found %c%c%c%c %d in slot %d",
-                        (char)(theType >> 24), (char)(theType >> 16),
-                        (char)(theType >> 8), (char)theType, theID, i);
-            return g_testResources[i].data;
-        }
-    }
-    /* Not found - return NULL without error (might be in real RM) */
-    return NULL;
-}
 
 /*
  * Helper: Create handle from byte array
@@ -115,7 +76,7 @@ static void InstallTestResources(void)
 
     Handle h0 = MakeHandleFromBytes(code0, sizeof(code0));
     SEG_LOG_INFO("InstallTestResources: CODE 0 handle=%p size=%u", h0, (unsigned)sizeof(code0));
-    TestResource_Add(h0, 'CODE', 0);
+    AddResource(h0, 'CODE', 0, NULL);
 
     /* --- CODE 1: Entry Segment --- */
     /* Layout:
@@ -137,7 +98,7 @@ static void InstallTestResources(void)
 
     Handle h1 = MakeHandleFromBytes(code1, sizeof(code1));
     SEG_LOG_INFO("InstallTestResources: CODE 1 handle=%p size=%u", h1, (unsigned)sizeof(code1));
-    TestResource_Add(h1, 'CODE', 1);
+    AddResource(h1, 'CODE', 1, NULL);
 
     /* --- CODE 2: Trace Segment --- */
     /* Layout:
@@ -153,7 +114,7 @@ static void InstallTestResources(void)
 
     Handle h2 = MakeHandleFromBytes(code2, sizeof(code2));
     SEG_LOG_INFO("InstallTestResources: CODE 2 handle=%p size=%u", h2, (unsigned)sizeof(code2));
-    TestResource_Add(h2, 'CODE', 2);
+    AddResource(h2, 'CODE', 2, NULL);
 
     /* Keep system resource file as current so GetResource() works */
     SEG_LOG_INFO("System resource file refNum=%d is now current", sysResFile);
@@ -304,18 +265,17 @@ void SegmentLoader_TestBoot(void)
     SEG_LOG_INFO("Installing synthetic CODE resources...");
     InstallTestResources();
 
-    /* Verify test resources are accessible */
-    Handle h0 = TestResource_Get('CODE', 0);
-    Handle h1 = TestResource_Get('CODE', 1);
-    Handle h2 = TestResource_Get('CODE', 2);
+    /* Verify test resources are accessible via Resource Manager */
+    Handle h0 = GetResource('CODE', 0);
+    Handle h1 = GetResource('CODE', 1);
+    Handle h2 = GetResource('CODE', 2);
 
     if (!h0 || !h1 || !h2) {
-        SEG_LOG_ERROR("FAIL: Test resources not accessible (h0=%p, h1=%p, h2=%p)", h0, h1, h2);
+        SEG_LOG_ERROR("FAIL: Test resources not accessible via RM (h0=%p, h1=%p, h2=%p)", h0, h1, h2);
         return;
     }
 
-    SEG_LOG_INFO("Verified test resources: CODE 0=%p, CODE 1=%p, CODE 2=%p", h0, h1, h2);
-    SEG_LOG_INFO("NOTE: Segment loader will need test resource injection since RM AddResource is a stub");
+    SEG_LOG_INFO("Verified test resources via RM: CODE 0=%p, CODE 1=%p, CODE 2=%p", h0, h1, h2);
 
     /* Create minimal PCB for test */
     memset(&testPCB, 0, sizeof(testPCB));

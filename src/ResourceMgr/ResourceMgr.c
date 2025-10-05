@@ -7,6 +7,7 @@
 #include "SystemTypes.h"
 #include "ResourceMgr/ResourceMgr.h"
 #include "ResourceMgr/ResourceMgrPriv.h"
+#include "ResourceMgr/ResourceLogging.h"
 #include "System71StdLib.h"
 
 /* External functions we need */
@@ -403,9 +404,11 @@ SInt16 CurResFile(void) {
 /* Set current resource file */
 void UseResFile(SInt16 refNum) {
     if (refNum < 0 || refNum >= MAX_RES_FILES || !gResMgr.resFiles[refNum].inUse) {
+        RM_LOG_WARN("UseResFile: bad refNum=%d", refNum);
         gResMgr.resError = badRefNum;
         return;
     }
+    RM_LOG_DEBUG("UseResFile: refNum=%d (was %d)", refNum, gResMgr.curResFile);
     gResMgr.curResFile = refNum;
 }
 
@@ -570,9 +573,14 @@ Handle GetResource(ResType theType, ResID theID) {
     RefListEntry* ref = NULL;
     ResFile* file = NULL;
 
+    RM_LOG_DEBUG("GetResource('%c%c%c%c', %d)",
+                 (char)(theType >> 24), (char)(theType >> 16),
+                 (char)(theType >> 8), (char)theType, theID);
+
     /* Check cache first for fast hit */
     Handle cached = CacheLookup(theType, theID);
     if (cached) {
+        RM_LOG_DEBUG("GetResource: cache hit, handle=%p", cached);
         gResMgr.resError = noErr;
         return cached;
     }
@@ -623,6 +631,7 @@ Handle GetResource(ResType theType, ResID theID) {
     }
 
     if (!ref) {
+        RM_LOG_WARN("GetResource: not found");
         gResMgr.resError = resNotFound;
         return NULL;
     }
@@ -630,6 +639,7 @@ Handle GetResource(ResType theType, ResID theID) {
     /* Check if already loaded (stored in reserved field) */
     Handle h = (Handle)(uintptr_t)ref->reserved;
     if (h) {
+        RM_LOG_DEBUG("GetResource: already loaded, handle=%p", h);
         gResMgr.resError = noErr;
         /* Update cache for next lookup */
         CacheInsert(theType, theID, h);
@@ -640,6 +650,9 @@ Handle GetResource(ResType theType, ResID theID) {
     if (gResMgr.resLoad) {
         h = ResFile_LoadResource(file, ref);
         if (h) {
+            RM_LOG_INFO("GetResource('%c%c%c%c', %d) = handle %p",
+                        (char)(theType >> 24), (char)(theType >> 16),
+                        (char)(theType >> 8), (char)theType, theID, h);
             /* Cache the handle (cast through uintptr_t for safety) */
             ref->reserved = (UInt32)(uintptr_t)h;
 
@@ -932,10 +945,27 @@ void ResFile_Close(SInt16 refNum) {
     }
 }
 
-/* Write operation stubs (read-only implementation) */
+/* Add resource to in-memory cache (for test/dynamic resources) */
 void AddResource(Handle theData, ResType theType, ResID theID, ConstStr255Param name) {
-    (void)theData; (void)theType; (void)theID; (void)name;
-    gResMgr.resError = addResFailed;
+    if (!theData) {
+        gResMgr.resError = paramErr;
+        return;
+    }
+
+    RM_LOG_INFO("AddResource('%c%c%c%c', %d, handle=%p)",
+                (char)(theType >> 24), (char)(theType >> 16),
+                (char)(theType >> 8), (char)theType, theID, theData);
+
+    /* Store in cache for immediate retrieval */
+    CacheInsert(theType, theID, theData);
+
+    /* Record handle info */
+    UInt16 nameOff = (name && name[0] > 0) ? 1 : 0;  /* Simplified name handling */
+    extern Size GetHandleSize(Handle h);
+    UInt32 dataLen = GetHandleSize(theData);
+    RecordHandleInfo(theData, theType, theID, nameOff, dataLen, gResMgr.curResFile);
+
+    gResMgr.resError = noErr;
 }
 
 void RemoveResource(Handle theResource) {

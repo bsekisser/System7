@@ -12,16 +12,7 @@
 #include "System71StdLib.h"
 #include <string.h>
 
-/* --- TEST HOOK: allow loader to fetch from the test store in SEGLOADER_TEST_BOOT --- */
-#ifndef SL_GETRESOURCE
-# ifdef SEGLOADER_TEST_BOOT
-   /* Implemented in SegmentLoaderTest.c — returns Handle from the in-memory test store */
-   extern Handle TestResource_Get(ResType theType, ResID theID);
-#  define SL_GETRESOURCE(type, id) TestResource_Get((type),(id))
-# else
-#  define SL_GETRESOURCE(type, id) GetResource((type),(id))
-# endif
-#endif
+/* Resource fetching - use standard Resource Manager */
 
 /* Forward declarations */
 static OSErr LoadCODE0AndSetupA5(SegmentLoaderContext* ctx);
@@ -151,7 +142,7 @@ static OSErr LoadCODE0AndSetupA5(SegmentLoaderContext* ctx)
     }
 
     /* Load CODE 0 resource */
-    code0Handle = SL_GETRESOURCE('CODE', 0);
+    code0Handle = GetResource('CODE', 0);
     if (!code0Handle) {
         SEG_LOG_ERROR("CODE 0 resource not found");
         return segmentNotFound;
@@ -243,7 +234,7 @@ OSErr LoadSegment(SegmentLoaderContext* ctx, SInt16 segID)
     SEG_LOG_INFO("Loading CODE %d...", segID);
 
     /* Load CODE resource */
-    codeHandle = SL_GETRESOURCE('CODE', segID);
+    codeHandle = GetResource('CODE', segID);
     if (!codeHandle) {
         SEG_LOG_ERROR("CODE %d resource not found", segID);
         return segmentNotFound;

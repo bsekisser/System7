@@ -1863,7 +1863,7 @@ static void init_system71(void) {
         serial_puts("  WARNING: Process Manager initialization failed\n");
     }
 
-#ifdef SEGLOADER_TEST_BOOT
+#ifdef TM_SMOKE_TEST
     /* Segment Loader Test Harness (smoke checks for first-light validation) */
     extern void SegmentLoader_TestBoot(void);
     serial_puts("\n");

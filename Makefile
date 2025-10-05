@@ -44,7 +44,7 @@ ifeq ($(DEBUG_SYMBOLS),1)
   OPT_FLAGS += -g
 endif
 
-CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 -DTM_SMOKE_TEST -DSEGLOADER_TEST_BOOT \
+CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 -DTM_SMOKE_TEST \
          -ffreestanding -fno-builtin -fno-stack-protector -nostdlib \
          -Wall -Wextra -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wcast-qual \
          -Wpointer-arith -Wstrict-prototypes -Wno-unused-parameter \
