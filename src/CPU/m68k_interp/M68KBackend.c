@@ -84,20 +84,33 @@ static OSErr M68K_CreateAddressSpace(void* processHandle, CPUAddressSpace* out)
     }
 
     memset(as, 0, sizeof(M68KAddressSpace));
+    as->baseAddr = 0;
 
-    /* Allocate 1MB address space (temporary for MVP triage) */
-    as->memorySize = 1 * 1024 * 1024;
-    serial_printf("[M68K] CreateAddressSpace: allocating memory buffer size=%u bytes\n",
-                  (unsigned)as->memorySize);
-    as->memory = NewPtr(as->memorySize);
-    if (!as->memory) {
-        serial_printf("[M68K] FAIL: memory buffer allocation memFullErr, MemError=%d\n", MemError());
-        DisposePtr((Ptr)as);
-        return memFullErr;
+    /* Initialize page table (all NULL = not allocated) */
+    memset(as->pageTable, 0, sizeof(as->pageTable));
+
+    /* Pre-allocate low memory pages (0x0000-0xFFFF = first 16 pages) */
+    serial_printf("[M68K] CreateAddressSpace: pre-allocating %d low memory pages (%u KB)\n",
+                  M68K_LOW_MEM_PAGES, M68K_LOW_MEM_SIZE / 1024);
+
+    for (int i = 0; i < M68K_LOW_MEM_PAGES; i++) {
+        as->pageTable[i] = NewPtr(M68K_PAGE_SIZE);
+        if (!as->pageTable[i]) {
+            serial_printf("[M68K] FAIL: low memory page %d allocation failed, MemError=%d\n",
+                         i, MemError());
+            /* Free already allocated pages */
+            for (int j = 0; j < i; j++) {
+                if (as->pageTable[j]) {
+                    DisposePtr((Ptr)as->pageTable[j]);
+                }
+            }
+            DisposePtr((Ptr)as);
+            return memFullErr;
+        }
+        memset(as->pageTable[i], 0, M68K_PAGE_SIZE);
     }
 
-    memset(as->memory, 0, as->memorySize);
-    as->baseAddr = 0;
+    serial_printf("[M68K] CreateAddressSpace: low memory allocated, sparse 16MB virtual space ready\n");
 
     /* Initialize registers */
     memset(&as->regs, 0, sizeof(M68KRegs));
@@ -118,12 +131,70 @@ static OSErr M68K_DestroyAddressSpace(CPUAddressSpace as)
         return paramErr;
     }
 
-    if (mas->memory) {
-        DisposePtr((Ptr)mas->memory);
+    /* Free all allocated pages */
+    for (int i = 0; i < M68K_NUM_PAGES; i++) {
+        if (mas->pageTable[i]) {
+            DisposePtr((Ptr)mas->pageTable[i]);
+            mas->pageTable[i] = NULL;
+        }
     }
 
     DisposePtr((Ptr)mas);
     return noErr;
+}
+
+/* Forward declaration */
+void* M68K_GetPage(M68KAddressSpace* as, UInt32 addr, Boolean allocate);
+
+/*
+ * M68K_MemCopy - Copy data to paged memory (lazy page allocation)
+ */
+static OSErr M68K_MemCopy(M68KAddressSpace* as, UInt32 addr, const void* src, Size len)
+{
+    const UInt8* srcBytes = (const UInt8*)src;
+
+    for (Size i = 0; i < len; i++) {
+        void* page = M68K_GetPage(as, addr + i, true);
+        if (!page) {
+            return memFullErr;
+        }
+        UInt32 offset = (addr + i) & (M68K_PAGE_SIZE - 1);
+        ((UInt8*)page)[offset] = srcBytes[i];
+    }
+    return noErr;
+}
+
+/*
+ * M68K_GetPage - Get page for address, allocating if needed (lazy allocation)
+ * Returns NULL if address out of range or allocation fails
+ */
+void* M68K_GetPage(M68KAddressSpace* as, UInt32 addr, Boolean allocate)
+{
+    UInt32 pageNum;
+    void* page;
+
+    /* Check address range */
+    if (addr >= M68K_MAX_ADDR) {
+        return NULL;
+    }
+
+    pageNum = addr >> M68K_PAGE_SHIFT;
+    page = as->pageTable[pageNum];
+
+    /* If page not allocated and allocation requested, allocate now */
+    if (!page && allocate) {
+        page = NewPtr(M68K_PAGE_SIZE);
+        if (page) {
+            memset(page, 0, M68K_PAGE_SIZE);
+            as->pageTable[pageNum] = page;
+            serial_printf("[M68K] Allocated page %u for addr 0x%08X\n", pageNum, addr);
+        } else {
+            serial_printf("[M68K] FAIL: page %u allocation failed, MemError=%d\n",
+                         pageNum, MemError());
+        }
+    }
+
+    return page;
 }
 
 /*
@@ -160,17 +231,21 @@ static OSErr M68K_MapExecutable(CPUAddressSpace as, const void* image, Size len,
     addr = (addr + 15) & ~15;
 
     /* Check bounds */
-    if (addr + len > mas->memorySize) {
+    if (addr + len > M68K_MAX_ADDR) {
         DisposePtr((Ptr)handle);
         return memFullErr;
     }
 
-    /* Copy code into address space */
-    memcpy((UInt8*)mas->memory + addr, image, len);
+    /* Copy code into address space (allocates pages as needed) */
+    if (M68K_MemCopy(mas, addr, image, len) != noErr) {
+        DisposePtr((Ptr)handle);
+        return memFullErr;
+    }
 
     /* Track segment */
     if (mas->numCodeSegs < 256) {
-        mas->codeSegments[mas->numCodeSegs] = (UInt8*)mas->memory + addr;
+        void* firstPage = M68K_GetPage(mas, addr, false);  /* Already allocated */
+        mas->codeSegments[mas->numCodeSegs] = firstPage ? (UInt8*)firstPage + (addr & (M68K_PAGE_SIZE - 1)) : NULL;
         mas->codeSegBases[mas->numCodeSegs] = addr;
         mas->codeSegSizes[mas->numCodeSegs] = len;
         handle->segIndex = mas->numCodeSegs;
@@ -180,7 +255,10 @@ static OSErr M68K_MapExecutable(CPUAddressSpace as, const void* image, Size len,
         return memFullErr;
     }
 
-    handle->hostMemory = (UInt8*)mas->memory + addr;
+    handle->hostMemory = M68K_GetPage(mas, addr, false);
+    if (handle->hostMemory) {
+        handle->hostMemory = (UInt8*)handle->hostMemory + (addr & (M68K_PAGE_SIZE - 1));
+    }
     handle->cpuAddr = addr;
     handle->size = len;
 
@@ -268,25 +346,18 @@ static OSErr M68K_WriteJumpTableSlot(CPUAddressSpace as, CPUAddr slotAddr,
     M68KAddressSpace* mas = (M68KAddressSpace*)as;
     UInt8* slot;
 
-    if (!mas || slotAddr >= mas->memorySize) {
+    if (!mas || slotAddr >= M68K_MAX_ADDR) {
         return paramErr;
     }
 
-    slot = (UInt8*)mas->memory + slotAddr;
-
-    /*
-     * Write 68K JMP instruction: 0x4EF9 followed by 32-bit address
-     *
-     * Format:
-     *   +0: 0x4E 0xF9     (JMP absolute long)
-     *   +2: target address (big-endian 32-bit)
-     */
-    slot[0] = 0x4E;
-    slot[1] = 0xF9;
-    slot[2] = (target >> 24) & 0xFF;
-    slot[3] = (target >> 16) & 0xFF;
-    slot[4] = (target >> 8) & 0xFF;
-    slot[5] = target & 0xFF;
+    /* Write 68K JMP instruction using paged access: 0x4EF9 + 32-bit address */
+    extern void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value);
+    M68K_Write8(mas, slotAddr + 0, 0x4E);
+    M68K_Write8(mas, slotAddr + 1, 0xF9);
+    M68K_Write8(mas, slotAddr + 2, (target >> 24) & 0xFF);
+    M68K_Write8(mas, slotAddr + 3, (target >> 16) & 0xFF);
+    M68K_Write8(mas, slotAddr + 4, (target >> 8) & 0xFF);
+    M68K_Write8(mas, slotAddr + 5, target & 0xFF);
 
     return noErr;
 }
@@ -300,11 +371,11 @@ static OSErr M68K_MakeLazyJTStub(CPUAddressSpace as, CPUAddr slotAddr,
     M68KAddressSpace* mas = (M68KAddressSpace*)as;
     UInt8* slot;
 
-    if (!mas || slotAddr >= mas->memorySize) {
+    if (!mas || slotAddr >= M68K_MAX_ADDR) {
         return paramErr;
     }
 
-    slot = (UInt8*)mas->memory + slotAddr;
+    extern void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value);
 
     /*
      * Create lazy stub that triggers _LoadSeg:
@@ -316,14 +387,14 @@ static OSErr M68K_MakeLazyJTStub(CPUAddressSpace as, CPUAddr slotAddr,
      *
      * Note: entryIndex is embedded in the trap context
      */
-    slot[0] = 0x3F;
-    slot[1] = 0x3C;
-    slot[2] = (segID >> 8) & 0xFF;
-    slot[3] = segID & 0xFF;
-    slot[4] = 0xA9;
-    slot[5] = 0xF0;
-    slot[6] = 0x4E;
-    slot[7] = 0x75;
+    M68K_Write8(mas, slotAddr + 0, 0x3F);
+    M68K_Write8(mas, slotAddr + 1, 0x3C);
+    M68K_Write8(mas, slotAddr + 2, (segID >> 8) & 0xFF);
+    M68K_Write8(mas, slotAddr + 3, segID & 0xFF);
+    M68K_Write8(mas, slotAddr + 4, 0xA9);
+    M68K_Write8(mas, slotAddr + 5, 0xF0);
+    M68K_Write8(mas, slotAddr + 6, 0x4E);
+    M68K_Write8(mas, slotAddr + 7, 0x75);
 
     (void)entryIndex; /* Stored in trap handler context */
 
@@ -515,12 +586,12 @@ static OSErr M68K_AllocateMemory(CPUAddressSpace as, Size size,
     addr = (addr + 15) & ~15;
 
     /* Check bounds */
-    if (addr + size > mas->memorySize) {
+    if (addr + size > M68K_MAX_ADDR) {
         return memFullErr;
     }
 
     /* Zero memory */
-    memset((UInt8*)mas->memory + addr, 0, size);
+    for (Size i = 0; i < size; i++) { extern void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value); M68K_Write8(mas, addr + i, 0); }
 
     *outAddr = addr;
 
@@ -537,11 +608,11 @@ static OSErr M68K_WriteMemory(CPUAddressSpace as, CPUAddr addr,
 {
     M68KAddressSpace* mas = (M68KAddressSpace*)as;
 
-    if (!mas || !data || addr + len > mas->memorySize) {
+    if (!mas || !data || addr + len > M68K_MAX_ADDR) {
         return paramErr;
     }
 
-    memcpy((UInt8*)mas->memory + addr, data, len);
+    { extern OSErr M68K_MemCopy(M68KAddressSpace* as, UInt32 addr, const void* src, Size len); return M68K_MemCopy(mas, addr, data, len); }
     return noErr;
 }
 
@@ -553,11 +624,11 @@ static OSErr M68K_ReadMemory(CPUAddressSpace as, CPUAddr addr,
 {
     M68KAddressSpace* mas = (M68KAddressSpace*)as;
 
-    if (!mas || !data || addr + len > mas->memorySize) {
+    if (!mas || !data || addr + len > M68K_MAX_ADDR) {
         return paramErr;
     }
 
-    memcpy(data, (UInt8*)mas->memory + addr, len);
+    { extern UInt8 M68K_Read8(M68KAddressSpace* as, UInt32 addr); for (Size i = 0; i < len; i++) { ((UInt8*)data)[i] = M68K_Read8(mas, addr + i); } }
     return noErr;
 }
 

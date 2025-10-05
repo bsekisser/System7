@@ -16,6 +16,21 @@
 extern void M68K_Fault(M68KAddressSpace* as, const char* reason);
 
 /*
+ * Forward declarations for memory access (to avoid implicit declarations)
+ */
+UInt8 M68K_Read8(M68KAddressSpace* as, UInt32 addr);
+UInt16 M68K_Read16(M68KAddressSpace* as, UInt32 addr);
+UInt32 M68K_Read32(M68KAddressSpace* as, UInt32 addr);
+void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value);
+void M68K_Write16(M68KAddressSpace* as, UInt32 addr, UInt16 value);
+void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value);
+UInt16 M68K_Fetch16(M68KAddressSpace* as);
+UInt32 M68K_Fetch32(M68KAddressSpace* as);
+UInt32 M68K_EA_ComputeAddress(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size);
+UInt32 M68K_EA_Read(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size);
+void M68K_EA_Write(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size, UInt32 value);
+
+/*
  * One-time logging flags
  */
 static Boolean g_pcRelLogged = false;
@@ -41,13 +56,13 @@ UInt16 M68K_Fetch16(M68KAddressSpace* as)
     UInt16 value;
     UInt8 b0, b1;
 
-    if (as->regs.pc + 1 >= as->memorySize) {
+    if (as->regs.pc + 1 >= M68K_MAX_ADDR) {
         M68K_Fault(as, "PC out of bounds in Fetch16");
         return 0;
     }
 
-    b0 = ((UInt8*)as->memory)[as->regs.pc];
-    b1 = ((UInt8*)as->memory)[as->regs.pc + 1];
+    b0 = M68K_Read8(as, as->regs.pc);
+    b1 = M68K_Read8(as, as->regs.pc + 1);
     value = (b0 << 8) | b1;
 
     as->regs.pc += 2;
@@ -64,20 +79,29 @@ UInt32 M68K_Fetch32(M68KAddressSpace* as)
     return (hi << 16) | lo;
 }
 
+/* Forward declaration from M68KBackend.c */
+extern void* M68K_GetPage(M68KAddressSpace* as, UInt32 addr, Boolean allocate);
+
 /*
- * Read8 - Read byte from address space
+ * Read8 - Read byte from address space (paged)
  */
 UInt8 M68K_Read8(M68KAddressSpace* as, UInt32 addr)
 {
-    if (addr >= as->memorySize) {
-        M68K_Fault(as, "Read8 out of bounds");
+    void* page;
+    UInt32 offset;
+
+    page = M68K_GetPage(as, addr, false);  /* Don't allocate on read */
+    if (!page) {
+        M68K_Fault(as, "Read8 unmapped page");
         return 0;
     }
-    return ((UInt8*)as->memory)[addr];
+
+    offset = addr & (M68K_PAGE_SIZE - 1);
+    return ((UInt8*)page)[offset];
 }
 
 /*
- * Read16 - Read word from address space (big-endian)
+ * Read16 - Read word from address space (big-endian, paged)
  */
 UInt16 M68K_Read16(M68KAddressSpace* as, UInt32 addr)
 {
@@ -91,13 +115,8 @@ UInt16 M68K_Read16(M68KAddressSpace* as, UInt32 addr)
         return 0;
     }
 
-    if (addr + 1 >= as->memorySize) {
-        M68K_Fault(as, "Read16 out of bounds");
-        return 0;
-    }
-
-    b0 = ((UInt8*)as->memory)[addr];
-    b1 = ((UInt8*)as->memory)[addr + 1];
+    b0 = M68K_Read8(as, addr);
+    b1 = M68K_Read8(as, addr + 1);
     return (b0 << 8) | b1;
 }
 
@@ -122,19 +141,25 @@ UInt32 M68K_Read32(M68KAddressSpace* as, UInt32 addr)
 }
 
 /*
- * Write8 - Write byte to address space
+ * Write8 - Write byte to address space (paged, lazy allocation)
  */
 void M68K_Write8(M68KAddressSpace* as, UInt32 addr, UInt8 value)
 {
-    if (addr >= as->memorySize) {
-        M68K_Fault(as, "Write8 out of bounds");
+    void* page;
+    UInt32 offset;
+
+    page = M68K_GetPage(as, addr, true);  /* Allocate on write (lazy) */
+    if (!page) {
+        M68K_Fault(as, "Write8 page allocation failed");
         return;
     }
-    ((UInt8*)as->memory)[addr] = value;
+
+    offset = addr & (M68K_PAGE_SIZE - 1);
+    ((UInt8*)page)[offset] = value;
 }
 
 /*
- * Write16 - Write word to address space (big-endian)
+ * Write16 - Write word to address space (big-endian, paged)
  */
 void M68K_Write16(M68KAddressSpace* as, UInt32 addr, UInt16 value)
 {
@@ -146,12 +171,8 @@ void M68K_Write16(M68KAddressSpace* as, UInt32 addr, UInt16 value)
         return;
     }
 
-    if (addr + 1 >= as->memorySize) {
-        M68K_Fault(as, "Write16 out of bounds");
-        return;
-    }
-    ((UInt8*)as->memory)[addr] = (value >> 8) & 0xFF;
-    ((UInt8*)as->memory)[addr + 1] = value & 0xFF;
+    M68K_Write8(as, addr, (value >> 8) & 0xFF);
+    M68K_Write8(as, addr + 1, value & 0xFF);
 }
 
 /*

@@ -43,11 +43,20 @@ typedef struct M68KRegs {
 #define M68K_VEC_LINE_F         11  /* Line 1111 emulator */
 
 /*
+ * Paged Memory Constants
+ */
+#define M68K_PAGE_SIZE      4096        /* 4KB pages */
+#define M68K_PAGE_SHIFT     12          /* log2(4096) */
+#define M68K_MAX_ADDR       0x1000000   /* 16MB virtual address space */
+#define M68K_NUM_PAGES      4096        /* 16MB / 4KB */
+#define M68K_LOW_MEM_SIZE   0x10000     /* 64KB low memory (always present) */
+#define M68K_LOW_MEM_PAGES  16          /* 64KB / 4KB */
+
+/*
  * M68K Address Space Implementation
  */
 typedef struct M68KAddressSpace {
-    void* memory;             /* Host memory backing store */
-    Size memorySize;          /* Total memory size */
+    void* pageTable[M68K_NUM_PAGES];  /* Sparse page table (NULL = not allocated) */
     UInt32 baseAddr;          /* Base address (typically 0) */
 
     M68KRegs regs;            /* CPU registers */
