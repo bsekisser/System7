@@ -707,16 +707,15 @@ static void DrawWindowFrame(WindowPtr window) {
                         }
                     }
 
-                    /* Draw title text in bold black */
+                    /* Draw title text in normal black */
                     serial_printf("*** CODE PATH B: DrawWindowFrame in WindowDisplay.c ***\n");
                     serial_printf("TITLE: About to draw title, titleStr=%p\n", titleStr);
                     PenPat(&qd.black);
-                    TextFace(1);  /* bold */
+                    TextFace(0);  /* normal */
                     MoveTo(textLeft, textBaseline);
                     serial_printf("TITLE: Calling DrawString now\n");
                     DrawString(titleStr);
                     serial_printf("TITLE: DrawString returned\n");
-                    TextFace(0);  /* reset to normal */
                 } else {
                     /* Inactive window: no lozenge, gray text */
                     PenPat(&qd.gray);
