@@ -462,7 +462,6 @@ This project is in **active development** with no guaranteed timeline. Planned w
 **Medium Term** (Core Toolbox):
 - Complete Window Definition Procedure (WDEF) dispatch
 - Implement standard controls (buttons, scrollbars, text fields)
-- Implement functional dialog boxes with standard items
 - Add TrueType font support to Font Manager
 
 **Long Term** (Application Support):
