@@ -131,7 +131,7 @@ Boolean LClick(Point pt, SInt16 modifiers, ListHandle lHandle);
 /* List geometry and scrolling */
 void LCellSize(Point cSize, ListHandle lHandle);
 void LSize(SInt16 listWidth, SInt16 listHeight, ListHandle lHandle);
-void LRect(Rect *cellRect, Cell theCell, ListHandle lHandle);
+void LRect(Rect *cellRect, Cell theCell, ListHandle lHandle);  /* Classic Mac naming (conflicts with typedef) */
 void LScroll(SInt16 dCols, SInt16 dRows, ListHandle lHandle);
 void LAutoScroll(ListHandle lHandle);
 

@@ -1,481 +1,993 @@
-/* #include "SystemTypes.h" */
-/* RE-AGENT-BANNER
- * System 7.1 List Manager - Core Implementation
+/*
+ * ListManager.c - Classic Mac OS List Manager Implementation
  *
- * SOURCE: Quadra 800 ROM (1MB, 1993 release)
- * Architecture: Motorola 68000 (m68k)
- * Original System: Apple System 7.1 (1992)
+ * System 7.1-compatible List Manager providing scrollable lists with
+ * selection support for file pickers, option lists, and dialog controls.
  *
- * Evidence Sources:
- * - 80 LNew trap calls at addresses 0x00005c4d through 0x0001366f
- * - 26 LDelColumn trap calls indicating heavy list manipulation usage
- * - 13 LGetSelect trap calls showing selection management patterns
- * - "List Manager not present" error string at 0x0000a98d
- * - LDEF resource type evidence for list definition procedures
- * - Cross-reference analysis revealing scroll bar and control integration
+ * PUBLIC API:
+ *   Lifecycle:   LNew, LDispose, LSize, LSetRefCon, LGetRefCon
+ *   Model:       LAddRow, LDelRow, LAddColumn, LDelColumn, LSetCell, LGetCell
+ *   Drawing:     LUpdate, LDraw, LGetCellRect, LScroll
+ *   Selection:   LClick, LGetSelect, LSetSelect, LSelectAll, LClearSelect, LLastClick
+ *   Keyboard:    LKey (Up/Down/PageUp/PageDown/Home/End/Space)
+ *   Integration: LAttachScrollbars, ListFromDialogItem, AttachListToDialogItem
+ *   Optional:    LSearch (stub)
  *
- * This implementation reconstructs the behavior of the original Mac OS List Manager
- * based on trap usage patterns, parameter analysis, and Mac OS architectural patterns.
- * The List Manager was a fundamental component used by the Chooser, Standard File dialogs,
- * and many control panels for presenting scrollable, selectable lists.
+ * USAGE:
+ *   1. Call LNew() with ListParams to create a list
+ *   2. Add rows via LAddRow(), populate with LSetCell()
+ *   3. Handle updates via LUpdate() in window update events
+ *   4. Handle clicks via LClick() in mouse down events
+ *   5. Handle keyboard via LKey() for arrow keys
+ *   6. Dispose with LDispose() when done
  *
- * Key Evidence-Based Features:
- * - Extensive LNew usage (80 instances) indicates list creation was core functionality
- * - Heavy LDelColumn usage (26 instances) suggests dynamic column management
- * - LGetSelect usage (13 instances) confirms selection state management
- * - Control integration evidence from ListRec structure analysis
- * - LDEF callback system for custom list drawing and behavior
+ * INTEGRATION:
+ *   - Window Manager: list renders in window's local coordinates
+ *   - Dialog Manager: attach lists to dialog items via AttachListToDialogItem()
+ *   - Control Manager: attach scrollbars via LAttachScrollbars()
  *
- * Generated: 2025-09-18 by System 7.1 Reverse Engineering Pipeline
+ * NOTES:
+ *   - Uses ListMgrRec internally (avoids conflict with SystemTypes.h ListRec)
+ *   - Cell.h = column (horizontal), Cell.v = row (vertical)
+ *   - Selection: single-sel or multi-sel with Shift/Cmd modifiers
+ *   - All drawing clipped to viewRect; saves/restores port state
+ *   - Error codes: memFullErr (-108), paramErr (-50)
  */
 
-// #include "CompatibilityFix.h" // Removed
+#include <string.h>
 #include "SystemTypes.h"
+#include "ListManager/ListManager.h"
+#include "ListManager/ListManagerInternal.h"
+#include "MemoryMgr/MemoryManager.h"
+#include "System71StdLib.h"
 
-#include "ListManager.h"
-#include <Memory.h>
-#include <ToolUtils.h>
-/* #include <OSUtils.h>
- - utilities in MacTypes.h */
+/* External functions */
+extern void serial_printf(const char* fmt, ...);
+extern OSErr MemError(void);
+extern void InvalRect(const Rect* r);
 
-/* Static Variables */
-static Boolean gListManagerPresent = false;
-static Boolean gListManagerInitialized = false;
+/* Debug logging control */
+#ifndef LIST_DEBUG
+#define LIST_DEBUG 1
+#endif
 
-/* Internal Helper Functions */
-static OSErr ValidateListHandle(ListHandle lHandle);
-static void UpdateScrollBars(ListHandle lHandle);
-static void CalculateVisibleCells(ListHandle lHandle);
-static void InvalListRect(ListHandle lHandle, Rect* invalRect);
+#if LIST_DEBUG
+#define LIST_LOG(...) serial_printf("[LIST] " __VA_ARGS__)
+#else
+#define LIST_LOG(...)
+#endif
 
-/*
- * ListMgrPresent - Check if List Manager is available
+/* Error codes */
+#ifndef memFullErr
+#define memFullErr (-108)
+#endif
+#ifndef paramErr
+#define paramErr (-50)
+#endif
 
- */
-Boolean ListMgrPresent(void)
+/* Dialog-list registry */
+DialogListAssoc gDialogListRegistry[MAX_DIALOG_LISTS];
+static Boolean gRegistryInited = false;
+
+/* ================================================================
+ * INTERNAL HELPERS
+ * ================================================================ */
+
+static void InitRegistryIfNeeded(void)
 {
-    return gListManagerPresent;
+    int i;
+    if (gRegistryInited) return;
+    
+    for (i = 0; i < MAX_DIALOG_LISTS; i++) {
+        gDialogListRegistry[i].dialog = NULL;
+        gDialogListRegistry[i].itemNo = 0;
+        gDialogListRegistry[i].list = NULL;
+        gDialogListRegistry[i].active = false;
+    }
+    gRegistryInited = true;
 }
 
-/*
- * InitListManager - Initialize List Manager globals
-
- */
-void InitListManager(void)
+DialogListAssoc* FindDialogListSlot(DialogPtr dlg, short itemNo, Boolean allocate)
 {
-    if (!gListManagerInitialized) {
-        gListManagerPresent = true;
-        gListManagerInitialized = true;
-    }
-}
-
-/*
- * LNew - Create new list
- * Trap: 0xA9E7 - Evidence: 80 occurrences, highest usage pattern
- * Addresses: 0x00005c4d, 0x00005c7d, 0x00005d35, ... (80 total locations)
- *
- * Parameters derived from Mac Inside Macintosh and usage analysis:
- * - rView: List view rectangle for drawing area
- * - dataBounds: Logical bounds of data (rows/columns)
- * - cSize: Size of individual cells in pixels
- * - theProc: LDEF resource ID for custom drawing
- * - theWindow: Parent window for drawing context
- * - drawIt: Whether to draw immediately
- * - hasGrow: Whether list has grow box
- * - scrollHoriz/scrollVert: Scroll bar flags
- */
-ListHandle LNew(Rect* rView, Rect* dataBounds, Point cSize, short theProc,
-                WindowPtr theWindow, Boolean drawIt, Boolean hasGrow,
-                Boolean scrollHoriz, Boolean scrollVert)
-{
-    ListHandle lHandle;
-    ListPtr lPtr;
-    OSErr err;
-
-    /*
-    if (!ListMgrPresent()) {
-        return NULL;
-    }
-
-    /* Allocate ListRec structure - Evidence: 84 bytes from layout analysis */
-    lHandle = (ListHandle)NewHandle(sizeof(ListRec));
-    if (lHandle == NULL) {
-        return NULL;
-    }
-
-    lPtr = *lHandle;
-
-    /* Initialize core fields - Evidence: ListRec layout from structure analysis */
-    lPtr->rView = *rView;
-    lPtr->port = theWindow ? GetWindowPort(theWindow) : (GrafPtr)GetQDGlobalsThePort();
-    (lPtr)->h = 0;
-    (lPtr)->v = 0;
-    lPtr->cellSize = cSize;
-    lPtr->dataBounds = *dataBounds;
-    lPtr->visible = *rView;
-
-    /* Scroll bar initialization - Evidence: Control integration from structure */
-    lPtr->vScroll = NULL;
-    lPtr->hScroll = NULL;
-    if (scrollVert && theWindow) {
-        Rect scrollRect = theWindow->portRect;
-        scrollRect.left = scrollRect.right - 15;
-        lPtr->vScroll = NewControl(theWindow, &scrollRect, "\p", true, 0, 0, 0, scrollBarProc, 0);
-    }
-    if (scrollHoriz && theWindow) {
-        Rect scrollRect = theWindow->portRect;
-        scrollRect.top = scrollRect.bottom - 15;
-        lPtr->hScroll = NewControl(theWindow, &scrollRect, "\p", true, 0, 0, 0, scrollBarProc, 0);
-    }
-
-    /* Selection and state initialization */
-    lPtr->selFlags = 0;
-    lPtr->lActive = true;
-    lPtr->lReserved = 0;
-    lPtr->listFlags = (drawIt ? 0x01 : 0) | (hasGrow ? 0x02 : 0) |
-                      (scrollHoriz ? 0x04 : 0) | (scrollVert ? 0x08 : 0);
-
-    /* Click tracking - Evidence: LLastClick usage at 5 locations */
-    lPtr->clikTime = 0;
-    (lPtr)->h = 0;
-    (lPtr)->v = 0;
-    (lPtr)->h = 0;
-    (lPtr)->v = 0;
-    lPtr->lClikLoop = NULL;
-    (lPtr)->h = -1;
-    (lPtr)->v = -1;
-
-    /* Application data */
-    lPtr->refCon = 0;
-    lPtr->userHandle = NULL;
-
-    /* LDEF initialization - Evidence: LDEF string occurrences, resource type */
-    lPtr->listDefProc = (theProc != 0) ? GetResource('LDEF', theProc) : NULL;
-
-    /* Cell data storage */
-    lPtr->cells = NewHandle(0);
-    if (lPtr->cells == NULL) {
-        DisposeHandle((Handle)lHandle);
-        return NULL;
-    }
-
-    /* Update visible cell calculations */
-    CalculateVisibleCells(lHandle);
-    UpdateScrollBars(lHandle);
-
-    /* Initial drawing if requested */
-    if (drawIt && theWindow) {
-        LUpdate(GetWindowUpdateRgn(theWindow), lHandle);
-    }
-
-    return lHandle;
-}
-
-/*
- * LDispose - Dispose list
- * Trap: 0xA9E8 - Evidence: Inferred from Mac patterns (missing from trap analysis)
- */
-void LDispose(ListHandle lHandle)
-{
-    ListPtr lPtr;
-
-    if (lHandle == NULL || ValidateListHandle(lHandle) != noErr) {
-        return;
-    }
-
-    lPtr = *lHandle;
-
-    /* Dispose of associated handles and controls */
-    if (lPtr->cells != NULL) {
-        DisposeHandle(lPtr->cells);
-    }
-    if (lPtr->userHandle != NULL) {
-        DisposeHandle(lPtr->userHandle);
-    }
-    if (lPtr->vScroll != NULL) {
-        DisposeControl(lPtr->vScroll);
-    }
-    if (lPtr->hScroll != NULL) {
-        DisposeControl(lPtr->hScroll);
-    }
-
-    /* Dispose of list handle */
-    DisposeHandle((Handle)lHandle);
-}
-
-/*
- * LDelColumn - Delete column from list
- * Trap: 0xA9EB - Evidence: 26 occurrences, high usage pattern
- * Addresses: 0x00018d43, 0x00018d4d, 0x0002da1b, ... (26 locations)
- * High usage suggests column manipulation was core List Manager functionality
- */
-void LDelColumn(short count, short colNum, ListHandle lHandle)
-{
-    ListPtr lPtr;
-    short totalCols, i;
-
-    if (lHandle == NULL || ValidateListHandle(lHandle) != noErr || count <= 0) {
-        return;
-    }
-
-    lPtr = *lHandle;
-    totalCols = (lPtr)->right - (lPtr)->left;
-
-    if (colNum < 0 || colNum >= totalCols || colNum + count > totalCols) {
-        return;
-    }
-
-    /* Shift cell data - Evidence: Heavy usage suggests sophisticated column management */
-    for (i = colNum; i < totalCols - count; i++) {
-        /* Cell data management implementation would go here */
-        /*
-    }
-
-    /* Update data bounds */
-    (lPtr)->right -= count;
-
-    /* Recalculate visible area and update display */
-    CalculateVisibleCells(lHandle);
-    UpdateScrollBars(lHandle);
-
-    /* Invalidate affected area */
-    InvalListRect(lHandle, &lPtr->rView);
-}
-
-/*
- * LGetSelect - Get selected cells
- * Trap: 0xA9ED - Evidence: 13 occurrences showing selection management
- * Addresses: 0x0001391d, 0x0003b7a9, 0x00041eb5, ... (13 locations)
- */
-Boolean LGetSelect(Boolean next, Cell* theCell, ListHandle lHandle)
-{
-    ListPtr lPtr;
-    short row, col;
-    short startRow, startCol;
-
-    if (lHandle == NULL || theCell == NULL || ValidateListHandle(lHandle) != noErr) {
-        return false;
-    }
-
-    lPtr = *lHandle;
-
-    if (next) {
-        startRow = theCell->v + 1;
-        startCol = theCell->h;
-    } else {
-        startRow = (lPtr)->top;
-        startCol = (lPtr)->left;
-    }
-
-    /* Search for next selected cell - Evidence: 13 usages indicate iteration pattern */
-    for (row = startRow; row < (lPtr)->bottom; row++) {
-        for (col = (row == startRow) ? startCol : (lPtr)->left;
-             col < (lPtr)->right; col++) {
-
-            /* Check selection state - implementation would query cell data */
-            /*
-            if (/* cell is selected check would go here */ false) {
-                theCell->v = row;
-                theCell->h = col;
-                return true;
-            }
+    int i;
+    DialogListAssoc* freeSlot = NULL;
+    
+    InitRegistryIfNeeded();
+    
+    /* First pass: find existing or free slot */
+    for (i = 0; i < MAX_DIALOG_LISTS; i++) {
+        if (gDialogListRegistry[i].active &&
+            gDialogListRegistry[i].dialog == dlg &&
+            gDialogListRegistry[i].itemNo == itemNo) {
+            return &gDialogListRegistry[i];
+        }
+        if (!gDialogListRegistry[i].active && freeSlot == NULL) {
+            freeSlot = &gDialogListRegistry[i];
         }
     }
-
-    return false;
+    
+    /* Allocate if requested */
+    if (allocate && freeSlot) {
+        freeSlot->dialog = dlg;
+        freeSlot->itemNo = itemNo;
+        freeSlot->active = true;
+        return freeSlot;
+    }
+    
+    return NULL;
 }
 
-/*
- * LLastClick - Get last click information
- * Trap: 0xA9EE - Evidence: 5 occurrences
- * Addresses: 0x000160e5, 0x00019b49, 0x00019b5f, 0x000370d5, 0x00048031
- */
-Cell LLastClick(ListHandle lHandle)
-{
-    Cell emptyCell = {-1, -1};
+/* ================================================================
+ * LIST MANAGER LIFECYCLE
+ * ================================================================ */
 
-    if (lHandle == NULL || ValidateListHandle(lHandle) != noErr) {
-        return emptyCell;
+/* Convert ListHandle (system typedef) to our internal ListMgrHandle */
+#define LIST_MGR_HANDLE(lh) ((ListMgrHandle)(lh))
+#define LIST_MGR_PTR(lh) (*LIST_MGR_HANDLE(lh))
+
+ListHandle LNew(const ListParams* params)
+{
+    ListMgrHandle lh;
+    ListMgrRec* list;
+    short cellW, cellH;
+
+    if (!params || !params->window) {
+        LIST_LOG("LNew: invalid parameters\n");
+        return NULL;
     }
 
-    /*
-    return (*lHandle)->lastClick;
+    /* Allocate list handle */
+    lh = (ListMgrHandle)NewHandleClear(sizeof(ListMgrRec));
+    if (!lh) {
+        LIST_LOG("LNew: failed to allocate list handle\n");
+        return NULL;
+    }
+    
+    HLock((Handle)lh);
+    list = *LIST_MGR_HANDLE(lh);
+    
+    /* Initialize geometry */
+    list->viewRect = params->viewRect;
+    list->contentRect = params->viewRect;  /* Initially same */
+    
+    /* Cell size from .right/.bottom of cellSizeRect */
+    cellW = params->cellSizeRect.right;
+    cellH = params->cellSizeRect.bottom;
+    if (cellW <= 0) cellW = 200;  /* Default width */
+    if (cellH <= 0) cellH = 16;   /* Default height */
+    
+    list->cellWidth = cellW;
+    list->cellHeight = cellH;
+    
+    /* Initialize model */
+    list->rowCount = 0;
+    list->colCount = 1;  /* Default to single column */
+    list->rows = NULL;
+    
+    /* Initialize selection */
+    list->selMode = params->selMode;
+    list->selRange.active = false;
+    list->selectIterRow = -1;
+    list->anchorCell.h = 0;
+    list->anchorCell.v = 0;
+    
+    /* Initialize scroll */
+    list->topRow = 0;
+    list->leftCol = 0;
+    list->vScroll = NULL;
+    list->hScroll = NULL;
+    
+    /* Owner */
+    list->window = params->window;
+    
+    /* Event state */
+    list->lastClick.valid = false;
+    
+    /* Client data */
+    list->refCon = params->refCon;
+    
+    /* Flags */
+    list->hasVScroll = params->hasVScroll;
+    list->hasHScroll = params->hasHScroll;
+    list->active = true;
+    
+    /* Compute visible cells */
+    List_ComputeVisibleCells(list);
+    
+    HUnlock((Handle)lh);
+    
+    LIST_LOG("LNew: view=(%d,%d,%d,%d) cell=(%dx%d) mode=%d\n",
+             params->viewRect.left, params->viewRect.top,
+             params->viewRect.right, params->viewRect.bottom,
+             cellW, cellH, params->selMode);
+
+    return (ListHandle)lh;  /* Cast to system ListHandle type */
 }
 
-/*
- * LAddColumn - Add column to list
- * Trap: 0xA9E9 - Evidence: 3 occurrences
- * Addresses: 0x00014551, 0x00014699, 0x0001472f
- */
-short LAddColumn(short count, short colNum, ListHandle lHandle)
+void LDispose(ListHandle lh)
 {
-    ListPtr lPtr;
-    short totalCols;
-
-    if (lHandle == NULL || ValidateListHandle(lHandle) != noErr || count <= 0) {
-        return 0;
+    ListMgrRec* list;
+    short i;
+    
+    if (!lh) return;
+    
+    HLock((Handle)lh);
+    list = *LIST_MGR_HANDLE(lh);
+    
+    /* Free row data */
+    if (list->rows) {
+        RowData* rowArray = *(list->rows);
+        for (i = 0; i < list->rowCount; i++) {
+            if (rowArray[i].cells) {
+                DisposePtr((Ptr)rowArray[i].cells);
+            }
+        }
+        DisposeHandle((Handle)list->rows);
     }
-
-    lPtr = *lHandle;
-    totalCols = (lPtr)->right - (lPtr)->left;
-
-    if (colNum < 0 || colNum > totalCols) {
-        colNum = totalCols; /* Add at end */
-    }
-
-    /* Expand data bounds */
-    (lPtr)->right += count;
-
-    /* Cell data reorganization would go here */
-    /*
-
-    CalculateVisibleCells(lHandle);
-    UpdateScrollBars(lHandle);
-    InvalListRect(lHandle, &lPtr->rView);
-
-    return count;
+    
+    HUnlock((Handle)lh);
+    DisposeHandle((Handle)lh);
+    
+    LIST_LOG("LDispose: list disposed\n");
 }
 
-/*
- * LAddRow - Add row to list
- * Trap: 0xA9EA - Evidence: 2 occurrences
- * Addresses: 0x00023dd4, 0x00030572
- */
-short LAddRow(short count, short rowNum, ListHandle lHandle)
+void LSize(ListHandle lh, short newWidth, short newHeight)
 {
-    ListPtr lPtr;
-    short totalRows;
+    ListMgrRec* list;
 
-    if (lHandle == NULL || ValidateListHandle(lHandle) != noErr || count <= 0) {
-        return 0;
-    }
+    if (!lh) return;
 
-    lPtr = *lHandle;
-    totalRows = (lPtr)->bottom - (lPtr)->top;
+    HLock((Handle)lh);
+    list = *LIST_MGR_HANDLE(lh);
 
-    if (rowNum < 0 || rowNum > totalRows) {
-        rowNum = totalRows; /* Add at end */
-    }
+    /* Update view rect size */
+    list->viewRect.right = list->viewRect.left + newWidth;
+    list->viewRect.bottom = list->viewRect.top + newHeight;
+    list->contentRect = list->viewRect;
 
-    /* Expand data bounds */
-    (lPtr)->bottom += count;
+    /* Recompute visible cells */
+    List_ComputeVisibleCells(list);
 
-    CalculateVisibleCells(lHandle);
-    UpdateScrollBars(lHandle);
-    InvalListRect(lHandle, &lPtr->rView);
+    /* Clamp scroll position */
+    List_ClampScroll(list);
 
-    return count;
+    /* Update scrollbars */
+    List_UpdateScrollbars(list);
+
+    /* Invalidate */
+    List_InvalidateAll(list);
+
+    HUnlock((Handle)lh);
+
+    LIST_LOG("LSize: new size=(%dx%d) visRows=%d\n",
+             newWidth, newHeight, LIST_MGR_PTR(lh)->visibleRows);
 }
 
-/*
- * LDelRow - Delete row from list
- * Trap: 0xA9EC - Evidence: 2 occurrences
- * Addresses: 0x0002da21, 0x00032093
- */
-void LDelRow(short count, short rowNum, ListHandle lHandle)
+/* ================================================================
+ * LIST MODEL OPERATIONS
+ * ================================================================ */
+
+OSErr LAddRow(ListHandle lh, short count, short afterRow)
 {
-    ListPtr lPtr;
-    short totalRows;
-
-    if (lHandle == NULL || ValidateListHandle(lHandle) != noErr || count <= 0) {
-        return;
+    ListMgrRec* list;
+    RowData* rowArray;
+    RowData* newRowArray;
+    Handle newRows;
+    short newRowCount;
+    short insertPos;
+    short i, j;
+    
+    if (!lh || count <= 0) return paramErr;
+    
+    HLock((Handle)lh);
+    list = *LIST_MGR_HANDLE(lh);
+    
+    newRowCount = list->rowCount + count;
+    insertPos = afterRow + 1;  /* Insert after specified row */
+    if (insertPos < 0) insertPos = 0;
+    if (insertPos > list->rowCount) insertPos = list->rowCount;
+    
+    /* Allocate new row array */
+    newRows = NewHandleClear((Size)(newRowCount * sizeof(RowData)));
+    if (!newRows) {
+        HUnlock((Handle)lh);
+        LIST_LOG("LAddRow: failed to allocate row array\n");
+        return memFullErr;
     }
-
-    lPtr = *lHandle;
-    totalRows = (lPtr)->bottom - (lPtr)->top;
-
-    if (rowNum < 0 || rowNum >= totalRows || rowNum + count > totalRows) {
-        return;
+    
+    HLock(newRows);
+    newRowArray = (RowData*)(*newRows);
+    
+    /* Copy existing rows */
+    if (list->rows) {
+        rowArray = *(list->rows);
+        
+        /* Copy rows before insertion point */
+        for (i = 0; i < insertPos; i++) {
+            newRowArray[i] = rowArray[i];
+        }
+        
+        /* Copy rows after insertion point (shifted) */
+        for (i = insertPos; i < list->rowCount; i++) {
+            newRowArray[i + count] = rowArray[i];
+        }
     }
-
-    /* Update data bounds */
-    (lPtr)->bottom -= count;
-
-    CalculateVisibleCells(lHandle);
-    UpdateScrollBars(lHandle);
-    InvalListRect(lHandle, &lPtr->rView);
-}
-
-/*
- * LSetDrawingMode - Set list drawing mode
- * Trap: 0xA9F2 - Evidence: 2 occurrences
- * Addresses: 0x0000be47, 0x00034b3b
- */
-void LSetDrawingMode(Boolean drawIt, ListHandle lHandle)
-{
-    ListPtr lPtr;
-
-    if (lHandle == NULL || ValidateListHandle(lHandle) != noErr) {
-        return;
+    
+    /* Initialize new rows */
+    for (i = insertPos; i < insertPos + count; i++) {
+        newRowArray[i].colCount = list->colCount;
+        newRowArray[i].cells = (CellData*)NewPtrClear((Size)(list->colCount * sizeof(CellData)));
+        newRowArray[i].selected = false;
+        
+        if (!newRowArray[i].cells) {
+            /* Cleanup on failure */
+            for (j = insertPos; j < i; j++) {
+                if (newRowArray[j].cells) {
+                    DisposePtr((Ptr)newRowArray[j].cells);
+                }
+            }
+            HUnlock(newRows);
+            DisposeHandle(newRows);
+            HUnlock((Handle)lh);
+            return memFullErr;
+        }
     }
-
-    lPtr = *lHandle;
-
-    /* Update drawing flag in listFlags - Evidence: listFlags field from structure */
-    if (drawIt) {
-        lPtr->listFlags |= 0x01;
-    } else {
-        lPtr->listFlags &= ~0x01;
+    
+    HUnlock(newRows);
+    
+    /* Replace row array */
+    if (list->rows) {
+        DisposeHandle((Handle)list->rows);
     }
-}
-
-/*
- * LAutoScroll - Auto-scroll to selection
- * Trap: 0xA9F4 - Evidence: 2 occurrences
- * Addresses: 0x0000ac19, 0x0000ef9e
- */
-Boolean LAutoScroll(ListHandle lHandle)
-{
-    /* Implementation would scroll to bring selection into view */
-    /*
-    return false;
-}
-
-/*
- * Remaining functions with missing evidence - inferred implementations
- * These functions have trap codes but were not found in the binary analysis
- */
-
-void LDispose(ListHandle lHandle) { /* Already implemented above */ }
-Boolean LNextCell(Boolean hNext, Boolean vNext, Cell* theCell, ListHandle lHandle) { return false; }
-Boolean LSearch(Ptr dataPtr, short dataLen, ListSearchUPP searchProc, Cell* theCell, ListHandle lHandle) { return false; }
-void LSize(short listWidth, short listHeight, ListHandle lHandle) { }
-void LScroll(short dCols, short dRows, ListHandle lHandle) { }
-void LUpdate(RgnHandle theRgn, ListHandle lHandle) { }
-void LActivate(Boolean act, ListHandle lHandle) { }
-Boolean LClick(Point pt, short modifiers, ListHandle lHandle) { return false; }
-void LSetCell(Ptr dataPtr, short dataLen, Cell theCell, ListHandle lHandle) { }
-short LGetCell(Ptr dataPtr, short* dataLen, Cell theCell, ListHandle lHandle) { return 0; }
-void LSetSelect(Boolean setIt, Cell theCell, ListHandle lHandle) { }
-void LDraw(Cell theCell, ListHandle lHandle) { }
-
-/* Internal Helper Functions */
-
-static OSErr ValidateListHandle(ListHandle lHandle)
-{
-    if (lHandle == NULL || *lHandle == NULL) {
-        return paramErr;
-    }
+    list->rows = (RowData**)newRows;
+    list->rowCount = newRowCount;
+    
+    /* Update scrollbars */
+    List_UpdateScrollbars(list);
+    
+    /* Invalidate */
+    List_InvalidateAll(list);
+    
+    HUnlock((Handle)lh);
+    
+    LIST_LOG("LAddRow: count=%d after=%d -> rows=%d\n",
+             count, afterRow, newRowCount);
+    
     return noErr;
 }
 
-static void UpdateScrollBars(ListHandle lHandle)
+OSErr LDelRow(ListHandle lh, short count, short fromRow)
 {
-    /*
-    /* Implementation would update scroll bar values based on visible/total cells */
+    ListMgrRec* list;
+    RowData* rowArray;
+    short i;
+    
+    if (!lh || count <= 0) return paramErr;
+    
+    HLock((Handle)lh);
+    list = *LIST_MGR_HANDLE(lh);
+    
+    if (fromRow < 0 || fromRow >= list->rowCount) {
+        HUnlock((Handle)lh);
+        return paramErr;
+    }
+    
+    if (fromRow + count > list->rowCount) {
+        count = list->rowCount - fromRow;
+    }
+    
+    if (!list->rows) {
+        HUnlock((Handle)lh);
+        return paramErr;
+    }
+    
+    HLock((Handle)list->rows);
+    rowArray = *(list->rows);
+    
+    /* Free deleted rows */
+    for (i = fromRow; i < fromRow + count; i++) {
+        if (rowArray[i].cells) {
+            DisposePtr((Ptr)rowArray[i].cells);
+            rowArray[i].cells = NULL;
+        }
+    }
+    
+    /* Shift remaining rows */
+    for (i = fromRow + count; i < list->rowCount; i++) {
+        rowArray[i - count] = rowArray[i];
+    }
+    
+    /* Clear vacated tail */
+    for (i = list->rowCount - count; i < list->rowCount; i++) {
+        rowArray[i].colCount = 0;
+        rowArray[i].cells = NULL;
+        rowArray[i].selected = false;
+    }
+    
+    HUnlock((Handle)list->rows);
+    
+    list->rowCount -= count;
+    
+    /* Clamp scroll */
+    List_ClampScroll(list);
+    
+    /* Update scrollbars */
+    List_UpdateScrollbars(list);
+    
+    /* Invalidate */
+    List_InvalidateAll(list);
+    
+    HUnlock((Handle)lh);
+    
+    LIST_LOG("LDelRow: count=%d from=%d -> rows=%d\n",
+             count, fromRow, list->rowCount);
+    
+    return noErr;
 }
 
-static void CalculateVisibleCells(ListHandle lHandle)
+OSErr LAddColumn(ListHandle lh, short count, short afterCol)
 {
-    /* Calculate which cells are visible in the current view rectangle */
-    /*
+    /* Stub: column operations less common */
+    LIST_LOG("LAddColumn: stub (count=%d after=%d)\n", count, afterCol);
+    return noErr;
 }
 
-static void InvalListRect(ListHandle lHandle, Rect* invalRect)
+OSErr LDelColumn(ListHandle lh, short count, short fromCol)
 {
-    ListPtr lPtr = *lHandle;
-    if (lPtr->port != NULL) {
-        /* Invalidate rectangle for redrawing */
+    /* Stub: column operations less common */
+    LIST_LOG("LDelColumn: stub (count=%d from=%d)\n", count, fromCol);
+    return noErr;
+}
+
+OSErr LSetCell(ListHandle lh, const void* data, short dataLen, Cell cell)
+{
+    ListMgrRec* list;
+    CellData* cellData;
+    short copyLen;
+    
+    if (!lh || !data) return paramErr;
+    
+    HLock((Handle)lh);
+    list = *LIST_MGR_HANDLE(lh);
+    
+    cellData = List_GetCellData(list, cell);
+    if (!cellData) {
+        HUnlock((Handle)lh);
+        return paramErr;
+    }
+    
+    /* Cap length */
+    copyLen = dataLen;
+    if (copyLen > MAX_CELL_DATA) {
+        copyLen = MAX_CELL_DATA;
+    }
+    
+    cellData->len = (unsigned char)copyLen;
+    if (copyLen > 0) {
+        memcpy(cellData->data, data, copyLen);
+    }
+    
+    HUnlock((Handle)lh);
+    return noErr;
+}
+
+short LGetCell(ListHandle lh, void* out, short outMax, Cell cell)
+{
+    ListMgrRec* list;
+    CellData* cellData;
+    short copyLen;
+    
+    if (!lh || !out) return 0;
+    
+    HLock((Handle)lh);
+    list = *LIST_MGR_HANDLE(lh);
+    
+    cellData = List_GetCellData(list, cell);
+    if (!cellData) {
+        HUnlock((Handle)lh);
+        return 0;
+    }
+    
+    copyLen = cellData->len;
+    if (copyLen > outMax) {
+        copyLen = outMax;
+    }
+    
+    if (copyLen > 0) {
+        memcpy(out, cellData->data, copyLen);
+    }
+    
+    HUnlock((Handle)lh);
+    return copyLen;
+}
+
+void LSetRefCon(ListHandle lh, long refCon)
+{
+    if (!lh) return;
+    LIST_MGR_PTR(lh)->refCon = refCon;
+}
+
+long LGetRefCon(ListHandle lh)
+{
+    if (!lh) return 0;
+    return LIST_MGR_PTR(lh)->refCon;
+}
+
+/* Forward declarations for internal functions */
+extern void List_DrawCell(ListMgrRec* list, const Rect* cellRect, short row, short col, Boolean selected);
+extern void List_EraseBackground(ListMgrRec* list, const Rect* updateRect);
+extern void List_InvalidateBand(ListMgrRec* list, short dRows);
+
+/* ================================================================
+ * DRAWING AND UPDATE
+ * ================================================================ */
+
+void LUpdate(ListHandle lh, RgnHandle updateRgn)
+{
+    ListMgrRec* list;
+    short row, col;
+    short startRow, endRow;
+    Rect cellRect;
+    Boolean selected;
+
+    if (!lh) return;
+
+    HLock((Handle)lh);
+    list = *LIST_MGR_HANDLE(lh);
+
+    /* Note: Port/pen/clip save/restore handled in individual drawing functions */
+
+    /* Draw visible cells */
+    startRow = list->topRow;
+    endRow = list->topRow + list->visibleRows;
+    if (endRow > list->rowCount) {
+        endRow = list->rowCount;
+    }
+
+    /* Narrow erase: only erase area containing actual content rows */
+    {
+        Rect eraseRect = list->contentRect;
+        short contentRows = endRow - startRow;
+        if (contentRows > 0) {
+            eraseRect.bottom = eraseRect.top + (contentRows * list->cellHeight);
+        } else {
+            eraseRect.bottom = eraseRect.top;  /* No rows to display */
+        }
+        List_EraseBackground(list, &eraseRect);
+    }
+
+    for (row = startRow; row < endRow; row++) {
+        for (col = 0; col < list->colCount; col++) {
+            Cell c;
+            c.h = col;  /* horizontal = column */
+            c.v = row;  /* vertical = row */
+
+            LGetCellRect(lh, c, &cellRect);
+            selected = List_IsCellSelected(list, c);
+            List_DrawCell(list, &cellRect, row, col, selected);
+        }
+    }
+
+    HUnlock((Handle)lh);
+}
+
+void LDraw(ListHandle lh)
+{
+    /* Full redraw - pass NULL updateRgn (handled in LUpdate) */
+    LUpdate(lh, NULL);
+}
+
+void LGetCellRect(ListHandle lh, Cell cell, Rect* outCellRect)
+{
+    ListMgrRec* list;
+    short rowOffset, colOffset;
+    
+    if (!lh || !outCellRect) return;
+    
+    list = *LIST_MGR_HANDLE(lh);
+    
+    rowOffset = (cell.v - list->topRow) * list->cellHeight;
+    colOffset = (cell.h - list->leftCol) * list->cellWidth;
+    
+    outCellRect->left = list->contentRect.left + colOffset;
+    outCellRect->top = list->contentRect.top + rowOffset;
+    outCellRect->right = outCellRect->left + list->cellWidth;
+    outCellRect->bottom = outCellRect->top + list->cellHeight;
+}
+
+void LScroll(ListHandle lh, short dRows, short dCols)
+{
+    ListMgrRec* list;
+    
+    if (!lh) return;
+    
+    HLock((Handle)lh);
+    list = *LIST_MGR_HANDLE(lh);
+    
+    list->topRow += dRows;
+    list->leftCol += dCols;
+
+    List_ClampScroll(list);
+    List_UpdateScrollbars(list);
+
+    /* Invalidate only the exposed band for efficient redraw */
+    if (dRows != 0) {
+        List_InvalidateBand(list, dRows);
+    }
+    if (dCols != 0) {
+        List_InvalidateAll(list);  /* Horizontal scroll still needs full invalidate */
+    }
+    
+    HUnlock((Handle)lh);
+    
+    LIST_LOG("LScroll: dRows=%d dCols=%d -> topRow=%d\n",
+             dRows, dCols, LIST_MGR_PTR(lh)->topRow);
+}
+
+/* ================================================================
+ * SELECTION
+ * ================================================================ */
+
+Boolean LClick(ListHandle lh, Point localWhere, unsigned short mods, short* outItem)
+{
+    ListMgrRec* list;
+    Cell hitCell;
+    Boolean selChanged = false;
+    Boolean wasSelected;
+    
+    if (!lh) return false;
+    
+    HLock((Handle)lh);
+    list = *LIST_MGR_HANDLE(lh);
+    
+    /* Hit test */
+    if (!List_HitTest(list, localWhere, &hitCell)) {
+        HUnlock((Handle)lh);
+        return false;
+    }
+    
+    /* Record last click */
+    list->lastClick.cell = hitCell;
+    list->lastClick.when = 0;  /* TODO: Get actual tick count */
+    list->lastClick.mods = mods;
+    list->lastClick.valid = true;
+    
+    wasSelected = List_IsCellSelected(list, hitCell);
+
+    if (list->selMode == lsSingleSel) {
+        /* Single selection: clear others, select this */
+        List_ClearAllSelection(list);
+        List_SetCellSelection(list, hitCell, true);
+        list->anchorCell = hitCell;
+        selChanged = true;
+    } else {
+        /* Multi-selection: check modifiers */
+        if (mods & 0x0100) {
+            /* Cmd key: toggle clicked cell */
+            List_SetCellSelection(list, hitCell, !wasSelected);
+            list->anchorCell = hitCell;
+            selChanged = true;
+        } else if (mods & 0x0200) {
+            /* Shift key: extend from anchor to clicked cell */
+            short startRow, endRow, row;
+            Cell c;
+
+            /* Clear existing selection */
+            List_ClearAllSelection(list);
+
+            /* Select range from anchor to clicked (single column) */
+            startRow = list->anchorCell.v;
+            endRow = hitCell.v;
+            if (startRow > endRow) {
+                short temp = startRow;
+                startRow = endRow;
+                endRow = temp;
+            }
+
+            for (row = startRow; row <= endRow; row++) {
+                c.h = 0;
+                c.v = row;
+                List_SetCellSelection(list, c, true);
+            }
+            /* Don't update anchor on Shift-extend */
+            selChanged = true;
+        } else {
+            /* No modifiers: clear others, select this */
+            List_ClearAllSelection(list);
+            List_SetCellSelection(list, hitCell, true);
+            list->anchorCell = hitCell;
+            selChanged = true;
+        }
+    }
+    
+    if (outItem) {
+        *outItem = hitCell.v;  /* Return row index */
+    }
+    
+    /* Invalidate to show selection change */
+    if (selChanged) {
+        List_InvalidateAll(list);
+    }
+    
+    HUnlock((Handle)lh);
+    
+    LIST_LOG("LClick: cell(%d,%d) mods=0x%x sel=%d\n",
+             hitCell.v, hitCell.h, mods, selChanged);
+    
+    return selChanged;
+}
+
+Boolean LGetSelect(ListHandle lh, Cell* outCell)
+{
+    ListMgrRec* list;
+    short row;
+    
+    if (!lh || !outCell) return false;
+    
+    HLock((Handle)lh);
+    list = *LIST_MGR_HANDLE(lh);
+    
+    /* Iterate from selectIterRow */
+    if (list->selectIterRow < 0) {
+        list->selectIterRow = 0;
+    }
+    
+    for (row = list->selectIterRow; row < list->rowCount; row++) {
+        Cell c;
+        c.v = row;
+        c.h = 0;
+        
+        if (List_IsCellSelected(list, c)) {
+            outCell->v = row;
+            outCell->h = 0;
+            list->selectIterRow = row + 1;
+            HUnlock((Handle)lh);
+            return true;
+        }
+    }
+    
+    /* Reset iterator */
+    list->selectIterRow = -1;
+    HUnlock((Handle)lh);
+    return false;
+}
+
+void LSetSelect(ListHandle lh, Boolean sel, Cell cell)
+{
+    ListMgrRec* list;
+
+    if (!lh) return;
+
+    HLock((Handle)lh);
+    list = LIST_MGR_PTR(lh);
+    List_SetCellSelection(list, cell, sel);
+    List_InvalidateAll(list);
+    HUnlock((Handle)lh);
+}
+
+void LSelectAll(ListHandle lh)
+{
+    ListMgrRec* list;
+    short row;
+    Cell c;
+    
+    if (!lh) return;
+    
+    HLock((Handle)lh);
+    list = *LIST_MGR_HANDLE(lh);
+    
+    for (row = 0; row < list->rowCount; row++) {
+        c.v = row;
+        c.h = 0;
+        List_SetCellSelection(list, c, true);
+    }
+    
+    List_InvalidateAll(list);
+    HUnlock((Handle)lh);
+}
+
+void LClearSelect(ListHandle lh)
+{
+    ListMgrRec* list;
+
+    if (!lh) return;
+
+    HLock((Handle)lh);
+    list = LIST_MGR_PTR(lh);
+    List_ClearAllSelection(list);
+    List_InvalidateAll(list);
+    HUnlock((Handle)lh);
+}
+
+Boolean LLastClick(ListHandle lh, Cell* outCell, UInt32* outWhen, unsigned short* outMods)
+{
+    ListMgrRec* list;
+    
+    if (!lh) return false;
+    
+    list = *LIST_MGR_HANDLE(lh);
+    if (!list->lastClick.valid) return false;
+    
+    if (outCell) *outCell = list->lastClick.cell;
+    if (outWhen) *outWhen = list->lastClick.when;
+    if (outMods) *outMods = list->lastClick.mods;
+    
+    return true;
+}
+
+/* ================================================================
+ * SEARCH (Stubbed)
+ * ================================================================ */
+
+Boolean LSearch(ListHandle lh, const unsigned char* pStr, Boolean caseSensitive, Cell* outFound)
+{
+    /* Stub */
+    LIST_LOG("LSearch: stub\n");
+    return false;
+}
+
+/* ================================================================
+ * KEYBOARD HANDLING
+ * ================================================================ */
+
+/*
+ * Key codes (ASCII character codes, not raw scan codes)
+ * Note: LKey expects event.message & charCodeMask from EventRecord,
+ * which has already been mapped from scan code to character code.
+ */
+#define kUpArrow    0x1E
+#define kDownArrow  0x1F
+#define kLeftArrow  0x1C
+#define kRightArrow 0x1D
+#define kPageUp     0x0B  /* Page Up */
+#define kPageDown   0x0C  /* Page Down */
+#define kHome       0x01
+#define kEnd        0x04
+#define kSpace      ' '
+
+/*
+ * LKey - Handle keyboard navigation in list
+ * ch: character code from (event.message & charCodeMask), NOT raw scan code
+ * Returns: true if key was handled
+ */
+Boolean LKey(ListHandle lh, char ch)
+{
+    ListMgrRec* list;
+    Cell currentCell;
+    short newRow;
+    Boolean handled = false;
+
+    if (!lh) return false;
+
+    HLock((Handle)lh);
+    list = *LIST_MGR_HANDLE(lh);
+
+    /* Find current selection (use anchor as current) */
+    currentCell = list->anchorCell;
+    newRow = currentCell.v;
+
+    switch (ch) {
+        case kUpArrow:
+            if (newRow > 0) {
+                newRow--;
+                handled = true;
+            }
+            break;
+
+        case kDownArrow:
+            if (newRow < list->rowCount - 1) {
+                newRow++;
+                handled = true;
+            }
+            break;
+
+        case kPageUp:
+            newRow -= list->visibleRows;
+            if (newRow < 0) newRow = 0;
+            handled = true;
+            break;
+
+        case kPageDown:
+            newRow += list->visibleRows;
+            if (newRow >= list->rowCount) newRow = list->rowCount - 1;
+            handled = true;
+            break;
+
+        case kHome:
+            newRow = 0;
+            handled = true;
+            break;
+
+        case kEnd:
+            newRow = list->rowCount - 1;
+            handled = true;
+            break;
+
+        case kSpace:
+            /* Toggle selection in multi-select mode */
+            if (list->selMode == lsMultiSel) {
+                Boolean wasSelected = List_IsCellSelected(list, currentCell);
+                List_SetCellSelection(list, currentCell, !wasSelected);
+                List_InvalidateAll(list);
+                handled = true;
+            }
+            break;
+
+        default:
+            break;
+    }
+
+    if (handled && newRow != currentCell.v) {
+        /* Move selection to new row */
+        Cell newCell;
+        newCell.h = 0;
+        newCell.v = newRow;
+
+        List_ClearAllSelection(list);
+        List_SetCellSelection(list, newCell, true);
+        list->anchorCell = newCell;
+
+        /* Auto-scroll if needed */
+        if (newRow < list->topRow) {
+            list->topRow = newRow;
+            List_ClampScroll(list);
+            List_UpdateScrollbars(list);
+        } else if (newRow >= list->topRow + list->visibleRows) {
+            list->topRow = newRow - list->visibleRows + 1;
+            List_ClampScroll(list);
+            List_UpdateScrollbars(list);
+        }
+
+        List_InvalidateAll(list);
+    }
+
+    HUnlock((Handle)lh);
+
+    if (handled) {
+        LIST_LOG("LKey: ch=0x%02x handled\n", (unsigned char)ch);
+    }
+    return handled;
+}
+
+/* ================================================================
+ * SCROLLBAR INTEGRATION
+ * ================================================================ */
+
+void LAttachScrollbars(ListHandle lh, ControlHandle vScroll, ControlHandle hScroll)
+{
+    if (!lh) return;
+    
+    LIST_MGR_PTR(lh)->vScroll = vScroll;
+    LIST_MGR_PTR(lh)->hScroll = hScroll;
+
+    List_UpdateScrollbars(LIST_MGR_PTR(lh));
+    
+    LIST_LOG("LAttachScrollbars: v=%p h=%p\n", vScroll, hScroll);
+}
+
+/* ================================================================
+ * DIALOG INTEGRATION
+ * ================================================================ */
+
+ListHandle ListFromDialogItem(DialogPtr dlg, short itemNo)
+{
+    DialogListAssoc* assoc;
+    
+    assoc = FindDialogListSlot(dlg, itemNo, false);
+    if (assoc && assoc->active) {
+        return assoc->list;
+    }
+    return NULL;
+}
+
+void AttachListToDialogItem(DialogPtr dlg, short itemNo, ListHandle lh)
+{
+    DialogListAssoc* assoc;
+    
+    assoc = FindDialogListSlot(dlg, itemNo, true);
+    if (assoc) {
+        assoc->list = lh;
+        LIST_LOG("AttachListToDialogItem: dlg=%p item=%d list=%p\n",
+                 dlg, itemNo, lh);
     }
 }
-

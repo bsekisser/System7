@@ -212,6 +212,19 @@ CFLAGS += -DENABLE_SCRAP=1
 CFLAGS += -DSCRAP_SELFTEST=1 -DDEBUG_DOUBLECLICK=1
 endif
 
+# Add ListManager if enabled
+ENABLE_LIST ?= 1
+LIST_SMOKE_TEST ?= 0
+ifeq ($(ENABLE_LIST),1)
+C_SOURCES += src/ListManager/ListManager.c \
+             src/ListManager/list_manager.c \
+             src/ListManager/ListSmoke.c
+CFLAGS += -DENABLE_LIST=1
+ifeq ($(LIST_SMOKE_TEST),1)
+CFLAGS += -DLIST_SMOKE_TEST=1
+endif
+endif
+
 ASM_SOURCES = src/multiboot2.S
 
 # Object files

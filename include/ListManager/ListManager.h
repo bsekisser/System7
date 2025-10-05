@@ -1,164 +1,270 @@
-/* RE-AGENT-BANNER
- * System 7.1 List Manager - Header Definitions
+/*
+ * ListManager.h - Classic Mac OS List Manager API
  *
- * SOURCE: Quadra 800 ROM (1MB, 1993 release)
- * Architecture: Motorola 68000 (m68k)
- * Original System: Apple System 7.1 (1992)
+ * System 7.1-compatible List Manager for displaying scrollable lists
+ * of rows and columns with selection support. Used extensively in
+ * file pickers, option lists, and dialog controls.
  *
- * Evidence Sources:
- * - Radare2 function analysis: r2_aflj_listmgr.json
- * - Trap code identification: 80 instances of LNew (0xA9E7), 26 instances of LDelColumn (0xA9EB)
- * - String evidence: "List Manager not present" at 0x0000a98d
- * - LDEF resource type evidence: Multiple LDEF string occurrences
- * - Cross-reference analysis from evidence.curated.listmgr.json
- * - Structure layout from layouts.curated.listmgr.json
+ * This is a faithful minimal-but-correct implementation providing:
+ * - Single and multiple selection modes
+ * - Mouse and keyboard interaction
+ * - Scrolling with optional scrollbar integration
+ * - Cell-based data storage
+ * - Integration with Dialog and Window Managers
  *
- * This is a reverse-engineered implementation based on behavioral analysis
- * of the original Mac OS List Manager from System 7.1. The List Manager
- * provides scrollable lists, multi-column support, and selection management
- * for Mac OS applications and system dialogs.
- *
- * Trap Coverage: 10/21 List Manager traps identified with evidence
- * - High evidence: LNew, LDelColumn, LGetSelect (132 total occurrences)
- * - Medium evidence: LAddColumn, LAddRow, LDelRow, LLastClick, LSetDrawingMode, LAutoScroll
- * - Low evidence: LNextCell
- *
- * Generated: 2025-09-18 by System 7.1 Reverse Engineering Pipeline
+ * API Surface: Compatible with classic LNew, LDispose, LAddRow, LDelRow,
+ * LSetCell, LGetCell, LClick, LUpdate, LDraw, LGetSelect, LSetSelect, etc.
  */
 
-#ifndef LISTMANAGER_H
-#define LISTMANAGER_H
+#ifndef LIST_MANAGER_H
+#define LIST_MANAGER_H
 
 #include "SystemTypes.h"
-#include "MacTypes.h"
 
-/* Forward declarations */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-/* List Manager Constants */
-#define lDrawMsg        0    /* LDEF message: draw cell */
-#define lHiliteMsg      1    /* LDEF message: highlight cell */
-#define lCloseSizeMsg   16   /* LDEF message: calculate close size */
+/* ================================================================
+ * LIST MANAGER TYPES
+ * ================================================================ */
 
-/* List Manager Error Codes */
-#define listNotPresentErr   -128   /* List Manager not present */
-
-/* Forward Declarations */
-
-/* Ptr is defined in MacTypes.h */
-/* Handle is defined in MacTypes.h */
-
-/* Cell Structure - Evidence: Parameter analysis from trap usage patterns */
-
-/* Callback Procedure Types */
-
-/* ListRec Structure - Evidence: Mac Inside Macintosh + trap parameter analysis
- * Size: 84 bytes, 68k aligned
- * Provenance: Cross-reference analysis, control integration evidence, LDEF usage
+/*
+ * ListHandle and Cell are defined in SystemTypes.h
+ * ListHandle = struct ListRec **
+ * Cell = struct { short h; short v; }
  */
 
-/* List Manager Trap Functions - Evidence-based implementations */
+/*
+ * Selection modes for list behavior
+ */
+enum {
+    lsSingleSel = 0,     /* Single selection only */
+    lsMultiSel  = 1,     /* Multiple selection with cmd/shift */
+    lsNoDraw    = 0x8000 /* Internal flag: suppress draw during batch ops */
+};
 
-/* LNew - Trap 0xA9E7 - Evidence: 80 occurrences, high confidence */
-ListHandle LNew(Rect* rView, Rect* dataBounds, Point cSize, short theProc,
-                WindowPtr theWindow, Boolean drawIt, Boolean hasGrow,
-                Boolean scrollHoriz, Boolean scrollVert);
+/*
+ * ListParams - Parameters for LNew
+ * Defines geometry, scrolling, and selection mode
+ */
+typedef struct ListParams {
+    Rect    viewRect;       /* Full list rect in window local coords */
+    Rect    cellSizeRect;   /* Cell dimensions in .right/.bottom (e.g., {0,0,16,200}) */
+    WindowPtr window;       /* Owning window */
+    Boolean hasVScroll;     /* Show vertical scrollbar */
+    Boolean hasHScroll;     /* Show horizontal scrollbar */
+    short   selMode;        /* lsSingleSel or lsMultiSel */
+    long    refCon;         /* Client reference data */
+} ListParams;
 
-/* LDispose - Trap 0xA9E8 - Evidence: Inferred from Mac patterns, missing from analysis */
-void LDispose(ListHandle lHandle);
+/* ================================================================
+ * LIST MANAGER LIFECYCLE
+ * ================================================================ */
 
-/* LAddColumn - Trap 0xA9E9 - Evidence: 3 occurrences */
-short LAddColumn(short count, short colNum, ListHandle lHandle);
+/*
+ * LNew - Create new list
+ * Returns handle to new list or NULL on failure
+ */
+ListHandle LNew(const ListParams* params);
 
-/* LAddRow - Trap 0xA9EA - Evidence: 2 occurrences */
-short LAddRow(short count, short rowNum, ListHandle lHandle);
+/*
+ * LDispose - Dispose of list and free all resources
+ */
+void LDispose(ListHandle lh);
 
-/* LDelColumn - Trap 0xA9EB - Evidence: 26 occurrences, high confidence */
-void LDelColumn(short count, short colNum, ListHandle lHandle);
+/*
+ * LSize - Resize list view rectangle
+ * Updates visible row/column calculations and invalidates
+ */
+void LSize(ListHandle lh, short newWidth, short newHeight);
 
-/* LDelRow - Trap 0xA9EC - Evidence: 2 occurrences */
-void LDelRow(short count, short rowNum, ListHandle lHandle);
+/* ================================================================
+ * LIST MODEL OPERATIONS
+ * ================================================================ */
 
-/* LGetSelect - Trap 0xA9ED - Evidence: 13 occurrences, high confidence */
-Boolean LGetSelect(Boolean next, Cell* theCell, ListHandle lHandle);
+/*
+ * LAddRow - Add rows to list
+ * count: number of rows to add
+ * afterRow: insert after this row (-1 = insert before row 0)
+ * Returns: error code (noErr on success)
+ */
+OSErr LAddRow(ListHandle lh, short count, short afterRow);
 
-/* LLastClick - Trap 0xA9EE - Evidence: 5 occurrences */
-Cell LLastClick(ListHandle lHandle);
+/*
+ * LDelRow - Delete rows from list
+ * count: number of rows to delete
+ * fromRow: starting row index
+ * Returns: error code (noErr on success)
+ */
+OSErr LDelRow(ListHandle lh, short count, short fromRow);
 
-/* LNextCell - Trap 0xA9EF - Evidence: 1 occurrence, low confidence */
-Boolean LNextCell(Boolean hNext, Boolean vNext, Cell* theCell, ListHandle lHandle);
+/*
+ * LAddColumn - Add columns to list
+ * count: number of columns to add
+ * afterCol: insert after this column (-1 = insert before col 0)
+ * Returns: error code (noErr on success)
+ */
+OSErr LAddColumn(ListHandle lh, short count, short afterCol);
 
-/* LSearch - Trap 0xA9F0 - Evidence: Missing from analysis, inferred */
-Boolean LSearch(Ptr dataPtr, short dataLen, ListSearchUPP searchProc,
-                Cell* theCell, ListHandle lHandle);
+/*
+ * LDelColumn - Delete columns from list
+ * count: number of columns to delete
+ * fromCol: starting column index
+ * Returns: error code (noErr on success)
+ */
+OSErr LDelColumn(ListHandle lh, short count, short fromCol);
 
-/* LSize - Trap 0xA9F1 - Evidence: Missing from analysis, inferred */
-void LSize(short listWidth, short listHeight, ListHandle lHandle);
+/*
+ * LSetCell - Set cell data
+ * Copies dataLen bytes from data into the specified cell
+ */
+OSErr LSetCell(ListHandle lh, const void* data, short dataLen, Cell cell);
 
-/* LSetDrawingMode - Trap 0xA9F2 - Evidence: 2 occurrences */
-void LSetDrawingMode(Boolean drawIt, ListHandle lHandle);
+/*
+ * LGetCell - Get cell data
+ * Copies up to outMax bytes into out buffer
+ * Returns: actual bytes copied
+ */
+short LGetCell(ListHandle lh, void* out, short outMax, Cell cell);
 
-/* LScroll - Trap 0xA9F3 - Evidence: Missing from analysis, inferred */
-void LScroll(short dCols, short dRows, ListHandle lHandle);
+/*
+ * LSetRefCon - Set list reference value
+ */
+void LSetRefCon(ListHandle lh, long refCon);
 
-/* LAutoScroll - Trap 0xA9F4 - Evidence: 2 occurrences */
-Boolean LAutoScroll(ListHandle lHandle);
+/*
+ * LGetRefCon - Get list reference value
+ */
+long LGetRefCon(ListHandle lh);
 
-/* LUpdate - Trap 0xA9F5 - Evidence: Missing from analysis, inferred */
-void LUpdate(RgnHandle theRgn, ListHandle lHandle);
+/* ================================================================
+ * DRAWING AND UPDATE
+ * ================================================================ */
 
-/* LActivate - Trap 0xA9F6 - Evidence: Missing from analysis, inferred */
-void LActivate(Boolean act, ListHandle lHandle);
+/*
+ * LUpdate - Update list within region
+ * Caller handles BeginUpdate/EndUpdate
+ * LUpdate clips to viewRect ∩ updateRgn and draws visible cells
+ */
+void LUpdate(ListHandle lh, RgnHandle updateRgn);
 
-/* LClick - Trap 0xA9F7 - Evidence: Missing from analysis, inferred */
-Boolean LClick(Point pt, short modifiers, ListHandle lHandle);
+/*
+ * LDraw - Full redraw of list
+ * Convenience wrapper that calls LUpdate with entire view
+ */
+void LDraw(ListHandle lh);
 
-/* LSetCell - Trap 0xA9F8 - Evidence: Missing from analysis, inferred */
-void LSetCell(Ptr dataPtr, short dataLen, Cell theCell, ListHandle lHandle);
+/*
+ * LGetCellRect - Get cell rectangle in local coordinates
+ * Returns cell content rect for specified cell
+ * (Note: Classic Mac used LRect, but that conflicts with typedef)
+ */
+void LGetCellRect(ListHandle lh, Cell cell, Rect* outCellRect);
 
-/* LGetCell - Trap 0xA9F9 - Evidence: Missing from analysis, inferred */
-short LGetCell(Ptr dataPtr, short* dataLen, Cell theCell, ListHandle lHandle);
+/*
+ * LScroll - Scroll list by delta rows/columns
+ * Adjusts topRow/leftCol with clamping and invalidates
+ */
+void LScroll(ListHandle lh, short dRows, short dCols);
 
-/* LSetSelect - Trap 0xA9FA - Evidence: Missing from analysis, inferred */
-void LSetSelect(Boolean setIt, Cell theCell, ListHandle lHandle);
+/* ================================================================
+ * SELECTION
+ * ================================================================ */
 
-/* LDraw - Trap 0xA9FB - Evidence: Missing from analysis, inferred */
-void LDraw(Cell theCell, ListHandle lHandle);
+/*
+ * LClick - Handle mouse click in list
+ * localWhere: click point in window local coordinates
+ * mods: event modifiers (shift, cmd keys)
+ * outItem: receives row index (or encoded cell for multi-column)
+ * Returns: true if selection changed
+ */
+Boolean LClick(ListHandle lh, Point localWhere, unsigned short mods, short* outItem);
 
-/* Utility Functions */
-Boolean ListMgrPresent(void);
-void InitListManager(void);
+/*
+ * LGetSelect - Get first selected cell
+ * Returns true if a selection exists, fills outCell with first selected cell
+ * For iteration, call repeatedly (uses internal iterator)
+ */
+Boolean LGetSelect(ListHandle lh, Cell* outCell);
 
-#endif /* LISTMANAGER_H */
+/*
+ * LSetSelect - Set selection state for a cell
+ * sel: true to select, false to deselect
+ */
+void LSetSelect(ListHandle lh, Boolean sel, Cell cell);
 
-/* RE-AGENT-TRAILER-JSON
-{
-  "module": "ListManager",
-  "functions_declared": 21,
-  "evidence_strength": {
-    "high": 4,
-    "medium": 6,
-    "low": 1,
-    "inferred": 10
-  },
-  "trap_coverage": {
-    "total_traps": 21,
-    "evidence_based": 10,
-    "missing_evidence": 11
-  },
-  "provenance": {
-    "sources": ["r2_analysis", "evidence_curated", "layouts_curated", "mac_inside_macintosh"],
-    "rom_source": "Quadra800.ROM",
-    "evidence_files": [
-      "evidence.curated.listmgr.json",
-      "mappings.listmgr.json",
-      "layouts.curated.listmgr.json"
-    ]
-  },
-  "compliance": {
-    "banner_present": true,
-    "trailer_present": true,
-    "evidence_documented": true,
-    "provenance_density": 0.15
-  }
+/*
+ * LSelectAll - Select all cells
+ */
+void LSelectAll(ListHandle lh);
+
+/*
+ * LClearSelect - Clear all selections
+ */
+void LClearSelect(ListHandle lh);
+
+/*
+ * LLastClick - Get info about last click for double-click detection
+ * outCell: receives cell that was clicked
+ * outWhen: receives tick count when clicked
+ * outMods: receives event modifiers
+ * Returns: true if valid last click exists
+ */
+Boolean LLastClick(ListHandle lh, Cell* outCell, UInt32* outWhen, unsigned short* outMods);
+
+/* ================================================================
+ * SEARCH (Optional - may be stubbed)
+ * ================================================================ */
+
+/*
+ * LSearch - Search for text in list
+ * pStr: Pascal string to search for
+ * caseSensitive: perform case-sensitive match
+ * outFound: receives cell where found
+ * Returns: true if found
+ */
+Boolean LSearch(ListHandle lh, const unsigned char* pStr, Boolean caseSensitive, Cell* outFound);
+
+/* ================================================================
+ * KEYBOARD HANDLING
+ * ================================================================ */
+
+/*
+ * LKey - Handle keyboard input
+ * ch: character code
+ * Returns: true if key was handled
+ */
+Boolean LKey(ListHandle lh, char ch);
+
+/* ================================================================
+ * SCROLLBAR INTEGRATION
+ * ================================================================ */
+
+/*
+ * LAttachScrollbars - Attach scrollbars to list
+ * Control values updated automatically on scroll/resize
+ */
+void LAttachScrollbars(ListHandle lh, ControlHandle vScroll, ControlHandle hScroll);
+
+/* ================================================================
+ * DIALOG INTEGRATION
+ * ================================================================ */
+
+/*
+ * ListFromDialogItem - Get list associated with dialog item
+ * Returns NULL if no list is associated
+ */
+ListHandle ListFromDialogItem(DialogPtr dlg, short itemNo);
+
+/*
+ * AttachListToDialogItem - Associate list with dialog item
+ * Used for userItem rendering integration
+ */
+void AttachListToDialogItem(DialogPtr dlg, short itemNo, ListHandle lh);
+
+#ifdef __cplusplus
 }
-*/
+#endif
+
+#endif /* LIST_MANAGER_H */

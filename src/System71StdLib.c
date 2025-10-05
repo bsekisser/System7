@@ -422,7 +422,18 @@ void serial_printf(const char* fmt, ...) {
         strstr(fmt, "ALERT") == NULL &&
         strstr(fmt, "Modal") == NULL &&
         strstr(fmt, "DITL") == NULL &&
-        strstr(fmt, "DLOG") == NULL) {
+        strstr(fmt, "DLOG") == NULL &&
+        strstr(fmt, "[LIST]") == NULL &&
+        strstr(fmt, "[LIST SMOKE]") == NULL &&
+        strstr(fmt, "LNew") == NULL &&
+        strstr(fmt, "LDispose") == NULL &&
+        strstr(fmt, "LUpdate") == NULL &&
+        strstr(fmt, "LClick") == NULL &&
+        strstr(fmt, "LScroll") == NULL &&
+        strstr(fmt, "LSize") == NULL &&
+        strstr(fmt, "LKey") == NULL &&
+        strstr(fmt, "DrawCell") == NULL &&
+        strstr(fmt, "EraseBackground") == NULL) {
         return;  /* Message not whitelisted - silently drop */
     }
 

@@ -2263,6 +2263,14 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     serial_puts("MAIN: Alert smoke tests complete\n");
     */
 
+    /* Run List Manager smoke tests */
+    #ifdef LIST_SMOKE_TEST
+    extern void RunListSmokeTest(void);
+    serial_puts("MAIN: Running List Manager smoke tests\n");
+    RunListSmokeTest();
+    serial_puts("MAIN: List Manager smoke tests complete\n");
+    #endif
+
     /* Track mouse position for movement detection */
     extern struct {
         int16_t x;
