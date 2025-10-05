@@ -12,6 +12,15 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Recent Updates
 
+- ✅ **Scrollbar Controls Implementation**: Complete System 7-style scrollbar controls with classic Mac semantics
+  - NewVScrollBar/NewHScrollBar creation functions with auto-orientation detection
+  - Full CDEF implementation: drawing, hit-testing, tracking, and highlighting
+  - Proportional thumb sizing based on visible content span
+  - Repeat-on-hold behavior for arrows (8/3 tick timing) and page areas (8/4 tick timing)
+  - Delta-based tracking with TrackScrollbar() returning net value change
+  - List Manager integration via UpdateScrollThumb() for atomic updates
+  - Disabled state handling (max <= min or inactiveHilite)
+  - Smart routing from generic TrackControl() to delta-based scrollbar tracking
 - ✅ **List Manager Implementation**: Complete System 7.1-compatible List Manager with full API support
   - 20-function API: LNew, LDispose, LAddRow, LDelRow, LSetCell, LGetCell, LUpdate, LDraw, LClick, LKey, etc.
   - Single and multi-selection modes with Shift/Cmd modifier support
@@ -172,6 +181,15 @@ This is a proof-of-concept implementation focused on understanding and recreatin
   - QuickDraw integration with state save/restore
   - Dialog Manager integration for list dialog items
   - Efficient redraw with narrow erase and band invalidation
+- **Control Manager**: Scrollbar controls with classic Mac OS behavior:
+  - Vertical and horizontal scrollbar creation (NewVScrollBar, NewHScrollBar)
+  - Control Definition Function (CDEF) for scrollbars with full message handling
+  - Proportional thumb sizing: thumbLen = (visibleSpan × trackLen) / (range + visibleSpan)
+  - Interactive tracking with repeat-on-hold (arrows: 8/3 ticks, pages: 8/4 ticks)
+  - Delta-based tracking API (TrackScrollbar) for streamlined integration
+  - Hit-testing with disabled state support (inactiveHilite, max <= min)
+  - List Manager integration via UpdateScrollThumb for atomic value/range/span updates
+  - Part-specific timing for authentic classic Mac feel
 
 ### Partially Working ⚠️
 
@@ -189,7 +207,7 @@ This is a proof-of-concept implementation focused on understanding and recreatin
   - Font Manager integration for menu item text styles
   - Dropdown menu rendering incomplete
   - Menu selection and command dispatch stubbed
-- **Control Manager**: Framework in place, most controls not implemented
+- **Control Manager**: Framework in place, scrollbar controls complete, other control types not yet implemented
 - **Dialog Manager**: Core structure present, dialog drawing/interaction not complete
 - **File Manager**: Core implemented, in progress.
 
@@ -278,7 +296,7 @@ iteration2/
 │   ├── Finder/                 # Desktop & Finder implementation
 │   │   └── Icon/               # Icon system (5 modules)
 │   ├── FS/                     # Virtual file system & HFS
-│   ├── ControlManager/         # UI controls
+│   ├── ControlManager/         # UI controls (3 modules: Core, Tracking, Scrollbar)
 │   ├── DialogManager/          # Dialog boxes
 │   ├── DeskManager/            # Desk accessories
 │   ├── PatternMgr/             # Pattern resources
@@ -476,7 +494,7 @@ This project is in **active development** with no guaranteed timeline. Planned w
 
 **Medium Term** (Core Toolbox):
 - Complete Window Definition Procedure (WDEF) dispatch
-- Implement standard controls (buttons, scrollbars, text fields)
+- Implement additional standard controls (buttons, text fields, checkboxes, radio buttons)
 - Add TrueType font support to Font Manager
 
 **Long Term** (Application Support):
