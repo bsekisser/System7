@@ -37,6 +37,7 @@ typedef enum {
     kLogModuleScrap,
     kLogModuleMemory,
     kLogModuleProcess,
+    kLogModuleSegmentLoader,
     kLogModuleCount
 } SystemLogModule;
 

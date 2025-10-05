@@ -8,6 +8,9 @@
 # Default goal (build kernel)
 .DEFAULT_GOAL := all
 
+# Platform configuration
+PLATFORM ?= x86
+
 # Load build configuration (default or user-specified)
 CONFIG ?= default
 -include config/$(CONFIG).mk
@@ -17,6 +20,7 @@ BUILD_DIR = build
 OBJ_DIR = $(BUILD_DIR)/obj
 BIN_DIR = $(BUILD_DIR)/bin
 ISO_DIR = iso
+HAL_DIR = src/Platform/$(PLATFORM)
 
 # Output files
 KERNEL = kernel.elf
@@ -44,7 +48,7 @@ CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 -DTM_SMOKE_TEST \
          -ffreestanding -fno-builtin -fno-stack-protector -nostdlib \
          -Wall -Wextra -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wcast-qual \
          -Wpointer-arith -Wstrict-prototypes -Wno-unused-parameter \
-         $(OPT_FLAGS) -fno-inline -fno-optimize-sibling-calls -I./include -std=c99 -m32 \
+         $(OPT_FLAGS) -fno-inline -fno-optimize-sibling-calls -I./include -I./src -std=c99 -m32 \
          -Wuninitialized -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
          -Wno-multichar -Wno-pointer-sign -Wno-sign-compare \
          -MMD -MP
@@ -72,6 +76,7 @@ PATTERN_RESOURCE ?= resources/patterns_authentic_color.json
 
 # Source files
 C_SOURCES = src/main.c \
+            src/boot.c \
             src/SystemInit.c \
             src/sys71_stubs.c \
             src/System71StdLib.c \
@@ -167,6 +172,12 @@ C_SOURCES = src/main.c \
             src/EventManager/KeyboardEvents.c \
             src/EventManager/SystemEvents.c \
             src/ProcessMgr/ProcessManager.c \
+            src/CPU/CPUBackend.c \
+            src/CPU/m68k_interp/M68KBackend.c \
+            src/SegmentLoader/SegmentLoader.c \
+            src/SegmentLoader/CodeParser.c \
+            src/SegmentLoader/A5World.c \
+            src/SegmentLoader/SegmentLoaderTest.c \
             src/TextEdit/TextEdit.c \
             src/TextEdit/TextEditDraw.c \
             src/TextEdit/TextEditInput.c \
@@ -251,7 +262,7 @@ ifeq ($(ALERT_SMOKE_TEST),1)
 CFLAGS += -DALERT_SMOKE_TEST=1
 endif
 
-ASM_SOURCES = src/multiboot2.S
+ASM_SOURCES = $(HAL_DIR)/boot.S
 
 # Object files
 C_OBJECTS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(notdir $(C_SOURCES)))
@@ -299,7 +310,7 @@ src/patterns_rsrc.c: $(RSRC_BIN)
 # Link kernel
 $(KERNEL): $(OBJECTS) | $(BUILD_DIR)
 	@echo "LD $(KERNEL)"
-	@$(LD) $(LDFLAGS) -T linker_mb2.ld -o $(KERNEL) $(OBJECTS)
+	@$(LD) $(LDFLAGS) -T $(HAL_DIR)/linker.ld -o $(KERNEL) $(OBJECTS)
 	@readelf -h $(KERNEL) >/dev/null 2>&1 || { echo "ERROR: Invalid ELF file"; exit 1; }
 	@echo "✓ Kernel linked successfully ($(shell stat -c%s $(KERNEL) 2>/dev/null || stat -f%z $(KERNEL) 2>/dev/null) bytes)"
 
@@ -313,10 +324,9 @@ vpath %.c src:src/System:src/QuickDraw:src/WindowManager:src/MenuManager:src/Con
           src/HelpManager:src/ComponentManager:src/EditionManager:src/NotificationManager \
           src/PackageManager:src/NetworkExtension:src/ColorManager:src/CommunicationToolbox \
           src/FontResources:src/GestaltManager:src/SpeechManager:src/BootLoader \
-          src/SegmentLoader:src/DeviceManager:src/Keyboard:src/Datetime:src/Calculator \
-          src/Chooser:src/StartupScreen
-
-vpath %.S src
+          src/SegmentLoader:src/CPU:src/CPU/m68k_interp:src/DeviceManager:src/Keyboard \
+          src/Datetime:src/Calculator:src/Chooser:src/StartupScreen
+vpath %.S $(HAL_DIR)
 
 # Compile assembly files
 $(OBJ_DIR)/%.o: %.S | $(OBJ_DIR)
@@ -401,6 +411,7 @@ help: ## Show this help message
 	@echo "  CONFIG=release   Optimized release build"
 	@echo ""
 	@echo "CONFIGURATION OPTIONS (override in config/*.mk or command line):"
+	@echo "  PLATFORM=<name>          Target platform (default: x86)"
 	@echo "  ENABLE_RESOURCES=1       Enable Resource Manager"
 	@echo "  ENABLE_FILEMGR_EXTRA=1   Enable File Manager extras"
 	@echo "  ENABLE_PROCESS_COOP=1    Enable cooperative scheduling"
@@ -423,7 +434,7 @@ help: ## Show this help message
 	@echo ""
 	@echo "PARALLEL BUILDS:"
 	@echo "  Use 'make -j<N>' for parallel compilation (recommended)"
-	@echo "  Example: make -j\$$(nproc)  # Use all CPU cores"
+	@echo "  Example: make -j\$(nproc)  # Use all CPU cores"
 	@echo ""
 	@echo "For more information, see docs/BUILD_SYSTEM_IMPROVEMENTS.md"
 	@echo "════════════════════════════════════════════════════════════════"

@@ -31,6 +31,9 @@
 
 #include "ProcessMgr/ProcessMgr.h"
 #include "ProcessMgr/ProcessLogging.h"
+#include "SegmentLoader/SegmentLoader.h"
+#include "CPU/CPUBackend.h"
+#include "CPU/M68KInterp.h"
 /* #include <Traps.h> - not available */
 /* #include <ToolUtils.h> - not available */
 
@@ -54,6 +57,12 @@ static ProcessControlBlock gProcessTable[kPM_MaxProcesses];
 OSErr ProcessManager_Initialize(void)
 {
     OSErr err = noErr;
+
+    /* Initialize CPU backends */
+    err = M68KBackend_Initialize();
+    if (err != noErr) {
+        return err;
+    }
 
     /* Initialize process queue */
     gProcessQueue = (ProcessQueue*)NewPtr(sizeof(ProcessQueue));
@@ -274,6 +283,8 @@ OSErr LaunchApplication(LaunchParamBlockRec* launchParams)
 {
     OSErr err;
     ProcessControlBlock* newProcess = NULL;
+    SegmentLoaderContext* segLoader = NULL;
+    CPUAddr entryPoint;
     UInt32 targetPSN;
 
     if (!launchParams) {
@@ -304,6 +315,45 @@ OSErr LaunchApplication(LaunchParamBlockRec* launchParams)
         return memFullErr; /* Could not find newly created process */
     }
 
+    /* Initialize segment loader for this process */
+    err = SegmentLoader_Initialize(newProcess, "m68k_interp", &segLoader);
+    if (err != noErr) {
+        Process_Cleanup(&newProcess->processID);
+        return err;
+    }
+
+    /* Load CODE 0 and CODE 1 (entry segments) */
+    err = EnsureEntrySegmentsLoaded(segLoader);
+    if (err != noErr) {
+        SegmentLoader_Cleanup(segLoader);
+        Process_Cleanup(&newProcess->processID);
+        return err;
+    }
+
+    /* Install _LoadSeg trap for lazy segment loading */
+    err = InstallLoadSegTrap(segLoader);
+    if (err != noErr) {
+        /* Non-fatal, continue */
+    }
+
+    /* Get CODE 1 entry point */
+    err = GetSegmentEntryPoint(segLoader, 1, &entryPoint);
+    if (err != noErr) {
+        SegmentLoader_Cleanup(segLoader);
+        Process_Cleanup(&newProcess->processID);
+        return err;
+    }
+
+    /* Set up stack (user stack pointer) */
+    CPUAddr stackTop = (CPUAddr)newProcess->processStackBase +
+                       newProcess->processStackSize - 16;
+    err = segLoader->cpuBackend->SetStacks(segLoader->cpuAS, stackTop, 0);
+    if (err != noErr) {
+        SegmentLoader_Cleanup(segLoader);
+        Process_Cleanup(&newProcess->processID);
+        return err;
+    }
+
     /* Add process to scheduler queue */
     if (gProcessQueue->queueHead == NULL) {
         gProcessQueue->queueHead = newProcess;
@@ -314,9 +364,11 @@ OSErr LaunchApplication(LaunchParamBlockRec* launchParams)
     }
     gProcessQueue->queueSize++;
 
-    /* Switch to new process if requested */
+    /* Enter the application (this typically doesn't return) */
     if (!(launchParams->launchControlFlags & kLaunchDontSwitch)) {
-        err = Context_Switch(newProcess);
+        err = segLoader->cpuBackend->EnterAt(segLoader->cpuAS, entryPoint,
+                                            kEnterApp);
+        /* If we get here, the app returned or there was an error */
     }
 
     return err;

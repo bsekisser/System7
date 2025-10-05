@@ -12,6 +12,14 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Recent Updates
 
+- ✅ **Portable 68K Segment Loader**: Complete ISA-agnostic segment loading system
+  - Classic CODE resource parsing (CODE 0 metadata + CODE 1..N segments)
+  - A5 world construction (below/above A5, jump table, QuickDraw globals)
+  - Lazy segment loading with self-patching jump table stubs
+  - Pluggable CPU backend interface (M68K interpreter, future PPC/native backends)
+  - Big-endian safe parsing, abstract relocations, complete portability
+  - Integrated with Process Manager for application launch flow
+  - Full documentation in `docs/SegmentLoader_DESIGN.md`
 - ✅ **Serial Logging System**: Comprehensive module-based logging framework
   - Hierarchical log levels (Error, Warn, Info, Debug, Trace)
   - Module-specific filtering (Window Manager, Control Manager, Dialog Manager, Event Manager, etc.)
@@ -240,6 +248,16 @@ This is a proof-of-concept implementation focused on understanding and recreatin
   - StandardFile dialog integration with initial focus priming
   - Alert & Modal Dialog full keyboard integration
   - Debounce protection prevents double-activation from concurrent mouse/keyboard events
+- **Segment Loader**: Portable, ISA-agnostic 68K segment loading system:
+  - CODE resource parsing with big-endian safe readers (BE_Read16/BE_Read32)
+  - CODE 0 metadata extraction (A5 world sizes, jump table offset/count)
+  - A5 world construction: allocate below/above A5 areas, build jump table
+  - Lazy segment loading: self-patching jump table stubs trigger _LoadSeg on first call
+  - Abstract relocation system (kRelocAbsSegBase, kRelocA5Relative, kRelocJTImport)
+  - CPU backend interface (ICPUBackend) for pluggable execution engines
+  - M68K interpreter backend (reference implementation for x86 host)
+  - Process Manager integration: LaunchApplication loads CODE 0/1 and transfers control
+  - Complete portability: no host ISA assumptions, works on x86/ARM/any architecture
 
 ### Partially Working ⚠️
 
@@ -258,7 +276,7 @@ This is a proof-of-concept implementation focused on understanding and recreatin
 
 ### Not Yet Implemented ❌
 
-- **Application Launching**: No process management or application loading
+- **Application Execution**: Segment loader implemented, but M68K interpreter execution loop is stubbed
 - **Sound Manager**: No audio support
 - **Printing**: No print system
 - **Networking**: No AppleTalk or network functionality
@@ -316,8 +334,8 @@ The following subsystems have source code but are not yet integrated into the bu
 
 ### Codebase Statistics
 
-- **140+ header files** across 26+ subsystems
-- **220+ source files** (~55,000+ lines of code)
+- **145+ header files** across 28+ subsystems
+- **225+ source files** (~57,500+ lines of code)
 - **69 resource types** extracted from original System 7.1
 - **Performance targets achieved**:
   - Timer drift: <100 ppm (target met)
@@ -353,6 +371,10 @@ iteration2/
 │   ├── ScrapManager/           # Clipboard/Scrap Manager (Classic Mac OS API)
 │   ├── ListManager/            # List Manager (3 modules)
 │   ├── Apps/SimpleText/        # SimpleText application (7 modules)
+│   ├── SegmentLoader/          # Portable 68K segment loader (3 modules)
+│   ├── CPU/                    # CPU backend interface & implementations
+│   │   └── m68k_interp/        # M68K interpreter backend
+│   ├── ProcessMgr/             # Process Manager (integrated with segment loader)
 │   ├── FileMgr/                # File Manager subsystems
 │   ├── FileManager.c           # File Manager API
 │   └── PS2Controller.c         # Hardware input driver
@@ -363,6 +385,9 @@ iteration2/
 │   │   ├── DialogManager/      # Dialog Manager & keyboard integration
 │   │   ├── FontManager/        # Font Manager documentation
 │   │   ├── System/             # Logging system documentation
+│   │   ├── SegmentLoader_DESIGN.md   # Segment Loader architecture
+│   │   ├── SegmentLoader_README.md   # Segment Loader quick reference
+│   │   ├── SegmentLoader_SUMMARY.md  # Implementation summary
 │   │   ├── EventManager.md     # Event Manager guide
 │   │   ├── MenuManager.md      # Menu Manager guide
 │   │   ├── WindowManager.md    # Window Manager guide
@@ -474,7 +499,7 @@ This project serves as:
 ## 🐛 Known Issues
 
 1. **Icon Drag Artifacts**: Dragging desktop icons may cause visual artifacts
-2. **No Application Support**: Cannot launch or run applications
+2. **Application Execution Stubbed**: Segment loader complete, but M68K interpreter execution loop not yet implemented
 3. **No TrueType Support**: Font Manager supports bitmap fonts only (Chicago)
 4. **HFS Read-Only**: File system is virtual/simulated, no real disk I/O
 5. **No Stability Guarantees**: Crashes, hangs, and unexpected behavior are common
@@ -540,13 +565,13 @@ This project exists for:
 
 ## 📊 Project Statistics
 
-- **Lines of Code**: ~55,000+
+- **Lines of Code**: ~57,500+ (including 2,500+ for segment loader)
 - **Development Time**: Several months (ongoing)
 - **Compilation Time**: ~3-5 seconds on modern hardware
-- **Kernel Size**: ~900KB (kernel.elf)
+- **Kernel Size**: ~1.8MB (kernel.elf)
 - **ISO Size**: ~12.5MB (system71.iso)
 - **Error Reduction**: 94% (30 of 32 Window Manager errors resolved)
-- **New Managers Added**: 4 (Font Manager, Gestalt, enhanced Resource, production Time Manager)
+- **New Managers Added**: 5 (Font Manager, Gestalt, enhanced Resource, production Time Manager, Segment Loader)
 
 ## 🔮 Future Direction
 
@@ -563,9 +588,10 @@ This project is in **active development** with no guaranteed timeline. Planned w
 - Add TrueType font support to Font Manager
 
 **Long Term** (Application Support):
-- Resource Manager with .rsrc file support
-- Process Manager for application launching
-- Segment Loader for loading CODE resources
+- ✅ Segment Loader for loading CODE resources (complete)
+- ✅ Process Manager integration with segment loader (complete)
+- Complete M68K interpreter execution loop
+- Add PPC backend for fat binary support
 - Basic desk accessories (Calculator, Note Pad)
 
 **Stretch Goals** (Full System):
@@ -577,6 +603,6 @@ This project is in **active development** with no guaranteed timeline. Planned w
 
 **Status**: Experimental - Educational - In Development
 
-**Last Updated**: October 2025
+**Last Updated**: October 2025 (Segment Loader implemented)
 
 For questions, issues, or discussion, please use GitHub Issues.

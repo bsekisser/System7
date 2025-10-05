@@ -160,15 +160,7 @@ static const uint8_t font5x7[][5] __attribute__((unused)) = {
 /* Serial port for debugging */
 #define COM1 0x3F8
 
-static inline void outb(uint16_t port, uint8_t val) {
-    __asm__ volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
-}
-
-static inline uint8_t inb(uint16_t port) {
-    uint8_t ret;
-    __asm__ volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
-    return ret;
-}
+#include "Platform/include/io.h"
 
 /* Serial functions are declared in System71StdLib.h */
 
@@ -1870,6 +1862,14 @@ static void init_system71(void) {
     } else {
         serial_puts("  WARNING: Process Manager initialization failed\n");
     }
+
+#ifdef SEGLOADER_TEST_BOOT
+    /* Segment Loader Test Harness (smoke checks for first-light validation) */
+    extern void SegmentLoader_TestBoot(void);
+    serial_puts("\n");
+    SegmentLoader_TestBoot();
+    serial_puts("\n");
+#endif
 
     /* Initialize Modern Input System for PS/2 devices */
     extern SInt16 InitModernInput(const char* platform);
