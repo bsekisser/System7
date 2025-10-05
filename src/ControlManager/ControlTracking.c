@@ -66,6 +66,21 @@ SInt16 TrackControl(ControlHandle theControl, Point thePoint,
         return 0;
     }
 
+    /* Route scrollbars to TrackScrollbar for delta-based tracking */
+    if (IsScrollBarControl(theControl)) {
+        SInt16 delta = 0;
+        partCode = TestControl(theControl, thePoint);
+        if (partCode == 0) {
+            return 0;
+        }
+        TrackScrollbar(theControl, thePoint, partCode, 0, &delta);
+        /* Call action proc if provided (for compatibility) */
+        if (actionProc && delta != 0) {
+            (*actionProc)(theControl, partCode);
+        }
+        return partCode;
+    }
+
     /* Test initial hit */
     partCode = TestControl(theControl, thePoint);
     if (partCode == 0) {

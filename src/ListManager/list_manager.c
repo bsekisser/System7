@@ -358,26 +358,23 @@ Boolean List_ValidateCell(ListMgrRec* list, Cell cell)
 void List_UpdateScrollbars(ListMgrRec* list)
 {
     short maxVal;
-    
+
     if (!list) return;
-    
-    /* Update vertical scrollbar */
+
+    /* Update vertical scrollbar with proportional thumb sizing */
     if (list->vScroll) {
         maxVal = list->rowCount - list->visibleRows;
         if (maxVal < 0) maxVal = 0;
-        
-        SetControlMinimum(list->vScroll, 0);
-        SetControlMaximum(list->vScroll, maxVal);
-        SetControlValue(list->vScroll, list->topRow);
+
+        /* Use UpdateScrollThumb to set value, range, AND visible span for proportional sizing */
+        UpdateScrollThumb(list->vScroll, list->topRow, 0, maxVal, list->visibleRows);
     }
-    
-    /* Update horizontal scrollbar */
+
+    /* Update horizontal scrollbar with proportional thumb sizing */
     if (list->hScroll) {
         maxVal = list->colCount - list->visibleCols;
         if (maxVal < 0) maxVal = 0;
-        
-        SetControlMinimum(list->hScroll, 0);
-        SetControlMaximum(list->hScroll, maxVal);
-        SetControlValue(list->hScroll, list->leftCol);
+
+        UpdateScrollThumb(list->hScroll, list->leftCol, 0, maxVal, list->visibleCols);
     }
 }

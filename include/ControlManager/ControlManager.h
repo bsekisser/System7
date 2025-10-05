@@ -123,6 +123,16 @@ SInt16 GetScrollBarPageSize(ControlHandle scrollBar);
 void SetScrollBarLiveTracking(ControlHandle scrollBar, Boolean liveTracking);
 Boolean GetScrollBarLiveTracking(ControlHandle scrollBar);
 
+/* Scrollbar Creation Helpers */
+ControlHandle NewVScrollBar(WindowPtr w, const Rect* bounds, SInt16 min, SInt16 max, SInt16 value);
+ControlHandle NewHScrollBar(WindowPtr w, const Rect* bounds, SInt16 min, SInt16 max, SInt16 value);
+
+/* Scrollbar Integration (for List Manager, etc.) */
+void UpdateScrollThumb(ControlHandle scrollBar, SInt16 value, SInt16 min, SInt16 max, SInt16 visibleSpan);
+/* Note: For horizontal scrollbars, part codes (inUpButton/inDownButton) map to left/right visually; use outDelta instead of interpreting part names literally. */
+SInt16 TrackScrollbar(ControlHandle scrollBar, Point startLocal, SInt16 startPart,
+                      SInt16 modifiers, SInt16* outDelta);
+
 /* Text Controls */
 void RegisterTextControlTypes(void);
 ControlHandle NewEditTextControl(WindowPtr window, const Rect *bounds,

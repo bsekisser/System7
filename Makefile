@@ -107,6 +107,7 @@ C_SOURCES = src/main.c \
             src/simple_resource_manager.c \
             src/ControlManager/ControlManagerCore.c \
             src/ControlManager/ControlTracking.c \
+            src/ControlManager/ScrollbarControls.c \
             src/control_stubs.c \
             src/patterns_rsrc.c \
             src/FS/hfs_diskio.c \

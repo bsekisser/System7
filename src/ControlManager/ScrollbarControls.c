@@ -1,124 +1,208 @@
-/* #include "SystemTypes.h" */
 /**
  * @file ScrollbarControls.c
- * @brief Scrollbar control implementation with thumb tracking
+ * @brief System 7-style Scrollbar Controls Implementation
  *
- * This file implements scrollbar controls including vertical and horizontal
- * scrollbars, thumb tracking, arrow buttons, and page areas. Scrollbars are
- * essential for navigating content in lists, text areas, and other scrollable views.
+ * Implements vertical and horizontal scrollbar controls with classic Mac semantics:
+ * - Arrow buttons (up/down or left/right) with repeat-on-hold
+ * - Page areas (click-to-scroll by visible span) with repeat-on-hold
+ * - Draggable thumb with proportional sizing
+ * - Integration with List Manager via LAttachScrollbars()
  *
  * Copyright (c) 2024 - System 7.1 Portable Toolbox Project
  * Licensed under MIT License
  */
 
-/* ScrollbarControls.h local */
-// #include "CompatibilityFix.h" // Removed
-#include "ControlManager/ControlManager.h"
-/* ControlDrawing.h not needed */
-/* ControlTracking.h local */
-#include "QuickDraw/QuickDraw.h"
-#include "EventManager/EventManager.h"
 #include "SystemTypes.h"
+#include "ControlManager/ControlManager.h"
+#include "ControlManager/ControlTypes.h"
+#include "QuickDraw/QuickDraw.h"
+#include "QuickDrawConstants.h"
+#include "EventManager/EventManager.h"
+#include "MemoryMgr/MemoryManager.h"
 
+/* External QuickDraw functions */
+extern void GetPort(GrafPtr* port);
+extern void SetPort(GrafPtr port);
+extern void GetClip(RgnHandle rgn);
+extern void SetClip(RgnHandle rgn);
+extern RgnHandle NewRgn(void);
+extern void DisposeRgn(RgnHandle rgn);
+extern void ClipRect(const Rect* r);
+extern void FrameRect(const Rect* r);
+extern void PaintRect(const Rect* r);
+extern void EraseRect(const Rect* r);
+extern void InvertRect(const Rect* r);
+extern void MoveTo(short h, short v);
+extern void LineTo(short h, short v);
+extern void FillRect(const Rect* r, const Pattern* pat);
+extern void PenPat(const Pattern* pat);
+extern void PenMode(short mode);
+extern Boolean PtInRect(Point pt, const Rect* r);
+extern struct QDGlobals qd;
+
+/* External system functions */
+extern void serial_printf(const char* fmt, ...);
+
+/* Debug logging - whitelist "[CTRL]", "Scrollbar", "TrackControl" */
+#ifndef CTRL_DEBUG
+#define CTRL_LOG(...) serial_printf("[CTRL] " __VA_ARGS__)
+#else
+#define CTRL_LOG(...)
+#endif
 
 /* Scrollbar constants */
 #define SCROLLBAR_WIDTH     16
-#define MIN_THUMB_SIZE      16
-#define ARROW_REPEAT_DELAY  30   /* Ticks before arrow repeat starts */
-#define ARROW_REPEAT_RATE   5    /* Ticks between arrow repeats */
-#define PAGE_REPEAT_DELAY   20   /* Ticks before page repeat starts */
-#define PAGE_REPEAT_RATE    10   /* Ticks between page repeats */
+#define MIN_THUMB_SIZE      10
+#define ARROW_INITIAL_DELAY 8   /* Ticks before first repeat */
+#define ARROW_REPEAT_RATE   3   /* Ticks between repeats */
+#define PAGE_INITIAL_DELAY  8
+#define PAGE_REPEAT_RATE    4
 
-/* Scrollbar data structure */
+/* Scrollbar procID (must match registration) */
+#define scrollBarProc       16
+
+/* Internal scrollbar data structure */
 typedef struct ScrollBarData {
-    Boolean isVertical;             /* Vertical vs horizontal orientation */
-    SInt16 pageSize;            /* Page size for proportional thumb */
+    Boolean vertical;           /* True for vertical, false for horizontal */
+    short visibleSpan;         /* Visible rows/cols (for thumb sizing) */
 
-    /* Scrollbar regions */
-    Rect upArrowRect;            /* Up/left arrow rectangle */
-    Rect downArrowRect;          /* Down/right arrow rectangle */
-    Rect thumbRect;              /* Thumb rectangle */
-    Rect pageUpRect;             /* Page up/left rectangle */
-    Rect pageDownRect;           /* Page down/right rectangle */
-    Rect trackRect;              /* Complete track rectangle */
-
-    /* Thumb calculation */
-    SInt16 thumbSize;           /* Calculated thumb size */
-    SInt16 thumbPos;            /* Calculated thumb position */
-    SInt16 trackLen;            /* Available track length */
+    /* Cached geometry */
+    Rect upArrow;              /* Up or left arrow rect */
+    Rect downArrow;            /* Down or right arrow rect */
+    Rect trackRect;            /* Total track area */
+    Rect thumbRect;            /* Current thumb rect */
+    Rect pageUpRect;           /* Page up/left area */
+    Rect pageDownRect;         /* Page down/right area */
 
     /* Tracking state */
-    SInt16 trackingPart;        /* Currently tracking part */
-    Point trackingOffset;        /* Mouse offset from thumb center */
-    UInt32 lastActionTime;     /* Time of last action */
-    UInt32 actionDelay;        /* Current action delay */
-
-    /* Visual state */
-    SInt16 hiliteUp;            /* Up arrow highlight state */
-    SInt16 hiliteDown;          /* Down arrow highlight state */
-    SInt16 hiliteThumb;         /* Thumb highlight state */
-
-    /* Platform support */
-    Boolean liveTracking;           /* Enable live tracking */
-    Boolean showThumbOutline;       /* Show thumb outline when tracking */
-
+    short pressedPart;         /* Currently pressed part (0 = none) */
+    UInt32 lastActionTime;     /* Tick of last action */
+    Boolean initialDelay;      /* True if waiting for initial delay */
 } ScrollBarData;
 
-/* Internal function prototypes */
-static void CalculateScrollBarRegions(ControlHandle scrollBar);
-static void UpdateScrollBarThumb(ControlHandle scrollBar);
-static void DrawScrollBarArrow(const Rect *arrowRect, SInt16 direction, Boolean pushed);
-static void DrawScrollBarThumb(ControlHandle scrollBar);
-static void DrawScrollBarTrack(ControlHandle scrollBar);
-static SInt16 CalcScrollBarPart(ControlHandle scrollBar, Point pt);
-static SInt16 CalcNewThumbValue(ControlHandle scrollBar, Point pt);
-static void HandleScrollBarTracking(ControlHandle scrollBar, SInt16 part, Point startPt);
-static void DrawThumbOutline(ControlHandle scrollBar, const Rect *thumbRect);
-static void ScrollBarAutoTrack(ControlHandle scrollBar);
+/* Forward declarations */
+static void CalcScrollbarRegions(ControlHandle c);
+static void CalcThumbRect(ControlHandle c);
+static void DrawScrollbarArrow(const Rect* r, short direction, Boolean hilite);
+static void DrawScrollbarThumb(ControlHandle c, Boolean hilite);
+static void DrawScrollbarTrack(const Rect* r);
+static short HitTestScrollbar(ControlHandle c, Point pt);
+static short CalcThumbValue(ControlHandle c, Point pt);
+
+/* QuickDraw state restoration macro */
+#define RESTORE_QD(savePort, saveClip) do { \
+    if (saveClip) { SetClip(saveClip); DisposeRgn(saveClip); } \
+    SetPort(savePort); \
+} while(0)
 
 /**
- * Register scrollbar control type
+ * NewVScrollBar - Create vertical scrollbar control
  */
-void RegisterScrollBarControlType(void) {
-    RegisterControlType(scrollBarProc, ScrollBarCDEF);
+ControlHandle NewVScrollBar(WindowPtr w, const Rect* bounds, short min, short max, short value)
+{
+    ControlHandle c;
+    ScrollBarData* data;
+
+    if (!w || !bounds) return NULL;
+
+    c = NewControl(w, bounds, (ConstStr255Param)"", true, value, min, max, scrollBarProc, 0);
+    if (!c) return NULL;
+
+    /* Scrollbar data initialized in initCntl message */
+    if ((*c)->contrlData) {
+        data = (ScrollBarData*)(*(*c)->contrlData);
+        data->vertical = true;
+        data->visibleSpan = 1;
+        CalcScrollbarRegions(c);
+        CalcThumbRect(c);
+    }
+
+    return c;
 }
 
 /**
- * Scroll bar control definition procedure
+ * NewHScrollBar - Create horizontal scrollbar control
  */
-SInt32 ScrollBarCDEF(SInt16 varCode, ControlHandle theControl,
-                      SInt16 message, SInt32 param) {
-    ScrollBarData *scrollData;
-    Point pt;
+ControlHandle NewHScrollBar(WindowPtr w, const Rect* bounds, short min, short max, short value)
+{
+    ControlHandle c;
+    ScrollBarData* data;
 
-    if (!theControl) {
-        return 0;
+    if (!w || !bounds) return NULL;
+
+    c = NewControl(w, bounds, (ConstStr255Param)"", true, value, min, max, scrollBarProc, 0);
+    if (!c) return NULL;
+
+    if ((*c)->contrlData) {
+        data = (ScrollBarData*)(*(*c)->contrlData);
+        data->vertical = false;
+        data->visibleSpan = 1;
+        CalcScrollbarRegions(c);
+        CalcThumbRect(c);
     }
+
+    return c;
+}
+
+/**
+ * UpdateScrollThumb - Update thumb for new range/value/visibleSpan
+ * Called by List Manager when content changes
+ */
+void UpdateScrollThumb(ControlHandle c, short value, short min, short max, short visibleSpan)
+{
+    ScrollBarData* data;
+
+    if (!c || !(*c)->contrlData) return;
+
+    data = (ScrollBarData*)(*(*c)->contrlData);
+
+    (*c)->contrlMin = min;
+    (*c)->contrlMax = max;
+    (*c)->contrlValue = value;
+    data->visibleSpan = visibleSpan > 0 ? visibleSpan : 1;
+
+    CalcThumbRect(c);
+
+    /* Redraw if visible */
+    if ((*c)->contrlVis) {
+        Draw1Control(c);
+    }
+}
+
+/**
+ * ScrollBarCDEF - Scrollbar control definition function
+ */
+SInt32 ScrollBarCDEF(SInt16 varCode, ControlHandle theControl, SInt16 message, SInt32 param)
+{
+    ScrollBarData* data;
+    Point pt;
+    Rect bounds;
+
+    (void)varCode; /* Unused */
+
+    if (!theControl) return 0;
 
     switch (message) {
     case initCntl:
-        /* Allocate scroll bar data */
-        (*theControl)->contrlData = NewHandleClear(sizeof(ScrollBarData));
+        /* Allocate scrollbar data */
+        (*theControl)->contrlData = NewHandle(sizeof(ScrollBarData));
         if ((*theControl)->contrlData) {
-            scrollData = (ScrollBarData *)*(*theControl)->contrlData;
+            data = (ScrollBarData*)(*(*theControl)->contrlData);
+            bounds = (*theControl)->contrlRect;
 
-            /* Determine orientation from control dimensions */
-            Rect bounds = (*theControl)->contrlRect;
-            scrollData->isVertical = (bounds.bottom - bounds.top) >
-                                    (bounds.right - bounds.left);
+            /* Determine orientation from aspect ratio */
+            data->vertical = (bounds.bottom - bounds.top) > (bounds.right - bounds.left);
+            data->visibleSpan = 1;
+            data->pressedPart = 0;
+            data->lastActionTime = 0;
+            data->initialDelay = true;
 
-            scrollData->pageSize = 10;  /* Default page size */
-            scrollData->liveTracking = true;
-            scrollData->showThumbOutline = false;
-
-            /* Calculate scrollbar regions */
-            CalculateScrollBarRegions(theControl);
-            UpdateScrollBarThumb(theControl);
+            CalcScrollbarRegions(theControl);
+            CalcThumbRect(theControl);
         }
         break;
 
     case dispCntl:
-        /* Dispose scroll bar data */
         if ((*theControl)->contrlData) {
             DisposeHandle((*theControl)->contrlData);
             (*theControl)->contrlData = NULL;
@@ -126,55 +210,19 @@ SInt32 ScrollBarCDEF(SInt16 varCode, ControlHandle theControl,
         break;
 
     case drawCntl:
-        /* Draw scroll bar */
         DrawScrollBar(theControl);
         break;
 
     case testCntl:
-        /* Test which part of scroll bar was hit */
-        pt = *(Point *)&param;
-        return CalcScrollBarPart(theControl, pt);
-
-    case calcCRgns:
-    case calcCntlRgn:
-        /* Recalculate scroll bar regions */
-        CalculateScrollBarRegions(theControl);
-        UpdateScrollBarThumb(theControl);
-        break;
-
-    case calcThumbRgn:
-        /* Calculate thumb region */
-        if ((*theControl)->contrlData) {
-            scrollData = (ScrollBarData *)*(*theControl)->contrlData;
-            /* Return thumb rectangle encoded as parameter */
-            return *(SInt32 *)&scrollData->thumbRect;
-        }
-        break;
+        pt.h = (short)((param >> 16) & 0xFFFF);
+        pt.v = (short)(param & 0xFFFF);
+        return HitTestScrollbar(theControl, pt);
 
     case posCntl:
-        /* Update thumb position for new value */
-        UpdateScrollBarThumb(theControl);
-        break;
-
-    case thumbCntl:
-        /* Handle thumb tracking */
-        if ((*theControl)->contrlData) {
-            pt = *(Point *)&param;
-            HandleScrollBarTracking(theControl, inThumb, pt);
-        }
-        break;
-
-    case autoTrack:
-        /* Handle automatic tracking for arrows and pages */
-        ScrollBarAutoTrack(theControl);
-        break;
-
-    case drawThumbOutline:
-        /* Draw thumb outline (private message) */
-        if ((*theControl)->contrlData) {
-            scrollData = (ScrollBarData *)*(*theControl)->contrlData;
-            DrawThumbOutline(theControl, &scrollData->thumbRect);
-        }
+    case calcCRgns:
+    case calcCntlRgn:
+        CalcScrollbarRegions(theControl);
+        CalcThumbRect(theControl);
         break;
     }
 
@@ -182,564 +230,602 @@ SInt32 ScrollBarCDEF(SInt16 varCode, ControlHandle theControl,
 }
 
 /**
- * Draw complete scrollbar
+ * DrawScrollBar - Draw complete scrollbar
  */
-void DrawScrollBar(ControlHandle scrollBar) {
-    ScrollBarData *scrollData;
+void DrawScrollBar(ControlHandle scrollBar)
+{
+    GrafPtr savePort;
+    RgnHandle saveClip;
+    ScrollBarData* data;
+    Boolean hiliteUp, hiliteDown, hiliteThumb;
+    Boolean disabled;
 
-    if (!scrollBar || !(*scrollBar)->contrlData) {
-        return;
+    if (!scrollBar || !(*scrollBar)->contrlData) return;
+
+    data = (ScrollBarData*)(*(*scrollBar)->contrlData);
+
+    /* Save QD state */
+    GetPort(&savePort);
+    SetPort((GrafPtr)(*scrollBar)->contrlOwner);
+    saveClip = NewRgn();
+    if (saveClip) {
+        GetClip(saveClip);
+        ClipRect(&(*scrollBar)->contrlRect);
     }
 
-    scrollData = (ScrollBarData *)*(*scrollBar)->contrlData;
+    /* Check if disabled */
+    disabled = ((*scrollBar)->contrlMax <= (*scrollBar)->contrlMin) ||
+               ((*scrollBar)->contrlHilite == (UInt8)inactiveHilite);
 
-    /* Draw scrollbar track */
-    DrawScrollBarTrack(scrollBar);
+    /* Determine hilite states */
+    hiliteUp = (data->pressedPart == inUpButton);
+    hiliteDown = (data->pressedPart == inDownButton);
+    hiliteThumb = (data->pressedPart == inThumb);
 
-    /* Draw up/left arrow */
-    DrawScrollBarArrow(&scrollData->upArrowRect,
-                      scrollData->isVertical ? 0 : 3,
-                      scrollData->hiliteUp != 0);
+    /* Draw track */
+    DrawScrollbarTrack(&data->trackRect);
 
-    /* Draw down/right arrow */
-    DrawScrollBarArrow(&scrollData->downArrowRect,
-                      scrollData->isVertical ? 1 : 2,
-                      scrollData->hiliteDown != 0);
+    /* Draw arrows */
+    DrawScrollbarArrow(&data->upArrow, data->vertical ? 0 : 3, hiliteUp);
+    DrawScrollbarArrow(&data->downArrow, data->vertical ? 1 : 2, hiliteDown);
 
     /* Draw thumb */
-    DrawScrollBarThumb(scrollBar);
+    if (!disabled) {
+        DrawScrollbarThumb(scrollBar, hiliteThumb);
+    }
 
     /* Gray out if inactive */
-    if ((*scrollBar)->contrlHilite == inactiveHilite) {
-        Rect bounds = (*scrollBar)->contrlRect;
-        PenPat(&gray);
+    if ((*scrollBar)->contrlHilite == (UInt8)inactiveHilite) {
         PenMode(patBic);
-        PaintRect(&bounds);
+        PenPat(&qd.gray);
+        PaintRect(&(*scrollBar)->contrlRect);
         PenMode(patCopy);
-        PenPat(&black);
+        PenPat(&qd.black);
+    }
+
+    RESTORE_QD(savePort, saveClip);
+}
+
+/**
+ * ScrollbarHilite - Highlight a scrollbar part (internal helper)
+ */
+static void ScrollbarHilite(ControlHandle c, short part)
+{
+    ScrollBarData* data;
+
+    if (!c || !(*c)->contrlData) return;
+
+    data = (ScrollBarData*)(*(*c)->contrlData);
+    data->pressedPart = part;
+
+    if ((*c)->contrlVis) {
+        Draw1Control(c);
+    }
+}
+
+/* Note: TestControl is provided by ControlManager core - no need to redefine */
+
+/**
+ * TrackScrollbar - Track mouse in scrollbar until button release
+ * Returns part code and sets *outDelta to value change
+ * Note: Use this instead of TrackControl for scrollbars when you need delta values
+ */
+short TrackScrollbar(ControlHandle c, Point startLocal, short startPart,
+                     short modifiers, short* outDelta)
+{
+    ScrollBarData* data;
+    short startValue, newValue, delta;
+    Point pt;
+    Boolean stillInPart;
+    UInt32 now;
+    short trackPart;
+
+    (void)modifiers; /* Unused */
+
+    if (!c || !(*c)->contrlData || !outDelta) return 0;
+
+    data = (ScrollBarData*)(*(*c)->contrlData);
+    startValue = (*c)->contrlValue;  /* Save initial value for final delta */
+    delta = 0;
+    trackPart = startPart;
+
+    /* Highlight pressed part */
+    ScrollbarHilite(c, startPart);
+
+    if (startPart == inThumb) {
+        /* Thumb drag tracking */
+        while (StillDown()) {
+            GetMouse(&pt);
+            newValue = CalcThumbValue(c, pt);
+            if (newValue != (*c)->contrlValue) {
+                /* TODO(perf): Consider invalidating union(oldThumb, newThumb) instead of redrawing whole control */
+                SetControlValue(c, newValue);
+            }
+        }
+    } else if (startPart == inUpButton || startPart == inDownButton ||
+               startPart == inPageUp || startPart == inPageDown) {
+        /* Arrow or page tracking with repeat */
+        Boolean isPage;
+        UInt32 initialDelay, repeatRate;
+
+        /* Determine timing based on part type */
+        isPage = (startPart == inPageUp || startPart == inPageDown);
+        initialDelay = isPage ? PAGE_INITIAL_DELAY : ARROW_INITIAL_DELAY;
+        repeatRate = isPage ? PAGE_REPEAT_RATE : ARROW_REPEAT_RATE;
+
+        data->initialDelay = true;
+        data->lastActionTime = TickCount();
+
+        /* Perform initial action */
+        if (startPart == inUpButton) {
+            delta = -1;
+        } else if (startPart == inDownButton) {
+            delta = 1;
+        } else if (startPart == inPageUp) {
+            delta = -data->visibleSpan;
+        } else if (startPart == inPageDown) {
+            delta = data->visibleSpan;
+        }
+
+        newValue = (*c)->contrlValue + delta;
+        if (newValue < (*c)->contrlMin) newValue = (*c)->contrlMin;
+        if (newValue > (*c)->contrlMax) newValue = (*c)->contrlMax;
+        SetControlValue(c, newValue);
+
+        /* Track with repeat using part-specific timing */
+        while (StillDown()) {
+            GetMouse(&pt);
+            stillInPart = (HitTestScrollbar(c, pt) == startPart);
+
+            if (stillInPart) {
+                now = TickCount();
+                if (data->initialDelay) {
+                    if (now - data->lastActionTime >= initialDelay) {
+                        data->initialDelay = false;
+                        data->lastActionTime = now;
+                    }
+                } else {
+                    if (now - data->lastActionTime >= repeatRate) {
+                        /* Repeat action */
+                        if (startPart == inUpButton) {
+                            delta = -1;
+                        } else if (startPart == inDownButton) {
+                            delta = 1;
+                        } else if (startPart == inPageUp) {
+                            delta = -data->visibleSpan;
+                        } else {
+                            delta = data->visibleSpan;
+                        }
+
+                        newValue = (*c)->contrlValue + delta;
+                        if (newValue < (*c)->contrlMin) newValue = (*c)->contrlMin;
+                        if (newValue > (*c)->contrlMax) newValue = (*c)->contrlMax;
+                        SetControlValue(c, newValue);
+
+                        data->lastActionTime = now;
+                    }
+                }
+
+                /* Keep highlighted */
+                if (data->pressedPart != startPart) {
+                    ScrollbarHilite(c, startPart);
+                }
+            } else {
+                /* Mouse left part - unhighlight */
+                if (data->pressedPart == startPart) {
+                    ScrollbarHilite(c, 0);
+                }
+            }
+        }
+    }
+
+    /* Unhighlight */
+    ScrollbarHilite(c, 0);
+
+    /* Compute final delta from start to end */
+    *outDelta = (*c)->contrlValue - startValue;
+
+    CTRL_LOG("TrackScrollbar: part=%d delta=%d\n", trackPart, *outDelta);
+
+    return trackPart;
+}
+
+/* ================================================================
+ * INTERNAL IMPLEMENTATION
+ * ================================================================ */
+
+/**
+ * CalcScrollbarRegions - Compute arrow and track rects
+ */
+static void CalcScrollbarRegions(ControlHandle c)
+{
+    ScrollBarData* data;
+    Rect bounds;
+
+    if (!c || !(*c)->contrlData) return;
+
+    data = (ScrollBarData*)(*(*c)->contrlData);
+    bounds = (*c)->contrlRect;
+
+    if (data->vertical) {
+        /* Vertical: arrows at top/bottom */
+        data->upArrow = bounds;
+        data->upArrow.bottom = data->upArrow.top + SCROLLBAR_WIDTH;
+
+        data->downArrow = bounds;
+        data->downArrow.top = data->downArrow.bottom - SCROLLBAR_WIDTH;
+
+        data->trackRect = bounds;
+        data->trackRect.top = data->upArrow.bottom;
+        data->trackRect.bottom = data->downArrow.top;
+    } else {
+        /* Horizontal: arrows at left/right */
+        data->upArrow = bounds;
+        data->upArrow.right = data->upArrow.left + SCROLLBAR_WIDTH;
+
+        data->downArrow = bounds;
+        data->downArrow.left = data->downArrow.right - SCROLLBAR_WIDTH;
+
+        data->trackRect = bounds;
+        data->trackRect.left = data->upArrow.right;
+        data->trackRect.right = data->downArrow.left;
     }
 }
 
 /**
- * Calculate scrollbar value from point
+ * CalcThumbRect - Compute thumb rect based on value/range/visibleSpan
  */
-SInt16 CalcScrollBarPart(ControlHandle scrollBar, Point pt) {
-    ScrollBarData *scrollData;
+static void CalcThumbRect(ControlHandle c)
+{
+    ScrollBarData* data;
+    short range, trackLen, thumbLen, thumbPos;
+    short value;
 
-    if (!scrollBar || !(*scrollBar)->contrlData) {
+    if (!c || !(*c)->contrlData) return;
+
+    data = (ScrollBarData*)(*(*c)->contrlData);
+    range = (*c)->contrlMax - (*c)->contrlMin;
+    value = (*c)->contrlValue - (*c)->contrlMin;
+
+    if (data->vertical) {
+        trackLen = data->trackRect.bottom - data->trackRect.top;
+    } else {
+        trackLen = data->trackRect.right - data->trackRect.left;
+    }
+
+    if (range <= 0 || trackLen <= 0) {
+        /* Disabled or invalid - thumb fills track */
+        data->thumbRect = data->trackRect;
+        data->pageUpRect = data->trackRect;
+        data->pageUpRect.bottom = data->pageUpRect.top;
+        data->pageDownRect = data->trackRect;
+        data->pageDownRect.top = data->pageDownRect.bottom;
+        return;
+    }
+
+    /* Proportional thumb: size = (visible / total) * trackLen */
+    thumbLen = (data->visibleSpan * trackLen) / (range + data->visibleSpan);
+    if (thumbLen < MIN_THUMB_SIZE) thumbLen = MIN_THUMB_SIZE;
+    if (thumbLen > trackLen) thumbLen = trackLen;
+
+    /* Thumb position */
+    if (range > 0) {
+        thumbPos = (value * (trackLen - thumbLen)) / range;
+    } else {
+        thumbPos = 0;
+    }
+
+    /* Build thumb rect */
+    if (data->vertical) {
+        data->thumbRect = data->trackRect;
+        data->thumbRect.top += thumbPos;
+        data->thumbRect.bottom = data->thumbRect.top + thumbLen;
+
+        /* Page areas */
+        data->pageUpRect = data->trackRect;
+        data->pageUpRect.bottom = data->thumbRect.top;
+
+        data->pageDownRect = data->trackRect;
+        data->pageDownRect.top = data->thumbRect.bottom;
+    } else {
+        data->thumbRect = data->trackRect;
+        data->thumbRect.left += thumbPos;
+        data->thumbRect.right = data->thumbRect.left + thumbLen;
+
+        data->pageUpRect = data->trackRect;
+        data->pageUpRect.right = data->thumbRect.left;
+
+        data->pageDownRect = data->trackRect;
+        data->pageDownRect.left = data->thumbRect.right;
+    }
+}
+
+/**
+ * DrawScrollbarArrow - Draw arrow button
+ * direction: 0=up, 1=down, 2=right, 3=left
+ */
+static void DrawScrollbarArrow(const Rect* r, short direction, Boolean hilite)
+{
+    Rect arrowFrame;
+    short cx, cy;
+    short x1, y1, x2, y2, x3, y3;
+
+    arrowFrame = *r;
+
+    /* Draw button background */
+    if (hilite) {
+        PenPat(&qd.gray);
+        PaintRect(&arrowFrame);
+        PenPat(&qd.black);
+        FrameRect(&arrowFrame);
+    } else {
+        PenPat(&qd.ltGray);
+        PaintRect(&arrowFrame);
+        /* 3D highlight */
+        PenPat(&qd.white);
+        MoveTo(arrowFrame.left, arrowFrame.bottom - 1);
+        LineTo(arrowFrame.left, arrowFrame.top);
+        LineTo(arrowFrame.right - 1, arrowFrame.top);
+        PenPat(&qd.black);
+        LineTo(arrowFrame.right - 1, arrowFrame.bottom - 1);
+        LineTo(arrowFrame.left, arrowFrame.bottom - 1);
+    }
+
+    /* Draw arrow triangle */
+    cx = (arrowFrame.left + arrowFrame.right) / 2;
+    cy = (arrowFrame.top + arrowFrame.bottom) / 2;
+
+    PenPat(&qd.black);
+
+    switch (direction) {
+    case 0: /* Up */
+        x1 = cx; y1 = cy - 3;
+        x2 = cx - 3; y2 = cy + 3;
+        x3 = cx + 3; y3 = cy + 3;
+        break;
+    case 1: /* Down */
+        x1 = cx; y1 = cy + 3;
+        x2 = cx - 3; y2 = cy - 3;
+        x3 = cx + 3; y3 = cy - 3;
+        break;
+    case 2: /* Right */
+        x1 = cx + 3; y1 = cy;
+        x2 = cx - 3; y2 = cy - 3;
+        x3 = cx - 3; y3 = cy + 3;
+        break;
+    default: /* Left */
+        x1 = cx - 3; y1 = cy;
+        x2 = cx + 3; y2 = cy - 3;
+        x3 = cx + 3; y3 = cy + 3;
+        break;
+    }
+
+    /* Paint triangle */
+    MoveTo(x1, y1);
+    LineTo(x2, y2);
+    LineTo(x3, y3);
+    LineTo(x1, y1);
+}
+
+/**
+ * DrawScrollbarThumb - Draw thumb indicator
+ */
+static void DrawScrollbarThumb(ControlHandle c, Boolean hilite)
+{
+    ScrollBarData* data;
+    Rect thumb;
+    short cx, cy;
+
+    if (!c || !(*c)->contrlData) return;
+
+    data = (ScrollBarData*)(*(*c)->contrlData);
+    thumb = data->thumbRect;
+
+    /* Don't draw if too small */
+    if (thumb.right <= thumb.left + 2 || thumb.bottom <= thumb.top + 2) {
+        return;
+    }
+
+    if (hilite) {
+        /* Inverted thumb when dragging */
+        PenPat(&qd.black);
+        PaintRect(&thumb);
+    } else {
+        /* Normal 3D thumb */
+        PenPat(&qd.ltGray);
+        PaintRect(&thumb);
+
+        PenPat(&qd.white);
+        MoveTo(thumb.left, thumb.bottom - 1);
+        LineTo(thumb.left, thumb.top);
+        LineTo(thumb.right - 1, thumb.top);
+
+        PenPat(&qd.dkGray);
+        LineTo(thumb.right - 1, thumb.bottom - 1);
+        LineTo(thumb.left, thumb.bottom - 1);
+
+        /* Draw grip */
+        cx = (thumb.left + thumb.right) / 2;
+        cy = (thumb.top + thumb.bottom) / 2;
+
+        PenPat(&qd.dkGray);
+        if (data->vertical && (thumb.bottom - thumb.top) >= 12) {
+            MoveTo(cx - 3, cy - 1);
+            LineTo(cx + 4, cy - 1);
+            MoveTo(cx - 3, cy + 1);
+            LineTo(cx + 4, cy + 1);
+        } else if (!data->vertical && (thumb.right - thumb.left) >= 12) {
+            MoveTo(cx - 1, cy - 3);
+            LineTo(cx - 1, cy + 4);
+            MoveTo(cx + 1, cy - 3);
+            LineTo(cx + 1, cy + 4);
+        }
+    }
+
+    PenPat(&qd.black);
+}
+
+/**
+ * DrawScrollbarTrack - Draw track background
+ */
+static void DrawScrollbarTrack(const Rect* r)
+{
+    PenPat(&qd.white);
+    PaintRect(r);
+    PenPat(&qd.black);
+    FrameRect(r);
+}
+
+/**
+ * HitTestScrollbar - Return part code for point
+ */
+static short HitTestScrollbar(ControlHandle c, Point pt)
+{
+    ScrollBarData* data;
+
+    if (!c || !(*c)->contrlData) return 0;
+
+    /* Disabled scrollbars return inNothing (0) */
+    if ((*c)->contrlMax <= (*c)->contrlMin ||
+        (*c)->contrlHilite == (UInt8)inactiveHilite) {
         return 0;
     }
 
-    scrollData = (ScrollBarData *)*(*scrollBar)->contrlData;
+    data = (ScrollBarData*)(*(*c)->contrlData);
 
-    /* Test each scrollbar part */
-    if (PtInRect(pt, &scrollData->upArrowRect)) {
-        return inUpButton;
-    }
-    if (PtInRect(pt, &scrollData->downArrowRect)) {
-        return inDownButton;
-    }
-    if (PtInRect(pt, &scrollData->thumbRect)) {
-        return inThumb;
-    }
-    if (PtInRect(pt, &scrollData->pageUpRect)) {
-        return inPageUp;
-    }
-    if (PtInRect(pt, &scrollData->pageDownRect)) {
-        return inPageDown;
-    }
+    if (PtInRect(pt, &data->upArrow)) return inUpButton;
+    if (PtInRect(pt, &data->downArrow)) return inDownButton;
+    if (PtInRect(pt, &data->thumbRect)) return inThumb;
+    if (PtInRect(pt, &data->pageUpRect)) return inPageUp;
+    if (PtInRect(pt, &data->pageDownRect)) return inPageDown;
 
     return 0;
 }
 
 /**
- * Set scrollbar page size
+ * CalcThumbValue - Calculate value from thumb drag point
  */
-void SetScrollBarPageSize(ControlHandle scrollBar, SInt16 pageSize) {
-    ScrollBarData *scrollData;
+static short CalcThumbValue(ControlHandle c, Point pt)
+{
+    ScrollBarData* data;
+    short range, trackLen, thumbLen;
+    short mousePos, trackStart;
+    SInt32 newValue;
 
-    if (!scrollBar || !(*scrollBar)->contrlData || pageSize < 1) {
-        return;
-    }
+    if (!c || !(*c)->contrlData) return (*c)->contrlValue;
 
-    scrollData = (ScrollBarData *)*(*scrollBar)->contrlData;
-    if (scrollData->pageSize != pageSize) {
-        scrollData->pageSize = pageSize;
-        UpdateScrollBarThumb(scrollBar);
+    data = (ScrollBarData*)(*(*c)->contrlData);
+    range = (*c)->contrlMax - (*c)->contrlMin;
 
-        /* Redraw if visible */
-        if ((*scrollBar)->contrlVis) {
-            Draw1Control(scrollBar);
-        }
-    }
-}
+    if (range <= 0) return (*c)->contrlValue;
 
-/**
- * Get scrollbar page size
- */
-SInt16 GetScrollBarPageSize(ControlHandle scrollBar) {
-    ScrollBarData *scrollData;
-
-    if (!scrollBar || !(*scrollBar)->contrlData) {
-        return 0;
-    }
-
-    scrollData = (ScrollBarData *)*(*scrollBar)->contrlData;
-    return scrollData->pageSize;
-}
-
-/**
- * Set scrollbar live tracking
- */
-void SetScrollBarLiveTracking(ControlHandle scrollBar, Boolean liveTracking) {
-    ScrollBarData *scrollData;
-
-    if (!scrollBar || !(*scrollBar)->contrlData) {
-        return;
-    }
-
-    scrollData = (ScrollBarData *)*(*scrollBar)->contrlData;
-    scrollData->liveTracking = liveTracking;
-}
-
-/**
- * Get scrollbar live tracking
- */
-Boolean GetScrollBarLiveTracking(ControlHandle scrollBar) {
-    ScrollBarData *scrollData;
-
-    if (!scrollBar || !(*scrollBar)->contrlData) {
-        return false;
-    }
-
-    scrollData = (ScrollBarData *)*(*scrollBar)->contrlData;
-    return scrollData->liveTracking;
-}
-
-/* Internal Implementation */
-
-/**
- * Calculate scrollbar regions
- */
-static void CalculateScrollBarRegions(ControlHandle scrollBar) {
-    ScrollBarData *scrollData;
-    Rect bounds;
-
-    if (!scrollBar || !(*scrollBar)->contrlData) {
-        return;
-    }
-
-    scrollData = (ScrollBarData *)*(*scrollBar)->contrlData;
-    bounds = (*scrollBar)->contrlRect;
-
-    if (scrollData->isVertical) {
-        /* Vertical scrollbar */
-        scrollData->upArrowRect = bounds;
-        (scrollData)->bottom = (scrollData)->top + SCROLLBAR_WIDTH;
-
-        scrollData->downArrowRect = bounds;
-        (scrollData)->top = (scrollData)->bottom - SCROLLBAR_WIDTH;
-
-        scrollData->trackRect = bounds;
-        (scrollData)->top = (scrollData)->bottom;
-        (scrollData)->bottom = (scrollData)->top;
-
-        scrollData->trackLen = (scrollData)->bottom - (scrollData)->top;
+    if (data->vertical) {
+        trackLen = data->trackRect.bottom - data->trackRect.top;
+        thumbLen = data->thumbRect.bottom - data->thumbRect.top;
+        mousePos = pt.v;
+        trackStart = data->trackRect.top;
     } else {
-        /* Horizontal scrollbar */
-        scrollData->upArrowRect = bounds;
-        (scrollData)->right = (scrollData)->left + SCROLLBAR_WIDTH;
-
-        scrollData->downArrowRect = bounds;
-        (scrollData)->left = (scrollData)->right - SCROLLBAR_WIDTH;
-
-        scrollData->trackRect = bounds;
-        (scrollData)->left = (scrollData)->right;
-        (scrollData)->right = (scrollData)->left;
-
-        scrollData->trackLen = (scrollData)->right - (scrollData)->left;
+        trackLen = data->trackRect.right - data->trackRect.left;
+        thumbLen = data->thumbRect.right - data->thumbRect.left;
+        mousePos = pt.h;
+        trackStart = data->trackRect.left;
     }
+
+    if (trackLen <= thumbLen) return (*c)->contrlValue;
+
+    /* Map mouse position to value */
+    newValue = ((mousePos - trackStart) * (SInt32)range) / (trackLen - thumbLen);
+    newValue += (*c)->contrlMin;
+
+    /* Clamp */
+    if (newValue < (*c)->contrlMin) newValue = (*c)->contrlMin;
+    if (newValue > (*c)->contrlMax) newValue = (*c)->contrlMax;
+
+    return (short)newValue;
 }
 
 /**
- * Update scrollbar thumb position and size
+ * RegisterScrollBarControlType - Register scrollbar CDEF
  */
-static void UpdateScrollBarThumb(ControlHandle scrollBar) {
-    ScrollBarData *scrollData;
-    SInt32 range, value;
-    SInt16 thumbLen, thumbPos;
-
-    if (!scrollBar || !(*scrollBar)->contrlData) {
-        return;
-    }
-
-    scrollData = (ScrollBarData *)*(*scrollBar)->contrlData;
-    range = (*scrollBar)->contrlMax - (*scrollBar)->contrlMin;
-    value = (*scrollBar)->contrlValue - (*scrollBar)->contrlMin;
-
-    if (range <= 0) {
-        /* No range - thumb fills track */
-        thumbLen = scrollData->trackLen;
-        thumbPos = 0;
-    } else {
-        /* Calculate proportional thumb size */
-        thumbLen = (scrollData->pageSize * scrollData->trackLen) /
-                   (range + scrollData->pageSize);
-
-        /* Enforce minimum thumb size */
-        if (thumbLen < MIN_THUMB_SIZE) {
-            thumbLen = MIN_THUMB_SIZE;
-        }
-        if (thumbLen > scrollData->trackLen) {
-            thumbLen = scrollData->trackLen;
-        }
-
-        /* Calculate thumb position */
-        if (range > 0) {
-            thumbPos = (value * (scrollData->trackLen - thumbLen)) / range;
-        } else {
-            thumbPos = 0;
-        }
-    }
-
-    scrollData->thumbSize = thumbLen;
-    scrollData->thumbPos = thumbPos;
-
-    /* Calculate thumb rectangle */
-    if (scrollData->isVertical) {
-        scrollData->thumbRect = scrollData->trackRect;
-        (scrollData)->top = (scrollData)->top + thumbPos;
-        (scrollData)->bottom = (scrollData)->top + thumbLen;
-
-        /* Calculate page areas */
-        scrollData->pageUpRect = scrollData->trackRect;
-        (scrollData)->bottom = (scrollData)->top;
-
-        scrollData->pageDownRect = scrollData->trackRect;
-        (scrollData)->top = (scrollData)->bottom;
-    } else {
-        scrollData->thumbRect = scrollData->trackRect;
-        (scrollData)->left = (scrollData)->left + thumbPos;
-        (scrollData)->right = (scrollData)->left + thumbLen;
-
-        /* Calculate page areas */
-        scrollData->pageUpRect = scrollData->trackRect;
-        (scrollData)->right = (scrollData)->left;
-
-        scrollData->pageDownRect = scrollData->trackRect;
-        (scrollData)->left = (scrollData)->right;
-    }
+void RegisterScrollBarControlType(void)
+{
+    RegisterControlType(scrollBarProc, ScrollBarCDEF);
+    CTRL_LOG("Scrollbar control type registered (procID=%d)\n", scrollBarProc);
 }
 
 /**
- * Draw scrollbar arrow
+ * IsScrollBarControl - Check if control is a scrollbar
  */
-static void DrawScrollBarArrow(const Rect *arrowRect, SInt16 direction, Boolean pushed) {
-    Rect frameRect = *arrowRect;
-    Point arrowPts[3];
-    SInt16 centerH, centerV;
-
-    /* Draw arrow button frame */
-    if (pushed) {
-        /* Pushed state */
-        PenPat(&black);
-        FrameRect(&frameRect);
-        InsetRect(&frameRect, 1, 1);
-        PenPat(&dkGray);
-        PaintRect(&frameRect);
-    } else {
-        /* Normal state */
-        PenPat(&ltGray);
-        PaintRect(&frameRect);
-        PenPat(&white);
-        MoveTo(frameRect.left, frameRect.bottom - 1);
-        LineTo(frameRect.left, frameRect.top);
-        LineTo(frameRect.right - 1, frameRect.top);
-        PenPat(&black);
-        LineTo(frameRect.right - 1, frameRect.bottom - 1);
-        LineTo(frameRect.left, frameRect.bottom - 1);
-    }
-
-    /* Calculate arrow center */
-    centerH = (frameRect.left + frameRect.right) / 2;
-    centerV = (frameRect.top + frameRect.bottom) / 2;
-
-    /* Draw arrow triangle */
-    PenPat(&black);
-    switch (direction) {
-    case 0: /* Up arrow */
-        arrowPts[0].h = centerH;
-        arrowPts[0].v = centerV - 3;
-        arrowPts[1].h = centerH - 3;
-        arrowPts[1].v = centerV + 3;
-        arrowPts[2].h = centerH + 3;
-        arrowPts[2].v = centerV + 3;
-        break;
-
-    case 1: /* Down arrow */
-        arrowPts[0].h = centerH;
-        arrowPts[0].v = centerV + 3;
-        arrowPts[1].h = centerH - 3;
-        arrowPts[1].v = centerV - 3;
-        arrowPts[2].h = centerH + 3;
-        arrowPts[2].v = centerV - 3;
-        break;
-
-    case 2: /* Right arrow */
-        arrowPts[0].h = centerH + 3;
-        arrowPts[0].v = centerV;
-        arrowPts[1].h = centerH - 3;
-        arrowPts[1].v = centerV - 3;
-        arrowPts[2].h = centerH - 3;
-        arrowPts[2].v = centerV + 3;
-        break;
-
-    case 3: /* Left arrow */
-        arrowPts[0].h = centerH - 3;
-        arrowPts[0].v = centerV;
-        arrowPts[1].h = centerH + 3;
-        arrowPts[1].v = centerV - 3;
-        arrowPts[2].h = centerH + 3;
-        arrowPts[2].v = centerV + 3;
-        break;
-    }
-
-    /* Paint arrow triangle */
-    OpenPoly();
-    MoveTo(arrowPts[0].h, arrowPts[0].v);
-    LineTo(arrowPts[1].h, arrowPts[1].v);
-    LineTo(arrowPts[2].h, arrowPts[2].v);
-    LineTo(arrowPts[0].h, arrowPts[0].v);
-    PolyHandle arrowPoly = ClosePoly();
-
-    if (arrowPoly) {
-        PaintPoly(arrowPoly);
-        KillPoly(arrowPoly);
-    }
+Boolean IsScrollBarControl(ControlHandle c)
+{
+    if (!c) return false;
+    return (GetControlVariant(c) & 0xFFF0) == scrollBarProc;
 }
 
 /**
- * Draw scrollbar thumb
+ * SetScrollBarPageSize - Set page size (visibleSpan)
  */
-static void DrawScrollBarThumb(ControlHandle scrollBar) {
-    ScrollBarData *scrollData;
-    Rect thumbRect;
+void SetScrollBarPageSize(ControlHandle c, SInt16 pageSize)
+{
+    ScrollBarData* data;
 
-    if (!scrollBar || !(*scrollBar)->contrlData) {
-        return;
-    }
+    if (!c || !(*c)->contrlData || pageSize < 1) return;
 
-    scrollData = (ScrollBarData *)*(*scrollBar)->contrlData;
-    thumbRect = scrollData->thumbRect;
+    data = (ScrollBarData*)(*(*c)->contrlData);
+    data->visibleSpan = pageSize;
 
-    /* Don't draw thumb if too small */
-    if ((thumbRect.right - thumbRect.left) <= 2 ||
-        (thumbRect.bottom - thumbRect.top) <= 2) {
-        return;
-    }
-
-    /* Draw thumb frame */
-    if (scrollData->hiliteThumb) {
-        /* Highlighted thumb */
-        PenPat(&black);
-        PaintRect(&thumbRect);
-    } else {
-        /* Normal thumb */
-        PenPat(&ltGray);
-        PaintRect(&thumbRect);
-
-        /* Highlight edges */
-        PenPat(&white);
-        MoveTo(thumbRect.left, thumbRect.bottom - 1);
-        LineTo(thumbRect.left, thumbRect.top);
-        LineTo(thumbRect.right - 1, thumbRect.top);
-
-        /* Shadow edges */
-        PenPat(&dkGray);
-        LineTo(thumbRect.right - 1, thumbRect.bottom - 1);
-        LineTo(thumbRect.left, thumbRect.bottom - 1);
-    }
-
-    /* Draw thumb grip lines */
-    if (!scrollData->hiliteThumb) {
-        SInt16 centerH = (thumbRect.left + thumbRect.right) / 2;
-        SInt16 centerV = (thumbRect.top + thumbRect.bottom) / 2;
-
-        PenPat(&dkGray);
-        if (scrollData->isVertical) {
-            /* Horizontal grip lines */
-            MoveTo(centerH - 3, centerV - 1);
-            LineTo(centerH + 3, centerV - 1);
-            MoveTo(centerH - 3, centerV + 1);
-            LineTo(centerH + 3, centerV + 1);
-        } else {
-            /* Vertical grip lines */
-            MoveTo(centerH - 1, centerV - 3);
-            LineTo(centerH - 1, centerV + 3);
-            MoveTo(centerH + 1, centerV - 3);
-            LineTo(centerH + 1, centerV + 3);
-        }
-    }
-
-    PenPat(&black);
+    CalcThumbRect(c);
+    if ((*c)->contrlVis) Draw1Control(c);
 }
 
 /**
- * Draw scrollbar track
+ * GetScrollBarPageSize - Get page size
  */
-static void DrawScrollBarTrack(ControlHandle scrollBar) {
-    ScrollBarData *scrollData;
-    Rect trackRect;
+SInt16 GetScrollBarPageSize(ControlHandle c)
+{
+    ScrollBarData* data;
 
-    if (!scrollBar || !(*scrollBar)->contrlData) {
-        return;
-    }
+    if (!c || !(*c)->contrlData) return 0;
 
-    scrollData = (ScrollBarData *)*(*scrollBar)->contrlData;
-    trackRect = scrollData->trackRect;
-
-    /* Fill track background */
-    PenPat(&white);
-    PaintRect(&trackRect);
-
-    /* Draw track border */
-    PenPat(&black);
-    FrameRect(&trackRect);
+    data = (ScrollBarData*)(*(*c)->contrlData);
+    return data->visibleSpan;
 }
 
 /**
- * Calculate new thumb value from mouse position
+ * SetScrollBarLiveTracking - Enable/disable live tracking (ignored for now)
  */
-static SInt16 CalcNewThumbValue(ControlHandle scrollBar, Point pt) {
-    ScrollBarData *scrollData;
-    SInt32 range, newValue;
-    SInt16 mousePos, trackStart;
-
-    if (!scrollBar || !(*scrollBar)->contrlData) {
-        return 0;
-    }
-
-    scrollData = (ScrollBarData *)*(*scrollBar)->contrlData;
-    range = (*scrollBar)->contrlMax - (*scrollBar)->contrlMin;
-
-    if (range <= 0) {
-        return (*scrollBar)->contrlValue;
-    }
-
-    /* Calculate mouse position in track */
-    if (scrollData->isVertical) {
-        mousePos = pt.v - (scrollData)->v;
-        trackStart = (scrollData)->top;
-    } else {
-        mousePos = pt.h - (scrollData)->h;
-        trackStart = (scrollData)->left;
-    }
-
-    /* Convert to value */
-    newValue = ((mousePos - trackStart) * range) /
-               (scrollData->trackLen - scrollData->thumbSize);
-
-    newValue += (*scrollBar)->contrlMin;
-
-    /* Clamp to valid range */
-    if (newValue < (*scrollBar)->contrlMin) {
-        newValue = (*scrollBar)->contrlMin;
-    }
-    if (newValue > (*scrollBar)->contrlMax) {
-        newValue = (*scrollBar)->contrlMax;
-    }
-
-    return (SInt16)newValue;
+void SetScrollBarLiveTracking(ControlHandle c, Boolean liveTracking)
+{
+    (void)c;
+    (void)liveTracking;
+    /* Live tracking always enabled in this implementation */
 }
 
 /**
- * Handle scrollbar tracking
+ * GetScrollBarLiveTracking - Get live tracking state
  */
-static void HandleScrollBarTracking(ControlHandle scrollBar, SInt16 part, Point startPt) {
-    ScrollBarData *scrollData;
-
-    if (!scrollBar || !(*scrollBar)->contrlData) {
-        return;
-    }
-
-    scrollData = (ScrollBarData *)*(*scrollBar)->contrlData;
-    scrollData->trackingPart = part;
-
-    if (part == inThumb) {
-        /* Calculate mouse offset from thumb center */
-        Rect thumbRect = scrollData->thumbRect;
-        (scrollData)->h = startPt.h - (thumbRect.left + thumbRect.right) / 2;
-        (scrollData)->v = startPt.v - (thumbRect.top + thumbRect.bottom) / 2;
-    }
+Boolean GetScrollBarLiveTracking(ControlHandle c)
+{
+    (void)c;
+    return true; /* Always enabled */
 }
 
-/**
- * Draw thumb outline during tracking
+/* Usage example (for documentation):
+ *
+ * // Create scrollbars
+ * ControlHandle vScroll = NewVScrollBar(win, &vRect, 0, maxRows - 1, 0);
+ * ControlHandle hScroll = NewHScrollBar(win, &hRect, 0, maxCols - 1, 0);
+ *
+ * // Attach to list
+ * LAttachScrollbars(list, vScroll, hScroll);
+ *
+ * // On mouse down in scrollbar
+ * short part = TestControl(vScroll, localPt);
+ * if (part) {
+ *     short delta = 0;
+ *     TrackScrollbar(vScroll, localPt, part, 0, &delta);
+ *     if (delta) {
+ *         LScroll(list, delta, 0);
+ *     }
+ * }
  */
-static void DrawThumbOutline(ControlHandle scrollBar, const Rect *thumbRect) {
-    if (!scrollBar || !thumbRect) {
-        return;
-    }
-
-    /* Draw dotted outline */
-    PenPat(&gray);
-    PenMode(patXor);
-    FrameRect(thumbRect);
-    PenMode(patCopy);
-    PenPat(&black);
-}
-
-/**
- * Handle automatic scrollbar tracking
- */
-static void ScrollBarAutoTrack(ControlHandle scrollBar) {
-    ScrollBarData *scrollData;
-    SInt16 newValue;
-
-    if (!scrollBar || !(*scrollBar)->contrlData) {
-        return;
-    }
-
-    scrollData = (ScrollBarData *)*(*scrollBar)->contrlData;
-
-    switch (scrollData->trackingPart) {
-    case inUpButton:
-        newValue = (*scrollBar)->contrlValue - 1;
-        break;
-
-    case inDownButton:
-        newValue = (*scrollBar)->contrlValue + 1;
-        break;
-
-    case inPageUp:
-        newValue = (*scrollBar)->contrlValue - scrollData->pageSize;
-        break;
-
-    case inPageDown:
-        newValue = (*scrollBar)->contrlValue + scrollData->pageSize;
-        break;
-
-    default:
-        return;
-    }
-
-    /* Update value */
-    SetControlValue(scrollBar, newValue);
-
-    /* Call action procedure if set */
-    if ((*scrollBar)->contrlAction) {
-        (*(*scrollBar)->contrlAction)(scrollBar, scrollData->trackingPart);
-    }
-}
-
-/**
- * Check if control is a scrollbar
- */
-Boolean IsScrollBarControl(ControlHandle control) {
-    if (!control) {
-        return false;
-    }
-
-    SInt16 procID = GetControlVariant(control) & 0xFFF0;
-    return (procID == scrollBarProc);
-}

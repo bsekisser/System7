@@ -83,6 +83,7 @@ void _InitControlManager(void) {
 
         /* Register standard control types */
         RegisterStandardControlTypes();
+        RegisterScrollBarControlType();
 
         /* Set default action interval (60 ticks = 1 second) */
         gControlMgr.actionInterval = 60;

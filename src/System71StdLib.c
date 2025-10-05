@@ -433,7 +433,10 @@ void serial_printf(const char* fmt, ...) {
         strstr(fmt, "LSize") == NULL &&
         strstr(fmt, "LKey") == NULL &&
         strstr(fmt, "DrawCell") == NULL &&
-        strstr(fmt, "EraseBackground") == NULL) {
+        strstr(fmt, "EraseBackground") == NULL &&
+        strstr(fmt, "[CTRL]") == NULL &&
+        strstr(fmt, "Scrollbar") == NULL &&
+        strstr(fmt, "TrackScrollbar") == NULL) {
         return;  /* Message not whitelisted - silently drop */
     }
 
