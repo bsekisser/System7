@@ -75,6 +75,16 @@ enum {
     vAxisOnly = 2
 };
 
+/* Control Definitions (procIDs) */
+enum {
+    pushButProc     = 0,    /* Standard push button */
+    checkBoxProc    = 1,    /* Standard checkbox */
+    radioButProc    = 2,    /* Standard radio button */
+    useWFont        = 8,    /* Use window font */
+    scrollBarProc   = 16,   /* Standard scroll bar */
+    popupMenuProc   = 1008  /* Popup menu control */
+};
+
 /* Control Color Types */
 
 /* Forward declarations for headers */

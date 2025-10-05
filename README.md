@@ -12,6 +12,18 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Recent Updates
 
+- ✅ **Keyboard Navigation Integration**: Complete System 7-style keyboard focus and navigation
+  - Dialog Manager focus tracking with XOR toggle pattern for focus rings
+  - Tab/Shift+Tab traversal with intelligent focus filtering (skips invisible/disabled/zero-sized controls)
+  - Space key activation for checkboxes and radio buttons
+  - Return key activates default button, Escape activates cancel button
+  - Debounce mechanism (100ms window) prevents mouse+keyboard double-fire
+  - Window activation/deactivation suspends/restores keyboard focus
+  - Focus ring restoration after Draw1Control redraws
+  - Automatic cleanup on window/control disposal (no ghost XOR rings)
+  - StandardFile dialog integration with initial focus priming
+  - Event dispatcher activation hooks for cross-window focus management
+  - Breadcrumb logging ([DM], [WM], [SF] tags) for debugging observability
 - ✅ **Scrollbar Controls Implementation**: Complete System 7-style scrollbar controls with classic Mac semantics
   - NewVScrollBar/NewHScrollBar creation functions with auto-orientation detection
   - Full CDEF implementation: drawing, hit-testing, tracking, and highlighting
@@ -181,15 +193,34 @@ This is a proof-of-concept implementation focused on understanding and recreatin
   - QuickDraw integration with state save/restore
   - Dialog Manager integration for list dialog items
   - Efficient redraw with narrow erase and band invalidation
-- **Control Manager**: Scrollbar controls with classic Mac OS behavior:
-  - Vertical and horizontal scrollbar creation (NewVScrollBar, NewHScrollBar)
-  - Control Definition Function (CDEF) for scrollbars with full message handling
-  - Proportional thumb sizing: thumbLen = (visibleSpan × trackLen) / (range + visibleSpan)
-  - Interactive tracking with repeat-on-hold (arrows: 8/3 ticks, pages: 8/4 ticks)
-  - Delta-based tracking API (TrackScrollbar) for streamlined integration
-  - Hit-testing with disabled state support (inactiveHilite, max <= min)
-  - List Manager integration via UpdateScrollThumb for atomic value/range/span updates
-  - Part-specific timing for authentic classic Mac feel
+- **Control Manager**: Standard controls and scrollbar controls with classic Mac OS behavior:
+  - Standard Controls (buttons, checkboxes, radio buttons):
+    - NewControl creation with procID-based type dispatch (pushButProc, checkBoxProc, radioButProc)
+    - Button variants: normal, default (thick border + Return key), cancel (Escape key)
+    - Radio button group management with automatic mutual exclusion
+    - Full CDEF implementation for drawing, hit-testing, and interaction
+    - Mouse tracking with TrackControl and action procedure callbacks
+    - Debounce mechanism prevents double-fire from rapid mouse+keyboard actions
+  - Scrollbar Controls:
+    - Vertical and horizontal scrollbar creation (NewVScrollBar, NewHScrollBar)
+    - Control Definition Function (CDEF) for scrollbars with full message handling
+    - Proportional thumb sizing: thumbLen = (visibleSpan × trackLen) / (range + visibleSpan)
+    - Interactive tracking with repeat-on-hold (arrows: 8/3 ticks, pages: 8/4 ticks)
+    - Delta-based tracking API (TrackScrollbar) for streamlined integration
+    - Hit-testing with disabled state support (inactiveHilite, max <= min)
+    - List Manager integration via UpdateScrollThumb for atomic value/range/span updates
+    - Part-specific timing for authentic classic Mac feel
+- **Dialog Manager**: Complete keyboard navigation and focus management:
+  - Focus ring rendering with XOR toggle pattern (idempotent draw/erase)
+  - Tab/Shift+Tab traversal with intelligent control filtering
+  - Focus state tracking per window with MAX_DIALOGS=16 focus table
+  - Space key activation for checkboxes and radio buttons
+  - Return/Escape key handling for default/cancel buttons
+  - DM_HandleDialogKey unified keyboard dispatcher
+  - Activation lifecycle: focus suspend on deactivate, restore on activate
+  - Automatic cleanup on window/control disposal
+  - Graphics state save/restore for isolated drawing operations
+  - StandardFile dialog integration with initial focus priming
 
 ### Partially Working ⚠️
 
@@ -207,8 +238,8 @@ This is a proof-of-concept implementation focused on understanding and recreatin
   - Font Manager integration for menu item text styles
   - Dropdown menu rendering incomplete
   - Menu selection and command dispatch stubbed
-- **Control Manager**: Framework in place, scrollbar controls complete, other control types not yet implemented
-- **Dialog Manager**: Core structure present, dialog drawing/interaction not complete
+- **Control Manager**: Framework in place, standard controls (buttons, checkboxes, radio buttons) and scrollbar controls complete
+- **Dialog Manager**: Core structure complete with full keyboard navigation support
 - **File Manager**: Core implemented, in progress.
 
 ### Not Yet Implemented ❌
@@ -296,8 +327,8 @@ iteration2/
 │   ├── Finder/                 # Desktop & Finder implementation
 │   │   └── Icon/               # Icon system (5 modules)
 │   ├── FS/                     # Virtual file system & HFS
-│   ├── ControlManager/         # UI controls (3 modules: Core, Tracking, Scrollbar)
-│   ├── DialogManager/          # Dialog boxes
+│   ├── ControlManager/         # UI controls (4 modules: Core, Tracking, StandardControls, Scrollbar)
+│   ├── DialogManager/          # Dialog boxes (3 modules: Core, Keyboard, StandardFile integration)
 │   ├── DeskManager/            # Desk accessories
 │   ├── PatternMgr/             # Pattern resources
 │   ├── TimeManager/            # Production timer scheduler (7 modules)
@@ -494,7 +525,7 @@ This project is in **active development** with no guaranteed timeline. Planned w
 
 **Medium Term** (Core Toolbox):
 - Complete Window Definition Procedure (WDEF) dispatch
-- Implement additional standard controls (buttons, text fields, checkboxes, radio buttons)
+- Implement additional controls (text fields, pop-up menus, sliders)
 - Add TrueType font support to Font Manager
 
 **Long Term** (Application Support):

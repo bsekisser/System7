@@ -28,6 +28,7 @@
 #include "WindowManager/WindowManagerInternal.h"
 #include "WindowManager/WindowKinds.h"
 #include "WindowManager/LayoutGuards.h"
+#include "DialogManager/DialogManager.h"
 
 /* ============================================================================
  * Global Window Manager State
@@ -55,6 +56,9 @@ static WindowManagerState g_wmState = {
     {0, 0},     /* dragOffset */
     false       /* isGrowing */
 };
+
+/* Focus suspend/restore for window activation */
+static ControlHandle s_lastFocus = NULL;
 
 /* ============================================================================
  * Internal Helper Function Declarations
@@ -455,11 +459,48 @@ void DisposeWindow(WindowPtr theWindow) {
     printf("DisposeWindow: Disposing window\n");
     #endif
 
+    /* Clear keyboard focus before disposal to erase focus ring and prevent dangling pointers */
+    DM_ClearFocusForWindow(theWindow);
+
     /* Close the window first */
     CloseWindow(theWindow);
 
     /* Free the window record memory */
     DeallocateWindowRecord(theWindow);
+}
+
+/**
+ * Window deactivation - suspend keyboard focus and hide focus ring
+ */
+void WM_OnDeactivate(WindowPtr w) {
+    extern void serial_printf(const char* fmt, ...);
+    if (!w) {
+        return;
+    }
+    /* Remember current focus and hide the ring */
+    s_lastFocus = DM_GetKeyboardFocus(w);
+    if (s_lastFocus) {
+        DM_SetKeyboardFocus(w, NULL);
+    }
+    serial_printf("[WM] Deactivate %p\n", (void*)w);
+}
+
+/**
+ * Window activation - restore keyboard focus and show focus ring
+ */
+void WM_OnActivate(WindowPtr w) {
+    extern void serial_printf(const char* fmt, ...);
+    if (!w) {
+        return;
+    }
+    /* Prefer previously focused control if still valid; else first focusable */
+    if (s_lastFocus && (*s_lastFocus) && (*s_lastFocus)->contrlOwner == w) {
+        DM_SetKeyboardFocus(w, s_lastFocus);
+    } else {
+        DM_FocusNextControl(w, false); /* pick first focusable */
+    }
+    s_lastFocus = NULL; /* one-shot */
+    serial_printf("[WM] Activate %p\n", (void*)w);
 }
 
 /* ============================================================================

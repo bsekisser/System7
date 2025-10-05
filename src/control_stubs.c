@@ -65,9 +65,7 @@ void _SetFirstControl(WindowPtr window, ControlHandle control) {
     (void)control;
 }
 
-void RegisterStandardControlTypes(void) {
-    /* Would register standard control types like buttons, checkboxes, etc. */
-}
+/* RegisterStandardControlTypes now implemented in StandardControls.c */
 
 ControlHandle LoadControlFromResource(SInt16 controlID, WindowPtr owner) {
     /* Would load a control from resources */

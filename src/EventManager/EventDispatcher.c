@@ -556,6 +556,9 @@ Boolean HandleActivate(EventRecord* event)
             /* Window is being activated */
             g_dispatcher.activeWindow = window;
 
+            /* Restore keyboard focus and show focus ring */
+            WM_OnActivate(window);
+
             /* Highlight window controls, enable menus, etc. */
             /* Application would handle this */
         } else {
@@ -563,6 +566,9 @@ Boolean HandleActivate(EventRecord* event)
             if (g_dispatcher.activeWindow == window) {
                 g_dispatcher.activeWindow = NULL;
             }
+
+            /* Suspend keyboard focus and hide focus ring */
+            WM_OnDeactivate(window);
 
             /* Unhighlight window controls, etc. */
             /* Application would handle this */

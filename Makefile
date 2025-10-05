@@ -108,6 +108,8 @@ C_SOURCES = src/main.c \
             src/ControlManager/ControlManagerCore.c \
             src/ControlManager/ControlTracking.c \
             src/ControlManager/ScrollbarControls.c \
+            src/ControlManager/StandardControls.c \
+            src/ControlManager/ControlSmoke.c \
             src/control_stubs.c \
             src/patterns_rsrc.c \
             src/FS/hfs_diskio.c \
@@ -136,6 +138,7 @@ C_SOURCES = src/main.c \
             src/DialogManager/DialogResourceParser.c \
             src/DialogManager/DialogDrawing.c \
             src/DialogManager/DialogHelpers.c \
+            src/DialogManager/DialogKeyboard.c \
             src/StandardFile/StandardFile.c \
             src/StandardFile/StandardFileHAL_Shims.c \
             src/FileManager.c \
@@ -224,6 +227,12 @@ CFLAGS += -DENABLE_LIST=1
 ifeq ($(LIST_SMOKE_TEST),1)
 CFLAGS += -DLIST_SMOKE_TEST=1
 endif
+endif
+
+# Add Control smoke test if enabled
+CTRL_SMOKE_TEST ?= 0
+ifeq ($(CTRL_SMOKE_TEST),1)
+CFLAGS += -DCTRL_SMOKE_TEST=1
 endif
 
 ASM_SOURCES = src/multiboot2.S
@@ -493,7 +502,9 @@ iso: $(ISO)
 $(ISO): $(KERNEL)
 	@echo "Creating bootable ISO..."
 	@cp $(KERNEL) $(ISO_DIR)/boot/
-	@echo 'menuentry "System 7.1 Portable" {' > $(ISO_DIR)/boot/grub/grub.cfg
+	@echo 'set timeout=0' > $(ISO_DIR)/boot/grub/grub.cfg
+	@echo '' >> $(ISO_DIR)/boot/grub/grub.cfg
+	@echo 'menuentry "System 7.1 Portable" {' >> $(ISO_DIR)/boot/grub/grub.cfg
 	@echo '    multiboot2 /boot/$(KERNEL)' >> $(ISO_DIR)/boot/grub/grub.cfg
 	@echo '    boot' >> $(ISO_DIR)/boot/grub/grub.cfg
 	@echo '}' >> $(ISO_DIR)/boot/grub/grub.cfg

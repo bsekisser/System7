@@ -240,6 +240,10 @@ void CloseWindow(WindowPtr theWindow);
  */
 void DisposeWindow(WindowPtr theWindow);
 
+/* Window activation hooks for keyboard focus suspend/restore */
+void WM_OnActivate(WindowPtr window);
+void WM_OnDeactivate(WindowPtr window);
+
 /* ============================================================================
  * Window Manager API - Window Display and Visibility
  * ============================================================================ */

@@ -78,7 +78,12 @@ enum {
 
  */
 void InitControlManager_Sys7(void) {
+    extern void _InitControlManager(void);
+
     if (!gControlManagerInitialized) {
+        /* Initialize core Control Manager (registers standard control types) */
+        _InitControlManager();
+
         /* Initialize ScrollSpeedGlobals as defined in ROM Control Manager private code */
         memset(&gScrollSpeedGlobals, 0, sizeof(ScrollSpeedGlobals));
 

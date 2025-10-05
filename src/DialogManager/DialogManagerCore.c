@@ -289,6 +289,9 @@ void DisposDialog(DialogPtr theDialog)
 
     printf("Disposing dialog at %p\n", (void*)theDialog);
 
+    /* Clear keyboard focus before disposal (defensive, also done in DisposeWindow) */
+    DM_ClearFocusForWindow((WindowPtr)theDialog);
+
     /* End modal processing if active */
     if (IsModalDialog(theDialog)) {
         EndModalDialog(theDialog);

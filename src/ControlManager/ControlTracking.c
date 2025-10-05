@@ -17,6 +17,7 @@
 #include "ControlManager/ControlTypes.h"
 #include "EventManager/EventManager.h"
 #include "QuickDraw/QuickDraw.h"
+#include "DialogManager/DialogManager.h"
 #include "SystemTypes.h"
 
 
@@ -97,8 +98,8 @@ SInt16 TrackControl(ControlHandle theControl, Point thePoint,
     /* Highlight initial part */
     HiliteControl(theControl, partCode);
 
-    /* Call action procedure if provided */
-    if (actionProc) {
+    /* Call action procedure if provided (with debounce for mouse path) */
+    if (actionProc && !DM_DebounceAction(2)) {
         (*actionProc)(theControl, partCode);
         actionTime = TickCount();
     }

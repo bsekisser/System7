@@ -114,6 +114,8 @@ void RegisterStandardControlTypes(void);
 Boolean IsButtonControl(ControlHandle control);
 Boolean IsCheckboxControl(ControlHandle control);
 Boolean IsRadioControl(ControlHandle control);
+Boolean IsDefaultButton(ControlHandle button);
+Boolean IsCancelButton(ControlHandle button);
 
 /* Scrollbar Controls */
 void RegisterScrollBarControlType(void);
@@ -206,6 +208,12 @@ ControlHandle _GetFirstControl(WindowPtr window);
 void _SetFirstControl(WindowPtr window, ControlHandle control);
 SInt16 _CallControlDefProc(ControlHandle control, SInt16 message, SInt32 param);
 Handle _GetControlDefProc(SInt16 procID);
+
+/* Smoke Test Functions (CTRL_SMOKE_TEST) */
+void InitControlSmokeTest(void);
+void CreateControlSmokeWindow(void);
+Boolean HandleControlSmokeClick(WindowPtr window, Point where);
+Boolean HandleControlSmokeKey(WindowPtr window, EventRecord* evt);
 
 #ifdef __cplusplus
 }

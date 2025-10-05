@@ -1843,6 +1843,12 @@ static void init_system71(void) {
     InitControlManager_Sys7();
     serial_puts("  Control Manager initialized\n");
 
+#ifdef CTRL_SMOKE_TEST
+    /* Create control smoke test window */
+    extern void InitControlSmokeTest(void);
+    InitControlSmokeTest();
+#endif
+
     /* List Manager */
     InitListManager();
     serial_puts("  List Manager initialized\n");

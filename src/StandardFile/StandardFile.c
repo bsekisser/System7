@@ -71,6 +71,36 @@ static void SF_NavigateUp(void);
 static OSErr SF_GetCurrentLocation(short *vRefNum, long *dirID);
 static void SF_UpdatePrompt(ConstStr255Param prompt);
 
+/* Keyboard focus helpers */
+static void SF_PrimeInitialFocus(DialogPtr d)
+{
+    ControlHandle defBtn = NULL;
+    ControlHandle c;
+
+    if (!d) return;
+
+    c = (ControlHandle)((DialogPeek)d)->items;
+    /* prefer default button if present */
+    while (c) {
+        if (IsButtonControl(c) && IsDefaultButton(c)) {
+            defBtn = c;
+            break;
+        }
+        c = (*c)->nextControl;
+    }
+    if (defBtn) {
+        DM_SetKeyboardFocus((WindowPtr)d, defBtn);
+    } else {
+        DM_FocusNextControl((WindowPtr)d, false);
+    }
+}
+
+static SInt16 SF_ItemFromControl(ControlHandle c)
+{
+    /* refCon is item number */
+    return (c && *c) ? (SInt16)(*c)->contrlRfCon : 0;
+}
+
 /*
  * Classic SFPutFile - Save file dialog
  */
@@ -223,11 +253,32 @@ void CustomPutFile(ConstStr255Param prompt,
         dlgHook(sfHookFirstCall, gSFState.dialog, yourDataPtr);
     }
 
+    /* Set initial keyboard focus */
+    SF_PrimeInitialFocus(gSFState.dialog);
+
     /* Dialog loop */
     while (!done) {
+        /* Check for keyboard events first */
+        if (WaitNextEvent(everyEvent, &event, 60, NULL)) {
+            if (event.what == keyDown || event.what == autoKey) {
+                if (DM_HandleDialogKey((WindowPtr)gSFState.dialog, &event, &itemHit)) {
+                    /* keyboard activated a control */
+                    done = (itemHit == sfItemOpenButton || itemHit == sfItemCancelButton);
+                    if (!done) {
+                        /* Let switch handle non-terminal items */
+                        goto handle_item;
+                    }
+                    continue;
+                }
+            }
+        }
         /* Use HAL for event handling */
         StandardFile_HAL_RunDialog(gSFState.dialog, &itemHit);
 
+handle_item:
+        if (itemHit > 0) {
+            serial_printf("[SF] itemHit=%d\n", itemHit);
+        }
         switch (itemHit) {
             case sfItemOpenButton:  /* Save button */
                 {
@@ -395,11 +446,32 @@ void CustomGetFile(FileFilterYDProcPtr fileFilter,
         dlgHook(sfHookFirstCall, gSFState.dialog, yourDataPtr);
     }
 
+    /* Set initial keyboard focus */
+    SF_PrimeInitialFocus(gSFState.dialog);
+
     /* Dialog loop */
     while (!done) {
+        /* Check for keyboard events first */
+        if (WaitNextEvent(everyEvent, &event, 60, NULL)) {
+            if (event.what == keyDown || event.what == autoKey) {
+                if (DM_HandleDialogKey((WindowPtr)gSFState.dialog, &event, &itemHit)) {
+                    /* keyboard activated a control */
+                    done = (itemHit == sfItemOpenButton || itemHit == sfItemCancelButton);
+                    if (!done) {
+                        /* Let switch handle non-terminal items */
+                        goto handle_item2;
+                    }
+                    continue;
+                }
+            }
+        }
         /* Use HAL for event handling */
         StandardFile_HAL_RunDialog(gSFState.dialog, &itemHit);
 
+handle_item2:
+        if (itemHit > 0) {
+            serial_printf("[SF] itemHit=%d\n", itemHit);
+        }
         switch (itemHit) {
             case sfItemOpenButton:
                 {

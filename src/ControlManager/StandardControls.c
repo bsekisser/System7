@@ -7,6 +7,24 @@
  * checkboxes, radio buttons, and their visual rendering and interaction behavior.
  * These controls form the foundation of Mac application user interfaces.
  *
+ * CONTROL procIDs AND PART CODES:
+ * ================================
+ * procIDs (registered in ControlTypes.h):
+ *   pushButProc   = 0   - Standard push button (varCode bits: 1=default, 2=cancel)
+ *   checkBoxProc  = 1   - Standard checkbox
+ *   radioButProc  = 2   - Standard radio button
+ *   scrollBarProc = 16  - Standard scrollbar (in ScrollbarControls.c)
+ *
+ * Part codes (for TestControl/TrackControl):
+ *   inButton      = 10  - Inside push button
+ *   inCheckBox    = 11  - Inside checkbox/radio button
+ *
+ * Button variant codes (OR these into procID for NewControl):
+ *   0 - Normal button
+ *   1 - Default button (thick border, Return key activates)
+ *   2 - Cancel button (Esc key activates)
+ *   3 - Default + Cancel (rare, but supported)
+ *
  * Copyright (c) 2024 - System 7.1 Portable Toolbox Project
  * Licensed under MIT License
  */
@@ -18,9 +36,66 @@
 /* ControlDrawing.h not needed */
 #include "ControlManager/ControlTypes.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDrawConstants.h"
 #include "FontManager/FontManager.h"
 #include "SystemTypes.h"
 
+/* External QuickDraw functions */
+extern void GetPort(GrafPtr* port);
+extern void SetPort(GrafPtr port);
+extern void GetClip(RgnHandle rgn);
+extern void SetClip(RgnHandle rgn);
+extern RgnHandle NewRgn(void);
+extern void DisposeRgn(RgnHandle rgn);
+extern void ClipRect(const Rect* r);
+extern void FrameRect(const Rect* r);
+extern void PaintRect(const Rect* r);
+extern void EraseRect(const Rect* r);
+extern void InvertRect(const Rect* r);
+extern void InvertOval(const Rect* r);
+extern void FrameOval(const Rect* r);
+extern void PaintOval(const Rect* r);
+extern void FrameRoundRect(const Rect* r, short ovalWidth, short ovalHeight);
+extern void MoveTo(short h, short v);
+extern void LineTo(short h, short v);
+extern void PenPat(const Pattern* pat);
+extern void PenMode(short mode);
+extern void PenSize(short width, short height);
+extern Boolean PtInRect(Point pt, const Rect* r);
+extern void RectRgn(RgnHandle rgn, const Rect* r);
+extern void OffsetRect(Rect* r, short dh, short dv);
+extern void InsetRect(Rect* r, short dh, short dv);
+extern short StringWidth(ConstStr255Param s);
+extern void DrawString(ConstStr255Param s);
+extern struct QDGlobals qd;
+
+/* External Control Manager functions */
+extern Handle NewHandleClear(Size byteCount);
+extern void DisposeHandle(Handle h);
+extern void HLock(Handle h);
+extern void HUnlock(Handle h);
+
+/* External system functions */
+extern void serial_printf(const char* fmt, ...);
+
+/* Debug logging - whitelist "[CTRL]", "Button", "Checkbox", "Radio" */
+#define CTRL_LOG(...) serial_printf("[CTRL] " __VA_ARGS__)
+
+/* Simple GetFontInfo implementation - uses default Chicago 12 metrics
+ * TODO: Replace with FontManager's GetFontInfo() once available.
+ *       When switching, re-verify label vertical centering at multiple font sizes.
+ */
+static void GetFontInfo_Local(FontInfo* info) {
+    if (!info) return;
+    /* Default metrics for Chicago 12 font */
+    info->ascent = 9;
+    info->descent = 2;
+    info->widMax = 12;
+    info->leading = 2;
+}
+
+/* Use local version until FontManager provides GetFontInfo */
+#define GetFontInfo GetFontInfo_Local
 
 /* Standard control dimensions */
 #define BUTTON_HEIGHT       20
@@ -33,6 +108,7 @@
 /* Button data structure */
 typedef struct ButtonData {
     Boolean isDefault;          /* Default button flag */
+    Boolean isCancel;           /* Cancel button flag */
     Boolean isPushed;           /* Currently pushed state */
     SInt16 insetLevel;      /* Button inset level */
     Rect contentRect;        /* Content area rectangle */
@@ -59,14 +135,20 @@ static void CalculateCheckboxRects(ControlHandle checkbox);
 static void HandleRadioGroup(ControlHandle radio);
 static SInt16 TestButtonPart(ControlHandle button, Point pt);
 static SInt16 TestCheckboxPart(ControlHandle checkbox, Point pt);
+static void DrawTextInRect(ConstStr255Param text, const Rect *rect, SInt16 alignment);
 
 /**
  * Register standard control types
  */
 void RegisterStandardControlTypes(void) {
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("[CTRL] Registering standard control types\n");
     RegisterControlType(pushButProc, ButtonCDEF);
+    serial_printf("[CTRL] Button control type registered (procID=%d)\n", pushButProc);
     RegisterControlType(checkBoxProc, CheckboxCDEF);
+    serial_printf("[CTRL] Checkbox control type registered (procID=%d)\n", checkBoxProc);
     RegisterControlType(radioButProc, RadioButtonCDEF);
+    serial_printf("[CTRL] Radio button control type registered (procID=%d)\n", radioButProc);
 }
 
 /**
@@ -85,18 +167,29 @@ SInt32 ButtonCDEF(SInt16 varCode, ControlHandle theControl,
     switch (message) {
     case initCntl:
         /* Allocate button data */
+        extern void serial_printf(const char* fmt, ...);
+        serial_printf("[CTRL] ButtonCDEF initCntl: Allocating button data\n");
         (*theControl)->contrlData = NewHandleClear(sizeof(ButtonData));
         if ((*theControl)->contrlData) {
+            serial_printf("[CTRL] ButtonCDEF initCntl: Button data allocated\n");
             buttonData = (ButtonData *)*(*theControl)->contrlData;
             buttonData->isDefault = (varCode & 1) != 0;
+            buttonData->isCancel = (varCode & 2) != 0;
             buttonData->insetLevel = 2;
             buttonData->isPushed = false;
+            serial_printf("[CTRL] ButtonCDEF initCntl: Flags set\n");
 
             /* Create button region */
+            serial_printf("[CTRL] ButtonCDEF initCntl: Creating button region\n");
             buttonData->buttonRegion = NewRgn();
+            serial_printf("[CTRL] ButtonCDEF initCntl: Button region created\n");
 
             /* Calculate button rectangles */
+            serial_printf("[CTRL] ButtonCDEF initCntl: Calculating button rects\n");
             CalculateButtonRects(theControl);
+            serial_printf("[CTRL] ButtonCDEF initCntl: Done\n");
+        } else {
+            serial_printf("[CTRL] ButtonCDEF initCntl: NewHandleClear FAILED\n");
         }
         break;
 
@@ -134,16 +227,20 @@ SInt32 ButtonCDEF(SInt16 varCode, ControlHandle theControl,
             /* Draw highlight/inactive state */
             if ((*theControl)->contrlHilite == inactiveHilite) {
                 /* Gray out button */
-                PenPat(&gray);
+                PenPat(&qd.gray);
                 PenMode(patBic);
                 PaintRect(&bounds);
                 PenMode(patCopy);
-                PenPat(&black);
+                PenPat(&qd.black);
             }
         }
         break;
 
     case testCntl:
+        /* Inactive controls don't respond to hits */
+        if ((*theControl)->contrlHilite == inactiveHilite) {
+            return 0;
+        }
         /* Test if point is in button */
         pt = *(Point *)&param;
         return TestButtonPart(theControl, pt);
@@ -232,11 +329,11 @@ SInt32 CheckboxCDEF(SInt16 varCode, ControlHandle theControl,
             /* Gray out if inactive */
             if ((*theControl)->contrlHilite == inactiveHilite) {
                 bounds = (*theControl)->contrlRect;
-                PenPat(&gray);
+                PenPat(&qd.gray);
                 PenMode(patBic);
                 PaintRect(&bounds);
                 PenMode(patCopy);
-                PenPat(&black);
+                PenPat(&qd.black);
             }
 
             /* Highlight if tracking */
@@ -247,6 +344,10 @@ SInt32 CheckboxCDEF(SInt16 varCode, ControlHandle theControl,
         break;
 
     case testCntl:
+        /* Inactive controls don't respond to hits */
+        if ((*theControl)->contrlHilite == inactiveHilite) {
+            return 0;
+        }
         /* Test if point is in checkbox */
         pt = *(Point *)&param;
         return TestCheckboxPart(theControl, pt);
@@ -323,11 +424,11 @@ SInt32 RadioButtonCDEF(SInt16 varCode, ControlHandle theControl,
             /* Gray out if inactive */
             if ((*theControl)->contrlHilite == inactiveHilite) {
                 bounds = (*theControl)->contrlRect;
-                PenPat(&gray);
+                PenPat(&qd.gray);
                 PenMode(patBic);
                 PaintRect(&bounds);
                 PenMode(patCopy);
-                PenPat(&black);
+                PenPat(&qd.black);
             }
 
             /* Highlight if tracking */
@@ -338,6 +439,10 @@ SInt32 RadioButtonCDEF(SInt16 varCode, ControlHandle theControl,
         break;
 
     case testCntl:
+        /* Inactive controls don't respond to hits */
+        if ((*theControl)->contrlHilite == inactiveHilite) {
+            return 0;
+        }
         /* Test if point is in radio button */
         pt = *(Point *)&param;
         return TestCheckboxPart(theControl, pt);
@@ -368,7 +473,6 @@ SInt32 RadioButtonCDEF(SInt16 varCode, ControlHandle theControl,
 static void DrawButtonFrame(ControlHandle button, Boolean pushed) {
     ButtonData *buttonData;
     Rect frameRect;
-    SInt16 inset;
 
     if (!button || !(*button)->contrlData) {
         return;
@@ -376,7 +480,6 @@ static void DrawButtonFrame(ControlHandle button, Boolean pushed) {
 
     buttonData = (ButtonData *)*(*button)->contrlData;
     frameRect = (*button)->contrlRect;
-    inset = pushed ? 1 : 0;
 
     /* Adjust frame for default button */
     if (buttonData->isDefault) {
@@ -386,27 +489,27 @@ static void DrawButtonFrame(ControlHandle button, Boolean pushed) {
     /* Draw 3D button frame */
     if (pushed) {
         /* Pushed state - dark frame */
-        PenPat(&black);
+        PenPat(&qd.black);
         FrameRect(&frameRect);
         InsetRect(&frameRect, 1, 1);
-        PenPat(&dkGray);
+        PenPat(&qd.dkGray);
         FrameRect(&frameRect);
     } else {
         /* Normal state - raised frame */
         /* Top and left highlight */
-        PenPat(&white);
+        PenPat(&qd.white);
         MoveTo(frameRect.left, frameRect.bottom - 1);
         LineTo(frameRect.left, frameRect.top);
         LineTo(frameRect.right - 1, frameRect.top);
 
         /* Bottom and right shadow */
-        PenPat(&black);
+        PenPat(&qd.black);
         LineTo(frameRect.right - 1, frameRect.bottom - 1);
         LineTo(frameRect.left, frameRect.bottom - 1);
 
         /* Inner shadow */
         InsetRect(&frameRect, 1, 1);
-        PenPat(&dkGray);
+        PenPat(&qd.dkGray);
         MoveTo(frameRect.right - 1, frameRect.top);
         LineTo(frameRect.right - 1, frameRect.bottom - 1);
         LineTo(frameRect.left, frameRect.bottom - 1);
@@ -414,9 +517,9 @@ static void DrawButtonFrame(ControlHandle button, Boolean pushed) {
 
     /* Fill button interior */
     InsetRect(&frameRect, 1, 1);
-    PenPat(&ltGray);
+    PenPat(&qd.ltGray);
     PaintRect(&frameRect);
-    PenPat(&black);
+    PenPat(&qd.black);
 }
 
 /**
@@ -516,7 +619,7 @@ static void DrawRadioMark(ControlHandle radio) {
 
     /* Draw filled circle in center */
     InsetRect(&markRect, 3, 3);
-    PenPat(&black);
+    PenPat(&qd.black);
     PaintOval(&markRect);
 }
 
@@ -566,8 +669,8 @@ static void CalculateCheckboxRects(ControlHandle checkbox) {
 
     /* Box rectangle (left side) */
     checkData->boxRect = bounds;
-    (checkData)->right = (checkData)->left + boxSize;
-    (checkData)->bottom = (checkData)->top + boxSize;
+    (checkData->boxRect).right = (checkData->boxRect).left + boxSize;
+    (checkData->boxRect).bottom = (checkData->boxRect).top + boxSize;
 
     /* Center vertically if control is taller than box */
     if ((bounds.bottom - bounds.top) > boxSize) {
@@ -577,7 +680,7 @@ static void CalculateCheckboxRects(ControlHandle checkbox) {
 
     /* Text rectangle (right side) */
     checkData->textRect = bounds;
-    (checkData)->left = (checkData)->right + CONTROL_TEXT_MARGIN;
+    (checkData->textRect).left = (checkData->boxRect).right + CONTROL_TEXT_MARGIN;
 }
 
 /**
@@ -747,4 +850,56 @@ SInt16 GetRadioGroup(ControlHandle radio) {
 
     radioData = (CheckboxData *)*(*radio)->contrlData;
     return radioData->groupID;
+}
+
+/**
+ * Check if button is default button
+ */
+Boolean IsDefaultButton(ControlHandle button) {
+    ButtonData *buttonData;
+
+    if (!button || !IsButtonControl(button) || !(*button)->contrlData) {
+        return false;
+    }
+
+    buttonData = (ButtonData *)*(*button)->contrlData;
+    return buttonData->isDefault;
+}
+
+/**
+ * Check if button is cancel button
+ */
+Boolean IsCancelButton(ControlHandle button) {
+    ButtonData *buttonData;
+
+    if (!button || !IsButtonControl(button) || !(*button)->contrlData) {
+        return false;
+    }
+
+    buttonData = (ButtonData *)*(*button)->contrlData;
+    return buttonData->isCancel;
+}
+
+/**
+ * Draw text in rectangle (simple left-aligned version for checkboxes/radios)
+ */
+static void DrawTextInRect(ConstStr255Param text, const Rect *rect, SInt16 alignment) {
+    FontInfo fontInfo;
+    SInt16 textHeight;
+    SInt16 v;
+
+    if (!text || text[0] == 0 || !rect) {
+        return;
+    }
+
+    /* Get font metrics */
+    GetFontInfo(&fontInfo);
+    textHeight = fontInfo.ascent + fontInfo.descent;
+
+    /* Calculate vertical position (centered) */
+    v = rect->top + ((rect->bottom - rect->top) - textHeight) / 2 + fontInfo.ascent;
+
+    /* Draw text left-aligned (alignment parameter unused for now) */
+    MoveTo(rect->left, v);
+    DrawString(text);
 }

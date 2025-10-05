@@ -435,8 +435,15 @@ void serial_printf(const char* fmt, ...) {
         strstr(fmt, "DrawCell") == NULL &&
         strstr(fmt, "EraseBackground") == NULL &&
         strstr(fmt, "[CTRL]") == NULL &&
+        strstr(fmt, "[CTRL SMOKE]") == NULL &&
         strstr(fmt, "Scrollbar") == NULL &&
-        strstr(fmt, "TrackScrollbar") == NULL) {
+        strstr(fmt, "TrackScrollbar") == NULL &&
+        strstr(fmt, "Button") == NULL &&
+        strstr(fmt, "Checkbox") == NULL &&
+        strstr(fmt, "Radio") == NULL &&
+        strstr(fmt, "[DM]") == NULL &&
+        strstr(fmt, "[WM]") == NULL &&
+        strstr(fmt, "[SF]") == NULL) {
         return;  /* Message not whitelisted - silently drop */
     }
 

@@ -226,6 +226,29 @@ Boolean IsDialogVisible(DialogPtr theDialog);
 WindowPtr GetDialogWindow(DialogPtr theDialog);
 DialogPtr GetWindowDialog(WindowPtr theWindow);
 
+/* Keyboard navigation and control activation */
+ControlHandle DM_FindDefaultButton(WindowPtr dialog);
+ControlHandle DM_FindCancelButton(WindowPtr dialog);
+void DM_ActivatePushButton(ControlHandle button);
+void DM_SetKeyboardFocus(WindowPtr window, ControlHandle newFocus);
+void DM_FocusNextControl(WindowPtr window, Boolean backwards);
+ControlHandle DM_GetKeyboardFocus(WindowPtr window);
+Boolean DM_HandleReturnKey(WindowPtr dialog, SInt16* itemHit);
+Boolean DM_HandleEscapeKey(WindowPtr dialog, SInt16* itemHit);
+Boolean DM_HandleSpaceKey(WindowPtr dialog, ControlHandle focusedControl);
+Boolean DM_HandleTabKey(WindowPtr dialog, Boolean shiftPressed);
+Boolean DM_HandleDialogKey(WindowPtr dialog, EventRecord* evt, SInt16* itemHit);
+
+/* Debounce helper (for both keyboard and mouse paths) */
+Boolean DM_DebounceAction(SInt16 kind); /* kind: 1=keyboard, 2=mouse */
+
+/* Focus cleanup for window/control disposal */
+void DM_ClearFocusForWindow(WindowPtr window);
+void DM_OnDisposeControl(ControlHandle control);
+
+/* Focus ring drawing (for Draw1Control hook) */
+void ToggleFocusRing(ControlHandle control);
+
 #ifdef __cplusplus
 }
 #endif

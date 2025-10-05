@@ -25,6 +25,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "WindowManager/WindowManager.h"
 #include "EventManager/EventManager.h"
+#include "DialogManager/DialogManager.h"
 #include "ResourceMgr/resource_types.h"
 #include "SystemTypes.h"
 #include "System71StdLib.h"
@@ -125,28 +126,38 @@ ControlHandle NewControl(WindowPtr theWindow, const Rect *boundsRect,
     ControlHandle control;
     ControlPtr ctlPtr;
     OSErr err;
+    extern void serial_printf(const char* fmt, ...);
+
+    serial_printf("[CTRL] NewControl ENTRY: procID=%d\n", procID);
 
     /* Initialize Control Manager if needed */
     if (!gControlMgr.initialized) {
+        serial_printf("[CTRL] Calling _InitControlManager\n");
         _InitControlManager();
     }
+    serial_printf("[CTRL] After init check\n");
 
     /* Validate parameters */
     err = ValidateControlParameters(theWindow, boundsRect, value, min, max);
     if (err != noErr) {
+        serial_printf("[CTRL] ValidateControlParameters FAILED\n");
         return NULL;
     }
+    serial_printf("[CTRL] Parameters validated\n");
 
     /* Allocate control handle */
     control = (ControlHandle)NewHandle(sizeof(ControlRecord));
     if (!control) {
+        serial_printf("[CTRL] NewHandle FAILED\n");
         return NULL;
     }
+    serial_printf("[CTRL] Handle allocated\n");
 
     /* Lock and initialize control record */
     HLock((Handle)control);
     ctlPtr = *control;
     memset(ctlPtr, 0, sizeof(ControlRecord));
+    serial_printf("[CTRL] Control record initialized\n");
 
     /* Set control fields */
     ctlPtr->contrlOwner = theWindow;
@@ -166,26 +177,35 @@ ControlHandle NewControl(WindowPtr theWindow, const Rect *boundsRect,
     }
 
     /* Get control definition procedure */
+    serial_printf("[CTRL] Getting CDEF for procID=%d\n", procID);
     ctlPtr->contrlDefProc = _GetControlDefProc(procID);
     if (!ctlPtr->contrlDefProc) {
+        serial_printf("[CTRL] CDEF not found!\n");
         HUnlock((Handle)control);
         DisposeHandle((Handle)control);
         return NULL;
     }
+    serial_printf("[CTRL] CDEF found\n");
 
     /* Initialize control via CDEF */
+    serial_printf("[CTRL] Calling CDEF initCntl\n");
     _CallControlDefProc(control, initCntl, 0);
+    serial_printf("[CTRL] CDEF initCntl complete\n");
 
     /* Link control to window */
+    serial_printf("[CTRL] Linking control to window\n");
     LinkControl(theWindow, control);
 
     HUnlock((Handle)control);
+    serial_printf("[CTRL] Control unlocked\n");
 
     /* Draw control if visible */
     if (visible) {
+        serial_printf("[CTRL] Drawing control\n");
         Draw1Control(control);
     }
 
+    serial_printf("[CTRL] NewControl EXIT: control=%p\n", (void*)control);
     return control;
 }
 
@@ -226,6 +246,9 @@ void DisposeControl(ControlHandle theControl) {
         gControlMgr.trackingPart = 0;
         gControlMgr.trackingProc = NULL;
     }
+
+    /* Clear keyboard focus if this control has it (erase focus ring, prevent dangling pointer) */
+    DM_OnDisposeControl(theControl);
 
     /* Call disposal routine in CDEF */
     _CallControlDefProc(theControl, dispCntl, 0);
@@ -347,6 +370,7 @@ void DrawControls(WindowPtr theWindow) {
  */
 void Draw1Control(ControlHandle theControl) {
     GrafPtr savePort;
+    ControlHandle focusedControl;
 
     if (!theControl || !(*theControl)->contrlVis) {
         return;
@@ -358,6 +382,12 @@ void Draw1Control(ControlHandle theControl) {
 
     /* Draw control via CDEF */
     _CallControlDefProc(theControl, drawCntl, 0);
+
+    /* Restore focus ring if this control has focus (XOR reapply after redraw) */
+    focusedControl = DM_GetKeyboardFocus((*theControl)->contrlOwner);
+    if (focusedControl == theControl) {
+        ToggleFocusRing(theControl); /* Reapply after control drew itself */
+    }
 
     /* Restore port */
     SetPort(savePort);
@@ -902,8 +932,9 @@ SInt16 _CallControlDefProc(ControlHandle control, SInt16 message, SInt32 param) 
     }
 
     /* Get CDEF procedure and variant */
-    defProc = (ControlDefProcPtr)*(*control)->contrlDefProc;
-    variant = GetControlVariant(control);
+    /* Variant is stored in first 2 bytes, function pointer at offset +2 */
+    variant = *(SInt16 *)*(*control)->contrlDefProc >> 8;
+    defProc = *(ControlDefProcPtr *)((char *)*(*control)->contrlDefProc + 2);
 
     /* Call CDEF */
     if (defProc) {
