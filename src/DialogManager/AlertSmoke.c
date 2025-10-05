@@ -8,6 +8,7 @@ extern void CenterDialogOnScreen(DialogPtr dlg);
 extern void ShowWindow(WindowPtr w);
 extern void HideWindow(WindowPtr w);
 extern void InvalRect(const Rect* r);
+extern SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg);
 
 /* Minimal inline DLOG/DITL fallbacks if resources aren't wired yet */
 static short kTestDLOG = 128; /* if you have real resources, use them */
@@ -18,6 +19,11 @@ static short kCautionAlert = 131;
 static void ShowAlertAndLog(const char* name, short id) {
     short item = 0;
     serial_printf("[ALERT] Opening %s (id=%d)\n", name, id);
+
+    /* For smoke testing: inject a Return key event to auto-dismiss the alert */
+    /* keyDown event (3), Return character (0x0D) in low byte */
+    PostEvent(3 /* keyDown */, 0x0D /* '\r' */);
+
     item = Alert(id, NULL);  /* uses your RunAlertDialog + ModalDialog pipeline */
     serial_printf("[ALERT] %s dismissed with item=%d\n", name, item);
 }

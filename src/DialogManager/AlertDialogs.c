@@ -22,6 +22,12 @@
 extern void SysBeep(SInt16 duration);
 extern UInt32 TickCount(void);
 extern void ShowWindow(WindowPtr window);
+extern Handle NewHandleClear(Size byteCount);
+extern void DisposeHandle(Handle h);
+extern void HLock(Handle h);
+extern void HUnlock(Handle h);
+extern void CenterDialogOnScreen(DialogPtr dlg);
+extern void InvalRect(const Rect* r);
 
 /* Global alert state */
 static struct {
@@ -34,6 +40,20 @@ static struct {
     SInt16 alertPosition;
 } gAlertState = {0};
 
+/* Built-in fallback alert specifications (System 7-style layout) */
+typedef struct {
+    Rect bounds;      /* dialog frame in global coords */
+    SInt16 defItem;   /* 1-based default button */
+    SInt16 cancelItem;/* 1-based cancel button (0=none) */
+    SInt16 icon;      /* 0=none, 1=stop, 2=note, 3=caution */
+    SInt16 ditlId;    /* pseudo id for fallback DITL */
+} BuiltInAlertSpec;
+
+static const BuiltInAlertSpec kFallbackStop    = {{160, 180, 320, 460}, 1, 0, 1, 9001};
+static const BuiltInAlertSpec kFallbackNote    = {{160, 180, 320, 460}, 1, 0, 2, 9002};
+static const BuiltInAlertSpec kFallbackCaution = {{160, 180, 320, 460}, 1, 0, 3, 9003};
+static const BuiltInAlertSpec kFallbackGeneric = {{160, 180, 320, 460}, 1, 2, 0, 9004};
+
 /* Private function prototypes */
 static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt16 alertType);
 static DialogPtr CreateAlertDialogFromTemplate(const AlertTemplate* alertTemplate);
@@ -41,6 +61,12 @@ static void PlayAlertSoundForStage(SInt16 alertType, SInt16 stage);
 static void PositionAlertDialog(DialogPtr alertDialog);
 static void SubstituteParameters(unsigned char* text);
 static void DrawAlertIcon(DialogPtr alertDialog, SInt16 iconType);
+static OSErr BuildFallbackDLOG(const BuiltInAlertSpec* spec, DialogTemplate** outDLOG);
+static OSErr BuildFallbackDITL(SInt16 pseudoId, SInt16 iconKind, Handle* outDITL);
+static Boolean LoadAlertWithFallback(SInt16 alertID, SInt16 alertType,
+                                     DialogTemplate** outDLOG, Handle* outDITL,
+                                     SInt16* outDefItem, SInt16* outCancelItem,
+                                     SInt16* outIconKind);
 
 /*
  * InitAlertDialogs - Initialize alert dialog subsystem
@@ -334,46 +360,234 @@ void CleanupAlertDialogs(void)
  * Private implementation functions
  */
 
+static OSErr BuildFallbackDLOG(const BuiltInAlertSpec* spec, DialogTemplate** outDLOG)
+{
+    DialogTemplate* t;
+
+    if (!spec || !outDLOG) {
+        return -50; /* paramErr */
+    }
+
+    t = (DialogTemplate*)malloc(sizeof(DialogTemplate));
+    if (!t) {
+        return -108; /* memFullErr */
+    }
+
+    memset(t, 0, sizeof(DialogTemplate));
+    t->boundsRect = spec->bounds;  /* already global; DM will position/center */
+    t->procID     = 1;             /* modal */
+    t->visible    = false;
+    t->goAwayFlag = false;
+    t->refCon     = spec->icon;    /* Store icon kind in refCon for drawing */
+    t->itemsID    = spec->ditlId;
+    t->title[0]   = 5;             /* Pascal string length */
+    memcpy(&t->title[1], "Alert", 5);
+
+    *outDLOG = t;
+    return noErr;
+}
+
+static OSErr BuildFallbackDITL(SInt16 pseudoId, SInt16 iconKind, Handle* outDITL)
+{
+    SInt16 n;
+    unsigned char* p;
+    Handle h;
+    SInt16 i;
+    static const unsigned char okText[] = "\002OK";
+    static const unsigned char cancelText[] = "\006Cancel";
+    static const unsigned char msgText[] = "\034Alert message will appear here.";
+
+    if (!outDITL) {
+        return -50; /* paramErr */
+    }
+
+    /* Determine item count: icon(1), text(2), OK(3), Cancel(4 if generic) */
+    n = (pseudoId == 9004) ? 4 : 3;
+
+    /* Build minimal DITL in binary format that ParseDITL can read */
+    /* Format: count-1 (2 bytes), then for each item: placeholder(4), rect(8), type(1), data */
+    h = NewHandleClear(1024);  /* Generous size for small DITL */
+    if (!h) {
+        return -108; /* memFullErr */
+    }
+
+    HLock(h);
+    p = (unsigned char*)*h;
+
+    /* Write count-1 */
+    *p++ = 0;
+    *p++ = (unsigned char)(n - 1);
+
+    /* Item 1: Icon user item at left */
+    /* Placeholder (4 bytes) */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    /* Bounds: top, left, bottom, right (each 2 bytes) */
+    *p++ = 0; *p++ = 20;  /* top */
+    *p++ = 0; *p++ = 20;  /* left */
+    *p++ = 0; *p++ = 52;  /* bottom */
+    *p++ = 0; *p++ = 52;  /* right */
+    /* Type: userItem (0) + itemDisable (128) */
+    *p++ = 0;  /* userItem */
+    /* Data length */
+    *p++ = 0;  /* No data for user item */
+
+    /* Item 2: Static text */
+    /* Placeholder */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    /* Bounds */
+    *p++ = 0; *p++ = 20;  /* top */
+    *p++ = 0; *p++ = 60;  /* left */
+    *p++ = 0; *p++ = 96;  /* bottom */
+    *p++ = 1; *p++ = 4;   /* right (260) */
+    /* Type: statText (8) */
+    *p++ = 8;
+    /* Data: Pascal string */
+    *p++ = msgText[0];  /* length */
+    for (i = 1; i <= msgText[0]; i++) {
+        *p++ = msgText[i];
+    }
+
+    /* Item 3: OK button */
+    /* Placeholder */
+    *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+    /* Bounds: bottom-right, 80×20 button */
+    *p++ = 0; *p++ = 96;   /* top */
+    *p++ = 0; *p++ = 180;  /* left (260-80) */
+    *p++ = 0; *p++ = 116;  /* bottom */
+    *p++ = 0; *p++ = 240;  /* right (260-20) */
+    /* Type: ctrlItem + btnCtrl (4+0) */
+    *p++ = 4;
+    /* Data: Pascal string */
+    *p++ = okText[0];
+    for (i = 1; i <= okText[0]; i++) {
+        *p++ = okText[i];
+    }
+
+    if (n == 4) {
+        /* Item 4: Cancel button */
+        /* Placeholder */
+        *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
+        /* Bounds */
+        *p++ = 0; *p++ = 96;   /* top */
+        *p++ = 0; *p++ = 100;  /* left (260-160) */
+        *p++ = 0; *p++ = 116;  /* bottom */
+        *p++ = 0; *p++ = 160;  /* right (260-100) */
+        /* Type: ctrlItem + btnCtrl */
+        *p++ = 4;
+        /* Data: Pascal string */
+        *p++ = cancelText[0];
+        for (i = 1; i <= cancelText[0]; i++) {
+            *p++ = cancelText[i];
+        }
+    }
+
+    HUnlock(h);
+    *outDITL = h;
+    return noErr;
+}
+
+static Boolean LoadAlertWithFallback(SInt16 alertID, SInt16 alertType,
+                                     DialogTemplate** outDLOG, Handle* outDITL,
+                                     SInt16* outDefItem, SInt16* outCancelItem,
+                                     SInt16* outIconKind)
+{
+    const BuiltInAlertSpec* spec;
+    OSErr err;
+
+    if (!outDLOG || !outDITL || !outDefItem || !outCancelItem || !outIconKind) {
+        return false;
+    }
+
+    /* Map alert ID to fallback spec */
+    /* Standard alert IDs: 128=generic, 129=stop, 130=note, 131=caution */
+    if (alertID == 129) {
+        spec = &kFallbackStop;
+    } else if (alertID == 130) {
+        spec = &kFallbackNote;
+    } else if (alertID == 131) {
+        spec = &kFallbackCaution;
+    } else {
+        spec = &kFallbackGeneric;
+    }
+
+    *outDefItem    = spec->defItem;
+    *outCancelItem = spec->cancelItem;
+    *outIconKind   = spec->icon;
+
+    /* Build fallback DLOG and DITL */
+    err = BuildFallbackDLOG(spec, outDLOG);
+    if (err != noErr) {
+        printf("Failed to build fallback DLOG: error %d\n", err);
+        return false;
+    }
+
+    err = BuildFallbackDITL(spec->ditlId, spec->icon, outDITL);
+    if (err != noErr) {
+        printf("Failed to build fallback DITL: error %d\n", err);
+        if (*outDLOG) {
+            free(*outDLOG);
+            *outDLOG = NULL;
+        }
+        return false;
+    }
+
+    printf("Using fallback alert template for ID %d (icon=%d, def=%d, cancel=%d)\n",
+           alertID, *outIconKind, *outDefItem, *outCancelItem);
+
+    return true;
+}
+
 static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt16 alertType)
 {
-    AlertTemplate* alertTemplate = NULL;
     DialogPtr alertDialog = NULL;
+    DialogTemplate* dlogTemplate = NULL;
+    Handle ditlHandle = NULL;
     SInt16 itemHit = 1; /* Default to OK button */
-    OSErr err;
+    SInt16 defItem = 1, cancelItem = 0, iconKind = 0;
+    static const unsigned char alertTitle[] = "\005Alert";
 
     if (!gAlertState.initialized) {
         printf("Error: Alert subsystem not initialized\n");
         return 1;
     }
 
-    /* Load alert template from resource */
-    err = LoadAlertTemplate(alertID, &alertTemplate);
-    if (err != noErr || !alertTemplate) {
-        printf("Error: Failed to load ALRT resource %d (error %d)\n", alertID, err);
-        /* Play system beep even if resource fails */
+    /* Play alert sound based on current stage */
+    PlayAlertSoundForStage(alertType, gAlertState.alertStage);
+
+    /* Load alert with fallback */
+    if (!LoadAlertWithFallback(alertID, alertType, &dlogTemplate, &ditlHandle,
+                               &defItem, &cancelItem, &iconKind)) {
+        printf("Error: Failed to load/create alert %d\n", alertID);
         SysBeep(30);
         return 1;
     }
 
-    /* Play alert sound based on current stage */
-    PlayAlertSoundForStage(alertType, gAlertState.alertStage);
+    /* Create the dialog window */
+    alertDialog = NewDialog(NULL, &dlogTemplate->boundsRect, alertTitle,
+                           false, /* Start invisible */
+                           1,     /* Modal dialog proc */
+                           (WindowPtr)-1, /* Behind all windows */
+                           false, /* No close box */
+                           iconKind,      /* Store icon kind in refCon */
+                           ditlHandle);
 
-    /* Create alert dialog from template */
-    alertDialog = CreateAlertDialogFromTemplate(alertTemplate);
     if (!alertDialog) {
-        printf("Error: Failed to create alert dialog from template\n");
-        DisposeAlertTemplate(alertTemplate);
+        printf("Error: Failed to create alert dialog\n");
+        if (dlogTemplate) free(dlogTemplate);
+        if (ditlHandle) DisposeHandle(ditlHandle);
         return 1;
     }
 
-    /* Position the alert dialog */
-    PositionAlertDialog(alertDialog);
+    /* Set default and cancel items */
+    if (defItem) SetDialogDefaultItem(alertDialog, defItem);
+    if (cancelItem) SetDialogCancelItem(alertDialog, cancelItem);
 
-    /* Draw alert icon if needed */
-    DrawAlertIcon(alertDialog, alertType);
-
-    /* Make dialog visible */
+    /* Center and show */
+    CenterDialogOnScreen(alertDialog);
     ShowWindow((WindowPtr)alertDialog);
+
+    /* Force initial update */
+    InvalRect(&((GrafPtr)alertDialog)->portRect);
 
     /* Make dialog modal and run modal loop */
     BeginModalDialog(alertDialog);
@@ -382,7 +596,7 @@ static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt
 
     /* Dispose of the alert dialog */
     DisposeDialog(alertDialog);
-    DisposeAlertTemplate(alertTemplate);
+    if (dlogTemplate) free(dlogTemplate);
 
     /* Advance alert stage for repeated alerts */
     if (gAlertState.alertStage < 3) {

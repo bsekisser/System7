@@ -728,7 +728,7 @@ static void DrawButtonItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemE
     Boolean isDefault = (itemNo == GetDialogDefaultItem(theDialog));
     const unsigned char* title = (const unsigned char*)item->data;
 
-    DrawDialogButton(&item->bounds, title, isDefault, item->enabled, false);
+    DrawDialogButton(theDialog, &item->bounds, title, isDefault, item->enabled, false);
 }
 
 static void DrawTextItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemEx* item)
@@ -744,7 +744,7 @@ static void DrawTextItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemEx*
         Boolean hasFocus = false;  /* TODO: track which field has focus */
         DrawDialogEditText(&item->bounds, text, item->enabled, hasFocus);
     } else {
-        DrawDialogStaticText(&item->bounds, text, item->enabled);
+        DrawDialogStaticText(theDialog, &item->bounds, text, item->enabled);
     }
 }
 

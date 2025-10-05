@@ -969,7 +969,18 @@ void HideWindow(WindowPtr window) {
     /* Erase the window's area with desktop pattern FIRST */
     if (clobberedRgn) {
         extern void EraseRgn(RgnHandle rgn);
+        extern void GetWMgrPort(GrafPtr* port);
+        extern void SetPort(GrafPtr port);
+        extern void GetPort(GrafPtr* port);
+
+        GrafPtr savePort, wmPort;
+        GetPort(&savePort);
+        GetWMgrPort(&wmPort);
+        if (wmPort) {
+            SetPort(wmPort);  /* Set to desktop port for erasing */
+        }
         EraseRgn(clobberedRgn);
+        SetPort(savePort);  /* Restore previous port */
     }
 
     /* Recalculate visible regions */

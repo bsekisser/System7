@@ -63,7 +63,7 @@ static Boolean PtInRect(Point pt, const Rect* r) {
 }
 
 /* Draw push button or default button */
-void DrawDialogButton(const Rect* bounds, const unsigned char* title,
+void DrawDialogButton(DialogPtr theDialog, const Rect* bounds, const unsigned char* title,
                      Boolean isDefault, Boolean isEnabled, Boolean isPressed) {
     Rect btnRect = *bounds;
     Rect frameRect;
@@ -71,6 +71,9 @@ void DrawDialogButton(const Rect* bounds, const unsigned char* title,
     GrafPtr savePort;
 
     GetPort(&savePort);
+    if (theDialog) {
+        SetPort((GrafPtr)theDialog);
+    }
 
     serial_printf("Dialog: DrawButton '%.*s' default=%d enabled=%d\n",
                  title ? title[0] : 0, title ? (const char*)&title[1] : "",
@@ -230,12 +233,15 @@ void DrawDialogRadioButton(const Rect* bounds, const unsigned char* title,
 }
 
 /* Draw static text */
-void DrawDialogStaticText(const Rect* bounds, const unsigned char* text,
+void DrawDialogStaticText(DialogPtr theDialog, const Rect* bounds, const unsigned char* text,
                          Boolean isEnabled) {
     SInt16 textV;
     GrafPtr savePort;
 
     GetPort(&savePort);
+    if (theDialog) {
+        SetPort((GrafPtr)theDialog);
+    }
 
     if (!text || text[0] == 0) {
         SetPort(savePort);
@@ -254,6 +260,20 @@ void DrawDialogStaticText(const Rect* bounds, const unsigned char* text,
     TextFace(isEnabled ? 0 : 0x80);
 
     textV = bounds->top + 12;  /* Baseline */
+
+    /* Debug: Check current port's coordinate mapping */
+    {
+        GrafPtr currentPort;
+        GetPort(&currentPort);
+        if (currentPort) {
+            serial_printf("  portBits.bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
+                         currentPort->portBits.bounds.left, currentPort->portBits.bounds.top,
+                         currentPort->portBits.bounds.right, currentPort->portBits.bounds.bottom,
+                         currentPort->portRect.left, currentPort->portRect.top,
+                         currentPort->portRect.right, currentPort->portRect.bottom);
+        }
+    }
+
     MoveTo(bounds->left + 2, textV);
     DrawString(text);
 
@@ -377,7 +397,7 @@ void DrawDialogItemByType(DialogPtr theDialog, SInt16 itemNo,
         if (controlType == btnCtrl) {
             /* Push button */
             Boolean isDefault = (itemNo == GetDialogDefaultItem(theDialog));
-            DrawDialogButton(&item->bounds, textData, isDefault,
+            DrawDialogButton(theDialog, &item->bounds, textData, isDefault,
                            item->enabled, false);
         } else if (controlType == chkCtrl) {
             /* Checkbox */
@@ -400,7 +420,7 @@ void DrawDialogItemByType(DialogPtr theDialog, SInt16 itemNo,
     /* Handle other item types */
     switch (baseType) {
         case statText:  /* Static text */
-            DrawDialogStaticText(&item->bounds, textData, item->enabled);
+            DrawDialogStaticText(theDialog, &item->bounds, textData, item->enabled);
             break;
 
         case editText:  /* Edit text */

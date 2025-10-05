@@ -622,6 +622,28 @@ SInt16 GetDialogCancelItem(DialogPtr theDialog)
     return 2;
 }
 
+OSErr SetDialogDefaultItem(DialogPtr theDialog, SInt16 newItem)
+{
+    if (!theDialog || ValidateDialogPtr(theDialog) != 0) {
+        return -50; /* paramErr */
+    }
+
+    ((DialogRecord*)theDialog)->aDefItem = newItem;
+    return noErr;
+}
+
+OSErr SetDialogCancelItem(DialogPtr theDialog, SInt16 newItem)
+{
+    /* Store in global state for now */
+    /* A full implementation would track this per dialog */
+    if (!theDialog || ValidateDialogPtr(theDialog) != 0) {
+        return -50; /* paramErr */
+    }
+
+    gDialogManagerState.globals.cancelItem = newItem;
+    return noErr;
+}
+
 Boolean GetDialogTracksCursor(DialogPtr theDialog)
 {
     if (!theDialog || ValidateDialogPtr(theDialog) != 0) {

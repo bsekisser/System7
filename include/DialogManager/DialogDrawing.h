@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Individual item type drawing functions */
-void DrawDialogButton(const Rect* bounds, const unsigned char* title,
+void DrawDialogButton(DialogPtr theDialog, const Rect* bounds, const unsigned char* title,
                      Boolean isDefault, Boolean isEnabled, Boolean isPressed);
 
 void DrawDialogCheckBox(const Rect* bounds, const unsigned char* title,
@@ -23,7 +23,7 @@ void DrawDialogCheckBox(const Rect* bounds, const unsigned char* title,
 void DrawDialogRadioButton(const Rect* bounds, const unsigned char* title,
                           Boolean isSelected, Boolean isEnabled);
 
-void DrawDialogStaticText(const Rect* bounds, const unsigned char* text,
+void DrawDialogStaticText(DialogPtr theDialog, const Rect* bounds, const unsigned char* text,
                          Boolean isEnabled);
 
 void DrawDialogEditText(const Rect* bounds, const unsigned char* text,

@@ -729,15 +729,6 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     window->port.portBits.baseAddr = (Ptr)framebuffer;
     window->port.portBits.rowBytes = fb_width * 4;
 
-    serial_printf("InitializeWindowRecord: portRect = (%d,%d,%d,%d)\n",
-                  window->port.portRect.left, window->port.portRect.top,
-                  window->port.portRect.right, window->port.portRect.bottom);
-    serial_printf("InitializeWindowRecord: portBits.bounds = (%d,%d,%d,%d)\n",
-                  window->port.portBits.bounds.left, window->port.portBits.bounds.top,
-                  window->port.portBits.bounds.right, window->port.portBits.bounds.bottom);
-    serial_printf("InitializeWindowRecord: clampedBounds = (%d,%d,%d,%d)\n",
-                  clampedBounds.left, clampedBounds.top,
-                  clampedBounds.right, clampedBounds.bottom);
 
     /* Initialize strucRgn with global bounds */
     if (window->strucRgn) {

@@ -14,6 +14,29 @@
 #include "DialogManager/DialogManagerInternal.h"
 #include "DialogManager/DialogItems.h"
 
+/* Forward declaration for extended state type */
+typedef struct {
+    void* resumeProc;
+    void* soundProc;
+    SInt16 alertStage;
+    SInt16 dialogFont;
+    SInt16 spareFlags;
+    DialogPtr frontModal;
+    SInt16 defaultItem;
+    SInt16 cancelItem;
+    Boolean tracksCursor;
+    unsigned char paramText[4][256];
+} DialogGlobals;
+
+typedef struct {
+    DialogPtr currentDialog;
+    short modalDepth;
+    Boolean inProgress;
+    Handle itemList;
+    short itemCount;
+    DialogGlobals globals;
+} DialogManagerStateExt;
+
 /* External dependencies */
 extern void InvertRect(const Rect* r);
 extern void FrameRect(const Rect* r);
@@ -244,12 +267,19 @@ Boolean DialogEditKey(DialogPtr theDialog, char ch) {
 /* Get front dialog (placeholder - should check window list) */
 DialogPtr FrontDialog(void) {
     /* In full implementation, walk window list and find first dialog */
-    /* For now, return the current dialog from state */
+    /* For now, return the front modal dialog from state */
     extern DialogManagerState* GetDialogManagerState(void);
-    DialogManagerState* state = GetDialogManagerState();
+    DialogManagerStateExt* state = (DialogManagerStateExt*)GetDialogManagerState();
 
-    if (state && state->currentDialog) {
-        return state->currentDialog;
+    if (state) {
+        /* Check front modal dialog first (set by BeginModalDialog) */
+        if (state->globals.frontModal) {
+            return state->globals.frontModal;
+        }
+        /* Fall back to currentDialog for modeless */
+        if (state->currentDialog) {
+            return state->currentDialog;
+        }
     }
 
     return NULL;
