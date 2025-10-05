@@ -581,6 +581,8 @@ extern void M68K_Op_BRA(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_BSR(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_Bcc(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_RTS(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_RTE(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_STOP(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_TRAP(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_MOVEQ(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_TST(M68KAddressSpace* as, UInt16 opcode);
@@ -646,6 +648,12 @@ OSErr M68K_Step(M68KAddressSpace* as)
         } else if ((opcode & 0xFFFF) == 0x4E75) {
             /* RTS */
             M68K_Op_RTS(as, opcode);
+        } else if ((opcode & 0xFFFF) == 0x4E73) {
+            /* RTE */
+            M68K_Op_RTE(as, opcode);
+        } else if ((opcode & 0xFFFF) == 0x4E72) {
+            /* STOP */
+            M68K_Op_STOP(as, opcode);
         } else if ((opcode & 0xFFF8) == 0x4E50) {
             /* LINK */
             M68K_Op_LINK(as, opcode);

@@ -27,12 +27,74 @@ extern UInt32 M68K_EA_Read(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize
 extern void M68K_EA_Write(M68KAddressSpace* as, UInt8 mode, UInt8 reg, M68KSize size, UInt32 value);
 
 /*
- * Fault Handler
+ * Exception Handler - Raise 68K exception
+ */
+static void M68K_RaiseException(M68KAddressSpace* as, UInt16 vector, const char* reason)
+{
+    UInt32 vectorAddr;
+    UInt32 handlerPC;
+    const char* vecName;
+
+    /* Map vector number to name */
+    switch (vector) {
+        case M68K_VEC_BUS_ERROR:      vecName = "BUS ERROR"; break;
+        case M68K_VEC_ADDRESS_ERROR:  vecName = "ADDRESS ERROR"; break;
+        case M68K_VEC_ILLEGAL:        vecName = "ILLEGAL"; break;
+        case M68K_VEC_DIVIDE_ZERO:    vecName = "DIVIDE_ZERO"; break;
+        case M68K_VEC_CHK:            vecName = "CHK"; break;
+        case M68K_VEC_TRAPV:          vecName = "TRAPV"; break;
+        case M68K_VEC_PRIVILEGE:      vecName = "PRIVILEGE"; break;
+        case M68K_VEC_TRACE:          vecName = "TRACE"; break;
+        case M68K_VEC_LINE_A:         vecName = "LINE_A"; break;
+        case M68K_VEC_LINE_F:         vecName = "LINE_F"; break;
+        default:                      vecName = "UNKNOWN"; break;
+    }
+
+    serial_printf("[M68K] EXCEPTION vec=%d (%s) at PC=0x%08X: %s\n",
+                 vector, vecName, as->regs.pc, reason);
+
+    as->lastException = vector;
+
+    /* Read exception vector from memory (vectors at 0x0000 + vec*4) */
+    vectorAddr = vector * 4;
+    if (vectorAddr + 3 < as->memorySize) {
+        UInt8* mem = (UInt8*)as->memory;
+        handlerPC = (mem[vectorAddr] << 24) |
+                   (mem[vectorAddr + 1] << 16) |
+                   (mem[vectorAddr + 2] << 8) |
+                   mem[vectorAddr + 3];
+
+        /* If handler is NULL or invalid, halt */
+        if (handlerPC == 0 || handlerPC >= as->memorySize) {
+            serial_printf("[M68K] Exception handler NULL or invalid (0x%08X), halting\n", handlerPC);
+            as->halted = true;
+        } else {
+            /* For now, just log and halt (RTE stub not yet implemented) */
+            serial_printf("[M68K] Exception handler at 0x%08X (not invoking yet, halting)\n", handlerPC);
+            as->halted = true;
+        }
+    } else {
+        serial_printf("[M68K] Exception vector table not initialized, halting\n");
+        as->halted = true;
+    }
+}
+
+/*
+ * Fault Handler (legacy wrapper)
  */
 void M68K_Fault(M68KAddressSpace* as, const char* reason)
 {
-    serial_printf("[M68K] FAULT at PC=0x%08X: %s\n", as->regs.pc, reason);
-    as->halted = true;
+    /* Classify fault and raise appropriate exception */
+    if (strstr(reason, "Address error") || strstr(reason, "odd address")) {
+        M68K_RaiseException(as, M68K_VEC_ADDRESS_ERROR, reason);
+    } else if (strstr(reason, "out of bounds") || strstr(reason, "unmapped")) {
+        M68K_RaiseException(as, M68K_VEC_BUS_ERROR, reason);
+    } else if (strstr(reason, "Illegal") || strstr(reason, "ILLEGAL")) {
+        M68K_RaiseException(as, M68K_VEC_ILLEGAL, reason);
+    } else {
+        /* Generic fault - use ILLEGAL */
+        M68K_RaiseException(as, M68K_VEC_ILLEGAL, reason);
+    }
 }
 
 /*
@@ -554,6 +616,41 @@ void M68K_Op_RTS(M68KAddressSpace* as, UInt16 opcode)
     as->regs.pc = return_addr;
 
     /* RTS does not affect flags */
+}
+
+/*
+ * RTE - Return from exception (stub)
+ * Encoding: 0100 1110 0111 0011 (0x4E73)
+ */
+void M68K_Op_RTE(M68KAddressSpace* as, UInt16 opcode)
+{
+    (void)opcode;
+
+    serial_printf("[M68K] RTE (stub) at PC=0x%08X - halting\n", as->regs.pc - 2);
+
+    /* For now, RTE is a stub that just halts */
+    /* Full implementation would pop SR and PC from supervisor stack */
+    as->halted = true;
+}
+
+/*
+ * STOP - Load status register and stop (stub)
+ * Encoding: 0100 1110 0111 0010 (0x4E72) + immediate SR value
+ */
+void M68K_Op_STOP(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt16 sr_value;
+
+    (void)opcode;
+
+    /* Fetch immediate SR value */
+    sr_value = M68K_Fetch16(as);
+
+    serial_printf("[M68K] STOP #0x%04X at PC=0x%08X - treated as NOP\n",
+                 sr_value, as->regs.pc - 4);
+
+    /* For now, STOP is a NOP (don't actually stop execution) */
+    /* Full implementation would halt until interrupt */
 }
 
 /*

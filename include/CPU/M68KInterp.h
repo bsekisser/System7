@@ -27,6 +27,22 @@ typedef struct M68KRegs {
 } M68KRegs;
 
 /*
+ * 68K Exception Vectors
+ */
+#define M68K_VEC_RESET_SSP      0   /* Reset: Initial SSP */
+#define M68K_VEC_RESET_PC       1   /* Reset: Initial PC */
+#define M68K_VEC_BUS_ERROR      2   /* Bus error */
+#define M68K_VEC_ADDRESS_ERROR  3   /* Address error */
+#define M68K_VEC_ILLEGAL        4   /* Illegal instruction */
+#define M68K_VEC_DIVIDE_ZERO    5   /* Integer divide by zero */
+#define M68K_VEC_CHK            6   /* CHK instruction */
+#define M68K_VEC_TRAPV          7   /* TRAPV instruction */
+#define M68K_VEC_PRIVILEGE      8   /* Privilege violation */
+#define M68K_VEC_TRACE          9   /* Trace */
+#define M68K_VEC_LINE_A         10  /* Line 1010 emulator */
+#define M68K_VEC_LINE_F         11  /* Line 1111 emulator */
+
+/*
  * M68K Address Space Implementation
  */
 typedef struct M68KAddressSpace {
@@ -36,7 +52,7 @@ typedef struct M68KAddressSpace {
 
     M68KRegs regs;            /* CPU registers */
 
-    /* Trap table */
+    /* Trap table (A-line traps 0xA000-0xAFFF) */
     CPUTrapHandler trapHandlers[256];
     void* trapContexts[256];
 
@@ -48,6 +64,7 @@ typedef struct M68KAddressSpace {
 
     /* Execution state */
     Boolean halted;           /* CPU halted due to fault or completion */
+    UInt16 lastException;     /* Last exception vector number */
 } M68KAddressSpace;
 
 /*
