@@ -10,6 +10,7 @@
 #include "ProcessMgr/ProcessTypes.h"
 #include "TimeManager/TimeManager.h"
 #include "EventManager/EventTypes.h"
+#include "System71StdLib.h"
 
 /* Process states */
 #define PROC_FREE     0
@@ -70,8 +71,11 @@ static void RemoveFromReadyQueue(ProcessCB* proc);
 static ProcessCB* SelectNextProcess(void);
 static void WakeTimerCallback(TMTaskPtr tmTaskPtr);
 
-/* External serial debug */
-extern void serial_printf(const char* fmt, ...);
+/* Logging helpers */
+#define PROC_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleSystem, kLogLevelDebug, "[PROC] " fmt, ##__VA_ARGS__)
+#define PROC_LOG_TRACE(fmt, ...) serial_logf(kLogModuleSystem, kLogLevelTrace, "[PROC] " fmt, ##__VA_ARGS__)
+#define PROC_LOG_WARN(fmt, ...)  serial_logf(kLogModuleSystem, kLogLevelWarn,  "[PROC] " fmt, ##__VA_ARGS__)
+#define PROC_LOG_INFO(fmt, ...)  serial_logf(kLogModuleSystem, kLogLevelInfo, "[PROC] " fmt, ##__VA_ARGS__)
 
 /* String functions from System71StdLib */
 extern void* memset(void* s, int c, size_t n);
@@ -104,7 +108,7 @@ OSErr Proc_Init(void) {
     idle->prev = idle;
 
     gSchedulerInitialized = true;
-    serial_printf("ProcessMgr: Scheduler initialized\n");
+    PROC_LOG_DEBUG("Scheduler initialized\n");
 
     return noErr;
 }
@@ -129,7 +133,7 @@ ProcessID Proc_New(const char* name, void* entry, void* arg,
     }
 
     if (!proc) {
-        serial_printf("ProcessMgr: No free process slots\n");
+        PROC_LOG_WARN("No free process slots\n");
         return 0;
     }
 
@@ -163,8 +167,8 @@ ProcessID Proc_New(const char* name, void* entry, void* arg,
     /* Add to ready queue */
     AddToReadyQueue(proc);
 
-    serial_printf("ProcessMgr: Created process %d '%s' pri=%d\n",
-                  proc->pid, proc->name, proc->priority);
+    PROC_LOG_DEBUG("Created process %d '%s' pri=%d\n",
+                   proc->pid, proc->name, proc->priority);
 
     return proc->pid;
 }
@@ -205,12 +209,12 @@ void Proc_Yield(void) {
         next->state = PROC_RUNNING;
         next->aging = 0;  /* Reset aging on run */
 
-        serial_printf("ProcessMgr: Switch %d->%d\n", prev->pid, next->pid);
+        PROC_LOG_TRACE("Switch %d->%d\n", prev->pid, next->pid);
 
         /* First-time execution of tasklet */
         if (next->neverStarted && next->entry) {
             next->neverStarted = false;
-            serial_printf("ProcessMgr: Starting tasklet %d\n", next->pid);
+            PROC_LOG_TRACE("Starting tasklet %d\n", next->pid);
             next->entry(next->arg);
             /* If entry returns, mark process as free */
             next->state = PROC_FREE;
@@ -246,8 +250,8 @@ void Proc_Sleep(UInt32 microseconds) {
     RemoveFromReadyQueue(gCurrentProcess);
     gCurrentProcess->state = PROC_SLEEPING;
 
-    serial_printf("ProcessMgr: Process %d sleeping for %lu us\n",
-                  gCurrentProcess->pid, microseconds);
+    PROC_LOG_TRACE("Process %d sleeping for %u us\n",
+                   gCurrentProcess->pid, (unsigned int)microseconds);
 
     /* Yield to next process */
     Proc_Yield();
@@ -260,7 +264,7 @@ void Proc_BlockOnEvent(EventMask mask, EventRecord* evt) {
     if (!gCurrentProcess || gCurrentProcess->pid == 0) {
         /* Can't block idle process - it must always be ready */
         if (gCurrentProcess && gCurrentProcess->pid == 0) {
-            serial_printf("ProcessMgr: WARNING: Idle process cannot block\n");
+            PROC_LOG_WARN("Idle process cannot block\n");
         }
         return;
     }
@@ -273,8 +277,8 @@ void Proc_BlockOnEvent(EventMask mask, EventRecord* evt) {
     RemoveFromReadyQueue(gCurrentProcess);
     gCurrentProcess->state = PROC_BLOCKED;
 
-    serial_printf("ProcessMgr: Process %d blocked on events 0x%04x\n",
-                  gCurrentProcess->pid, mask);
+    PROC_LOG_TRACE("Process %d blocked on events 0x%08x\n",
+                   gCurrentProcess->pid, mask);
 
     /* Yield to next process */
     Proc_Yield();
@@ -309,7 +313,7 @@ void Proc_Wake(ProcessID pid) {
         proc->state = PROC_READY;
         AddToReadyQueue(proc);
 
-        serial_printf("ProcessMgr: Woke sleeping process %d\n", pid);
+        PROC_LOG_TRACE("Woke sleeping process %d\n", pid);
     }
     else if (proc->state == PROC_BLOCKED) {
         /* Clear event blocking */
@@ -320,7 +324,7 @@ void Proc_Wake(ProcessID pid) {
         proc->state = PROC_READY;
         AddToReadyQueue(proc);
 
-        serial_printf("ProcessMgr: Woke blocked process %d\n", pid);
+        PROC_LOG_TRACE("Woke blocked process %d\n", pid);
     }
 }
 
@@ -345,8 +349,8 @@ void Proc_UnblockEvent(EventRecord* evt) {
             proc->state = PROC_READY;
             AddToReadyQueue(proc);
 
-            serial_printf("ProcessMgr: Unblocked process %d for event %d\n",
-                         proc->pid, evt->what);
+            PROC_LOG_TRACE("Unblocked process %d for event %d\n",
+                            proc->pid, evt->what);
         }
     }
 }
@@ -383,7 +387,7 @@ static void RemoveFromReadyQueue(ProcessCB* proc) {
 
     /* Idle process (PID 0) must never leave ready queue */
     if (proc->pid == 0) {
-        serial_printf("ProcessMgr: WARNING: Attempt to remove idle from ready queue\n");
+        PROC_LOG_WARN("Attempt to remove idle from ready queue\n");
         return;
     }
 
@@ -456,7 +460,7 @@ static void WakeTimerCallback(TMTaskPtr tmTaskPtr) {
         proc->state = PROC_READY;
         AddToReadyQueue(proc);
 
-        serial_printf("ProcessMgr: Timer woke process %d\n", proc->pid);
+        PROC_LOG_TRACE("Timer woke process %d\n", proc->pid);
     }
 }
 
@@ -464,8 +468,8 @@ static void WakeTimerCallback(TMTaskPtr tmTaskPtr) {
  * Debugging functions
  */
 void Proc_DumpTable(void) {
-    serial_printf("\n=== Process Table ===\n");
-    serial_printf("Current: %d\n", gCurrentProcess ? gCurrentProcess->pid : -1);
+    PROC_LOG_INFO("\n=== Process Table ===\n");
+    PROC_LOG_INFO("Current: %d\n", gCurrentProcess ? gCurrentProcess->pid : -1);
 
     for (int i = 0; i < MAX_PROCESSES; i++) {
         ProcessCB* proc = &gProcessTable[i];
@@ -478,10 +482,10 @@ void Proc_DumpTable(void) {
                 case PROC_SLEEPING: stateStr = "SLEEP"; break;
             }
 
-            serial_printf("[%2d] %-8s pid=%d pri=%d age=%d '%s'\n",
-                         i, stateStr, proc->pid, proc->priority,
-                         proc->aging, proc->name);
+            PROC_LOG_INFO("Slot %d state=%s pid=%d pri=%d age=%d name='%s'\n",
+                          i, stateStr, proc->pid, proc->priority,
+                          proc->aging, proc->name);
         }
     }
-    serial_printf("===================\n\n");
+    PROC_LOG_INFO("===================\n\n");
 }
