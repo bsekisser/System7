@@ -49,15 +49,17 @@ static void CopyBitsImplementation(const BitMap *srcBits, const BitMap *dstBits,
                                   SInt16 mode, RgnHandle maskRgn);
 static void CopyBitsScaled(const BitMap *srcBits, const BitMap *dstBits,
                           const Rect *srcRect, const Rect *dstRect,
-                          SInt16 mode, const ScaleInfo *scaleInfo);
+                          SInt16 mode, const ScaleInfo *scaleInfo,
+                          RgnHandle maskRgn);
 static void CopyBitsUnscaled(const BitMap *srcBits, const BitMap *dstBits,
                             const Rect *srcRect, const Rect *dstRect,
-                            SInt16 mode);
+                            SInt16 mode, RgnHandle maskRgn);
 static UInt32 ApplyTransferMode(UInt32 src, UInt32 dst, UInt32 pattern, SInt16 mode);
 static void CalculateScaling(const Rect *srcRect, const Rect *dstRect, ScaleInfo *scaleInfo);
 static void CopyPixelRow(const BitMap *srcBits, const BitMap *dstBits,
                         SInt16 srcY, SInt16 dstY, SInt16 srcLeft, SInt16 srcRight,
-                        SInt16 dstLeft, SInt16 dstRight, SInt16 mode);
+                        SInt16 dstLeft, SInt16 dstRight, SInt16 mode,
+                        RgnHandle maskRgn);
 static UInt32 GetPixelValue(const BitMap *bitmap, SInt16 x, SInt16 y);
 static void SetPixelValue(const BitMap *bitmap, SInt16 x, SInt16 y, UInt32 value);
 /* IsPixMap is now defined in ColorQuickDraw.h */
@@ -151,15 +153,16 @@ static void CopyBitsImplementation(const BitMap *srcBits, const BitMap *dstBits,
     /* Choose appropriate copy method */
     if (scaleInfo.needsScaling) {
         CopyBitsScaled(srcBits, dstBits, &clippedSrcRect, &clippedDstRect,
-                       mode, &scaleInfo);
+                       mode, &scaleInfo, maskRgn);
     } else {
-        CopyBitsUnscaled(srcBits, dstBits, &clippedSrcRect, &clippedDstRect, mode);
+        CopyBitsUnscaled(srcBits, dstBits, &clippedSrcRect, &clippedDstRect, mode, maskRgn);
     }
 }
 
 static void CopyBitsScaled(const BitMap *srcBits, const BitMap *dstBits,
                           const Rect *srcRect, const Rect *dstRect,
-                          SInt16 mode, const ScaleInfo *scaleInfo) {
+                          SInt16 mode, const ScaleInfo *scaleInfo,
+                          RgnHandle maskRgn) {
     SInt16 dstWidth = dstRect->right - dstRect->left;
     SInt16 dstHeight = dstRect->bottom - dstRect->top;
 
@@ -183,6 +186,15 @@ static void CopyBitsScaled(const BitMap *srcBits, const BitMap *dstBits,
             /* Apply transfer mode */
             UInt32 resultPixel = ApplyTransferMode(srcPixel, dstPixel, 0, mode);
 
+            if (maskRgn && *maskRgn) {
+                Point dstPt;
+                dstPt.v = dstRect->top + dstY;
+                dstPt.h = dstRect->left + dstX;
+                if (!PtInRgn(dstPt, maskRgn)) {
+                    continue;
+                }
+            }
+
             /* Set destination pixel */
             SetPixelValue(dstBits, dstRect->left + dstX, dstRect->top + dstY, resultPixel);
         }
@@ -191,7 +203,7 @@ static void CopyBitsScaled(const BitMap *srcBits, const BitMap *dstBits,
 
 static void CopyBitsUnscaled(const BitMap *srcBits, const BitMap *dstBits,
                             const Rect *srcRect, const Rect *dstRect,
-                            SInt16 mode) {
+                            SInt16 mode, RgnHandle maskRgn) {
     SInt16 width = srcRect->right - srcRect->left;
     SInt16 height = srcRect->bottom - srcRect->top;
 
@@ -205,16 +217,26 @@ static void CopyBitsUnscaled(const BitMap *srcBits, const BitMap *dstBits,
                     srcRect->top + y, dstRect->top + y,
                     srcRect->left, srcRect->right,
                     dstRect->left, dstRect->right,
-                    mode);
+                    mode, maskRgn);
     }
 }
 
 static void CopyPixelRow(const BitMap *srcBits, const BitMap *dstBits,
                         SInt16 srcY, SInt16 dstY, SInt16 srcLeft, SInt16 srcRight,
-                        SInt16 dstLeft, SInt16 dstRight, SInt16 mode) {
+                        SInt16 dstLeft, SInt16 dstRight, SInt16 mode,
+                        RgnHandle maskRgn) {
     SInt16 width = srcRight - srcLeft;
 
     for (SInt16 x = 0; x < width; x++) {
+        if (maskRgn && *maskRgn) {
+            Point dstPt;
+            dstPt.v = dstY;
+            dstPt.h = dstLeft + x;
+            if (!PtInRgn(dstPt, maskRgn)) {
+                continue;
+            }
+        }
+
         UInt32 srcPixel = GetPixelValue(srcBits, srcLeft + x, srcY);
         UInt32 dstPixel = GetPixelValue(dstBits, dstLeft + x, dstY);
         UInt32 resultPixel = ApplyTransferMode(srcPixel, dstPixel, 0, mode);
