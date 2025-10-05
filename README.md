@@ -12,6 +12,15 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Recent Updates
 
+- ✅ **Hardware Abstraction Layer (HAL)**: Complete platform abstraction for multi-architecture support
+  - Clean separation of platform-specific code from core System 7 implementation
+  - Pluggable architecture: `src/Platform/{platform}/` directory structure
+  - Four HAL interfaces: boot, I/O, storage, and input
+  - x86 implementation complete and verified in QEMU
+  - Ready for ARM (Raspberry Pi, Apple Silicon) and PowerPC ports
+  - Build system with `PLATFORM` variable (default: x86)
+  - Core code is now 100% platform-agnostic
+  - Full documentation in `docs/future/PORTING_PLAN.md`
 - ✅ **Portable 68K Segment Loader**: Complete ISA-agnostic segment loading system
   - Classic CODE resource parsing (CODE 0 metadata + CODE 1..N segments)
   - A5 world construction (below/above A5, jump table, QuickDraw globals)
@@ -126,6 +135,14 @@ This is a proof-of-concept implementation focused on understanding and recreatin
 
 ### What Works ✅
 
+- **Hardware Abstraction Layer (HAL)**: Platform-independent architecture
+  - Boot interface (`hal_boot_init()`) for platform initialization
+  - I/O interface (`hal_inb()`, `hal_outb()`, etc.) for port operations
+  - Storage interface (`hal_storage_*()`) for block device access
+  - Input interface (`hal_input_poll()`, `hal_input_get_mouse()`, etc.)
+  - x86 implementation with ATA, PS/2, and VGA support
+  - Build system supports `make PLATFORM=x86` (default)
+  - Ready for ARM and PowerPC platform implementations
 - **Boot System**: Successfully boots via GRUB2/Multiboot2 on x86 hardware
 - **Serial Logging System**: Module-based logging with runtime filtering and hierarchical levels
   - Log levels: Error, Warn, Info, Debug, Trace
@@ -315,12 +332,16 @@ The following subsystems have source code but are not yet integrated into the bu
 
 ### Technical Specifications
 
-- **Architecture**: Multi-architecture support (x86/ARM/RISC-V/PowerPC)
-- **Boot Protocol**: Multiboot2
+- **Architecture**: Multi-architecture support via Hardware Abstraction Layer (HAL)
+  - Platform-agnostic core implementation
+  - x86 platform complete (ATA, PS/2, VGA)
+  - Ready for ARM (Raspberry Pi, Apple Silicon) and PowerPC ports
+  - Build system: `make PLATFORM=<platform>` (default: x86)
+- **Boot Protocol**: Multiboot2 (x86), platform-specific bootloaders for other architectures
 - **Graphics**: VESA framebuffer, 800x600 @ 32-bit color
-- **Memory Layout**: Kernel loads at 1MB physical address
+- **Memory Layout**: Kernel loads at 1MB physical address (x86)
 - **Font Rendering**: Custom bitmap renderer with authentic Chicago font data
-- **Input**: PS/2 keyboard and mouse via port I/O with full event pipeline
+- **Input**: HAL-abstracted input system (x86: PS/2 keyboard and mouse)
 - **Timing**: Architecture-agnostic counters with microsecond precision:
   - x86: RDTSC with CPUID frequency calibration
   - ARM/AArch64: Generic timer
@@ -349,8 +370,23 @@ The following subsystems have source code but are not yet integrated into the bu
 iteration2/
 ├── src/
 │   ├── main.c                  # Kernel entry point & initialization
+│   ├── boot.c                  # Platform-independent boot dispatcher
 │   ├── SystemInit.c            # System startup sequence
 │   ├── System71StdLib.c        # Serial logging framework with bracket tag parsing
+│   ├── Platform/               # Hardware Abstraction Layer (HAL)
+│   │   ├── include/            # Platform-independent HAL interfaces
+│   │   │   ├── boot.h          # Boot initialization interface
+│   │   │   ├── io.h            # I/O port operations (hal_inb, hal_outb, etc.)
+│   │   │   ├── storage.h       # Block storage interface
+│   │   │   └── input.h         # Input device interface
+│   │   └── x86/                # x86 platform implementation
+│   │       ├── platform_boot.S # Multiboot2 bootloader entry
+│   │       ├── hal_boot.c      # x86 boot initialization
+│   │       ├── io.c            # x86 port I/O operations
+│   │       ├── ata.c           # ATA/IDE storage driver
+│   │       ├── ps2.c           # PS/2 keyboard/mouse driver
+│   │       ├── hal_input.c     # Input HAL implementation
+│   │       └── linker.ld       # x86 linker script
 │   ├── QuickDraw/              # 2D graphics primitives
 │   ├── WindowManager/          # Window management (8 modules)
 │   ├── MenuManager/            # Menu system (7 modules)
@@ -375,9 +411,7 @@ iteration2/
 │   ├── CPU/                    # CPU backend interface & implementations
 │   │   └── m68k_interp/        # M68K interpreter backend
 │   ├── ProcessMgr/             # Process Manager (integrated with segment loader)
-│   ├── FileMgr/                # File Manager subsystems
-│   ├── FileManager.c           # File Manager API
-│   └── PS2Controller.c         # Hardware input driver
+│   └── FileMgr/                # File Manager subsystems
 ├── include/                    # Public headers (Inside Mac API)
 ├── docs/                       # Component documentation
 │   ├── components/             # Subsystem guides
@@ -392,6 +426,9 @@ iteration2/
 │   │   ├── MenuManager.md      # Menu Manager guide
 │   │   ├── WindowManager.md    # Window Manager guide
 │   │   └── ResourceManager.md  # Resource Manager guide
+│   ├── future/                 # Future development plans
+│   │   ├── PORTING_PLAN.md     # Multi-platform porting strategy
+│   │   └── REFACTORING_PLAN.md # HAL implementation plan
 │   └── layouts/                # System structure layouts
 └── System_Resources_Extracted/ # Original System 7.1 resources
     └── [69 resource type folders]
@@ -417,8 +454,11 @@ sudo apt-get install build-essential gcc-multilib grub-pc-bin xorriso qemu-syste
 ### Build Commands
 
 ```bash
-# Build kernel only
+# Build kernel only (x86 by default)
 make
+
+# Build for specific platform
+make PLATFORM=x86
 
 # Create bootable ISO
 make iso
