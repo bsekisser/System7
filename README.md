@@ -12,6 +12,15 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Recent Updates
 
+- ✅ **List Manager Implementation**: Complete System 7.1-compatible List Manager with full API support
+  - 20-function API: LNew, LDispose, LAddRow, LDelRow, LSetCell, LGetCell, LUpdate, LDraw, LClick, LKey, etc.
+  - Single and multi-selection modes with Shift/Cmd modifier support
+  - Keyboard navigation (arrow keys, PageUp/Down, Home/End)
+  - Proper QuickDraw state management with port/pen/clip save/restore
+  - Efficient redraw with narrow erase and band invalidation
+  - Dialog Manager integration support for list dialog items
+  - Cell-based storage with handle-based memory management
+  - Production hardening: parameter validation, edge case handling, smoke tests
 - ✅ **Menu Manager Dropdown Fix**: Fixed critical bug where menus wouldn't display dropdowns
   - Root cause: SaveBits/RestoreBits were stubs that didn't actually save/restore framebuffer pixels
   - TrackMenu() had no tracking loop - returned immediately after drawing menu
@@ -154,6 +163,15 @@ This is a proof-of-concept implementation focused on understanding and recreatin
   - File open/save with TEXT/ttxt type/creator codes
   - Document state management (dirty tracking, undo support)
   - TextEdit API integration for all editing operations
+- **List Manager**: System 7.1-compatible list control implementation with:
+  - Complete public API (LNew, LDispose, LAddRow, LDelRow, LSetCell, LGetCell, LUpdate, LDraw, LClick, LKey, LScroll, LSize)
+  - Single-selection and multi-selection modes with modifier keys
+  - Keyboard navigation (arrows, PageUp/PageDown, Home/End)
+  - Cell-based storage with dynamic row/column management
+  - Handle-based memory management with proper locking
+  - QuickDraw integration with state save/restore
+  - Dialog Manager integration for list dialog items
+  - Efficient redraw with narrow erase and band invalidation
 
 ### Partially Working ⚠️
 
@@ -178,7 +196,6 @@ This is a proof-of-concept implementation focused on understanding and recreatin
 ### Not Yet Implemented ❌
 
 - **Application Launching**: No process management or application loading
-- **List Manager**: List controls not working (2 source files exist but not compiled)
 - **Sound Manager**: No audio support
 - **Printing**: No print system
 - **Networking**: No AppleTalk or network functionality
@@ -206,9 +223,6 @@ The following subsystems have source code but are not yet integrated into the bu
 - **GestaltManager** (2 files): Extended system capability detection
   - System capabilities and feature testing
   - Located in `src/GestaltManager/` (distinct from `src/Gestalt/` which IS compiled)
-- **ListManager** (2 files): List control implementation
-  - Core list management functionality
-  - Located in `src/ListManager/`
 - **SpeechManager** (8 files): Text-to-speech synthesis
   - Voice management, speech output, synthesis engine
   - Speech channels, pronunciation, voice resources
@@ -273,6 +287,7 @@ iteration2/
 │   ├── Gestalt/                # System information manager
 │   ├── TextEdit/               # TextEdit Manager (7 modules)
 │   ├── ScrapManager/           # Clipboard/Scrap Manager (Classic Mac OS API)
+│   ├── ListManager/            # List Manager (3 modules)
 │   ├── Apps/SimpleText/        # SimpleText application (7 modules)
 │   ├── FileMgr/                # File Manager subsystems
 │   ├── FileManager.c           # File Manager API
