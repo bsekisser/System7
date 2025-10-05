@@ -369,6 +369,7 @@ static OSErr M68K_Relocate(CPUAddressSpace as, CPUCodeHandle code,
     M68KCodeHandle* mhandle = (M68KCodeHandle*)code;
     M68KAddressSpace* mas = (M68KAddressSpace*)as;
     UInt8* codeData;
+    const char* kindName;
 
     if (!mas || !mhandle || !relocs) {
         return paramErr;
@@ -376,55 +377,115 @@ static OSErr M68K_Relocate(CPUAddressSpace as, CPUCodeHandle code,
 
     codeData = (UInt8*)mhandle->hostMemory;
 
+    serial_printf("[RELOC] Applying %d relocations to segment at 0x%08X\n",
+                  relocs->count, segBase);
+
     /* Apply each relocation */
     for (UInt16 i = 0; i < relocs->count; i++) {
         const RelocEntry* reloc = &relocs->entries[i];
         UInt32 offset = reloc->atOffset;
         UInt32 value = 0;
+        SInt32 pcrel_offset;
+        UInt32 patch_pc;
 
         if (offset + 4 > mhandle->size) {
+            serial_printf("[RELOC] ERROR: offset 0x%X exceeds segment size 0x%X\n",
+                         offset, mhandle->size);
             return segmentRelocErr;
         }
 
         switch (reloc->kind) {
             case kRelocAbsSegBase:
                 /* Patch absolute address with segment base */
+                kindName = "ABS_SEG_BASE";
                 value = segBase + reloc->addend;
                 codeData[offset + 0] = (value >> 24) & 0xFF;
                 codeData[offset + 1] = (value >> 16) & 0xFF;
                 codeData[offset + 2] = (value >> 8) & 0xFF;
                 codeData[offset + 3] = value & 0xFF;
+                serial_printf("[RELOC] apply kind=%s at off=0x%X -> val=0x%08X (base=0x%08X addend=%d)\n",
+                             kindName, offset, value, segBase, reloc->addend);
                 break;
 
             case kRelocA5Relative:
                 /* Patch A5-relative offset */
+                kindName = "A5_REL";
                 value = a5Base + reloc->addend;
                 codeData[offset + 0] = (value >> 24) & 0xFF;
                 codeData[offset + 1] = (value >> 16) & 0xFF;
                 codeData[offset + 2] = (value >> 8) & 0xFF;
                 codeData[offset + 3] = value & 0xFF;
+                serial_printf("[RELOC] apply kind=%s at off=0x%X -> val=0x%08X (A5=0x%08X addend=%d)\n",
+                             kindName, offset, value, a5Base, reloc->addend);
                 break;
 
             case kRelocJTImport:
                 /* Patch jump table import */
+                kindName = "JT_IMPORT";
                 value = jtBase + (reloc->jtIndex * 8); /* 8 bytes per JT entry */
                 codeData[offset + 0] = (value >> 24) & 0xFF;
                 codeData[offset + 1] = (value >> 16) & 0xFF;
                 codeData[offset + 2] = (value >> 8) & 0xFF;
                 codeData[offset + 3] = value & 0xFF;
+                serial_printf("[RELOC] apply kind=%s at off=0x%X -> val=0x%08X (JT[%d])\n",
+                             kindName, offset, value, reloc->jtIndex);
                 break;
 
             case kRelocPCRel16:
+                /* PC-relative 16-bit branch/call (68K BRA, Bcc, BSR) */
+                kindName = "PC_REL16";
+                /* PC points to instruction AFTER the displacement word */
+                patch_pc = segBase + offset + 2;
+                /* Calculate target address */
+                value = segBase + reloc->addend;
+                /* Calculate PC-relative offset */
+                pcrel_offset = (SInt32)value - (SInt32)patch_pc;
+                /* Check 16-bit signed range */
+                if (pcrel_offset < -32768 || pcrel_offset > 32767) {
+                    serial_printf("[RELOC] ERROR: PC_REL16 out of range: offset=%d\n", pcrel_offset);
+                    return segmentRelocErr;
+                }
+                /* Patch as big-endian 16-bit */
+                codeData[offset + 0] = (pcrel_offset >> 8) & 0xFF;
+                codeData[offset + 1] = pcrel_offset & 0xFF;
+                serial_printf("[RELOC] apply kind=%s at off=0x%X -> disp=%+d (target=0x%08X PC=0x%08X)\n",
+                             kindName, offset, pcrel_offset, value, patch_pc);
+                break;
+
             case kRelocPCRel32:
+                /* PC-relative 32-bit (rare on 68K, more common on PPC) */
+                kindName = "PC_REL32";
+                patch_pc = segBase + offset + 4;
+                value = segBase + reloc->addend;
+                pcrel_offset = (SInt32)value - (SInt32)patch_pc;
+                codeData[offset + 0] = (pcrel_offset >> 24) & 0xFF;
+                codeData[offset + 1] = (pcrel_offset >> 16) & 0xFF;
+                codeData[offset + 2] = (pcrel_offset >> 8) & 0xFF;
+                codeData[offset + 3] = pcrel_offset & 0xFF;
+                serial_printf("[RELOC] apply kind=%s at off=0x%X -> disp=%+d (target=0x%08X PC=0x%08X)\n",
+                             kindName, offset, pcrel_offset, value, patch_pc);
+                break;
+
             case kRelocSegmentRef:
-                /* TODO: Implement these relocation types */
+                /* Reference to another segment (for cross-segment calls/data) */
+                kindName = "SEG_REF";
+                /* For now, treat as absolute (would need segment table lookup) */
+                value = segBase + reloc->addend;
+                codeData[offset + 0] = (value >> 24) & 0xFF;
+                codeData[offset + 1] = (value >> 16) & 0xFF;
+                codeData[offset + 2] = (value >> 8) & 0xFF;
+                codeData[offset + 3] = value & 0xFF;
+                serial_printf("[RELOC] apply kind=%s at off=0x%X -> val=0x%08X (seg=%d addend=%d)\n",
+                             kindName, offset, value, reloc->targetSegment, reloc->addend);
                 break;
 
             default:
+                serial_printf("[RELOC] ERROR: Unknown relocation kind %d\n", reloc->kind);
                 return segmentRelocErr;
         }
     }
 
+    serial_printf("[RELOC] Successfully applied all %d relocations\n", relocs->count);
     return noErr;
 }
 

@@ -220,8 +220,32 @@ OSErr LoadSeg_TrapHandler(void* context, CPUAddr* pc, CPUAddr* registers)
 
     SEG_LOG_INFO("_LoadSeg: segment %d loaded successfully", segID);
 
-    /* TODO: Patch JT entry to point directly at segment (skip stub next time) */
-    /* For MVP, stub will re-invoke each time (inefficient but functional) */
+    /* Patch JT entry to point directly at segment (hot-patch) */
+    /* Calculate JT slot index - simplified mapping: seg 1 -> JT[0], etc. */
+    SInt16 jtIndex = segID - 1;  /* JT[0] for segment 1 */
+
+    if (jtIndex >= 0 && jtIndex < ctx->a5World.jtCount) {
+        CPUAddr jtSlotAddr = ctx->a5World.jtBase + (jtIndex * ctx->a5World.jtEntrySize);
+        CPUAddr entryAddr;
+
+        /* Get segment entry point */
+        err = GetSegmentEntryPoint(ctx, segID, &entryAddr);
+        if (err == noErr) {
+            /* Atomically patch JT slot with JMP to entry */
+            err = ctx->cpuBackend->WriteJumpTableSlot(ctx->cpuAS, jtSlotAddr, entryAddr);
+            if (err == noErr) {
+                SEG_LOG_INFO("_LoadSeg: hot-patched JT[%d] @ 0x%08X -> entry 0x%08X",
+                            jtIndex, jtSlotAddr, entryAddr);
+            } else {
+                SEG_LOG_ERROR("_LoadSeg: failed to patch JT[%d]: err=%d", jtIndex, err);
+            }
+        } else {
+            SEG_LOG_ERROR("_LoadSeg: failed to get entry point for seg %d: err=%d", segID, err);
+        }
+    } else {
+        SEG_LOG_WARN("_LoadSeg: JT index %d out of range [0..%d), no hot-patch",
+                    jtIndex, ctx->a5World.jtCount);
+    }
 
     return noErr;
 }
