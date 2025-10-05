@@ -22,8 +22,11 @@
 #include "Finder/finder.h"
 #include "FS/vfs.h"
 #include "FS/hfs_types.h"
+#include "System71StdLib.h"
 
-extern void serial_printf(const char* fmt, ...);
+#define FINDER_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelDebug, fmt, ##__VA_ARGS__)
+#define FINDER_LOG_TRACE(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelTrace, fmt, ##__VA_ARGS__)
+#define FINDER_LOG_WARN(fmt, ...)  serial_logf(kLogModuleFinder, kLogLevelWarn, fmt, ##__VA_ARGS__)
 extern void DrawString(const unsigned char* str);
 extern void MoveTo(short h, short v);
 extern void LineTo(short h, short v);
@@ -87,13 +90,12 @@ static void GhostEraseIf(void);  /* Forward declaration for ghost system */
 /* Draw a simple file/folder icon */
 static void DrawFileIcon(short x, short y, Boolean isFolder)
 {
-    extern void serial_printf(const char* fmt, ...);
-
+    
     Rect iconRect;
     SetRect(&iconRect, x, y, x + 32, y + 32);
 
-    serial_printf("[ICON] res=%d at(l)={%d,%d} port=%p\n",
-                  isFolder ? 1 : 2, x, y, NULL);
+    FINDER_LOG_DEBUG("[ICON] res=%d at(l)={%d,%d} port=0x%08x\n",
+                     isFolder ? 1 : 2, x, y, (unsigned int)P2UL(NULL));
 
     if (isFolder) {
         /* Draw folder shape - paint with gray then frame */
@@ -122,7 +124,7 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
 {
     if (!window) return;
 
-    serial_printf("Finder: Drawing contents of '%s'\n",
+    FINDER_LOG_DEBUG("Finder: Drawing contents of '%s'\n",
                   isTrash ? "Trash" : "Macintosh HD");
 
     GrafPtr savePort;
@@ -130,15 +132,17 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
     SetPort(window);
 
     /* CRITICAL: Log port and coordinate mapping for debugging */
-    serial_printf("DrawFolder: window=%p savePort=%p\n", window, savePort);
-    serial_printf("DrawFolder: portBits.bounds(GLOBAL)=(%d,%d,%d,%d)\n",
+    FINDER_LOG_DEBUG("DrawFolder: window=0x%08x savePort=0x%08x\n",
+                     (unsigned int)P2UL(window),
+                     (unsigned int)P2UL(savePort));
+    FINDER_LOG_DEBUG("DrawFolder: portBits.bounds(GLOBAL)=(%d,%d,%d,%d)\n",
                   window->port.portBits.bounds.left, window->port.portBits.bounds.top,
                   window->port.portBits.bounds.right, window->port.portBits.bounds.bottom);
 
     /* Use window's portRect which is in LOCAL (port-relative) coordinates */
     /* In Mac Toolbox, portRect should always start at (0,0) */
     Rect localBounds = window->port.portRect;
-    serial_printf("DrawFolder: portRect(LOCAL)=(%d,%d,%d,%d)\n",
+    FINDER_LOG_DEBUG("DrawFolder: portRect(LOCAL)=(%d,%d,%d,%d)\n",
                   localBounds.left, localBounds.top, localBounds.right, localBounds.bottom);
 
     /* Calculate content area in LOCAL coordinates */
@@ -149,10 +153,10 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
     contentRect.right = localBounds.right;
     contentRect.bottom = localBounds.bottom;
 
-    serial_printf("Finder: portRect (local) = (%d,%d,%d,%d)\n",
+    FINDER_LOG_DEBUG("Finder: portRect (local) = (%d,%d,%d,%d)\n",
                   localBounds.left, localBounds.top, localBounds.right, localBounds.bottom);
 
-    serial_printf("Finder: contentRect (local) = (%d,%d,%d,%d)\n",
+    FINDER_LOG_DEBUG("Finder: contentRect (local) = (%d,%d,%d,%d)\n",
                   contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
 
     /* Set clipping to content area to prevent drawing outside bounds */
@@ -162,7 +166,7 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
     extern void EraseRect(const Rect* r);
     EraseRect(&contentRect);
 
-    serial_printf("Finder: Erased contentRect (%d,%d,%d,%d) for white backfill\n",
+    FINDER_LOG_DEBUG("Finder: Erased contentRect (%d,%d,%d,%d) for white backfill\n",
                   contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
 
     /* Text drawing disabled until Font Manager is linked */
@@ -171,12 +175,12 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
         /* Draw trash contents */
         MoveTo(contentRect.left + 10, contentRect.top + 30);
         DrawText("Trash is empty", 0, 14);
-        serial_printf("[TEXT] 'Trash is empty' at(l)={%d,%d} font=%d size=%d\n",
+        FINDER_LOG_DEBUG("[TEXT] 'Trash is empty' at(l)={%d,%d} font=%d size=%d\n",
                       contentRect.left + 10, contentRect.top + 30, 0, 9);
 
         MoveTo(contentRect.left + 10, contentRect.top + 50);
         DrawText("Drag items here to delete them", 0, 30);
-        serial_printf("[TEXT] 'Drag items here to delete them' at(l)={%d,%d} font=%d size=%d\n",
+        FINDER_LOG_DEBUG("[TEXT] 'Drag items here to delete them' at(l)={%d,%d} font=%d size=%d\n",
                       contentRect.left + 10, contentRect.top + 50, 0, 9);
     } else {
         /* Draw volume contents - sample items in icon grid */
@@ -190,7 +194,7 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
         DrawFileIcon(x, y, true);
         MoveTo(x - 23, y + 40);
         DrawText("System Folder", 0, 13);
-        serial_printf("[TEXT] 'System Folder' at(l)={%d,%d} font=%d size=%d\n", x - 23, y + 40, 0, 9);
+        FINDER_LOG_DEBUG("[TEXT] 'System Folder' at(l)={%d,%d} font=%d size=%d\n", x - 23, y + 40, 0, 9);
 
         x += iconSpacing;
 
@@ -198,7 +202,7 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
         DrawFileIcon(x, y, true);
         MoveTo(x - 20, y + 40);
         DrawText("Applications", 0, 12);
-        serial_printf("[TEXT] 'Applications' at(l)={%d,%d} font=%d size=%d\n", x - 20, y + 40, 0, 9);
+        FINDER_LOG_DEBUG("[TEXT] 'Applications' at(l)={%d,%d} font=%d size=%d\n", x - 20, y + 40, 0, 9);
 
         x += iconSpacing;
 
@@ -206,7 +210,7 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
         DrawFileIcon(x, y, true);
         MoveTo(x - 11, y + 40);
         DrawText("Documents", 0, 9);
-        serial_printf("[TEXT] 'Documents' at(l)={%d,%d} font=%d size=%d\n", x - 11, y + 40, 0, 9);
+        FINDER_LOG_DEBUG("[TEXT] 'Documents' at(l)={%d,%d} font=%d size=%d\n", x - 11, y + 40, 0, 9);
 
         /* Second row */
         x = contentRect.left + 80;
@@ -216,7 +220,7 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
         DrawFileIcon(x, y, false);
         MoveTo(x - 14, y + 40);
         DrawText("ReadMe.txt", 0, 10);
-        serial_printf("[TEXT] 'ReadMe.txt' at(l)={%d,%d} font=%d size=%d\n", x - 14, y + 40, 0, 9);
+        FINDER_LOG_DEBUG("[TEXT] 'ReadMe.txt' at(l)={%d,%d} font=%d size=%d\n", x - 14, y + 40, 0, 9);
 
         x += iconSpacing;
 
@@ -224,12 +228,12 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
         DrawFileIcon(x, y, false);
         MoveTo(x - 26, y + 40);
         DrawText("About System 7", 0, 14);
-        serial_printf("[TEXT] 'About System 7' at(l)={%d,%d} font=%d size=%d\n", x - 26, y + 40, 0, 9);
+        FINDER_LOG_DEBUG("[TEXT] 'About System 7' at(l)={%d,%d} font=%d size=%d\n", x - 26, y + 40, 0, 9);
 
         /* Show disk space at bottom */
         MoveTo(contentRect.left + 10, contentRect.bottom - 10);
         DrawText("5 items     42.3 MB in disk     193.7 MB available", 0, 52);
-        serial_printf("[TEXT] 'disk info' at(l)={%d,%d} font=%d size=%d\n",
+        FINDER_LOG_DEBUG("[TEXT] 'disk info' at(l)={%d,%d} font=%d size=%d\n",
                       contentRect.left + 10, contentRect.bottom - 10, 0, 9);
     }
 
@@ -238,17 +242,16 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
 
 /* Helper: Find folder window state slot */
 FolderWindowState* GetFolderState(WindowPtr w) {
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("GetFolderState: ENTRY\n");
+        FINDER_LOG_DEBUG("GetFolderState: ENTRY\n");
     if (!w) {
-        serial_printf("GetFolderState: w is NULL\n");
+        FINDER_LOG_DEBUG("GetFolderState: w is NULL\n");
         return NULL;
     }
 
     /* Search for existing slot */
     for (int i = 0; i < MAX_FOLDER_WINDOWS; i++) {
         if (gFolderWindows[i].window == w) {
-            serial_printf("GetFolderState: Found existing slot %d\n", i);
+            FINDER_LOG_DEBUG("GetFolderState: Found existing slot %d\n", i);
             return &gFolderWindows[i].state;
         }
     }
@@ -256,7 +259,7 @@ FolderWindowState* GetFolderState(WindowPtr w) {
     /* Find empty slot */
     for (int i = 0; i < MAX_FOLDER_WINDOWS; i++) {
         if (gFolderWindows[i].window == NULL) {
-            serial_printf("GetFolderState: Creating new slot %d, refCon=0x%08x\n", i, (unsigned int)w->refCon);
+            FINDER_LOG_DEBUG("GetFolderState: Creating new slot %d, refCon=0x%08x\n", i, (unsigned int)w->refCon);
             gFolderWindows[i].window = w;
             gFolderWindows[i].state.items = NULL;
             gFolderWindows[i].state.itemCount = 0;
@@ -273,23 +276,22 @@ FolderWindowState* GetFolderState(WindowPtr w) {
             gFolderWindows[i].state.draggingIndex = -1;
 
             /* Initialize folder contents */
-            serial_printf("GetFolderState: About to call InitializeFolderContents\n");
+            FINDER_LOG_DEBUG("GetFolderState: About to call InitializeFolderContents\n");
             InitializeFolderContents(w, (w->refCon == 'TRSH'));
-            serial_printf("GetFolderState: InitializeFolderContents returned\n");
+            FINDER_LOG_DEBUG("GetFolderState: InitializeFolderContents returned\n");
             return &gFolderWindows[i].state;
         }
     }
 
-    serial_printf("GetFolderState: No slots available!\n");
+    FINDER_LOG_DEBUG("GetFolderState: No slots available!\n");
     return NULL;  /* No slots available */
 }
 
 /* Initialize folder contents from VFS - Extended version with custom dirID */
 void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID) {
-    extern void serial_printf(const char* fmt, ...);
-    FolderWindowState* state = NULL;
+        FolderWindowState* state = NULL;
 
-    serial_printf("InitializeFolderContentsEx: ENTRY, w=0x%08x isTrash=%d vref=%d dirID=%d\n",
+    FINDER_LOG_DEBUG("InitializeFolderContentsEx: ENTRY, w=0x%08x isTrash=%d vref=%d dirID=%d\n",
                  (unsigned int)w, (int)isTrash, (int)vref, (int)dirID);
 
     /* Find the state we just created */
@@ -312,7 +314,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         state->currentDir = 0;  /* Special trash ID (to be defined) */
         state->itemCount = 0;
         state->items = NULL;
-        serial_printf("InitializeFolderContentsEx: trash folder empty\n");
+        FINDER_LOG_DEBUG("InitializeFolderContentsEx: trash folder empty\n");
     } else {
         /* Use provided directory ID */
         state->currentDir = dirID;
@@ -322,16 +324,16 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         CatEntry entries[MAX_ITEMS];
         int count = 0;
 
-        serial_printf("InitializeFolderContents: calling VFS_Enumerate\n");
+        FINDER_LOG_DEBUG("InitializeFolderContents: calling VFS_Enumerate\n");
 
         if (!VFS_Enumerate(vref, state->currentDir, entries, MAX_ITEMS, &count)) {
-            serial_printf("InitializeFolderContents: VFS_Enumerate failed\n");
+            FINDER_LOG_DEBUG("InitializeFolderContents: VFS_Enumerate failed\n");
             state->itemCount = 0;
             state->items = NULL;
             return;
         }
 
-        serial_printf("InitializeFolderContents: VFS_Enumerate OK, count=%d\n", count);
+        FINDER_LOG_DEBUG("InitializeFolderContents: VFS_Enumerate OK, count=%d\n", count);
 
         if (count == 0) {
             state->itemCount = 0;
@@ -342,7 +344,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         /* Allocate item array */
         state->items = (FolderItem*)malloc(sizeof(FolderItem) * count);
         if (!state->items) {
-            serial_printf("FW: malloc failed for %d items\n", count);
+            FINDER_LOG_WARN("FW: malloc failed for %d items\n", count);
             state->itemCount = 0;
             return;
         }
@@ -378,14 +380,14 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
             state->items[i].position.h = startX + (col * colSpacing);
             state->items[i].position.v = startY + (row * rowHeight);
 
-            serial_printf("FW: Item %d: '%s' %s id=%d pos=(%d,%d)\n",
+            FINDER_LOG_DEBUG("FW: Item %d: '%s' %s id=%d pos=(%d,%d)\n",
                          i, state->items[i].name,
                          state->items[i].isFolder ? "DIR" : "FILE",
                          state->items[i].fileID,
                          state->items[i].position.h, state->items[i].position.v);
         }
 
-        serial_printf("FW: Initialized %d items from VFS\n", count);
+        FINDER_LOG_DEBUG("FW: Initialized %d items from VFS\n", count);
     }
 }
 
@@ -398,13 +400,12 @@ void InitializeFolderContents(WindowPtr w, Boolean isTrash) {
 
 /* Open a folder window for a specific directory */
 WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param title) {
-    extern void serial_printf(const char* fmt, ...);
-    extern WindowPtr NewWindow(void *, const Rect *, ConstStr255Param, Boolean, short,
+        extern WindowPtr NewWindow(void *, const Rect *, ConstStr255Param, Boolean, short,
                                WindowPtr, Boolean, long);
     extern void ShowWindow(WindowPtr);
     extern void SelectWindow(WindowPtr);
 
-    serial_printf("FolderWindow_OpenFolder: vref=%d dirID=%d\n", (int)vref, (int)dirID);
+    FINDER_LOG_DEBUG("FolderWindow_OpenFolder: vref=%d dirID=%d\n", (int)vref, (int)dirID);
 
     /* Create window with same geometry as generic folder windows */
     static Rect r;
@@ -416,7 +417,7 @@ WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param ti
     WindowPtr w = NewWindow(NULL, &r, title, true, 0 /* documentProc */, (WindowPtr)-1, true, 'DISK');
 
     if (!w) {
-        serial_printf("FolderWindow_OpenFolder: Failed to create window\n");
+        FINDER_LOG_DEBUG("FolderWindow_OpenFolder: Failed to create window\n");
         return NULL;
     }
 
@@ -430,7 +431,7 @@ WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param ti
     ShowWindow(w);
     SelectWindow(w);
 
-    serial_printf("FolderWindow_OpenFolder: Window created successfully\n");
+    FINDER_LOG_DEBUG("FolderWindow_OpenFolder: Window created successfully\n");
     return w;
 }
 
@@ -442,7 +443,7 @@ static short FW_IconAtPoint(WindowPtr w, Point localPt) {
     FolderWindowState* state = GetFolderState(w);
     if (!state || !state->items) return -1;
 
-    serial_printf("FW: hit test at local (%d,%d), itemCount=%d\n",
+    FINDER_LOG_DEBUG("FW: hit test at local (%d,%d), itemCount=%d\n",
                  localPt.h, localPt.v, state->itemCount);
 
     for (short i = 0; i < state->itemCount; i++) {
@@ -470,7 +471,7 @@ static short FW_IconAtPoint(WindowPtr w, Point localPt) {
              localPt.v >= iconRect.top && localPt.v < iconRect.bottom) ||
             (localPt.h >= labelRect.left && localPt.h < labelRect.right &&
              localPt.v >= labelRect.top && localPt.v < labelRect.bottom)) {
-            serial_printf("FW: hit index %d name='%s'\n", i, state->items[i].name);
+            FINDER_LOG_DEBUG("FW: hit index %d name='%s'\n", i, state->items[i].name);
             return i;
         }
     }
@@ -486,7 +487,7 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
         return false;
     }
 
-    serial_printf("FW: TrackFolderItemDrag: item %d '%s' from global (%d,%d)\n",
+    FINDER_LOG_DEBUG("FW: TrackFolderItemDrag: item %d '%s' from global (%d,%d)\n",
                  itemIndex, state->items[itemIndex].name, startGlobal.h, startGlobal.v);
 
     /* Ensure window port is set for GetMouse calls */
@@ -501,7 +502,7 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
     while ((gCurrentButtons & 1) != 0) {
         ProcessModernInput();  /* Update gCurrentButtons */
         GetMouse(&cur);  /* Returns global coordinates */
-        serial_printf("FW: Threshold check - GetMouse returned cur=(%d,%d) (global)\n", cur.h, cur.v);
+        FINDER_LOG_DEBUG("FW: Threshold check - GetMouse returned cur=(%d,%d) (global)\n", cur.h, cur.v);
 
         /* Check if we've exceeded drag threshold */
         int dx = cur.h - startGlobal.h;
@@ -511,14 +512,14 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
 
         if (dx >= kDragThreshold || dy >= kDragThreshold) {
             /* Threshold exceeded - start drag */
-            serial_printf("FW: Drag threshold exceeded: delta=(%d,%d)\n",
+            FINDER_LOG_DEBUG("FW: Drag threshold exceeded: delta=(%d,%d)\n",
                          cur.h - startGlobal.h, cur.v - startGlobal.v);
 
             state->isDragging = true;
             state->draggingIndex = itemIndex;
             state->dragStartGlobal = startGlobal;
 
-            serial_printf("FW: DRAG STARTED: item='%s' fileID=%d vref=%d dir=%d\n",
+            FINDER_LOG_DEBUG("FW: DRAG STARTED: item='%s' fileID=%d vref=%d dir=%d\n",
                          state->items[itemIndex].name,
                          state->items[itemIndex].fileID,
                          state->vref,
@@ -527,9 +528,9 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
             /* Calculate ghost rect from item position (32x32 icon) */
             FolderItem* item = &state->items[itemIndex];
 
-            serial_printf("FW: Item '%s' position (local) = (%d,%d)\n",
+            FINDER_LOG_DEBUG("FW: Item '%s' position (local) = (%d,%d)\n",
                          item->name, item->position.h, item->position.v);
-            serial_printf("FW: Window bounds (global) = (%d,%d,%d,%d)\n",
+            FINDER_LOG_DEBUG("FW: Window bounds (global) = (%d,%d,%d,%d)\n",
                          w->port.portBits.bounds.left, w->port.portBits.bounds.top,
                          w->port.portBits.bounds.right, w->port.portBits.bounds.bottom);
 
@@ -539,7 +540,7 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
             ghost.right = ghost.left + 32;
             ghost.bottom = ghost.top + 32;
 
-            serial_printf("FW: Ghost rect BEFORE LocalToGlobal (local) = (%d,%d,%d,%d)\n",
+            FINDER_LOG_DEBUG("FW: Ghost rect BEFORE LocalToGlobal (local) = (%d,%d,%d,%d)\n",
                          ghost.left, ghost.top, ghost.right, ghost.bottom);
 
             /* Convert to global coordinates */
@@ -549,21 +550,21 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
             botRight.h = ghost.right;
             botRight.v = ghost.bottom;
 
-            serial_printf("FW: topLeft BEFORE L2G: h=%d v=%d\n", topLeft.h, topLeft.v);
-            serial_printf("FW: portBits.bounds: left=%d top=%d\n",
+            FINDER_LOG_DEBUG("FW: topLeft BEFORE L2G: h=%d v=%d\n", topLeft.h, topLeft.v);
+            FINDER_LOG_DEBUG("FW: portBits.bounds: left=%d top=%d\n",
                          w->port.portBits.bounds.left, w->port.portBits.bounds.top);
 
             LocalToGlobal(&topLeft);
             LocalToGlobal(&botRight);
 
-            serial_printf("FW: topLeft AFTER L2G: h=%d v=%d\n", topLeft.h, topLeft.v);
+            FINDER_LOG_DEBUG("FW: topLeft AFTER L2G: h=%d v=%d\n", topLeft.h, topLeft.v);
 
             ghost.left = topLeft.h;
             ghost.top = topLeft.v;
             ghost.right = botRight.h;
             ghost.bottom = botRight.v;
 
-            serial_printf("FW: Ghost rect AFTER LocalToGlobal (global) X=%d-%d Y=%d-%d\n",
+            FINDER_LOG_DEBUG("FW: Ghost rect AFTER LocalToGlobal (global) X=%d-%d Y=%d-%d\n",
                          ghost.left, ghost.right, ghost.top, ghost.bottom);
 
             /* Add padding like desktop (left -20, right +20, bottom +16) */
@@ -571,7 +572,7 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
             ghost.right += 20;
             ghost.bottom += 16;
 
-            serial_printf("FW: Ghost rect with padding (global) X=%d-%d Y=%d-%d\n",
+            FINDER_LOG_DEBUG("FW: Ghost rect with padding (global) X=%d-%d Y=%d-%d\n",
                          ghost.left, ghost.right, ghost.top, ghost.bottom);
 
             /* Switch to screen port for XOR ghost drawing - we need GetMouse to return global coords */
@@ -585,11 +586,11 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
             /* Show initial ghost */
             extern void Desktop_GhostShowAt(const Rect* r);
             Desktop_GhostShowAt(&ghost);
-            serial_printf("FW: Ghost visible, entering drag loop\n");
+            FINDER_LOG_DEBUG("FW: Ghost visible, entering drag loop\n");
 
             /* Track drag with visual feedback */
             Point lastPos = cur;  /* cur is already in global coords from threshold check */
-            serial_printf("FW: Starting drag loop, lastPos=(%d,%d) in GLOBAL coords\n", lastPos.h, lastPos.v);
+            FINDER_LOG_DEBUG("FW: Starting drag loop, lastPos=(%d,%d) in GLOBAL coords\n", lastPos.h, lastPos.v);
             while ((gCurrentButtons & 1) != 0) {
                 ProcessModernInput();  /* Update gCurrentButtons */
                 GetMouse(&cur);
@@ -597,12 +598,12 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
                 SetPort((GrafPtr)w);  /* Temporarily switch back to window port for LocalToGlobal */
                 LocalToGlobal(&cur);
                 SetPort(&screenDragPort);  /* Switch back to screen port for drawing */
-                serial_printf("FW: GetMouse+LocalToGlobal returned cur=(%d,%d)\n", cur.h, cur.v);
+                FINDER_LOG_DEBUG("FW: GetMouse+LocalToGlobal returned cur=(%d,%d)\n", cur.h, cur.v);
 
                 /* Update ghost position if mouse moved */
                 if (cur.h != lastPos.h || cur.v != lastPos.v) {
                     extern void OffsetRect(Rect* r, short dh, short dv);
-                    serial_printf("FW: Mouse moved, offsetting ghost by (%d,%d)\n",
+                    FINDER_LOG_DEBUG("FW: Mouse moved, offsetting ghost by (%d,%d)\n",
                                  cur.h - lastPos.h, cur.v - lastPos.v);
                     OffsetRect(&ghost, cur.h - lastPos.h, cur.v - lastPos.v);
                     Desktop_GhostShowAt(&ghost);
@@ -617,17 +618,17 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
             /* Restore port */
             SetPort((GrafPtr)w);
 
-            serial_printf("FW: Drag ended at global (%d,%d)\n", cur.h, cur.v);
+            FINDER_LOG_DEBUG("FW: Drag ended at global (%d,%d)\n", cur.h, cur.v);
 
             /* Phase 4: Check for drop-to-trash first */
             if (Desktop_IsOverTrash(cur)) {
-                serial_printf("FW: DROP TO TRASH detected - deleting '%s' (fileID=%d, vref=%d)\n",
+                FINDER_LOG_DEBUG("FW: DROP TO TRASH detected - deleting '%s' (fileID=%d, vref=%d)\n",
                              item->name, item->fileID, state->vref);
 
                 bool deleted = VFS_Delete(state->vref, item->fileID);
 
                 if (deleted) {
-                    serial_printf("FW: File deleted successfully from VFS\n");
+                    FINDER_LOG_DEBUG("FW: File deleted successfully from VFS\n");
 
                     /* Remove item from folder window display by shifting array */
                     for (int i = itemIndex; i < state->itemCount - 1; i++) {
@@ -642,12 +643,12 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
                         state->selectedIndex--;  /* Adjust index after shift */
                     }
 
-                    serial_printf("FW: Item removed from display, new itemCount=%d\n", state->itemCount);
+                    FINDER_LOG_DEBUG("FW: Item removed from display, new itemCount=%d\n", state->itemCount);
 
                     /* Request window redraw */
                     PostEvent(updateEvt, (UInt32)w);
                 } else {
-                    serial_printf("FW: ERROR: VFS_Delete failed\n");
+                    FINDER_LOG_DEBUG("FW: ERROR: VFS_Delete failed\n");
                 }
             } else {
                 /* Phase 3: Check for drop-to-desktop and create alias */
@@ -658,18 +659,18 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
                     /* Dropped on desktop - create alias */
                     Boolean isFolder = item->isFolder;
 
-                    serial_printf("FW: DROP TO DESKTOP detected - creating alias for '%s'\n", item->name);
+                    FINDER_LOG_DEBUG("FW: DROP TO DESKTOP detected - creating alias for '%s'\n", item->name);
 
                     OSErr err = Desktop_AddAliasIcon(item->name, cur, item->fileID,
                                                     state->vref, isFolder);
 
                     if (err == noErr) {
-                        serial_printf("FW: Alias created successfully on desktop\n");
+                        FINDER_LOG_DEBUG("FW: Alias created successfully on desktop\n");
                     } else {
-                        serial_printf("FW: ERROR: Desktop_AddAliasIcon failed with error %d\n", err);
+                        FINDER_LOG_DEBUG("FW: ERROR: Desktop_AddAliasIcon failed with error %d\n", err);
                     }
                 } else {
-                    serial_printf("FW: Dropped over window (partCode=%d) - no action\n", partCode);
+                    FINDER_LOG_DEBUG("FW: Dropped over window (partCode=%d) - no action\n", partCode);
                 }
             }
 
@@ -683,7 +684,7 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
     }
 
     /* Button released before threshold - treat as click */
-    serial_printf("FW: Button released before threshold - treating as click\n");
+    FINDER_LOG_DEBUG("FW: Button released before threshold - treating as click\n");
     SetPort(savePort);
     return false;
 }
@@ -704,7 +705,7 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
     SetPort((GrafPtr)w);
     GlobalToLocal(&localPt);
 
-    serial_printf("FW: down at (global %d,%d) local (%d,%d) dbl=%d\n",
+    FINDER_LOG_DEBUG("FW: down at (global %d,%d) local (%d,%d) dbl=%d\n",
                  ev->where.h, ev->where.v, localPt.h, localPt.v, isDoubleClick);
 
     /* Hit test against icons */
@@ -713,11 +714,11 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
     if (hitIndex == -1) {
         /* Clicked empty space - deselect */
         if (state->selectedIndex != -1) {
-            serial_printf("FW: deselect (empty click)\n");
+            FINDER_LOG_DEBUG("FW: deselect (empty click)\n");
             state->selectedIndex = -1;
             PostEvent(updateEvt, (UInt32)w);
         }
-        serial_printf("FW: empty click - clearing lastClickIndex (was %d)\n", state->lastClickIndex);
+        FINDER_LOG_DEBUG("FW: empty click - clearing lastClickIndex (was %d)\n", state->lastClickIndex);
         state->lastClickIndex = -1;
         SetPort(savePort);
         return true;
@@ -735,12 +736,12 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
     Boolean couldBeDoubleClick = isSameIcon && withinDblTime;
     Boolean isRealDoubleClick = couldBeDoubleClick && isDoubleClick;
 
-    serial_printf("FW: hit index %d, same=%d, dt=%d, threshold=%d, couldBeDbl=%d, realDbl=%d\n",
+    FINDER_LOG_DEBUG("FW: hit index %d, same=%d, dt=%d, threshold=%d, couldBeDbl=%d, realDbl=%d\n",
                  hitIndex, isSameIcon, (int)timeSinceLast, (int)GetDblTime(), couldBeDoubleClick, isRealDoubleClick);
 
     if (isRealDoubleClick) {
         /* DOUBLE-CLICK on same icon: open it */
-        serial_printf("FW: OPEN_FOLDER \"%s\"\n", state->items[hitIndex].name);
+        FINDER_LOG_DEBUG("FW: OPEN_FOLDER \"%s\"\n", state->items[hitIndex].name);
 
         if (state->items[hitIndex].isFolder) {
             /* Open folder: create new window showing the subfolder's contents */
@@ -756,7 +757,9 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
             /* Open folder window with the subfolder's directory ID */
             WindowPtr newWin = FolderWindow_OpenFolder(state->vref, state->items[hitIndex].fileID, pTitle);
             if (newWin) {
-                serial_printf("FW: opened subfolder window %p (dirID=%d)\n", newWin, (int)state->items[hitIndex].fileID);
+        FINDER_LOG_DEBUG("FW: opened subfolder window 0x%08x (dirID=%d)\n",
+                         (unsigned int)P2UL(newWin),
+                         (int)state->items[hitIndex].fileID);
                 /* Post update for the new window and old window */
                 PostEvent(updateEvt, (UInt32)newWin);
                 PostEvent(updateEvt, (UInt32)w);
@@ -799,7 +802,7 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
             }
 
             if (isTextFile) {
-                serial_printf("FW: Opening text file \"%s\" with SimpleText\n", name);
+                FINDER_LOG_DEBUG("FW: Opening text file \"%s\" with SimpleText\n", name);
                 /* Launch SimpleText if not already running */
                 extern void SimpleText_Launch(void);
                 extern Boolean SimpleText_IsRunning(void);
@@ -807,7 +810,7 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
 
                 if (!SimpleText_IsRunning()) {
                     SimpleText_Launch();
-                    serial_printf("FW: Launched SimpleText\n");
+                    FINDER_LOG_DEBUG("FW: Launched SimpleText\n");
                 }
 
                 /* Build full path to the file */
@@ -816,22 +819,22 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
 
                 /* Load file content into SimpleText window */
                 SimpleText_OpenFile(fullPath);
-                serial_printf("FW: Opened file '%s' in SimpleText\n", name);
+                FINDER_LOG_DEBUG("FW: Opened file '%s' in SimpleText\n", name);
             } else if (state->items[hitIndex].type == 'APPL') {
                 /* Application file */
                 if (strcmp(name, "TextEdit") == 0) {
-                    serial_printf("FW: Launching TextEdit application\n");
+                    FINDER_LOG_DEBUG("FW: Launching TextEdit application\n");
                     extern void TextEdit_InitApp(void);
                     TextEdit_InitApp();
                 } else if (strcmp(name, "SimpleText") == 0) {
-                    serial_printf("FW: Launching SimpleText application\n");
+                    FINDER_LOG_DEBUG("FW: Launching SimpleText application\n");
                     extern void SimpleText_Launch(void);
                     SimpleText_Launch();
                 } else {
-                    serial_printf("FW: OPEN app \"%s\" not implemented\n", name);
+                    FINDER_LOG_DEBUG("FW: OPEN app \"%s\" not implemented\n", name);
                 }
             } else {
-                serial_printf("FW: OPEN doc \"%s\" not implemented\n", name);
+                FINDER_LOG_DEBUG("FW: OPEN doc \"%s\" not implemented\n", name);
             }
         }
 
@@ -841,7 +844,7 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
     } else if (couldBeDoubleClick && !isDoubleClick) {
         /* This is potentially the second click of a double-click but the event
          * system hasn't flagged it as a double-click yet. Just select and track timing. */
-        serial_printf("FW: potential double-click (waiting for confirmation), selecting icon %d\n", hitIndex);
+        FINDER_LOG_DEBUG("FW: potential double-click (waiting for confirmation), selecting icon %d\n", hitIndex);
 
         short oldSel = state->selectedIndex;
         state->selectedIndex = hitIndex;
@@ -853,7 +856,7 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
         }
     } else {
         /* SINGLE-CLICK: Track for potential drag, or select if just a click */
-        serial_printf("FW: single-click on icon %d, tracking for drag...\n", hitIndex);
+        FINDER_LOG_DEBUG("FW: single-click on icon %d, tracking for drag...\n", hitIndex);
 
         /* Call drag tracking - this will wait for threshold or button release */
         Boolean wasDrag = TrackFolderItemDrag(w, state, hitIndex, ev->where);
@@ -865,14 +868,14 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
             state->lastClickIndex = hitIndex;
             state->lastClickTime = currentTime;
 
-            serial_printf("FW: select %d -> %d, SET lastClickIndex=%d, lastClickTime=%lu\n",
+            FINDER_LOG_DEBUG("FW: select %d -> %d, SET lastClickIndex=%d, lastClickTime=%lu\n",
                          oldSel, hitIndex, hitIndex, (unsigned long)currentTime);
 
             /* Post update to redraw selection */
             PostEvent(updateEvt, (UInt32)w);
         } else {
             /* Drag occurred - selection/timing was handled by drag tracking */
-            serial_printf("FW: drag completed, NOT setting lastClick values\n");
+            FINDER_LOG_DEBUG("FW: drag completed, NOT setting lastClick values\n");
         }
     }
 
@@ -886,18 +889,18 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
 void FolderWindow_Draw(WindowPtr w) {
     static Boolean gInFolderPaint = false;
 
-    serial_printf("=== FolderWindow_Draw ENTRY === window=%p\n", w);
+FINDER_LOG_DEBUG("=== FolderWindow_Draw ENTRY === window=0x%08x\n", (unsigned int)P2UL(w));
 
     if (!w) {
-        serial_printf("FolderWindow_Draw: NULL window, returning\n");
+        FINDER_LOG_DEBUG("FolderWindow_Draw: NULL window, returning\n");
         return;
     }
 
-    serial_printf("FolderWindow_Draw: refCon=0x%08lx\n", w->refCon);
+    FINDER_LOG_DEBUG("FolderWindow_Draw: refCon=0x%08lx\n", w->refCon);
 
     /* Re-entrancy guard */
     if (gInFolderPaint) {
-        serial_printf("FolderWindow_Draw: re-entry detected, skipping\n");
+        FINDER_LOG_DEBUG("FolderWindow_Draw: re-entry detected, skipping\n");
         return;
     }
     gInFolderPaint = true;
@@ -912,8 +915,8 @@ void FolderWindow_Draw(WindowPtr w) {
     GetPort(&savePort);
     SetPort((GrafPtr)w);  /* NOTE: w is already GrafPtr, not &w */
 
-    serial_printf("FW: updateEvt for window %p, portRect=(%d,%d,%d,%d), portBits.bounds=(%d,%d,%d,%d)\n",
-                  w,
+FINDER_LOG_DEBUG("FW: updateEvt for window 0x%08x, portRect=(%d,%d,%d,%d), portBits.bounds=(%d,%d,%d,%d)\n",
+                 (unsigned int)P2UL(w),
                   w->port.portRect.left, w->port.portRect.top,
                   w->port.portRect.right, w->port.portRect.bottom,
                   w->port.portBits.bounds.left, w->port.portBits.bounds.top,
@@ -923,12 +926,12 @@ void FolderWindow_Draw(WindowPtr w) {
      * portRect is already in LOCAL coords (0,0,width,height) representing just content.
      * clipRgn is already set to contRgn to prevent overdrawing chrome. */
     EraseRect(&w->port.portRect);
-    serial_printf("FW: Erased content area using portRect (0,0,%d,%d)\n",
+    FINDER_LOG_DEBUG("FW: Erased content area using portRect (0,0,%d,%d)\n",
                  w->port.portRect.right, w->port.portRect.bottom);
 
     /* If trash is empty, draw empty message */
     if (isTrash && state && state->itemCount == 0) {
-        serial_printf("FW: Drawing empty trash message\n");
+        FINDER_LOG_DEBUG("FW: Drawing empty trash message\n");
         MoveTo(10, 30);
         DrawText("Trash is empty", 0, 14);
         MoveTo(10, 50);
@@ -941,7 +944,7 @@ void FolderWindow_Draw(WindowPtr w) {
         globalOrigin.h = w->port.portBits.bounds.left;
         globalOrigin.v = w->port.portBits.bounds.top;
 
-        serial_printf("FW: Drawing %d icons, portBounds=(%d,%d)\n",
+        FINDER_LOG_DEBUG("FW: Drawing %d icons, portBounds=(%d,%d)\n",
                      state->itemCount, globalOrigin.h, globalOrigin.v);
 
         for (short i = 0; i < state->itemCount; i++) {
@@ -963,7 +966,7 @@ void FolderWindow_Draw(WindowPtr w) {
             int globalX = state->items[i].position.h + globalOrigin.h;
             int globalY = state->items[i].position.v + globalOrigin.v;
 
-            serial_printf("FW: Icon %d '%s' local=(%d,%d) global=(%d,%d)\n",
+            FINDER_LOG_DEBUG("FW: Icon %d '%s' local=(%d,%d) global=(%d,%d)\n",
                          i, state->items[i].name,
                          state->items[i].position.h, state->items[i].position.v,
                          globalX, globalY);
@@ -993,13 +996,13 @@ void FolderWindowProc(WindowPtr window, short message, long param)
     switch (message) {
         case 0:  /* wDraw = 0, draw content only */
             /* Draw window contents - NO CHROME! */
-            serial_printf("Finder: FolderWindowProc drawing content\n");
+            FINDER_LOG_DEBUG("Finder: FolderWindowProc drawing content\n");
             FolderWindow_Draw(window);
             break;
 
         case 1:  /* wHit = 1, handle click in content */
             /* Handle click in content */
-            serial_printf("Click in folder window at (%d,%d)\n",
+            FINDER_LOG_DEBUG("Click in folder window at (%d,%d)\n",
                          (short)(param >> 16), (short)(param & 0xFFFF));
             break;
 
@@ -1025,12 +1028,12 @@ static void GhostEraseIf(void) {
 void CleanupFolderWindow(WindowPtr w) {
     if (!w) return;
 
-    serial_printf("CleanupFolderWindow: cleaning up window %p\n", w);
+FINDER_LOG_DEBUG("CleanupFolderWindow: cleaning up window 0x%08x\n", (unsigned int)P2UL(w));
 
     /* Find and clear this window's state */
     for (int i = 0; i < MAX_FOLDER_WINDOWS; i++) {
         if (gFolderWindows[i].window == w) {
-            serial_printf("CleanupFolderWindow: found slot %d, freeing items\n", i);
+            FINDER_LOG_DEBUG("CleanupFolderWindow: found slot %d, freeing items\n", i);
 
             /* Free the items array if allocated */
             if (gFolderWindows[i].state.items) {
@@ -1043,10 +1046,10 @@ void CleanupFolderWindow(WindowPtr w) {
             gFolderWindows[i].state.itemCount = 0;
             gFolderWindows[i].state.selectedIndex = -1;
 
-            serial_printf("CleanupFolderWindow: slot %d cleared\n", i);
+            FINDER_LOG_DEBUG("CleanupFolderWindow: slot %d cleared\n", i);
             return;
         }
     }
 
-    serial_printf("CleanupFolderWindow: window %p not found in state table\n", w);
+FINDER_LOG_DEBUG("CleanupFolderWindow: window 0x%08x not found in state table\n", (unsigned int)P2UL(w));
 }

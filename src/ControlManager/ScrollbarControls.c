@@ -19,6 +19,7 @@
 #include "QuickDrawConstants.h"
 #include "EventManager/EventManager.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "System71StdLib.h"
 
 /* External QuickDraw functions */
 extern void GetPort(GrafPtr* port);
@@ -40,15 +41,9 @@ extern void PenMode(short mode);
 extern Boolean PtInRect(Point pt, const Rect* r);
 extern struct QDGlobals qd;
 
-/* External system functions */
-extern void serial_printf(const char* fmt, ...);
-
-/* Debug logging - whitelist "[CTRL]", "Scrollbar", "TrackControl" */
-#ifndef CTRL_DEBUG
-#define CTRL_LOG(...) serial_printf("[CTRL] " __VA_ARGS__)
-#else
-#define CTRL_LOG(...)
-#endif
+/* Logging helpers */
+#define CTRL_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleControl, kLogLevelDebug, "[CTRL] " fmt, ##__VA_ARGS__)
+#define CTRL_LOG_TRACE(fmt, ...) serial_logf(kLogModuleControl, kLogLevelTrace, "[CTRL] " fmt, ##__VA_ARGS__)
 
 /* Scrollbar constants */
 #define SCROLLBAR_WIDTH     16
@@ -425,7 +420,7 @@ short TrackScrollbar(ControlHandle c, Point startLocal, short startPart,
     /* Compute final delta from start to end */
     *outDelta = (*c)->contrlValue - startValue;
 
-    CTRL_LOG("TrackScrollbar: part=%d delta=%d\n", trackPart, *outDelta);
+    CTRL_LOG_TRACE("TrackScrollbar: part=%d delta=%d\n", trackPart, *outDelta);
 
     return trackPart;
 }
@@ -750,7 +745,7 @@ static short CalcThumbValue(ControlHandle c, Point pt)
 void RegisterScrollBarControlType(void)
 {
     RegisterControlType(scrollBarProc, ScrollBarCDEF);
-    CTRL_LOG("Scrollbar control type registered (procID=%d)\n", scrollBarProc);
+    CTRL_LOG_DEBUG("Scrollbar control type registered (procID=%d)\n", scrollBarProc);
 }
 
 /**

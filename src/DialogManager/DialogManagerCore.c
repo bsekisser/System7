@@ -314,9 +314,15 @@ void DisposeDialog(DialogPtr theDialog)
  */
 void DrawDialog(DialogPtr theDialog)
 {
+    GrafPtr savePort;
+
     if (!theDialog || ValidateDialogPtr(theDialog) != 0) {
         return;
     }
+
+    /* Save and set port */
+    GetPort(&savePort);
+    SetPort((GrafPtr)theDialog);
 
     /* Draw the window frame */
     DrawWindow((WindowPtr)theDialog);
@@ -326,6 +332,9 @@ void DrawDialog(DialogPtr theDialog)
     for (SInt16 i = 1; i <= itemCount; i++) {
         DrawDialogItem(theDialog, i);
     }
+
+    /* Restore port */
+    SetPort(savePort);
 
     printf("Drew dialog at %p with %d items\n", (void*)theDialog, itemCount);
 }
@@ -620,9 +629,10 @@ SInt16 GetDialogDefaultItem(DialogPtr theDialog)
 
 SInt16 GetDialogCancelItem(DialogPtr theDialog)
 {
-    /* For now, assume cancel is always item 2 */
-    /* A full implementation would track this per dialog */
-    return 2;
+    if (!theDialog || ValidateDialogPtr(theDialog) != 0) {
+        return 0;
+    }
+    return gDialogManagerState.globals.cancelItem;
 }
 
 OSErr SetDialogDefaultItem(DialogPtr theDialog, SInt16 newItem)

@@ -3,6 +3,8 @@
 #include "System71StdLib.h"
 #include "MacTypes.h"
 
+#include <stdbool.h>
+
 /* Global memory error variable */
 static OSErr gMemError = noErr;
 
@@ -270,203 +272,286 @@ void serial_print_hex(uint32_t value) {
     }
 }
 
-/*
- * serial_printf - Printf-like function with message filtering
- *
- * WHITELIST FILTERING:
- * To reduce serial output lag and focus on relevant debugging, this function
- * only outputs messages containing specific whitelisted strings. If the format
- * string doesn't contain any whitelisted substring, the message is silently dropped.
- *
- * HOW TO ADD A NEW WHITELIST ENTRY:
- * 1. Find the whitelist check block below (lines 290-317)
- * 2. Add a new line: strstr(fmt, "YourDebugString") == NULL &&
- * 3. Place it before the closing brace that contains "return;"
- * 4. Rebuild the project
- *
- * CURRENT WHITELIST ENTRIES (alphabetical by category):
- *
- * About & Dialogs:
- *   - "About"                 : About This Macintosh window
- *
- * Desktop & Icon Management:
- *   - "Desktop icon"          : Desktop icon operations
- *   - "DrawVolumeIcon"        : Volume icon rendering
- *   - "Hit icon"              : Icon click detection
- *   - "IconAtPoint"           : Icon hit testing
- *   - "Selection"             : Icon selection state
- *   - "Single-click"          : Single-click handling
- *   - "TrackIconDragSync"     : Icon drag operations
- *   - "Trash"                 : Trash folder operations
- *   - "Volume"                : Volume-related operations
- *
- * Event Processing:
- *   - "[DBLCLK"               : Double-click events (marker tag)
- *   - "[MI]"                  : Menu item events (marker tag)
- *   - "[PRE-IF]"              : Pre-if condition (marker tag)
- *   - "GetNextEvent"          : Event queue polling
- *   - "HandleDesktopClick"    : Desktop click handling
- *   - "HandleMouseDown"       : Mouse down event handling
- *   - "PostEvent"             : Event posting
- *   - "WaitNextEvent"         : Event waiting
- *
- * Finder & File System:
- *   - "Finder:"               : General Finder operations
- *   - "FolderWindow_OpenFolder" : Opening folder windows
- *   - "HFS"                   : HFS file system operations
- *   - "InitializeFolderContents" : Folder window initialization
- *   - "read_btree_data"       : B-tree data reading
- *   - "VFS_Enumerate"         : VFS directory enumeration
- *
- * Menu System:
- *   - "DEBUG"                 : Debug messages for crash investigation
- *   - "MenuSelect"            : Menu selection handling
- *
- * Window Management:
- *   - "[NEWWIN]"              : New window creation (marker tag)
- *   - "[WIN_OPEN]"            : Window opening (marker tag)
- *   - "CheckWindowsNeedingUpdate" : Window update checks
- *   - "DoUpdate"              : Window update processing
- *   - "DrawNew"               : New window drawing
- *   - "PaintOne"              : Single window painting
- *   - "ShowWindow"            : Window visibility
- *   - "WindowManager"         : General window manager operations
- *
- * SUPPORTED FORMAT SPECIFIERS:
- *   %d    - signed integer
- *   %x    - unsigned hex (variable width)
- *   %08x  - unsigned hex (8 digits, zero-padded)
- *   %02x  - unsigned hex byte (2 digits, zero-padded)
- *   %s    - null-terminated string
- *   %c    - single character
- *   %%    - literal % character
- *
- * UNSUPPORTED (will print literally):
- *   %p    - pointer (use %08x with (unsigned int) cast instead)
- *   %lx   - long hex (use %08x with (unsigned int) cast instead)
- *   %lu   - long unsigned (not implemented)
- *   %f    - float/double (not implemented)
- */
-void serial_printf(const char* fmt, ...) {
-    /* Only output critical debug messages to avoid lag */
-    if (!fmt) return;
+/* -------------------------------------------------------------------------- */
+/* Logging infrastructure */
 
-    /* WHITELIST CHECK: Message must contain at least one of these strings */
-    if (strstr(fmt, "HandleMouseDown") == NULL &&
-        strstr(fmt, "MenuSelect") == NULL &&
-        strstr(fmt, "DoMenuCommand") == NULL &&
-        strstr(fmt, "PostEvent") == NULL &&
-        strstr(fmt, "HandleDesktopClick") == NULL &&
-        strstr(fmt, "Desktop icon") == NULL &&
-        strstr(fmt, "IconAtPoint") == NULL &&
-        strstr(fmt, "Hit icon") == NULL &&
-        strstr(fmt, "Single-click") == NULL &&
-        strstr(fmt, "Selection") == NULL &&
-        strstr(fmt, "Volume") == NULL &&
-        strstr(fmt, "Trash") == NULL &&
-        strstr(fmt, "DrawVolumeIcon") == NULL &&
-        strstr(fmt, "TrackIconDragSync") == NULL &&
-        strstr(fmt, "[PRE-IF]") == NULL &&
-        strstr(fmt, "[DBLCLK") == NULL &&
-        strstr(fmt, "[WIN_OPEN]") == NULL &&
-        strstr(fmt, "[NEWWIN]") == NULL &&
-        strstr(fmt, "ShowWindow") == NULL &&
-        strstr(fmt, "TITLE_INIT") == NULL &&
-        strstr(fmt, "TITLE_DRAW") == NULL &&
-        strstr(fmt, "[HILITE]") == NULL &&
-        strstr(fmt, "[PaintBehind]") == NULL &&
-        strstr(fmt, "CheckWindowsNeedingUpdate") == NULL &&
-        strstr(fmt, "GetNextEvent") == NULL &&
-        strstr(fmt, "WaitNextEvent") == NULL &&
-        strstr(fmt, "DoUpdate") == NULL &&
-        strstr(fmt, "PaintOne") == NULL &&
-        strstr(fmt, "DrawNew") == NULL &&
-        strstr(fmt, "WindowManager") == NULL &&
-        strstr(fmt, "[MI]") == NULL &&
-        strstr(fmt, "InitializeFolderContents") == NULL &&
-        strstr(fmt, "FolderWindow_OpenFolder") == NULL &&
-        strstr(fmt, "HFS") == NULL &&
-        strstr(fmt, "read_btree_data") == NULL &&
-        strstr(fmt, "VFS_Enumerate") == NULL &&
-        strstr(fmt, "Finder:") == NULL &&
-        strstr(fmt, "FW:") == NULL &&
-        strstr(fmt, "Icon_DrawWithLabel") == NULL &&
-        strstr(fmt, "GhostXOR") == NULL &&
-        strstr(fmt, "Sound") == NULL &&
-        strstr(fmt, "PCSpkr") == NULL &&
-        strstr(fmt, "SysBeep") == NULL &&
-        strstr(fmt, "Startup") == NULL &&
-        strstr(fmt, "MM:") == NULL &&
-        strstr(fmt, "ATA:") == NULL &&
-        strstr(fmt, "About") == NULL &&
-        strstr(fmt, "CenterPStringInRect") == NULL &&
-        strstr(fmt, "CloseWindow") == NULL &&
-        strstr(fmt, "CODE PATH") == NULL &&
-        strstr(fmt, "TITLE:") == NULL &&
-        strstr(fmt, "DrawString") == NULL &&
-        strstr(fmt, "FM:") == NULL &&
-        strstr(fmt, "DEBUG") == NULL &&
-        strstr(fmt, "Apple Menu") == NULL &&
-        strstr(fmt, "Shut Down") == NULL &&
-        strstr(fmt, "System") == NULL &&
-        strstr(fmt, "===") == NULL &&
-        strstr(fmt, "safe") == NULL &&
-        strstr(fmt, "Version:") == NULL &&
-        strstr(fmt, "Build:") == NULL &&
-        strstr(fmt, "compatible") == NULL &&
-        strstr(fmt, "Macintosh") == NULL &&
-        strstr(fmt, "portable") == NULL &&
-        strstr(fmt, "Dialog") == NULL &&
-        strstr(fmt, "DIALOG") == NULL &&
-        strstr(fmt, "Alert") == NULL &&
-        strstr(fmt, "ALERT") == NULL &&
-        strstr(fmt, "Modal") == NULL &&
-        strstr(fmt, "DITL") == NULL &&
-        strstr(fmt, "DLOG") == NULL &&
-        strstr(fmt, "[LIST]") == NULL &&
-        strstr(fmt, "[LIST SMOKE]") == NULL &&
-        strstr(fmt, "LNew") == NULL &&
-        strstr(fmt, "LDispose") == NULL &&
-        strstr(fmt, "LUpdate") == NULL &&
-        strstr(fmt, "LClick") == NULL &&
-        strstr(fmt, "LScroll") == NULL &&
-        strstr(fmt, "LSize") == NULL &&
-        strstr(fmt, "LKey") == NULL &&
-        strstr(fmt, "DrawCell") == NULL &&
-        strstr(fmt, "EraseBackground") == NULL &&
-        strstr(fmt, "[CTRL]") == NULL &&
-        strstr(fmt, "[CTRL SMOKE]") == NULL &&
-        strstr(fmt, "Scrollbar") == NULL &&
-        strstr(fmt, "TrackScrollbar") == NULL &&
-        strstr(fmt, "Button") == NULL &&
-        strstr(fmt, "Checkbox") == NULL &&
-        strstr(fmt, "Radio") == NULL &&
-        strstr(fmt, "[DM]") == NULL &&
-        strstr(fmt, "[WM]") == NULL &&
-        strstr(fmt, "[SF]") == NULL) {
-        return;  /* Message not whitelisted - silently drop */
+typedef enum {
+    kLogMatchPrefix,
+    kLogMatchSubstring
+} SysLogMatchType;
+
+typedef struct {
+    const char* tag;
+    SystemLogModule module;
+    SystemLogLevel level;
+} SysLogTag;
+
+typedef struct {
+    const char* token;
+    SysLogMatchType matchType;
+    SystemLogModule module;
+    SystemLogLevel level;
+} SysLogKeyword;
+
+static SystemLogLevel g_globalLogLevel = kLogLevelDebug;
+static SystemLogLevel g_moduleLevels[kLogModuleCount] = {
+    [kLogModuleGeneral] = kLogLevelInfo,
+    [kLogModuleDesktop] = kLogLevelDebug,
+    [kLogModuleEvent] = kLogLevelDebug,
+    [kLogModuleFinder] = kLogLevelDebug,
+    [kLogModuleFileSystem] = kLogLevelDebug,
+    [kLogModuleWindow] = kLogLevelDebug,
+    [kLogModuleMenu] = kLogLevelDebug,
+    [kLogModuleDialog] = kLogLevelDebug,
+    [kLogModuleControl] = kLogLevelDebug,
+    [kLogModuleFont] = kLogLevelDebug,
+    [kLogModuleSound] = kLogLevelInfo,
+    [kLogModuleResource] = kLogLevelDebug,
+    [kLogModuleStandardFile] = kLogLevelDebug,
+    [kLogModuleListManager] = kLogLevelDebug,
+    [kLogModuleSystem] = kLogLevelInfo
+};
+
+static const SysLogTag kLogTagTable[] = {
+    { "CTRL", kLogModuleControl, kLogLevelDebug },
+    { "CTRL SMOKE", kLogModuleControl, kLogLevelTrace },
+    { "DM", kLogModuleDialog, kLogLevelDebug },
+    { "WM", kLogModuleWindow, kLogLevelDebug },
+    { "SF", kLogModuleStandardFile, kLogLevelDebug },
+    { "LIST", kLogModuleListManager, kLogLevelDebug },
+    { "LIST SMOKE", kLogModuleListManager, kLogLevelTrace },
+    { "MI", kLogModuleMenu, kLogLevelTrace },
+    { "PRE-IF", kLogModuleEvent, kLogLevelTrace },
+    { "DBLCLK", kLogModuleEvent, kLogLevelTrace },
+    { "WIN_OPEN", kLogModuleWindow, kLogLevelDebug },
+    { "NEWWIN", kLogModuleWindow, kLogLevelDebug },
+    { "HILITE", kLogModuleWindow, kLogLevelTrace },
+    { "PaintBehind", kLogModuleWindow, kLogLevelTrace },
+    { "FM", kLogModuleFont, kLogLevelDebug }
+};
+
+static const SysLogKeyword kLogKeywords[] = {
+    { "HandleMouseDown", kLogMatchSubstring, kLogModuleEvent, kLogLevelDebug },
+    { "GetNextEvent", kLogMatchSubstring, kLogModuleEvent, kLogLevelDebug },
+    { "WaitNextEvent", kLogMatchSubstring, kLogModuleEvent, kLogLevelDebug },
+    { "PostEvent", kLogMatchSubstring, kLogModuleEvent, kLogLevelDebug },
+    { "MenuSelect", kLogMatchSubstring, kLogModuleMenu, kLogLevelDebug },
+    { "DoMenuCommand", kLogMatchSubstring, kLogModuleMenu, kLogLevelDebug },
+    { "Apple Menu", kLogMatchSubstring, kLogModuleMenu, kLogLevelInfo },
+    { "Desktop icon", kLogMatchSubstring, kLogModuleDesktop, kLogLevelDebug },
+    { "IconAtPoint", kLogMatchSubstring, kLogModuleDesktop, kLogLevelDebug },
+    { "Hit icon", kLogMatchSubstring, kLogModuleDesktop, kLogLevelDebug },
+    { "Single-click", kLogMatchSubstring, kLogModuleDesktop, kLogLevelDebug },
+    { "DrawVolumeIcon", kLogMatchSubstring, kLogModuleFinder, kLogLevelDebug },
+    { "TrackIconDragSync", kLogMatchSubstring, kLogModuleFinder, kLogLevelTrace },
+    { "GhostXOR", kLogMatchSubstring, kLogModuleFinder, kLogLevelTrace },
+    { "Finder:", kLogMatchPrefix, kLogModuleFinder, kLogLevelInfo },
+    { "FW:", kLogMatchPrefix, kLogModuleFinder, kLogLevelInfo },
+    { "Icon_DrawWithLabel", kLogMatchSubstring, kLogModuleFinder, kLogLevelDebug },
+    { "FolderWindow_OpenFolder", kLogMatchSubstring, kLogModuleFinder, kLogLevelInfo },
+    { "InitializeFolderContents", kLogMatchSubstring, kLogModuleFinder, kLogLevelInfo },
+    { "HFS", kLogMatchSubstring, kLogModuleFileSystem, kLogLevelDebug },
+    { "VFS_Enumerate", kLogMatchSubstring, kLogModuleFileSystem, kLogLevelDebug },
+    { "read_btree_data", kLogMatchSubstring, kLogModuleFileSystem, kLogLevelDebug },
+    { "ATA:", kLogMatchSubstring, kLogModuleFileSystem, kLogLevelDebug },
+    { "WindowManager", kLogMatchSubstring, kLogModuleWindow, kLogLevelDebug },
+    { "CheckWindowsNeedingUpdate", kLogMatchSubstring, kLogModuleWindow, kLogLevelDebug },
+    { "DoUpdate", kLogMatchSubstring, kLogModuleWindow, kLogLevelDebug },
+    { "PaintOne", kLogMatchSubstring, kLogModuleWindow, kLogLevelDebug },
+    { "DrawNew", kLogMatchSubstring, kLogModuleWindow, kLogLevelDebug },
+    { "ShowWindow", kLogMatchSubstring, kLogModuleWindow, kLogLevelDebug },
+    { "CloseWindow", kLogMatchSubstring, kLogModuleWindow, kLogLevelInfo },
+    { "Button", kLogMatchSubstring, kLogModuleControl, kLogLevelDebug },
+    { "Checkbox", kLogMatchSubstring, kLogModuleControl, kLogLevelDebug },
+    { "Radio", kLogMatchSubstring, kLogModuleControl, kLogLevelDebug },
+    { "Scrollbar", kLogMatchSubstring, kLogModuleControl, kLogLevelDebug },
+    { "TrackScrollbar", kLogMatchSubstring, kLogModuleControl, kLogLevelTrace },
+    { "DrawString", kLogMatchSubstring, kLogModuleFont, kLogLevelDebug },
+    { "TITLE_INIT", kLogMatchSubstring, kLogModuleFont, kLogLevelDebug },
+    { "TITLE_DRAW", kLogMatchSubstring, kLogModuleFont, kLogLevelDebug },
+    { "TITLE:", kLogMatchSubstring, kLogModuleFont, kLogLevelDebug },
+    { "CenterPStringInRect", kLogMatchSubstring, kLogModuleFont, kLogLevelDebug },
+    { "FM:", kLogMatchPrefix, kLogModuleFont, kLogLevelDebug },
+    { "Sound", kLogMatchSubstring, kLogModuleSound, kLogLevelInfo },
+    { "SysBeep", kLogMatchSubstring, kLogModuleSound, kLogLevelInfo },
+    { "PCSpkr", kLogMatchSubstring, kLogModuleSound, kLogLevelTrace },
+    { "[SF]", kLogMatchPrefix, kLogModuleStandardFile, kLogLevelDebug },
+    { "LNew", kLogMatchSubstring, kLogModuleListManager, kLogLevelDebug },
+    { "LDispose", kLogMatchSubstring, kLogModuleListManager, kLogLevelDebug },
+    { "LUpdate", kLogMatchSubstring, kLogModuleListManager, kLogLevelDebug },
+    { "LClick", kLogMatchSubstring, kLogModuleListManager, kLogLevelDebug },
+    { "LScroll", kLogMatchSubstring, kLogModuleListManager, kLogLevelDebug },
+    { "LSize", kLogMatchSubstring, kLogModuleListManager, kLogLevelDebug },
+    { "LKey", kLogMatchSubstring, kLogModuleListManager, kLogLevelDebug },
+    { "DrawCell", kLogMatchSubstring, kLogModuleListManager, kLogLevelDebug },
+    { "EraseBackground", kLogMatchSubstring, kLogModuleListManager, kLogLevelDebug },
+    { "Startup", kLogMatchSubstring, kLogModuleSystem, kLogLevelInfo },
+    { "Version:", kLogMatchSubstring, kLogModuleSystem, kLogLevelInfo },
+    { "Build:", kLogMatchSubstring, kLogModuleSystem, kLogLevelInfo },
+    { "System", kLogMatchSubstring, kLogModuleSystem, kLogLevelInfo },
+    { "compatible", kLogMatchSubstring, kLogModuleSystem, kLogLevelInfo },
+    { "Macintosh", kLogMatchSubstring, kLogModuleSystem, kLogLevelInfo },
+    { "portable", kLogMatchSubstring, kLogModuleSystem, kLogLevelInfo },
+    { "safe", kLogMatchSubstring, kLogModuleSystem, kLogLevelInfo },
+    { "===", kLogMatchSubstring, kLogModuleSystem, kLogLevelInfo },
+    { "About", kLogMatchSubstring, kLogModuleDialog, kLogLevelInfo },
+    { "Dialog", kLogMatchSubstring, kLogModuleDialog, kLogLevelDebug },
+    { "Alert", kLogMatchSubstring, kLogModuleDialog, kLogLevelDebug },
+    { "Modal", kLogMatchSubstring, kLogModuleDialog, kLogLevelDebug },
+    { "DITL", kLogMatchSubstring, kLogModuleDialog, kLogLevelDebug },
+    { "DLOG", kLogMatchSubstring, kLogModuleDialog, kLogLevelDebug }
+};
+
+static const size_t kLogTagCount = sizeof(kLogTagTable) / sizeof(kLogTagTable[0]);
+static const size_t kLogKeywordCount = sizeof(kLogKeywords) / sizeof(kLogKeywords[0]);
+
+static SystemLogLevel SysLogLevelFromString(const char* levelStr) {
+    if (!levelStr) {
+        return kLogLevelDebug;
     }
 
-    va_list args;
-    va_start(args, fmt);
-    const char* p = fmt;
+    if (strcmp(levelStr, "ERROR") == 0) return kLogLevelError;
+    if (strcmp(levelStr, "WARN") == 0 || strcmp(levelStr, "WARNING") == 0) return kLogLevelWarn;
+    if (strcmp(levelStr, "INFO") == 0) return kLogLevelInfo;
+    if (strcmp(levelStr, "DEBUG") == 0) return kLogLevelDebug;
+    if (strcmp(levelStr, "TRACE") == 0) return kLogLevelTrace;
+    return kLogLevelDebug;
+}
 
+static void SysLogNormalizeString(char* str) {
+    if (!str) return;
+    for (char* p = str; *p; ++p) {
+        if (*p >= 'a' && *p <= 'z') {
+            *p = (char)(*p - 'a' + 'A');
+        }
+    }
+}
+
+static bool SysLogParseBracketTag(const char* fmt, SystemLogModule* module, SystemLogLevel* level) {
+    if (!fmt) return false;
+
+    while (*fmt == ' ' || *fmt == '\t') {
+        ++fmt;
+    }
+
+    if (*fmt != '[') {
+        return false;
+    }
+
+    const char* closing = strchr(fmt, ']');
+    if (!closing || closing == fmt + 1) {
+        return false;
+    }
+
+    size_t tagLen = (size_t)(closing - fmt - 1);
+    if (tagLen >= 32) {
+        tagLen = 31;
+    }
+
+    char tagBuffer[32];
+    memcpy(tagBuffer, fmt + 1, tagLen);
+    tagBuffer[tagLen] = '\0';
+
+    char* levelSep = strchr(tagBuffer, ':');
+    if (levelSep) {
+        *levelSep = '\0';
+        ++levelSep;
+        SysLogNormalizeString(levelSep);
+        *level = SysLogLevelFromString(levelSep);
+    }
+
+    SysLogNormalizeString(tagBuffer);
+
+    for (size_t i = 0; i < kLogTagCount; ++i) {
+        if (strcmp(tagBuffer, kLogTagTable[i].tag) == 0) {
+            *module = kLogTagTable[i].module;
+            if (!levelSep) {
+                *level = kLogTagTable[i].level;
+            }
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void SysLogClassifyMessage(const char* fmt, SystemLogModule* outModule, SystemLogLevel* outLevel) {
+    SystemLogModule module = kLogModuleGeneral;
+    SystemLogLevel level = kLogLevelDebug;
+
+    if (!fmt) {
+        *outModule = module;
+        *outLevel = level;
+        return;
+    }
+
+    if (!SysLogParseBracketTag(fmt, &module, &level)) {
+        for (size_t i = 0; i < kLogKeywordCount; ++i) {
+            const SysLogKeyword* entry = &kLogKeywords[i];
+            bool match = false;
+            if (entry->matchType == kLogMatchPrefix) {
+                size_t len = strlen(entry->token);
+                if (strncmp(fmt, entry->token, len) == 0) {
+                    match = true;
+                }
+            } else {
+                if (strstr(fmt, entry->token) != NULL) {
+                    match = true;
+                }
+            }
+
+            if (match) {
+                module = entry->module;
+                level = entry->level;
+                break;
+            }
+        }
+    }
+
+    *outModule = module;
+    *outLevel = level;
+}
+
+static bool SysLogShouldEmit(SystemLogModule module, SystemLogLevel level) {
+    if (module < 0 || module >= kLogModuleCount) {
+        module = kLogModuleGeneral;
+    }
+
+    if (level > g_globalLogLevel) {
+        return false;
+    }
+
+    if (level > g_moduleLevels[module]) {
+        return false;
+    }
+
+    return true;
+}
+
+static void SysLogFormatAndSend(const char* fmt, va_list args) {
+    const char* p = fmt;
     char buffer[256];
     int buf_idx = 0;
 
-    while (*p && buf_idx < 255) {
+    while (p && *p && buf_idx < 255) {
         if (*p == '%') {
-            p++;
+            ++p;
 
-            /* Handle %02x format for hex bytes */
-            if (*p == '0' && *(p+1) == '2' && *(p+2) == 'x') {
+            if (*p == '0' && *(p + 1) == '2' && *(p + 2) == 'x') {
                 unsigned int val = va_arg(args, unsigned int);
                 const char* hex_digits = "0123456789abcdef";
                 buffer[buf_idx++] = hex_digits[(val >> 4) & 0xF];
                 if (buf_idx < 255) buffer[buf_idx++] = hex_digits[val & 0xF];
                 p += 3;
             }
-            /* Handle %d for signed integers */
+            else if (*p == '0' && *(p + 1) == '8' && *(p + 2) == 'x') {
+                unsigned int val = va_arg(args, unsigned int);
+                const char* hex_digits = "0123456789abcdef";
+                for (int i = 7; i >= 0 && buf_idx < 255; --i) {
+                    buffer[buf_idx++] = hex_digits[(val >> (i * 4)) & 0xF];
+                }
+                p += 3;
+            }
             else if (*p == 'd') {
                 int val = va_arg(args, int);
                 char num_buf[12];
@@ -488,9 +573,8 @@ void serial_printf(const char* fmt, ...) {
                         buffer[buf_idx++] = num_buf[--i];
                     }
                 }
-                p++;
+                ++p;
             }
-            /* Handle %u for unsigned integers */
             else if (*p == 'u') {
                 unsigned int val = va_arg(args, unsigned int);
                 char num_buf[12];
@@ -507,9 +591,8 @@ void serial_printf(const char* fmt, ...) {
                         buffer[buf_idx++] = num_buf[--i];
                     }
                 }
-                p++;
+                ++p;
             }
-            /* Handle %x for hex without leading zeros */
             else if (*p == 'x') {
                 unsigned int val = va_arg(args, unsigned int);
                 char hex_buf[9];
@@ -527,50 +610,111 @@ void serial_printf(const char* fmt, ...) {
                         buffer[buf_idx++] = hex_buf[--i];
                     }
                 }
-                p++;
+                ++p;
             }
-            /* Handle %08x for hex with leading zeros */
-            else if (*p == '0' && *(p+1) == '8' && *(p+2) == 'x') {
-                unsigned int val = va_arg(args, unsigned int);
-                const char* hex_digits = "0123456789abcdef";
-                for (int i = 7; i >= 0 && buf_idx < 255; i--) {
-                    buffer[buf_idx++] = hex_digits[(val >> (i * 4)) & 0xF];
-                }
-                p += 3;
-            }
-            /* Handle %s for strings */
             else if (*p == 's') {
                 const char* s = va_arg(args, const char*);
-                while (*s && buf_idx < 255) {
+                while (s && *s && buf_idx < 255) {
                     buffer[buf_idx++] = *s++;
                 }
-                p++;
+                ++p;
             }
-            /* Handle %c for characters */
             else if (*p == 'c') {
                 int ch = va_arg(args, int);
                 if (buf_idx < 255) buffer[buf_idx++] = (char)ch;
-                p++;
+                ++p;
             }
-            /* Handle %% for literal % */
             else if (*p == '%') {
                 if (buf_idx < 255) buffer[buf_idx++] = '%';
-                p++;
+                ++p;
             }
-            /* Unknown format, just print % and continue */
             else {
                 if (buf_idx < 255) buffer[buf_idx++] = '%';
             }
         } else {
             if (buf_idx < 255) buffer[buf_idx++] = *p;
-            p++;
+            ++p;
         }
     }
 
     buffer[buf_idx] = '\0';
-    va_end(args);
-
     serial_puts(buffer);
+}
+
+void SysLogSetGlobalLevel(SystemLogLevel level) {
+    g_globalLogLevel = level;
+}
+
+SystemLogLevel SysLogGetGlobalLevel(void) {
+    return g_globalLogLevel;
+}
+
+void SysLogSetModuleLevel(SystemLogModule module, SystemLogLevel level) {
+    if (module < 0 || module >= kLogModuleCount) {
+        return;
+    }
+    g_moduleLevels[module] = level;
+}
+
+SystemLogLevel SysLogGetModuleLevel(SystemLogModule module) {
+    if (module < 0 || module >= kLogModuleCount) {
+        return g_moduleLevels[kLogModuleGeneral];
+    }
+    return g_moduleLevels[module];
+}
+
+const char* SysLogModuleName(SystemLogModule module) {
+    switch (module) {
+        case kLogModuleGeneral: return "general";
+        case kLogModuleDesktop: return "desktop";
+        case kLogModuleEvent: return "event";
+        case kLogModuleFinder: return "finder";
+        case kLogModuleFileSystem: return "filesystem";
+        case kLogModuleWindow: return "window";
+        case kLogModuleMenu: return "menu";
+        case kLogModuleDialog: return "dialog";
+        case kLogModuleControl: return "control";
+        case kLogModuleFont: return "font";
+        case kLogModuleSound: return "sound";
+        case kLogModuleResource: return "resource";
+        case kLogModuleStandardFile: return "standardfile";
+        case kLogModuleListManager: return "list";
+        case kLogModuleSystem: return "system";
+        default: return "general";
+    }
+}
+
+static void SysLogEmit(SystemLogModule module, SystemLogLevel level, const char* fmt, va_list args) {
+    if (!SysLogShouldEmit(module, level)) {
+        return;
+    }
+
+    va_list argsCopy;
+    va_copy(argsCopy, args);
+    SysLogFormatAndSend(fmt, argsCopy);
+    va_end(argsCopy);
+}
+
+void serial_logf(SystemLogModule module, SystemLogLevel level, const char* fmt, ...) {
+    if (!fmt) return;
+
+    va_list args;
+    va_start(args, fmt);
+    SysLogEmit(module, level, fmt, args);
+    va_end(args);
+}
+
+void serial_printf(const char* fmt, ...) {
+    if (!fmt) return;
+
+    SystemLogModule module;
+    SystemLogLevel level;
+    SysLogClassifyMessage(fmt, &module, &level);
+
+    va_list args;
+    va_start(args, fmt);
+    SysLogEmit(module, level, fmt, args);
+    va_end(args);
 }
 
 /* Standard I/O functions */

@@ -7,6 +7,11 @@
 
 #include "SystemTypes.h"
 #include <string.h>
+#include "System71StdLib.h"
+
+#define FINDER_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelDebug, fmt, ##__VA_ARGS__)
+#define FINDER_LOG_TRACE(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelTrace, fmt, ##__VA_ARGS__)
+#define FINDER_LOG_WARN(fmt, ...)  serial_logf(kLogModuleFinder, kLogLevelWarn, fmt, ##__VA_ARGS__)
 
 /* External QuickDraw & Window Manager APIs */
 extern void GetPort(GrafPtr* port);
@@ -49,8 +54,6 @@ extern UInt32 TotalRam(void);  /* Platform may provide this */
 extern uint32_t g_total_memory_kb;  /* Actual detected RAM from multiboot2 */
 
 /* Serial logging */
-extern int serial_printf(const char* format, ...);
-
 /* QuickDraw globals access */
 extern QDGlobals qd;
 
@@ -98,13 +101,13 @@ typedef struct {
 
 /* --- String helpers (use QuickDraw widths, not char counts) --- */
 static void CenterPStringInRect(const Str255 s, const Rect* r, short baseline) {
-    serial_printf("CenterPStringInRect: ENTRY, s[0]=%d\n", s[0]);
+    FINDER_LOG_DEBUG("CenterPStringInRect: ENTRY, s[0]=%d\n", s[0]);
     short w = StringWidth((ConstStr255Param)s);
-    serial_printf("CenterPStringInRect: StringWidth returned w=%d\n", w);
+    FINDER_LOG_DEBUG("CenterPStringInRect: StringWidth returned w=%d\n", w);
     MoveTo(r->left + ((r->right - r->left) - w) / 2, baseline);
-    serial_printf("CenterPStringInRect: About to call DrawString\n");
+    FINDER_LOG_DEBUG("CenterPStringInRect: About to call DrawString\n");
     DrawString((ConstStr255Param)s);
-    serial_printf("CenterPStringInRect: DrawString returned\n");
+    FINDER_LOG_DEBUG("CenterPStringInRect: DrawString returned\n");
 }
 
 static void RightAlignPStringAt(const Str255 s, short rightEdge, short baseline) {
@@ -212,10 +215,13 @@ static void GetMemorySnapshot(MemSnapshot* m)
         m->unused = 0;
     }
 
-    serial_printf("AboutThisMac: Memory snapshot - Total:%lu System:%lu App:%lu Cache:%lu Free:%lu Unused:%lu\n",
-                  (unsigned long)m->totalRAM, (unsigned long)m->systemUsed,
-                  (unsigned long)m->appUsed, (unsigned long)m->diskCache,
-                  (unsigned long)m->largestFree, (unsigned long)m->unused);
+    FINDER_LOG_DEBUG("AboutThisMac: Memory snapshot - Total:%u System:%u App:%u Cache:%u Free:%u Unused:%u\n",
+                     (unsigned int)m->totalRAM,
+                     (unsigned int)m->systemUsed,
+                     (unsigned int)m->appUsed,
+                     (unsigned int)m->diskCache,
+                     (unsigned int)m->largestFree,
+                     (unsigned int)m->unused);
 }
 
 /*
@@ -232,7 +238,7 @@ static void FormatKBWithCommas(UInt32 bytes, char* buf, size_t bufSize)
 
     if (kb < 1000) {
         /* Simple format */
-        serial_printf("FormatKB: %luK\n", (unsigned long)kb);
+        FINDER_LOG_DEBUG("FormatKB: %uK\n", (unsigned int)kb);
         temp[0] = '0' + (char)((kb / 100) % 10);
         temp[1] = '0' + (char)((kb / 10) % 10);
         temp[2] = '0' + (char)(kb % 10);
@@ -308,7 +314,7 @@ static void AboutWindow_CreateIfNeeded(void)
     unsigned char title[32];
 
     if (sAboutWin) {
-        serial_printf("AboutThisMac: Window already exists at %p\n", (void*)sAboutWin);
+        FINDER_LOG_DEBUG("AboutThisMac: Window already exists at 0x%08x\n", (unsigned int)P2UL(sAboutWin));
         return;
     }
 
@@ -331,12 +337,12 @@ static void AboutWindow_CreateIfNeeded(void)
                          kAboutRefCon);
 
     if (!sAboutWin) {
-        serial_printf("AboutThisMac: FAILED to create window!\n");
+        FINDER_LOG_DEBUG("AboutThisMac: FAILED to create window!\n");
         return;
     }
 
-    serial_printf("AboutThisMac: Created window at %p, refCon=0x%08lX\n",
-                  (void*)sAboutWin, (unsigned long)kAboutRefCon);
+    FINDER_LOG_DEBUG("AboutThisMac: Created window at 0x%08x, refCon=0x%08X\n",
+                     (unsigned int)P2UL(sAboutWin), (unsigned int)kAboutRefCon);
 }
 
 /*
@@ -346,14 +352,14 @@ static void AboutWindow_CreateIfNeeded(void)
  */
 void AboutWindow_ShowOrToggle(void)
 {
-    serial_printf("AboutThisMac: ShowOrToggle called\n");
+    FINDER_LOG_DEBUG("AboutThisMac: ShowOrToggle called\n");
 
     if (!sAboutWin) {
         AboutWindow_CreateIfNeeded();
     }
 
     if (!sAboutWin) {
-        serial_printf("AboutThisMac: Failed to create window\n");
+        FINDER_LOG_DEBUG("AboutThisMac: Failed to create window\n");
         return;
     }
 
@@ -364,7 +370,7 @@ void AboutWindow_ShowOrToggle(void)
     /* Request update */
     PostEvent(updateEvt, (UInt32)sAboutWin);
 
-    serial_printf("AboutThisMac: Window shown and brought to front\n");
+    FINDER_LOG_DEBUG("AboutThisMac: Window shown and brought to front\n");
 }
 
 /*
@@ -372,20 +378,21 @@ void AboutWindow_ShowOrToggle(void)
  */
 void AboutWindow_CloseIf(WindowPtr w)
 {
-    serial_printf("AboutThisMac: CloseIf ENTRY, w=%p, sAboutWin=%p\n", (void*)w, (void*)sAboutWin);
+    FINDER_LOG_DEBUG("AboutThisMac: CloseIf ENTRY, w=0x%08x, sAboutWin=0x%08x\n",
+                     (unsigned int)P2UL(w), (unsigned int)P2UL(sAboutWin));
 
     if (!w || w != sAboutWin) {
-        serial_printf("AboutThisMac: CloseIf - window mismatch, returning\n");
+        FINDER_LOG_DEBUG("AboutThisMac: CloseIf - window mismatch, returning\n");
         return;
     }
 
-    serial_printf("AboutThisMac: Closing window\n");
+    FINDER_LOG_DEBUG("AboutThisMac: Closing window\n");
 
-    serial_printf("AboutThisMac: About to call DisposeWindow\n");
+    FINDER_LOG_DEBUG("AboutThisMac: About to call DisposeWindow\n");
     DisposeWindow(sAboutWin);
-    serial_printf("AboutThisMac: DisposeWindow returned\n");
+    FINDER_LOG_DEBUG("AboutThisMac: DisposeWindow returned\n");
     sAboutWin = NULL;
-    serial_printf("AboutThisMac: CloseIf EXIT\n");
+    FINDER_LOG_DEBUG("AboutThisMac: CloseIf EXIT\n");
 }
 
 /*
@@ -412,7 +419,7 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
         return 0;  /* false */
     }
 
-    serial_printf("AboutThisMac: HandleUpdate called\n");
+    FINDER_LOG_DEBUG("AboutThisMac: HandleUpdate called\n");
 
     /* Save current port and set to our window */
     GetPort(&savedPort);
@@ -424,8 +431,8 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     currentTicks = TickCount();
     if (currentTicks - sLastUpdateTicks < kAboutUpdateThrottle) {
         /* Still draw, but use cached stats - for now just note it */
-        serial_printf("AboutThisMac: Throttled update (delta=%lu ticks)\n",
-                     (unsigned long)(currentTicks - sLastUpdateTicks));
+        FINDER_LOG_DEBUG("AboutThisMac: Throttled update (delta=%u ticks)\n",
+                         (unsigned int)(currentTicks - sLastUpdateTicks));
     }
     sLastUpdateTicks = currentTicks;
 
@@ -442,7 +449,7 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
         contentRect.bottom = w->port.portBits.bounds.bottom - w->port.portBits.bounds.top;
     }
 
-    serial_printf("AboutThisMac: contentRect=(%d,%d,%d,%d)\n",
+    FINDER_LOG_DEBUG("AboutThisMac: contentRect=(%d,%d,%d,%d)\n",
                  contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
 
     /* Clear */
@@ -453,12 +460,12 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     TextFont(0);            /* System (Chicago) */
     TextSize(12);           /* Use 12pt to avoid scaling */
     TextFace(0);            /* normal */
-    serial_printf("AboutThisMac: About to call ToPStr\n");
+    FINDER_LOG_DEBUG("AboutThisMac: About to call ToPStr\n");
     ToPStr("Macintosh x86", title);
-    serial_printf("AboutThisMac: ToPStr returned, title[0]=%d, about to center\n", title[0]);
-    serial_printf("AboutThisMac: About to call CenterPStringInRect\n");
+    FINDER_LOG_DEBUG("AboutThisMac: ToPStr returned, title[0]=%d, about to center\n", title[0]);
+    FINDER_LOG_DEBUG("AboutThisMac: About to call CenterPStringInRect\n");
     CenterPStringInRect(title, &contentRect, contentRect.top + 20);
-    serial_printf("AboutThisMac: Title centered\n");
+    FINDER_LOG_DEBUG("AboutThisMac: Title centered\n");
 
     /* Version: "System 7" - Chicago 12, normal */
     Str255 ver;
@@ -588,17 +595,17 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     ToPStr("2025 Kelsi Davis", cpy);
     /* Place below memory box - move higher to ensure visibility */
     short cpyY = box.bottom + 18;
-    serial_printf("Drawing footer at Y=%d: '2025 Kelsi Davis'\n", cpyY);
+    FINDER_LOG_DEBUG("Drawing footer at Y=%d: '2025 Kelsi Davis'\n", cpyY);
     MoveTo(contentRect.left + ((contentRect.right - contentRect.left) - StringWidth((ConstStr255Param)cpy)) / 2, cpyY);
     DrawString((ConstStr255Param)cpy);
-    serial_printf("Footer drawn\n");
+    FINDER_LOG_DEBUG("Footer drawn\n");
 
     EndUpdate(w);
 
     /* Restore previous port */
     SetPort(savedPort);
 
-    serial_printf("AboutThisMac: Update complete\n");
+    FINDER_LOG_DEBUG("AboutThisMac: Update complete\n");
 
     return 1;  /* true - handled */
 }
@@ -617,11 +624,11 @@ Boolean AboutWindow_HandleMouseDown(WindowPtr w, short part, Point localPt)
         return 0;  /* false */
     }
 
-    serial_printf("AboutThisMac: HandleMouseDown, part=%d\n", part);
+    FINDER_LOG_DEBUG("AboutThisMac: HandleMouseDown, part=%d\n", part);
 
     switch (part) {
         case inDrag:
-            serial_printf("AboutThisMac: In inDrag case\n");
+            FINDER_LOG_DEBUG("AboutThisMac: In inDrag case\n");
             /* Select window before dragging (Mac OS standard behavior) */
             SelectWindow(w);
             /* Allow window to be dragged */
@@ -631,11 +638,11 @@ Boolean AboutWindow_HandleMouseDown(WindowPtr w, short part, Point localPt)
             return 1;  /* true */
 
         case inGoAway:
-            serial_printf("AboutThisMac: In inGoAway case\n");
+            FINDER_LOG_DEBUG("AboutThisMac: In inGoAway case\n");
             /* Handle close box - TrackGoAway hangs, so just close directly */
-            serial_printf("AboutThisMac: Close box clicked, closing window\n");
+            FINDER_LOG_DEBUG("AboutThisMac: Close box clicked, closing window\n");
             AboutWindow_CloseIf(w);
-            serial_printf("AboutThisMac: After AboutWindow_CloseIf\n");
+            FINDER_LOG_DEBUG("AboutThisMac: After AboutWindow_CloseIf\n");
             return 1;  /* true */
 
         case inContent:

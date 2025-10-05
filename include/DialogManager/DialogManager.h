@@ -153,6 +153,8 @@ Boolean StdFilterProc(DialogPtr theDialog, EventRecord* event, SInt16* itemHit);
 OSErr GetStdFilterProc(ModalFilterProcPtr* theProc);
 OSErr SetDialogDefaultItem(DialogPtr theDialog, SInt16 newItem);
 OSErr SetDialogCancelItem(DialogPtr theDialog, SInt16 newItem);
+SInt16 GetDialogDefaultItem(DialogPtr theDialog);
+SInt16 GetDialogCancelItem(DialogPtr theDialog);
 OSErr SetDialogTracksCursor(DialogPtr theDialog, Boolean tracks);
 
 /* Window modal class support */

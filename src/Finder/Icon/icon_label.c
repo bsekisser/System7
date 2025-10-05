@@ -6,6 +6,9 @@
 #include "Finder/Icon/icon_types.h"
 #include <string.h>
 #include <stdint.h>
+#include "System71StdLib.h"
+
+#define FINDER_ICON_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelDebug, fmt, ##__VA_ARGS__)
 
 /* Import Chicago font - using the chicago_font_data structures */
 extern const uint8_t chicago_bitmap[];
@@ -212,12 +215,11 @@ void IconLabel_Draw(const char* name, int cx, int topY, bool selected) {
 /* Draw icon with label - main entry point for icon+label rendering */
 IconRect Icon_DrawWithLabel(const IconHandle* h, const char* name,
                             int centerX, int iconTopY, bool selected) {
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("Icon_DrawWithLabel: centerX=%d iconTopY=%d name='%s'\n", centerX, iconTopY, name ? name : "NULL");
+    FINDER_ICON_LOG_DEBUG("Icon_DrawWithLabel: centerX=%d iconTopY=%d name='%s'\n", centerX, iconTopY, name ? name : "NULL");
 
     /* Draw icon centered at centerX */
     int iconLeft = centerX - 16;  /* 32x32 icon */
-    serial_printf("Icon_DrawWithLabel: calling Icon_Draw32 at X=%d Y=%d selected=%d\n", iconLeft, iconTopY, selected);
+    FINDER_ICON_LOG_DEBUG("Icon_DrawWithLabel: calling Icon_Draw32 at X=%d Y=%d selected=%d\n", iconLeft, iconTopY, selected);
     Icon_Draw32(h, iconLeft, iconTopY, selected);
 
     /* Draw label below icon with proper spacing

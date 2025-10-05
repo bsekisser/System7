@@ -38,6 +38,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDrawConstants.h"
 #include "FontManager/FontManager.h"
+#include "System71StdLib.h"
 #include "SystemTypes.h"
 
 /* External QuickDraw functions */
@@ -75,11 +76,9 @@ extern void DisposeHandle(Handle h);
 extern void HLock(Handle h);
 extern void HUnlock(Handle h);
 
-/* External system functions */
-extern void serial_printf(const char* fmt, ...);
-
-/* Debug logging - whitelist "[CTRL]", "Button", "Checkbox", "Radio" */
-#define CTRL_LOG(...) serial_printf("[CTRL] " __VA_ARGS__)
+/* Logging helpers */
+#define CTRL_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleControl, kLogLevelDebug, "[CTRL] " fmt, ##__VA_ARGS__)
+#define CTRL_LOG_WARN(fmt, ...)  serial_logf(kLogModuleControl, kLogLevelWarn,  "[CTRL] " fmt, ##__VA_ARGS__)
 
 /* Simple GetFontInfo implementation - uses default Chicago 12 metrics
  * TODO: Replace with FontManager's GetFontInfo() once available.
@@ -141,14 +140,13 @@ static void DrawTextInRect(ConstStr255Param text, const Rect *rect, SInt16 align
  * Register standard control types
  */
 void RegisterStandardControlTypes(void) {
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("[CTRL] Registering standard control types\n");
+    CTRL_LOG_DEBUG("Registering standard control types\n");
     RegisterControlType(pushButProc, ButtonCDEF);
-    serial_printf("[CTRL] Button control type registered (procID=%d)\n", pushButProc);
+    CTRL_LOG_DEBUG("Button control type registered (procID=%d)\n", pushButProc);
     RegisterControlType(checkBoxProc, CheckboxCDEF);
-    serial_printf("[CTRL] Checkbox control type registered (procID=%d)\n", checkBoxProc);
+    CTRL_LOG_DEBUG("Checkbox control type registered (procID=%d)\n", checkBoxProc);
     RegisterControlType(radioButProc, RadioButtonCDEF);
-    serial_printf("[CTRL] Radio button control type registered (procID=%d)\n", radioButProc);
+    CTRL_LOG_DEBUG("Radio button control type registered (procID=%d)\n", radioButProc);
 }
 
 /**
@@ -167,29 +165,28 @@ SInt32 ButtonCDEF(SInt16 varCode, ControlHandle theControl,
     switch (message) {
     case initCntl:
         /* Allocate button data */
-        extern void serial_printf(const char* fmt, ...);
-        serial_printf("[CTRL] ButtonCDEF initCntl: Allocating button data\n");
+        CTRL_LOG_DEBUG("ButtonCDEF initCntl: Allocating button data\n");
         (*theControl)->contrlData = NewHandleClear(sizeof(ButtonData));
         if ((*theControl)->contrlData) {
-            serial_printf("[CTRL] ButtonCDEF initCntl: Button data allocated\n");
+            CTRL_LOG_DEBUG("ButtonCDEF initCntl: Button data allocated\n");
             buttonData = (ButtonData *)*(*theControl)->contrlData;
             buttonData->isDefault = (varCode & 1) != 0;
             buttonData->isCancel = (varCode & 2) != 0;
             buttonData->insetLevel = 2;
             buttonData->isPushed = false;
-            serial_printf("[CTRL] ButtonCDEF initCntl: Flags set\n");
+            CTRL_LOG_DEBUG("ButtonCDEF initCntl: Flags set\n");
 
             /* Create button region */
-            serial_printf("[CTRL] ButtonCDEF initCntl: Creating button region\n");
+            CTRL_LOG_DEBUG("ButtonCDEF initCntl: Creating button region\n");
             buttonData->buttonRegion = NewRgn();
-            serial_printf("[CTRL] ButtonCDEF initCntl: Button region created\n");
+            CTRL_LOG_DEBUG("ButtonCDEF initCntl: Button region created\n");
 
             /* Calculate button rectangles */
-            serial_printf("[CTRL] ButtonCDEF initCntl: Calculating button rects\n");
+            CTRL_LOG_DEBUG("ButtonCDEF initCntl: Calculating button rects\n");
             CalculateButtonRects(theControl);
-            serial_printf("[CTRL] ButtonCDEF initCntl: Done\n");
+            CTRL_LOG_DEBUG("ButtonCDEF initCntl: Done\n");
         } else {
-            serial_printf("[CTRL] ButtonCDEF initCntl: NewHandleClear FAILED\n");
+            CTRL_LOG_WARN("ButtonCDEF initCntl: NewHandleClear FAILED\n");
         }
         break;
 

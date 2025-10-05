@@ -45,8 +45,8 @@ Handle NewHandleClear(Size byteCount) {
 
 /* Window Manager stubs */
 ControlHandle _GetFirstControl(WindowPtr window) {
-    /* Would normally return the first control in the window's control list */
-    return NULL;
+    if (!window) return NULL;
+    return window->controlList;
 }
 
 void GetWindowBounds(WindowPtr window, Rect *bounds) {
@@ -60,9 +60,18 @@ void GetWindowBounds(WindowPtr window, Rect *bounds) {
 }
 
 void _SetFirstControl(WindowPtr window, ControlHandle control) {
-    /* Would normally set the first control in the window's control list */
-    (void)window;
-    (void)control;
+    if (!window) return;
+    window->controlList = control;
+}
+
+/* Internal: attach control to the head of a window's control list */
+void _AttachControlToWindow(WindowPtr w, ControlHandle c) {
+    if (!w || !c) return;
+    /* Ensure owner is set */
+    (*c)->contrlOwner = w;
+    /* Link at head */
+    (*c)->nextControl = _GetFirstControl(w);
+    _SetFirstControl(w, c);
 }
 
 /* RegisterStandardControlTypes now implemented in StandardControls.c */

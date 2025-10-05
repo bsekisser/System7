@@ -32,13 +32,17 @@
 #include "Finder/Icon/icon_label.h"
 #include "Finder/Icon/icon_system.h"
 #include "QuickDrawConstants.h"
+#include "System71StdLib.h"
+
+#define FINDER_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelDebug, fmt, ##__VA_ARGS__)
+#define FINDER_LOG_TRACE(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelTrace, fmt, ##__VA_ARGS__)
+#define FINDER_LOG_WARN(fmt, ...)  serial_logf(kLogModuleFinder, kLogLevelWarn, fmt, ##__VA_ARGS__)
 
 /* HD Icon data - still needed by icon_system.c */
 extern const uint8_t g_HDIcon[128];
 extern const uint8_t g_HDIconMask[128];
 
 /* Debug output */
-extern void serial_printf(const char* fmt, ...);
 extern void serial_puts(const char* str);
 
 /* External function declarations */
@@ -236,7 +240,7 @@ void ArrangeDesktopIcons(void)
     int currentX = startX;
     int currentY = startY;
 
-    serial_printf("ArrangeDesktopIcons: Arranging %d icons\n", gDesktopIconCount);
+    FINDER_LOG_DEBUG("ArrangeDesktopIcons: Arranging %d icons\n", gDesktopIconCount);
 
     /* Arrange icons in a vertical column from top-right */
     for (int i = 0; i < gDesktopIconCount; i++) {
@@ -270,8 +274,7 @@ void DrawDesktop(void)
 
     /* Re-entrancy guard: prevent recursive painting */
     if (gInDesktopPaint) {
-        extern void serial_printf(const char* fmt, ...);
-        serial_printf("DrawDesktop: re-entry detected, skipping to avoid freeze\n");
+        FINDER_LOG_DEBUG("DrawDesktop: re-entry detected, skipping to avoid freeze\n");
         return;
     }
     gInDesktopPaint = true;
@@ -597,13 +600,12 @@ static short IconAtPoint(Point where)
 {
     Rect iconRect, labelRect;
 
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("IconAtPoint: checking (%d,%d), gDesktopIconCount=%d\n",
+    FINDER_LOG_DEBUG("IconAtPoint: checking (%d,%d), gDesktopIconCount=%d\n",
                  where.h, where.v, gDesktopIconCount);
 
     /* Check all desktop items */
     for (int i = 0; i < gDesktopIconCount; i++) {
-        serial_printf("IconAtPoint: Checking item %d (type=%d) at (%d,%d)\n",
+        FINDER_LOG_DEBUG("IconAtPoint: Checking item %d (type=%d) at (%d,%d)\n",
                      i, gDesktopIcons[i].type,
                      gDesktopIcons[i].position.h, gDesktopIcons[i].position.v);
 
@@ -621,17 +623,17 @@ static short IconAtPoint(Point where)
                 gDesktopIcons[i].position.h + kIconW + 20,
                 gDesktopIcons[i].position.v + labelOffset + 16);
 
-        serial_printf("IconAtPoint: Item %d rects: icon=(%d,%d,%d,%d), label=(%d,%d,%d,%d)\n",
+        FINDER_LOG_DEBUG("IconAtPoint: Item %d rects: icon=(%d,%d,%d,%d), label=(%d,%d,%d,%d)\n",
                      i, iconRect.left, iconRect.top, iconRect.right, iconRect.bottom,
                      labelRect.left, labelRect.top, labelRect.right, labelRect.bottom);
 
         if (PtInRect(where, &iconRect) || PtInRect(where, &labelRect)) {
-            serial_printf("IconAtPoint: HIT item %d!\n", i);
+            FINDER_LOG_DEBUG("IconAtPoint: HIT item %d!\n", i);
             return i;
         }
     }
 
-    serial_printf("IconAtPoint: No icon hit, returning -1\n");
+    FINDER_LOG_DEBUG("IconAtPoint: No icon hit, returning -1\n");
     return -1;
 }
 
@@ -649,11 +651,10 @@ static void GhostXOR(const Rect* r)
     /* Direct XOR rectangle drawing to framebuffer for immediate visibility */
     extern void* framebuffer;
     extern uint32_t fb_width, fb_height, fb_pitch;
-    extern void serial_printf(const char* fmt, ...);
 
     if (!framebuffer || !r) return;
 
-    serial_printf("GhostXOR: received Rect top=%d left=%d bottom=%d right=%d\n",
+    FINDER_LOG_DEBUG("GhostXOR: received Rect top=%d left=%d bottom=%d right=%d\n",
                  r->top, r->left, r->bottom, r->right);
 
     uint32_t* fb = (uint32_t*)framebuffer;
@@ -667,7 +668,7 @@ static void GhostXOR(const Rect* r)
     short right = (r->right <= safe_width) ? r->right : safe_width;
     short bottom = (r->bottom <= safe_height) ? r->bottom : safe_height;
 
-    serial_printf("GhostXOR: drawing at X=%d-%d Y=%d-%d\n", left, right, top, bottom);
+    FINDER_LOG_DEBUG("GhostXOR: drawing at X=%d-%d Y=%d-%d\n", left, right, top, bottom);
 
     if (left >= right || top >= bottom) return;
 
@@ -707,7 +708,7 @@ static void GhostXOR(const Rect* r)
     extern void QDPlatform_UpdateScreen(SInt32 left, SInt32 top, SInt32 right, SInt32 bottom);
     QDPlatform_UpdateScreen(left, top, right, bottom);
 
-    serial_printf("GhostXOR: Drew XOR rect (%d,%d,%d,%d)\n", left, top, right, bottom);
+    FINDER_LOG_DEBUG("GhostXOR: Drew XOR rect (%d,%d,%d,%d)\n", left, top, right, bottom);
 }
 
 /*
@@ -755,10 +756,9 @@ static void DesktopYield(void)
 {
     extern void SystemTask(void);
     extern void ProcessModernInput(void);
-    extern void serial_printf(const char* fmt, ...);
     static int yieldCount = 0;
     if (++yieldCount % 100 == 0) {
-        serial_printf("[DesktopYield] Called %d times\n", yieldCount);
+        FINDER_LOG_DEBUG("[DesktopYield] Called %d times\n", yieldCount);
     }
 
     /* Don't call EventPumpYield() here - it can cause re-entrancy issues during drag.
@@ -777,13 +777,12 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     Boolean didDrag = false;  /* Track if icon actually moved during drag */
     GrafPtr savePort;
 
-    extern void serial_printf(const char* fmt, ...);
     extern Boolean StillDown(void);
     extern void GetMouse(Point *pt);
 
     if (iconIndex < 0 || iconIndex >= gDesktopIconCount) return;
 
-    serial_printf("TrackIconDragSync ENTRY: starting modal drag for icon %d\n", iconIndex);
+    FINDER_LOG_DEBUG("TrackIconDragSync ENTRY: starting modal drag for icon %d\n", iconIndex);
 
     /* Set tracking guard to suppress queued mouse events */
     gInMouseTracking = true;
@@ -805,14 +804,14 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
         GetMouse(&cur);
         if (abs(cur.h - startPt.h) >= kDragThreshold || abs(cur.v - startPt.v) >= kDragThreshold) {
             last = cur;
-            serial_printf("TrackIconDragSync: threshold exceeded, starting drag\n");
+            FINDER_LOG_DEBUG("TrackIconDragSync: threshold exceeded, starting drag\n");
             break;  /* start drag */
         }
         DesktopYield();
     }
 
     if ((gCurrentButtons & 1) == 0) {  /* released before threshold */
-        serial_printf("TrackIconDragSync: button released before threshold\n");
+        FINDER_LOG_DEBUG("TrackIconDragSync: button released before threshold\n");
         gDraggingIconIndex = -1;
         gInMouseTracking = false;
         return;
@@ -823,7 +822,7 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     SetPort(qd.thePort);  /* use screen port */
     ClipRect(&qd.screenBits.bounds);
     GhostShowAt(&ghost);  /* visible immediately */
-    serial_printf("TrackIconDragSync: ghost visible, entering drag loop\n");
+    FINDER_LOG_DEBUG("TrackIconDragSync: ghost visible, entering drag loop\n");
 
     while ((gCurrentButtons & 1) != 0) {
         DesktopYield();  /* keeps input flowing but we don't paint desktop */
@@ -853,7 +852,7 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     /* Button released: erase ghost, restore port */
     GhostEraseIf();
     SetPort(savePort);
-    serial_printf("TrackIconDragSync: drag complete, ghost erased\n");
+    FINDER_LOG_DEBUG("TrackIconDragSync: drag complete, ghost erased\n");
 
     /* Determine drop target and action */
     Point dropPoint = (Point){ .h = ghost.left + 20 + 16, .v = ghost.top + 16 };  /* Icon center */
@@ -868,14 +867,14 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     Boolean optionKeyDown = (keys[7] & 0x04) != 0;
     Boolean cmdKeyDown = (keys[7] & 0x80) != 0;  /* Cmd key */
 
-    serial_printf("TrackIconDragSync: Modifiers - option=%d cmd=%d\n", optionKeyDown, cmdKeyDown);
+    FINDER_LOG_DEBUG("TrackIconDragSync: Modifiers - option=%d cmd=%d\n", optionKeyDown, cmdKeyDown);
 
     /* Check drop targets in priority order */
     Boolean droppedOnTrash = Desktop_IsOverTrash(dropPoint);
 
     if (droppedOnTrash && iconIndex != 0 && item->type != kDesktopItemVolume) {
         /* DROP TARGET: Trash - always move to trash folder with name conflict resolution */
-        serial_printf("TrackIconDragSync: Dropped on trash! Moving to trash folder\n");
+        FINDER_LOG_DEBUG("TrackIconDragSync: Dropped on trash! Moving to trash folder\n");
 
         extern bool Trash_MoveNode(VRefNum vref, DirID parent, FileID id);
         extern VRefNum VFS_GetBootVRef(void);
@@ -883,7 +882,7 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
         if (item->iconID != 0xFFFFFFFF) {
             VRefNum vref = VFS_GetBootVRef();
             if (Trash_MoveNode(vref, HFS_ROOT_DIR_ID, item->iconID)) {
-                serial_printf("TrackIconDragSync: Successfully moved to trash\n");
+                FINDER_LOG_DEBUG("TrackIconDragSync: Successfully moved to trash\n");
 
                 /* Remove from desktop array */
                 for (short i = iconIndex; i < gDesktopIconCount - 1; i++) {
@@ -892,12 +891,12 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
                 gDesktopIconCount--;
                 gSelectedIcon = -1;
             } else {
-                serial_printf("TrackIconDragSync: Trash operation failed\n");
+                FINDER_LOG_DEBUG("TrackIconDragSync: Trash operation failed\n");
             }
         }
     } else if (droppedOnTrash && (iconIndex == 0 || item->type == kDesktopItemVolume)) {
         /* Cannot trash the trash itself or volume icons */
-        serial_printf("TrackIconDragSync: Cannot trash this item\n");
+        FINDER_LOG_DEBUG("TrackIconDragSync: Cannot trash this item\n");
         invalidDrop = true;
     } else {
         /* DROP TARGET: Desktop or folder window */
@@ -918,7 +917,7 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
 
         if (droppedOnFolder) {
             /* TODO: Get actual folder window's DirID from window refCon */
-            serial_printf("TrackIconDragSync: Dropped on folder window\n");
+            FINDER_LOG_DEBUG("TrackIconDragSync: Dropped on folder window\n");
             /* For now, treat as desktop drop */
             droppedOnFolder = false;
         }
@@ -933,7 +932,7 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
 
         if (optionKeyDown) {
             /* Option key: create alias */
-            serial_printf("TrackIconDragSync: Creating alias\n");
+            FINDER_LOG_DEBUG("TrackIconDragSync: Creating alias\n");
 
             FSSpec target, aliasFile;
             target.vRefNum = sourceVRef;
@@ -953,14 +952,14 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
             memcpy(aliasFile.name, aliasName, strlen(aliasName) + 1);
 
             if (CreateAlias(&target, &aliasFile) == noErr) {
-                serial_printf("TrackIconDragSync: Alias created successfully\n");
+                FINDER_LOG_DEBUG("TrackIconDragSync: Alias created successfully\n");
             } else {
-                serial_printf("TrackIconDragSync: Alias creation failed\n");
+                FINDER_LOG_DEBUG("TrackIconDragSync: Alias creation failed\n");
                 invalidDrop = true;
             }
         } else if (cmdKeyDown || crossVolume) {
             /* Cmd key or cross-volume: force copy */
-            serial_printf("TrackIconDragSync: Copying file (cmd=%d, crossVol=%d)\n", cmdKeyDown, crossVolume);
+            FINDER_LOG_DEBUG("TrackIconDragSync: Copying file (cmd=%d, crossVol=%d)\n", cmdKeyDown, crossVolume);
 
             char copyName[32];
             extern bool VFS_GenerateUniqueName(VRefNum vref, DirID dir, const char* base, char* out);
@@ -968,9 +967,9 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
 
             FileID newID = 0;
             if (VFS_Copy(vref, sourceDir, item->iconID, targetDir, copyName, &newID)) {
-                serial_printf("TrackIconDragSync: Copy succeeded, newID=%u\n", newID);
+                FINDER_LOG_DEBUG("TrackIconDragSync: Copy succeeded, newID=%u\n", newID);
             } else {
-                serial_printf("TrackIconDragSync: Copy operation failed\n");
+                FINDER_LOG_DEBUG("TrackIconDragSync: Copy operation failed\n");
                 invalidDrop = true;
             }
         } else {
@@ -979,7 +978,7 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
                 /* Move to folder */
                 extern bool VFS_Move(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* newName);
                 if (VFS_Move(vref, sourceDir, item->iconID, targetDir, NULL)) {
-                    serial_printf("TrackIconDragSync: Moved to folder\n");
+                    FINDER_LOG_DEBUG("TrackIconDragSync: Moved to folder\n");
                     /* Remove from desktop */
                     for (short i = iconIndex; i < gDesktopIconCount - 1; i++) {
                         gDesktopIcons[i] = gDesktopIcons[i + 1];
@@ -992,7 +991,7 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
                 Point snapped = (Point){ .h = ghost.left + 20, .v = ghost.top };
                 snapped = SnapToGrid(snapped);
                 gDesktopIcons[iconIndex].position = snapped;
-                serial_printf("TrackIconDragSync: Repositioned to (%d,%d)\n", snapped.h, snapped.v);
+                FINDER_LOG_DEBUG("TrackIconDragSync: Repositioned to (%d,%d)\n", snapped.h, snapped.v);
             }
         }
     }
@@ -1000,7 +999,7 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     /* Handle operation result */
     if (invalidDrop) {
         /* Invalid drop: beep and restore to original position */
-        serial_printf("TrackIconDragSync: Invalid drop - would beep here\n");
+        FINDER_LOG_DEBUG("TrackIconDragSync: Invalid drop - would beep here\n");
         extern void SysBeep(short duration);
         SysBeep(1);  /* System beep */
         /* Icon position already unchanged for invalid drops */
@@ -1008,28 +1007,28 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
 
     /* Post updateEvt to defer desktop redraw (no reentrancy) */
     PostEvent(updateEvt, 0);  /* desktop repaint */
-    serial_printf("TrackIconDragSync: posted updateEvt\n");
+    FINDER_LOG_DEBUG("TrackIconDragSync: posted updateEvt\n");
 
     /* If we actually dragged, clear same-icon tracking to prevent accidental open */
     if (didDrag) {
-        serial_printf("TrackIconDragSync: didDrag=true, clearing sLastClickIcon\n");
+        FINDER_LOG_DEBUG("TrackIconDragSync: didDrag=true, clearing sLastClickIcon\n");
         sLastClickIcon = -1;
     }
 
     /* Clear tracking guard and drag flag */
-    serial_printf("TrackIconDragSync: clearing tracking flags\n");
+    FINDER_LOG_DEBUG("TrackIconDragSync: clearing tracking flags\n");
     gDraggingIconIndex = -1;
     gInMouseTracking = false;
 
     /* Drain any queued mouseUp that may have been posted anyway */
-    serial_printf("TrackIconDragSync: checking for queued mouseUp\n");
+    FINDER_LOG_DEBUG("TrackIconDragSync: checking for queued mouseUp\n");
     EventRecord e;
     if (EventAvail(mUpMask, &e)) {
-        serial_printf("TrackIconDragSync: draining mouseUp event\n");
+        FINDER_LOG_DEBUG("TrackIconDragSync: draining mouseUp event\n");
         EventRecord dump;
         GetNextEvent(mUpMask, &dump);
     }
-    serial_printf("TrackIconDragSync: EXIT\n");
+    FINDER_LOG_DEBUG("TrackIconDragSync: EXIT\n");
 }
 
 /*
@@ -1206,13 +1205,13 @@ OSErr InitializeVolumeIcon(void)
         gDesktopIcons[gDesktopIconCount].movable = true;  /* Volumes can be moved */
         gDesktopIcons[gDesktopIconCount].data.volume.vRefNum = gBootVolumeRef;
 
-        serial_printf("InitializeVolumeIcon: Added volume icon at index %d, pos=(%d,%d)\n",
+        FINDER_LOG_DEBUG("InitializeVolumeIcon: Added volume icon at index %d, pos=(%d,%d)\n",
                       gDesktopIconCount, fb_width - 100, 60);
 
         gDesktopIconCount++;
         gVolumeIconVisible = true;
 
-        serial_printf("InitializeVolumeIcon: gDesktopIconCount now = %d\n", gDesktopIconCount);
+        FINDER_LOG_DEBUG("InitializeVolumeIcon: gDesktopIconCount now = %d\n", gDesktopIconCount);
     }
 
     return noErr;
@@ -1261,7 +1260,7 @@ OSErr Desktop_AddVolumeIcon(const char* name, VRefNum vref) {
     item->movable = true;
     item->data.volume.vRefNum = vref;
 
-    serial_printf("Desktop_AddVolumeIcon: Added '%s' (vRef %d) at index %d, pos=(%d,%d)\n",
+    FINDER_LOG_DEBUG("Desktop_AddVolumeIcon: Added '%s' (vRef %d) at index %d, pos=(%d,%d)\n",
                   name, vref, gDesktopIconCount, item->position.h, item->position.v);
 
     gDesktopIconCount++;
@@ -1290,7 +1289,7 @@ OSErr Desktop_RemoveVolumeIcon(VRefNum vref) {
         if (gDesktopIcons[i].type == kDesktopItemVolume &&
             gDesktopIcons[i].data.volume.vRefNum == vref) {
 
-            serial_printf("Desktop_RemoveVolumeIcon: Removing volume icon for vRef %d at index %d\n", vref, i);
+            FINDER_LOG_DEBUG("Desktop_RemoveVolumeIcon: Removing volume icon for vRef %d at index %d\n", vref, i);
 
             /* Shift remaining icons down */
             for (int j = i; j < gDesktopIconCount - 1; j++) {
@@ -1305,7 +1304,7 @@ OSErr Desktop_RemoveVolumeIcon(VRefNum vref) {
         }
     }
 
-    serial_printf("Desktop_RemoveVolumeIcon: Volume icon for vRef %d not found\n", vref);
+    FINDER_LOG_DEBUG("Desktop_RemoveVolumeIcon: Volume icon for vRef %d not found\n", vref);
     return fnfErr; /* Not found */
 }
 
@@ -1328,7 +1327,7 @@ OSErr Desktop_AddAliasIcon(const char* name, Point position, FileID targetID,
         return paramErr;
     }
 
-    serial_printf("Desktop_AddAliasIcon: Creating alias '%s' at (%d,%d), targetID=%d, vref=%d\n",
+    FINDER_LOG_DEBUG("Desktop_AddAliasIcon: Creating alias '%s' at (%d,%d), targetID=%d, vref=%d\n",
                  name, position.h, position.v, targetID, vref);
 
     /* Add to desktop icons array */
@@ -1354,7 +1353,7 @@ OSErr Desktop_AddAliasIcon(const char* name, Point position, FileID targetID,
 
     gDesktopIconCount++;
 
-    serial_printf("Desktop_AddAliasIcon: Added alias at index %d, total icons now = %d\n",
+    FINDER_LOG_DEBUG("Desktop_AddAliasIcon: Added alias at index %d, total icons now = %d\n",
                  gDesktopIconCount - 1, gDesktopIconCount);
 
     /* Request desktop redraw */
@@ -1405,32 +1404,31 @@ void DrawVolumeIcon(void)
     static Boolean gInVolumeIconPaint = false;
     IconHandle iconHandle;
 
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("DrawVolumeIcon: ENTRY\n");
+    FINDER_LOG_DEBUG("DrawVolumeIcon: ENTRY\n");
 
     /* Erase any active ghost outline before icon redraw */
     GhostEraseIf();
 
     /* Re-entrancy guard: prevent recursive painting */
     if (gInVolumeIconPaint) {
-        serial_printf("DrawVolumeIcon: re-entry detected, skipping to avoid freeze\n");
+        FINDER_LOG_DEBUG("DrawVolumeIcon: re-entry detected, skipping to avoid freeze\n");
         return;
     }
     gInVolumeIconPaint = true;
 
     if (!gVolumeIconVisible) {
-        serial_printf("DrawVolumeIcon: not visible, returning\n");
+        FINDER_LOG_DEBUG("DrawVolumeIcon: not visible, returning\n");
         gInVolumeIconPaint = false;
         return;
     }
 
-    serial_printf("DrawVolumeIcon: Drawing all desktop items\n");
+    FINDER_LOG_DEBUG("DrawVolumeIcon: Drawing all desktop items\n");
 
     /* Draw all desktop items */
     for (int i = 0; i < gDesktopIconCount; i++) {
         if (gDesktopIcons[i].type == kDesktopItemVolume) {
             /* Draw volume icon */
-            serial_printf("DrawVolumeIcon: Drawing volume at index %d, pos=(%d,%d)\n",
+            FINDER_LOG_DEBUG("DrawVolumeIcon: Drawing volume at index %d, pos=(%d,%d)\n",
                          i, gDesktopIcons[i].position.h, gDesktopIcons[i].position.v);
 
             iconHandle.fam = IconSys_DefaultVolume();
@@ -1451,7 +1449,7 @@ void DrawVolumeIcon(void)
             trashHandle.fam = Trash_IsEmptyAll() ? IconSys_TrashEmpty() : IconSys_TrashFull();
             trashHandle.selected = (gSelectedIcon == i);
 
-            serial_printf("DrawVolumeIcon: Drawing trash at (%d,%d)\n",
+            FINDER_LOG_DEBUG("DrawVolumeIcon: Drawing trash at (%d,%d)\n",
                          gDesktopIcons[i].position.h, gDesktopIcons[i].position.v);
 
             Icon_DrawWithLabelOffset(&trashHandle, gDesktopIcons[i].name,
@@ -1462,7 +1460,7 @@ void DrawVolumeIcon(void)
         }
         /* Future: handle kDesktopItemFile, kDesktopItemFolder, etc. */
     }
-    serial_printf("DrawVolumeIcon: about to return\n");
+    FINDER_LOG_DEBUG("DrawVolumeIcon: about to return\n");
     gInVolumeIconPaint = false;
     return;  /* Explicit return for debugging */
 }
@@ -1478,17 +1476,16 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
     short hitIcon;
     WindowPtr whichWindow;
 
-    extern void serial_printf(const char* fmt, ...);
     extern short FindWindow(Point thePoint, WindowPtr* theWindow);
 
-    serial_printf("HandleDesktopClick: click at (%d,%d), doubleClick=%d\n",
+    FINDER_LOG_DEBUG("HandleDesktopClick: click at (%d,%d), doubleClick=%d\n",
                   clickPoint.h, clickPoint.v, doubleClick);
 
     /* System 7 faithful: only handle if click is on desktop (not a window) */
     short part = FindWindow(clickPoint, &whichWindow);
     if (part != inDesk) {
         /* Click was on a window, not desktop - let Window Manager handle it */
-        serial_printf("HandleDesktopClick: part=%d (not inDesk), ignoring\n", part);
+        FINDER_LOG_DEBUG("HandleDesktopClick: part=%d (not inDesk), ignoring\n", part);
         return false;
     }
 
@@ -1520,13 +1517,13 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
     UInt32 timeSinceLastClick = currentTicks - sLastClickTicks;
     Boolean isDoubleClick = (hitIcon == sLastClickIcon && timeSinceLastClick <= GetDblTime());
 
-    serial_printf("Hit icon index %d, same=%d, dt=%d, threshold=%d, dblClick=%d\n",
+    FINDER_LOG_DEBUG("Hit icon index %d, same=%d, dt=%d, threshold=%d, dblClick=%d\n",
                  hitIcon, (hitIcon == sLastClickIcon), (int)timeSinceLastClick,
                  (int)GetDblTime(), (int)isDoubleClick);
 
     /* Double-click on SAME icon: open immediately, never drag */
     if (isDoubleClick && hitIcon >= 0 && hitIcon < gDesktopIconCount) {
-        serial_printf("[DBLCLK SAME ICON] Opening icon %d\n", hitIcon);
+        FINDER_LOG_DEBUG("[DBLCLK SAME ICON] Opening icon %d\n", hitIcon);
         extern WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title);
         DesktopItem *it = &gDesktopIcons[hitIcon];
 
@@ -1565,15 +1562,15 @@ Boolean HandleDesktopClick(Point clickPoint, Boolean doubleClick)
 
         PostEvent(updateEvt, 0);  /* selection redraw deferred */
 
-        serial_printf("Single-click: icon %d selected, sLastClickIcon=%d\n", hitIcon, sLastClickIcon);
+        FINDER_LOG_DEBUG("Single-click: icon %d selected, sLastClickIcon=%d\n", hitIcon, sLastClickIcon);
 
         extern volatile UInt8 gCurrentButtons;
         if ((gCurrentButtons & 1) != 0) {  /* mouse still down? arm drag */
-            serial_printf("Single-click: button still down, starting drag tracking\n");
+            FINDER_LOG_DEBUG("Single-click: button still down, starting drag tracking\n");
             SetPort(savePort);
             TrackIconDragSync(hitIcon, clickPoint);
         } else {
-            serial_printf("Single-click: button released, no drag\n");
+            FINDER_LOG_DEBUG("Single-click: button released, no drag\n");
             SetPort(savePort);
         }
         return true;
@@ -1624,14 +1621,13 @@ OSErr HandleVolumeDoubleClick(Point clickPoint)
  */
 void StartDragIcon(Point mousePt)
 {
-    extern void serial_printf(const char* fmt, ...);
 
     if (gSelectedIcon >= 0 && gSelectedIcon < gDesktopIconCount) {
         if (gDesktopIcons[gSelectedIcon].movable) {
             gDraggingIcon = true;
-            serial_printf("Started dragging icon %d\n", gSelectedIcon);
+            FINDER_LOG_DEBUG("Started dragging icon %d\n", gSelectedIcon);
         } else {
-            serial_printf("Cannot drag non-movable icon %d\n", gSelectedIcon);
+            FINDER_LOG_DEBUG("Cannot drag non-movable icon %d\n", gSelectedIcon);
         }
     }
 }
@@ -1671,7 +1667,6 @@ void DragIcon(Point mousePt)
  */
 void EndDragIcon(Point mousePt)
 {
-    extern void serial_printf(const char* fmt, ...);
 
     if (!gDraggingIcon) {
         return;
@@ -1680,7 +1675,7 @@ void EndDragIcon(Point mousePt)
     gDraggingIcon = false;
 
     if (gSelectedIcon >= 0 && gSelectedIcon < gDesktopIconCount) {
-        serial_printf("Finished dragging icon %d to (%d,%d)\n",
+        FINDER_LOG_DEBUG("Finished dragging icon %d to (%d,%d)\n",
                      gSelectedIcon,
                      gDesktopIcons[gSelectedIcon].position.h,
                      gDesktopIcons[gSelectedIcon].position.v);
@@ -1714,9 +1709,8 @@ Boolean HandleDesktopDrag(Point mousePt, Boolean buttonDown)
  */
 void SelectNextDesktopIcon(void)
 {
-    extern void serial_printf(const char* fmt, ...);
 
-    serial_printf("SelectNextDesktopIcon: current=%d, count=%d\n",
+    FINDER_LOG_DEBUG("SelectNextDesktopIcon: current=%d, count=%d\n",
                   gSelectedIcon, gDesktopIconCount);
 
     if (gDesktopIconCount == 0) {
@@ -1727,7 +1721,7 @@ void SelectNextDesktopIcon(void)
     short prevSelected = gSelectedIcon;
     gSelectedIcon = (gSelectedIcon + 1) % gDesktopIconCount;
 
-    serial_printf("SelectNextDesktopIcon: selected %d → %d, posting updateEvt\n",
+    FINDER_LOG_DEBUG("SelectNextDesktopIcon: selected %d → %d, posting updateEvt\n",
                  prevSelected, gSelectedIcon);
 
     /* Post updateEvt to defer redraw to event loop (avoids re-entrancy freeze) */
@@ -1739,19 +1733,18 @@ void SelectNextDesktopIcon(void)
  */
 void OpenSelectedDesktopIcon(void)
 {
-    extern void serial_printf(const char* fmt, ...);
 
-    serial_printf("OpenSelectedDesktopIcon: selected=%d, count=%d\n",
+    FINDER_LOG_DEBUG("OpenSelectedDesktopIcon: selected=%d, count=%d\n",
                   gSelectedIcon, gDesktopIconCount);
 
     if (gSelectedIcon < 0 || gSelectedIcon >= gDesktopIconCount) {
-        serial_printf("OpenSelectedDesktopIcon: No icon selected\n");
+        FINDER_LOG_DEBUG("OpenSelectedDesktopIcon: No icon selected\n");
         return;
     }
 
     /* Check if it's the volume icon */
     if (gDesktopIcons[gSelectedIcon].type == kDesktopItemVolume) {
-        serial_printf("OpenSelectedDesktopIcon: Opening volume window\n");
+        FINDER_LOG_DEBUG("OpenSelectedDesktopIcon: Opening volume window\n");
 
         /* Create a folder window for the volume */
         Rect windowBounds;
@@ -1772,12 +1765,12 @@ void OpenSelectedDesktopIcon(void)
             /* Force update event */
             InvalRect(&volumeWindow->port.portRect);
 
-            serial_printf("OpenSelectedDesktopIcon: Volume window created successfully\n");
+            FINDER_LOG_DEBUG("OpenSelectedDesktopIcon: Volume window created successfully\n");
         } else {
-            serial_printf("OpenSelectedDesktopIcon: Failed to create window\n");
+            FINDER_LOG_DEBUG("OpenSelectedDesktopIcon: Failed to create window\n");
         }
     } else if (gDesktopIcons[gSelectedIcon].type == kDesktopItemTrash) {
-        serial_printf("OpenSelectedDesktopIcon: Opening trash window\n");
+        FINDER_LOG_DEBUG("OpenSelectedDesktopIcon: Opening trash window\n");
 
         /* Create a trash window */
         Rect windowBounds;
@@ -1798,9 +1791,9 @@ void OpenSelectedDesktopIcon(void)
             /* Force update event */
             InvalRect(&trashWindow->port.portRect);
 
-            serial_printf("OpenSelectedDesktopIcon: Trash window created successfully\n");
+            FINDER_LOG_DEBUG("OpenSelectedDesktopIcon: Trash window created successfully\n");
         } else {
-            serial_printf("OpenSelectedDesktopIcon: Failed to create trash window\n");
+            FINDER_LOG_DEBUG("OpenSelectedDesktopIcon: Failed to create trash window\n");
         }
     }
 }

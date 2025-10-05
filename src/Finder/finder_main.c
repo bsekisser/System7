@@ -32,6 +32,10 @@
 #include "System71StdLib.h"
 #include "Finder/AboutThisMac.h"
 
+#define FINDER_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelDebug, fmt, ##__VA_ARGS__)
+#define FINDER_LOG_TRACE(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelTrace, fmt, ##__VA_ARGS__)
+#define FINDER_LOG_WARN(fmt, ...)  serial_logf(kLogModuleFinder, kLogLevelWarn, fmt, ##__VA_ARGS__)
+
 
 /* External globals */
 extern QDGlobals qd;  /* QuickDraw globals from main.c */
@@ -92,14 +96,13 @@ static OSErr InitializeWindowManager(void)
  */
 void OnVolumeMount(VRefNum vref, const char* volName)
 {
-    extern void serial_printf(const char* fmt, ...);
     extern OSErr Desktop_AddVolumeIcon(const char* name, VRefNum vref);
 
-    serial_printf("Finder: Volume '%s' (vRef %d) mounted - adding desktop icon\n", volName, vref);
+    FINDER_LOG_DEBUG("Finder: Volume '%s' (vRef %d) mounted - adding desktop icon\n", volName, vref);
 
     OSErr err = Desktop_AddVolumeIcon(volName, vref);
     if (err != noErr) {
-        serial_printf("Finder: Failed to add volume icon (err=%d)\n", err);
+        FINDER_LOG_DEBUG("Finder: Failed to add volume icon (err=%d)\n", err);
     }
 }
 
@@ -289,11 +292,10 @@ static OSErr SetupMenus(void)
  */
 static void DoUpdate(WindowPtr w)
 {
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("DoUpdate: called with window=%p\n", w);
+    FINDER_LOG_DEBUG("DoUpdate: called with window=0x%08x\n", (unsigned int)P2UL(w));
 
     if (!w) {
-        serial_printf("DoUpdate: window is NULL, returning\n");
+        FINDER_LOG_DEBUG("DoUpdate: window is NULL, returning\n");
         return;
     }
 
@@ -301,32 +303,32 @@ static void DoUpdate(WindowPtr w)
     GetPort(&savePort);
     SetPort(w);
 
-    serial_printf("DoUpdate: calling BeginUpdate\n");
+    FINDER_LOG_DEBUG("DoUpdate: calling BeginUpdate\n");
     BeginUpdate(w);
 
     /* Draw only the content; chrome is the window def's job */
     /* We use the window refCon to decide what to render, like the Finder */
-    serial_printf("DoUpdate: refCon='%c%c%c%c'\n",
+    FINDER_LOG_DEBUG("DoUpdate: refCon='%c%c%c%c'\n",
                  (char)(w->refCon >> 24), (char)(w->refCon >> 16),
                  (char)(w->refCon >> 8), (char)w->refCon);
 
     /* Text drawing temporarily disabled until Font Manager is linked */
 
     if (w->refCon == 'TRSH' || w->refCon == 'DISK') {
-        serial_printf("DoUpdate: calling FolderWindow_Draw for folder window\n");
+        FINDER_LOG_DEBUG("DoUpdate: calling FolderWindow_Draw for folder window\n");
         extern void FolderWindow_Draw(WindowPtr w);
         FolderWindow_Draw(w);
     } else {
         /* Generic doc window: clear content and draw sample text */
-        serial_printf("DoUpdate: generic window, drawing sample content\n");
+        FINDER_LOG_DEBUG("DoUpdate: generic window, drawing sample content\n");
         Rect r = w->port.portRect;
         EraseRect(&r);
 
         /* Text drawing disabled - would draw "Window Content Here" at (10,30) */
-        serial_printf("[TEXT] Text drawing disabled - Font Manager not linked\n");
+        FINDER_LOG_DEBUG("[TEXT] Text drawing disabled - Font Manager not linked\n");
     }
 
-    serial_printf("DoUpdate: calling EndUpdate\n");
+    FINDER_LOG_DEBUG("DoUpdate: calling EndUpdate\n");
     EndUpdate(w);
 
     SetPort(savePort);
@@ -339,7 +341,6 @@ static void DoUpdate(WindowPtr w)
  */
 WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
 {
-    extern void serial_printf(const char* fmt, ...);
     extern WindowPtr NewWindow(void *, const Rect *, ConstStr255Param, Boolean, short,
                                WindowPtr, Boolean, long);
     extern void ShowWindow(WindowPtr);
@@ -352,7 +353,7 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
     r.right = 490;
     r.bottom = 420;
 
-    serial_printf("[WIN_OPEN] Starting, isTrash=%d\n", isTrash);
+    FINDER_LOG_DEBUG("[WIN_OPEN] Starting, isTrash=%d\n", isTrash);
 
     /* Build title as local Pascal string (same method as AboutThisMac) */
     static unsigned char windowTitleBuf[256];
@@ -364,10 +365,10 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
         strcpy((char*)&windowTitleBuf[1], titleText);
         windowTitleBuf[0] = (unsigned char)strlen(titleText);
         windowTitle = windowTitleBuf;
-        serial_printf("[WIN_OPEN] Built title: len=%d, first_char=0x%02x\n",
+        FINDER_LOG_DEBUG("[WIN_OPEN] Built title: len=%d, first_char=0x%02x\n",
                       windowTitleBuf[0], windowTitleBuf[1]);
     } else {
-        serial_printf("[WIN_OPEN] Using provided title: len=%d\n", windowTitle[0]);
+        FINDER_LOG_DEBUG("[WIN_OPEN] Using provided title: len=%d\n", windowTitle[0]);
     }
 
     WindowPtr w = NewWindow(NULL, &r, windowTitle,
@@ -375,28 +376,28 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
                             isTrash ? 0x54525348 : 0x4449534B);  /* 'TRSH' or 'DISK' */
 
     if (!w) {
-        serial_printf("[WIN_OPEN] NewWindow returned NULL!\n");
+        FINDER_LOG_DEBUG("[WIN_OPEN] NewWindow returned NULL!\n");
         return NULL;
     }
 
-    serial_printf("[WIN_OPEN] NewWindow succeeded, calling ShowWindow\n");
+    FINDER_LOG_DEBUG("[WIN_OPEN] NewWindow succeeded, calling ShowWindow\n");
     ShowWindow(w);
-    serial_printf("[WIN_OPEN] ShowWindow returned\n");
+    FINDER_LOG_DEBUG("[WIN_OPEN] ShowWindow returned\n");
 
     /* Initialize folder state and populate contents from VFS */
     /* GetFolderState creates the state and calls InitializeFolderContents internally */
     extern void* GetFolderState(WindowPtr w);  /* Returns FolderWindowState* */
-    serial_printf("[WIN_OPEN] Calling GetFolderState to initialize contents\n");
+    FINDER_LOG_DEBUG("[WIN_OPEN] Calling GetFolderState to initialize contents\n");
     (void)GetFolderState(w);
-    serial_printf("[WIN_OPEN] GetFolderState returned\n");
+    FINDER_LOG_DEBUG("[WIN_OPEN] GetFolderState returned\n");
 
-    serial_printf("[WIN_OPEN] Calling SelectWindow\n");
+    FINDER_LOG_DEBUG("[WIN_OPEN] Calling SelectWindow\n");
     SelectWindow(w);
 
     /* Window Manager will generate update event for content drawing */
     /* Application's update event handler (main.c) will call FolderWindowProc */
 
-    serial_printf("[WIN_OPEN] Complete, window created - content will be drawn via update event\n");
+    FINDER_LOG_DEBUG("[WIN_OPEN] Complete, window created - content will be drawn via update event\n");
     return w;
 }
 
@@ -430,7 +431,6 @@ static void DoBackgroundTasks(void)
  */
 static void MainEventLoop(void)
 {
-    extern void serial_printf(const char* fmt, ...);
     EventRecord event;
     Boolean gotEvent;
 
@@ -438,7 +438,7 @@ static void MainEventLoop(void)
         gotEvent = WaitNextEvent(everyEvent, &event, 0L, nil);
 
         if (gotEvent) {
-            serial_printf("Finder: Got event type=%d (updateEvt=%d)\n", event.what, updateEvt);
+            FINDER_LOG_DEBUG("Finder: Got event type=%d (updateEvt=%d)\n", event.what, updateEvt);
             switch (event.what) {
                 case mouseDown:
                     HandleMouseDown(&event);
@@ -580,28 +580,28 @@ static void HandleMenuChoice(long menuChoice)
                 case 15:  /* [Test] Open File... */
                     {
                         StandardFileReply reply;
-                        serial_printf("[TEST] StandardGetFile called\n");
+                        FINDER_LOG_DEBUG("[TEST] StandardGetFile called\n");
                         StandardGetFile(NULL, 0, NULL, &reply);
                         if (reply.sfGood) {
-                            serial_printf("[TEST] File selected: vRefNum=%d parID=%ld name='%.*s'\n",
+                            FINDER_LOG_DEBUG("[TEST] File selected: vRefNum=%d parID=%ld name='%.*s'\n",
                                          reply.sfFile.vRefNum, reply.sfFile.parID,
                                          reply.sfFile.name[0], reply.sfFile.name + 1);
                         } else {
-                            serial_printf("[TEST] User canceled\n");
+                            FINDER_LOG_DEBUG("[TEST] User canceled\n");
                         }
                     }
                     break;
                 case 16:  /* [Test] Save File... */
                     {
                         StandardFileReply reply;
-                        serial_printf("[TEST] StandardPutFile called\n");
+                        FINDER_LOG_DEBUG("[TEST] StandardPutFile called\n");
                         StandardPutFile("\010Save As:", "\010Untitled", &reply);
                         if (reply.sfGood) {
-                            serial_printf("[TEST] Save location: vRefNum=%d parID=%ld name='%.*s'\n",
+                            FINDER_LOG_DEBUG("[TEST] Save location: vRefNum=%d parID=%ld name='%.*s'\n",
                                          reply.sfFile.vRefNum, reply.sfFile.parID,
                                          reply.sfFile.name[0], reply.sfFile.name + 1);
                         } else {
-                            serial_printf("[TEST] User canceled\n");
+                            FINDER_LOG_DEBUG("[TEST] User canceled\n");
                         }
                     }
                     break;

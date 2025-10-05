@@ -2262,12 +2262,10 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     serial_puts("MAIN: DrawVolumeIcon returned\n");
 
     /* Run alert dialog smoke tests */
-    /* DISABLED: Alert smoke tests
-    extern void DoAlertSmokeTests(void);
-    serial_puts("MAIN: Running alert smoke tests\n");
-    DoAlertSmokeTests();
-    serial_puts("MAIN: Alert smoke tests complete\n");
-    */
+    #ifdef ALERT_SMOKE_TEST
+    extern void InitAlertSmokeTest(void);
+    InitAlertSmokeTest();
+    #endif
 
     /* Run List Manager smoke tests */
     #ifdef LIST_SMOKE_TEST

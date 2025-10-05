@@ -6,12 +6,13 @@
  */
 
 #include "SystemTypes.h"
-
-/* Serial output functions */
-extern void serial_puts(const char* str);
-extern void serial_printf(const char* format, ...);
+#include "System71StdLib.h"
 #include "MenuManager/MenuManager.h"
 #include "Finder/AboutThisMac.h"
+
+#define MENU_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleMenu, kLogLevelDebug, "[MENU] " fmt, ##__VA_ARGS__)
+#define MENU_LOG_WARN(fmt, ...)  serial_logf(kLogModuleMenu, kLogLevelWarn,  "[MENU] " fmt, ##__VA_ARGS__)
+#define MENU_LOG_INFO(fmt, ...)  serial_logf(kLogModuleMenu, kLogLevelInfo, fmt, ##__VA_ARGS__)
 
 /* Forward declarations */
 static void ShowAboutBox(void);
@@ -66,7 +67,7 @@ static void HandleSpecialMenu(short item);
 /* Main menu command dispatcher */
 void DoMenuCommand(short menuID, short item)
 {
-    serial_printf("DoMenuCommand: menu=%d, item=%d\n", menuID, item);
+    MENU_LOG_DEBUG("DoMenuCommand: menu=%d, item=%d\n", menuID, item);
 
     switch (menuID) {
         case kAppleMenuID:
@@ -94,7 +95,7 @@ void DoMenuCommand(short menuID, short item)
             break;
 
         default:
-            serial_printf("Unknown menu ID: %d\n", menuID);
+            MENU_LOG_WARN("Unknown menu ID: %d\n", menuID);
             break;
     }
 
@@ -105,18 +106,18 @@ void DoMenuCommand(short menuID, short item)
 /* Show About Box */
 static void ShowAboutBox(void)
 {
-    serial_printf("\n");
-    serial_printf("========================================\n");
-    serial_printf("           System 7 Reimplementation   \n");
-    serial_printf("========================================\n");
-    serial_printf("Version: 7.1.0\n");
-    serial_printf("Build: Clean room reimplementation\n");
-    serial_printf("\n");
-    serial_printf("A compatible implementation of classic\n");
-    serial_printf("Macintosh system software\n");
-    serial_printf("\n");
-    serial_printf("Open source portable implementation\n");
-    serial_printf("========================================\n\n");
+    MENU_LOG_INFO("\n");
+    MENU_LOG_INFO("========================================\n");
+    MENU_LOG_INFO("           System 7 Reimplementation   \n");
+    MENU_LOG_INFO("========================================\n");
+    MENU_LOG_INFO("Version: 7.1.0\n");
+    MENU_LOG_INFO("Build: Clean room reimplementation\n");
+    MENU_LOG_INFO("\n");
+    MENU_LOG_INFO("A compatible implementation of classic\n");
+    MENU_LOG_INFO("Macintosh system software\n");
+    MENU_LOG_INFO("\n");
+    MENU_LOG_INFO("Open source portable implementation\n");
+    MENU_LOG_INFO("========================================\n\n");
 
     /* Would show a proper dialog box with this information */
     /* For now just output to serial console */
@@ -127,7 +128,7 @@ static void HandleAppleMenu(short item)
 {
     switch (item) {
         case 1:  /* About This Macintosh */
-            serial_printf("About This Macintosh...\n");
+            MENU_LOG_DEBUG("About This Macintosh...\n");
             /* Show the About window */
             extern void AboutWindow_ShowOrToggle(void);
             AboutWindow_ShowOrToggle();
@@ -137,14 +138,14 @@ static void HandleAppleMenu(short item)
             break;
 
         case 3:  /* Calculator (sample desk accessory) */
-            serial_printf("Launch Calculator DA\n");
+            MENU_LOG_DEBUG("Launch Calculator DA\n");
             break;
 
         case 4:  /* Separator OR Shut Down (if no DAs installed) */
         case 5:  /* Shut Down */
-            serial_printf("Apple Menu > Shut Down\n");
-            serial_printf("System shutdown initiated...\n");
-            serial_printf("It is now safe to turn off your computer.\n");
+            MENU_LOG_INFO("Apple Menu > Shut Down\n");
+            MENU_LOG_INFO("System shutdown initiated...\n");
+            MENU_LOG_INFO("It is now safe to turn off your computer.\n");
 
             /* Try QEMU shutdown via ACPI port first */
             /* QEMU shutdown: write 0x2000 to port 0x604 */
@@ -169,7 +170,7 @@ static void HandleAppleMenu(short item)
             break;
 
         default:
-            serial_printf("Unknown Apple menu item: %d\n", item);
+            MENU_LOG_WARN("Unknown Apple menu item: %d\n", item);
             break;
     }
 }
@@ -179,65 +180,65 @@ static void HandleFileMenu(short item)
 {
     switch (item) {
         case kNewItem:
-            serial_printf("File > New\n");
+            MENU_LOG_DEBUG("File > New\n");
             /* Create new folder in Finder */
             extern Boolean VFS_CreateFolder(SInt16 vref, SInt32 parent, const char* name, SInt32* newID);
             SInt32 newFolderID;
             if (VFS_CreateFolder(0, 2, "New Folder", &newFolderID)) {
-                serial_printf("Created new folder with ID %ld\n", newFolderID);
+                MENU_LOG_DEBUG("Created new folder with ID %d\n", (int)newFolderID);
             }
             break;
 
         case kOpenItem:
-            serial_printf("File > Open...\n");
+            MENU_LOG_DEBUG("File > Open...\n");
             /* TODO: Show open dialog */
             break;
 
         case kCloseItem:
-            serial_printf("File > Close\n");
+            MENU_LOG_DEBUG("File > Close\n");
             /* Close current window - but only if it's valid and visible */
             extern WindowPtr FrontWindow(void);
             extern void CloseWindow(WindowPtr window);
             WindowPtr front = FrontWindow();
             if (front && front->visible) {
-                serial_printf("Closing visible front window 0x%08x\n", (unsigned int)front);
+                MENU_LOG_DEBUG("Closing visible front window 0x%08x\n", (unsigned int)P2UL(front));
                 CloseWindow(front);
-                serial_printf("Closed front window\n");
+                MENU_LOG_DEBUG("Closed front window\n");
             } else {
-                serial_printf("No visible window to close (front=%p, visible=%d)\n",
-                             front, front ? front->visible : -1);
+                MENU_LOG_DEBUG("No visible window to close (front=0x%08x, visible=%d)\n",
+                                (unsigned int)P2UL(front), front ? front->visible : -1);
             }
             break;
 
         case kSaveItem:
-            serial_printf("File > Save\n");
+            MENU_LOG_DEBUG("File > Save\n");
             /* TODO: Save current document */
             break;
 
         case kSaveAsItem:
-            serial_printf("File > Save As...\n");
+            MENU_LOG_DEBUG("File > Save As...\n");
             /* TODO: Show save dialog */
             break;
 
         case kPageSetupItem:
-            serial_printf("File > Page Setup...\n");
+            MENU_LOG_DEBUG("File > Page Setup...\n");
             /* TODO: Show page setup dialog */
             break;
 
         case kPrintItem:
-            serial_printf("File > Print...\n");
+            MENU_LOG_DEBUG("File > Print...\n");
             /* TODO: Show print dialog */
             break;
 
         case kQuitItem:
-            serial_printf("File > Quit - Shutting down...\n");
+            MENU_LOG_INFO("File > Quit - Shutting down...\n");
             /* TODO: Proper shutdown sequence */
             /* For now, just halt */
             __asm__ volatile("cli; hlt");
             break;
 
         default:
-            serial_printf("Unknown File menu item: %d\n", item);
+            MENU_LOG_WARN("Unknown File menu item: %d\n", item);
             break;
     }
 }
@@ -247,55 +248,55 @@ static void HandleEditMenu(short item)
 {
     switch (item) {
         case kUndoItem:
-            serial_printf("Edit > Undo\n");
+            MENU_LOG_DEBUG("Edit > Undo\n");
             /* Undo last action - check if TextEdit has focus */
             extern void TEUndo(TEHandle hTE);
             /* Would need to track active TextEdit handle */
-            serial_printf("Undo not available\n");
+            MENU_LOG_DEBUG("Undo not available\n");
             break;
 
         case kCutItem:
-            serial_printf("Edit > Cut\n");
+            MENU_LOG_DEBUG("Edit > Cut\n");
             /* Cut selection to clipboard */
             extern void TECut(TEHandle hTE);
             /* Would need active TextEdit handle */
-            serial_printf("Cut - no text selection\n");
+            MENU_LOG_DEBUG("Cut - no text selection\n");
             break;
 
         case kCopyItem:
-            serial_printf("Edit > Copy\n");
+            MENU_LOG_DEBUG("Edit > Copy\n");
             /* Copy selection to clipboard */
             extern void TECopy(TEHandle hTE);
             /* Would need active TextEdit handle */
-            serial_printf("Copy - no text selection\n");
+            MENU_LOG_DEBUG("Copy - no text selection\n");
             break;
 
         case kPasteItem:
-            serial_printf("Edit > Paste\n");
+            MENU_LOG_DEBUG("Edit > Paste\n");
             /* Paste from clipboard */
             extern void TEPaste(TEHandle hTE);
             /* Would need active TextEdit handle */
-            serial_printf("Paste - no text field active\n");
+            MENU_LOG_DEBUG("Paste - no text field active\n");
             break;
 
         case kClearItem:
-            serial_printf("Edit > Clear\n");
+            MENU_LOG_DEBUG("Edit > Clear\n");
             /* Clear selection */
             extern void TEDelete(TEHandle hTE);
             /* Would need active TextEdit handle */
-            serial_printf("Clear - no text selection\n");
+            MENU_LOG_DEBUG("Clear - no text selection\n");
             break;
 
         case kSelectAllItem:
-            serial_printf("Edit > Select All\n");
+            MENU_LOG_DEBUG("Edit > Select All\n");
             /* Select all items */
             /* In Finder, would select all icons */
             /* In TextEdit, would select all text */
-            serial_printf("Select All - would select all items in current context\n");
+            MENU_LOG_DEBUG("Select All - would select all items in current context\n");
             break;
 
         default:
-            serial_printf("Unknown Edit menu item: %d\n", item);
+            MENU_LOG_WARN("Unknown Edit menu item: %d\n", item);
             break;
     }
 }
@@ -314,12 +315,12 @@ static void HandleViewMenu(short item)
     };
 
     if (item >= kBySmallIcon && item <= kByDate) {
-        serial_printf("View > %s\n", viewNames[item - 1]);
+        MENU_LOG_DEBUG("View > %s\n", viewNames[item - 1]);
         /* Change view mode */
         /* Would update Finder's view settings for current window */
-        serial_printf("View mode changed to %s\n", viewNames[item - 1]);
+        MENU_LOG_DEBUG("View mode changed to %s\n", viewNames[item - 1]);
     } else {
-        serial_printf("Unknown View menu item: %d\n", item);
+        MENU_LOG_WARN("Unknown View menu item: %d\n", item);
     }
 }
 
@@ -338,12 +339,12 @@ static void HandleLabelMenu(short item)
     };
 
     if (item >= 1 && item <= 8) {
-        serial_printf("Label > %s\n", labelNames[item - 1]);
+        MENU_LOG_DEBUG("Label > %s\n", labelNames[item - 1]);
         /* Apply label to selection */
         /* Would set label color for selected items */
-        serial_printf("Applied label '%s' to selected items\n", labelNames[item - 1]);
+        MENU_LOG_DEBUG("Applied label '%s' to selected items\n", labelNames[item - 1]);
     } else {
-        serial_printf("Unknown Label menu item: %d\n", item);
+        MENU_LOG_WARN("Unknown Label menu item: %d\n", item);
     }
 }
 
@@ -352,43 +353,43 @@ static void HandleSpecialMenu(short item)
 {
     switch (item) {
         case 1:
-            serial_printf("Special > Clean Up\n");
+            MENU_LOG_DEBUG("Special > Clean Up\n");
             /* Clean up desktop/window - arrange icons in grid */
             extern void ArrangeDesktopIcons(void);
             ArrangeDesktopIcons();
-            serial_printf("Desktop cleaned up\n");
+            MENU_LOG_DEBUG("Desktop cleaned up\n");
             break;
 
         case 2:
-            serial_printf("Special > Empty Trash\n");
+            MENU_LOG_DEBUG("Special > Empty Trash\n");
             /* Empty trash */
             extern OSErr EmptyTrash(void);
             OSErr err = EmptyTrash();
             if (err == noErr) {
-                serial_printf("Trash emptied successfully\n");
+                MENU_LOG_DEBUG("Trash emptied successfully\n");
             } else {
-                serial_printf("Failed to empty trash (error %d)\n", err);
+                MENU_LOG_WARN("Failed to empty trash (error %d)\n", err);
             }
             break;
 
         case 3:
-            serial_printf("Special > Eject\n");
+            MENU_LOG_DEBUG("Special > Eject\n");
             /* Eject selected disk */
             /* Would unmount and eject the selected volume */
-            serial_printf("Ejecting disk (not implemented in kernel)\n");
+            MENU_LOG_DEBUG("Ejecting disk (not implemented in kernel)\n");
             break;
 
         case 4:
-            serial_printf("Special > Erase Disk...\n");
+            MENU_LOG_DEBUG("Special > Erase Disk...\n");
             /* Show erase disk dialog */
             /* Would show dialog to format selected disk */
-            serial_printf("Erase Disk dialog would appear here\n");
+            MENU_LOG_DEBUG("Erase Disk dialog would appear here\n");
             break;
 
         case 5:
-            serial_printf("Special > Restart\n");
+            MENU_LOG_INFO("Special > Restart\n");
             /* System restart */
-            serial_printf("System restart initiated...\n");
+            MENU_LOG_INFO("System restart initiated...\n");
             /* Triple fault to restart in x86 */
             __asm__ volatile(
                 "movl $0, %%esp\n"
@@ -401,10 +402,10 @@ static void HandleSpecialMenu(short item)
             break;
 
         case 6:
-            serial_printf("Special > Shut Down\n");
+            MENU_LOG_INFO("Special > Shut Down\n");
             /* System shutdown */
-            serial_printf("System shutdown initiated...\n");
-            serial_printf("It is now safe to turn off your computer.\n");
+            MENU_LOG_INFO("System shutdown initiated...\n");
+            MENU_LOG_INFO("It is now safe to turn off your computer.\n");
 
             /* Try QEMU shutdown via ACPI port first */
             /* QEMU shutdown: write 0x2000 to port 0x604 */
@@ -429,7 +430,7 @@ static void HandleSpecialMenu(short item)
             break;
 
         default:
-            serial_printf("Unknown Special menu item: %d\n", item);
+            MENU_LOG_WARN("Unknown Special menu item: %d\n", item);
             break;
     }
 }

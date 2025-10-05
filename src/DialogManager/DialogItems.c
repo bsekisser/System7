@@ -103,8 +103,13 @@ void GetDialogItem(DialogPtr theDialog, SInt16 itemNo, SInt16* itemType,
 
     itemEx = GetDialogItemEx(theDialog, itemNo);
     if (!itemEx) {
+        serial_printf("GetDialogItem: GetDialogItemEx returned NULL for item %d\n", itemNo);
         return;
     }
+
+    serial_printf("GetDialogItem: item %d, index=%d, bounds=(%d,%d,%d,%d)\n",
+                 itemNo, (itemEx)->index, (itemEx)->bounds.top, (itemEx)->bounds.left,
+                 (itemEx)->bounds.bottom, (itemEx)->bounds.right);
 
     /* Return item information */
     if (itemType) {

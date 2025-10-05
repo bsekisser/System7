@@ -6,6 +6,42 @@
 #include <stdint.h>
 #include <stddef.h>
 
+/* Logging ------------------------------------------------------------------ */
+
+typedef enum {
+    kLogLevelError = 0,
+    kLogLevelWarn,
+    kLogLevelInfo,
+    kLogLevelDebug,
+    kLogLevelTrace
+} SystemLogLevel;
+
+typedef enum {
+    kLogModuleGeneral = 0,
+    kLogModuleDesktop,
+    kLogModuleEvent,
+    kLogModuleFinder,
+    kLogModuleFileSystem,
+    kLogModuleWindow,
+    kLogModuleMenu,
+    kLogModuleDialog,
+    kLogModuleControl,
+    kLogModuleFont,
+    kLogModuleSound,
+    kLogModuleResource,
+    kLogModuleStandardFile,
+    kLogModuleListManager,
+    kLogModuleSystem,
+    kLogModuleCount
+} SystemLogModule;
+
+void SysLogSetGlobalLevel(SystemLogLevel level);
+SystemLogLevel SysLogGetGlobalLevel(void);
+void SysLogSetModuleLevel(SystemLogModule module, SystemLogLevel level);
+SystemLogLevel SysLogGetModuleLevel(SystemLogModule module);
+const char* SysLogModuleName(SystemLogModule module);
+void serial_logf(SystemLogModule module, SystemLogLevel level, const char* fmt, ...);
+
 /* Memory functions */
 void* memcpy(void* dest, const void* src, size_t n);
 void* memset(void* s, int c, size_t n);
@@ -39,5 +75,8 @@ void serial_print_hex(uint32_t value);
 void serial_printf(const char* fmt, ...);
 int sprintf(char* str, const char* format, ...);
 int snprintf(char* str, size_t size, const char* format, ...);
+
+/* Pointer-to-unsigned-long helper to avoid %p format pitfalls */
+#define P2UL(p) ((unsigned long)(uintptr_t)(p))
 
 #endif /* SYSTEM71_STDLIB_H */

@@ -235,6 +235,12 @@ ifeq ($(CTRL_SMOKE_TEST),1)
 CFLAGS += -DCTRL_SMOKE_TEST=1
 endif
 
+# Alert smoke test (alert dialogs)
+ALERT_SMOKE_TEST ?= 0
+ifeq ($(ALERT_SMOKE_TEST),1)
+CFLAGS += -DALERT_SMOKE_TEST=1
+endif
+
 ASM_SOURCES = src/multiboot2.S
 
 # Object files

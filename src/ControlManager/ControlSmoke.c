@@ -20,8 +20,11 @@
 
 #ifdef CTRL_SMOKE_TEST
 
+/* Convenience logging helpers */
+#define CTRL_SMOKE_LOG(fmt, ...) serial_logf(kLogModuleControl, kLogLevelDebug, "[CTRL SMOKE] " fmt, ##__VA_ARGS__)
+#define CTRL_SMOKE_WARN(fmt, ...) serial_logf(kLogModuleControl, kLogLevelWarn, "[CTRL SMOKE] " fmt, ##__VA_ARGS__)
+
 /* External functions */
-extern void serial_printf(const char* fmt, ...);
 extern void GlobalToLocal(Point* pt);
 
 /* Test window and controls */
@@ -55,12 +58,12 @@ void CreateControlSmokeWindow(void) {
 
     gTestWindow = NewWindow(NULL, &bounds, title, true, documentProc, (WindowPtr)-1, true, 0);
     if (!gTestWindow) {
-        serial_printf("[CTRL SMOKE] Failed to create test window\n");
+        CTRL_SMOKE_WARN("Failed to create test window\n");
         return;
     }
 
-    serial_printf("[CTRL SMOKE] Test window created at (%d,%d)-(%d,%d)\n",
-                  bounds.left, bounds.top, bounds.right, bounds.bottom);
+    CTRL_SMOKE_LOG("Test window created at (%d,%d)-(%d,%d)\n",
+                   bounds.left, bounds.top, bounds.right, bounds.bottom);
 
     /* Create OK button (default, varCode=1 for default) */
     bounds.left = 220;
@@ -71,11 +74,11 @@ void CreateControlSmokeWindow(void) {
     title[0] = 2;
     memcpy(&title[1], "OK", 2);
 
-    serial_printf("[CTRL SMOKE] About to create OK button with procID=%d\n", pushButProc);
+    CTRL_SMOKE_LOG("About to create OK button with procID=%d\n", pushButProc);
     gOKButton = NewControl(gTestWindow, &bounds, title, true, 0, 0, 1, pushButProc, 1);
-    serial_printf("[CTRL SMOKE] NewControl returned: %p\n", (void*)gOKButton);
+    CTRL_SMOKE_LOG("NewControl returned: 0x%08x\n", (unsigned int)P2UL(gOKButton));
     if (gOKButton) {
-        serial_printf("[CTRL SMOKE] OK button created (default, varCode=1)\n");
+        CTRL_SMOKE_LOG("OK button created (default, varCode=1)\n");
     }
 
     /* Create Cancel button (varCode=2 for cancel) */
@@ -89,7 +92,7 @@ void CreateControlSmokeWindow(void) {
 
     gCancelButton = NewControl(gTestWindow, &bounds, title, true, 0, 0, 1, pushButProc, 2);
     if (gCancelButton) {
-        serial_printf("[CTRL SMOKE] Cancel button created\n");
+        CTRL_SMOKE_LOG("Cancel button created\n");
     }
 
     /* Create checkbox */
@@ -103,7 +106,7 @@ void CreateControlSmokeWindow(void) {
 
     gCheckbox = NewControl(gTestWindow, &bounds, title, true, 0, 0, 1, checkBoxProc, 3);
     if (gCheckbox) {
-        serial_printf("[CTRL SMOKE] Checkbox created\n");
+        CTRL_SMOKE_LOG("Checkbox created\n");
     }
 
     /* Create radio button group (View options) */
@@ -118,7 +121,7 @@ void CreateControlSmokeWindow(void) {
     gRadio1 = NewControl(gTestWindow, &bounds, title, true, 1, 0, 1, radioButProc, 4);
     if (gRadio1) {
         SetRadioGroup(gRadio1, 1); /* Group ID = 1 */
-        serial_printf("[CTRL SMOKE] Radio 1 (Icons) created, group=1\n");
+        CTRL_SMOKE_LOG("Radio 1 (Icons) created, group=1\n");
     }
 
     bounds.top = 115;
@@ -130,7 +133,7 @@ void CreateControlSmokeWindow(void) {
     gRadio2 = NewControl(gTestWindow, &bounds, title, true, 0, 0, 1, radioButProc, 5);
     if (gRadio2) {
         SetRadioGroup(gRadio2, 1); /* Group ID = 1 */
-        serial_printf("[CTRL SMOKE] Radio 2 (List) created, group=1\n");
+        CTRL_SMOKE_LOG("Radio 2 (List) created, group=1\n");
     }
 
     bounds.top = 140;
@@ -142,20 +145,20 @@ void CreateControlSmokeWindow(void) {
     gRadio3 = NewControl(gTestWindow, &bounds, title, true, 0, 0, 1, radioButProc, 6);
     if (gRadio3) {
         SetRadioGroup(gRadio3, 1); /* Group ID = 1 */
-        serial_printf("[CTRL SMOKE] Radio 3 (Columns) created, group=1\n");
+        CTRL_SMOKE_LOG("Radio 3 (Columns) created, group=1\n");
     }
 
-    serial_printf("[CTRL SMOKE] All controls created successfully\n");
+    CTRL_SMOKE_LOG("All controls created successfully\n");
 
     /* Set initial keyboard focus to OK button */
     if (gOKButton) {
         extern void DM_SetKeyboardFocus(WindowPtr window, ControlHandle newFocus);
         DM_SetKeyboardFocus(gTestWindow, gOKButton);
-        serial_printf("[CTRL SMOKE] Initial focus set to OK button\n");
+        CTRL_SMOKE_LOG("Initial focus set to OK button\n");
     }
 
-    serial_printf("[CTRL SMOKE] Try clicking buttons, checkbox, and radio buttons\n");
-    serial_printf("[CTRL SMOKE] Keyboard: Tab/Shift+Tab=focus, Space=toggle, Return/Esc=activate\n");
+    CTRL_SMOKE_LOG("Try clicking buttons, checkbox, and radio buttons\n");
+    CTRL_SMOKE_LOG("Keyboard: Tab/Shift+Tab=focus, Space=toggle, Return/Esc=activate\n");
 }
 
 /**
@@ -175,42 +178,42 @@ Boolean HandleControlSmokeClick(WindowPtr window, Point where) {
     /* Find which control was clicked */
     part = FindControl(where, window, &control);
     if (part == 0 || !control) {
-        serial_printf("[CTRL SMOKE] Click at (%d,%d) - no control hit\n", where.h, where.v);
+        CTRL_SMOKE_LOG("Click at (%d,%d) - no control hit\n", where.h, where.v);
         return true;
     }
 
     /* Track the control */
     part = TrackControl(control, where, NULL);
     if (part == 0) {
-        serial_printf("[CTRL SMOKE] TrackControl returned 0 (mouse released outside)\n");
+        CTRL_SMOKE_LOG("TrackControl returned 0 (mouse released outside)\n");
         return true;
     }
 
     /* Handle control action */
     if (control == gOKButton) {
-        serial_printf("[CTRL SMOKE] OK button clicked (refCon=%d)\n",
-                      (int)GetControlReference(gOKButton));
-        serial_printf("[CTRL SMOKE] Checkbox value: %d\n", GetControlValue(gCheckbox));
-        serial_printf("[CTRL SMOKE] Radio group values: R1=%d R2=%d R3=%d\n",
-                      GetControlValue(gRadio1),
-                      GetControlValue(gRadio2),
-                      GetControlValue(gRadio3));
+        CTRL_SMOKE_LOG("OK button clicked (refCon=%d)\n",
+                       (int)GetControlReference(gOKButton));
+        CTRL_SMOKE_LOG("Checkbox value: %d\n", GetControlValue(gCheckbox));
+        CTRL_SMOKE_LOG("Radio group values: R1=%d R2=%d R3=%d\n",
+                       GetControlValue(gRadio1),
+                       GetControlValue(gRadio2),
+                       GetControlValue(gRadio3));
     } else if (control == gCancelButton) {
-        serial_printf("[CTRL SMOKE] Cancel button clicked (refCon=%d)\n",
-                      (int)GetControlReference(gCancelButton));
+        CTRL_SMOKE_LOG("Cancel button clicked (refCon=%d)\n",
+                       (int)GetControlReference(gCancelButton));
     } else if (control == gCheckbox) {
         SInt16 newVal = GetControlValue(gCheckbox) ? 0 : 1;
         SetControlValue(gCheckbox, newVal);
-        serial_printf("[CTRL SMOKE] Checkbox toggled to %d\n", newVal);
+        CTRL_SMOKE_LOG("Checkbox toggled to %d\n", newVal);
     } else if (control == gRadio1 || control == gRadio2 || control == gRadio3) {
         SetControlValue(control, 1);
-        serial_printf("[CTRL SMOKE] Radio button %d selected (refCon=%d)\n",
-                      control == gRadio1 ? 1 : (control == gRadio2 ? 2 : 3),
-                      (int)GetControlReference(control));
-        serial_printf("[CTRL SMOKE] Radio group state: R1=%d R2=%d R3=%d\n",
-                      GetControlValue(gRadio1),
-                      GetControlValue(gRadio2),
-                      GetControlValue(gRadio3));
+        CTRL_SMOKE_LOG("Radio button %d selected (refCon=%d)\n",
+                       control == gRadio1 ? 1 : (control == gRadio2 ? 2 : 3),
+                       (int)GetControlReference(control));
+        CTRL_SMOKE_LOG("Radio group state: R1=%d R2=%d R3=%d\n",
+                       GetControlValue(gRadio1),
+                       GetControlValue(gRadio2),
+                       GetControlValue(gRadio3));
     }
 
     return true;
@@ -228,18 +231,18 @@ Boolean HandleControlSmokeKey(WindowPtr window, EventRecord* evt) {
 
     /* Use Dialog Manager keyboard handlers */
     if (DM_HandleDialogKey(window, evt, &itemHit)) {
-        serial_printf("[CTRL SMOKE] Keyboard handled: itemHit=%d\n", itemHit);
+        CTRL_SMOKE_LOG("Keyboard handled: itemHit=%d\n", itemHit);
 
         /* Check if OK or Cancel was activated */
         if (itemHit == 1) { /* OK button refCon */
-            serial_printf("[CTRL SMOKE] OK activated via keyboard\n");
-            serial_printf("[CTRL SMOKE] Final state: Checkbox=%d, Radios: R1=%d R2=%d R3=%d\n",
-                          GetControlValue(gCheckbox),
-                          GetControlValue(gRadio1),
-                          GetControlValue(gRadio2),
-                          GetControlValue(gRadio3));
+            CTRL_SMOKE_LOG("OK activated via keyboard\n");
+            CTRL_SMOKE_LOG("Final state: Checkbox=%d, Radios: R1=%d R2=%d R3=%d\n",
+                           GetControlValue(gCheckbox),
+                           GetControlValue(gRadio1),
+                           GetControlValue(gRadio2),
+                           GetControlValue(gRadio3));
         } else if (itemHit == 2) { /* Cancel button refCon */
-            serial_printf("[CTRL SMOKE] Cancel activated via keyboard\n");
+            CTRL_SMOKE_LOG("Cancel activated via keyboard\n");
         }
 
         return true;
@@ -252,8 +255,8 @@ Boolean HandleControlSmokeKey(WindowPtr window, EventRecord* evt) {
  * Initialize Control smoke test
  */
 void InitControlSmokeTest(void) {
-    serial_printf("[CTRL SMOKE] Enabled (CTRL_SMOKE_TEST=1)\n");
-    serial_printf("[CTRL SMOKE] Creating test window...\n");
+    CTRL_SMOKE_LOG("Enabled (CTRL_SMOKE_TEST=1)\n");
+    CTRL_SMOKE_LOG("Creating test window...\n");
     CreateControlSmokeWindow();
 }
 

@@ -3,6 +3,8 @@
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/AlertDialogs.h"
 
+#ifdef ALERT_SMOKE_TEST
+
 extern void serial_printf(const char*, ...);
 extern void CenterDialogOnScreen(DialogPtr dlg);
 extern void ShowWindow(WindowPtr w);
@@ -58,3 +60,19 @@ void DoAlertSmokeTests(void) {
               (const unsigned char*)"\001 ");
     ShowAlertAndLog("Generic Alert", kTestDLOG);
 }
+
+/*
+ * InitAlertSmokeTest - Initialize and run alert smoke tests
+ */
+void InitAlertSmokeTest(void) {
+    serial_printf("[ALERT SMOKE] Enabled\n");
+    DoAlertSmokeTests();
+    serial_printf("[ALERT SMOKE] Completed\n");
+}
+
+#else
+/* Stub when smoke test is disabled */
+void InitAlertSmokeTest(void) {
+    /* No-op */
+}
+#endif

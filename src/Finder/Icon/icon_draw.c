@@ -5,6 +5,9 @@
 #include "Finder/Icon/icon_types.h"
 #include <stdint.h>
 #include <stddef.h>
+#include "System71StdLib.h"
+
+#define FINDER_ICON_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelDebug, fmt, ##__VA_ARGS__)
 
 /* Import framebuffer access */
 extern void* framebuffer;
@@ -40,12 +43,11 @@ static void SetPixel(int x, int y, uint32_t color) {
  * - Image: 1s only for the outline and vertical stripes, 0s for the white body
  */
 static void DrawICN32(const IconBitmap* ib, int dx, int dy, bool selected) {
-    extern void serial_printf(const char* fmt, ...);
     uint32_t black = 0xFF000000;
     uint32_t white = 0xFFFFFFFF;
     uint32_t darkBlue = 0xFF000080;  /* Dark blue for selection highlight */
 
-    serial_printf("[ICON_DRAW] DrawICN32 at (%d,%d) selected=%d\n", dx, dy, selected);
+    FINDER_ICON_LOG_DEBUG("[ICON_DRAW] DrawICN32 at (%d,%d) selected=%d\n", dx, dy, selected);
 
     /* Draw the icon using proper Mac mask/image compositing:
      * - Mask defines the shape (1 = opaque, 0 = transparent)

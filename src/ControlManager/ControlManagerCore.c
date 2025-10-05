@@ -30,6 +30,11 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 
+/* Logging helpers */
+#define CTRL_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleControl, kLogLevelDebug, "[CTRL] " fmt, ##__VA_ARGS__)
+#define CTRL_LOG_WARN(fmt, ...)  serial_logf(kLogModuleControl, kLogLevelWarn,  "[CTRL] " fmt, ##__VA_ARGS__)
+#define CTRL_LOG_ERROR(fmt, ...) serial_logf(kLogModuleControl, kLogLevelError, "[CTRL] " fmt, ##__VA_ARGS__)
+
 
 /* Control Manager Globals */
 typedef struct {
@@ -126,38 +131,37 @@ ControlHandle NewControl(WindowPtr theWindow, const Rect *boundsRect,
     ControlHandle control;
     ControlPtr ctlPtr;
     OSErr err;
-    extern void serial_printf(const char* fmt, ...);
 
-    serial_printf("[CTRL] NewControl ENTRY: procID=%d\n", procID);
+    CTRL_LOG_DEBUG("NewControl ENTRY: procID=%d\n", procID);
 
     /* Initialize Control Manager if needed */
     if (!gControlMgr.initialized) {
-        serial_printf("[CTRL] Calling _InitControlManager\n");
+        CTRL_LOG_DEBUG("Calling _InitControlManager\n");
         _InitControlManager();
     }
-    serial_printf("[CTRL] After init check\n");
+    CTRL_LOG_DEBUG("After init check\n");
 
     /* Validate parameters */
     err = ValidateControlParameters(theWindow, boundsRect, value, min, max);
     if (err != noErr) {
-        serial_printf("[CTRL] ValidateControlParameters FAILED\n");
+        CTRL_LOG_WARN("ValidateControlParameters FAILED\n");
         return NULL;
     }
-    serial_printf("[CTRL] Parameters validated\n");
+    CTRL_LOG_DEBUG("Parameters validated\n");
 
     /* Allocate control handle */
     control = (ControlHandle)NewHandle(sizeof(ControlRecord));
     if (!control) {
-        serial_printf("[CTRL] NewHandle FAILED\n");
+        CTRL_LOG_ERROR("NewHandle FAILED\n");
         return NULL;
     }
-    serial_printf("[CTRL] Handle allocated\n");
+    CTRL_LOG_DEBUG("Handle allocated\n");
 
     /* Lock and initialize control record */
     HLock((Handle)control);
     ctlPtr = *control;
     memset(ctlPtr, 0, sizeof(ControlRecord));
-    serial_printf("[CTRL] Control record initialized\n");
+    CTRL_LOG_DEBUG("Control record initialized\n");
 
     /* Set control fields */
     ctlPtr->contrlOwner = theWindow;
@@ -177,35 +181,35 @@ ControlHandle NewControl(WindowPtr theWindow, const Rect *boundsRect,
     }
 
     /* Get control definition procedure */
-    serial_printf("[CTRL] Getting CDEF for procID=%d\n", procID);
+    CTRL_LOG_DEBUG("Getting CDEF for procID=%d\n", procID);
     ctlPtr->contrlDefProc = _GetControlDefProc(procID);
     if (!ctlPtr->contrlDefProc) {
-        serial_printf("[CTRL] CDEF not found!\n");
+        CTRL_LOG_ERROR("CDEF not found!\n");
         HUnlock((Handle)control);
         DisposeHandle((Handle)control);
         return NULL;
     }
-    serial_printf("[CTRL] CDEF found\n");
+    CTRL_LOG_DEBUG("CDEF found\n");
 
     /* Initialize control via CDEF */
-    serial_printf("[CTRL] Calling CDEF initCntl\n");
+    CTRL_LOG_DEBUG("Calling CDEF initCntl\n");
     _CallControlDefProc(control, initCntl, 0);
-    serial_printf("[CTRL] CDEF initCntl complete\n");
+    CTRL_LOG_DEBUG("CDEF initCntl complete\n");
 
     /* Link control to window */
-    serial_printf("[CTRL] Linking control to window\n");
+    CTRL_LOG_DEBUG("Linking control to window\n");
     LinkControl(theWindow, control);
 
     HUnlock((Handle)control);
-    serial_printf("[CTRL] Control unlocked\n");
+    CTRL_LOG_DEBUG("Control unlocked\n");
 
     /* Draw control if visible */
     if (visible) {
-        serial_printf("[CTRL] Drawing control\n");
+        CTRL_LOG_DEBUG("Drawing control\n");
         Draw1Control(control);
     }
 
-    serial_printf("[CTRL] NewControl EXIT: control=%p\n", (void*)control);
+    CTRL_LOG_DEBUG("NewControl EXIT: control=0x%08x\n", (unsigned int)P2UL(control));
     return control;
 }
 

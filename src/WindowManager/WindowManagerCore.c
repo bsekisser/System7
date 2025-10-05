@@ -756,12 +756,12 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
                  contentWidth, contentHeight);
 
     /* CRITICAL: portBits.bounds defines where local coords map to global screen coords!
-     * This must be set to the window's CONTENT area global position so that drawing in local
-     * coordinates (0,0) maps to the content area's screen position */
+     * NOTE: This will be overwritten by Platform_InitializeWindowPort which calculates
+     * the correct mapping from strucRgn. Setting initial values here for reference. */
     SetRect(&window->port.portBits.bounds,
-            clampedBounds.left,
+            clampedBounds.left + kBorder,
             clampedBounds.top + kTitleBar + kSeparator,
-            clampedBounds.left + contentWidth,
+            clampedBounds.left + kBorder + contentWidth,
             clampedBounds.top + kTitleBar + kSeparator + contentHeight);
 
     /* Initialize portBits to point to screen framebuffer */

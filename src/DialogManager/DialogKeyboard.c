@@ -16,9 +16,14 @@
 #include "WindowManager/WindowManager.h"
 #include "EventManager/EventManager.h"
 #include "QuickDrawConstants.h"
+#include "System71StdLib.h"
+
+/* Logging helpers */
+#define DM_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleDialog, kLogLevelDebug, "[DM] " fmt, ##__VA_ARGS__)
+#define DM_LOG_TRACE(fmt, ...) serial_logf(kLogModuleDialog, kLogLevelTrace, "[DM] " fmt, ##__VA_ARGS__)
+#define DM_LOG_WARN(fmt, ...)  serial_logf(kLogModuleDialog, kLogLevelWarn,  "[DM] " fmt, ##__VA_ARGS__)
 
 /* External functions */
-extern void serial_printf(const char* fmt, ...);
 extern void Delay(UInt32 numTicks, UInt32* finalTicks);
 extern void PenMode(SInt16 mode);
 extern void InvertRect(const Rect* r);
@@ -214,7 +219,10 @@ void DM_SetKeyboardFocus(WindowPtr window, ControlHandle newFocus) {
 
     /* Log focus change */
     if (oldFocus != newFocus) {
-        serial_printf("[DM] Focus %p -> %p (win=%p)\n", (void*)oldFocus, (void*)newFocus, (void*)window);
+        DM_LOG_DEBUG("Focus 0x%08x -> 0x%08x (win=0x%08x)\n",
+                     (unsigned int)P2UL(oldFocus),
+                     (unsigned int)P2UL(newFocus),
+                     (unsigned int)P2UL(window));
     }
 
     /* Toggle focus rings (XOR erase old, XOR draw new) */
@@ -226,8 +234,10 @@ void DM_SetKeyboardFocus(WindowPtr window, ControlHandle newFocus) {
         ToggleFocusRing(newFocus); /* Draw */
     }
 
-    serial_printf("[CTRL] DM_SetKeyboardFocus: window=%p old=%p new=%p\n",
-                  (void*)window, (void*)oldFocus, (void*)newFocus);
+    DM_LOG_DEBUG("DM_SetKeyboardFocus: window=0x%08x old=0x%08x new=0x%08x\n",
+                 (unsigned int)P2UL(window),
+                 (unsigned int)P2UL(oldFocus),
+                 (unsigned int)P2UL(newFocus));
 }
 
 /**
@@ -314,11 +324,16 @@ void DM_FocusNextControl(WindowPtr window, Boolean backwards) {
  */
 static ControlHandle DM_FindButtonByFlag(WindowPtr w, Boolean wantDefault, Boolean wantCancel) {
     ControlHandle c;
+    SInt16 item;
+    SInt16 itemType;
+    Handle itemHandle;
+    Rect itemRect;
 
     if (!w) {
         return NULL;
     }
 
+    /* Pass 1: scan for a button whose CDEF marks it default/cancel */
     c = _GetFirstControl(w);
     while (c) {
         if (IsButtonControl(c)) {
@@ -329,6 +344,22 @@ static ControlHandle DM_FindButtonByFlag(WindowPtr w, Boolean wantDefault, Boole
         }
         c = (*c)->nextControl;
     }
+
+    /* Pass 2 (fallback): use dialog record's aDefItem/aCancelItem */
+    if (wantDefault || wantCancel) {
+        item = wantDefault ? GetDialogDefaultItem((DialogPtr)w)
+                           : GetDialogCancelItem((DialogPtr)w);
+
+        if (item > 0) {
+            GetDialogItem((DialogPtr)w, item, &itemType, &itemHandle, &itemRect);
+
+            /* If GetDialogItem returned a control handle, use it directly */
+            if (itemHandle && IsButtonControl((ControlHandle)itemHandle)) {
+                return (ControlHandle)itemHandle;
+            }
+        }
+    }
+
     return NULL;
 }
 
@@ -358,8 +389,8 @@ void DM_ActivatePushButton(ControlHandle button) {
         return;
     }
 
-    serial_printf("[CTRL] DM_ActivatePushButton: Flashing button (refCon=%d)\n",
-                  (int)GetControlReference(button));
+    DM_LOG_DEBUG("DM_ActivatePushButton: Flashing button (refCon=%d)\n",
+                 (int)GetControlReference(button));
 
     /* Calculate inner rect for XOR flash (inset by 3 pixels) */
     innerRect = (*button)->contrlRect;
@@ -384,30 +415,66 @@ void DM_ActivatePushButton(ControlHandle button) {
 }
 
 /**
+ * Map control handle back to dialog item number
+ */
+static SInt16 DM_ItemFromControl(DialogPtr d, ControlHandle c) {
+    SInt16 count, i;
+    SInt16 itype;
+    Handle ih;
+    Rect r;
+
+    if (!d || !c) {
+        return 0;
+    }
+
+    count = CountDITL(d);
+    for (i = 1; i <= count; i++) {
+        itype = 0;
+        ih = NULL;
+        GetDialogItem(d, i, &itype, &ih, &r);
+        if (ih && ((itype & 0x7F) == (ctrlItem + btnCtrl)) && (ControlHandle)ih == c) {
+            return i;
+        }
+    }
+    return 0;
+}
+
+/**
  * Handle Return key (activate default button)
  */
 Boolean DM_HandleReturnKey(WindowPtr dialog, SInt16* itemHit) {
     ControlHandle defaultButton;
+    SInt16 item;
+
+    DM_LOG_TRACE("DM_HandleReturnKey: ENTRY\n");
 
     if (!dialog || !itemHit) {
+        DM_LOG_WARN("DM_HandleReturnKey: NULL params\n");
         return false;
     }
 
     /* Debounce - prevent double-fire from mouse+key */
     if (DM_DebounceAction(1)) {
+        DM_LOG_TRACE("DM_HandleReturnKey: Debounce suppressed\n");
         return false; /* Suppressed */
     }
 
+    DM_LOG_TRACE("DM_HandleReturnKey: Finding default button\n");
     defaultButton = DM_FindDefaultButton(dialog);
     if (!defaultButton) {
+        DM_LOG_TRACE("DM_HandleReturnKey: No default button found\n");
         return false; /* No default button */
     }
 
-    serial_printf("[CTRL] DM_HandleReturnKey: Activating default button\n");
+    DM_LOG_DEBUG("DM_HandleReturnKey: Activating default button\n");
     DM_ActivatePushButton(defaultButton);
 
-    /* Set itemHit to button's refCon for ModalDialog return value */
-    *itemHit = (SInt16)GetControlReference(defaultButton);
+    /* Map control → item number so modal loop exits */
+    item = DM_ItemFromControl((DialogPtr)dialog, defaultButton);
+    if (item > 0) {
+        *itemHit = item;
+        DM_LOG_DEBUG("DM_HandleReturnKey: itemHit=%d\n", item);
+    }
     return true;
 }
 
@@ -416,6 +483,7 @@ Boolean DM_HandleReturnKey(WindowPtr dialog, SInt16* itemHit) {
  */
 Boolean DM_HandleEscapeKey(WindowPtr dialog, SInt16* itemHit) {
     ControlHandle cancelButton;
+    SInt16 item;
 
     if (!dialog || !itemHit) {
         return false;
@@ -431,11 +499,15 @@ Boolean DM_HandleEscapeKey(WindowPtr dialog, SInt16* itemHit) {
         return false; /* No cancel button */
     }
 
-    serial_printf("[CTRL] DM_HandleEscapeKey: Activating cancel button\n");
+    DM_LOG_DEBUG("DM_HandleEscapeKey: Activating cancel button\n");
     DM_ActivatePushButton(cancelButton);
 
-    /* Set itemHit to button's refCon for ModalDialog return value */
-    *itemHit = (SInt16)GetControlReference(cancelButton);
+    /* Map control → item number so modal loop exits */
+    item = DM_ItemFromControl((DialogPtr)dialog, cancelButton);
+    if (item > 0) {
+        *itemHit = item;
+        DM_LOG_DEBUG("DM_HandleEscapeKey: itemHit=%d\n", item);
+    }
     return true;
 }
 
@@ -474,8 +546,8 @@ Boolean DM_HandleSpaceKey(WindowPtr dialog, ControlHandle focusedControl) {
     if (IsCheckboxControl(focused)) {
         currentValue = GetControlValue(focused);
         SetControlValue(focused, currentValue ? 0 : 1);
-        serial_printf("[CTRL] DM_HandleSpaceKey: Toggled checkbox to %d\n",
-                      GetControlValue(focused));
+        DM_LOG_DEBUG("DM_HandleSpaceKey: Toggled checkbox to %d\n",
+                     GetControlValue(focused));
 
         /* Call action if present */
         if ((*focused)->contrlAction) {
@@ -488,7 +560,7 @@ Boolean DM_HandleSpaceKey(WindowPtr dialog, ControlHandle focusedControl) {
     /* Handle radio button selection */
     if (IsRadioControl(focused)) {
         SetControlValue(focused, 1); /* This triggers HandleRadioGroup */
-        serial_printf("[CTRL] DM_HandleSpaceKey: Selected radio button\n");
+        DM_LOG_DEBUG("DM_HandleSpaceKey: Selected radio button\n");
 
         /* Call action if present */
         if ((*focused)->contrlAction) {
@@ -515,8 +587,8 @@ Boolean DM_HandleTabKey(WindowPtr dialog, Boolean shiftPressed) {
         return false;
     }
 
-    serial_printf("[CTRL] DM_HandleTabKey: %s\n",
-                  shiftPressed ? "Shift-Tab" : "Tab");
+    DM_LOG_TRACE("DM_HandleTabKey: %s\n",
+                 shiftPressed ? "Shift-Tab" : "Tab");
 
     DM_FocusNextControl(dialog, shiftPressed);
     return true;
@@ -540,8 +612,12 @@ Boolean DM_HandleDialogKey(WindowPtr dialog, EventRecord* evt, SInt16* itemHit) 
     ch = (char)(evt->message & 0xFF);
     shiftPressed = (evt->modifiers & shiftKey) != 0;
 
+    DM_LOG_TRACE("DM_HandleDialogKey: ch=0x%02X (%c)\n", (unsigned char)ch,
+                 (ch >= 32 && ch < 127) ? ch : '?');
+
     /* Return key -> activate default button */
     if (ch == '\r' || ch == 0x03) { /* 0x03 = Enter on numeric keypad */
+        DM_LOG_TRACE("DM_HandleDialogKey: Calling DM_HandleReturnKey\n");
         return DM_HandleReturnKey(dialog, itemHit);
     }
 

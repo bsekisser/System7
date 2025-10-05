@@ -177,27 +177,26 @@ void ModalDialog(ModalFilterProcPtr filterProc, SInt16* itemHit)
             continue;
         }
 
-        /* Check keyboard shortcuts BEFORE DialogSelect (Esc / Cmd-. as cancel, Return activates default) */
+        /* Keyboard handling via Dialog Manager (Tab/Return/Escape/Space) */
         if (evt.what == keyDown || evt.what == autoKey) {
+            SInt16 keyItem = 0;
+            if (DM_HandleDialogKey((WindowPtr)dlg, &evt, &keyItem)) {
+                if (keyItem) {
+                    if (itemHit) *itemHit = keyItem;
+                    serial_printf("ModalDialog: Keyboard activated item %d\n", keyItem);
+                    return;
+                }
+                /* Key was handled (focus/toggle) but didn't dismiss dialog */
+                continue;
+            }
+            /* Fallback: Cmd-. as cancel */
             unsigned char ch = (unsigned char)(evt.message & 0xFF);
             Boolean cmd = (evt.modifiers & cmdKey) != 0;
-
             if (cmd && ch == '.') {
                 if (itemHit) *itemHit = GetDialogCancelItem(dlg);
                 serial_printf("ModalDialog: Cmd-. -> cancel item %d\n", *itemHit);
                 return;
             }
-            if (ch == 0x1B /* ESC */) {
-                if (itemHit) *itemHit = GetDialogCancelItem(dlg);
-                serial_printf("ModalDialog: ESC -> cancel item %d\n", *itemHit);
-                return;
-            }
-            if (ch == '\r' || ch == 0x03) {
-                if (itemHit) *itemHit = GetDialogDefaultItem(dlg);
-                serial_printf("ModalDialog: Return -> default item %d\n", *itemHit);
-                return;
-            }
-            /* Tab focus between edit fields (optional for now) */
         }
 
         /* Mouse in dialog? Let DialogSelect process click tracking */

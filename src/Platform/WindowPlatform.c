@@ -66,9 +66,11 @@ Boolean Platform_InitializeWindowPort(WindowPtr window) {
         /* This mapping makes local (0,0) → global (gx,gy) */
         SetRect(&window->port.portBits.bounds, gx, gy, gx + w, gy + h);
 
-        serial_printf("[Platform_InitializeWindowPort] After SetRect bounds: portRect=(%d,%d,%d,%d)\n",
-                      window->port.portRect.top, window->port.portRect.left,
-                      window->port.portRect.bottom, window->port.portRect.right);
+        serial_printf("[Platform_InitializeWindowPort] FINAL: portBits.bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
+                      window->port.portBits.bounds.left, window->port.portBits.bounds.top,
+                      window->port.portBits.bounds.right, window->port.portBits.bounds.bottom,
+                      window->port.portRect.left, window->port.portRect.top,
+                      window->port.portRect.right, window->port.portRect.bottom);
     } else {
         /* Fallback if strucRgn not set yet */
         SetRect(&window->port.portBits.bounds, 0, 0, fb_width, fb_height);

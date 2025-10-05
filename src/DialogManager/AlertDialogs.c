@@ -17,6 +17,8 @@
 #include "DialogManager/ModalDialogs.h"
 #include "DialogManager/DialogResources.h"
 #include "DialogManager/DialogItems.h"
+#include "ControlManager/ControlManager.h"
+#include "ControlManager/ControlTypes.h"
 
 /* External dependencies */
 extern void SysBeep(SInt16 duration);
@@ -26,6 +28,7 @@ extern Handle NewHandleClear(Size byteCount);
 extern void DisposeHandle(Handle h);
 extern void HLock(Handle h);
 extern void HUnlock(Handle h);
+extern ControlHandle _GetFirstControl(WindowPtr window);
 extern void CenterDialogOnScreen(DialogPtr dlg);
 extern void InvalRect(const Rect* r);
 
@@ -49,10 +52,10 @@ typedef struct {
     SInt16 ditlId;    /* pseudo id for fallback DITL */
 } BuiltInAlertSpec;
 
-static const BuiltInAlertSpec kFallbackStop    = {{160, 180, 320, 460}, 1, 0, 1, 9001};
-static const BuiltInAlertSpec kFallbackNote    = {{160, 180, 320, 460}, 1, 0, 2, 9002};
-static const BuiltInAlertSpec kFallbackCaution = {{160, 180, 320, 460}, 1, 0, 3, 9003};
-static const BuiltInAlertSpec kFallbackGeneric = {{160, 180, 320, 460}, 1, 2, 0, 9004};
+static const BuiltInAlertSpec kFallbackStop    = {{160, 180, 320, 460}, 3, 0, 1, 9001};
+static const BuiltInAlertSpec kFallbackNote    = {{160, 180, 320, 460}, 3, 0, 2, 9002};
+static const BuiltInAlertSpec kFallbackCaution = {{160, 180, 320, 460}, 3, 0, 3, 9003};
+static const BuiltInAlertSpec kFallbackGeneric = {{160, 180, 320, 460}, 3, 4, 0, 9004};
 
 /* Private function prototypes */
 static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt16 alertType);
@@ -322,6 +325,9 @@ SInt16 RunAlert(DialogPtr alertDialog, ModalFilterProcPtr filterProc)
     /* Make dialog modal */
     BeginModalDialog(alertDialog);
 
+    /* Prime initial keyboard focus (prefer default button) */
+    DM_FocusNextControl((WindowPtr)alertDialog, false);
+
     /* Run modal dialog loop */
     ModalDialog(filterProc, &itemHit);
 
@@ -537,6 +543,77 @@ static Boolean LoadAlertWithFallback(SInt16 alertID, SInt16 alertType,
     return true;
 }
 
+/*
+ * Alert_RealizeButtons - Realize DITL button items into actual Control records
+ *
+ * Walks the DITL and creates ControlHandles for any ctrlItem+btnCtrl entries
+ * that don't have a handle yet. This makes buttons findable by keyboard handlers.
+ */
+static void Alert_RealizeButtons(DialogPtr d)
+{
+    SInt16 count, i;
+    SInt16 itemType;
+    Handle itemHandle;
+    Rect r;
+    ControlHandle c;
+    Str255 title;
+
+    if (!d) {
+        return;
+    }
+
+    count = CountDITL(d);
+    for (i = 1; i <= count; i++) {
+        itemType = 0;
+        itemHandle = NULL;
+
+        GetDialogItem(d, i, &itemType, &itemHandle, &r);
+        serial_printf("[ALERT] GetDialogItem returned: item=%d, type=%d, rect=(%d,%d,%d,%d)\n",
+                      i, itemType, r.top, r.left, r.bottom, r.right);
+
+        /* Classic Mac encoding: low 7 bits carry the base type */
+        if (((itemType & 0x7F) == (ctrlItem + btnCtrl)) && itemHandle == NULL) {
+            /* Use default button title (OK) - could be enhanced to parse from DITL */
+            title[0] = 2;
+            title[1] = 'O';
+            title[2] = 'K';
+
+            /* Create the standard push button control */
+            serial_printf("[ALERT] About to create button control for item %d\n", i);
+            c = NewControl(
+                (WindowPtr)d,
+                &r,
+                title,
+                true,     /* visible */
+                0,        /* value */
+                0,        /* min */
+                1,        /* max */
+                pushButProc,
+                0         /* refCon */
+            );
+
+            if (c) {
+                /* Store handle back into the dialog item */
+                SetDialogItem(d, i, itemType, (Handle)c, &r);
+                serial_printf("[ALERT] Realized button item=%d, rect=(%d,%d,%d,%d)\n",
+                              i, r.left, r.top, r.right, r.bottom);
+
+                /* Verify control was linked to window */
+                {
+                    ControlHandle first = _GetFirstControl((WindowPtr)d);
+                    if (first) {
+                        serial_printf("[ALERT] _GetFirstControl after NewControl: found control\n");
+                    } else {
+                        serial_printf("[ALERT] _GetFirstControl after NewControl: NULL\n");
+                    }
+                }
+            } else {
+                serial_printf("[ALERT] Failed to realize button item=%d\n", i);
+            }
+        }
+    }
+}
+
 static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt16 alertType)
 {
     DialogPtr alertDialog = NULL;
@@ -589,8 +666,29 @@ static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt
     /* Force initial update */
     InvalRect(&((GrafPtr)alertDialog)->portRect);
 
+    /* Realize button controls so keyboard can find them */
+    Alert_RealizeButtons(alertDialog);
+
     /* Make dialog modal and run modal loop */
     BeginModalDialog(alertDialog);
+
+    /* Prime initial keyboard focus to default button */
+    if (defItem > 0) {
+        SInt16 itemType;
+        Handle itemHandle;
+        Rect itemRect;
+        GetDialogItem(alertDialog, defItem, &itemType, &itemHandle, &itemRect);
+        if (itemHandle) {
+            DM_SetKeyboardFocus((WindowPtr)alertDialog, (ControlHandle)itemHandle);
+        } else {
+            /* Fallback to first focusable control */
+            DM_FocusNextControl((WindowPtr)alertDialog, false);
+        }
+    } else {
+        /* No default item, focus first focusable control */
+        DM_FocusNextControl((WindowPtr)alertDialog, false);
+    }
+
     ModalDialog(filterProc, &itemHit);
     EndModalDialog(alertDialog);
 
