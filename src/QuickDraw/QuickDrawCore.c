@@ -377,18 +377,53 @@ void Move(SInt16 dh, SInt16 dv) {
 void LineTo(SInt16 h, SInt16 v) {
     assert(g_currentPort != NULL);
 
-    Point startPt = g_currentPort->pnLoc;
-    Point endPt = {v, h};
+    /* Treat pen locations in LOCAL port coordinates */
+    Point startLocal = g_currentPort->pnLoc;
+    Point endLocal;
+    endLocal.h = h;
+    endLocal.v = v;
 
-    /* Draw the line if pen is visible */
-    if (g_currentPort->pnVis <= 0 &&
-        (g_currentPort->pnSize.h > 0 && g_currentPort->pnSize.v > 0)) {
-        QDPlatform_DrawLine(g_currentPort, startPt, endPt,
-                           &g_currentPort->pnPat, g_currentPort->pnMode);
+    /* Quick reject if the line's bounding box misses the port bounds */
+    Rect lineBounds;
+    SInt16 left = (startLocal.h < endLocal.h) ? startLocal.h : endLocal.h;
+    SInt16 right = (startLocal.h > endLocal.h) ? startLocal.h : endLocal.h;
+    SInt16 top = (startLocal.v < endLocal.v) ? startLocal.v : endLocal.v;
+    SInt16 bottom = (startLocal.v > endLocal.v) ? startLocal.v : endLocal.v;
+    /* Ensure non-zero width/height so SectRect works */
+    SetRect(&lineBounds, left, top, right + 1, bottom + 1);
+
+    Rect clippedBounds;
+    if (!SectRect(&lineBounds, &g_currentPort->portRect, &clippedBounds)) {
+        g_currentPort->pnLoc = endLocal;
+        return;
     }
 
-    /* Update pen location */
-    g_currentPort->pnLoc = endPt;
+    if (g_currentPort->clipRgn && *g_currentPort->clipRgn) {
+        Rect clipBounds = (*g_currentPort->clipRgn)->rgnBBox;
+        /* clipRgn stored in GLOBAL coords; convert to LOCAL for comparison */
+        OffsetRect(&clipBounds,
+                   -g_currentPort->portBits.bounds.left,
+                   -g_currentPort->portBits.bounds.top);
+        if (!SectRect(&lineBounds, &clipBounds, &clippedBounds)) {
+            g_currentPort->pnLoc = endLocal;
+            return;
+        }
+    }
+
+    /* Draw the line if pen should be visible */
+    if (g_currentPort->pnVis <= 0 &&
+        g_currentPort->pnSize.h > 0 && g_currentPort->pnSize.v > 0) {
+        Point startGlobal = startLocal;
+        Point endGlobal = endLocal;
+        LocalToGlobal(&startGlobal);
+        LocalToGlobal(&endGlobal);
+
+        QDPlatform_DrawLine(g_currentPort, startGlobal, endGlobal,
+                            &g_currentPort->pnPat, g_currentPort->pnMode);
+    }
+
+    /* Update pen location in LOCAL coordinates */
+    g_currentPort->pnLoc = endLocal;
 }
 
 void Line(SInt16 dh, SInt16 dv) {
