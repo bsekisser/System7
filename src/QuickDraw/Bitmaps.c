@@ -62,7 +62,6 @@ static UInt32 GetPixelValue(const BitMap *bitmap, SInt16 x, SInt16 y);
 static void SetPixelValue(const BitMap *bitmap, SInt16 x, SInt16 y, UInt32 value);
 /* IsPixMap is now defined in ColorQuickDraw.h */
 /* static Boolean IsPixMap(const BitMap *bitmap); */
-static SInt16 GetBitmapDepth(const BitMap *bitmap);
 static void ClipRectToBitmap(const BitMap *bitmap, Rect *rect);
 
 /* Transfer mode operations */
@@ -96,16 +95,6 @@ static UInt32 TransferPatOr(UInt32 src, UInt32 dst, UInt32 pattern) {
 
 static UInt32 TransferPatXor(UInt32 src, UInt32 dst, UInt32 pattern) {
     return pattern ^ dst;
-}
-
-static UInt32 TransferBlend(UInt32 src, UInt32 dst, UInt32 pattern) {
-    /* Simple average blend */
-    return (src + dst) / 2;
-}
-
-static UInt32 TransferAddPin(UInt32 src, UInt32 dst, UInt32 pattern) {
-    UInt32 result = src + dst;
-    return (result > 0xFFFFFF) ? 0xFFFFFF : result;
 }
 
 static const TransferModeInfo g_transferModes[] = {
@@ -205,6 +194,10 @@ static void CopyBitsUnscaled(const BitMap *srcBits, const BitMap *dstBits,
                             SInt16 mode) {
     SInt16 width = srcRect->right - srcRect->left;
     SInt16 height = srcRect->bottom - srcRect->top;
+
+    if (width <= 0 || height <= 0) {
+        return;
+    }
 
     /* Copy row by row for efficiency */
     for (SInt16 y = 0; y < height; y++) {
@@ -407,14 +400,14 @@ static UInt32 GetPixelValue(const BitMap *bitmap, SInt16 x, SInt16 y) {
     SInt16 relativeY = y - (bitmap)->bounds.top;
     SInt16 rowBytes = bitmap->rowBytes & 0x3FFF; /* Mask out flags */
 
-    UInt8 *baseAddr = (UInt8 *)bitmap->baseAddr;
+    const UInt8 *baseAddr = (const UInt8 *)bitmap->baseAddr;
     if (!baseAddr) return 0;
 
-    UInt8 *pixel = baseAddr + relativeY * rowBytes;
+    const UInt8 *pixel = baseAddr + relativeY * rowBytes;
 
     if (IsPixMap(bitmap)) {
         /* Color bitmap */
-        PixMap *pixMap = (PixMap *)bitmap;
+        const PixMap *pixMap = (const PixMap *)bitmap;
         SInt16 pixelSize = pixMap->pixelSize;
 
         switch (pixelSize) {
@@ -426,11 +419,11 @@ static UInt32 GetPixelValue(const BitMap *bitmap, SInt16 x, SInt16 y) {
             case 8:
                 return pixel[relativeX];
             case 16: {
-                UInt16 *pixel16 = (UInt16 *)pixel;
+                const UInt16 *pixel16 = (const UInt16 *)pixel;
                 return pixel16[relativeX];
             }
             case 32: {
-                UInt32 *pixel32 = (UInt32 *)pixel;
+                const UInt32 *pixel32 = (const UInt32 *)pixel;
                 return pixel32[relativeX];
             }
             default:
@@ -462,7 +455,7 @@ static void SetPixelValue(const BitMap *bitmap, SInt16 x, SInt16 y, UInt32 value
 
     if (IsPixMap(bitmap)) {
         /* Color bitmap */
-        PixMap *pixMap = (PixMap *)bitmap;
+        const PixMap *pixMap = (const PixMap *)bitmap;
         SInt16 pixelSize = pixMap->pixelSize;
 
         switch (pixelSize) {
@@ -500,16 +493,6 @@ static void SetPixelValue(const BitMap *bitmap, SInt16 x, SInt16 y, UInt32 value
             pixel[byteIndex] &= ~(1 << (7 - bitIndex));
         }
     }
-}
-
-/* IsPixMap function removed - now using the inline version from ColorQuickDraw.h */
-
-static SInt16 GetBitmapDepth(const BitMap *bitmap) {
-    if (IsPixMap(bitmap)) {
-        PixMap *pixMap = (PixMap *)bitmap;
-        return pixMap->pixelSize;
-    }
-    return 1;
 }
 
 static void ClipRectToBitmap(const BitMap *bitmap, Rect *rect) {

@@ -89,6 +89,7 @@ C_SOURCES = src/main.c \
             src/Finder/trash_folder.c \
             src/Finder/AboutThisMac.c \
             src/QuickDraw/QuickDrawCore.c \
+            src/QuickDraw/Bitmaps.c \
             src/QuickDraw/QuickDrawPlatform.c \
             src/QuickDraw/Coordinates.c \
             src/QuickDraw/Regions.c \
