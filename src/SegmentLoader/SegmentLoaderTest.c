@@ -12,6 +12,8 @@
 #include "ProcessMgr/ProcessMgr.h"
 #include "CPU/CPUBackend.h"
 #include "CPU/M68KInterp.h"
+#include "OSUtils/OSUtilsTraps.h"
+#include "TimeManager/TimeManager.h"
 #include "System71StdLib.h"
 #include <string.h>
 
@@ -271,6 +273,24 @@ OSErr Trace_TrapHandler(void* context, CPUAddr* pc, CPUAddr* registers)
 }
 
 /*
+ * Periodic Tick Timer Task
+ *
+ * Calls OSUtils_IncrementTicks() at ~60Hz (every 16667 microseconds)
+ */
+static TMTask g_tickTimerTask;
+
+static void TickTimerCallback(TMTaskPtr task)
+{
+    (void)task;  /* Unused */
+
+    /* Increment system tick count */
+    OSUtils_IncrementTicks();
+
+    /* Re-prime for next tick (periodic) */
+    PrimeTime(task, 16667);  /* ~60 Hz (1/60 second) */
+}
+
+/*
  * Test Boot Entry Point
  */
 void SegmentLoader_TestBoot(void)
@@ -320,6 +340,32 @@ void SegmentLoader_TestBoot(void)
     SEG_LOG_INFO("Installing trap handlers...");
     ctx->cpuBackend->InstallTrap(ctx->cpuAS, 0xA9F0, LoadSeg_TrapHandler, ctx);
     ctx->cpuBackend->InstallTrap(ctx->cpuAS, 0xA800, Trace_TrapHandler, ctx);
+
+    /* Initialize OSUtils traps (including _TickCount) */
+    SEG_LOG_INFO("Initializing OSUtils traps...");
+    err = OSUtils_InitializeTraps(ctx->cpuBackend, ctx->cpuAS);
+    if (err != noErr) {
+        SEG_LOG_ERROR("FAIL: OSUtils_InitializeTraps returned %d", err);
+        SegmentLoader_Cleanup(ctx);
+        return;
+    }
+
+    /* Start periodic tick timer (~60 Hz) */
+    SEG_LOG_INFO("Starting tick timer at ~60Hz...");
+    memset(&g_tickTimerTask, 0, sizeof(g_tickTimerTask));
+    g_tickTimerTask.tmAddr = (Ptr)TickTimerCallback;
+    err = InsTime(&g_tickTimerTask);
+    if (err != noErr) {
+        SEG_LOG_ERROR("FAIL: InsTime returned %d", err);
+        SegmentLoader_Cleanup(ctx);
+        return;
+    }
+    err = PrimeTime(&g_tickTimerTask, 16667);  /* Prime for first tick */
+    if (err != noErr) {
+        SEG_LOG_ERROR("FAIL: PrimeTime returned %d", err);
+        SegmentLoader_Cleanup(ctx);
+        return;
+    }
 
     /* Load CODE 0 and CODE 1 */
     SEG_LOG_INFO("Loading CODE 0 and CODE 1...");
