@@ -73,7 +73,7 @@ if ! command -v make >/dev/null 2>&1; then
     exit 1
 fi
 
-MAKE_VERSION=$(make --version | head -1)
+MAKE_VERSION=$(make --version 2>/dev/null | head -1 || echo "GNU Make 0.0")
 MAKE_NUM=$(extract_version "$MAKE_VERSION")
 
 if version_ge "$MAKE_NUM" "4.0"; then
