@@ -366,8 +366,19 @@ void M68K_Op_ADD(M68KAddressSpace* as, UInt16 opcode)
         M68K_ClearFlag(as, CCR_C | CCR_X);
     }
 
-    /* Clear V for MVP */
-    M68K_ClearFlag(as, CCR_V);
+    /* Set V if signed overflow occurred (src and dst same sign, result different) */
+    {
+        UInt32 sign_bit = SIZE_SIGN_BIT(size);
+        Boolean src_neg = (src & sign_bit) != 0;
+        Boolean dst_neg = (dst & sign_bit) != 0;
+        Boolean res_neg = (result & sign_bit) != 0;
+
+        if (src_neg == dst_neg && res_neg != dst_neg) {
+            M68K_SetFlag(as, CCR_V);
+        } else {
+            M68K_ClearFlag(as, CCR_V);
+        }
+    }
 }
 
 /*
@@ -407,8 +418,19 @@ void M68K_Op_SUB(M68KAddressSpace* as, UInt16 opcode)
         M68K_ClearFlag(as, CCR_C | CCR_X);
     }
 
-    /* Clear V for MVP */
-    M68K_ClearFlag(as, CCR_V);
+    /* Set V if signed overflow occurred (src and dst different sign, result different from dst) */
+    {
+        UInt32 sign_bit = SIZE_SIGN_BIT(size);
+        Boolean src_neg = (src & sign_bit) != 0;
+        Boolean dst_neg = (dst & sign_bit) != 0;
+        Boolean res_neg = (result & sign_bit) != 0;
+
+        if (src_neg != dst_neg && res_neg != dst_neg) {
+            M68K_SetFlag(as, CCR_V);
+        } else {
+            M68K_ClearFlag(as, CCR_V);
+        }
+    }
 }
 
 /*
@@ -651,6 +673,74 @@ void M68K_Op_STOP(M68KAddressSpace* as, UInt16 opcode)
 
     /* For now, STOP is a NOP (don't actually stop execution) */
     /* Full implementation would halt until interrupt */
+}
+
+/*
+ * Scc - Set according to condition
+ * Encoding: 0101 cccc 11xx xxxx (0x50C0-0x5FFF)
+ * If condition true, set EA byte to 0xFF; else set to 0x00
+ */
+void M68K_Op_Scc(M68KAddressSpace* as, UInt16 opcode)
+{
+    M68KCondition cc = (M68KCondition)((opcode >> 8) & 0xF);
+    UInt8 mode = (opcode >> 3) & 7;
+    UInt8 reg = opcode & 7;
+    UInt8 value;
+
+    /* Test condition */
+    if (M68K_TestCondition(as->regs.sr, cc)) {
+        value = 0xFF;
+        serial_printf("[M68K] Scc (cc=%d) true -> set 0xFF\n", cc);
+    } else {
+        value = 0x00;
+        serial_printf("[M68K] Scc (cc=%d) false -> set 0x00\n", cc);
+    }
+
+    /* Write byte to EA */
+    M68K_EA_Write(as, mode, reg, SIZE_BYTE, value);
+
+    /* Scc does not affect flags */
+}
+
+/*
+ * DBcc - Decrement and branch conditionally
+ * Encoding: 0101 cccc 1100 1rrr (0x50C8-0x5FC8)
+ * If cc false: Dn--, if Dn != -1 then branch; else fall through
+ * If cc true: fall through
+ */
+void M68K_Op_DBcc(M68KAddressSpace* as, UInt16 opcode)
+{
+    M68KCondition cc = (M68KCondition)((opcode >> 8) & 0xF);
+    UInt8 reg = opcode & 7;
+    SInt16 disp;
+    UInt32 target;
+
+    /* Fetch displacement */
+    disp = (SInt16)M68K_Fetch16(as);
+
+    /* Test condition */
+    if (!M68K_TestCondition(as->regs.sr, cc)) {
+        /* Condition false - decrement and test */
+        SInt16 counter = (SInt16)(as->regs.d[reg] & 0xFFFF);
+        counter--;
+        as->regs.d[reg] = (as->regs.d[reg] & 0xFFFF0000) | (counter & 0xFFFF);
+
+        if (counter != -1) {
+            /* Branch */
+            target = (as->regs.pc - 2) + disp;  /* PC-2 because we already fetched disp */
+            serial_printf("[M68K] DBcc (cc=%d) false, D%d=%d -> branch to 0x%08X\n",
+                         cc, reg, counter, target);
+            as->regs.pc = target;
+        } else {
+            /* Counter expired - fall through */
+            serial_printf("[M68K] DBcc (cc=%d) false, D%d=-1 -> fall through\n", cc, reg);
+        }
+    } else {
+        /* Condition true - fall through */
+        serial_printf("[M68K] DBcc (cc=%d) true -> fall through\n", cc);
+    }
+
+    /* DBcc does not affect flags */
 }
 
 /*

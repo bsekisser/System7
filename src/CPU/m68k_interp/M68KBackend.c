@@ -583,6 +583,8 @@ extern void M68K_Op_Bcc(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_RTS(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_RTE(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_STOP(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_Scc(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_DBcc(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_TRAP(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_MOVEQ(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_TST(M68KAddressSpace* as, UInt16 opcode);
@@ -677,6 +679,20 @@ OSErr M68K_Step(M68KAddressSpace* as)
             M68K_Op_EXT(as, opcode);
         } else {
             M68K_Fault(as, "Unimplemented 4xxx opcode");
+        }
+    } else if ((opcode & 0xF000) == 0x5000) {
+        /* 5xxx - Scc, DBcc, ADDQ, SUBQ */
+        if ((opcode & 0xF0C0) == 0x50C0) {
+            /* Scc or DBcc - both have 0101 cccc 11xx xxxx pattern */
+            if ((opcode & 0x0038) == 0x0008) {
+                /* DBcc - register mode (bits 5-3 = 001) */
+                M68K_Op_DBcc(as, opcode);
+            } else {
+                /* Scc - other modes */
+                M68K_Op_Scc(as, opcode);
+            }
+        } else {
+            M68K_Fault(as, "Unimplemented 5xxx opcode (ADDQ/SUBQ)");
         }
     } else if ((opcode & 0xF000) == 0x7000) {
         /* 7xxx - MOVEQ */
