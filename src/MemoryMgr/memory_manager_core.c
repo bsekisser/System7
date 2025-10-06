@@ -445,10 +445,16 @@ static BlockPtr find_free_block(ZonePtr zone, Size minSize) {
  */
 bool SetHandleSize(Handle h, u32 newSize)
 {
-    /* TODO: Implement proper handle resizing */
-    (void)h;
-    (void)newSize;
-    return true;
+    if (!h || !*h) {
+        return false;
+    }
+
+    /* Get current block and size */
+    extern u32 align_up(u32 n);
+    extern bool SetHandleSize_MemMgr(Handle h, u32 newSize);
+
+    /* Delegate to the real implementation in MemoryManager.c */
+    return SetHandleSize_MemMgr(h, newSize);
 }
 
 /*

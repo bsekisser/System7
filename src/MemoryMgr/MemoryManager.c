@@ -396,6 +396,74 @@ u32 GetHandleSize(Handle h) {
     return b->size - BLKHDR_SZ;
 }
 
+bool SetHandleSize_MemMgr(Handle h, u32 newSize) {
+    if (!h || !*h) return false;
+
+    ZoneInfo* z = gCurrentZone;
+    if (!z) return false;
+
+    /* Get current block */
+    u8* p = (u8*)*h;
+    BlockHeader* b = (BlockHeader*)(p - BLKHDR_SZ);
+    u32 oldSize = b->size - BLKHDR_SZ;
+    u32 newTotalSize = align_up(newSize + BLKHDR_SZ);
+
+    /* If handle is locked, we cannot move it */
+    if (b->flags & BF_LOCKED) {
+        /* Can only shrink or grow in place */
+        if (newTotalSize <= b->size) {
+            /* Shrinking - just update size */
+            return true;
+        }
+        /* Cannot grow locked handle */
+        return false;
+    }
+
+    /* If new size fits in current block (with some slack), keep it */
+    if (newTotalSize <= b->size && b->size - newTotalSize < 64) {
+        /* Size fits, no need to reallocate */
+        return true;
+    }
+
+    /* Need to allocate new block */
+    Handle newHandle = NewHandle(newSize);
+    if (!newHandle || !*newHandle) {
+        return false;
+    }
+
+    /* Copy data (minimum of old and new size) */
+    u32 copySize = (oldSize < newSize) ? oldSize : newSize;
+    if (copySize > 0) {
+        memcpy(*newHandle, *h, copySize);
+    }
+
+    /* Get new block header */
+    BlockHeader* newBlock = (BlockHeader*)((u8*)*newHandle - BLKHDR_SZ);
+
+    /* Update master pointer to point to new data */
+    Handle masterPtr = b->masterPtr;
+    *masterPtr = *newHandle;
+
+    /* Copy flags from old block to new block */
+    newBlock->flags = b->flags;
+    newBlock->masterPtr = masterPtr;
+
+    /* Free old block (but don't touch master pointer) */
+    b->flags &= ~(BF_HANDLE | BF_LOCKED | BF_PURGEABLE);
+    b->masterPtr = NULL;
+    z->bytesUsed -= b->size;
+    z->bytesFree += b->size;
+
+    b = coalesce_forward(z, b);
+    b = coalesce_backward(z, b);
+    freelist_insert(z, b);
+
+    /* Free the temporary master pointer from NewHandle */
+    MP_Free(z, newHandle);
+
+    return true;
+}
+
 /* ======================== Compaction ======================== */
 
 u32 CompactMem(u32 cbNeeded) {
