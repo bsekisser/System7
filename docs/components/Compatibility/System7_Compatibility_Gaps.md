@@ -26,7 +26,7 @@ This checklist captures the most significant differences between the current too
 - ~~`src/EventManager/MouseEvents.c:454` & `src/EventManager/EventManagerCore.c:655` – `StillDown` references stubs in `control_stubs.c`; until the real implementation arrives, hit testing during tracking is unreliable.~~ **VERIFIED** (2025-10-06): StillDown and Button are properly implemented in MouseEvents.c
 
 ## Text Input & Editing
-- `src/TextEdit/textedit_core.c:586`–`604` – Core TextEdit routines (`TECalcLines`, font setup, drawing, caret updates) remain TODOs; the current implementation cannot handle wrapping, styled runs, or caret management like System 7’s TextEdit.
+- ~~`src/TextEdit/textedit_core.c:586`–`604` – Core TextEdit routines (`TECalcLines`, font setup, drawing, caret updates) remain TODOs; the current implementation cannot handle wrapping, styled runs, or caret management like System 7's TextEdit.~~ **FIXED** (2025-10-06): Implemented TECalcLines (word wrapping), TESetupFont (Font Manager integration), TEDrawText (QuickDraw rendering), and TEUpdateCaret (blinking caret with position calculation)
 - `src/TextEdit/TextEditScroll.c:91` & `:180` – Horizontal scroll limits are uncomputed, so TE windows cannot properly constrain scroll bars.
 - `src/TextEdit/TextEditClipboard.c:164`–`267` – Styled scrap handling is stubbed; classic TE mirrored styled text into the clipboard flavours.
 - `src/textedit_stubs.c:13` – Numerous TextEdit traps still drop to simple stubs, preventing compatibility with applications calling less common TE routines.

@@ -577,25 +577,198 @@ void TETextBox(void *text, SInt32 length, Rect *box, SInt16 just)
 
 static void TECalcLines(TEHandle hTE)
 {
-    /* Calculate line breaks for word wrapping */
-    /* TODO: Implement line break calculation */
+    if (!hTE || !*hTE) return;
+
+    TEPtr pTE = *hTE;
+    if (!pTE->hText || !*(pTE->hText)) return;
+
+    char* text = *(pTE->hText);
+    short textLen = pTE->teLength;
+    short rectWidth = pTE->destRect.right - pTE->destRect.left;
+
+    /* Reset line count and starts */
+    pTE->nLines = 0;
+    pTE->lineStarts[0] = 0;
+
+    short currentLine = 0;
+    short lineStart = 0;
+    short currentPos = 0;
+
+    while (currentPos < textLen && currentLine < 16000) {
+        short lineEnd = currentPos;
+        short lastSpace = -1;
+        short lineWidth = 0;
+
+        /* Find end of line or word wrap point */
+        while (lineEnd < textLen) {
+            char ch = text[lineEnd];
+
+            /* Check for explicit line break */
+            if (ch == '\r' || ch == '\n') {
+                lineEnd++;
+                break;
+            }
+
+            /* Track spaces for word wrapping */
+            if (ch == ' ') {
+                lastSpace = lineEnd;
+            }
+
+            /* Simple width estimation: 6 pixels per char (Chicago font approximation) */
+            lineWidth += 6;
+
+            /* Check if line exceeds width */
+            if (lineWidth > rectWidth) {
+                /* Word wrap at last space if available */
+                if (lastSpace > lineStart) {
+                    lineEnd = lastSpace + 1;  /* Break after space */
+                } else {
+                    /* Force break mid-word if no spaces */
+                    if (lineEnd > lineStart) {
+                        /* At least one character per line */
+                    }
+                }
+                break;
+            }
+
+            lineEnd++;
+        }
+
+        /* Start next line */
+        currentLine++;
+        if (currentLine < 16000) {
+            pTE->lineStarts[currentLine] = lineEnd;
+        }
+        currentPos = lineEnd;
+        lineStart = lineEnd;
+    }
+
+    pTE->nLines = currentLine;
 }
 
 static void TESetupFont(TEHandle hTE)
 {
-    /* Set up font for drawing */
-    /* TODO: Set QuickDraw font, size, and style */
+    if (!hTE || !*hTE) return;
+
+    TEPtr pTE = *hTE;
+
+    /* Set QuickDraw port */
+    if (pTE->inPort) {
+        extern void SetPort(GrafPtr port);
+        SetPort(pTE->inPort);
+    }
+
+    /* Set font */
+    extern void TextFont(short font);
+    TextFont(pTE->txFont);
+
+    /* Set size */
+    extern void TextSize(short size);
+    TextSize(pTE->txSize);
+
+    /* Set face/style */
+    extern void TextFace(short face);
+    TextFace(pTE->txFace);
+
+    /* Set text mode */
+    extern void TextMode(short mode);
+    TextMode(pTE->txMode);
 }
 
 static void TEDrawText(TEHandle hTE)
 {
-    /* Draw text content */
-    /* TODO: Implement text rendering using QuickDraw */
+    if (!hTE || !*hTE) return;
+
+    TEPtr pTE = *hTE;
+    if (!pTE->hText || !*(pTE->hText)) return;
+
+    char* text = *(pTE->hText);
+
+    /* Setup font */
+    TESetupFont(hTE);
+
+    /* Draw each line */
+    short y = pTE->destRect.top + pTE->fontAscent;
+
+    for (short line = 0; line < pTE->nLines; line++) {
+        short lineStart = pTE->lineStarts[line];
+        short lineEnd = (line + 1 < pTE->nLines) ? pTE->lineStarts[line + 1] : pTE->teLength;
+        short lineLen = lineEnd - lineStart;
+
+        /* Skip trailing line breaks */
+        while (lineLen > 0 && (text[lineStart + lineLen - 1] == '\r' ||
+                               text[lineStart + lineLen - 1] == '\n')) {
+            lineLen--;
+        }
+
+        if (lineLen > 0) {
+            /* Draw line of text */
+            extern void MoveTo(short h, short v);
+            extern void DrawText(const char* textBuf, short firstByte, short byteCount);
+
+            MoveTo(pTE->destRect.left, y);
+            DrawText(text, lineStart, lineLen);
+        }
+
+        /* Move to next line */
+        y += pTE->lineHeight;
+
+        /* Stop if we've drawn past viewRect */
+        if (y > pTE->viewRect.bottom) {
+            break;
+        }
+    }
 }
 
 static void TEUpdateCaret(TEHandle hTE)
 {
-    /* Update caret position and visibility */
-    /* TODO: Calculate caret position and draw/hide as needed */
+    if (!hTE || !*hTE) return;
+
+    TEPtr pTE = *hTE;
+    if (!pTE->active) return;
+
+    /* Simple caret blinking based on tick count */
+    extern UInt32 TickCount(void);
+    UInt32 currentTime = TickCount();
+
+    /* Toggle caret every 30 ticks (0.5 seconds) */
+    if (currentTime - pTE->caretTime >= 30) {
+        pTE->caretState = !pTE->caretState;
+        pTE->caretTime = currentTime;
+
+        /* Calculate caret position */
+        short caretLine = 0;
+        short caretOffset = pTE->selStart;
+
+        /* Find which line contains the caret */
+        for (short i = 0; i < pTE->nLines; i++) {
+            if (pTE->lineStarts[i] <= caretOffset &&
+                (i + 1 >= pTE->nLines || pTE->lineStarts[i + 1] > caretOffset)) {
+                caretLine = i;
+                break;
+            }
+        }
+
+        /* Calculate caret x position (simple: 6 pixels per char) */
+        short lineStart = pTE->lineStarts[caretLine];
+        short charsBeforeCaret = caretOffset - lineStart;
+        short caretX = pTE->destRect.left + (charsBeforeCaret * 6);
+        short caretY = pTE->destRect.top + (caretLine * pTE->lineHeight);
+
+        /* Draw/erase caret using InvertRect */
+        if (pTE->inPort) {
+            extern void SetPort(GrafPtr port);
+            SetPort(pTE->inPort);
+        }
+
+        Rect caretRect;
+        caretRect.left = caretX;
+        caretRect.right = caretX + 1;
+        caretRect.top = caretY;
+        caretRect.bottom = caretY + pTE->lineHeight;
+
+        extern void InvertRect(const Rect* r);
+        InvertRect(&caretRect);
+    }
 }
 
