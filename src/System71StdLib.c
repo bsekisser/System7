@@ -630,15 +630,72 @@ int sprintf(char* str, const char* format, ...) {
 }
 
 int snprintf(char* str, size_t size, const char* format, ...) {
-    /* Minimal implementation - just copy format string */
     if (size == 0) return 0;
-    size_t i = 0;
-    while (format[i] && i < size - 1) {
-        str[i] = format[i];
-        i++;
+
+    va_list args;
+    va_start(args, format);
+
+    size_t written = 0;
+    const char* p = format;
+
+    while (*p && written < size - 1) {
+        if (*p == '%') {
+            p++;
+            if (*p == 's') {
+                /* Handle %s - string argument */
+                const char* s = va_arg(args, const char*);
+                if (s) {
+                    while (*s && written < size - 1) {
+                        str[written++] = *s++;
+                    }
+                }
+                p++;
+            } else if (*p == 'd') {
+                /* Handle %d - integer argument */
+                int val = va_arg(args, int);
+                char numBuf[32];
+                int numLen = 0;
+                int isNeg = 0;
+
+                if (val < 0) {
+                    isNeg = 1;
+                    val = -val;
+                }
+
+                if (val == 0) {
+                    numBuf[numLen++] = '0';
+                } else {
+                    while (val > 0 && numLen < 31) {
+                        numBuf[numLen++] = '0' + (val % 10);
+                        val /= 10;
+                    }
+                }
+
+                if (isNeg && written < size - 1) {
+                    str[written++] = '-';
+                }
+
+                for (int i = numLen - 1; i >= 0 && written < size - 1; i--) {
+                    str[written++] = numBuf[i];
+                }
+                p++;
+            } else if (*p == '%') {
+                /* Handle %% - literal % */
+                str[written++] = '%';
+                p++;
+            } else {
+                /* Unknown format - just copy it */
+                if (written < size - 1) str[written++] = '%';
+                if (*p && written < size - 1) str[written++] = *p++;
+            }
+        } else {
+            str[written++] = *p++;
+        }
     }
-    str[i] = '\0';
-    return i;
+
+    str[written] = '\0';
+    va_end(args);
+    return written;
 }
 
 /* Assert implementation */
