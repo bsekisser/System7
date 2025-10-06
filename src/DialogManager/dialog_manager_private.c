@@ -28,10 +28,10 @@ static void* gSavedMenuState = NULL;
 /*
  * GetFrontWindowModalClass - Get modal class of front window
  */
-ModalWindowClass GetFrontWindowModalClass(SInt16* windowClass) {
+SInt16 GetFrontWindowModalClass(SInt16* windowClass) {
     DialogMgrGlobals* globals = GetDialogManagerGlobals();
 
-    if (!windowClass) return kModalClassNone;
+    if (!windowClass) return (SInt16)kModalClassNone;
 
     /* Check if front window is analyzed window */
     WindowPtr frontWindow = /* FrontWindow() - would need Window Manager */NULL;
@@ -41,21 +41,21 @@ ModalWindowClass GetFrontWindowModalClass(SInt16* windowClass) {
         *windowClass = globals->AnalyzedWindowState;
 
         if (globals->IsDialogState) {
-            return kModalClassModal;
+            return (SInt16)kModalClassModal;
         }
     }
 
     *windowClass = 0;
-    return kModalClassNone;
+    return (SInt16)kModalClassNone;
 }
 
 /*
  * GetWindowModalClass - Get modal class of specific window
  */
-ModalWindowClass GetWindowModalClass(WindowPtr theWindow, SInt16* windowClass) {
+SInt16 GetWindowModalClass(WindowPtr theWindow, SInt16* windowClass) {
     DialogMgrGlobals* globals = GetDialogManagerGlobals();
 
-    if (!theWindow || !windowClass) return kModalClassNone;
+    if (!theWindow || !windowClass) return (SInt16)kModalClassNone;
 
     /* Check if this is the analyzed window */
     if (theWindow == globals->AnalyzedWindow) {
@@ -64,14 +64,14 @@ ModalWindowClass GetWindowModalClass(WindowPtr theWindow, SInt16* windowClass) {
         if (globals->IsDialogState) {
             /* Determine modal class based on window properties */
             /* Evidence suggests checking window type and attributes */
-            return kModalClassModal;  /* For now, assume modal */
+            return (SInt16)kModalClassModal;  /* For now, assume modal */
         }
     }
 
     /* Check if window is a dialog */
     /* Evidence from implementation suggests examining window refCon or other fields */
     *windowClass = 0;
-    return kModalClassNone;
+    return (SInt16)kModalClassNone;
 }
 
 /*

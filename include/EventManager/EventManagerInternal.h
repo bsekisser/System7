@@ -31,13 +31,13 @@ WindowPtr GetActiveWindow(void);
 void SetActiveWindow(WindowPtr window);
 
 // Modern Input
-void UpdateMouseState(void);
-void UpdateKeyboardState(void);
+void UpdateMouseState(Point newPos, UInt8 buttonState);
+void UpdateKeyboardState(const KeyMap newKeyMap);
 Boolean IsModernInputInitialized(void);
 const char* GetModernInputPlatform(void);
 
 // System Events
-SInt16 GenerateSystemEventEx(EventKind what, WindowPtr window, Point globalWhere, UInt32 message, UInt16 modifiers);
+SInt16 GenerateSystemEventEx(SInt16 eventType, SInt16 eventSubtype, void* eventData, WindowPtr targetWindow);
 
 // Process Manager Event Integration
 OSErr Proc_PostEvent(EventKind what, UInt32 message);
@@ -46,10 +46,7 @@ Boolean Proc_EventAvail(EventMask eventMask, EventRecord* theEvent);
 void Event_InitQueue(void);
 SInt16 Event_QueueCount(void);
 void Event_DumpQueue(void);
-Boolean GetNextEvent(EventMask eventMask, EventRecord* theEvent);
-Boolean EventAvail(EventMask eventMask, EventRecord* theEvent);
-OSErr PostEvent(EventKind what, UInt32 message);
-void FlushEvents(EventMask whichMask, EventMask stopMask);
+/* GetNextEvent, EventAvail, PostEvent, FlushEvents declared in EventManager.h */
 
 extern EventManagerState gEventState;
 

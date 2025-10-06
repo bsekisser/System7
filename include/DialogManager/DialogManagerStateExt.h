@@ -7,26 +7,7 @@
 
 /* DialogRecord is already defined in SystemTypes.h */
 
-/* Global dialog manager parameters */
-typedef struct DialogGlobals {
-    ResumeProcPtr resumeProc;
-    void* soundProc;
-    SInt16 alertStage;
-    SInt16 dialogFont;
-    SInt16 spareFlags;
-    DialogPtr frontModal;
-    SInt16 defaultItem;
-    SInt16 cancelItem;
-    Boolean tracksCursor;
-    unsigned char paramText[4][256];
-    SInt16 alertStageCount;
-    SInt16 alertButtonSpacing;
-    SInt16 defaultButtonOutlineWidth;
-    SInt16 buttonFrameInset;
-    void* dialogTextProc;
-    void* alertSoundProc;
-    ModalFilterProcPtr modalFilterProc;
-} DialogGlobals;
+/* DialogGlobals and DialogManagerState are now defined in DialogManagerInternal.h */
 
 /* Only define extended DialogManagerState if not already defined */
 #ifndef DIALOGMANAGERINTERNAL_H

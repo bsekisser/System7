@@ -158,8 +158,8 @@ SInt16 GetDialogCancelItem(DialogPtr theDialog);
 OSErr SetDialogTracksCursor(DialogPtr theDialog, Boolean tracks);
 
 /* Window modal class support */
-OSErr GetFrontWindowModalClass(SInt16* modalClass);
-OSErr GetWindowModalClass(WindowPtr theWindow, SInt16* modalClass);
+SInt16 GetFrontWindowModalClass(SInt16* modalClass);
+SInt16 GetWindowModalClass(WindowPtr theWindow, SInt16* modalClass);
 
 /* User item procedures */
 void SetUserItem(DialogPtr theDialog, SInt16 itemNo, UserItemProcPtr procPtr);

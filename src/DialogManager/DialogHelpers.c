@@ -1,11 +1,11 @@
 /*
-#include "DialogManager/DialogInternal.h"
  * DialogHelpers.c - Dialog Manager Helper Functions
  *
  * Provides utility functions for hit testing, item tracking, coordinate conversion,
  * and item type checking used by both modal and modeless dialog handling.
  */
 
+#include "DialogManager/DialogInternal.h"
 #include <stdlib.h>
 #include <string.h>
 #include "SystemTypes.h"
@@ -16,28 +16,7 @@
 #include "DialogManager/DialogItems.h"
 #include "DialogManager/DialogLogging.h"
 
-/* Forward declaration for extended state type */
-typedef struct {
-    void* resumeProc;
-    void* soundProc;
-    SInt16 alertStage;
-    SInt16 dialogFont;
-    SInt16 spareFlags;
-    DialogPtr frontModal;
-    SInt16 defaultItem;
-    SInt16 cancelItem;
-    Boolean tracksCursor;
-    unsigned char paramText[4][256];
-} DialogGlobals;
-
-typedef struct {
-    DialogPtr currentDialog;
-    short modalDepth;
-    Boolean inProgress;
-    Handle itemList;
-    short itemCount;
-    DialogGlobals globals;
-} DialogManagerStateExt;
+/* DialogGlobals and DialogManagerState are now defined in DialogManagerInternal.h */
 
 /* External dependencies */
 extern void InvertRect(const Rect* r);
@@ -271,7 +250,7 @@ DialogPtr FrontDialog(void) {
     /* In full implementation, walk window list and find first dialog */
     /* For now, return the front modal dialog from state */
     extern DialogManagerState* GetDialogManagerState(void);
-    DialogManagerStateExt* state = (DialogManagerStateExt*)GetDialogManagerState();
+    DialogManagerState* state = GetDialogManagerState();
 
     if (state) {
         /* Check front modal dialog first (set by BeginModalDialog) */
