@@ -460,16 +460,19 @@ void DrawChar(short ch) {
     FontStrike *strike = FM_GetCurrentStrike();
     if (!strike) {
         /* Fallback to Chicago bitmap */
+        extern UInt32 QDPlatform_MapQDColor(SInt32 qdColor);
         Point pen = g_currentPort->pnLoc;
         short px, py;
         QD_LocalToPixel(pen.h, pen.v - CHICAGO_ASCENT, &px, &py);
-        FM_DrawChicagoCharInternal(px, py, (char)ch, pack_color(0, 0, 0));
+        UInt32 color = QDPlatform_MapQDColor(g_currentPort->fgColor);
+        FM_DrawChicagoCharInternal(px, py, (char)ch, color);
         g_currentPort->pnLoc.h += CharWidth(ch);
         return;
     }
 
     /* Get foreground color from port */
-    uint32_t color = pack_color(0, 0, 0);  /* Default black */
+    extern UInt32 QDPlatform_MapQDColor(SInt32 qdColor);
+    UInt32 color = QDPlatform_MapQDColor(g_currentPort->fgColor);
 
     /* Calculate glyph position (baseline - ascent) */
     Point pen = g_currentPort->pnLoc;

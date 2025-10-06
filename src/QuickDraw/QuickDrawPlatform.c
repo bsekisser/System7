@@ -50,7 +50,7 @@ static inline Boolean QDPointInEllipse(SInt32 x, SInt32 y, const Rect* rect) {
     return (dx * dx + dy * dy) <= 1.0;
 }
 
-static inline UInt32 QDPlatform_MapQDColor(SInt32 qdColor) {
+UInt32 QDPlatform_MapQDColor(SInt32 qdColor) {
     switch (qdColor) {
         case whiteColor:
             return pack_color(255, 255, 255);

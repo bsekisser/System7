@@ -62,6 +62,7 @@ Boolean QDPlatform_BlitAccelerated(void* src, SInt32 srcX, SInt32 srcY,
 UInt32 QDPlatform_RGBToPixel(UInt8 red, UInt8 green, UInt8 blue);
 UInt32 QDPlatform_RGBToNative(UInt16 red, UInt16 green, UInt16 blue);
 void QDPlatform_NativeToRGB(UInt32 native, UInt16* red, UInt16* green, UInt16* blue);
+UInt32 QDPlatform_MapQDColor(SInt32 qdColor);
 
 /* Drawing primitives - signatures matching QuickDrawCore calls */
 void QDPlatform_DrawLine(GrafPtr port, Point startPt, Point endPt,
