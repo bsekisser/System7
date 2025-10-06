@@ -47,7 +47,6 @@ OSErr TextEdit_InitApp(void)
         return memFullErr;
     }
 
-    /* Set port to window */
     SetPort(gTextEditWindow);
 
     /* Create TextEdit rect (inset from window content) */

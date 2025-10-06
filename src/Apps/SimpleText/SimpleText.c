@@ -375,6 +375,14 @@ void SimpleText_OpenFile(const char* path) {
         SimpleText_Init();
     }
 
+    /* Close untitled window if it's empty to free memory */
+    if (g_ST.firstDoc && g_ST.firstDoc->untitled && !g_ST.firstDoc->dirty && !g_ST.firstDoc->next) {
+        Boolean wasRunning = g_ST.running;
+        g_ST.running = false;  /* Temporarily disable to prevent auto-creation of new untitled */
+        STDoc_Close(g_ST.firstDoc);
+        g_ST.running = wasRunning;
+    }
+
     /* Check if file is already open */
     for (doc = g_ST.firstDoc; doc; doc = doc->next) {
         if (strcmp(doc->filePath, path) == 0) {

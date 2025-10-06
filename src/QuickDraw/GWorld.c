@@ -68,6 +68,7 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
     /* Allocate CGrafPort structure */
     CGrafPtr gworld = (CGrafPtr)NewPtr(sizeof(CGrafPort));
     if (!gworld) {
+        serial_logf((SystemLogModule)3, (SystemLogLevel)2, "[GWORLD] NewGWorld: Failed to allocate CGrafPort\n");
         return memFullErr;
     }
 
@@ -79,6 +80,7 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
     /* Allocate PixMap */
     PixMapHandle pmHandle = NewPixMap();
     if (!pmHandle || !*pmHandle) {
+        serial_logf((SystemLogModule)3, (SystemLogLevel)2, "[GWORLD] NewGWorld: Failed to allocate PixMap\n");
         DisposePtr((Ptr)gworld);
         return memFullErr;
     }
@@ -105,6 +107,7 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
     UInt32 bufferSize = (UInt32)height * (UInt32)rowBytes;
     Ptr pixelBuffer = NewPtr(bufferSize);
     if (!pixelBuffer) {
+        serial_logf((SystemLogModule)3, (SystemLogLevel)2, "[GWORLD] NewGWorld: Failed to allocate pixel buffer (size=%u)\n", bufferSize);
         DisposePixMap(pmHandle);
         DisposePtr((Ptr)gworld);
         return memFullErr;
@@ -134,6 +137,7 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
     gworld->visRgn = NewRgn();
     gworld->clipRgn = NewRgn();
     if (!gworld->visRgn || !gworld->clipRgn) {
+        serial_logf((SystemLogModule)3, (SystemLogLevel)2, "[GWORLD] NewGWorld: Failed to allocate regions\n");
         if (gworld->visRgn) DisposeRgn(gworld->visRgn);
         if (gworld->clipRgn) DisposeRgn(gworld->clipRgn);
         DisposePtr(pixelBuffer);
