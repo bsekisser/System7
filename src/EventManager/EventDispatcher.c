@@ -32,6 +32,7 @@ extern void DrawGrowIcon(WindowPtr window);
 extern void DoMenuCommand(short menuID, short item);
 extern long MenuSelect(Point startPt);
 extern void HiliteMenu(short menuID);
+extern long MenuKey(short ch);
 
 /* Menu tracking functions from MenuTrack.c */
 extern Boolean IsMenuTrackingNew(void);
@@ -410,41 +411,36 @@ Boolean HandleKeyDownEvent(EventRecord* event)
     }
 
     if (cmdKeyDown) {
-        /* Command key combinations often map to menu items */
-        /* TODO: Implement command key menu shortcuts */
+        /* Command key combinations map to menu items via MenuKey */
+        long menuChoice = MenuKey(key);
 
-        /* Common shortcuts */
+        if (menuChoice != 0) {
+            /* MenuKey found a matching menu item */
+            short menuID = (menuChoice >> 16) & 0xFFFF;
+            short itemID = menuChoice & 0xFFFF;
+
+            EVT_LOG_DEBUG("Command key '%c' mapped to menu %d, item %d\n",
+                         key, menuID, itemID);
+
+            /* Execute the menu command */
+            DoMenuCommand(menuID, itemID);
+
+            /* Unhighlight the menu */
+            HiliteMenu(0);
+
+            return true;
+        }
+
+        /* No menu match - check for special system shortcuts */
         switch (key) {
             case 'q':
             case 'Q':
-                /* Quit */
+                /* Quit - try to find in File menu if not already mapped */
                 EVT_LOG_DEBUG("Quit requested\n");
                 return true;
 
-            case 'w':
-            case 'W':
-                /* Close window */
-                {
-                    WindowPtr frontWindow = FrontWindow();
-                    if (frontWindow) {
-                        CloseWindow(frontWindow);
-                    }
-                }
-                return true;
-
-            case 'n':
-            case 'N':
-                /* New */
-                EVT_LOG_DEBUG("New requested\n");
-                return true;
-
-            case 'o':
-            case 'O':
-                /* Open */
-                EVT_LOG_DEBUG("Open requested\n");
-                return true;
-
             default:
+                EVT_LOG_TRACE("Unhandled command key: '%c'\n", key);
                 break;
         }
     }

@@ -22,7 +22,7 @@ This checklist captures the most significant differences between the current too
 ## Event & Input Handling
 - ~~`src/EventManager/event_manager.c:251` – Posted events always report `modifiers = 0`; modifier bits (shift, option, command) need to be sampled from the PS/2 layer so Command shortcuts and shift-clicking behave correctly.~~ **FIXED** (2025-10-06): PostEvent now calls GetPS2Modifiers() to populate modifier fields from hardware
 - ~~`src/EventManager/event_manager.c:285` – `WaitNextEvent` ignores the caller-supplied `mouseRgn`; classic Mac OS clipped null events and mouse moved events to that region.~~ **FIXED** (2025-10-06): WaitNextEvent now monitors mouseRgn and generates null events when mouse exits region
-- `src/EventManager/EventDispatcher.c:413`–`416` – Command-key menu shortcuts are unimplemented; menu command routing should call `MenuKey`/`MenuChoice` analogues when `cmdKey` is set.
+- ~~`src/EventManager/EventDispatcher.c:413`–`416` – Command-key menu shortcuts are unimplemented; menu command routing should call `MenuKey`/`MenuChoice` analogues when `cmdKey` is set.~~ **FIXED** (2025-10-06): Event Dispatcher now calls MenuKey() for all command-key events and routes through DoMenuCommand()
 - ~~`src/EventManager/MouseEvents.c:454` & `src/EventManager/EventManagerCore.c:655` – `StillDown` references stubs in `control_stubs.c`; until the real implementation arrives, hit testing during tracking is unreliable.~~ **VERIFIED** (2025-10-06): StillDown and Button are properly implemented in MouseEvents.c
 
 ## Text Input & Editing
