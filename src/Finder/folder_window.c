@@ -912,10 +912,9 @@ FINDER_LOG_DEBUG("=== FolderWindow_Draw ENTRY === window=0x%08x\n", (unsigned in
     FolderWindowState* state = GetFolderState(w);
     Boolean isTrash = (w->refCon == 'TRSH');
 
-    /* BeginUpdate already set the correct port (GWorld or window port) - don't override it */
     GrafPtr savePort;
     GetPort(&savePort);
-    /* SetPort((GrafPtr)w);  REMOVED: BeginUpdate already set correct port for double-buffering */
+    SetPort((GrafPtr)w);  /* Safe now: BeginUpdate swapped portBits to point to GWorld */
 
 FINDER_LOG_DEBUG("FW: updateEvt for window 0x%08x, portRect=(%d,%d,%d,%d), portBits.bounds=(%d,%d,%d,%d)\n",
                  (unsigned int)P2UL(w),

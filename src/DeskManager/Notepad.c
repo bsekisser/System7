@@ -313,7 +313,7 @@ void Notepad_Draw(void) {
         return;
     }
 
-    /* SetPort(gNotepad->window); REMOVED: BeginUpdate already set correct port */
+    SetPort(gNotepad->window);  /* Safe now: BeginUpdate swapped portBits to GWorld */
 
     /* Clear window */
     EraseRect(&gNotepad->window->portRect);

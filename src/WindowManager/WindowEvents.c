@@ -335,13 +335,25 @@ void BeginUpdate(WindowPtr theWindow) {
     GrafPtr savePort = Platform_GetCurrentPort();
     Platform_SetUpdatePort(savePort);
 
-    /* If window has offscreen GWorld, draw to it; otherwise draw directly to window */
+    /* If window has offscreen GWorld, swap portBits to point to GWorld buffer */
     if (theWindow->offscreenGWorld) {
-        /* Switch to offscreen buffer for double-buffered drawing */
-        serial_logf(kLogModuleWindow, kLogLevelDebug, "[BEGINUPDATE] Switching to GWorld %p for window %p\n",
-                   theWindow->offscreenGWorld, theWindow);
-        SetGWorld((CGrafPtr)theWindow->offscreenGWorld, NULL);
-        WM_DEBUG("BeginUpdate: Switched to offscreen GWorld for double-buffering");
+        serial_logf(kLogModuleWindow, kLogLevelDebug, "[BEGINUPDATE] Swapping portBits to GWorld for window %p\n", theWindow);
+
+        /* Get GWorld PixMap */
+        PixMapHandle gwPixMap = GetGWorldPixMap((GWorldPtr)theWindow->offscreenGWorld);
+        if (gwPixMap && *gwPixMap) {
+            /* Swap window's portBits to point to GWorld buffer */
+            theWindow->port.portBits.baseAddr = (*gwPixMap)->baseAddr;
+            theWindow->port.portBits.rowBytes = (*gwPixMap)->rowBytes & 0x3FFF;
+
+            serial_logf(kLogModuleWindow, kLogLevelDebug,
+                       "[BEGINUPDATE] Swapped portBits: baseAddr=%p rowBytes=%d\n",
+                       theWindow->port.portBits.baseAddr, theWindow->port.portBits.rowBytes);
+        }
+
+        /* Set port to window (which now points to GWorld buffer) */
+        Platform_SetCurrentPort(&theWindow->port);
+        WM_DEBUG("BeginUpdate: Swapped portBits to GWorld buffer");
     } else {
         serial_logf(kLogModuleWindow, kLogLevelDebug, "[BEGINUPDATE] No GWorld for window %p - drawing direct\n", theWindow);
         /* No offscreen buffer, draw directly to window (legacy path) */
@@ -416,14 +428,8 @@ void EndUpdate(WindowPtr theWindow) {
                 /* Source: local coordinates from GWorld - use GWorld's bounds, not window portRect! */
                 Rect srcRect = srcBits.bounds;
 
-                /* Destination: global screen coordinates from content region */
-                /* Use content region top-left, but match GWorld dimensions exactly */
-                Rect contBounds = (*theWindow->contRgn)->rgnBBox;
-                Rect dstRect;
-                dstRect.left = contBounds.left;
-                dstRect.top = contBounds.top;
-                dstRect.right = dstRect.left + (srcRect.right - srcRect.left);
-                dstRect.bottom = dstRect.top + (srcRect.bottom - srcRect.top);
+                /* Destination: use portBits bounds directly (already in global screen coordinates) */
+                Rect dstRect = theWindow->port.portBits.bounds;
 
                 extern UInt32 fb_width, fb_height;
                 serial_logf(kLogModuleWindow, kLogLevelDebug,
@@ -439,6 +445,17 @@ void EndUpdate(WindowPtr theWindow) {
                         &srcRect, &dstRect, srcCopy, NULL);
 
                 UnlockPixels(gwPixMap);
+
+                /* Restore original portBits pointers */
+                extern void* framebuffer;
+                extern uint32_t fb_width;
+                theWindow->port.portBits.baseAddr = (Ptr)framebuffer;
+                theWindow->port.portBits.rowBytes = fb_width * 4;
+
+                serial_logf(kLogModuleWindow, kLogLevelDebug,
+                           "[ENDUPDATE] Restored portBits: baseAddr=%p rowBytes=%d\n",
+                           theWindow->port.portBits.baseAddr, theWindow->port.portBits.rowBytes);
+
                 WM_DEBUG("EndUpdate: Offscreen buffer copied to screen");
             }
         }
