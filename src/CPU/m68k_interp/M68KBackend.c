@@ -330,17 +330,13 @@ static OSErr M68K_InstallTrap(CPUAddressSpace as, TrapNumber trapNum,
                               CPUTrapHandler handler, void* context)
 {
     M68KAddressSpace* mas = (M68KAddressSpace*)as;
-    UInt8 trapIndex;
 
-    if (!mas) {
+    if (!mas || trapNum > 255) {
         return paramErr;
     }
 
-    /* Extract trap index from full trap number (mask low 8 bits) */
-    trapIndex = trapNum & 0xFF;
-
-    mas->trapHandlers[trapIndex] = handler;
-    mas->trapContexts[trapIndex] = context;
+    mas->trapHandlers[trapNum] = handler;
+    mas->trapContexts[trapNum] = context;
 
     return noErr;
 }

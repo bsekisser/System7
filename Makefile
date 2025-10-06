@@ -179,7 +179,6 @@ C_SOURCES = src/main.c \
             src/CPU/m68k_interp/M68KDecode.c \
             src/CPU/m68k_interp/M68KOpcodes.c \
             src/CPU/m68k_interp/LowMemGlobals.c \
-            src/OSUtils/OSUtilsTraps.c \
             src/SegmentLoader/SegmentLoader.c \
             src/SegmentLoader/CodeParser.c \
             src/SegmentLoader/A5World.c \
@@ -331,7 +330,7 @@ vpath %.c src:src/System:src/QuickDraw:src/WindowManager:src/MenuManager:src/Con
           src/PackageManager:src/NetworkExtension:src/ColorManager:src/CommunicationToolbox \
           src/FontResources:src/GestaltManager:src/SpeechManager:src/BootLoader \
           src/SegmentLoader:src/CPU:src/CPU/m68k_interp:src/DeviceManager:src/Keyboard \
-          src/Datetime:src/Calculator:src/Chooser:src/StartupScreen:src/OSUtils
+          src/Datetime:src/Calculator:src/Chooser:src/StartupScreen
 vpath %.S $(HAL_DIR)
 
 # Compile assembly files
