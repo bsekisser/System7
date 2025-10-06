@@ -2094,6 +2094,19 @@ static void create_system71_windows(void) {
     /* Test windows removed - let Finder/applications create their own windows */
 }
 
+/* Cursor state variables for direct framebuffer cursor drawing */
+static int16_t cursor_old_x = -1;
+static int16_t cursor_old_y = -1;
+static uint32_t cursor_saved_pixels[16][16];  /* Save area under cursor */
+static bool cursor_saved = false;
+
+/* InvalidateCursor - Force cursor redraw by resetting cursor state */
+void InvalidateCursor(void) {
+    cursor_saved = false;
+    cursor_old_x = -1;
+    cursor_old_y = -1;
+}
+
 /* Kernel main entry point */
 void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     /* Initialize serial port for debugging */
@@ -2284,12 +2297,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         uint8_t packet[3];
         uint8_t packet_index;
     } g_mouseState;
-
-    /* Simple cursor drawing - directly to framebuffer for responsiveness */
-    static int16_t cursor_old_x = -1;
-    static int16_t cursor_old_y = -1;
-    static uint32_t cursor_saved_pixels[16][16];  /* Save area under cursor */
-    static bool cursor_saved = false;
 
     /* Draw initial cursor */
 #if 1

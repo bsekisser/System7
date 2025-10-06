@@ -723,6 +723,10 @@ long TrackMenu(short menuID, Point *startPt) {
     /* Restore port */
     if (savePort) SetPort(savePort);
 
+    /* Invalidate cursor so it gets redrawn (menu operations corrupt cursor background) */
+    extern void InvalidateCursor(void);
+    InvalidateCursor();
+
     /* Clear reentrancy flag before returning */
     s_inTrackMenu = false;
 
