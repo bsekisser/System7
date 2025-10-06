@@ -7,6 +7,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/QuickDrawPlatform.h"
 #include "QuickDrawConstants.h"  /* For paint, frame, erase, patCopy */
+#include "FontManager/FontTypes.h"  /* For FontStrike */
 #include <stdlib.h>  /* For abs() */
 #include <math.h>
 #include "QuickDraw/QDLogging.h"
@@ -966,4 +967,98 @@ void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
         }
     }
     /* frame, invert, fill modes not yet implemented */
+}
+
+/* ============================================================================
+ * Text Rendering
+ * ============================================================================ */
+
+/* Helper to get a bit from MSB-first bitmap */
+static inline UInt8 GetBitmapBit(const UInt8 *bitmap, SInt32 bitOffset) {
+    return (bitmap[bitOffset >> 3] >> (7 - (bitOffset & 7))) & 1;
+}
+
+/*
+ * QDPlatform_DrawGlyph - Draw a character glyph from a FontStrike
+ *
+ * Renders a character from a bitmap font strike to the framebuffer.
+ *
+ * @param strike    Font strike containing bitmap data
+ * @param ch        Character code to render
+ * @param x         X position in local coordinates (top-left of glyph)
+ * @param y         Y position in local coordinates (top-left of glyph)
+ * @param port      Current graphics port (for coordinate conversion)
+ * @param color     Pixel color to use
+ * @return          Character advance width in pixels
+ */
+SInt16 QDPlatform_DrawGlyph(struct FontStrike *strike, UInt8 ch, SInt16 x, SInt16 y,
+                            GrafPtr port, UInt32 color) {
+    if (!strike || !framebuffer) {
+        return 0;
+    }
+
+    /* Check if character is in range */
+    if (ch < strike->firstChar || ch > strike->lastChar) {
+        return 0;
+    }
+
+    /* Get character index */
+    SInt16 charIndex = ch - strike->firstChar;
+
+    /* Get location in bitmap (from location table) */
+    if (!strike->locTable) {
+        return 0;
+    }
+
+    SInt16 locStart = strike->locTable[charIndex];
+    SInt16 locEnd = strike->locTable[charIndex + 1];
+    SInt16 charWidth = locEnd - locStart;
+
+    /* Get bitmap data */
+    if (!strike->bitmapData || !(*strike->bitmapData)) {
+        return charWidth;
+    }
+
+    UInt8 *bitmap = (UInt8 *)(*strike->bitmapData);
+
+    /* Convert local coordinates to pixel coordinates */
+    SInt16 pixelX = x;
+    SInt16 pixelY = y;
+    if (port) {
+        pixelX = x - port->portRect.left + port->portBits.bounds.left;
+        pixelY = y - port->portRect.top + port->portBits.bounds.top;
+    }
+
+    /* Draw the glyph */
+    UInt32 *fb = (UInt32 *)framebuffer;
+    SInt16 rowWords = strike->rowWords;
+
+    for (SInt16 row = 0; row < strike->fRectHeight; row++) {
+        if (pixelY + row < 0 || pixelY + row >= fb_height) {
+            continue;
+        }
+
+        /* Calculate bit position in the strike's bitmap */
+        SInt32 bitRowStart = row * rowWords * 16;  /* 16 bits per word */
+
+        for (SInt16 col = 0; col < charWidth; col++) {
+            if (pixelX + col < 0 || pixelX + col >= fb_width) {
+                continue;
+            }
+
+            SInt32 bitPos = bitRowStart + locStart + col;
+
+            if (GetBitmapBit(bitmap, bitPos)) {
+                SInt32 fbOffset = (pixelY + row) * (fb_pitch / 4) + (pixelX + col);
+                fb[fbOffset] = color;
+            }
+        }
+    }
+
+    /* Return character width for pen advancement */
+    if (strike->widthTable) {
+        return strike->widthTable[charIndex];
+    }
+
+    return charWidth;
 }

@@ -456,16 +456,38 @@ void QD_LocalToPixel(short localX, short localY, short* pixelX, short* pixelY) {
 void DrawChar(short ch) {
     if (!g_currentPort) return;
 
-    /* Get current pen location and convert to pixels */
-    Point pen = g_currentPort->pnLoc;
-    short px, py;
-    QD_LocalToPixel(pen.h, pen.v - CHICAGO_ASCENT, &px, &py);
+    /* Get current font strike */
+    FontStrike *strike = FM_GetCurrentStrike();
+    if (!strike) {
+        /* Fallback to Chicago bitmap */
+        Point pen = g_currentPort->pnLoc;
+        short px, py;
+        QD_LocalToPixel(pen.h, pen.v - CHICAGO_ASCENT, &px, &py);
+        FM_DrawChicagoCharInternal(px, py, (char)ch, pack_color(0, 0, 0));
+        g_currentPort->pnLoc.h += CharWidth(ch);
+        return;
+    }
 
-    /* Draw the character using internal function */
-    FM_DrawChicagoCharInternal(px, py, (char)ch, pack_color(0, 0, 0));
+    /* Get foreground color from port */
+    uint32_t color = pack_color(0, 0, 0);  /* Default black */
+
+    /* Calculate glyph position (baseline - ascent) */
+    Point pen = g_currentPort->pnLoc;
+    short glyphX = pen.h;
+    short glyphY = pen.v - strike->ascent;
+
+    /* Draw the glyph using platform layer */
+    extern SInt16 QDPlatform_DrawGlyph(FontStrike *strike, UInt8 ch, SInt16 x, SInt16 y,
+                                       GrafPtr port, UInt32 color);
+    SInt16 advance = QDPlatform_DrawGlyph(strike, (UInt8)ch, glyphX, glyphY,
+                                          g_currentPort, color);
 
     /* Advance pen by character width */
-    g_currentPort->pnLoc.h += CharWidth(ch);
+    if (advance > 0) {
+        g_currentPort->pnLoc.h += advance;
+    } else {
+        g_currentPort->pnLoc.h += CharWidth(ch);
+    }
 }
 
 /*
@@ -475,56 +497,24 @@ void DrawString(ConstStr255Param s) {
     if (!s || s[0] == 0 || !g_currentPort) return;
 
     unsigned char len = s[0];
-    Point pen = g_currentPort->pnLoc;
-    short px, py;
     Style face = g_currentPort->txFace;
-    short startX = pen.h;  /* Save start for underline */
+    short startX = g_currentPort->pnLoc.h;  /* Save start for underline */
 
-    /* Get pixel position for drawing */
-    QD_LocalToPixel(pen.h, pen.v - CHICAGO_ASCENT, &px, &py);
-
-    /* Draw each character and update position */
+    /* Draw each character using DrawChar */
     for (int i = 1; i <= len; i++) {
-        char ch = s[i];
-        uint32_t color = pack_color(0, 0, 0);
-
-        /* Handle style combinations */
-        if (face & bold) {
-            /* Bold: draw character twice offset by 1 pixel */
-            FM_DrawChicagoCharInternal(px, py, ch, color);
-            FM_DrawChicagoCharInternal(px + 1, py, ch, color);
-        } else {
-            FM_DrawChicagoCharInternal(px, py, ch, color);
-        }
-
-        /* Note: Italic would require bitmap shearing - not implemented yet */
-        /* For now italic is drawn as normal text */
-
-        ChicagoCharInfo info = chicago_ascii[ch - 32];
-        short width = info.bit_width + 2;
-        if (ch == ' ') width += 3;
-
-        /* Add extra width for bold */
-        if (face & bold) width += 1;
-
-        /* Add extra width for italic (simple approximation) */
-        if (face & italic) width += 1;
-
-        px += width;
-        pen.h += width;
+        /* TODO: Handle bold by drawing twice with 1px offset */
+        /* TODO: Handle italic with bitmap shearing */
+        DrawChar(s[i]);
     }
 
     /* Draw underline if needed */
     if (face & underline) {
         Point oldPen = g_currentPort->pnLoc;
-        short underlineY = pen.v + 2;  /* 2 pixels below baseline */
+        short underlineY = oldPen.v + 2;  /* 2 pixels below baseline */
         MoveTo(startX, underlineY);
-        LineTo(pen.h, underlineY);
+        LineTo(oldPen.h, underlineY);
         g_currentPort->pnLoc = oldPen;  /* Restore pen position */
     }
-
-    /* Update pen position */
-    g_currentPort->pnLoc = pen;
 }
 
 /*
@@ -535,27 +525,11 @@ void DrawText(const void* textBuf, short firstByte, short byteCount) {
     if (!textBuf || byteCount <= 0 || !g_currentPort) return;
 
     const unsigned char* text = (const unsigned char*)textBuf;
-    Point pen = g_currentPort->pnLoc;
-    short px, py;
 
-    /* Get pixel position for drawing */
-    QD_LocalToPixel(pen.h, pen.v - CHICAGO_ASCENT, &px, &py);
-
-    /* Draw each character */
+    /* Draw each character using DrawChar */
     for (short i = 0; i < byteCount; i++) {
-        unsigned char ch = text[firstByte + i];
-        if (ch >= 32 && ch <= 126) {
-            FM_DrawChicagoCharInternal(px, py, ch, pack_color(0, 0, 0));
-            ChicagoCharInfo info = chicago_ascii[ch - 32];
-            short width = info.bit_width + 2;
-            if (ch == ' ') width += 3;
-            px += width;
-            pen.h += width;
-        }
+        DrawChar(text[firstByte + i]);
     }
-
-    /* Update pen position */
-    g_currentPort->pnLoc = pen;
 }
 
 /* ============================================================================

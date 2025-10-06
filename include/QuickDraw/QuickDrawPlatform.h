@@ -15,6 +15,9 @@
 extern "C" {
 #endif
 
+/* Forward declarations */
+struct FontStrike;
+
 /* Platform-specific pixel format definitions */
 
 /* Platform framebuffer structure */
@@ -69,6 +72,10 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
 void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat);
 void QDPlatform_FillPoly(GrafPtr port, PolyHandle poly, const Pattern* pat,
                         SInt16 mode, GrafVerb verb);
+
+/* Text rendering */
+SInt16 QDPlatform_DrawGlyph(struct FontStrike *strike, UInt8 ch, SInt16 x, SInt16 y,
+                            GrafPtr port, UInt32 color);
 
 #ifdef __cplusplus
 }
