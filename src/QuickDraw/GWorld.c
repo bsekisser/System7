@@ -249,7 +249,9 @@ void SetGWorld(CGrafPtr port, GDHandle gdh) {
 
     /* Also set as current port for QuickDraw */
     if (port) {
+        extern CGrafPtr g_currentCPort;  /* from ColorQuickDraw.c */
         g_currentPort = (GrafPtr)port;
+        g_currentCPort = port;  /* CRITICAL: Set color port for port type detection */
     }
 }
 
