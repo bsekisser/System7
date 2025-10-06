@@ -458,8 +458,10 @@ void DrawChar(short ch) {
 
     /* Get current font strike */
     FontStrike *strike = FM_GetCurrentStrike();
-    if (!strike) {
-        /* Fallback to Chicago bitmap */
+
+    /* Check if strike has valid bitmap data */
+    if (!strike || !strike->locTable || !strike->bitmapData) {
+        /* Fallback to Chicago bitmap (direct framebuffer drawing) */
         extern UInt32 QDPlatform_MapQDColor(SInt32 qdColor);
         Point pen = g_currentPort->pnLoc;
         short px, py;
