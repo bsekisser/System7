@@ -28,7 +28,7 @@
 
 /* Color QuickDraw globals */
 static Boolean g_colorQDAvailable = false;
-static CGrafPtr g_currentCPort = NULL;
+CGrafPtr g_currentCPort = NULL;  /* Exported for QDPlatform_DrawGlyph */
 static GDHandle g_currentDevice = NULL;
 static GDHandle g_deviceList = NULL;
 static GDHandle g_mainDevice = NULL;

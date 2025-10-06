@@ -1029,9 +1029,12 @@ SInt16 QDPlatform_DrawGlyph(struct FontStrike *strike, UInt8 ch, SInt16 x, SInt1
     SInt16 pixelX = x;
     SInt16 pixelY = y;
 
-    if (port && port->portBits.baseAddr && port->portBits.baseAddr != (Ptr)framebuffer) {
-        /* Drawing to offscreen GWorld - cast to CGrafPtr and get PixMap */
-        extern CGrafPtr g_currentCPort;  /* from ColorQuickDraw.c */
+    /* Check if this is a color port (CGrafPtr) by checking current color port global */
+    extern CGrafPtr g_currentCPort;  /* from ColorQuickDraw.c */
+    Boolean isColorPort = (g_currentCPort != NULL && (GrafPtr)g_currentCPort == port);
+
+    if (isColorPort) {
+        /* Drawing to color port (possibly offscreen GWorld) */
         CGrafPtr cport = (CGrafPtr)port;
 
         if (cport->portPixMap && *cport->portPixMap) {
@@ -1041,20 +1044,21 @@ SInt16 QDPlatform_DrawGlyph(struct FontStrike *strike, UInt8 ch, SInt16 x, SInt1
             renderWidth = pm->bounds.right - pm->bounds.left;
             renderHeight = pm->bounds.bottom - pm->bounds.top;
 
-            /* Convert local coordinates to GWorld buffer coordinates */
-            pixelX = x - port->portRect.left;
-            pixelY = y - port->portRect.top;
+            /* Convert local coordinates to PixMap buffer coordinates */
+            pixelX = x - cport->portRect.left;
+            pixelY = y - cport->portRect.top;
         } else {
-            /* GWorld without PixMap - shouldn't happen, fall back to framebuffer */
+            /* Color port without PixMap - shouldn't happen, fall back to framebuffer */
+            if (!framebuffer) return charWidth;
             renderBuffer = (Ptr)framebuffer;
             renderPitch = fb_pitch;
             renderWidth = fb_width;
             renderHeight = fb_height;
-            pixelX = x - port->portRect.left + port->portBits.bounds.left;
-            pixelY = y - port->portRect.top + port->portBits.bounds.top;
+            pixelX = x;
+            pixelY = y;
         }
     } else {
-        /* Drawing to screen framebuffer */
+        /* Drawing to basic GrafPort (screen framebuffer) */
         if (!framebuffer) return charWidth;
 
         renderBuffer = (Ptr)framebuffer;
