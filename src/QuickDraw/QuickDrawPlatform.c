@@ -1125,3 +1125,100 @@ SInt16 QDPlatform_DrawGlyph(struct FontStrike *strike, UInt8 ch, SInt16 x, SInt1
 
     return charWidth;
 }
+
+/**
+ * QDPlatform_DrawGlyphBitmap - Draw a glyph bitmap at the specified position
+ *
+ * Draws a character glyph from a packed bitmap to the current port's
+ * bitmap at the specified pen position.
+ *
+ * @param port      Graphics port to draw into
+ * @param pen       Pen position in GLOBAL coordinates
+ * @param bitmap    Packed bitmap data (bit-aligned rows)
+ * @param width     Glyph width in pixels
+ * @param height    Glyph height in pixels
+ * @param pattern   Pattern to use for foreground pixels
+ * @param mode      Transfer mode (srcCopy, srcOr, etc.)
+ */
+void QDPlatform_DrawGlyphBitmap(GrafPtr port, Point pen,
+                         const uint8_t *bitmap,
+                         SInt16 width, SInt16 height,
+                         const Pattern *pattern, SInt16 mode) {
+    if (!port || !bitmap || width <= 0 || height <= 0) {
+        return;
+    }
+
+    /* Get destination bitmap */
+    BitMap *destBits = &port->portBits;
+    if (!destBits->baseAddr) {
+        return;
+    }
+
+    /* Convert global pen position to bitmap coordinates */
+    SInt16 destX = pen.h - destBits->bounds.left;
+    SInt16 destY = pen.v - destBits->bounds.top;
+
+    /* Get bitmap dimensions */
+    SInt16 destWidth = destBits->bounds.right - destBits->bounds.left;
+    SInt16 destHeight = destBits->bounds.bottom - destBits->bounds.top;
+    SInt16 destRowBytes = destBits->rowBytes & 0x3FFF;
+
+    /* Determine foreground color from pattern */
+    uint32_t fgColor = 0xFF000000;  /* Black default */
+    if (pattern) {
+        /* Use first byte of pattern to determine intensity */
+        uint8_t intensity = 255 - pattern->pat[0];
+        fgColor = pack_color(intensity, intensity, intensity);
+    }
+
+    /* Get framebuffer pointer */
+    uint32_t *pixels = (uint32_t *)destBits->baseAddr;
+    SInt32 pixelPitch = destRowBytes / 4;
+
+    /* Draw each pixel of the glyph */
+    for (SInt16 row = 0; row < height; row++) {
+        SInt16 y = destY + row;
+        if (y < 0 || y >= destHeight) {
+            continue;
+        }
+
+        for (SInt16 col = 0; col < width; col++) {
+            SInt16 x = destX + col;
+            if (x < 0 || x >= destWidth) {
+                continue;
+            }
+
+            /* Check if this pixel is set in the glyph bitmap */
+            SInt32 bitIndex = row * ((width + 7) / 8) * 8 + col;
+            SInt32 byteIndex = bitIndex / 8;
+            SInt32 bitOffset = 7 - (bitIndex % 8);
+
+            if (bitmap[byteIndex] & (1 << bitOffset)) {
+                /* Pixel is set - draw with foreground color */
+                SInt32 pixelOffset = y * pixelPitch + x;
+
+                switch (mode) {
+                    case srcCopy:
+                    case patCopy:
+                        pixels[pixelOffset] = fgColor;
+                        break;
+                    case srcOr:
+                    case patOr:
+                        pixels[pixelOffset] |= fgColor;
+                        break;
+                    case srcXor:
+                    case patXor:
+                        pixels[pixelOffset] ^= fgColor;
+                        break;
+                    case srcBic:
+                    case patBic:
+                        pixels[pixelOffset] &= ~fgColor;
+                        break;
+                    default:
+                        pixels[pixelOffset] = fgColor;
+                        break;
+                }
+            }
+        }
+    }
+}

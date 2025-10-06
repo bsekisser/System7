@@ -84,11 +84,70 @@ SInt16 TextWidth(const void *textBuf, SInt16 firstByte, SInt16 byteCount) {
 void DrawChar(SInt16 ch) {
     if (g_currentPort == NULL) return;
 
-    // Draw character at current position
-    // (Implementation would draw actual glyph)
+    /* Get current pen location in local coordinates */
+    Point penLocal = g_currentPort->pnLoc;
 
-    // Advance pen position
-    g_penPosition.h += CharWidth(ch);
+    /* Get character width and metrics */
+    SInt16 width = CharWidth(ch);
+
+    /* Render the glyph if it's a printable ASCII character */
+    if (ch >= 0x20 && ch <= 0x7E) {
+        extern const uint8_t chicago_bitmap[2100];
+
+        #define CHICAGO_HEIGHT 15
+        #define CHICAGO_ROW_BYTES 140
+
+        /* Chicago font character info for ASCII printable (0x20 to 0x7E) */
+        typedef struct {
+            uint16_t bit_start;
+            uint16_t bit_width;
+            int8_t left_offset;
+            int8_t advance;
+        } ChicagoCharInfo;
+
+        extern const ChicagoCharInfo chicago_ascii[95];
+
+        /* Get glyph info */
+        const ChicagoCharInfo *info = &chicago_ascii[ch - 0x20];
+
+        if (info->bit_width > 0) {
+            /* Convert pen position to global coordinates for platform drawing */
+            Point penGlobal = penLocal;
+            LocalToGlobal(&penGlobal);
+
+            /* Extract glyph bitmap from strike */
+            uint8_t glyph_bitmap[CHICAGO_HEIGHT * 16];  /* Max 16 bytes per row */
+            memset(glyph_bitmap, 0, sizeof(glyph_bitmap));
+
+            for (int row = 0; row < CHICAGO_HEIGHT; row++) {
+                uint16_t src_bit = info->bit_start;
+                uint16_t src_byte = (row * CHICAGO_ROW_BYTES) + (src_bit / 8);
+                uint8_t src_bit_offset = src_bit % 8;
+
+                /* Extract bits for this glyph row */
+                for (int bit = 0; bit < info->bit_width; bit++) {
+                    uint8_t bit_val = (chicago_bitmap[src_byte + (src_bit_offset + bit) / 8]
+                                      >> (7 - ((src_bit_offset + bit) % 8))) & 1;
+                    if (bit_val) {
+                        glyph_bitmap[row * 2 + (bit / 8)] |= (0x80 >> (bit % 8));
+                    }
+                }
+            }
+
+            /* Draw the glyph using platform drawing */
+            extern void QDPlatform_DrawGlyphBitmap(GrafPtr port, Point pen,
+                                                  const uint8_t *bitmap,
+                                                  SInt16 width, SInt16 height,
+                                                  const Pattern *pattern, SInt16 mode);
+
+            QDPlatform_DrawGlyphBitmap(g_currentPort, penGlobal, glyph_bitmap,
+                                      info->bit_width, CHICAGO_HEIGHT,
+                                      &g_currentPort->pnPat, g_currentPort->pnMode);
+        }
+    }
+
+    /* Advance pen position in local coordinates */
+    g_currentPort->pnLoc.h += width;
 }
 
 void DrawString(ConstStr255Param s) {
