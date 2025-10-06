@@ -43,6 +43,8 @@ extern void DoMenuCommand(short menuID, short item);
 /* Forward declaration for DispatchEvent (no header available yet) */
 extern Boolean DispatchEvent(EventRecord* evt);
 
+#include "../include/SystemInternal.h"
+
 /* Forward declarations for static functions in this file */
 static void process_serial_command(void);
 uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);

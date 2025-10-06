@@ -1,4 +1,5 @@
 /**
+#include "EventManager/EventManagerInternal.h"
  * @file EventDispatcher.c
  * @brief Event Dispatcher - Routes events from EventManager to appropriate handlers
  *

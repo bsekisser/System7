@@ -1,4 +1,5 @@
 /* #include "SystemTypes.h" */
+#include "FontManager/FontInternal.h"
 /*
  * FontCache.c - Font Cache Implementation
  *

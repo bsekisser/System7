@@ -1,4 +1,5 @@
 /*
+#include "FontManager/FontInternal.h"
  * FontStyleSynthesis.c - Font Style Synthesis Implementation
  *
  * Generates bold, italic, underline, shadow, outline styles

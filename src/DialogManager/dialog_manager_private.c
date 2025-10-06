@@ -1,4 +1,5 @@
 /* #include "SystemTypes.h" */
+#include "DialogManager/DialogInternal.h"
 /*
  * dialog_manager_private.c - Private Dialog Manager Implementation
  *

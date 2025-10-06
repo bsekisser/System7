@@ -1,4 +1,5 @@
 /* #include "SystemTypes.h" */
+#include "QuickDraw/QuickDrawInternal.h"
 #include <string.h>
 /*
  * Bitmaps.c - QuickDraw Bitmap and CopyBits Implementation

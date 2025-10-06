@@ -1,4 +1,5 @@
 /* #include "SystemTypes.h" */
+#include "FontManager/FontInternal.h"
 #include <string.h>
 /*
  * FontMetrics.c - Font Metrics and Text Measurement Implementation

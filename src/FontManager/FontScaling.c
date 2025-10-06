@@ -1,4 +1,5 @@
 /*
+#include "FontManager/FontInternal.h"
  * FontScaling.c - Font Size Scaling Implementation
  *
  * Provides bitmap font scaling for multiple point sizes

@@ -1,4 +1,5 @@
 /* #include "SystemTypes.h" */
+#include "QuickDraw/QuickDrawInternal.h"
 /*
  * RE-AGENT-BANNER
  * QuickDraw Picture Operations

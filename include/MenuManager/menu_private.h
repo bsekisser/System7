@@ -113,6 +113,35 @@ void SetValidateMenuBarSemaphore(Boolean locked);
 /* Menu Manager dispatch mechanism */
 OSErr MenuDispatch(SInt16 selector, void *params);
 
+/* Menu command handling */
+void DoMenuCommand(short menuID, short item);
+
+/* Menu item functions */
+SInt16 CountMenuItems(MenuHandle theMenu);
+
+/* Menu title tracking */
+void InitMenuTitleTracking(void);
+void AddMenuTitle(short menuID, short left, short width, const char* title);
+void ClearMenuTitles(void);
+Boolean MenuTitleAt(Point pt, SInt16* outMenuID);
+Boolean GetMenuTitleRectByID(SInt16 menuID, Rect* rect);
+void GetMenuBarRect(Rect* rect);
+void SetMenuBarRect(const Rect* rect);
+SInt16 GetMenuTitleCount(void);
+MenuHandle GetMenuTitleByIndex(SInt16 index);
+SInt16 FindMenuAtPoint_Internal(Point pt);
+
+/* Menu tracking */
+void BeginTrackMenu(void);
+void UpdateMenuTrackingNew(Point where);
+void EndMenuTrackingNew(void);
+Boolean IsMenuTrackingNew(void);
+long TrackMenu(short menuID, Point *startPt);
+
+/* Menu save/restore bits - declared in MenuDisplay.h */
+
+/* Platform stubs - actual signatures vary by implementation */
+
 #ifdef __cplusplus
 }
 #endif

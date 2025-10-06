@@ -1,4 +1,5 @@
 /* #include "SystemTypes.h" */
+#include "FontManager/FontInternal.h"
 /*
  * BitmapFonts.c - Bitmap Font Support Implementation
  *

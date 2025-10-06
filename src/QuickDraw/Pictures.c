@@ -1,4 +1,5 @@
 /*
+#include "QuickDraw/QuickDrawInternal.h"
  * Pictures.c - QuickDraw Picture (PICT) Implementation
  *
  * Implements picture recording and playback for QuickDraw metafile format.

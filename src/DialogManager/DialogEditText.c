@@ -1,4 +1,5 @@
 /*
+#include "DialogManager/DialogInternal.h"
  * DialogEditText.c - Dialog Edit Text Focus and Caret Management
  *
  * Implements edit-text focus tracking and caret blinking for System 7.1 dialogs.

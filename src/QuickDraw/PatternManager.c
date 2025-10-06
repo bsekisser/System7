@@ -1,4 +1,5 @@
 /* #include "SystemTypes.h" */
+#include "QuickDraw/QuickDrawInternal.h"
 #include <string.h>
 /*
  * PatternManager.c - QuickDraw Pattern Management with System 7 Resources

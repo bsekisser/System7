@@ -1,4 +1,5 @@
 /*
+#include "DialogManager/DialogInternal.h"
  * DialogHelpers.c - Dialog Manager Helper Functions
  *
  * Provides utility functions for hit testing, item tracking, coordinate conversion,

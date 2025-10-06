@@ -1,4 +1,5 @@
 /* #include "SystemTypes.h" */
+#include "DialogManager/DialogInternal.h"
 #include <stdlib.h>
 /*
  * dialog_manager_dispatch.c - Dialog Manager Trap Dispatch Implementation

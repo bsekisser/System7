@@ -1,4 +1,5 @@
 /* #include "SystemTypes.h" */
+#include "MenuManager/menu_private.h"
 #include <string.h>
 /*
  * MenuSelection.c - Menu Tracking and Selection Implementation

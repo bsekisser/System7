@@ -1,4 +1,5 @@
 /**
+#include "DialogManager/DialogInternal.h"
  * @file DialogKeyboard.c
  * @brief Dialog Manager keyboard navigation and control activation
  *

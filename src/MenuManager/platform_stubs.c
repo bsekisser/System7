@@ -1,4 +1,5 @@
 /*
+#include "MenuManager/menu_private.h"
  * platform_stubs.c - Platform-specific stub functions
  */
 

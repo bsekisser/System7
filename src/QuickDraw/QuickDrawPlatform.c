@@ -1,4 +1,5 @@
 /*
+#include "QuickDraw/QuickDrawInternal.h"
  * QuickDrawPlatform.c - Platform implementation for QuickDraw
  * Connects QuickDraw to the actual framebuffer
  */

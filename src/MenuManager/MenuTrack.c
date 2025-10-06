@@ -1,4 +1,5 @@
 /*
+#include "MenuManager/menu_private.h"
  * MenuTrack.c - Basic dropdown rendering and tracking
  *
  * Draws menu item list under the title and lets user select with mouse.

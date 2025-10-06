@@ -1,4 +1,5 @@
 /* #include "SystemTypes.h" */
+#include "FontManager/FontInternal.h"
 #include <string.h>
 /*
  * FontSubstitution.c - Font Fallback and Substitution System

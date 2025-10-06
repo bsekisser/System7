@@ -1,35 +1,16 @@
-/*
- * PS2Controller.h - PS/2 Keyboard and Mouse Driver Interface
- *
- * Provides input support for QEMU's emulated PS/2 devices
- */
-
+/* PS/2 Controller Interface */
 #ifndef PS2_CONTROLLER_H
 #define PS2_CONTROLLER_H
 
+#include <stdbool.h>
+#include <stdint.h>
 #include "SystemTypes.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/* Initialize the PS/2 controller and devices */
+/* PS/2 Controller Functions */
 Boolean InitPS2Controller(void);
-
-/* Poll for PS/2 input (call this regularly) */
 void PollPS2Input(void);
-
-/* Get current mouse position */
-void GetMouse(Point* mouseLoc);
-
-/* Check if mouse button is pressed */
-Boolean Button(void);
-
-/* Get current keyboard modifiers (shiftKey, cmdKey, optionKey, controlKey, alphaLock) */
+void GetMouse(Point* pt);
 UInt16 GetPS2Modifiers(void);
-
-#ifdef __cplusplus
-}
-#endif
+Boolean GetPS2KeyboardState(KeyMap keyMap);
 
 #endif /* PS2_CONTROLLER_H */

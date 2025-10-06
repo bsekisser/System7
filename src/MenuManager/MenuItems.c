@@ -1,4 +1,5 @@
 /*
+#include "MenuManager/menu_private.h"
  * MenuItems.c - Menu Item Management Implementation
  *
  * System 7.1-compatible menu item management with full support for:

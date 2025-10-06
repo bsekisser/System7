@@ -1,4 +1,5 @@
 /**
+#include "EventManager/EventManagerInternal.h"
  * @file ModernInput.c
  * @brief Modern Input System Integration for Event Manager
  *

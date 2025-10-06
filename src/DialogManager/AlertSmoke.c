@@ -1,4 +1,5 @@
 /* src/DialogManager/AlertSmoke.c - Alert Dialog Smoke Tests */
+#include "DialogManager/DialogInternal.h"
 #include "SystemTypes.h"
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/AlertDialogs.h"

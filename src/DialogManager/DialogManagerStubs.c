@@ -1,4 +1,5 @@
 /* DialogManager Stub Functions */
+#include "DialogManager/DialogInternal.h"
 
 #include <stdlib.h>
 #include <string.h>

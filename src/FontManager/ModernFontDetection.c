@@ -1,4 +1,5 @@
 /* #include "SystemTypes.h" */
+#include "FontManager/FontInternal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

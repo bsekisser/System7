@@ -1,4 +1,5 @@
 /*
+#include "QuickDraw/QuickDrawInternal.h"
  * GWorld.c - Offscreen Graphics World Implementation
  *
  * Implements offscreen bitmap rendering for double-buffering and compositing.

@@ -1,4 +1,5 @@
 /* #include "SystemTypes.h" */
+#include "FontManager/FontInternal.h"
 #include <string.h>
 /*
  * TrueTypeFonts.c - TrueType Font Support Implementation

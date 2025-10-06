@@ -1,4 +1,5 @@
 /*
+#include "QuickDraw/QuickDrawInternal.h"
  * QuickDraw Rounded Rectangle Functions
  * Implements PaintRoundRect and FrameRoundRect for System 7 window chrome.
  */

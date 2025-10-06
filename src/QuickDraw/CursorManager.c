@@ -1,4 +1,5 @@
 /* #include "SystemTypes.h" */
+#include "QuickDraw/QuickDrawInternal.h"
 #include <string.h>
 /*
  * CursorManager.c - QuickDraw Cursor Management with System 7 Resources

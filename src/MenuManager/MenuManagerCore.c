@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include "MenuManager/menu_private.h"
 #include <string.h>
 /*
  * MenuManagerCore.c - Core Menu Manager Implementation

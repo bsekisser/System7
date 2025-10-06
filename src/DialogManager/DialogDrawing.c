@@ -1,4 +1,5 @@
 /*
+#include "DialogManager/DialogInternal.h"
  * DialogDrawing.c - Dialog Item Drawing Implementation
  *
  * Implements faithful System 7.1-style drawing for all dialog item types including

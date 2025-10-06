@@ -1,4 +1,5 @@
 /**
+#include "EventManager/EventManagerInternal.h"
  * @file event_manager.c
  * @brief Canonical Event Manager Implementation for System 7.1
  *

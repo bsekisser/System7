@@ -1,4 +1,5 @@
 /*
+#include "EventManager/EventManagerInternal.h"
  * EventGlobals.c - Event Manager Global Settings Implementation
  *
  * Implements classic System 7 event timing globals.

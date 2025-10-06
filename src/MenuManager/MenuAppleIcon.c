@@ -1,4 +1,5 @@
 #include "MenuManager/MenuAppleIcon.h"
+#include "MenuManager/menu_private.h"
 
 #include <stdint.h>
 #include "QuickDraw/QuickDraw.h"

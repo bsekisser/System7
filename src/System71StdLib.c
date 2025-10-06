@@ -2,6 +2,7 @@
 
 #include "System71StdLib.h"
 #include "MacTypes.h"
+#include "SystemInternal.h"
 
 #include <stdbool.h>
 

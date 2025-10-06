@@ -1,4 +1,5 @@
 /*
+#include "MenuManager/menu_private.h"
  * MenuTitleTracking.c - Menu Title Hit-Testing and Position Tracking
  *
  * Tracks menu title positions in the menu bar for proper hit-testing

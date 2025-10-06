@@ -1,4 +1,5 @@
 #include "Platform/include/boot.h"
+#include "SystemInternal.h"
 #include <stdint.h>
 
 /* Forward declaration of kernel main */

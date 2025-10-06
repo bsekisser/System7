@@ -1,4 +1,5 @@
 /*
+#include "FontManager/FontInternal.h"
  * FontManagerCore.c - Core Font Manager Implementation
  *
  * System 7.1-compatible Font Manager with bitmap font support

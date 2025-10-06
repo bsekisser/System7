@@ -1,4 +1,5 @@
 /*
+#include "DialogManager/DialogInternal.h"
  * DialogEvents.c - Dialog Event Handling Implementation
  *
  * This module provides event handling for dialogs in Mac System 7.1.

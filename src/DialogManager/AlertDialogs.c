@@ -1,4 +1,5 @@
 /*
+#include "DialogManager/DialogInternal.h"
  * AlertDialogs.c - Alert Dialog Implementation
  *
  * This module provides the alert dialog functionality faithful to

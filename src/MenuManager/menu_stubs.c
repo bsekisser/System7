@@ -1,4 +1,5 @@
 /* Menu Manager Stubs - Minimal implementation for initial boot */
+#include "MenuManager/menu_private.h"
 #include "../../include/SystemTypes.h"
 
 /* Menu creation and disposal */

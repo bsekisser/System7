@@ -1,4 +1,5 @@
 /*
+#include "DialogManager/DialogInternal.h"
  * DialogResources.c - Dialog Resource Management Implementation
  *
  * This module provides resource loading and management for dialog templates

@@ -1,4 +1,5 @@
 /*
+#include "DialogManager/DialogInternal.h"
  * DialogEventStubs.c - Minimal IsDialogEvent/DialogSelect for Standard File
  */
 

@@ -1,4 +1,5 @@
 /* #include "SystemTypes.h" */
+#include "QuickDraw/QuickDrawInternal.h"
 #include <stdlib.h>
 #include <string.h>
 /*

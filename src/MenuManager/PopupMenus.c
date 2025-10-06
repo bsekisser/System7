@@ -1,4 +1,5 @@
 /* #include "SystemTypes.h" */
+#include "MenuManager/menu_private.h"
 #include <stdio.h>
 /*
  * PopupMenus.c - Popup Menu Implementation

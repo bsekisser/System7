@@ -19,6 +19,7 @@
 #endif
 
 #include "../include/MacTypes.h"
+#include "../include/SystemInternal.h"
 #include "../include/QuickDraw/QuickDraw.h"
 #include "../include/QuickDraw/QDRegions.h"
 #include "../include/QuickDrawConstants.h"
