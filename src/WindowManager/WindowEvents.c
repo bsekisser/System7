@@ -153,7 +153,13 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
      * tracking completes and the window/title bar has been redrawn. */
     extern void HideCursor(void);
     extern void ShowCursor(void);
+    extern void UpdateCursorDisplay(void);
+
     HideCursor();
+
+    /* Force immediate cursor erase - HideCursor only sets a flag, we need
+     * to actually remove the cursor pixels before InvertRect draws */
+    UpdateCursorDisplay();
 
     /* Track mouse while button is down */
     Boolean buttonDown = true;
