@@ -669,13 +669,13 @@ long TrackMenu(short menuID, Point *startPt) {
         /* Increment update counter */
         updateCount++;
 
-        /* Redraw menu periodically to clear cursor artifacts */
-        /* Cursor drawing corrupts menu pixels, so redraw every 50 iterations */
-        if (updateCount % 50 == 0) {
-            DrawMenuOld(theMenu, left, top, itemCount, menuWidth, lineHeight);
+        /* Redraw menu bar periodically to clear cursor artifacts from top bar */
+        /* Only redraw the menu bar (horizontal), not the dropdown menu itself */
+        if (updateCount % 20 == 0) {
+            DrawMenuBarWithHighlight(menuID);
         }
 
-        /* Draw cursor AFTER menu redraw to avoid cursor being hidden */
+        /* Draw cursor AFTER menu bar redraw */
         extern void UpdateCursorDisplay(void);
         UpdateCursorDisplay();
 
