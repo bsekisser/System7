@@ -78,13 +78,7 @@ void SimpleText_Init(void) {
     /* Initialize menus */
     STMenu_Init();
 
-    /* Create initial untitled document */
-    STDocument* newDoc = STDoc_New();
-    if (newDoc) {
-        ST_Log("Created initial Untitled document\n");
-    } else {
-        ST_Log("Failed to create initial document\n");
-    }
+    /* Don't create initial untitled - let SimpleText_OpenFile create windows as needed */
 }
 
 /*
@@ -373,14 +367,6 @@ void SimpleText_OpenFile(const char* path) {
     /* Launch if not running */
     if (!g_ST.running) {
         SimpleText_Init();
-    }
-
-    /* Close untitled window if it's empty to free memory */
-    if (g_ST.firstDoc && g_ST.firstDoc->untitled && !g_ST.firstDoc->dirty && !g_ST.firstDoc->next) {
-        Boolean wasRunning = g_ST.running;
-        g_ST.running = false;  /* Temporarily disable to prevent auto-creation of new untitled */
-        STDoc_Close(g_ST.firstDoc);
-        g_ST.running = wasRunning;
     }
 
     /* Check if file is already open */

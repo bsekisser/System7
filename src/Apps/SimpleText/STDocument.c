@@ -7,6 +7,7 @@
 #include <string.h>
 #include "Apps/SimpleText.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "System/SystemLogging.h"
 
 /* Static variables */
 static int g_untitledCount = 1;
@@ -131,6 +132,9 @@ STDocument* STDoc_Open(const char* path) {
         if (len > 255) len = 255;
         doc->fileName[0] = len;
         memcpy(&doc->fileName[1], filename, len);
+
+        /* Debug: log the extracted filename */
+        SYSTEM_LOG_DEBUG("STDoc_Open: extracted filename len=%d\n", len);
     }
 
     /* Create window */
@@ -408,4 +412,8 @@ static void BuildWindowTitle(STDocument* doc, Str255 title) {
 
     /* Set length */
     title[0] = j;
+
+    /* Debug: log the built title */
+    SYSTEM_LOG_DEBUG("BuildWindowTitle: title len=%d dirty=%d fileNameLen=%d\n",
+                     j, doc->dirty, doc->fileName[0]);
 }
