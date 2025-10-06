@@ -183,14 +183,27 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
      * Platform_HighlightWindowPart(theWindow, partCode, false);  // SKIP THIS
      */
 
-    /* Invalidate the entire window to force redraw and remove all ghost artifacts.
+    /* Force immediate window AND desktop redraw to remove all ghost artifacts.
      * This is necessary because:
      * 1. InvertRect draws directly to framebuffer during tracking (for close box feedback)
      * 2. Cursor is drawn to framebuffer and can move anywhere during tracking
      * 3. With GWorld double-buffering, the offscreen buffer doesn't have these pixels
-     * 4. We can't predict all cursor positions, so invalidate entire window
-     * Solution: Force complete window redraw from clean GWorld buffer */
-    InvalRect(&theWindow->port.portRect);
+     * 4. Cursor continues to be drawn after window redraw, leaving new ghosts
+     * Solution: Redraw window + force desktop manager to redraw background */
+    BeginUpdate(theWindow);
+
+    /* Draw window contents if this is a folder window */
+    extern Boolean IsFolderWindow(WindowPtr w);
+    extern void FolderWindow_Draw(WindowPtr w);
+    if (IsFolderWindow(theWindow)) {
+        FolderWindow_Draw(theWindow);
+    }
+
+    EndUpdate(theWindow);
+
+    /* TODO: Also need to invalidate desktop/background to clean up cursor ghosts
+     * that appear when moving mouse after close button tracking completes.
+     * For now, window redraw fixes ghosts within window bounds. */
 
     /* Return true if mouse was released inside the part */
     Boolean result = inPart;
