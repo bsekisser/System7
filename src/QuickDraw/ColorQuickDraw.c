@@ -424,31 +424,37 @@ void BackPixPat(PixPatHandle pp) {
  * ================================================================ */
 
 void RGBForeColor(const RGBColor *color) {
-    assert(g_currentCPort != NULL);
-    assert(color != NULL);
+    if (!color) return;
+    if (!g_currentCPort) return;  /* No color port set yet */
 
     g_currentCPort->rgbFgColor = *color;
     g_currentCPort->fgColor = RGBToIndex(color);
 }
 
 void RGBBackColor(const RGBColor *color) {
-    assert(g_currentCPort != NULL);
-    assert(color != NULL);
+    if (!color) return;
+    if (!g_currentCPort) return;  /* No color port set yet */
 
     g_currentCPort->rgbBkColor = *color;
     g_currentCPort->bkColor = RGBToIndex(color);
 }
 
 void GetForeColor(RGBColor *color) {
-    assert(g_currentCPort != NULL);
-    assert(color != NULL);
+    if (!color) return;
+    if (!g_currentCPort) {
+        *color = kRGBBlack;  /* Default to black */
+        return;
+    }
 
     *color = g_currentCPort->rgbFgColor;
 }
 
 void GetBackColor(RGBColor *color) {
-    assert(g_currentCPort != NULL);
-    assert(color != NULL);
+    if (!color) return;
+    if (!g_currentCPort) {
+        *color = kRGBWhite;  /* Default to white */
+        return;
+    }
 
     *color = g_currentCPort->rgbBkColor;
 }
