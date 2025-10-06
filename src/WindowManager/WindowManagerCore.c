@@ -210,7 +210,7 @@ WindowPtr NewWindow(void* wStorage, const Rect* boundsRect,
     SInt16 height = contentRect.bottom - contentRect.top;
 
     if (width > 0 && height > 0) {
-        OSErr err = NewGWorld(&window->offscreenGWorld, 8, &contentRect, NULL, NULL, 0);
+        OSErr err = NewGWorld(&window->offscreenGWorld, 32, &contentRect, NULL, NULL, 0);
         if (err != noErr) {
             WM_LOG_WARN("[NEWWIN] Failed to create offscreen GWorld (err=%d)\n", err);
             window->offscreenGWorld = NULL;
@@ -319,7 +319,7 @@ WindowPtr NewCWindow(void* wStorage, const Rect* boundsRect,
     SInt16 height = contentRect.bottom - contentRect.top;
 
     if (width > 0 && height > 0) {
-        OSErr err = NewGWorld(&((WindowPtr)window)->offscreenGWorld, 8, &contentRect, NULL, NULL, 0);
+        OSErr err = NewGWorld(&((WindowPtr)window)->offscreenGWorld, 32, &contentRect, NULL, NULL, 0);
         if (err != noErr) {
             ((WindowPtr)window)->offscreenGWorld = NULL;
         }
