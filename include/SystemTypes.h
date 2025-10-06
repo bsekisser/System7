@@ -480,6 +480,7 @@ typedef struct WindowRecord {
     Handle        windowPic;
     SInt32        refCon;
     RgnHandle     visRgn;
+    GWorldPtr     offscreenGWorld;  /* Offscreen buffer for double-buffering */
 } WindowRecord;
 
 typedef WindowRecord* WindowPeek;

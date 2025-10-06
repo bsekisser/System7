@@ -18,6 +18,8 @@
 
 #include "SystemTypes.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/ColorQuickDraw.h"
+#include "QuickDrawConstants.h"
 #include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowManagerInternal.h"
 #include "WindowManager/WMLogging.h"
@@ -330,8 +332,15 @@ void BeginUpdate(WindowPtr theWindow) {
     GrafPtr savePort = Platform_GetCurrentPort();
     Platform_SetUpdatePort(savePort);
 
-    /* Set port to window */
-    Platform_SetCurrentPort(&theWindow->port);
+    /* If window has offscreen GWorld, draw to it; otherwise draw directly to window */
+    if (theWindow->offscreenGWorld) {
+        /* Switch to offscreen buffer for double-buffered drawing */
+        SetGWorld((CGrafPtr)theWindow->offscreenGWorld, NULL);
+        WM_DEBUG("BeginUpdate: Switched to offscreen GWorld for double-buffering");
+    } else {
+        /* No offscreen buffer, draw directly to window (legacy path) */
+        Platform_SetCurrentPort(&theWindow->port);
+    }
 
     /* Begin platform drawing session */
     Platform_BeginWindowDraw(theWindow);
@@ -342,12 +351,20 @@ void BeginUpdate(WindowPtr theWindow) {
         RgnHandle updateClip = Platform_NewRgn();
         if (updateClip) {
             Platform_IntersectRgn(theWindow->contRgn, theWindow->updateRgn, updateClip);
-            Platform_SetClipRgn(&theWindow->port, updateClip);
+            if (theWindow->offscreenGWorld) {
+                SetClip(updateClip);
+            } else {
+                Platform_SetClipRgn(&theWindow->port, updateClip);
+            }
             Platform_DisposeRgn(updateClip);
         }
     } else if (theWindow->contRgn) {
         /* If no updateRgn, just use contRgn to prevent overdrawing chrome */
-        Platform_SetClipRgn(&theWindow->port, theWindow->contRgn);
+        if (theWindow->offscreenGWorld) {
+            SetClip(theWindow->contRgn);
+        } else {
+            Platform_SetClipRgn(&theWindow->port, theWindow->contRgn);
+        }
     }
 
     WM_DEBUG("BeginUpdate: Update session started");
@@ -357,6 +374,35 @@ void EndUpdate(WindowPtr theWindow) {
     if (theWindow == NULL) return;
 
     WM_DEBUG("EndUpdate: Ending window update");
+
+    /* If double-buffering with GWorld, copy offscreen buffer to screen */
+    if (theWindow->offscreenGWorld) {
+        WM_DEBUG("EndUpdate: Copying offscreen GWorld to screen");
+
+        /* Get the PixMap from the GWorld */
+        PixMapHandle gwPixMap = GetGWorldPixMap(theWindow->offscreenGWorld);
+        if (gwPixMap && *gwPixMap) {
+            /* Lock pixels for access */
+            if (LockPixels(gwPixMap)) {
+                /* Copy from GWorld to window port using CopyBits */
+                BitMap srcBits;
+                srcBits.baseAddr = (*gwPixMap)->baseAddr;
+                srcBits.rowBytes = (*gwPixMap)->rowBytes & 0x3FFF;
+                srcBits.bounds = (*gwPixMap)->bounds;
+
+                /* Switch to window port for the blit */
+                SetPort((GrafPtr)&theWindow->port);
+
+                /* Copy the entire content area */
+                Rect contentRect = theWindow->port.portRect;
+                CopyBits(&srcBits, &theWindow->port.portBits,
+                        &contentRect, &contentRect, srcCopy, NULL);
+
+                UnlockPixels(gwPixMap);
+                WM_DEBUG("EndUpdate: Offscreen buffer copied to screen");
+            }
+        }
+    }
 
     /* Clear the update region */
     if (theWindow->updateRgn) {

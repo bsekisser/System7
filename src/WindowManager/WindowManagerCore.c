@@ -203,6 +203,24 @@ WindowPtr NewWindow(void* wStorage, const Rect* boundsRect,
     /* Regions already initialized in InitializeWindowRecord - don't recalculate */
     /* Platform_CalculateWindowRegions would overwrite with local coordinates */
 
+    /* Create offscreen GWorld for double-buffering */
+    WM_LOG_TRACE("[NEWWIN] Creating offscreen GWorld for double-buffering\n");
+    Rect contentRect = window->port.portRect;
+    SInt16 width = contentRect.right - contentRect.left;
+    SInt16 height = contentRect.bottom - contentRect.top;
+
+    if (width > 0 && height > 0) {
+        OSErr err = NewGWorld(&window->offscreenGWorld, 8, &contentRect, NULL, NULL, 0);
+        if (err != noErr) {
+            WM_LOG_WARN("[NEWWIN] Failed to create offscreen GWorld (err=%d)\n", err);
+            window->offscreenGWorld = NULL;
+        } else {
+            WM_LOG_TRACE("[NEWWIN] Offscreen GWorld created successfully\n");
+        }
+    } else {
+        window->offscreenGWorld = NULL;
+    }
+
     WM_LOG_TRACE("[NEWWIN] K - adding to window list\n");
     /* Add window to the window list */
     AddWindowToList(window, behind);
@@ -294,6 +312,20 @@ WindowPtr NewCWindow(void* wStorage, const Rect* boundsRect,
 
     /* Calculate window regions */
     Platform_CalculateWindowRegions((WindowPtr)window);
+
+    /* Create offscreen GWorld for double-buffering */
+    Rect contentRect = ((WindowPtr)window)->port.portRect;
+    SInt16 width = contentRect.right - contentRect.left;
+    SInt16 height = contentRect.bottom - contentRect.top;
+
+    if (width > 0 && height > 0) {
+        OSErr err = NewGWorld(&((WindowPtr)window)->offscreenGWorld, 8, &contentRect, NULL, NULL, 0);
+        if (err != noErr) {
+            ((WindowPtr)window)->offscreenGWorld = NULL;
+        }
+    } else {
+        ((WindowPtr)window)->offscreenGWorld = NULL;
+    }
 
     /* Add window to the window list */
     AddWindowToList((WindowPtr)window, behind);
@@ -402,6 +434,14 @@ void CloseWindow(WindowPtr theWindow) {
         WM_LOG_TRACE("CloseWindow: Disposing AuxWin\n");
         DisposeAuxiliaryWindowRecord(auxWin);
         WM_LOG_TRACE("CloseWindow: AuxWin disposed\n");
+    }
+
+    /* Dispose of offscreen GWorld if it exists */
+    if (theWindow->offscreenGWorld) {
+        WM_LOG_TRACE("CloseWindow: Disposing offscreen GWorld\n");
+        DisposeGWorld(theWindow->offscreenGWorld);
+        theWindow->offscreenGWorld = NULL;
+        WM_LOG_TRACE("CloseWindow: Offscreen GWorld disposed\n");
     }
 
     /* Destroy native platform window */
