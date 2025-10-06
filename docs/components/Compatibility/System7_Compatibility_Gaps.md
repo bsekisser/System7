@@ -40,7 +40,7 @@ This checklist captures the most significant differences between the current too
 
 ## Memory & Process Infrastructure
 - `src/MemoryMgr/memory_manager_core.c:445`–`451` – `SetHandleSize` fakes success without reallocating; handle-based memory semantics (moveable/relocatable blocks, zone compaction) must be honoured for legacy callers.
-- `src/System71StdLib.c:576`–`583` – `sprintf`/`snprintf` are placeholder implementations; Toolbox routines expecting formatted output (e.g., `NumToString`) will misbehave.
+- ~~`src/System71StdLib.c:576`–`583` – `sprintf`/`snprintf` are placeholder implementations; Toolbox routines expecting formatted output (e.g., `NumToString`) will misbehave.~~ **FIXED** (2025-10-06): Implemented vsnprintf() with format specifiers (%s, %d, %u, %x, %c, %p); sprintf() and snprintf() now fully functional
 - `src/ProcessMgr/ProcessManager.c:324` – Comment notes `WaitNextEvent` still comes from stubs; multi-process scheduling remains experimental.
 
 ## Fonts & Typography

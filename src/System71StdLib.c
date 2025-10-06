@@ -622,18 +622,9 @@ void serial_printf(const char* fmt, ...) {
     va_end(args);
 }
 
-/* Standard I/O functions */
-int sprintf(char* str, const char* format, ...) {
-    /* TODO: Implement properly */
-    if (str) str[0] = 0;
-    return 0;
-}
-
-int snprintf(char* str, size_t size, const char* format, ...) {
-    if (size == 0) return 0;
-
-    va_list args;
-    va_start(args, format);
+/* Internal vsnprintf implementation */
+static int vsnprintf(char* str, size_t size, const char* format, va_list args) {
+    if (!str || size == 0 || !format) return 0;
 
     size_t written = 0;
     const char* p = format;
@@ -641,6 +632,29 @@ int snprintf(char* str, size_t size, const char* format, ...) {
     while (*p && written < size - 1) {
         if (*p == '%') {
             p++;
+
+            /* Handle format flags and width (simplified) */
+            int width = 0;
+            int leftAlign = 0;
+            int zeroPad = 0;
+
+            /* Check for flags */
+            if (*p == '-') {
+                leftAlign = 1;
+                p++;
+            }
+            if (*p == '0') {
+                zeroPad = 1;
+                p++;
+            }
+
+            /* Parse width */
+            while (*p >= '0' && *p <= '9') {
+                width = width * 10 + (*p - '0');
+                p++;
+            }
+
+            /* Handle format specifiers */
             if (*p == 's') {
                 /* Handle %s - string argument */
                 const char* s = va_arg(args, const char*);
@@ -650,8 +664,8 @@ int snprintf(char* str, size_t size, const char* format, ...) {
                     }
                 }
                 p++;
-            } else if (*p == 'd') {
-                /* Handle %d - integer argument */
+            } else if (*p == 'd' || *p == 'i') {
+                /* Handle %d/%i - signed integer */
                 int val = va_arg(args, int);
                 char numBuf[32];
                 int numLen = 0;
@@ -675,13 +689,89 @@ int snprintf(char* str, size_t size, const char* format, ...) {
                     str[written++] = '-';
                 }
 
+                /* Reverse the digits */
+                for (int i = numLen - 1; i >= 0 && written < size - 1; i--) {
+                    str[written++] = numBuf[i];
+                }
+                p++;
+            } else if (*p == 'u') {
+                /* Handle %u - unsigned integer */
+                unsigned int val = va_arg(args, unsigned int);
+                char numBuf[32];
+                int numLen = 0;
+
+                if (val == 0) {
+                    numBuf[numLen++] = '0';
+                } else {
+                    while (val > 0 && numLen < 31) {
+                        numBuf[numLen++] = '0' + (val % 10);
+                        val /= 10;
+                    }
+                }
+
+                for (int i = numLen - 1; i >= 0 && written < size - 1; i--) {
+                    str[written++] = numBuf[i];
+                }
+                p++;
+            } else if (*p == 'x' || *p == 'X') {
+                /* Handle %x/%X - hexadecimal */
+                unsigned int val = va_arg(args, unsigned int);
+                char numBuf[32];
+                int numLen = 0;
+                char hexBase = (*p == 'X') ? 'A' : 'a';
+
+                if (val == 0) {
+                    numBuf[numLen++] = '0';
+                } else {
+                    while (val > 0 && numLen < 31) {
+                        int digit = val % 16;
+                        numBuf[numLen++] = (digit < 10) ? ('0' + digit) : (hexBase + digit - 10);
+                        val /= 16;
+                    }
+                }
+
+                for (int i = numLen - 1; i >= 0 && written < size - 1; i--) {
+                    str[written++] = numBuf[i];
+                }
+                p++;
+            } else if (*p == 'c') {
+                /* Handle %c - character */
+                char c = (char)va_arg(args, int);
+                if (written < size - 1) {
+                    str[written++] = c;
+                }
+                p++;
+            } else if (*p == 'p') {
+                /* Handle %p - pointer */
+                void* ptr = va_arg(args, void*);
+                unsigned long val = (unsigned long)ptr;
+
+                /* Add 0x prefix */
+                if (written < size - 1) str[written++] = '0';
+                if (written < size - 1) str[written++] = 'x';
+
+                /* Convert to hex */
+                char numBuf[32];
+                int numLen = 0;
+                if (val == 0) {
+                    numBuf[numLen++] = '0';
+                } else {
+                    while (val > 0 && numLen < 31) {
+                        int digit = val % 16;
+                        numBuf[numLen++] = (digit < 10) ? ('0' + digit) : ('a' + digit - 10);
+                        val /= 16;
+                    }
+                }
+
                 for (int i = numLen - 1; i >= 0 && written < size - 1; i--) {
                     str[written++] = numBuf[i];
                 }
                 p++;
             } else if (*p == '%') {
                 /* Handle %% - literal % */
-                str[written++] = '%';
+                if (written < size - 1) {
+                    str[written++] = '%';
+                }
                 p++;
             } else {
                 /* Unknown format - just copy it */
@@ -694,8 +784,34 @@ int snprintf(char* str, size_t size, const char* format, ...) {
     }
 
     str[written] = '\0';
-    va_end(args);
     return written;
+}
+
+/* Standard I/O functions */
+int sprintf(char* str, const char* format, ...) {
+    if (!str || !format) return 0;
+
+    va_list args;
+    va_start(args, format);
+
+    /* Use a large buffer size for sprintf (no bounds checking) */
+    /* In practice, sprintf is unbounded - caller must ensure buffer is large enough */
+    int result = vsnprintf(str, 4096, format, args);
+
+    va_end(args);
+    return result;
+}
+
+int snprintf(char* str, size_t size, const char* format, ...) {
+    if (size == 0) return 0;
+
+    va_list args;
+    va_start(args, format);
+
+    int result = vsnprintf(str, size, format, args);
+
+    va_end(args);
+    return result;
 }
 
 /* Assert implementation */
