@@ -152,6 +152,27 @@ Ptr GetMaskTable(void);
 SInt16 BitMapToRegion(RgnHandle region, const BitMap *bMap);
 
 /* ================================================================
+ * OFFSCREEN GRAPHICS WORLD (GWorld) OPERATIONS
+ * ================================================================ */
+
+/* GWorld Management */
+OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
+                const Rect *boundsRect, CTabHandle cTable,
+                GDHandle aGDevice, GWorldFlags flags);
+void DisposeGWorld(GWorldPtr offscreenGWorld);
+OSErr UpdateGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
+                   const Rect *boundsRect, CTabHandle cTable,
+                   GDHandle aGDevice, GWorldFlags flags);
+void SetGWorld(CGrafPtr port, GDHandle gdh);
+void GetGWorld(CGrafPtr *port, GDHandle *gdh);
+
+/* PixMap Locking */
+Boolean LockPixels(PixMapHandle pm);
+void UnlockPixels(PixMapHandle pm);
+PixMapHandle GetGWorldPixMap(GWorldPtr offscreenGWorld);
+Ptr GetPixBaseAddr(PixMapHandle pm);
+
+/* ================================================================
  * COLOR QUICKDRAW INLINE UTILITIES
  * ================================================================ */
 

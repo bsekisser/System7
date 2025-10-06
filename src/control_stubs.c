@@ -134,8 +134,4 @@ void EraseRgn(RgnHandle rgn) {
 }
 #endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 
-void RGBBackColor(const RGBColor* color) {
-    /* Would set the RGB background color */
-    /* For now, this is a no-op as we don't have full color support */
-    (void)color;
-}
+/* RGBBackColor moved to ColorQuickDraw.c */
