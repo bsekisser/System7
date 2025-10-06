@@ -669,15 +669,15 @@ long TrackMenu(short menuID, Point *startPt) {
         /* Increment update counter */
         updateCount++;
 
-        /* Draw cursor (menu tracking has its own event loop that bypasses main loop) */
-        extern void UpdateCursorDisplay(void);
-        UpdateCursorDisplay();
-
         /* Redraw menu periodically to clear cursor artifacts */
-        /* Cursor drawing corrupts menu pixels, so redraw every 10 iterations */
-        if (updateCount % 10 == 0) {
+        /* Cursor drawing corrupts menu pixels, so redraw every 50 iterations */
+        if (updateCount % 50 == 0) {
             DrawMenuOld(theMenu, left, top, itemCount, menuWidth, lineHeight);
         }
+
+        /* Draw cursor AFTER menu redraw to avoid cursor being hidden */
+        extern void UpdateCursorDisplay(void);
+        UpdateCursorDisplay();
 
         /* Get current mouse position */
         GetMouse(&mousePt);
