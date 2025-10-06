@@ -88,7 +88,7 @@ void TextEdit_HandleEvent(EventRecord* event)
         case updateEvt:
             if ((WindowPtr)event->message == gTextEditWindow) {
                 BeginUpdate(gTextEditWindow);
-                SetPort(gTextEditWindow);
+                /* SetPort(gTextEditWindow); REMOVED: BeginUpdate already set correct port */
                 EraseRect(&gTextEditWindow->port.portRect);
                 TEUpdate(&gTextEditWindow->port.portRect, gTextEditTE);
                 EndUpdate(gTextEditWindow);

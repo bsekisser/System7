@@ -313,7 +313,7 @@ void Notepad_Draw(void) {
         return;
     }
 
-    SetPort(gNotepad->window);
+    /* SetPort(gNotepad->window); REMOVED: BeginUpdate already set correct port */
 
     /* Clear window */
     EraseRect(&gNotepad->window->portRect);

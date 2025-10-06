@@ -407,8 +407,10 @@ void EndUpdate(WindowPtr theWindow) {
                 dstRect.right = dstRect.left + (srcRect.right - srcRect.left);
                 dstRect.bottom = dstRect.top + (srcRect.bottom - srcRect.top);
 
+                extern UInt32 fb_width, fb_height;
                 serial_logf(kLogModuleWindow, kLogLevelDebug,
-                    "[ENDUPDATE] srcRect=(%d,%d,%d,%d) dstRect=(%d,%d,%d,%d) gwBounds=(%d,%d,%d,%d) portBitsBounds=(%d,%d,%d,%d)\n",
+                    "[ENDUPDATE] FB=%dx%d srcRect=(%d,%d,%d,%d) dstRect=(%d,%d,%d,%d) gwBounds=(%d,%d,%d,%d) portBitsBounds=(%d,%d,%d,%d)\n",
+                    fb_width, fb_height,
                     srcRect.left, srcRect.top, srcRect.right, srcRect.bottom,
                     dstRect.left, dstRect.top, dstRect.right, dstRect.bottom,
                     srcBits.bounds.left, srcBits.bounds.top, srcBits.bounds.right, srcBits.bounds.bottom,
