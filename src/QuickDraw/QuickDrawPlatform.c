@@ -981,7 +981,7 @@ static inline UInt8 GetBitmapBit(const UInt8 *bitmap, SInt32 bitOffset) {
 /*
  * QDPlatform_DrawGlyph - Draw a character glyph from a FontStrike
  *
- * Renders a character from a bitmap font strike to the framebuffer.
+ * Renders a character from a bitmap font strike to the framebuffer or offscreen GWorld.
  *
  * @param strike    Font strike containing bitmap data
  * @param ch        Character code to render
@@ -993,7 +993,7 @@ static inline UInt8 GetBitmapBit(const UInt8 *bitmap, SInt32 bitOffset) {
  */
 SInt16 QDPlatform_DrawGlyph(struct FontStrike *strike, UInt8 ch, SInt16 x, SInt16 y,
                             GrafPtr port, UInt32 color) {
-    if (!strike || !framebuffer) {
+    if (!strike) {
         return 0;
     }
 
@@ -1021,20 +1021,61 @@ SInt16 QDPlatform_DrawGlyph(struct FontStrike *strike, UInt8 ch, SInt16 x, SInt1
 
     UInt8 *bitmap = (UInt8 *)(*strike->bitmapData);
 
-    /* Convert local coordinates to pixel coordinates */
+    /* Determine rendering destination - GWorld or screen framebuffer */
+    Ptr renderBuffer = NULL;
+    UInt32 renderPitch = 0;
+    UInt32 renderWidth = 0;
+    UInt32 renderHeight = 0;
     SInt16 pixelX = x;
     SInt16 pixelY = y;
-    if (port) {
-        pixelX = x - port->portRect.left + port->portBits.bounds.left;
-        pixelY = y - port->portRect.top + port->portBits.bounds.top;
+
+    if (port && port->portBits.baseAddr && port->portBits.baseAddr != (Ptr)framebuffer) {
+        /* Drawing to offscreen GWorld - cast to CGrafPtr and get PixMap */
+        extern CGrafPtr g_currentCPort;  /* from ColorQuickDraw.c */
+        CGrafPtr cport = (CGrafPtr)port;
+
+        if (cport->portPixMap && *cport->portPixMap) {
+            PixMapPtr pm = *cport->portPixMap;
+            renderBuffer = pm->baseAddr;
+            renderPitch = pm->rowBytes & 0x3FFF;  /* Mask off high bit */
+            renderWidth = pm->bounds.right - pm->bounds.left;
+            renderHeight = pm->bounds.bottom - pm->bounds.top;
+
+            /* Convert local coordinates to GWorld buffer coordinates */
+            pixelX = x - port->portRect.left;
+            pixelY = y - port->portRect.top;
+        } else {
+            /* GWorld without PixMap - shouldn't happen, fall back to framebuffer */
+            renderBuffer = (Ptr)framebuffer;
+            renderPitch = fb_pitch;
+            renderWidth = fb_width;
+            renderHeight = fb_height;
+            pixelX = x - port->portRect.left + port->portBits.bounds.left;
+            pixelY = y - port->portRect.top + port->portBits.bounds.top;
+        }
+    } else {
+        /* Drawing to screen framebuffer */
+        if (!framebuffer) return charWidth;
+
+        renderBuffer = (Ptr)framebuffer;
+        renderPitch = fb_pitch;
+        renderWidth = fb_width;
+        renderHeight = fb_height;
+
+        if (port) {
+            pixelX = x - port->portRect.left + port->portBits.bounds.left;
+            pixelY = y - port->portRect.top + port->portBits.bounds.top;
+        }
     }
 
+    if (!renderBuffer) return charWidth;
+
     /* Draw the glyph */
-    UInt32 *fb = (UInt32 *)framebuffer;
+    UInt32 *pixels = (UInt32 *)renderBuffer;
     SInt16 rowWords = strike->rowWords;
 
     for (SInt16 row = 0; row < strike->fRectHeight; row++) {
-        if (pixelY + row < 0 || pixelY + row >= fb_height) {
+        if (pixelY + row < 0 || pixelY + row >= renderHeight) {
             continue;
         }
 
@@ -1042,15 +1083,15 @@ SInt16 QDPlatform_DrawGlyph(struct FontStrike *strike, UInt8 ch, SInt16 x, SInt1
         SInt32 bitRowStart = row * rowWords * 16;  /* 16 bits per word */
 
         for (SInt16 col = 0; col < charWidth; col++) {
-            if (pixelX + col < 0 || pixelX + col >= fb_width) {
+            if (pixelX + col < 0 || pixelX + col >= renderWidth) {
                 continue;
             }
 
             SInt32 bitPos = bitRowStart + locStart + col;
 
             if (GetBitmapBit(bitmap, bitPos)) {
-                SInt32 fbOffset = (pixelY + row) * (fb_pitch / 4) + (pixelX + col);
-                fb[fbOffset] = color;
+                SInt32 pixelOffset = (pixelY + row) * (renderPitch / 4) + (pixelX + col);
+                pixels[pixelOffset] = color;
             }
         }
     }

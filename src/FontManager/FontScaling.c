@@ -45,7 +45,7 @@ typedef struct ScaledFont {
     short           originalSize;   /* Source font size */
     short           scaledSize;     /* Target font size */
     Style           face;           /* Font style */
-    float           scaleFactor;    /* Scaling ratio */
+    short           scaleFactor;    /* Scaling ratio (fixed-point, /256) */
     struct ScaledFont* next;       /* Next in cache */
 } ScaledFont;
 
@@ -58,12 +58,15 @@ static ScaledFont* g_scaledFontCache = NULL;
 
 /*
  * FM_CalculateScaleFactor - Determine scale factor between sizes
+ * Returns scale factor as fixed-point integer (multiplied by 256)
+ * For example: scale of 1.0 returns 256, scale of 2.0 returns 512
  */
-static float FM_CalculateScaleFactor(short fromSize, short toSize) {
+static short FM_CalculateScaleFactor(short fromSize, short toSize) {
     if (fromSize <= 0) fromSize = 12;  /* Default to Chicago 12 */
     if (toSize <= 0) toSize = 12;
 
-    return (float)toSize / (float)fromSize;
+    /* Calculate scale as (toSize / fromSize) * 256 using integer math */
+    return (short)((toSize * 256) / fromSize);
 }
 
 /*
@@ -99,30 +102,30 @@ short FM_FindNearestStandardSize(short requestedSize) {
  * This maintains pixel-perfect appearance at integer scale factors
  */
 static void FM_ScaleCharNearestNeighbor(short srcX, short srcY, char ch,
-                                        float scale, uint32_t color) {
+                                        short scale, uint32_t color) {
     if (ch < 32 || ch > 126) return;
 
     ChicagoCharInfo info = chicago_ascii[ch - 32];
     short srcWidth = info.bit_width;
     short srcHeight = CHICAGO_HEIGHT;
 
-    /* Calculate scaled dimensions */
-    short dstWidth = (short)(srcWidth * scale + 0.5f);
-    short dstHeight = (short)(srcHeight * scale + 0.5f);
+    /* Calculate scaled dimensions using fixed-point scale (scale/256) */
+    short dstWidth = (short)((srcWidth * scale + 128) / 256);
+    short dstHeight = (short)((srcHeight * scale + 128) / 256);
 
-    FSC_LOG("ScaleChar '%c': %dx%d -> %dx%d (scale=%.2f)\n",
+    FSC_LOG("ScaleChar '%c': %dx%d -> %dx%d (scale=%d/256)\n",
             ch, srcWidth, srcHeight, dstWidth, dstHeight, scale);
 
     /* For now, use simple scaling approximation */
     /* Real implementation would sample bitmap pixels */
 
-    if (scale > 1.0f) {
+    if (scale > 256) {
         /* Scaling up - draw multiple pixels for each source pixel */
-        int scaleInt = (int)(scale + 0.5f);
+        int scaleInt = (scale + 128) / 256;
         for (int rep = 0; rep < scaleInt; rep++) {
             FM_DrawChicagoCharInternal(srcX + rep, srcY, ch, color);
         }
-    } else if (scale < 1.0f) {
+    } else if (scale < 256) {
         /* Scaling down - skip pixels */
         FM_DrawChicagoCharInternal(srcX, srcY, ch, color);
     } else {
@@ -136,7 +139,7 @@ static void FM_ScaleCharNearestNeighbor(short srcX, short srcY, char ch,
  * Provides smoother scaling for non-integer factors
  */
 static void FM_ScaleCharBilinear(short srcX, short srcY, char ch,
-                                 float scale, uint32_t color) {
+                                 short scale, uint32_t color) {
     /* For System 7.1 compatibility, fall back to nearest-neighbor */
     /* Bilinear would require anti-aliasing not available in 1992 */
     FM_ScaleCharNearestNeighbor(srcX, srcY, ch, scale, color);
@@ -156,11 +159,12 @@ short FM_GetScaledCharWidth(char ch, short targetSize) {
     short baseWidth = info.bit_width + 2;  /* Include spacing */
     if (ch == ' ') baseWidth += 3;  /* Extra space width */
 
-    /* Calculate scaling from Chicago 12 */
-    float scale = FM_CalculateScaleFactor(12, targetSize);
-    short scaledWidth = (short)(baseWidth * scale + 0.5f);
+    /* Calculate scaling from Chicago 12 using fixed-point math */
+    short scale = FM_CalculateScaleFactor(12, targetSize);
+    /* Apply scale (divide by 256 to convert from fixed-point, add 128 for rounding) */
+    short scaledWidth = (short)((baseWidth * scale + 128) / 256);
 
-    FSC_LOG("GetScaledCharWidth '%c': base=%d, scale=%.2f, scaled=%d\n",
+    FSC_LOG("GetScaledCharWidth '%c': base=%d, scale=%d, scaled=%d\n",
             ch, baseWidth, scale, scaledWidth);
 
     return scaledWidth;
@@ -195,9 +199,9 @@ void FM_SynthesizeSize(short x, short y, char ch, short targetSize, uint32_t col
     short baseSize = FM_FindNearestStandardSize(targetSize);
 
     /* Calculate scale factor */
-    float scale = FM_CalculateScaleFactor(baseSize, targetSize);
+    short scale = FM_CalculateScaleFactor(baseSize, targetSize);
 
-    FSC_LOG("SynthesizeSize '%c': target=%dpt, base=%dpt, scale=%.2f\n",
+    FSC_LOG("SynthesizeSize '%c': target=%dpt, base=%dpt, scale=%d/256\n",
             ch, targetSize, baseSize, scale);
 
     /* Apply scaling */
@@ -253,13 +257,13 @@ void FM_GetScaledMetrics(short targetSize, FMetricRec* metrics) {
     short baseWidMax = 16;
 
     /* Calculate scale factor */
-    float scale = FM_CalculateScaleFactor(12, targetSize);
+    short scale = FM_CalculateScaleFactor(12, targetSize);
 
-    /* Scale metrics */
-    metrics->ascent = (SInt32)(baseAscent * scale + 0.5f);
-    metrics->descent = (SInt32)(baseDescent * scale + 0.5f);
-    metrics->leading = (SInt32)(baseLeading * scale + 0.5f);
-    metrics->widMax = (SInt32)(baseWidMax * scale + 0.5f);
+    /* Scale metrics using fixed-point math */
+    metrics->ascent = (SInt32)((baseAscent * scale + 128) / 256);
+    metrics->descent = (SInt32)((baseDescent * scale + 128) / 256);
+    metrics->leading = (SInt32)((baseLeading * scale + 128) / 256);
+    metrics->widMax = (SInt32)((baseWidMax * scale + 128) / 256);
 
     FSC_LOG("GetScaledMetrics %dpt: ascent=%d, descent=%d, leading=%d, widMax=%d\n",
             targetSize, metrics->ascent, metrics->descent,
@@ -317,7 +321,7 @@ short FM_GetAvailableSizes(short fontID, short* sizes, short maxSizes) {
  * FM_CacheScaledFont - Add scaled font to cache
  */
 static void FM_CacheScaledFont(short originalSize, short scaledSize,
-                              Style face, float scaleFactor) {
+                              Style face, short scaleFactor) {
     ScaledFont* entry = (ScaledFont*)NewPtr(sizeof(ScaledFont));
     if (!entry) return;
 
@@ -329,7 +333,7 @@ static void FM_CacheScaledFont(short originalSize, short scaledSize,
 
     g_scaledFontCache = entry;
 
-    FSC_LOG("CacheScaledFont: %dpt->%dpt, scale=%.2f, face=0x%02X\n",
+    FSC_LOG("CacheScaledFont: %dpt->%dpt, scale=%d/256, face=0x%02X\n",
             originalSize, scaledSize, scaleFactor, face);
 }
 
@@ -337,7 +341,7 @@ static void FM_CacheScaledFont(short originalSize, short scaledSize,
  * FM_FindCachedScale - Look up cached scale factor
  */
 static Boolean FM_FindCachedScale(short originalSize, short scaledSize,
-                                 Style face, float* scaleFactor) {
+                                 Style face, short* scaleFactor) {
     ScaledFont* entry = g_scaledFontCache;
 
     while (entry) {
@@ -345,7 +349,7 @@ static Boolean FM_FindCachedScale(short originalSize, short scaledSize,
             entry->scaledSize == scaledSize &&
             entry->face == face) {
             *scaleFactor = entry->scaleFactor;
-            FSC_LOG("FindCachedScale: found %dpt->%dpt = %.2f\n",
+            FSC_LOG("FindCachedScale: found %dpt->%dpt = %d/256\n",
                     originalSize, scaledSize, *scaleFactor);
             return TRUE;
         }
