@@ -24,6 +24,9 @@
 #include "WindowManager/WindowManagerInternal.h"
 #include "WindowManager/WMLogging.h"
 
+/* External logging function */
+extern void serial_logf(SystemLogModule module, SystemLogLevel level, const char* fmt, ...);
+
 /* Forward declarations for internal helpers */
 static Boolean WM_IsMouseDown(void);
 static GrafPtr WM_GetCurrentPort(void);
@@ -394,9 +397,26 @@ void EndUpdate(WindowPtr theWindow) {
                 SetPort((GrafPtr)&theWindow->port);
 
                 /* Copy the entire content area */
-                Rect contentRect = theWindow->port.portRect;
+                /* Source: local coordinates from GWorld (0,0,width,height) */
+                Rect srcRect = theWindow->port.portRect;
+
+                /* Destination: global screen coordinates from portBits.bounds */
+                Rect dstRect;
+                dstRect.left = theWindow->port.portBits.bounds.left;
+                dstRect.top = theWindow->port.portBits.bounds.top;
+                dstRect.right = dstRect.left + (srcRect.right - srcRect.left);
+                dstRect.bottom = dstRect.top + (srcRect.bottom - srcRect.top);
+
+                serial_logf(kLogModuleWindow, kLogLevelDebug,
+                    "[ENDUPDATE] srcRect=(%d,%d,%d,%d) dstRect=(%d,%d,%d,%d) gwBounds=(%d,%d,%d,%d) portBitsBounds=(%d,%d,%d,%d)\n",
+                    srcRect.left, srcRect.top, srcRect.right, srcRect.bottom,
+                    dstRect.left, dstRect.top, dstRect.right, dstRect.bottom,
+                    srcBits.bounds.left, srcBits.bounds.top, srcBits.bounds.right, srcBits.bounds.bottom,
+                    theWindow->port.portBits.bounds.left, theWindow->port.portBits.bounds.top,
+                    theWindow->port.portBits.bounds.right, theWindow->port.portBits.bounds.bottom);
+
                 CopyBits(&srcBits, &theWindow->port.portBits,
-                        &contentRect, &contentRect, srcCopy, NULL);
+                        &srcRect, &dstRect, srcCopy, NULL);
 
                 UnlockPixels(gwPixMap);
                 WM_DEBUG("EndUpdate: Offscreen buffer copied to screen");
