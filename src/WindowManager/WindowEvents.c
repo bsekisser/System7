@@ -735,11 +735,23 @@ Boolean WM_TrackWindowPart(WindowPtr window, Point startPt, short part) {
         case inZoomOut:
             return TrackBox(window, startPt, part);
         case inGrow:
-            /* TODO: Implement grow tracking */
-            return false;
+            /* Grow tracking - returns new size as long (width << 16 | height) */
+            {
+                extern long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox);
+                /* Use default screen bounds for grow limits */
+                long newSize = GrowWindow(window, startPt, NULL);
+                /* Return true if window was actually resized */
+                return (newSize != 0);
+            }
         case inDrag:
-            /* TODO: Implement drag tracking */
-            return false;
+            /* Drag tracking - moves window to new position */
+            {
+                extern void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect);
+                /* Use default screen bounds for drag limits */
+                DragWindow(window, startPt, NULL);
+                /* DragWindow is void, but tracking completed successfully */
+                return true;
+            }
         default:
             WM_DEBUG("WM_TrackWindowPart: Unsupported part %d", part);
             return false;

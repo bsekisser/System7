@@ -11,8 +11,7 @@ This checklist captures the most significant differences between the current too
 - `src/QuickDraw/CursorManager.c:151`–`177` – Cursor show/hide/obscure/spin still defer to TODOs; Mac OS required hardware cursor toggles and watch-cursor animation tied to `SpinCursor`.
 
 ## Window, Dialog, and Control Managers
-- `src/WindowManager/WindowEvents.c:557`–`560` – Grow and drag tracking branches return immediately; Window Manager must honour `inDrag`/`inGrow` parts with live XOR outlines and constraint callbacks like the classic implementation.
-- `src/WindowManager/WindowEvents.c:574`–`599` – Platform mouse state, update ports, and empty-region checks are stubbed, so `TrackGoAway`, `TrackBox`, and update propagation diverge from System 7 behaviour.
+- ~~`src/WindowManager/WindowEvents.c:738`–`742` – Grow and drag tracking branches in `WM_TrackWindowPart` returned immediately; Window Manager must honour `inDrag`/`inGrow` parts with live XOR outlines and constraint callbacks like the classic implementation.~~ **FIXED** (2025-10-06): WM_TrackWindowPart now calls DragWindow() and GrowWindow() which provide full XOR feedback and mouse tracking
 - ~~`src/DialogManager/DialogDrawing.c:428` – Edit-text items ignore focus rings; System 7 drew a focus frame and moved the caret when the control is active.~~ **FIXED** (2025-10-06): Edit-text focus rings and caret blinking implemented in DialogEditText.c
 - ~~`src/DialogManager/dialog_manager_private.c:104` – `GetNextUserCancelEvent` is a stub; modal dialogs should scan the event queue for cancel gestures (Command-.) as the Classic API allowed.~~ **FIXED** (2025-10-06): IsUserCancelEvent/GetNextUserCancelEvent implemented, modal dialogs support Cmd-. and Escape
 - `src/ControlManager/StandardControls.c:84` – Control metrics are hard-coded to Chicago 12; real `GetFontInfo` must come from the Font Manager so controls respect the active font.
