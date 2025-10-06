@@ -93,7 +93,6 @@ C_SOURCES = src/main.c \
             src/QuickDraw/QuickDrawPlatform.c \
             src/QuickDraw/Coordinates.c \
             src/QuickDraw/Regions.c \
-            src/QuickDraw/quickdraw_shapes.c \
             src/Platform/WindowPlatform.c \
             src/Platform/x86/io.c \
             src/Platform/x86/ata.c \
