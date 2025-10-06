@@ -2,6 +2,9 @@
 #include "../../include/MemoryMgr/MemoryManager.h"
 #include <string.h>
 #include "MemoryMgr/MemoryLogging.h"
+#include "CPU/M68KInterp.h"
+#include "CPU/LowMemGlobals.h"
+#include "System71StdLib.h"
 
 /* Serial debug output */
 
@@ -146,6 +149,9 @@ void InitZone(ZoneInfo* zone, void* memory, u32 size, void** masterTable, u32 ma
     for (u32 i = 0; i < masterCount; i++) {
         zone->mpBase[i] = NULL;
     }
+
+    zone->m68kBase = 0;
+    zone->m68kLimit = 0;
 }
 
 ZoneInfo* GetZone(void) {
@@ -579,6 +585,80 @@ void InitMemoryManager(void) {
                  g_total_memory_kb, g_total_memory_kb / 1024);
 
     serial_puts("MM: InitMemoryManager complete\n");
+}
+
+/* ======================== M68K Mapping ======================== */
+
+static bool pointer_in_range(const void* ptr, const void* start, size_t len) {
+    const u8* p = (const u8*)ptr;
+    const u8* s = (const u8*)start;
+    return p >= s && p < (s + len);
+}
+
+OSErr MemoryManager_MapToM68K(struct M68KAddressSpace* as)
+{
+    const UInt32 kSysBase = 0x0010000;  /* 0x10000 */
+    const UInt32 kAppBase = 0x0220000;  /* 0x220000 */
+
+    if (!as) {
+        return paramErr;
+    }
+
+    size_t sysSize = (size_t)(gSystemZone.limit - gSystemZone.base);
+    size_t appSize = (size_t)(gAppZone.limit - gAppZone.base);
+
+    if (sysSize == 0 || appSize == 0) {
+        serial_puts("[MM] MemoryManager_MapToM68K: zones not initialized\n");
+        return memFullErr;
+    }
+
+    for (size_t offset = 0; offset < sysSize; offset += M68K_PAGE_SIZE) {
+        UInt32 addr = kSysBase + (UInt32)offset;
+        UInt32 page = addr >> M68K_PAGE_SHIFT;
+        as->pageTable[page] = gSystemZone.base + offset;
+    }
+
+    for (size_t offset = 0; offset < appSize; offset += M68K_PAGE_SIZE) {
+        UInt32 addr = kAppBase + (UInt32)offset;
+        UInt32 page = addr >> M68K_PAGE_SHIFT;
+        as->pageTable[page] = gAppZone.base + offset;
+    }
+
+    gSystemZone.m68kBase = kSysBase;
+    gSystemZone.m68kLimit = kSysBase + (UInt32)sysSize;
+    gAppZone.m68kBase = kAppBase;
+    gAppZone.m68kLimit = kAppBase + (UInt32)appSize;
+
+    serial_printf("[MM] System zone mapped: 0x%08X-0x%08X (%zu bytes)\n",
+                  gSystemZone.m68kBase, gSystemZone.m68kLimit - 1, sysSize);
+    serial_printf("[MM] Application zone mapped: 0x%08X-0x%08X (%zu bytes)\n",
+                  gAppZone.m68kBase, gAppZone.m68kLimit - 1, appSize);
+
+    MemoryManager_SyncLowMemGlobals();
+    return noErr;
+}
+
+void MemoryManager_SyncLowMemGlobals(void)
+{
+    if (gSystemZone.m68kBase == 0 || gAppZone.m68kBase == 0) {
+        serial_puts("[MM] MemoryManager_SyncLowMemGlobals skipped (zones unmapped)\n");
+        return;
+    }
+
+    LMSetMemTop(gAppZone.m68kLimit);
+    LMSetSysZone(gSystemZone.m68kBase);
+    LMSetApplZone(gAppZone.m68kBase);
+
+    serial_printf("[MM] Low memory globals synced: MemTop=0x%08X SysZone=0x%08X ApplZone=0x%08X\n",
+                  LMGetMemTop(), LMGetSysZone(), LMGetApplZone());
+}
+
+bool MemoryManager_IsHeapPointer(const void* p)
+{
+    if (!p) return false;
+    if (pointer_in_range(p, gSystemHeap, sizeof(gSystemHeap))) return true;
+    if (pointer_in_range(p, gAppHeap, sizeof(gAppHeap))) return true;
+    return false;
 }
 
 /* ======================== Debug Support ======================== */

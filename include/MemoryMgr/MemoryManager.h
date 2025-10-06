@@ -54,6 +54,10 @@ typedef struct ZoneInfo {
     u32         mpCount;        /* Capacity */
     u32         mpNextFree;     /* Next free slot hint */
 
+    /* M68K virtual address mapping */
+    UInt32      m68kBase;       /* Base address in M68K space */
+    UInt32      m68kLimit;      /* End (exclusive) in M68K space */
+
     /* Zone info */
     char        name[32];       /* Zone name */
     bool        growable;       /* Can zone grow? */
@@ -102,6 +106,16 @@ void*   realloc(void* ptr, size_t size);
 
 /* Memory Manager initialization */
 void    InitMemoryManager(void);
+
+/* Map Memory Manager zones into M68K interpreter address space */
+struct M68KAddressSpace;
+OSErr   MemoryManager_MapToM68K(struct M68KAddressSpace* as);
+
+/* Synchronize key low-memory globals with current zone state */
+void    MemoryManager_SyncLowMemGlobals(void);
+
+/* Utility to detect if a pointer belongs to a managed heap */
+bool    MemoryManager_IsHeapPointer(const void* p);
 
 /* Debugging */
 void    CheckHeap(ZoneInfo* zone);

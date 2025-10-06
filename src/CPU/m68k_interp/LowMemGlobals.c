@@ -160,6 +160,36 @@ void LMSetTicks(UInt32 ticks)
     LMSetLong(LMG_Ticks, ticks);
 }
 
+UInt32 LMGetMemTop(void)
+{
+    return LMGetLong(LMG_MemTop);
+}
+
+void LMSetMemTop(UInt32 value)
+{
+    LMSetLong(LMG_MemTop, value);
+}
+
+UInt32 LMGetSysZone(void)
+{
+    return LMGetLong(LMG_SysZone);
+}
+
+void LMSetSysZone(UInt32 value)
+{
+    LMSetLong(LMG_SysZone, value);
+}
+
+UInt32 LMGetApplZone(void)
+{
+    return LMGetLong(LMG_ApplZone);
+}
+
+void LMSetApplZone(UInt32 value)
+{
+    LMSetLong(LMG_ApplZone, value);
+}
+
 void* LMGetThePort(void)
 {
     return (void*)LMGetLong(LMG_ThePort);

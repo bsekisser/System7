@@ -138,7 +138,9 @@ static OSErr M68K_DestroyAddressSpace(CPUAddressSpace as)
     /* Free all allocated pages */
     for (int i = 0; i < M68K_NUM_PAGES; i++) {
         if (mas->pageTable[i]) {
-            DisposePtr((Ptr)mas->pageTable[i]);
+            if (!MemoryManager_IsHeapPointer(mas->pageTable[i])) {
+                DisposePtr((Ptr)mas->pageTable[i]);
+            }
             mas->pageTable[i] = NULL;
         }
     }
@@ -331,7 +333,9 @@ static OSErr M68K_InstallTrap(CPUAddressSpace as, TrapNumber trapNum,
 {
     M68KAddressSpace* mas = (M68KAddressSpace*)as;
 
-    if (!mas || trapNum > 255) {
+    trapNum &= 0x00FF;
+
+    if (!mas) {
         return paramErr;
     }
 

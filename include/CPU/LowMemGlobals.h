@@ -171,6 +171,15 @@ void LMSetExpandMem(UInt32 expandMem);
 UInt32 LMGetTicks(void);
 void LMSetTicks(UInt32 ticks);
 
+UInt32 LMGetMemTop(void);
+void LMSetMemTop(UInt32 value);
+
+UInt32 LMGetSysZone(void);
+void LMSetSysZone(UInt32 value);
+
+UInt32 LMGetApplZone(void);
+void LMSetApplZone(UInt32 value);
+
 void* LMGetThePort(void);
 void LMSetThePort(void* port);
 

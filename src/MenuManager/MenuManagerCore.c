@@ -19,12 +19,15 @@
 #include "../include/MenuManager/MenuManager.h"
 #include "../include/MenuManager/MenuTypes.h"
 #include "../include/MenuManager/MenuLogging.h"
+#include "MenuManager/MenuAppleIcon.h"
 
 /* QuickDraw globals */
 extern QDGlobals qd;
 
 /* Serial printf for debugging */
 extern void serial_puts(const char* str);
+extern void DrawText(const void* textBuf, short firstByte, short byteCount);
+extern short StringWidth(ConstStr255Param s);
 
 /* ============================================================================
  * Menu Manager Types and Structures
@@ -343,78 +346,6 @@ void SetupDefaultMenus(void)
     MENU_LOG_INFO("SetupDefaultMenus: Manually set up %d menus\n", menuBar->numMenus);
 }
 
-/* Apple menu glyph, 16×16, MSB-first, with bite */
-static const uint8_t kAppleMask16[32] = {
-    0x00,0x00,  /* ................ */
-    0x03,0x00,  /* ......##........ (leaf) */
-    0x03,0x80,  /* ......###....... */
-    0x07,0x80,  /* .....####....... */
-    0x0F,0xC0,  /* ....######...... */
-    0x1F,0xE0,  /* ...########..... */
-    0x3F,0xE0,  /* ..#########..... */
-    0x7F,0xC0,  /* .#########...... */
-    0x7F,0x80,  /* .########.......  <- start bite */
-    0x7F,0x00,  /* .######.........  <- deeper bite */
-    0x7F,0x80,  /* .########.......  -> bite taper */
-    0x3F,0xC0,  /* ..#########..... */
-    0x1F,0xE0,  /* ...########..... */
-    0x0F,0xE0,  /* ....#######.....  (scooped bottom) */
-    0x03,0x80,  /* ......###....... */
-    0x00,0x00   /* ................ */
-};
-
-
-/* Draw Apple icon at specified position */
-static void DrawAppleIcon(short x, short y) {
-    extern void* framebuffer;
-    extern uint32_t fb_width;
-    extern uint32_t fb_height;
-    extern uint32_t fb_pitch;
-    extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
-
-    /* MENU_LOG_TRACE("DrawAppleIcon: x=%d, y=%d, fb=%p\n", x, y, framebuffer); */
-
-    if (!framebuffer) {
-        /* MENU_LOG_TRACE("DrawAppleIcon: No framebuffer!\n"); */
-        return;
-    }
-
-    uint32_t *fb = (uint32_t*)framebuffer;
-
-    /* Use native 16x16 Apple logo with perfect quality */
-    #include "apple16.h"
-
-    /* Draw 16x16 Apple icon positioned in menu bar */
-    /* Adjust position: move up by 3px and left by 5px for better alignment */
-    int icon_size = 16;
-    int y_offset = -1;  /* Was 0, now -1 to move up more */
-    int x_offset = -5;  /* Move left by 5 pixels */
-
-    for (int dy = 0; dy < icon_size; dy++) {
-        if (y + y_offset + dy < 0) continue;  /* Skip if off top edge */
-        if (y + y_offset + dy >= fb_height) break;
-
-        for (int dx = 0; dx < icon_size; dx++) {
-            if (x + x_offset + dx < 0) continue;  /* Skip if off left edge */
-            if (x + x_offset + dx >= fb_width) break;
-
-            /* Get pixel from native 16x16 logo with embedded colors */
-            int idx = (dy * APPLE16_W + dx) * 4;
-            int r = gApple16_RGBA8[idx + 0];
-            int g = gApple16_RGBA8[idx + 1];
-            int b = gApple16_RGBA8[idx + 2];
-            int alpha = gApple16_RGBA8[idx + 3];  /* Alpha channel */
-
-            /* Skip mostly transparent pixels */
-            if (alpha < 200) continue;
-
-            /* Use the actual color from the logo */
-            int fb_offset = (y + y_offset + dy) * (fb_pitch / 4) + (x + x_offset + dx);
-            fb[fb_offset] = pack_color(r, g, b);
-        }
-    }
-}
-
 /*
  * DrawMenuBar - Redraw the menu bar
  */
@@ -510,11 +441,9 @@ void DrawMenuBar(void)
                         /* ID 1 appears to be a duplicate that should be ignored */
                         if (mptr->menuID == 128) {
                             /* Draw Apple icon instead of text */
-                            /* MENU_LOG_TRACE("Drawing Apple icon for menu %d at x=%d\n", mptr->menuID, x); */
-                            DrawAppleIcon(8, 2);  /* Draw icon at original position x=8 */
-                            menuWidth = 30;  /* Wider click region from left edge */
-                            AddMenuTitle(mptr->menuID, 0, 30, "Apple");  /* Click region from x=0 to x=30 */
-                            x = 30;  /* Next menu starts after Apple menu region */
+                            menuWidth = MenuAppleIcon_Draw(qd.thePort, x, 0, false);
+                            AddMenuTitle(mptr->menuID, x, menuWidth, "Apple");
+                            x += menuWidth;
                         } else if (mptr->menuID == 1) {
                             /* Skip menu ID 1 - it's a duplicate Apple menu */
                             /* MENU_LOG_TRACE("Skipping duplicate Apple menu (ID 1)\n"); */
@@ -523,13 +452,14 @@ void DrawMenuBar(void)
                             /* Draw normal text title - moved 4px right and 1px down */
                             MoveTo(x + 4, 14);  /* Shifted right 4px and down 1px */
 
-                            /* TEMPORARY FIX: Use hardcoded menu titles based on menu ID */
-                            const char* hardcodedTitle = NULL;
-                            if (mptr->menuID == 129) {
-                                hardcodedTitle = "File";
-                                titleLen = 4;
-                            } else if (mptr->menuID == 130) {
-                                hardcodedTitle = "Edit";
+                        /* TEMPORARY FIX: Use hardcoded menu titles based on menu ID */
+                        const char* hardcodedTitle = NULL;
+                        Str255 titlePascal;
+                        if (mptr->menuID == 129) {
+                            hardcodedTitle = "File";
+                            titleLen = 4;
+                        } else if (mptr->menuID == 130) {
+                            hardcodedTitle = "Edit";
                                 titleLen = 4;
                             } else if (mptr->menuID == 131) {
                                 hardcodedTitle = "View";
@@ -544,18 +474,21 @@ void DrawMenuBar(void)
 
                             if (hardcodedTitle) {
                                 MENU_LOG_DEBUG("DrawMenuBar: Drawing hardcoded title '%s' len=%d\n", hardcodedTitle, titleLen);
-                                DrawText(hardcodedTitle, 0, titleLen);
+                                titlePascal[0] = (unsigned char)titleLen;
+                                memcpy(&titlePascal[1], hardcodedTitle, titleLen);
+                                DrawText(&titlePascal[1], 0, titleLen);
+                                menuWidth = StringWidth(titlePascal) + 20;
+                                memcpy(titleText, &titlePascal[1], titleLen);
+                                titleText[titleLen] = '\0';
                             } else {
                                 /* Fall back to menu data if not a known menu */
                                 serial_puts("DrawMenuBar: Drawing from menu data\n");
                                 DrawText((char*)&(**menu).menuData[1], 0, titleLen);
+                                menuWidth = StringWidth((ConstStr255Param)(**menu).menuData) + 20;
+                                memcpy(titleText, &(**menu).menuData[1], titleLen);
+                                titleText[titleLen] = '\0';
                             }
                             serial_puts("DrawMenuBar: DrawText returned\n");
-
-                            /* Track menu title position */
-                            menuWidth = StringWidth(&(**menu).menuData) + 20;
-                            memcpy(titleText, &(**menu).menuData[1], titleLen);
-                            titleText[titleLen] = '\0';
                             AddMenuTitle(mptr->menuID, x, menuWidth, titleText);
                             x += menuWidth;
                         }
@@ -568,8 +501,7 @@ void DrawMenuBar(void)
     } else {
         /* serial_puts("DrawMenuBar: gMenuMgrState is NULL\n"); */
         /* Draw default Apple menu if no menus installed */
-        MoveTo(x, 13);  /* Centered vertically */
-        DrawAppleIcon(x, 2);  /* Draw Apple icon at top of menu bar */
+        (void)MenuAppleIcon_Draw(qd.thePort, x, 0, false);
     }
 
     SetPort(savePort);

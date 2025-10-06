@@ -12,6 +12,8 @@
 #include "ProcessMgr/ProcessMgr.h"
 #include "CPU/CPUBackend.h"
 #include "CPU/M68KInterp.h"
+#include "MemoryMgr/MemoryManager.h"
+#include "OSUtils/OSUtilsTraps.h"
 #include "System71StdLib.h"
 #include <string.h>
 
@@ -316,10 +318,23 @@ void SegmentLoader_TestBoot(void)
         return;
     }
 
+    /* Map Memory Manager zones into the 68K address space */
+    err = MemoryManager_MapToM68K((struct M68KAddressSpace*)ctx->cpuAS);
+    if (err != noErr) {
+        SEG_LOG_ERROR("FAIL: MemoryManager_MapToM68K returned %d", err);
+        SegmentLoader_Cleanup(ctx);
+        return;
+    }
+
     /* Install trap handlers */
     SEG_LOG_INFO("Installing trap handlers...");
     ctx->cpuBackend->InstallTrap(ctx->cpuAS, 0xA9F0, LoadSeg_TrapHandler, ctx);
     ctx->cpuBackend->InstallTrap(ctx->cpuAS, 0xA800, Trace_TrapHandler, ctx);
+
+    err = OSUtils_InstallTraps(ctx);
+    if (err != noErr) {
+        SEG_LOG_INFO("OSUtils_InstallTraps returned %d (continuing)", err);
+    }
 
     /* Load CODE 0 and CODE 1 */
     SEG_LOG_INFO("Loading CODE 0 and CODE 1...");
@@ -381,5 +396,6 @@ void SegmentLoader_TestBoot(void)
     SEG_LOG_INFO("");
 
     /* Cleanup */
+    OSUtils_Shutdown();
     SegmentLoader_Cleanup(ctx);
 }

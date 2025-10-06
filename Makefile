@@ -93,6 +93,7 @@ C_SOURCES = src/main.c \
             src/QuickDraw/QuickDrawPlatform.c \
             src/QuickDraw/Coordinates.c \
             src/QuickDraw/Regions.c \
+            src/OSUtils/OSUtilsTraps.c \
             src/Platform/WindowPlatform.c \
             src/Platform/x86/io.c \
             src/Platform/x86/ata.c \
@@ -107,6 +108,7 @@ C_SOURCES = src/main.c \
             src/MenuManager/menu_savebits.c \
             src/MenuManager/MenuTitleTracking.c \
             src/MenuManager/MenuTrack.c \
+            src/MenuManager/MenuAppleIcon.c \
             src/MenuManager/MenuItems.c \
             src/MenuManager/platform_stubs.c \
             src/MenuCommands.c \
@@ -330,7 +332,7 @@ vpath %.c src:src/System:src/QuickDraw:src/WindowManager:src/MenuManager:src/Con
           src/PackageManager:src/NetworkExtension:src/ColorManager:src/CommunicationToolbox \
           src/FontResources:src/GestaltManager:src/SpeechManager:src/BootLoader \
           src/SegmentLoader:src/CPU:src/CPU/m68k_interp:src/DeviceManager:src/Keyboard \
-          src/Datetime:src/Calculator:src/Chooser:src/StartupScreen
+          src/Datetime:src/Calculator:src/Chooser:src/StartupScreen:src/OSUtils
 vpath %.S $(HAL_DIR)
 
 # Compile assembly files
