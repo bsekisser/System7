@@ -61,6 +61,37 @@ void InitCursor(void) {
     /* Stub implementation */
 }
 
+/* Cursor visibility tracking for hide/show */
+static int g_cursorHideCount = 0;
+
+/* External cursor drawing state from main.c */
+extern void InvalidateCursor(void);
+
+void HideCursor(void) {
+    /* Increment hide count - cursor shown when count reaches 0
+     * This matches Mac OS nesting behavior where ShowCursor must be called
+     * the same number of times as HideCursor to make cursor visible again */
+    g_cursorHideCount++;
+
+    /* Invalidate cursor to force redraw check (which will skip if hidden) */
+    InvalidateCursor();
+}
+
+void ShowCursor(void) {
+    /* Decrement hide count */
+    if (g_cursorHideCount > 0) {
+        g_cursorHideCount--;
+    }
+
+    /* Invalidate cursor to force redraw now that it's visible */
+    InvalidateCursor();
+}
+
+/* Query function for cursor drawing code to check if cursor should be shown */
+int IsCursorVisible(void) {
+    return (g_cursorHideCount == 0);
+}
+
 /* Font Manager */
 /* Moved to FontManagerCore.c
 void InitFonts(void) {

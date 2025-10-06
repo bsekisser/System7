@@ -2122,9 +2122,33 @@ void UpdateCursorDisplay(void) {
     extern uint32_t fb_width, fb_height, fb_pitch;
     extern const uint8_t arrow_cursor[];
     extern const uint8_t arrow_cursor_mask[];
+    extern int IsCursorVisible(void);  /* From sys71_stubs.c */
 
     static int16_t last_mouse_x = -1;
     static int16_t last_mouse_y = -1;
+
+    /* Check if cursor is hidden */
+    if (!IsCursorVisible()) {
+        /* If cursor was previously visible, erase it */
+        if (cursor_saved) {
+            uint32_t* fb = (uint32_t*)framebuffer;
+            int pitch_dwords = fb_pitch / 4;
+
+            for (int row = 0; row < 16; row++) {
+                int py = cursor_old_y + row;
+                if (py >= 0 && py < fb_height) {
+                    for (int col = 0; col < 16; col++) {
+                        int px = cursor_old_x + col;
+                        if (px >= 0 && px < fb_width) {
+                            fb[py * pitch_dwords + px] = cursor_saved_pixels[row][col];
+                        }
+                    }
+                }
+            }
+            cursor_saved = false;
+        }
+        return;  /* Don't draw cursor */
+    }
 
     /* Only redraw if mouse moved or cursor was invalidated */
     if (g_mouseState.x == last_mouse_x && g_mouseState.y == last_mouse_y && cursor_saved) {

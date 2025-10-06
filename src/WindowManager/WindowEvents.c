@@ -148,6 +148,13 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
         return false;
     }
 
+    /* Hide cursor before tracking to prevent cursor save-under from capturing
+     * ghost pixels from InvertRect highlighting. We'll show it again after
+     * tracking completes and the window/title bar has been redrawn. */
+    extern void HideCursor(void);
+    extern void ShowCursor(void);
+    HideCursor();
+
     /* Track mouse while button is down */
     Boolean buttonDown = true;
     Boolean inPart = true;
@@ -204,6 +211,17 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
     /* TODO: Also need to invalidate desktop/background to clean up cursor ghosts
      * that appear when moving mouse after close button tracking completes.
      * For now, window redraw fixes ghosts within window bounds. */
+
+    /* Manually erase the close box area to remove InvertRect artifacts.
+     * We need to draw directly to framebuffer since the title bar chrome
+     * is outside the GWorld content buffer. */
+    if (partCode == inGoAway) {
+        extern void Platform_DrawCloseBoxDirect(WindowPtr window);
+        Platform_DrawCloseBoxDirect(theWindow);
+    }
+
+    /* Show cursor now that window/title bar has been redrawn cleanly */
+    ShowCursor();
 
     /* Return true if mouse was released inside the part */
     Boolean result = inPart;

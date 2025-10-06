@@ -509,6 +509,54 @@ void Platform_HighlightWindowPart(WindowPtr window, short partCode, Boolean high
     SetPort(savePort);
 }
 
+/* Draw close box directly to framebuffer to clean up InvertRect artifacts */
+void Platform_DrawCloseBoxDirect(WindowPtr window) {
+    if (!window || !window->goAwayFlag) return;
+
+    /* Get close box rectangle */
+    Rect closeRect;
+    Platform_GetWindowCloseBoxRect(window, &closeRect);
+
+    /* Get framebuffer directly - we need to draw outside the GWorld */
+    extern void* framebuffer;
+    extern uint32_t fb_width, fb_height, fb_pitch;
+    extern uint32_t qd_gray_pattern[];  /* Gray50 pattern from QuickDraw */
+
+    /* Fill close box area with gray50 pattern (title bar background) */
+    uint32_t* fb = (uint32_t*)framebuffer;
+    int pitch_dwords = fb_pitch / 4;
+
+    for (int y = closeRect.top; y < closeRect.bottom && y < fb_height; y++) {
+        for (int x = closeRect.left; x < closeRect.right && x < fb_width; x++) {
+            /* Use gray50 pattern for title bar - alternating black/white pixels */
+            int pattern_bit = ((x + y) & 1);
+            fb[y * pitch_dwords + x] = pattern_bit ? 0xFFFFFFFF : 0xFF000000;
+        }
+    }
+
+    /* Now draw the close box itself (white box with black border) */
+    /* Draw black border */
+    for (int x = closeRect.left; x < closeRect.right && x < fb_width; x++) {
+        if (closeRect.top < fb_height)
+            fb[closeRect.top * pitch_dwords + x] = 0xFF000000;
+        if (closeRect.bottom - 1 < fb_height)
+            fb[(closeRect.bottom - 1) * pitch_dwords + x] = 0xFF000000;
+    }
+    for (int y = closeRect.top; y < closeRect.bottom && y < fb_height; y++) {
+        if (closeRect.left < fb_width)
+            fb[y * pitch_dwords + closeRect.left] = 0xFF000000;
+        if (closeRect.right - 1 < fb_width)
+            fb[y * pitch_dwords + (closeRect.right - 1)] = 0xFF000000;
+    }
+
+    /* Fill interior with white */
+    for (int y = closeRect.top + 1; y < closeRect.bottom - 1 && y < fb_height; y++) {
+        for (int x = closeRect.left + 1; x < closeRect.right - 1 && x < fb_width; x++) {
+            fb[y * pitch_dwords + x] = 0xFFFFFFFF;
+        }
+    }
+}
+
 /* Wait functions */
 void Platform_WaitTicks(short ticks) {
     extern UInt32 TickCount(void);
