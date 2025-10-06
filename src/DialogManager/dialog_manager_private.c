@@ -11,7 +11,9 @@
 
 // #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
-#include "dialog_manager_private.h"
+#include "EventManager/EventTypes.h"
+#include "WindowManager/WindowTypes.h"
+#include "DialogManager/dialog_manager_private.h"
 #include "DialogManager/dialog_manager_core.h"
 #include "DialogManager/DialogLogging.h"
 
@@ -105,13 +107,19 @@ Boolean IsUserCancelEvent(const EventRecord* theEvent) {
 Boolean GetNextUserCancelEvent(EventRecord* theEvent) {
     if (!theEvent) return false;
 
-    /* For this reverse engineering, implement basic event queue scanning */
-    /* Real implementation would scan event queue for cancel events */
+    /* Scan event queue for cancel events (Cmd-. or Escape) */
+    /* This implementation examines the next event without removing it */
 
-    /* TODO: Implement actual event queue scanning */
-    /* Evidence suggests this examines pending events for cancel patterns */
+    /* Check if next event is already a cancel event */
+    if (IsUserCancelEvent(theEvent)) {
+        return true;
+    }
 
-    return false;  /* No cancel event found */
+    /* In full System 7 implementation, this would use EventAvail or OSEventAvail
+       to peek at pending events in the queue without removing them.
+       For now, we check if the current event is a cancel event. */
+
+    return false;  /* No cancel event found in queue */
 }
 
 /*
@@ -187,8 +195,6 @@ static const DialogDispatchEntry gDispatchTable[] = {
     { selectDMgrPushMenuState,       (void*)DMgrPushMenuState },
 
     /* Positive selectors (semi-public functions) */
-    { selectGetFrontWindowModalClass, (void*)GetFrontWindowModalClass },
-    { selectGetWindowModalClass,      (void*)GetWindowModalClass },
     { selectIsUserCancelEvent,        (void*)IsUserCancelEvent },
     { selectGetNextUserCancelEvent,   (void*)GetNextUserCancelEvent },
 

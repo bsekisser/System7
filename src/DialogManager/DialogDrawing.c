@@ -12,7 +12,8 @@
 #include "System71StdLib.h"
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/DialogTypes.h"
-#include "DialogManager/DialogManagerInternal.h"
+#include "DialogManager/DialogManagerInternal.h"  /* For DialogItemEx */
+#include "DialogManager/DialogManagerStateExt.h"   /* For extended state with focus tracking */
 #include "DialogManager/DialogLogging.h"
 
 /* External QuickDraw dependencies */
@@ -40,6 +41,9 @@ extern void InvalRect(const Rect* rect);
 
 /* QuickDraw globals */
 extern QDGlobals qd;
+
+/* Dialog Manager state access */
+extern DialogManagerState* GetDialogManagerState(void);
 
 /* Helper: Inset rectangle */
 static void InsetRect(Rect* r, SInt16 dh, SInt16 dv) {
@@ -286,10 +290,16 @@ void DrawDialogEditText(const Rect* bounds, const unsigned char* text,
                        Boolean isEnabled, Boolean hasFocus) {
     Rect frameRect = *bounds;
     Rect textRect = *bounds;
+    Rect caretRect;
     SInt16 textV;
+    SInt16 textWidth;
     GrafPtr savePort;
+    DialogManagerState* state;
+    DialogManagerState_Extended* extState;
 
     GetPort(&savePort);
+    state = GetDialogManagerState();
+    extState = GET_EXTENDED_DLG_STATE(state);
 
     DIALOG_LOG_DEBUG("Dialog: DrawEditText '%.*s' enabled=%d focus=%d\n",
                  text ? text[0] : 0, text ? (const char*)&text[1] : "",
@@ -304,6 +314,7 @@ void DrawDialogEditText(const Rect* bounds, const unsigned char* text,
     EraseRect(bounds);
 
     /* Draw text if present */
+    textWidth = 0;
     if (text && text[0] > 0) {
         TextFont(0);
         TextSize(12);
@@ -313,6 +324,10 @@ void DrawDialogEditText(const Rect* bounds, const unsigned char* text,
         textV = textRect.top + 11;
         MoveTo(textRect.left, textV);
         DrawString(text);
+        textWidth = StringWidth(text);
+    } else {
+        InsetRect(&textRect, 3, 2);
+        textV = textRect.top + 11;
     }
 
     /* Draw focus ring if active */
@@ -322,6 +337,15 @@ void DrawDialogEditText(const Rect* bounds, const unsigned char* text,
         PenSize(2, 2);
         FrameRect(&focusRect);
         PenNormal();
+
+        /* Draw caret if focus and caret is visible */
+        if (extState && extState->caretVisible) {
+            caretRect.left = textRect.left + textWidth;
+            caretRect.right = caretRect.left + 1;
+            caretRect.top = textRect.top;
+            caretRect.bottom = textRect.bottom;
+            InvertRect(&caretRect);
+        }
     }
 
     /* Draw disabled pattern if needed */
@@ -426,9 +450,10 @@ void DrawDialogItemByType(DialogPtr theDialog, SInt16 itemNo,
 
         case editText:  /* Edit text */
         {
-            Boolean hasFocus = false;  /* TODO: track focus */
-            DrawDialogEditText(&item->bounds, textData, item->enabled,
-                             hasFocus);
+            DialogManagerState* state = GetDialogManagerState();
+            DialogManagerState_Extended* extState = GET_EXTENDED_DLG_STATE(state);
+            Boolean hasFocus = (extState && extState->focusedEditTextItem == itemNo);
+            DrawDialogEditText(&item->bounds, textData, item->enabled, hasFocus);
             break;
         }
 

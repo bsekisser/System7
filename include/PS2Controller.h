@@ -25,6 +25,9 @@ void GetMouse(Point* mouseLoc);
 /* Check if mouse button is pressed */
 Boolean Button(void);
 
+/* Get current keyboard modifiers (shiftKey, cmdKey, optionKey, controlKey, alphaLock) */
+UInt16 GetPS2Modifiers(void);
+
 #ifdef __cplusplus
 }
 #endif

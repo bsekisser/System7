@@ -28,6 +28,8 @@ typedef struct DialogGlobals {
     ModalFilterProcPtr modalFilterProc;
 } DialogGlobals;
 
+/* Only define extended DialogManagerState if not already defined */
+#ifndef DIALOGMANAGERINTERNAL_H
 /* Extended DialogManagerState with all expected fields */
 typedef struct DialogManagerState {
     /* Basic fields from DialogManagerInternal.h */
@@ -47,7 +49,13 @@ typedef struct DialogManagerState {
     float scaleFactor;
     void* platformContext;
     DialogPtr modalStack[16];
+
+    /* Edit-text focus tracking */
+    SInt16 focusedEditTextItem;     /* Item number of focused edit text, or 0 if none */
+    UInt32 caretBlinkTime;          /* Tick count of last caret blink */
+    Boolean caretVisible;           /* Current caret visibility state */
 } DialogManagerState;
+#endif
 
 /* DialogItemInternal for DialogItems.h */
 typedef struct DialogItemInternal {
@@ -58,5 +66,35 @@ typedef struct DialogItemInternal {
     SInt16 controlItem;
     void* itemData;
 } DialogItemInternal;
+
+/* Helper to access extended DialogManagerState fields
+   Cast basic DialogManagerState* to extended version */
+#define GET_EXTENDED_DLG_STATE(state) ((DialogManagerState_Extended*)(state))
+
+/* Extended state type with focus tracking fields */
+typedef struct DialogManagerState_Extended {
+    /* Basic fields from DialogManagerInternal.h */
+    DialogPtr currentDialog;
+    short modalDepth;
+    Boolean inProgress;
+    Handle itemList;
+    short itemCount;
+
+    /* Extended fields */
+    DialogGlobals globals;
+    Boolean initialized;
+    SInt16 modalLevel;
+    Boolean systemModal;
+    Boolean useNativeDialogs;
+    Boolean useAccessibility;
+    float scaleFactor;
+    void* platformContext;
+    DialogPtr modalStack[16];
+
+    /* Edit-text focus tracking */
+    SInt16 focusedEditTextItem;
+    UInt32 caretBlinkTime;
+    Boolean caretVisible;
+} DialogManagerState_Extended;
 
 #endif /* DIALOGMANAGERSTATEEXT_H */

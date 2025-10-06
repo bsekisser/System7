@@ -451,8 +451,6 @@ Boolean ButtonState(SInt16 buttonID)
     return (g_currentButtonState & (1 << (mappedButton - 1))) != 0;
 }
 
-/* StillDown is implemented in control_stubs.c */
-
 /**
  * Wait for mouse button release
  */

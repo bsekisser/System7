@@ -22,6 +22,7 @@
 #include "DialogManager/DialogEvents.h"
 #include "DialogManager/AlertDialogs.h"
 #include "DialogManager/DialogManagerStateExt.h"
+#include "DialogManager/dialog_manager_private.h"  /* For DialogMgrGlobals */
 #include <assert.h>
 #include "DialogManager/DialogLogging.h"
 
@@ -716,4 +717,11 @@ DialogPtr GetWindowDialog(WindowPtr theWindow)
 DialogManagerState* GetDialogManagerState(void)
 {
     return gDialogManagerInitialized ? &gDialogManagerState : NULL;
+}
+
+/* Stub for GetDialogManagerGlobals - returns stub globals */
+static DialogMgrGlobals gStubDialogMgrGlobals = {0};
+
+DialogMgrGlobals* GetDialogManagerGlobals(void) {
+    return &gStubDialogMgrGlobals;
 }

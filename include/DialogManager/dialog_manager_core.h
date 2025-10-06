@@ -16,6 +16,7 @@
 #include "SystemTypes.h"
 
 /* Forward declarations */
+typedef struct DialogMgrGlobals DialogMgrGlobals;
 
 #include "SystemTypes.h"
 

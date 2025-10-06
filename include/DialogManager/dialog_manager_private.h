@@ -46,19 +46,27 @@ extern "C" {
 #define paramWordsGetNextUserCancelEvent    2
 
 /* Modal window class types */
+typedef enum {
+    kModalClassNone = 0,
+    kModalClassModal = 1,
+    kModalClassMovable = 2,
+    kModalClassAlert = 3
+} ModalWindowClass;
 
+/* DialogMgrGlobals structure - evidence from dialog_manager_private.c usage */
+typedef struct DialogMgrGlobals {
+    WindowPtr AnalyzedWindow;
+    SInt16 AnalyzedWindowState;
+    SInt16 IsDialogState;
+    void* SavedMenuState;
+} DialogMgrGlobals;
 
-/*
- * GetFrontWindowModalClass - Get modal class of front window
- * Returns modal classification of frontmost window
- */
-ModalWindowClass GetFrontWindowModalClass(SInt16* windowClass);
+/* Dialog Manager dispatch entry */
+typedef struct DialogDispatchEntry {
+    SInt16 selector;
+    void* function;
+} DialogDispatchEntry;
 
-/*
- * GetWindowModalClass - Get modal class of specific window
- * Returns modal classification of specified window
- */
-ModalWindowClass GetWindowModalClass(WindowPtr theWindow, SInt16* windowClass);
 
 /*
  * IsUserCancelEvent - Check if event is user cancel

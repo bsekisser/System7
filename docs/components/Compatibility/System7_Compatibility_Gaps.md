@@ -14,16 +14,16 @@ This checklist captures the most significant differences between the current too
 - `src/WindowManager/WindowEvents.c:557`–`560` – Grow and drag tracking branches return immediately; Window Manager must honour `inDrag`/`inGrow` parts with live XOR outlines and constraint callbacks like the classic implementation.
 - `src/WindowManager/WindowEvents.c:574`–`599` – Platform mouse state, update ports, and empty-region checks are stubbed, so `TrackGoAway`, `TrackBox`, and update propagation diverge from System 7 behaviour.
 - `src/EventManager/SystemEvents.c:331` & `:390` – Update regions are never merged or reduced after validation, causing duplicate `updateEvt`s; the classic manager subtracts validated areas from pending invalidations.
-- `src/DialogManager/DialogDrawing.c:428` – Edit-text items ignore focus rings; System 7 drew a focus frame and moved the caret when the control is active.
-- `src/DialogManager/dialog_manager_private.c:104` – `GetNextUserCancelEvent` is a stub; modal dialogs should scan the event queue for cancel gestures (Command-.) as the Classic API allowed.
+- ~~`src/DialogManager/DialogDrawing.c:428` – Edit-text items ignore focus rings; System 7 drew a focus frame and moved the caret when the control is active.~~ **FIXED** (2025-10-06): Edit-text focus rings and caret blinking implemented in DialogEditText.c
+- ~~`src/DialogManager/dialog_manager_private.c:104` – `GetNextUserCancelEvent` is a stub; modal dialogs should scan the event queue for cancel gestures (Command-.) as the Classic API allowed.~~ **FIXED** (2025-10-06): IsUserCancelEvent/GetNextUserCancelEvent implemented, modal dialogs support Cmd-. and Escape
 - `src/ControlManager/StandardControls.c:84` – Control metrics are hard-coded to Chicago 12; real `GetFontInfo` must come from the Font Manager so controls respect the active font.
 - `docs/components/ControlManager/QA.md:14` (via code) – Mixed-state checkbox paths remain unvalidated; native System 7 controls supported tri-state checkboxes.
 
 ## Event & Input Handling
-- `src/EventManager/event_manager.c:251` – Posted events always report `modifiers = 0`; modifier bits (shift, option, command) need to be sampled from the PS/2 layer so Command shortcuts and shift-clicking behave correctly.
-- `src/EventManager/event_manager.c:285` – `WaitNextEvent` ignores the caller-supplied `mouseRgn`; classic Mac OS clipped null events and mouse moved events to that region.
+- ~~`src/EventManager/event_manager.c:251` – Posted events always report `modifiers = 0`; modifier bits (shift, option, command) need to be sampled from the PS/2 layer so Command shortcuts and shift-clicking behave correctly.~~ **FIXED** (2025-10-06): PostEvent now calls GetPS2Modifiers() to populate modifier fields from hardware
+- ~~`src/EventManager/event_manager.c:285` – `WaitNextEvent` ignores the caller-supplied `mouseRgn`; classic Mac OS clipped null events and mouse moved events to that region.~~ **FIXED** (2025-10-06): WaitNextEvent now monitors mouseRgn and generates null events when mouse exits region
 - `src/EventManager/EventDispatcher.c:413`–`416` – Command-key menu shortcuts are unimplemented; menu command routing should call `MenuKey`/`MenuChoice` analogues when `cmdKey` is set.
-- `src/EventManager/MouseEvents.c:454` & `src/EventManager/EventManagerCore.c:655` – `StillDown` references stubs in `control_stubs.c`; until the real implementation arrives, hit testing during tracking is unreliable.
+- ~~`src/EventManager/MouseEvents.c:454` & `src/EventManager/EventManagerCore.c:655` – `StillDown` references stubs in `control_stubs.c`; until the real implementation arrives, hit testing during tracking is unreliable.~~ **VERIFIED** (2025-10-06): StillDown and Button are properly implemented in MouseEvents.c
 
 ## Text Input & Editing
 - `src/TextEdit/textedit_core.c:586`–`604` – Core TextEdit routines (`TECalcLines`, font setup, drawing, caret updates) remain TODOs; the current implementation cannot handle wrapping, styled runs, or caret management like System 7’s TextEdit.

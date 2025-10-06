@@ -18,6 +18,8 @@
 #include "DialogManager/DialogItems.h"
 #include "DialogManager/DialogManagerStateExt.h"
 #include "DialogManager/DialogHelpers.h"
+#include "DialogManager/DialogEditText.h"
+#include "DialogManager/dialog_manager_private.h"
 #include <stdbool.h>
 #include "DialogManager/DialogLogging.h"
 
@@ -142,6 +144,9 @@ void ModalDialog(ModalFilterProcPtr filterProc, SInt16* itemHit)
         return;
     }
 
+    /* Initialize edit-text focus */
+    InitDialogEditTextFocus(dlg);
+
     /* Draw once */
     UpdateDialog(dlg, ((WindowPtr)dlg)->port.clipRgn);
 
@@ -163,11 +168,23 @@ void ModalDialog(ModalFilterProcPtr filterProc, SInt16* itemHit)
         /* Wait for next event (use GetNextEvent if WaitNextEvent unavailable) */
         if (!GetNextEvent(everyEvent, &evt)) {
             SystemTask();
+            /* Update caret blink during idle time */
+            UpdateDialogCaret(dlg);
             noEventCount++;
             continue;
         }
 
         DIALOG_LOG_DEBUG("ModalDialog: Got event what=%d, message=0x%lx\n", evt.what, evt.message);
+
+        /* Check for user cancel event (Command-. or Escape) */
+        if (IsUserCancelEvent(&evt)) {
+            SInt16 cancelItem = GetDialogCancelItem(dlg);
+            if (cancelItem > 0) {
+                if (itemHit) *itemHit = cancelItem;
+                DIALOG_LOG_DEBUG("ModalDialog: User cancel event -> cancel item %d\n", cancelItem);
+                return;
+            }
+        }
 
         /* Filter first (can swallow / modify events) */
         if (filterProc && (*filterProc)(dlg, &evt, itemHit)) {
@@ -264,6 +281,9 @@ void EndModalDialog(DialogPtr theDialog)
     if (!theDialog || !gModalState.initialized) {
         return;
     }
+
+    /* Clear edit-text focus */
+    ClearDialogEditTextFocus(theDialog);
 
     /* Find dialog in modal stack and remove it */
     for (int i = 0; i < gModalState.modalLevel; i++) {

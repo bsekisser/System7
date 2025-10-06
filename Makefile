@@ -165,6 +165,8 @@ C_SOURCES = src/main.c \
             src/DialogManager/DialogItems.c \
             src/DialogManager/DialogResourceParser.c \
             src/DialogManager/DialogDrawing.c \
+            src/DialogManager/DialogEditText.c \
+            src/DialogManager/dialog_manager_private.c \
             src/DialogManager/DialogHelpers.c \
             src/DialogManager/DialogKeyboard.c \
             src/StandardFile/StandardFile.c \

@@ -600,6 +600,21 @@ void GetMouse(Point* mouseLoc) {
 
 /* Button() moved to MouseEvents.c - reads gCurrentButtons instead of hardware */
 
+/* Get current keyboard modifiers as Event Manager modifier flags */
+UInt16 GetPS2Modifiers(void) {
+    UInt16 modifiers = 0;
+
+    if (g_keyboardState.shift_pressed) modifiers |= shiftKey;     /* 0x0200 */
+    if (g_keyboardState.caps_lock) modifiers |= alphaLock;        /* 0x0400 */
+    if (g_keyboardState.alt_pressed) modifiers |= optionKey;      /* 0x0800 */
+    if (g_keyboardState.ctrl_pressed) modifiers |= controlKey;    /* 0x1000 */
+
+    /* Note: cmdKey (0x0100) maps to Alt on PC keyboards */
+    if (g_keyboardState.alt_pressed) modifiers |= 0x0100;         /* cmdKey */
+
+    return modifiers;
+}
+
 /* Get keyboard state for Event Manager */
 Boolean GetPS2KeyboardState(KeyMap keyMap) {
     if (!keyMap) {

@@ -16,6 +16,7 @@
 #include "System71StdLib.h"
 #include "EventManager/EventTypes.h"
 #include "WindowManager/WindowManager.h"
+#include "DialogManager/dialog_manager_private.h"  /* For full DialogMgrGlobals definition */
 #include "DialogManager/dialog_manager_core.h"
 #include "DialogManager/dialog_manager_dispatch.h"
 #include "DialogManager/DialogLogging.h"
@@ -327,7 +328,7 @@ Boolean StdFilterProc(DialogPtr dlg, EventRecord* evt, SInt16* itemHit) {
             if ((evt->message & charCodeMask) == 27 ||  /* Escape */
                 ((evt->message & charCodeMask) == '.' &&
                  (evt->modifiers & cmdKey))) {  /* Cmd-. */
-                *itemHit = cancel;
+                *itemHit = 2;  /* Standard cancel button item */
                 return true;
             }
             break;

@@ -14,6 +14,7 @@
 #include "../../include/EventManager/EventTypes.h"
 #include "../../include/EventManager/EventManager.h"
 #include "../../include/ProcessMgr/ProcessMgr.h"
+#include "../../include/QuickDraw/QDRegions.h"
 #include "EventManager/EventLogging.h"
 
 /* External serial print for debug logging */
@@ -33,6 +34,9 @@ static UInt32 g_tickCount = 0;
 
 /* GetMouse is provided by PS2Controller.c */
 extern void GetMouse(Point* mouseLoc);
+
+/* GetPS2Modifiers is provided by PS2Controller.c */
+extern UInt16 GetPS2Modifiers(void);
 
 /* TickCount is provided by sys71_stubs.c */
 extern UInt32 TickCount(void);
@@ -248,7 +252,8 @@ SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg) {
                      eventMsg, evt->where.h, evt->where.v);
     }
 
-    evt->modifiers = 0;  /* TODO: Get keyboard modifiers */
+    /* Get current keyboard modifiers from PS/2 driver */
+    evt->modifiers = GetPS2Modifiers();
 
     /* Debug: Print actual coordinates we're storing */
     EVT_LOG_DEBUG("PostEvent: Successfully posted %s at position %d, queue now has %d events\n",
@@ -276,13 +281,23 @@ extern SInt16 InitEvents(SInt16 numEvents);
  * This is the heart of System 7's cooperative multitasking. Applications
  * call WaitNextEvent in their event loop, which allows the Process Manager
  * to switch to other processes while waiting for events.
+ *
+ * @param eventMask Mask of events to retrieve
+ * @param theEvent Event record to fill
+ * @param sleep Maximum ticks to wait for an event
+ * @param mouseRgn Region where mouse can move without generating null events.
+ *                 If the mouse moves outside this region, a null event is
+ *                 generated immediately to wake the application.
  */
 Boolean WaitNextEvent(short eventMask, EventRecord* theEvent, UInt32 sleep, RgnHandle mouseRgn) {
     Boolean eventAvailable = false;
     UInt32 startTime = TickCount();
     ProcessControlBlock* nextProcess;
+    Point initialMousePos;
+    Point currentMousePos;
 
-    (void)mouseRgn;  /* TODO: Implement mouse region checking */
+    /* Save initial mouse position for mouseRgn tracking */
+    GetMouse(&initialMousePos);
 
     /* Check for immediate events */
     eventAvailable = GetNextEvent(eventMask, theEvent);
@@ -300,6 +315,22 @@ Boolean WaitNextEvent(short eventMask, EventRecord* theEvent, UInt32 sleep, RgnH
 
     /* Wait for events or timeout */
     do {
+        /* Check if mouse has moved outside the mouseRgn */
+        if (mouseRgn != NULL) {
+            GetMouse(&currentMousePos);
+            /* If mouse moved outside the region, generate null event immediately */
+            if (!PtInRgn(currentMousePos, mouseRgn)) {
+                EVT_LOG_TRACE("WaitNextEvent: Mouse left region at (%d,%d), generating null event\n",
+                             currentMousePos.h, currentMousePos.v);
+                theEvent->what = nullEvent;
+                theEvent->message = 0;
+                theEvent->when = TickCount();
+                theEvent->modifiers = GetPS2Modifiers();
+                theEvent->where = currentMousePos;
+                return true;
+            }
+        }
+
         eventAvailable = GetNextEvent(eventMask, theEvent);
         if (eventAvailable) {
             break;
@@ -320,7 +351,7 @@ Boolean WaitNextEvent(short eventMask, EventRecord* theEvent, UInt32 sleep, RgnH
         theEvent->what = nullEvent;
         theEvent->message = 0;
         theEvent->when = TickCount();
-        theEvent->modifiers = 0;
+        theEvent->modifiers = GetPS2Modifiers();
         GetMouse(&theEvent->where);
         eventAvailable = true;
     }
