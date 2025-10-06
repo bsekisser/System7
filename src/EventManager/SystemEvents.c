@@ -327,10 +327,33 @@ SInt16 RequestWindowUpdate(WindowPtr window, RgnHandle updateRgn,
         region->next = g_updateRegions;
         g_updateRegions = region;
         g_updateRegionCount++;
-    }
 
-    /* TODO: Merge with existing update region if updateRgn provided */
-    /* For now, just mark that window needs update */
+        /* Initialize the update region if provided */
+        if (updateRgn) {
+            region->updateRgn = NewRgn();
+            if (region->updateRgn) {
+                CopyRgn(updateRgn, region->updateRgn);
+            }
+        }
+    } else {
+        /* Merge with existing update region */
+        if (updateRgn) {
+            if (!region->updateRgn) {
+                region->updateRgn = NewRgn();
+            }
+            if (region->updateRgn) {
+                /* Union the new invalid region with existing update region */
+                RgnHandle tempRgn = NewRgn();
+                if (tempRgn) {
+                    CopyRgn(region->updateRgn, tempRgn);
+                    UnionRgn(tempRgn, updateRgn, region->updateRgn);
+                    DisposeRgn(tempRgn);
+                }
+            }
+        }
+        /* Update the timestamp to reflect new invalidation */
+        region->updateTime = TickCount();
+    }
 
     /* Generate update event */
     Point where = {0, 0};
@@ -387,10 +410,24 @@ void ValidateWindowRegion(WindowPtr window, RgnHandle validRgn)
 {
     /* Remove the validated region from pending updates */
     UpdateRegion* region = FindUpdateRegion(window);
-    if (region) {
-        /* TODO: Subtract validRgn from region->updateRgn */
-        /* For now, just remove the entire region */
-        RemoveUpdateRegion(region);
+    if (region && region->updateRgn) {
+        if (validRgn) {
+            /* Subtract the validated region from the pending update region */
+            RgnHandle tempRgn = NewRgn();
+            if (tempRgn) {
+                CopyRgn(region->updateRgn, tempRgn);
+                DiffRgn(tempRgn, validRgn, region->updateRgn);
+                DisposeRgn(tempRgn);
+            }
+
+            /* If the update region is now empty, remove it entirely */
+            if (EmptyRgn(region->updateRgn)) {
+                RemoveUpdateRegion(region);
+            }
+        } else {
+            /* No validRgn specified, clear entire update region */
+            RemoveUpdateRegion(region);
+        }
     }
 }
 
