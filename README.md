@@ -12,6 +12,11 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Recent Updates
 
+- ✅ **Memory Manager & OSUtils Integration**: Shared host/68K heap mapping with classic low-memory sync
+  - `MemoryManager_MapToM68K()` maps the System/App zones directly into the interpreter page table
+  - Low-memory globals (`MemTop`, `SysZone`, `ApplZone`) now track real heap limits
+  - `_TickCount` trap wired through `OSUtils_InstallTraps()` with a 60 Hz Time Manager task
+  - Segment loader tests install and tear down OSUtils services for clean runs
 - ✅ **Hardware Abstraction Layer (HAL)**: Complete platform abstraction for multi-architecture support
   - Clean separation of platform-specific code from core System 7 implementation
   - Pluggable architecture: `src/Platform/{platform}/` directory structure
@@ -174,6 +179,7 @@ This is a proof-of-concept implementation focused on understanding and recreatin
 - **Resource System**: Pattern (PAT) and pixel pattern (ppat) resources from JSON
 - **Icon System**: Small icons (SICN) and 32-bit color icons (ARGB) with mask compositing
 - **Memory Manager**: Zone-based memory management (8MB total: System and App zones)
+  - 68K interpreter shares the same heaps via `MemoryManager_MapToM68K()` and low-memory sync helpers
 - **Menu Manager**: Complete menu system with full dropdown functionality
   - Menu bar rendering with File, Edit, View, and Label menus
   - Pull-down menu display with proper background save/restore
@@ -181,6 +187,7 @@ This is a proof-of-concept implementation focused on understanding and recreatin
   - MenuSelect() tracking loop with Button()/GetMouse()
   - SaveBits/RestoreBits for flicker-free menu display
   - Fully functional with SimpleText application
+  - Apple menu icon drawn from RGBA asset for accurate hit tracking
 - **File System**: HFS virtual file system with B-tree implementation and trash folder integration
   - VFS layer with directory enumeration (VFS_Enumerate)
   - Folder windows display actual file system contents
@@ -196,6 +203,7 @@ This is a proof-of-concept implementation focused on understanding and recreatin
   - Binary min-heap scheduler with O(log n) operations
   - Microsecond precision with generation checking
   - Periodic timer drift correction with catch-up limits
+- **OSUtils Traps**: `_TickCount` trap serviced by Time Manager-backed periodic task for 68K code
 - **Resource Manager**: High-performance implementation with:
   - Binary search index for O(log n) lookups
   - LRU cache with open-addressing hash table
