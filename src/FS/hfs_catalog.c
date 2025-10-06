@@ -43,7 +43,18 @@ bool HFS_ParseCatalogRecord(const HFS_CatKey* key, const void* data, uint16_t da
 
     /* Get parent ID and name from key */
     entry->parent = be32_read(&key->parentID);
+
+    /* Debug: log key name data */
+    FS_LOG_DEBUG("HFS_ParseCatalogRecord: key->nameLength=%d, key->name=[", key->nameLength);
+    for (int i = 0; i < key->nameLength && i < 32; i++) {
+        FS_LOG_DEBUG("%02x ", key->name[i]);
+    }
+    FS_LOG_DEBUG("]\n");
+
     HFS_MacRomanToASCII(entry->name, key->name, key->nameLength, sizeof(entry->name));
+
+    /* Debug: log converted name */
+    FS_LOG_DEBUG("HFS_ParseCatalogRecord: converted name='%s'\n", entry->name);
 
     /* Parse record type */
     uint16_t recordType = be16_read(data);

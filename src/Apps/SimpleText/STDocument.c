@@ -134,7 +134,8 @@ STDocument* STDoc_Open(const char* path) {
         memcpy(&doc->fileName[1], filename, len);
 
         /* Debug: log the extracted filename */
-        SYSTEM_LOG_DEBUG("STDoc_Open: extracted filename len=%d\n", len);
+        serial_logf(kLogModuleWindow, kLogLevelDebug,
+                   "[STDOC] Extracted filename: '%s' len=%d\n", filename, len);
     }
 
     /* Create window */
@@ -414,6 +415,12 @@ static void BuildWindowTitle(STDocument* doc, Str255 title) {
     title[0] = j;
 
     /* Debug: log the built title */
-    SYSTEM_LOG_DEBUG("BuildWindowTitle: title len=%d dirty=%d fileNameLen=%d\n",
-                     j, doc->dirty, doc->fileName[0]);
+    {
+        char debugTitle[256];
+        memcpy(debugTitle, &title[1], title[0]);
+        debugTitle[title[0]] = '\0';
+        serial_logf(kLogModuleWindow, kLogLevelDebug,
+                   "[STDOC] BuildWindowTitle: '%s' len=%d dirty=%d\n",
+                   debugTitle, j, doc->dirty);
+    }
 }

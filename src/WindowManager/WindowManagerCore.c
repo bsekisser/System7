@@ -806,7 +806,8 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     extern void* framebuffer;
     extern uint32_t fb_width;
     window->port.portBits.baseAddr = (Ptr)framebuffer;
-    window->port.portBits.rowBytes = fb_width * 4;
+    /* Set PixMap flag (bit 15) to indicate 32-bit PixMap, not 1-bit BitMap */
+    window->port.portBits.rowBytes = (fb_width * 4) | 0x8000;
 
 
     /* Initialize strucRgn with global bounds */

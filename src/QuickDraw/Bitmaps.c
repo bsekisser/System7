@@ -214,7 +214,42 @@ static void CopyBitsUnscaled(const BitMap *srcBits, const BitMap *dstBits,
         return;
     }
 
-    /* Copy row by row for efficiency */
+    /* OPTIMIZED: Fast path for 32-bit to 32-bit srcCopy without masking */
+    Boolean srcIs32 = IsPixMap(srcBits) && ((const PixMap*)srcBits)->pixelSize == 32;
+    Boolean dstIs32 = IsPixMap(dstBits) && ((const PixMap*)dstBits)->pixelSize == 32;
+
+    if (srcIs32 && dstIs32 && mode == srcCopy && (!maskRgn || !*maskRgn)) {
+        /* Use fast memcpy for each row */
+        SInt16 srcRowBytes = srcBits->rowBytes & 0x3FFF;
+        SInt16 dstRowBytes = dstBits->rowBytes & 0x3FFF;
+        UInt32* srcBase = (UInt32*)srcBits->baseAddr;
+        UInt32* dstBase = (UInt32*)dstBits->baseAddr;
+
+        extern void serial_logf(SystemLogModule module, SystemLogLevel level, const char* fmt, ...);
+        serial_logf(3, 2, "[CB_FAST] src=%p dst=%p w=%d h=%d\n", srcBase, dstBase, width, height);
+
+        /* Check first pixel of source */
+        if (srcBase) {
+            UInt32 firstPixel = srcBase[0];
+            serial_logf(3, 2, "[CB_FAST] First src pixel: 0x%08x (should be 0xFFFFFFFF)\n", firstPixel);
+        }
+
+        for (SInt16 y = 0; y < height; y++) {
+            SInt16 srcY = srcRect->top + y - srcBits->bounds.top;
+            SInt16 dstY = dstRect->top + y - dstBits->bounds.top;
+            SInt16 srcX = srcRect->left - srcBits->bounds.left;
+            SInt16 dstX = dstRect->left - dstBits->bounds.left;
+
+            UInt32* srcRow = srcBase + (srcY * (srcRowBytes / 4)) + srcX;
+            UInt32* dstRow = dstBase + (dstY * (dstRowBytes / 4)) + dstX;
+
+            memcpy(dstRow, srcRow, width * 4);
+        }
+        serial_logf(3, 2, "[CB_FAST] Done\n");
+        return;
+    }
+
+    /* Fallback: Copy row by row using pixel operations */
     for (SInt16 y = 0; y < height; y++) {
         CopyPixelRow(srcBits, dstBits,
                     srcRect->top + y, dstRect->top + y,

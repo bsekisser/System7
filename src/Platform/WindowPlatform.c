@@ -37,7 +37,8 @@ Boolean Platform_InitializeWindowPort(WindowPtr window) {
 
     /* Initialize the GrafPort part of the window */
     window->port.portBits.baseAddr = (Ptr)framebuffer;
-    window->port.portBits.rowBytes = fb_width * 4;  /* Assuming 32-bit color */
+    /* Set PixMap flag (bit 15) to indicate 32-bit PixMap, not 1-bit BitMap */
+    window->port.portBits.rowBytes = (fb_width * 4) | 0x8000;
 
     PLATFORM_LOG_DEBUG("[Platform_InitializeWindowPort] After setting baseAddr/rowBytes: portRect=(%d,%d,%d,%d)\n",
                   window->port.portRect.top, window->port.portRect.left,
@@ -182,7 +183,8 @@ Boolean Platform_InitializePort(GrafPtr port) {
 
     /* Basic port initialization */
     port->portBits.baseAddr = (Ptr)framebuffer;
-    port->portBits.rowBytes = fb_width * 4;
+    /* Set PixMap flag (bit 15) to indicate 32-bit PixMap, not 1-bit BitMap */
+    port->portBits.rowBytes = (fb_width * 4) | 0x8000;
     SetRect(&port->portBits.bounds, 0, 0, fb_width, fb_height);
     port->portRect = port->portBits.bounds;
 

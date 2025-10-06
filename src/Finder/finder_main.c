@@ -28,6 +28,7 @@
 #include "WindowManager/WindowTypes.h"
 #include "FS/vfs.h"
 #include "StandardFile/StandardFile.h"
+#include "System71StdLib.h"
 #include "ToolboxCompat.h"
 #include "System71StdLib.h"
 #include "Finder/AboutThisMac.h"
@@ -304,33 +305,31 @@ static void DoUpdate(WindowPtr w)
     GetPort(&savePort);
     SetPort(w);
 
-    FINDER_LOG_DEBUG("DoUpdate: calling BeginUpdate\n");
+    serial_logf(kLogModuleFinder, kLogLevelDebug, "[UPDATE] BeginUpdate START\n");
     BeginUpdate(w);
+    serial_logf(kLogModuleFinder, kLogLevelDebug, "[UPDATE] BeginUpdate DONE\n");
 
     /* Draw only the content; chrome is the window def's job */
     /* We use the window refCon to decide what to render, like the Finder */
-    FINDER_LOG_DEBUG("DoUpdate: refCon='%c%c%c%c'\n",
-                 (char)(w->refCon >> 24), (char)(w->refCon >> 16),
-                 (char)(w->refCon >> 8), (char)w->refCon);
 
     /* Text drawing temporarily disabled until Font Manager is linked */
 
     if (w->refCon == 'TRSH' || w->refCon == 'DISK') {
-        FINDER_LOG_DEBUG("DoUpdate: calling FolderWindow_Draw for folder window\n");
+        serial_logf(kLogModuleFinder, kLogLevelDebug, "[UPDATE] FolderWindow_Draw START\n");
         extern void FolderWindow_Draw(WindowPtr w);
         FolderWindow_Draw(w);
+        serial_logf(kLogModuleFinder, kLogLevelDebug, "[UPDATE] FolderWindow_Draw DONE\n");
     } else {
         /* Generic doc window: clear content and draw sample text */
-        FINDER_LOG_DEBUG("DoUpdate: generic window, drawing sample content\n");
         Rect r = w->port.portRect;
         EraseRect(&r);
 
         /* Text drawing disabled - would draw "Window Content Here" at (10,30) */
-        FINDER_LOG_DEBUG("[TEXT] Text drawing disabled - Font Manager not linked\n");
     }
 
-    FINDER_LOG_DEBUG("DoUpdate: calling EndUpdate\n");
+    serial_logf(kLogModuleFinder, kLogLevelDebug, "[UPDATE] EndUpdate START\n");
     EndUpdate(w);
+    serial_logf(kLogModuleFinder, kLogLevelDebug, "[UPDATE] EndUpdate DONE\n");
 
     SetPort(savePort);
 }

@@ -362,6 +362,11 @@ void SimpleText_Launch(void) {
 void SimpleText_OpenFile(const char* path) {
     STDocument* doc;
 
+    /* Debug: log the exact path received */
+    serial_logf(kLogModuleWindow, kLogLevelDebug,
+               "[ST] SimpleText_OpenFile: path='%s' len=%d\n",
+               path ? path : "(null)", path ? (int)strlen(path) : 0);
+
     ST_Log("Opening file: %s\n", path);
 
     /* Launch if not running */

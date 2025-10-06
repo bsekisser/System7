@@ -206,7 +206,8 @@ void SetOrigin(short h, short v) {}
 void SetClip(RgnHandle rgn) {}
 void GetClip(RgnHandle rgn) {}
 void ClipRect(const Rect* r) {}
-void CopyBits(const BitMap* srcBits, const BitMap* dstBits, const Rect* srcRect, const Rect* dstRect, short mode, RgnHandle maskRgn) {}
+/* CopyBits is now implemented in QuickDraw/Bitmaps.c */
+/* void CopyBits(const BitMap* srcBits, const BitMap* dstBits, const Rect* srcRect, const Rect* dstRect, short mode, RgnHandle maskRgn) {} */
 void ScrollRect(const Rect* r, short dh, short dv, RgnHandle updateRgn) {}
 
 /* QuickDraw globals */

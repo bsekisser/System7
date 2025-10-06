@@ -337,25 +337,18 @@ void BeginUpdate(WindowPtr theWindow) {
 
     /* If window has offscreen GWorld, swap portBits to point to GWorld buffer */
     if (theWindow->offscreenGWorld) {
-        serial_logf(kLogModuleWindow, kLogLevelDebug, "[BEGINUPDATE] Swapping portBits to GWorld for window %p\n", theWindow);
-
         /* Get GWorld PixMap */
         PixMapHandle gwPixMap = GetGWorldPixMap((GWorldPtr)theWindow->offscreenGWorld);
         if (gwPixMap && *gwPixMap) {
             /* Swap window's portBits to point to GWorld buffer */
             theWindow->port.portBits.baseAddr = (*gwPixMap)->baseAddr;
             theWindow->port.portBits.rowBytes = (*gwPixMap)->rowBytes & 0x3FFF;
-
-            serial_logf(kLogModuleWindow, kLogLevelDebug,
-                       "[BEGINUPDATE] Swapped portBits: baseAddr=%p rowBytes=%d\n",
-                       theWindow->port.portBits.baseAddr, theWindow->port.portBits.rowBytes);
         }
 
         /* Set port to window (which now points to GWorld buffer) */
         Platform_SetCurrentPort(&theWindow->port);
         WM_DEBUG("BeginUpdate: Swapped portBits to GWorld buffer");
     } else {
-        serial_logf(kLogModuleWindow, kLogLevelDebug, "[BEGINUPDATE] No GWorld for window %p - drawing direct\n", theWindow);
         /* No offscreen buffer, draw directly to window (legacy path) */
         Platform_SetCurrentPort(&theWindow->port);
     }
@@ -370,16 +363,25 @@ void BeginUpdate(WindowPtr theWindow) {
         if (updateClip) {
             Platform_IntersectRgn(theWindow->contRgn, theWindow->updateRgn, updateClip);
             if (theWindow->offscreenGWorld) {
-                SetClip(updateClip);
+                /* Check if current port's clipRgn is valid before calling SetClip */
+                extern GrafPtr g_currentPort;
+                if (g_currentPort && g_currentPort->clipRgn) {
+                    SetClip(updateClip);
+                }
             } else {
                 Platform_SetClipRgn(&theWindow->port, updateClip);
             }
-            Platform_DisposeRgn(updateClip);
+            /* FIXME: Platform_DisposeRgn hangs in free() - possible heap corruption
+             * Skip for now to avoid leak, but this needs investigation */
+            /* Platform_DisposeRgn(updateClip); */
         }
     } else if (theWindow->contRgn) {
         /* If no updateRgn, just use contRgn to prevent overdrawing chrome */
         if (theWindow->offscreenGWorld) {
-            SetClip(theWindow->contRgn);
+            extern GrafPtr g_currentPort;
+            if (g_currentPort && g_currentPort->clipRgn) {
+                SetClip(theWindow->contRgn);
+            }
         } else {
             Platform_SetClipRgn(&theWindow->port, theWindow->contRgn);
         }
@@ -391,10 +393,28 @@ void BeginUpdate(WindowPtr theWindow) {
         PixMapHandle pmHandle = GetGWorldPixMap((GWorldPtr)theWindow->offscreenGWorld);
         if (pmHandle && *pmHandle) {
             Rect gwBounds = (*pmHandle)->bounds;
-            EraseRect(&gwBounds);
-            serial_logf(kLogModuleWindow, kLogLevelDebug,
-                       "[BEGINUPDATE] Erased GWorld bounds (%d,%d,%d,%d)\n",
-                       gwBounds.left, gwBounds.top, gwBounds.right, gwBounds.bottom);
+
+            /* CRITICAL: Manually fill GWorld buffer with white ARGB pixels
+             * (EraseRect doesn't properly handle 32-bit ARGB) */
+            PixMapPtr pm = *pmHandle;
+            if (pm->pixelSize == 32 && pm->baseAddr) {
+                UInt32* pixels = (UInt32*)pm->baseAddr;
+                SInt16 height = gwBounds.bottom - gwBounds.top;
+                SInt16 rowBytes = pm->rowBytes & 0x3FFF;
+
+                serial_logf(kLogModuleWindow, kLogLevelDebug,
+                           "[GW_FILL] pixels=%p height=%d rowBytes=%d\n",
+                           pixels, height, rowBytes);
+
+                /* Fill with opaque white (0xFFFFFFFF = ARGB white) - use memset for speed */
+                size_t bytesToFill = (size_t)height * (size_t)rowBytes;
+                memset(pixels, 0xFF, bytesToFill);
+
+                serial_logf(kLogModuleWindow, kLogLevelDebug, "[GW_FILL] Done, filled %zu bytes\n", bytesToFill);
+            } else {
+                /* Fall back to EraseRect for non-32-bit modes */
+                EraseRect(&gwBounds);
+            }
         }
     }
 
@@ -415,46 +435,55 @@ void EndUpdate(WindowPtr theWindow) {
         if (gwPixMap && *gwPixMap) {
             /* Lock pixels for access */
             if (LockPixels(gwPixMap)) {
-                /* Copy from GWorld to window port using CopyBits */
-                BitMap srcBits;
-                srcBits.baseAddr = (*gwPixMap)->baseAddr;
-                srcBits.rowBytes = (*gwPixMap)->rowBytes & 0x3FFF;
-                srcBits.bounds = (*gwPixMap)->bounds;
-
                 /* Switch to window port for the blit */
                 SetPort((GrafPtr)&theWindow->port);
 
                 /* Copy the entire content area */
                 /* Source: local coordinates from GWorld - use GWorld's bounds, not window portRect! */
-                Rect srcRect = srcBits.bounds;
+                Rect srcRect = (*gwPixMap)->bounds;
 
                 /* Destination: use portBits bounds directly (already in global screen coordinates) */
                 Rect dstRect = theWindow->port.portBits.bounds;
 
-                extern UInt32 fb_width, fb_height;
-                serial_logf(kLogModuleWindow, kLogLevelDebug,
-                    "[ENDUPDATE] FB=%dx%d srcRect=(%d,%d,%d,%d) dstRect=(%d,%d,%d,%d) gwBounds=(%d,%d,%d,%d) portBitsBounds=(%d,%d,%d,%d)\n",
-                    fb_width, fb_height,
-                    srcRect.left, srcRect.top, srcRect.right, srcRect.bottom,
-                    dstRect.left, dstRect.top, dstRect.right, dstRect.bottom,
-                    srcBits.bounds.left, srcBits.bounds.top, srcBits.bounds.right, srcBits.bounds.bottom,
-                    theWindow->port.portBits.bounds.left, theWindow->port.portBits.bounds.top,
-                    theWindow->port.portBits.bounds.right, theWindow->port.portBits.bounds.bottom);
+                /* CRITICAL: Create a proper PixMap for the framebuffer destination
+                 * The window's portBits is a BitMap, but the framebuffer is actually 32-bit ARGB.
+                 * We need to create a temporary PixMap to describe it properly for CopyBits. */
+                extern void* framebuffer;
+                extern uint32_t fb_width;
 
-                CopyBits(&srcBits, &theWindow->port.portBits,
+                PixMap fbPixMap;
+                fbPixMap.baseAddr = theWindow->port.portBits.baseAddr;
+                fbPixMap.rowBytes = (fb_width * 4) | 0x8000;  /* Set PixMap flag */
+                fbPixMap.bounds = theWindow->port.portBits.bounds;
+                fbPixMap.pmVersion = 0;
+                fbPixMap.packType = 0;
+                fbPixMap.packSize = 0;
+                fbPixMap.hRes = 72 << 16;  /* 72 DPI in Fixed */
+                fbPixMap.vRes = 72 << 16;
+                fbPixMap.pixelType = 16;  /* Direct color */
+                fbPixMap.pixelSize = 32;  /* 32-bit ARGB */
+                fbPixMap.cmpCount = 3;    /* R, G, B */
+                fbPixMap.cmpSize = 8;     /* 8 bits per component */
+                fbPixMap.planeBytes = 0;
+                fbPixMap.pmTable = NULL;
+                fbPixMap.pmReserved = 0;
+
+                serial_logf(kLogModuleWindow, kLogLevelDebug,
+                           "[COPYBITS] src=(%d,%d,%d,%d) dst=(%d,%d,%d,%d)\n",
+                           srcRect.left, srcRect.top, srcRect.right, srcRect.bottom,
+                           dstRect.left, dstRect.top, dstRect.right, dstRect.bottom);
+
+                CopyBits((BitMap*)(*gwPixMap), (BitMap*)&fbPixMap,
                         &srcRect, &dstRect, srcCopy, NULL);
+
+                serial_logf(kLogModuleWindow, kLogLevelDebug, "[COPYBITS] Done\n");
 
                 UnlockPixels(gwPixMap);
 
                 /* Restore original portBits pointers */
-                extern void* framebuffer;
-                extern uint32_t fb_width;
                 theWindow->port.portBits.baseAddr = (Ptr)framebuffer;
-                theWindow->port.portBits.rowBytes = fb_width * 4;
-
-                serial_logf(kLogModuleWindow, kLogLevelDebug,
-                           "[ENDUPDATE] Restored portBits: baseAddr=%p rowBytes=%d\n",
-                           theWindow->port.portBits.baseAddr, theWindow->port.portBits.rowBytes);
+                /* CRITICAL: Set PixMap flag (bit 15) to indicate this is a 32-bit PixMap, not 1-bit BitMap */
+                theWindow->port.portBits.rowBytes = (fb_width * 4) | 0x8000;
 
                 WM_DEBUG("EndUpdate: Offscreen buffer copied to screen");
             }

@@ -809,17 +809,22 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                 extern Boolean SimpleText_IsRunning(void);
                 extern void SimpleText_OpenFile(const char* path);
 
+                FINDER_LOG_DEBUG("FW: name BEFORE Launch = '%s'\n", name);
                 if (!SimpleText_IsRunning()) {
                     SimpleText_Launch();
                     FINDER_LOG_DEBUG("FW: Launched SimpleText\n");
+                    FINDER_LOG_DEBUG("FW: name AFTER Launch = '%s'\n", name);
                 }
+                FINDER_LOG_DEBUG("FW: name AFTER check = '%s'\n", name);
 
                 /* Build full path to the file */
                 char fullPath[512];
                 snprintf(fullPath, sizeof(fullPath), "/%s", name);  /* Simple path for now */
+                FINDER_LOG_DEBUG("FW: fullPath after snprintf = '%s'\n", fullPath);
 
                 /* Load file content into SimpleText window */
                 SimpleText_OpenFile(fullPath);
+                FINDER_LOG_DEBUG("FW: called SimpleText_OpenFile with '%s'\n", fullPath);
                 FINDER_LOG_DEBUG("FW: Opened file '%s' in SimpleText\n", name);
             } else if (state->items[hitIndex].type == 'APPL') {
                 /* Application file */
@@ -890,18 +895,12 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
 void FolderWindow_Draw(WindowPtr w) {
     static Boolean gInFolderPaint = false;
 
-FINDER_LOG_DEBUG("=== FolderWindow_Draw ENTRY === window=0x%08x\n", (unsigned int)P2UL(w));
-
     if (!w) {
-        FINDER_LOG_DEBUG("FolderWindow_Draw: NULL window, returning\n");
         return;
     }
 
-    FINDER_LOG_DEBUG("FolderWindow_Draw: refCon=0x%08lx\n", w->refCon);
-
     /* Re-entrancy guard */
     if (gInFolderPaint) {
-        FINDER_LOG_DEBUG("FolderWindow_Draw: re-entry detected, skipping\n");
         return;
     }
     gInFolderPaint = true;
@@ -914,25 +913,15 @@ FINDER_LOG_DEBUG("=== FolderWindow_Draw ENTRY === window=0x%08x\n", (unsigned in
 
     GrafPtr savePort;
     GetPort(&savePort);
-    SetPort((GrafPtr)w);  /* Safe now: BeginUpdate swapped portBits to point to GWorld */
+    SetPort((GrafPtr)w);
 
-FINDER_LOG_DEBUG("FW: updateEvt for window 0x%08x, portRect=(%d,%d,%d,%d), portBits.bounds=(%d,%d,%d,%d)\n",
-                 (unsigned int)P2UL(w),
-                  w->port.portRect.left, w->port.portRect.top,
-                  w->port.portRect.right, w->port.portRect.bottom,
-                  w->port.portBits.bounds.left, w->port.portBits.bounds.top,
-                  w->port.portBits.bounds.right, w->port.portBits.bounds.bottom);
-
-    /* CRITICAL: Erase the entire portRect (content area in LOCAL coordinates)
-     * portRect is already in LOCAL coords (0,0,width,height) representing just content.
-     * clipRgn is already set to contRgn to prevent overdrawing chrome. */
-    EraseRect(&w->port.portRect);
-    FINDER_LOG_DEBUG("FW: Erased content area using portRect (0,0,%d,%d)\n",
-                 w->port.portRect.right, w->port.portRect.bottom);
+    /* Fill with white background - pattern is 1-bit bitmap where 0=white, 1=black */
+    Pattern whitePat;
+    for (int i = 0; i < 8; i++) whitePat.pat[i] = 0x00; /* solid white */
+    FillRect(&w->port.portRect, &whitePat);
 
     /* If trash is empty, draw empty message */
     if (isTrash && state && state->itemCount == 0) {
-        FINDER_LOG_DEBUG("FW: Drawing empty trash message\n");
         MoveTo(10, 30);
         DrawText("Trash is empty", 0, 14);
         MoveTo(10, 50);
@@ -944,9 +933,6 @@ FINDER_LOG_DEBUG("FW: updateEvt for window 0x%08x, portRect=(%d,%d,%d,%d), portB
         Point globalOrigin;
         globalOrigin.h = w->port.portBits.bounds.left;
         globalOrigin.v = w->port.portBits.bounds.top;
-
-        FINDER_LOG_DEBUG("FW: Drawing %d icons, portBounds=(%d,%d)\n",
-                     state->itemCount, globalOrigin.h, globalOrigin.v);
 
         for (short i = 0; i < state->itemCount; i++) {
             Boolean selected = (i == state->selectedIndex);
@@ -966,11 +952,6 @@ FINDER_LOG_DEBUG("FW: updateEvt for window 0x%08x, portRect=(%d,%d,%d,%d), portB
              */
             int globalX = state->items[i].position.h + globalOrigin.h;
             int globalY = state->items[i].position.v + globalOrigin.v;
-
-            FINDER_LOG_DEBUG("FW: Icon %d '%s' local=(%d,%d) global=(%d,%d)\n",
-                         i, state->items[i].name,
-                         state->items[i].position.h, state->items[i].position.v,
-                         globalX, globalY);
 
             /* Draw icon with label - Icon_DrawWithLabel draws to framebuffer in global coords */
             Icon_DrawWithLabel(&iconHandle, state->items[i].name,
