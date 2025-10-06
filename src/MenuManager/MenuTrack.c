@@ -666,6 +666,10 @@ long TrackMenu(short menuID, Point *startPt) {
         SystemTask();          /* House-keeping tasks */
         EventPumpYield();      /* Platform's input pump */
 
+        /* Draw cursor (menu tracking has its own event loop that bypasses main loop) */
+        extern void UpdateCursorDisplay(void);
+        UpdateCursorDisplay();
+
         /* Get current mouse position */
         GetMouse(&mousePt);
 

@@ -2094,6 +2094,15 @@ static void create_system71_windows(void) {
     /* Test windows removed - let Finder/applications create their own windows */
 }
 
+/* Mouse state from PS2 controller */
+extern struct {
+    int16_t x;
+    int16_t y;
+    uint8_t buttons;
+    uint8_t packet[3];
+    uint8_t packet_index;
+} g_mouseState;
+
 /* Cursor state variables for direct framebuffer cursor drawing */
 static int16_t cursor_old_x = -1;
 static int16_t cursor_old_y = -1;
@@ -2105,6 +2114,85 @@ void InvalidateCursor(void) {
     cursor_saved = false;
     cursor_old_x = -1;
     cursor_old_y = -1;
+}
+
+/* UpdateCursorDisplay - Update cursor on screen if mouse has moved */
+void UpdateCursorDisplay(void) {
+    extern void* framebuffer;
+    extern uint32_t fb_width, fb_height, fb_pitch;
+    extern const uint8_t arrow_cursor[];
+    extern const uint8_t arrow_cursor_mask[];
+
+    static int16_t last_mouse_x = -1;
+    static int16_t last_mouse_y = -1;
+
+    /* Only redraw if mouse moved or cursor was invalidated */
+    if (g_mouseState.x == last_mouse_x && g_mouseState.y == last_mouse_y && cursor_saved) {
+        return;
+    }
+
+    /* Clamp mouse position to screen bounds */
+    int16_t x = g_mouseState.x;
+    int16_t y = g_mouseState.y;
+
+    if (x < 0) x = 0;
+    if (x >= fb_width) x = fb_width - 1;
+    if (y < 0) y = 0;
+    if (y >= fb_height) y = fb_height - 1;
+
+    /* Simple direct cursor drawing */
+    uint32_t* fb = (uint32_t*)framebuffer;
+    int pitch_dwords = fb_pitch / 4;
+
+    /* Erase old cursor */
+    if (cursor_saved) {
+        for (int row = 0; row < 16; row++) {
+            int py = cursor_old_y + row;
+            if (py >= 0 && py < fb_height) {
+                for (int col = 0; col < 16; col++) {
+                    int px = cursor_old_x + col;
+                    if (px >= 0 && px < fb_width) {
+                        fb[py * pitch_dwords + px] = cursor_saved_pixels[row][col];
+                    }
+                }
+            }
+        }
+    }
+
+    /* Save and draw new cursor */
+    for (int row = 0; row < 16; row++) {
+        uint16_t cursor_row = (arrow_cursor[row*2] << 8) | arrow_cursor[row*2 + 1];
+        uint16_t mask_row = (arrow_cursor_mask[row*2] << 8) | arrow_cursor_mask[row*2 + 1];
+
+        int py = y + row;
+        if (py >= 0 && py < fb_height) {
+            for (int col = 0; col < 16; col++) {
+                int px = x + col;
+                if (px >= 0 && px < fb_width) {
+                    int idx = py * pitch_dwords + px;
+
+                    /* Save pixel */
+                    cursor_saved_pixels[row][col] = fb[idx];
+
+                    /* Draw cursor */
+                    if (mask_row & (0x8000 >> col)) {
+                        if (cursor_row & (0x8000 >> col)) {
+                            fb[idx] = 0xFF000000;  /* Black */
+                        } else {
+                            fb[idx] = 0xFFFFFFFF;  /* White */
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    cursor_old_x = x;
+    cursor_old_y = y;
+    cursor_saved = true;
+
+    last_mouse_x = g_mouseState.x;
+    last_mouse_y = g_mouseState.y;
 }
 
 /* Kernel main entry point */
@@ -2288,15 +2376,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     RunListSmokeTest();
     serial_puts("MAIN: List Manager smoke tests complete\n");
     #endif
-
-    /* Track mouse position for movement detection */
-    extern struct {
-        int16_t x;
-        int16_t y;
-        uint8_t buttons;
-        uint8_t packet[3];
-        uint8_t packet_index;
-    } g_mouseState;
 
     /* Draw initial cursor */
 #if 1
