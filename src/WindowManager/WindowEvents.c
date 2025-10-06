@@ -338,9 +338,12 @@ void BeginUpdate(WindowPtr theWindow) {
     /* If window has offscreen GWorld, draw to it; otherwise draw directly to window */
     if (theWindow->offscreenGWorld) {
         /* Switch to offscreen buffer for double-buffered drawing */
+        serial_logf(kLogModuleWindow, kLogLevelDebug, "[BEGINUPDATE] Switching to GWorld %p for window %p\n",
+                   theWindow->offscreenGWorld, theWindow);
         SetGWorld((CGrafPtr)theWindow->offscreenGWorld, NULL);
         WM_DEBUG("BeginUpdate: Switched to offscreen GWorld for double-buffering");
     } else {
+        serial_logf(kLogModuleWindow, kLogLevelDebug, "[BEGINUPDATE] No GWorld for window %p - drawing direct\n", theWindow);
         /* No offscreen buffer, draw directly to window (legacy path) */
         Platform_SetCurrentPort(&theWindow->port);
     }
@@ -397,8 +400,8 @@ void EndUpdate(WindowPtr theWindow) {
                 SetPort((GrafPtr)&theWindow->port);
 
                 /* Copy the entire content area */
-                /* Source: local coordinates from GWorld (0,0,width,height) */
-                Rect srcRect = theWindow->port.portRect;
+                /* Source: local coordinates from GWorld - use GWorld's bounds, not window portRect! */
+                Rect srcRect = srcBits.bounds;
 
                 /* Destination: global screen coordinates from portBits.bounds */
                 Rect dstRect;

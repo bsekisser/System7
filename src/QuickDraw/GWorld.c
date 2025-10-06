@@ -13,6 +13,7 @@
 #include "QuickDraw/ColorQuickDraw.h"
 #include "QuickDrawConstants.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "System71StdLib.h"
 #include <string.h>
 
 /* Current GWorld state */
@@ -38,7 +39,15 @@ extern GrafPtr g_currentPort;
 OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
                 const Rect *boundsRect, CTabHandle cTable,
                 GDHandle aGDevice, GWorldFlags flags) {
+    extern void serial_logf(SystemLogModule module, SystemLogLevel level, const char* fmt, ...);
+    serial_logf((SystemLogModule)3, (SystemLogLevel)2, "[GWORLD] NewGWorld called: depth=%d bounds=(%d,%d,%d,%d)\n",
+               pixelDepth, boundsRect ? boundsRect->left : -1,
+               boundsRect ? boundsRect->top : -1,
+               boundsRect ? boundsRect->right : -1,
+               boundsRect ? boundsRect->bottom : -1);
+
     if (!offscreenGWorld || !boundsRect) {
+        serial_logf((SystemLogModule)3, (SystemLogLevel)2, "[GWORLD] NewGWorld: paramErr (null params)\n");
         return paramErr;
     }
 
@@ -107,6 +116,9 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
 
     /* Attach PixMap to port */
     gworld->portPixMap = pmHandle;
+
+    serial_logf((SystemLogModule)3, (SystemLogLevel)2, "[GWORLD] NewGWorld: GWorld created successfully at %p, buffer=%p\n",
+               gworld, pixelBuffer);
 
     /* Initialize regions */
     gworld->visRgn = NewRgn();
