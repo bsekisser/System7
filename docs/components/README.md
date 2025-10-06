@@ -10,6 +10,7 @@ This directory groups subsystem guides for the System 7.1 Portable project. Each
 - [Resource Manager](ResourceManager.md)
 - [Window Manager](WindowManager.md)
 - [System / Logging](System/Logging.md)
+- [Component Status Snapshot](STATUS.md)
 
 Specialised notes live alongside their parent component:
 - Control Manager QA checklist → `ControlManager/QA.md`
