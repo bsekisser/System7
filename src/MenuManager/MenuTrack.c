@@ -669,14 +669,7 @@ long TrackMenu(short menuID, Point *startPt) {
         /* Increment update counter */
         updateCount++;
 
-        /* Redraw menu bar periodically to clear cursor artifacts from top bar */
-        /* Only redraw the menu bar (horizontal), not the dropdown menu itself */
-        if (updateCount % 100 == 0) {
-            DrawMenuBar();                      /* Full redraw: apple logo, outline, text */
-            DrawMenuBarWithHighlight(menuID);   /* Then re-apply highlight */
-        }
-
-        /* Draw cursor AFTER menu bar redraw */
+        /* Draw cursor (menu tracking has its own event loop that bypasses main loop) */
         extern void UpdateCursorDisplay(void);
         UpdateCursorDisplay();
 
