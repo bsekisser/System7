@@ -93,6 +93,7 @@ C_SOURCES = src/main.c \
             src/QuickDraw/QuickDrawPlatform.c \
             src/QuickDraw/Coordinates.c \
             src/QuickDraw/Regions.c \
+            src/QuickDraw/Pictures.c \
             src/OSUtils/OSUtilsTraps.c \
             src/Platform/WindowPlatform.c \
             src/Platform/x86/io.c \

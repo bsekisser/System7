@@ -26,6 +26,15 @@
 /* Platform abstraction layer */
 #include "QuickDrawPlatform.h"
 
+/* Picture recording hooks - from Pictures.c */
+extern void PictureRecordFrameRect(const Rect *r);
+extern void PictureRecordPaintRect(const Rect *r);
+extern void PictureRecordEraseRect(const Rect *r);
+extern void PictureRecordInvertRect(const Rect *r);
+extern void PictureRecordFrameOval(const Rect *r);
+extern void PictureRecordPaintOval(const Rect *r);
+extern void PictureRecordEraseOval(const Rect *r);
+extern void PictureRecordInvertOval(const Rect *r);
 
 /* QuickDraw Globals */
 extern QDGlobals qd;  /* Global QD from main.c */
@@ -514,6 +523,7 @@ void ColorBit(SInt16 whichBit) {
 
 void FrameRect(const Rect *r) {
     if (!g_currentPort || !r || EmptyRect(r)) return;
+    PictureRecordFrameRect(r);
     DrawPrimitive(frame, r, 0, &g_currentPort->pnPat, 0, 0);
 }
 
@@ -522,6 +532,7 @@ void PaintRect(const Rect *r) {
     assert(r != NULL);
     if (EmptyRect(r)) return;
 
+    PictureRecordPaintRect(r);
     DrawPrimitive(paint, r, 0, &g_currentPort->pnPat, 0, 0);
 }
 
@@ -538,6 +549,7 @@ void EraseRect(const Rect *r) {
     }
 
     QD_LOG_TRACE("EraseRect dispatch DrawPrimitive\n");
+    PictureRecordEraseRect(r);
     DrawPrimitive(erase, r, 0, &g_currentPort->bkPat, 0, 0);
     QD_LOG_TRACE("EraseRect DrawPrimitive returned\n");
 }
@@ -547,6 +559,7 @@ void InvertRect(const Rect *r) {
     assert(r != NULL);
     if (EmptyRect(r)) return;
 
+    PictureRecordInvertRect(r);
     DrawPrimitive(invert, r, 0, NULL, 0, 0);
 }
 
@@ -568,6 +581,7 @@ void FrameOval(const Rect *r) {
     assert(r != NULL);
     if (EmptyRect(r)) return;
 
+    PictureRecordFrameOval(r);
     DrawPrimitive(frame, r, 1, &g_currentPort->pnPat, 0, 0);
 }
 
@@ -576,6 +590,7 @@ void PaintOval(const Rect *r) {
     assert(r != NULL);
     if (EmptyRect(r)) return;
 
+    PictureRecordPaintOval(r);
     DrawPrimitive(paint, r, 1, &g_currentPort->pnPat, 0, 0);
 }
 
@@ -584,6 +599,7 @@ void EraseOval(const Rect *r) {
     assert(r != NULL);
     if (EmptyRect(r)) return;
 
+    PictureRecordEraseOval(r);
     DrawPrimitive(erase, r, 1, &g_currentPort->bkPat, 0, 0);
 }
 
@@ -592,6 +608,7 @@ void InvertOval(const Rect *r) {
     assert(r != NULL);
     if (EmptyRect(r)) return;
 
+    PictureRecordInvertOval(r);
     DrawPrimitive(invert, r, 1, NULL, 0, 0);
 }
 
