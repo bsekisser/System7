@@ -3,6 +3,14 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+/* Forward declarations for internal functions */
+typedef uint32_t u32;
+OSErr memory_manager_handle_prologue(Handle handle, ZonePtr* outZone);
+OSErr set_handle_size_24bit(Handle h, Size newSize);
+OSErr set_handle_size_32bit(Handle h, Size newSize);
+void init_memory_manager(ZonePtr sysZone, ZonePtr applZone);
+bool SetHandleSize(Handle h, u32 newSize);
+
 /* Type aliases */
 typedef uint32_t u32;
 
