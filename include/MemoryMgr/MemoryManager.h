@@ -106,6 +106,13 @@ void*   realloc(void* ptr, size_t size);
 
 /* Memory Manager initialization */
 void    InitMemoryManager(void);
+void    init_memory_manager(ZonePtr sysZone, ZonePtr applZone);
+
+/* Internal implementation functions */
+bool    SetHandleSize_MemMgr(Handle h, u32 newSize);
+OSErr   memory_manager_handle_prologue(void);
+OSErr   set_handle_size_24bit(Handle h, Size newSize);
+OSErr   set_handle_size_32bit(Handle h, Size newSize);
 
 /* Map Memory Manager zones into M68K interpreter address space */
 struct M68KAddressSpace;
