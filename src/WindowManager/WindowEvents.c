@@ -176,8 +176,21 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
         Platform_WaitTicks(1);
     }
 
-    /* Remove highlight */
-    Platform_HighlightWindowPart(theWindow, partCode, false);
+    /* DON'T call Platform_HighlightWindowPart to unhighlight - it will invert again
+     * and leave a ghost on the framebuffer. Instead, just invalidate and let the
+     * window redraw cleanly from the GWorld buffer which never had the highlight.
+     *
+     * Platform_HighlightWindowPart(theWindow, partCode, false);  // SKIP THIS
+     */
+
+    /* Invalidate the entire window to force redraw and remove all ghost artifacts.
+     * This is necessary because:
+     * 1. InvertRect draws directly to framebuffer during tracking (for close box feedback)
+     * 2. Cursor is drawn to framebuffer and can move anywhere during tracking
+     * 3. With GWorld double-buffering, the offscreen buffer doesn't have these pixels
+     * 4. We can't predict all cursor positions, so invalidate entire window
+     * Solution: Force complete window redraw from clean GWorld buffer */
+    InvalRect(&theWindow->port.portRect);
 
     /* Return true if mouse was released inside the part */
     Boolean result = inPart;
