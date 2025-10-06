@@ -671,7 +671,7 @@ long TrackMenu(short menuID, Point *startPt) {
 
         /* Redraw menu bar periodically to clear cursor artifacts from top bar */
         /* Only redraw the menu bar (horizontal), not the dropdown menu itself */
-        if (updateCount % 20 == 0) {
+        if (updateCount % 100 == 0) {
             DrawMenuBar();                      /* Full redraw: apple logo, outline, text */
             DrawMenuBarWithHighlight(menuID);   /* Then re-apply highlight */
         }
