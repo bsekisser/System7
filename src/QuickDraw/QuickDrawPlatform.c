@@ -251,34 +251,52 @@ void QDPlatform_FlushScreen(void) {
 /* Set a pixel */
 void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
     extern GrafPtr g_currentPort;
+    extern CGrafPtr g_currentCPort;  /* from ColorQuickDraw.c */
 
-    /* CRITICAL: x,y are in GLOBAL screen coordinates from QDPlatform_DrawShape!
-     * If port has baseAddr == framebuffer, use them directly.
-     * If port has a different bitmap, would need to convert, but we don't support that. */
-    if (g_currentPort && g_currentPort->portBits.baseAddr) {
-        /* Check if this is the framebuffer */
-        if (g_currentPort->portBits.baseAddr == (Ptr)framebuffer) {
-            /* Drawing to framebuffer - x,y are already global screen coords */
-            if (x < 0 || x >= fb_width || y < 0 || y >= fb_height) return;
+    if (!g_currentPort) {
+        /* No port - draw to framebuffer */
+        if (!framebuffer) return;
+        if (x < 0 || x >= fb_width || y < 0 || y >= fb_height) return;
+        uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
+        *pixel = color;
+        return;
+    }
 
-            uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
-            *pixel = color;
-        } else {
-            /* Drawing to a separate bitmap - would need coordinate conversion */
-            /* Not currently supported - fall back to framebuffer */
-            if (!framebuffer) return;
-            if (x < 0 || x >= fb_width || y < 0 || y >= fb_height) return;
+    /* Check if this is a color port (CGrafPtr/GWorld) */
+    Boolean isColorPort = (g_currentCPort != NULL && (GrafPtr)g_currentCPort == g_currentPort);
 
-            uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
+    if (isColorPort) {
+        /* Drawing to CGrafPort/GWorld - use portPixMap */
+        CGrafPtr cport = (CGrafPtr)g_currentPort;
+        if (cport->portPixMap && *cport->portPixMap) {
+            PixMapPtr pm = *cport->portPixMap;
+            Ptr baseAddr = pm->baseAddr;
+            SInt16 rowBytes = pm->rowBytes & 0x3FFF;
+            SInt16 width = pm->bounds.right - pm->bounds.left;
+            SInt16 height = pm->bounds.bottom - pm->bounds.top;
+
+            /* x,y are local coords for GWorld - bounds check */
+            if (x < 0 || x >= width || y < 0 || y >= height) return;
+
+            /* Draw to GWorld buffer */
+            uint32_t* pixel = (uint32_t*)((uint8_t*)baseAddr + y * rowBytes + x * 4);
             *pixel = color;
         }
     } else {
-        /* Fall back to framebuffer */
-        if (!framebuffer) return;
-        if (x < 0 || x >= fb_width || y < 0 || y >= fb_height) return;
-
-        uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
-        *pixel = color;
+        /* Drawing to basic GrafPort - check if it's the framebuffer */
+        if (g_currentPort->portBits.baseAddr == (Ptr)framebuffer) {
+            /* Drawing to framebuffer - x,y are global screen coords */
+            if (x < 0 || x >= fb_width || y < 0 || y >= fb_height) return;
+            uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
+            *pixel = color;
+        } else {
+            /* Drawing to offscreen basic bitmap - not currently supported */
+            /* Fall back to framebuffer */
+            if (!framebuffer) return;
+            if (x < 0 || x >= fb_width || y < 0 || y >= fb_height) return;
+            uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
+            *pixel = color;
+        }
     }
 }
 

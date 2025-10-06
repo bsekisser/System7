@@ -854,19 +854,37 @@ static void DrawPrimitive(GrafVerb verb, const Rect *shape, int shapeType,
     QD_LOG_TRACE("DrawPrimitive clipped rect=(%d,%d,%d,%d)\n",
                 drawRect.left, drawRect.top, drawRect.right, drawRect.bottom);
 
-    /* CRITICAL: Convert LOCAL coordinates to GLOBAL using portBits.bounds!
-     * portRect is in LOCAL coords (0,0,width,height)
-     * portBits.bounds maps LOCAL to GLOBAL screen position
-     * Platform layer needs GLOBAL coords to draw at correct screen position */
+    /* CRITICAL: Convert LOCAL coordinates to GLOBAL
+     * For basic GrafPort: use portBits.bounds
+     * For CGrafPort/GWorld: use portPixMap bounds (which is already local 0,0)
+     * Platform layer needs correct coords based on port type */
     Rect globalRect = drawRect;
-    globalRect.left += g_currentPort->portBits.bounds.left;
-    globalRect.top += g_currentPort->portBits.bounds.top;
-    globalRect.right += g_currentPort->portBits.bounds.left;
-    globalRect.bottom += g_currentPort->portBits.bounds.top;
 
-    QD_LOG_TRACE("DrawPrimitive global rect=(%d,%d,%d,%d) offset by portBits(%d,%d)\n",
-                globalRect.left, globalRect.top, globalRect.right, globalRect.bottom,
-                g_currentPort->portBits.bounds.left, g_currentPort->portBits.bounds.top);
+    /* Check if this is a color port (CGrafPtr/GWorld) */
+    extern CGrafPtr g_currentCPort;  /* from ColorQuickDraw.c */
+    Boolean isColorPort = (g_currentCPort != NULL && (GrafPtr)g_currentCPort == g_currentPort);
+
+    if (isColorPort) {
+        /* Color port (GWorld) - portPixMap bounds are already local (0,0,w,h)
+         * Don't add offset - coords stay local for offscreen drawing */
+        CGrafPtr cport = (CGrafPtr)g_currentPort;
+        if (cport->portPixMap && *cport->portPixMap) {
+            PixMapPtr pm = *cport->portPixMap;
+            /* For GWorld, bounds are local - no offset needed */
+            QD_LOG_TRACE("DrawPrimitive COLOR PORT: rect stays local (%d,%d,%d,%d)\n",
+                        globalRect.left, globalRect.top, globalRect.right, globalRect.bottom);
+        }
+    } else {
+        /* Basic GrafPort - convert local to global screen coords */
+        globalRect.left += g_currentPort->portBits.bounds.left;
+        globalRect.top += g_currentPort->portBits.bounds.top;
+        globalRect.right += g_currentPort->portBits.bounds.left;
+        globalRect.bottom += g_currentPort->portBits.bounds.top;
+
+        QD_LOG_TRACE("DrawPrimitive BASIC PORT: global rect=(%d,%d,%d,%d) offset by portBits(%d,%d)\n",
+                    globalRect.left, globalRect.top, globalRect.right, globalRect.bottom,
+                    g_currentPort->portBits.bounds.left, g_currentPort->portBits.bounds.top);
+    }
 
     /* Call platform layer to do actual drawing */
     QD_LOG_TRACE("DrawPrimitive call QDPlatform_DrawShape\n");
