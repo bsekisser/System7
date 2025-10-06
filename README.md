@@ -17,6 +17,10 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
   - Low-memory globals (`MemTop`, `SysZone`, `ApplZone`) now track real heap limits
   - `_TickCount` trap wired through `OSUtils_InstallTraps()` with a 60 Hz Time Manager task
   - Segment loader tests install and tear down OSUtils services for clean runs
+- ✅ **Menu Bar QuickDraw Polish**: Pixel-perfect Apple icon and title metrics in the menu bar
+  - `MenuAppleIcon_Draw()` composites the 16×16 RGBA asset into the active `GrafPort`
+  - Hardcoded titles now pass through `StringWidth` to pick QuickDraw-accurate hit regions
+  - Apple menu uses the icon width for subsequent menu placement instead of constants
 - ✅ **Hardware Abstraction Layer (HAL)**: Complete platform abstraction for multi-architecture support
   - Clean separation of platform-specific code from core System 7 implementation
   - Pluggable architecture: `src/Platform/{platform}/` directory structure
@@ -159,6 +163,7 @@ This is a proof-of-concept implementation focused on understanding and recreatin
 - **Graphics Foundation**: VESA framebuffer (800x600x32) with QuickDraw primitives
   - PenMode support including XOR mode (patXor) for interactive drag feedback
   - Rect, Line, and Frame operations with mode-aware rendering
+  - Menu bar icon drawing leverages direct RGBA blits via `MenuAppleIcon_Draw()`
 - **Desktop Rendering**:
   - System 7 menu bar with rainbow Apple logo
   - Desktop pattern rendering with authentic System 7 patterns
