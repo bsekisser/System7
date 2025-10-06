@@ -373,6 +373,19 @@ void BeginUpdate(WindowPtr theWindow) {
         }
     }
 
+    /* Erase update region to window background for GWorld double-buffering */
+    if (theWindow->offscreenGWorld) {
+        /* Get GWorld bounds and erase to background */
+        PixMapHandle pmHandle = GetGWorldPixMap((GWorldPtr)theWindow->offscreenGWorld);
+        if (pmHandle && *pmHandle) {
+            Rect gwBounds = (*pmHandle)->bounds;
+            EraseRect(&gwBounds);
+            serial_logf(kLogModuleWindow, kLogLevelDebug,
+                       "[BEGINUPDATE] Erased GWorld bounds (%d,%d,%d,%d)\n",
+                       gwBounds.left, gwBounds.top, gwBounds.right, gwBounds.bottom);
+        }
+    }
+
     WM_DEBUG("BeginUpdate: Update session started");
 }
 
@@ -403,10 +416,12 @@ void EndUpdate(WindowPtr theWindow) {
                 /* Source: local coordinates from GWorld - use GWorld's bounds, not window portRect! */
                 Rect srcRect = srcBits.bounds;
 
-                /* Destination: global screen coordinates from portBits.bounds */
+                /* Destination: global screen coordinates from content region */
+                /* Use content region top-left, but match GWorld dimensions exactly */
+                Rect contBounds = (*theWindow->contRgn)->rgnBBox;
                 Rect dstRect;
-                dstRect.left = theWindow->port.portBits.bounds.left;
-                dstRect.top = theWindow->port.portBits.bounds.top;
+                dstRect.left = contBounds.left;
+                dstRect.top = contBounds.top;
                 dstRect.right = dstRect.left + (srcRect.right - srcRect.left);
                 dstRect.bottom = dstRect.top + (srcRect.bottom - srcRect.top);
 

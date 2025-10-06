@@ -110,8 +110,18 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
         return memFullErr;
     }
 
-    /* Clear pixel buffer */
-    memset(pixelBuffer, 0, bufferSize);
+    /* Clear pixel buffer to white (0xFFFFFFFF for 32-bit ARGB) */
+    if (pixelDepth == 32) {
+        /* Fill with white: 0xFFFFFFFF for 32-bit ARGB */
+        UInt32 *pixels = (UInt32*)pixelBuffer;
+        UInt32 pixelCount = bufferSize / 4;
+        for (UInt32 i = 0; i < pixelCount; i++) {
+            pixels[i] = 0xFFFFFFFF;
+        }
+    } else {
+        /* For other depths, fill with zeros */
+        memset(pixelBuffer, 0, bufferSize);
+    }
     pm->baseAddr = pixelBuffer;
 
     /* Attach PixMap to port */
