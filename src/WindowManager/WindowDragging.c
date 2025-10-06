@@ -288,6 +288,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
      * This prevents leaving white artifacts where the title bar was */
     extern void HideWindow(WindowPtr window);
     extern void ShowWindow(WindowPtr window);
+    extern void InvalidateCursor(void);  /* Force cursor redraw */
     Boolean wasVisible = theWindow->visible;
     if (wasVisible) {
         /* Temporarily hide window to erase it from old position */
@@ -298,12 +299,19 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         QDPlatform_FlushScreen();
     }
 
+    /* Invalidate cursor state before drag to prevent stale background artifacts */
+    InvalidateCursor();
+
     /* Main modal drag loop - System 7 idiom with XOR outline feedback
      * Minimal logging to avoid blocking */
     extern void EventPumpYield(void);
+    extern void UpdateCursorDisplay(void);
     while (StillDown()) {
         /* Poll hardware for new input events (mouse button state) */
         EventPumpYield();
+
+        /* Update cursor display (drag has its own event loop that bypasses main loop) */
+        UpdateCursorDisplay();
 
         GetMouse(&ptG);  /* Returns GLOBAL coords */
 
@@ -365,6 +373,9 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         InvertRect(&dragOutline);
         QDPlatform_FlushScreen();  /* Force screen update */
     }
+
+    /* Invalidate cursor state after drag to force fresh redraw */
+    InvalidateCursor();
 
     /* Move window to final position if it changed */
     if (moved) {
