@@ -231,15 +231,6 @@ void SetPort(GrafPtr port) {
 
     g_currentPort = port;
     qd.thePort = port;  /* Direct access instead of g_currentQD->thePort */
-
-    /* If this is a color port, also set g_currentCPort */
-    extern CGrafPtr g_currentCPort;
-    if (port && ((CGrafPtr)port)->portVersion != 0) {
-        /* portVersion != 0 indicates this is a CGrafPtr */
-        g_currentCPort = (CGrafPtr)port;
-    } else {
-        g_currentCPort = NULL;
-    }
 }
 
 void GetPort(GrafPtr *port) {
