@@ -67,6 +67,8 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
                          SInt16 shapeType, const Pattern* pat,
                          SInt16 ovalWidth, SInt16 ovalHeight);
 void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat);
+void QDPlatform_FillPoly(GrafPtr port, PolyHandle poly, const Pattern* pat,
+                        SInt16 mode, GrafVerb verb);
 
 #ifdef __cplusplus
 }

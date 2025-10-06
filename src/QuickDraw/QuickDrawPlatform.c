@@ -16,6 +16,11 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+/* Maximum polygon points */
+#ifndef MAX_POLY_POINTS
+#define MAX_POLY_POINTS 1024
+#endif
+
 /* External framebuffer from main.c */
 extern void* framebuffer;
 extern uint32_t fb_width;
@@ -768,6 +773,117 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
                     UInt32 current = QDPlatform_GetPixel(x + offsetX, y + offsetY);
                     UInt32 inverted = current ^ 0x00FFFFFF;
                     QDPlatform_SetPixel(x + offsetX, y + offsetY, inverted);
+                }
+            }
+        }
+    }
+}
+
+/* Polygon fill using scanline algorithm */
+void QDPlatform_FillPoly(GrafPtr port, PolyHandle poly, const Pattern* pat,
+                        SInt16 mode, GrafVerb verb) {
+    if (!poly || !*poly || !port) return;
+
+    Polygon* polyPtr = *poly;
+    SInt16 numPoints = (polyPtr->polySize - sizeof(SInt16) - sizeof(Rect)) / sizeof(Point);
+
+    if (numPoints < 3) return;  /* Need at least 3 points for a polygon */
+
+    /* Get global offset */
+    SInt16 offsetX = port->portBits.bounds.left;
+    SInt16 offsetY = port->portBits.bounds.top;
+
+    /* Scanline fill algorithm */
+    Rect bbox = polyPtr->polyBBox;
+
+    /* Convert LOCAL bbox to GLOBAL */
+    bbox.left += offsetX;
+    bbox.right += offsetX;
+    bbox.top += offsetY;
+    bbox.bottom += offsetY;
+
+    /* Clip to screen bounds */
+    if (bbox.left < 0) bbox.left = 0;
+    if (bbox.top < 0) bbox.top = 0;
+    if (bbox.right > (SInt16)fb_width) bbox.right = fb_width;
+    if (bbox.bottom > (SInt16)fb_height) bbox.bottom = fb_height;
+
+    /* For each scanline */
+    for (SInt32 y = bbox.top; y < bbox.bottom; y++) {
+        /* Find intersections with polygon edges */
+        SInt16 intersections[MAX_POLY_POINTS];
+        SInt16 numIntersections = 0;
+
+        /* Check each edge */
+        for (SInt16 i = 0; i < numPoints; i++) {
+            SInt16 j = (i + 1) % numPoints;
+
+            /* Get edge vertices in GLOBAL coords */
+            SInt32 y1 = polyPtr->polyPoints[i].v + offsetY;
+            SInt32 y2 = polyPtr->polyPoints[j].v + offsetY;
+            SInt32 x1 = polyPtr->polyPoints[i].h + offsetX;
+            SInt32 x2 = polyPtr->polyPoints[j].h + offsetX;
+
+            /* Skip horizontal edges */
+            if (y1 == y2) continue;
+
+            /* Check if scanline intersects edge */
+            if ((y1 <= y && y < y2) || (y2 <= y && y < y1)) {
+                /* Calculate intersection x coordinate */
+                SInt32 x = x1 + ((y - y1) * (x2 - x1)) / (y2 - y1);
+
+                if (numIntersections < MAX_POLY_POINTS) {
+                    intersections[numIntersections++] = x;
+                }
+            }
+        }
+
+        /* Sort intersections */
+        for (SInt16 i = 0; i < numIntersections - 1; i++) {
+            for (SInt16 j = i + 1; j < numIntersections; j++) {
+                if (intersections[i] > intersections[j]) {
+                    SInt16 temp = intersections[i];
+                    intersections[i] = intersections[j];
+                    intersections[j] = temp;
+                }
+            }
+        }
+
+        /* Fill between pairs of intersections */
+        for (SInt16 i = 0; i < numIntersections - 1; i += 2) {
+            SInt32 x1 = intersections[i];
+            SInt32 x2 = intersections[i + 1];
+
+            if (x1 < 0) x1 = 0;
+            if (x2 > (SInt32)fb_width) x2 = fb_width;
+
+            for (SInt32 x = x1; x < x2; x++) {
+                if (x >= 0 && x < (SInt32)fb_width && y >= 0 && y < (SInt32)fb_height) {
+                    UInt32 color;
+
+                    if (verb == invert) {
+                        UInt32 current = QDPlatform_GetPixel(x, y);
+                        color = current ^ 0x00FFFFFF;
+                    } else {
+                        /* Apply pattern */
+                        if (pat) {
+                            SInt32 patY = y & 7;
+                            SInt32 patX = x & 7;
+                            UInt8 patByte = pat->pat[patY];
+                            Boolean bit = (patByte >> (7 - patX)) & 1;
+                            color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
+                        } else {
+                            color = (verb == erase) ? pack_color(255, 255, 255)
+                                                   : pack_color(0, 0, 0);
+                        }
+
+                        if (mode == patXor) {
+                            UInt32 current = QDPlatform_GetPixel(x, y);
+                            color = current ^ color;
+                        }
+                    }
+
+                    QDPlatform_SetPixel(x, y, color);
                 }
             }
         }

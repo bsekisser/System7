@@ -19,6 +19,7 @@
 
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/QDRegions.h"
+#include "MemoryMgr/MemoryManager.h"
 #include <math.h>
 #include <assert.h>
 
@@ -32,6 +33,13 @@ static QDGlobalsPtr g_currentQD = &qd;
 static Boolean g_qdInitialized = false;
 GrafPtr g_currentPort = NULL;  /* Shared with Coordinates.c */
 static QDErr g_lastError = 0;
+
+/* Polygon recording state */
+#define MAX_POLY_POINTS 1024
+static Boolean g_polyRecording = false;
+static Point g_polyPoints[MAX_POLY_POINTS];
+static SInt16 g_polyPointCount = 0;
+static Rect g_polyBBox;
 
 /* Standard patterns */
 static const Pattern g_standardPatterns[] = {
@@ -365,6 +373,24 @@ void MoveTo(SInt16 h, SInt16 v) {
     if (g_currentPort != NULL) {
         g_currentPort->pnLoc.h = h;
         g_currentPort->pnLoc.v = v;
+
+        /* Record point if polygon recording is active */
+        if (g_polyRecording && g_polyPointCount < MAX_POLY_POINTS) {
+            g_polyPoints[g_polyPointCount].h = h;
+            g_polyPoints[g_polyPointCount].v = v;
+            g_polyPointCount++;
+
+            /* Update bounding box */
+            if (g_polyPointCount == 1) {
+                g_polyBBox.left = g_polyBBox.right = h;
+                g_polyBBox.top = g_polyBBox.bottom = v;
+            } else {
+                if (h < g_polyBBox.left) g_polyBBox.left = h;
+                if (h > g_polyBBox.right) g_polyBBox.right = h;
+                if (v < g_polyBBox.top) g_polyBBox.top = v;
+                if (v > g_polyBBox.bottom) g_polyBBox.bottom = v;
+            }
+        }
     }
 }
 
@@ -410,8 +436,26 @@ void LineTo(SInt16 h, SInt16 v) {
         }
     }
 
-    /* Draw the line if pen should be visible */
-    if (g_currentPort->pnVis <= 0 &&
+    /* Record point if polygon recording is active */
+    if (g_polyRecording && g_polyPointCount < MAX_POLY_POINTS) {
+        g_polyPoints[g_polyPointCount].h = h;
+        g_polyPoints[g_polyPointCount].v = v;
+        g_polyPointCount++;
+
+        /* Update bounding box */
+        if (g_polyPointCount == 1) {
+            g_polyBBox.left = g_polyBBox.right = h;
+            g_polyBBox.top = g_polyBBox.bottom = v;
+        } else {
+            if (h < g_polyBBox.left) g_polyBBox.left = h;
+            if (h > g_polyBBox.right) g_polyBBox.right = h;
+            if (v < g_polyBBox.top) g_polyBBox.top = v;
+            if (v > g_polyBBox.bottom) g_polyBBox.bottom = v;
+        }
+    }
+
+    /* Draw the line if pen should be visible and not recording polygon */
+    if (!g_polyRecording && g_currentPort->pnVis <= 0 &&
         g_currentPort->pnSize.h > 0 && g_currentPort->pnSize.v > 0) {
         Point startGlobal = startLocal;
         Point endGlobal = endLocal;
@@ -618,6 +662,129 @@ void FillArc(const Rect *r, SInt16 startAngle, SInt16 arcAngle,
              ConstPatternParam pat) {
     if (!g_currentPort || !r || !pat || EmptyRect(r)) return;
     DrawPrimitive(fill, r, 3, pat, startAngle, arcAngle);
+}
+
+/* ================================================================
+ * POLYGON OPERATIONS
+ * ================================================================ */
+
+PolyHandle OpenPoly(void) {
+    if (!g_currentPort) return NULL;
+
+    /* Initialize polygon recording */
+    g_polyRecording = true;
+    g_polyPointCount = 0;
+    SetRect(&g_polyBBox, 0, 0, 0, 0);
+
+    /* Store current pen location as first point if it's valid */
+    Point penLoc = g_currentPort->pnLoc;
+    if (g_polyPointCount < MAX_POLY_POINTS) {
+        g_polyPoints[g_polyPointCount++] = penLoc;
+        g_polyBBox.left = g_polyBBox.right = penLoc.h;
+        g_polyBBox.top = g_polyBBox.bottom = penLoc.v;
+    }
+
+    return NULL;  /* Will return actual handle in ClosePoly */
+}
+
+PolyHandle ClosePoly(void) {
+    if (!g_polyRecording) return NULL;
+
+    g_polyRecording = false;
+
+    if (g_polyPointCount == 0) return NULL;
+
+    /* Calculate size needed for Polygon structure */
+    SInt16 polySize = sizeof(SInt16) + sizeof(Rect) +
+                      (g_polyPointCount * sizeof(Point));
+
+    /* Allocate handle for polygon */
+    PolyHandle poly = (PolyHandle)NewHandle(polySize);
+    if (!poly) {
+        g_lastError = memFullErr;
+        return NULL;
+    }
+
+    /* Fill in polygon data */
+    Polygon *polyPtr = *poly;
+    polyPtr->polySize = polySize;
+    polyPtr->polyBBox = g_polyBBox;
+
+    /* Copy points */
+    for (SInt16 i = 0; i < g_polyPointCount; i++) {
+        polyPtr->polyPoints[i] = g_polyPoints[i];
+    }
+
+    return poly;
+}
+
+void KillPoly(PolyHandle poly) {
+    if (poly) {
+        DisposeHandle((Handle)poly);
+    }
+}
+
+void OffsetPoly(PolyHandle poly, SInt16 dh, SInt16 dv) {
+    if (!poly || !*poly) return;
+
+    Polygon *polyPtr = *poly;
+
+    /* Offset bounding box */
+    OffsetRect(&polyPtr->polyBBox, dh, dv);
+
+    /* Calculate number of points from polySize */
+    SInt16 numPoints = (polyPtr->polySize - sizeof(SInt16) - sizeof(Rect)) / sizeof(Point);
+
+    /* Offset all points */
+    for (SInt16 i = 0; i < numPoints; i++) {
+        polyPtr->polyPoints[i].h += dh;
+        polyPtr->polyPoints[i].v += dv;
+    }
+}
+
+void FramePoly(PolyHandle poly) {
+    if (!g_currentPort || !poly || !*poly) return;
+
+    Polygon *polyPtr = *poly;
+    SInt16 numPoints = (polyPtr->polySize - sizeof(SInt16) - sizeof(Rect)) / sizeof(Point);
+
+    if (numPoints < 2) return;
+
+    /* Draw lines between consecutive points */
+    for (SInt16 i = 0; i < numPoints - 1; i++) {
+        MoveTo(polyPtr->polyPoints[i].h, polyPtr->polyPoints[i].v);
+        LineTo(polyPtr->polyPoints[i + 1].h, polyPtr->polyPoints[i + 1].v);
+    }
+}
+
+void PaintPoly(PolyHandle poly) {
+    if (!g_currentPort || !poly || !*poly) return;
+
+    /* Use platform layer to fill polygon */
+    QDPlatform_FillPoly(g_currentPort, poly, &g_currentPort->pnPat,
+                        g_currentPort->pnMode, paint);
+}
+
+void ErasePoly(PolyHandle poly) {
+    if (!g_currentPort || !poly || !*poly) return;
+
+    /* Use platform layer to fill polygon with background */
+    QDPlatform_FillPoly(g_currentPort, poly, &g_currentPort->bkPat,
+                        patCopy, erase);
+}
+
+void InvertPoly(PolyHandle poly) {
+    if (!g_currentPort || !poly || !*poly) return;
+
+    /* Use platform layer to invert polygon */
+    QDPlatform_FillPoly(g_currentPort, poly, NULL, patCopy, invert);
+}
+
+void FillPoly(PolyHandle poly, ConstPatternParam pat) {
+    if (!g_currentPort || !poly || !*poly || !pat) return;
+
+    /* Use platform layer to fill polygon with pattern */
+    QDPlatform_FillPoly(g_currentPort, poly, pat, patCopy, fill);
 }
 
 /* ================================================================

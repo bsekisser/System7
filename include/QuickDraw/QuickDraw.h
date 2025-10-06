@@ -178,7 +178,7 @@ void KillPicture(PicHandle myPicture);
 
 /* Polygon Operations */
 PolyHandle OpenPoly(void);
-void ClosePoly(void);
+PolyHandle ClosePoly(void);
 void KillPoly(PolyHandle poly);
 void OffsetPoly(PolyHandle poly, SInt16 dh, SInt16 dv);
 void FramePoly(PolyHandle poly);
