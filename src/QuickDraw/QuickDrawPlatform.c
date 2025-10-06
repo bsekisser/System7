@@ -11,6 +11,11 @@
 #include <math.h>
 #include "QuickDraw/QDLogging.h"
 
+/* Define M_PI if not defined */
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 /* External framebuffer from main.c */
 extern void* framebuffer;
 extern uint32_t fb_width;
@@ -119,6 +124,56 @@ static inline Boolean QDPointInRoundRect(SInt32 x, SInt32 y, const Rect* rect,
     double dx = (x + 0.5 - cx) / rx;
     double dy = (y + 0.5 - cy) / ry;
     return (dx * dx + dy * dy) <= 1.0;
+}
+
+/* Check if a point is inside an arc */
+static inline Boolean QDPointInArc(SInt32 x, SInt32 y, const Rect* rect,
+                                   SInt16 startAngle, SInt16 arcAngle) {
+    /* First check if point is in the ellipse */
+    if (!QDPointInEllipse(x, y, rect)) {
+        return false;
+    }
+
+    /* Calculate center of ellipse */
+    double cx = (rect->left + rect->right) / 2.0;
+    double cy = (rect->top + rect->bottom) / 2.0;
+
+    /* Calculate angle from center to point */
+    /* QuickDraw angles: 0 = 3 o'clock, 90 = 12 o'clock, counter-clockwise */
+    double dx = (x + 0.5) - cx;
+    double dy = cy - (y + 0.5); /* Flip Y for Mac coordinate system */
+    double angleRad = atan2(dy, dx);
+    double angleDeg = angleRad * 180.0 / M_PI;
+
+    /* Normalize to 0-360 */
+    while (angleDeg < 0) angleDeg += 360;
+    while (angleDeg >= 360) angleDeg -= 360;
+
+    /* Normalize startAngle to 0-360 */
+    double start = startAngle;
+    while (start < 0) start += 360;
+    while (start >= 360) start -= 360;
+
+    /* Check if point angle is within arc angle range */
+    double end = start + arcAngle;
+
+    if (arcAngle >= 0) {
+        /* Positive arc (counter-clockwise) */
+        if (end <= 360) {
+            return (angleDeg >= start && angleDeg <= end);
+        } else {
+            /* Arc wraps around 0 degrees */
+            return (angleDeg >= start || angleDeg <= (end - 360));
+        }
+    } else {
+        /* Negative arc (clockwise) */
+        if (start + arcAngle >= 0) {
+            return (angleDeg >= (start + arcAngle) && angleDeg <= start);
+        } else {
+            /* Arc wraps around 0 degrees */
+            return (angleDeg >= (start + arcAngle + 360) || angleDeg <= start);
+        }
+    }
 }
 
 /* Initialize platform layer */
@@ -613,6 +668,100 @@ void QDPlatform_DrawShape(GrafPtr port, GrafVerb verb, const Rect* rect,
                 for (SInt32 x = rect->left; x < rect->right; x++) {
                     if (x < 0 || x >= (SInt32)fb_width) continue;
                     if (!QDPointInRoundRect(x, y, rect, radiusH, radiusV)) {
+                        continue;
+                    }
+
+                    UInt32 current = QDPlatform_GetPixel(x + offsetX, y + offsetY);
+                    UInt32 inverted = current ^ 0x00FFFFFF;
+                    QDPlatform_SetPixel(x + offsetX, y + offsetY, inverted);
+                }
+            }
+        }
+    } else if (shapeType == 3) {  /* Arc */
+        /* ovalWidth = startAngle, ovalHeight = arcAngle */
+        SInt16 startAngle = ovalWidth;
+        SInt16 arcAngle = ovalHeight;
+
+        SInt16 mode = port ? port->pnMode : patCopy;
+
+        if (verb == paint || verb == fill || verb == erase) {
+            UInt32 fallbackColor = (verb == erase) ? pack_color(255, 255, 255)
+                                                   : pack_color(0, 0, 0);
+            for (SInt32 y = rect->top; y < rect->bottom; y++) {
+                if (y < 0 || y >= (SInt32)fb_height) continue;
+                for (SInt32 x = rect->left; x < rect->right; x++) {
+                    if (x < 0 || x >= (SInt32)fb_width) continue;
+                    if (!QDPointInArc(x, y, rect, startAngle, arcAngle)) {
+                        continue;
+                    }
+
+                    UInt32 color = fallbackColor;
+                    if (pat) {
+                        SInt32 patY = (verb == paint) ? ((y - rect->top) & 7) : (y & 7);
+                        SInt32 patX = (verb == paint) ? ((x - rect->left) & 7) : (x & 7);
+                        UInt8 patByte = pat->pat[patY];
+                        Boolean bit = (patByte >> (7 - patX)) & 1;
+                        color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
+                    }
+
+                    if (verb == erase && pat == NULL) {
+                        color = pack_color(255, 255, 255);
+                    }
+
+                    if (mode == patXor && verb == paint) {
+                        UInt32 current = QDPlatform_GetPixel(x + offsetX, y + offsetY);
+                        color = current ^ color;
+                    }
+
+                    QDPlatform_SetPixel(x + offsetX, y + offsetY, color);
+                }
+            }
+        } else if (verb == frame) {
+            /* Frame the arc - draw outline only */
+            for (SInt32 y = rect->top; y < rect->bottom; y++) {
+                if (y < 0 || y >= (SInt32)fb_height) continue;
+                for (SInt32 x = rect->left; x < rect->right; x++) {
+                    if (x < 0 || x >= (SInt32)fb_width) continue;
+                    if (!QDPointInArc(x, y, rect, startAngle, arcAngle)) {
+                        continue;
+                    }
+
+                    /* Check if this is an edge pixel */
+                    Boolean isEdge = false;
+
+                    /* Check if any neighbor is outside the arc */
+                    if (!QDPointInArc(x - 1, y, rect, startAngle, arcAngle) ||
+                        !QDPointInArc(x + 1, y, rect, startAngle, arcAngle) ||
+                        !QDPointInArc(x, y - 1, rect, startAngle, arcAngle) ||
+                        !QDPointInArc(x, y + 1, rect, startAngle, arcAngle)) {
+                        isEdge = true;
+                    }
+
+                    if (!isEdge) continue;
+
+                    UInt32 color = pack_color(0, 0, 0);
+                    if (pat) {
+                        SInt32 patY = (y - rect->top) & 7;
+                        SInt32 patX = (x - rect->left) & 7;
+                        UInt8 patByte = pat->pat[patY];
+                        Boolean bit = (patByte >> (7 - patX)) & 1;
+                        color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
+                    }
+
+                    if (mode == patXor) {
+                        UInt32 current = QDPlatform_GetPixel(x + offsetX, y + offsetY);
+                        color = current ^ color;
+                    }
+
+                    QDPlatform_SetPixel(x + offsetX, y + offsetY, color);
+                }
+            }
+        } else if (verb == invert) {
+            for (SInt32 y = rect->top; y < rect->bottom; y++) {
+                if (y < 0 || y >= (SInt32)fb_height) continue;
+                for (SInt32 x = rect->left; x < rect->right; x++) {
+                    if (x < 0 || x >= (SInt32)fb_width) continue;
+                    if (!QDPointInArc(x, y, rect, startAngle, arcAngle)) {
                         continue;
                     }
 

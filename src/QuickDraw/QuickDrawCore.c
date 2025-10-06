@@ -591,6 +591,36 @@ void FillRoundRect(const Rect *r, SInt16 ovalWidth, SInt16 ovalHeight,
 }
 
 /* ================================================================
+ * ARC OPERATIONS
+ * ================================================================ */
+
+void FrameArc(const Rect *r, SInt16 startAngle, SInt16 arcAngle) {
+    if (!g_currentPort || !r || EmptyRect(r)) return;
+    DrawPrimitive(frame, r, 3, &g_currentPort->pnPat, startAngle, arcAngle);
+}
+
+void PaintArc(const Rect *r, SInt16 startAngle, SInt16 arcAngle) {
+    if (!g_currentPort || !r || EmptyRect(r)) return;
+    DrawPrimitive(paint, r, 3, &g_currentPort->pnPat, startAngle, arcAngle);
+}
+
+void EraseArc(const Rect *r, SInt16 startAngle, SInt16 arcAngle) {
+    if (!g_currentPort || !r || EmptyRect(r)) return;
+    DrawPrimitive(erase, r, 3, &g_currentPort->bkPat, startAngle, arcAngle);
+}
+
+void InvertArc(const Rect *r, SInt16 startAngle, SInt16 arcAngle) {
+    if (!g_currentPort || !r || EmptyRect(r)) return;
+    DrawPrimitive(invert, r, 3, NULL, startAngle, arcAngle);
+}
+
+void FillArc(const Rect *r, SInt16 startAngle, SInt16 arcAngle,
+             ConstPatternParam pat) {
+    if (!g_currentPort || !r || !pat || EmptyRect(r)) return;
+    DrawPrimitive(fill, r, 3, pat, startAngle, arcAngle);
+}
+
+/* ================================================================
  * UTILITY FUNCTIONS
  * ================================================================ */
 
