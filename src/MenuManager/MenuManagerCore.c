@@ -450,6 +450,7 @@ void DrawMenuBar(void)
                             continue;
                         } else {
                             /* Draw normal text title - moved 4px right and 1px down */
+                            ForeColor(blackColor);  /* Ensure black text */
                             MoveTo(x + 4, 14);  /* Shifted right 4px and down 1px */
 
                         /* TEMPORARY FIX: Use hardcoded menu titles based on menu ID */

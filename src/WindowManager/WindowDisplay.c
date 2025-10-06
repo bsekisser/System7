@@ -6,6 +6,9 @@
 #include "SystemTheme.h"
 #include "WindowManager/WMLogging.h"
 
+/* Color constants */
+#define blackColor 33
+
 /* External functions */
 extern void DrawString(const unsigned char* str);
 extern void LineTo(short h, short v);
@@ -700,6 +703,7 @@ static void DrawWindowFrame(WindowPtr window) {
                     WM_LOG_TRACE("*** CODE PATH B: DrawWindowFrame in WindowDisplay.c ***\n");
                     WM_LOG_TRACE("TITLE: About to draw title, titleStr=%p\n", titleStr);
                     PenPat(&qd.black);
+                    ForeColor(blackColor);  /* Ensure black text */
                     TextFace(0);  /* normal */
                     MoveTo(textLeft, textBaseline);
                     WM_LOG_TRACE("TITLE: Calling DrawString now\n");
@@ -708,10 +712,12 @@ static void DrawWindowFrame(WindowPtr window) {
                 } else {
                     /* Inactive window: no lozenge, gray text */
                     PenPat(&qd.gray);
+                    ForeColor(8);  /* Gray color for inactive title */
                     TextFace(0);  /* normal */
                     MoveTo(textLeft, textBaseline);
                     DrawString(titleStr);
                     PenPat(&qd.black);  /* reset to black */
+                    ForeColor(blackColor);  /* reset to black */
                 }
 
                 WM_LOG_TRACE("TITLE_DRAW: Drew title at baseline %d\n", textBaseline);

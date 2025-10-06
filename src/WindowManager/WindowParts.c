@@ -28,6 +28,9 @@
 #include "FontManager/FontManager.h"
 #include "FontManager/FontTypes.h"
 #include <math.h>
+
+/* Color constants */
+#define blackColor 33
 #include "WindowManager/WMLogging.h"
 
 /* [WM-031] File-local helpers; provenance: IM:Windows "Window Definition Procedures" */
@@ -313,6 +316,7 @@ void WM_DrawWindowTitle(WindowPtr window, const Rect* titleRect) {
         TextFont(chicagoFont);
         TextSize(12);
         TextFace(normal);
+        ForeColor(blackColor);  /* Ensure black text */
 
         /* Calculate title width for centering */
         short titleWidth = StringWidth(title);
