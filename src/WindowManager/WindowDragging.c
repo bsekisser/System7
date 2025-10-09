@@ -459,11 +459,11 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         /* Invalidate window content to trigger updateEvt for content redraw */
         if (theWindow->contRgn) {
             extern void InvalRgn(RgnHandle badRgn);
-            GrafPtr savePort;
-            GetPort(&savePort);
+            GrafPtr oldPort;
+            GetPort(&oldPort);
             SetPort((GrafPtr)theWindow);
             InvalRgn(theWindow->contRgn);
-            SetPort(savePort);
+            SetPort(oldPort);
             WM_LOG_TRACE("DragWindow: Invalidated window content region\n");
         }
 

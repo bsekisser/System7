@@ -26,16 +26,16 @@ static bool find_file_record(HFS_Catalog* cat, FileID id, HFS_CatFileRec* fileRe
     bool find_callback(void* keyPtr, uint16_t keyLen,
                       void* dataPtr, uint16_t dataLen,
                       void* context) {
-        FindContext* ctx = (FindContext*)context;
+        FindContext* findCtx = (FindContext*)context;
         uint16_t recordType = be16_read(dataPtr);
 
         if (recordType == kHFS_FileRecord) {
             HFS_CatFileRec* rec = (HFS_CatFileRec*)dataPtr;
             uint32_t fileID = be32_read(&rec->fileID);
 
-            if (fileID == ctx->target) {
-                memcpy(ctx->result, rec, sizeof(HFS_CatFileRec));
-                ctx->found = true;
+            if (fileID == findCtx->target) {
+                memcpy(findCtx->result, rec, sizeof(HFS_CatFileRec));
+                findCtx->found = true;
                 return false;  /* Stop iteration */
             }
         }

@@ -135,7 +135,7 @@ void ModalDialog(ModalFilterProcPtr filterProc, SInt16* itemHit)
 {
     DialogPtr dlg;
     EventRecord evt;
-    SInt16 everyEvent = 0xFFFF;
+    SInt16 eventMask = 0xFFFF;
 
     if (itemHit) *itemHit = 0;
 
@@ -167,7 +167,7 @@ void ModalDialog(ModalFilterProcPtr filterProc, SInt16* itemHit)
         }
 
         /* Wait for next event (use GetNextEvent if WaitNextEvent unavailable) */
-        if (!GetNextEvent(everyEvent, &evt)) {
+        if (!GetNextEvent(eventMask, &evt)) {
             SystemTask();
             /* Update caret blink during idle time */
             UpdateDialogCaret(dlg);

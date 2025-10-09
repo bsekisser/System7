@@ -33,7 +33,7 @@ void Platform_DrawMenuItem(const void* drawInfo)
 }
 
 /* Platform tracking functions */
-Boolean Platform_TrackMouse(Point* mousePt, Boolean* mouseDown)
+Boolean Platform_TrackMouse(Point* mousePt, Boolean* isMouseDown)
 {
     /* TODO: Implement mouse tracking */
     return false;
