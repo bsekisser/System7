@@ -263,6 +263,15 @@ ListHandle ListFromDialogItem(DialogPtr dlg, short itemNo);
  */
 void AttachListToDialogItem(DialogPtr dlg, short itemNo, ListHandle lh);
 
+/* ================================================================
+ * TESTING FUNCTIONS
+ * ================================================================ */
+
+/*
+ * RunListSmokeTest - Run smoke test suite for List Manager
+ */
+void RunListSmokeTest(void);
+
 #ifdef __cplusplus
 }
 #endif

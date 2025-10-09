@@ -23,6 +23,9 @@
 extern OSErr Gestalt_RegisterSelector(OSType selector, SInt32 value);
 /* Note: BlockMoveData and MemError declared in MemoryMgr/MemoryManager.h */
 
+/* Forward declaration for test function */
+void Scrap_RunSelfTest(void);
+
 /* Debug logging control */
 #define SCRAP_DEBUG 1
 

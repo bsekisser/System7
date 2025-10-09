@@ -320,7 +320,7 @@ void Event_DumpQueue(void) {
             case kHighLevelEvent: typeStr = "hlev"; break;
         }
 
-        PROCESS_LOG_DEBUG("[%2d] %-4s msg=0x%08x time=%lu pos=(%d,%d)\n",
+        PROCESS_LOG_DEBUG("[%2d] %-4s msg=0x%08x time=%u pos=(%d,%d)\n",
                      i, typeStr, evt->message, evt->when,
                      evt->where.h, evt->where.v);
 

@@ -168,6 +168,9 @@ void SetScrapDebugMode(Boolean enable);
 /* Get last error information */
 OSErr GetLastScrapError(Str255 errorString);
 
+/* Run self-test suite */
+void Scrap_RunSelfTest(void);
+
 /*
  * Legacy Compatibility Functions
  * These maintain compatibility with older System versions
