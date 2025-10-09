@@ -8,6 +8,10 @@
 #include "Apps/SimpleText.h"
 #include "MemoryMgr/MemoryManager.h"
 
+/* Utility macros for packing/unpacking longs */
+#define HiWord(x) ((short)(((unsigned long)(x) >> 16) & 0xFFFF))
+#define LoWord(x) ((short)((unsigned long)(x) & 0xFFFF))
+
 /* Menu item strings */
 static const unsigned char kAppleMenuItems[] = {22, 'A','b','o','u','t',' ','S','i','m','p','l','e','T','e','x','t','.','.','.', ';','-'};
 static const unsigned char kFileMenuItems[] = {89, 'N','e','w','/','N',';','O','p','e','n','.','.','.','/','O',';','-',';','C','l','o','s','e','/','W',';','S','a','v','e','/','S',';','S','a','v','e',' ','A','s','.','.','.','/','S',';','-',';','P','a','g','e',' ','S','e','t','u','p','.','.','.',';','P','r','i','n','t','.','.','.','/','P',';','-',';','Q','u','i','t','/','Q'};

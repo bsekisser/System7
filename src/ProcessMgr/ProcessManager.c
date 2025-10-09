@@ -34,6 +34,7 @@
 #include "SegmentLoader/SegmentLoader.h"
 #include "CPU/CPUBackend.h"
 #include "CPU/M68KInterp.h"
+#include "EventManager/EventManager.h"
 /* #include <Traps.h> - not available */
 /* #include <ToolUtils.h> - not available */
 

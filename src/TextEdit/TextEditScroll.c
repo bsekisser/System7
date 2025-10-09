@@ -8,6 +8,9 @@
 #include "MemoryMgr/MemoryManager.h"
 #include "QuickDraw/QuickDraw.h"
 
+/* Forward declarations */
+extern void InvalRect(const Rect* r);
+
 /* Boolean constants */
 #ifndef TRUE
 #define TRUE 1

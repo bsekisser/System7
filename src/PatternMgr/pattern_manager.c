@@ -17,6 +17,9 @@
 #include <string.h>
 #include <stdlib.h>
 
+/* Forward declarations */
+extern void InvalRect(const Rect* r);
+
 /* Global Pattern Manager state */
 static struct {
     bool initialized;

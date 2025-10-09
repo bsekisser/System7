@@ -12,6 +12,10 @@
 /* External functions */
 extern UInt32 TickCount(void);
 
+/* Utility macros for packing/unpacking longs */
+#define HiWord(x) ((short)(((unsigned long)(x) >> 16) & 0xFFFF))
+#define LoWord(x) ((short)((unsigned long)(x) & 0xFFFF))
+
 /* Debug logging */
 #include "System/SystemLogging.h"
 #define ST_DEBUG 1

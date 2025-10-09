@@ -9,6 +9,7 @@
 #include "SegmentLoader/SegmentLoaderLogging.h"
 #include "ResourceMgr/resource_manager.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "EventManager/EventManager.h"
 #include "System71StdLib.h"
 #include <string.h>
 
