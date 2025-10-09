@@ -22,8 +22,8 @@
 #include "DialogManager/DialogManager.h"
 #include "WindowManager/WindowManager.h"
 #include "ControlManager/ControlManager.h"
+#include "FileMgr/file_manager.h"
 /* #include "ListManager/ListManager.h" */
-/* #include "FileManager/FileManager.h" */
 
 
 /* Dialog state */
