@@ -1,6 +1,3 @@
-#include "SuperCompat.h"
-#include <string.h>
-#include <stdio.h>
 /*
  * StartupScreen.c - System 7 Startup Screen Implementation
  *
@@ -11,16 +8,26 @@
  * MIT License
  */
 
-#include "CompatibilityFix.h"
+#include <string.h>
+#include <stdio.h>
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "SystemInternal.h"
 
 #include "StartupScreen/StartupScreen.h"
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
-#include "Resources/ResourceData.h"
+#include "FontManager/FontManager.h"
+#include "FontManager/FontInternal.h"
+#include "FontManager/FontTypes.h"
+#include "Resources/happy_mac_icon.h"
 #include "MemoryMgr/memory_manager_types.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "EventManager/EventManager.h"
+
+/* Forward declarations for functions not yet in headers */
+extern void SysBeep(short duration);
+extern void PlatformDrawRGBABitmap(const UInt8* rgba_data, int width, int height, int dest_x, int dest_y);
 
 
 /* Classic "Welcome to Macintosh" text */
@@ -36,7 +43,7 @@
 #define PROGRESS_BAR_WIDTH 300
 
 /* Timing constants */
-#define DEFAULT_WELCOME_DURATION 120  /* 2 seconds at 60Hz */
+#define DEFAULT_WELCOME_DURATION 360  /* 6 seconds at 60Hz */
 #define EXTENSION_DISPLAY_TICKS 6     /* 0.1 second per extension */
 
 /* Global startup screen state */
@@ -69,9 +76,7 @@ static OSErr CreateStartupWindow(void);
 static void DrawWelcomeScreen(void);
 static void DrawHappyMac(const Rect* bounds);
 static void DrawExtensionIcon(const ExtensionInfo* extension, Point position);
-static void DrawProgressIndicator(void);
 static Point GetNextExtensionPosition(void);
-static void CenterRectInRect(Rect* inner, const Rect* outer);
 
 /*
  * Initialize startup screen system
@@ -88,9 +93,6 @@ OSErr InitStartupScreen(const StartupScreenConfig* config) {
         gConfig = *config;
     }
 
-    /* Initialize resource data for icons */
-    InitResourceData();
-
     /* Get screen bounds */
     GDHandle mainDevice = GetMainDevice();
     if (mainDevice) {
@@ -103,19 +105,19 @@ OSErr InitStartupScreen(const StartupScreenConfig* config) {
     short screenWidth = gStartupScreen.screenBounds.right - gStartupScreen.screenBounds.left;
     short screenHeight = gStartupScreen.screenBounds.bottom - gStartupScreen.screenBounds.top;
 
-    /* Logo rect (centered, upper third) */
+    /* Logo rect (left side, centered vertically in upper portion) */
     SetRect(&gStartupScreen.logoRect,
-            (screenWidth - LOGO_SIZE) / 2,
+            60,  /* Left side with margin */
             screenHeight / 4 - LOGO_SIZE / 2,
-            (screenWidth + LOGO_SIZE) / 2,
+            60 + LOGO_SIZE,
             screenHeight / 4 + LOGO_SIZE / 2);
 
-    /* Text rect (below logo) */
+    /* Text rect (right side, aligned with logo vertically) */
     SetRect(&gStartupScreen.textRect,
-            STARTUP_MARGIN,
-            gStartupScreen.logoRect.bottom + 20,
-            screenWidth - STARTUP_MARGIN,
-            gStartupScreen.logoRect.bottom + 60);
+            LOGO_SIZE + 100,
+            screenHeight / 4 - 20,  /* Vertically aligned with logo */
+            screenWidth - STARTUP_MARGIN - 40,
+            screenHeight / 4 + 20);
 
     /* Extension rect (middle third) */
     SetRect(&gStartupScreen.extensionRect,
@@ -160,8 +162,9 @@ static OSErr CreateStartupWindow(void) {
     Rect windowBounds = gStartupScreen.screenBounds;
 
     /* Create plain window (no title bar) */
+    static unsigned char emptyTitle[] = {0};  /* Empty Pascal string */
     gStartupScreen.window = NewWindow(NULL, &windowBounds,
-                                      "\p", true, plainDBox,
+                                      emptyTitle, true, plainDBox,
                                       (WindowPtr)-1, false, 0);
 
     if (!gStartupScreen.window) {
@@ -169,7 +172,7 @@ static OSErr CreateStartupWindow(void) {
     }
 
     /* Set as current port */
-    SetPort(gStartupScreen.window);
+    SetPort((GrafPtr)gStartupScreen.window);
 
     /* Set background color */
     RGBBackColor(&gConfig.backgroundColor);
@@ -196,7 +199,7 @@ OSErr ShowWelcomeScreen(void) {
     /* Make window visible */
     ShowWindow(gStartupScreen.window);
     SelectWindow(gStartupScreen.window);
-    SetPort(gStartupScreen.window);
+    SetPort((GrafPtr)gStartupScreen.window);
 
     /* Draw welcome screen */
     DrawWelcomeScreen();
@@ -208,16 +211,9 @@ OSErr ShowWelcomeScreen(void) {
 
     /* Show for configured duration */
     if (gConfig.welcomeDuration > 0) {
-        unsigned long endTicks = TickCount() + gConfig.welcomeDuration;
-        while (TickCount() < endTicks) {
-            EventRecord event;
-            if (WaitNextEvent(everyEvent, &event, 1, NULL)) {
-                /* Allow early dismissal with key or click */
-                if (event.what == mouseDown || event.what == keyDown) {
-                    break;
-                }
-            }
-        }
+        /* Use simple delay instead of event loop during boot */
+        UInt32 finalTicks;
+        Delay(gConfig.welcomeDuration, &finalTicks);
     }
 
     return noErr;
@@ -229,7 +225,7 @@ OSErr ShowWelcomeScreen(void) {
 static void DrawWelcomeScreen(void) {
     GrafPtr savePort;
     GetPort(&savePort);
-    SetPort(gStartupScreen.window);
+    SetPort((GrafPtr)gStartupScreen.window);
 
     /* Clear screen */
     RGBBackColor(&gConfig.backgroundColor);
@@ -244,70 +240,25 @@ static void DrawWelcomeScreen(void) {
     TextSize(24);
     TextFace(0);
 
+    /* Draw text on left side, vertically centered */
+    static unsigned char welcomeText[] = {21, 'W','e','l','c','o','m','e',' ','t','o',' ','M','a','c','i','n','t','o','s','h'};
     MoveTo(gStartupScreen.textRect.left,
-           gStartupScreen.textRect.top + 20);
-
-    /* Center the text */
-    short textWidth = StringWidth("\pWelcome to Macintosh");
-    short rectWidth = gStartupScreen.textRect.right - gStartupScreen.textRect.left;
-    Move((rectWidth - textWidth) / 2, 0);
-
-    DrawString("\pWelcome to Macintosh");
-
-    /* Draw system version below */
-    TextSize(14);
-    MoveTo(gStartupScreen.textRect.left,
-           gStartupScreen.textRect.top + 40);
-
-    textWidth = StringWidth("\pSystem 7.1");
-    Move((rectWidth - textWidth) / 2, 0);
-    DrawString("\pSystem 7.1");
+           (gStartupScreen.textRect.top + gStartupScreen.textRect.bottom) / 2 + 8);
+    DrawString(welcomeText);
 
     SetPort(savePort);
 }
 
 /*
- * Draw Happy Mac icon
+ * Draw Happy Mac icon using the real Mac Picasso logo bitmap
  */
 static void DrawHappyMac(const Rect* bounds) {
-    /* Draw classic Happy Mac - simplified version */
-    Rect macRect = *bounds;
-    InsetRect(&macRect, 20, 20);
+    /* Icon is drawn at the bounds position (already positioned on right side) */
+    short iconWidth = HAPPY_MAC_WIDTH;
+    short iconHeight = HAPPY_MAC_HEIGHT;
 
-    /* Draw monitor shape */
-    FrameRoundRect(&macRect, 8, 8);
-
-    /* Draw screen */
-    Rect screenRect = macRect;
-    InsetRect(&screenRect, 8, 8);
-    screenRect.bottom -= 20;
-    PaintRect(&screenRect);
-
-    /* Draw Happy Mac face in white on black screen */
-    RGBColor white = {0xFFFF, 0xFFFF, 0xFFFF};
-    RGBColor black = {0x0000, 0x0000, 0x0000};
-    RGBForeColor(&white);
-
-    /* Eyes */
-    Rect eyeRect;
-    SetRect(&eyeRect,
-            screenRect.left + 20, screenRect.top + 15,
-            screenRect.left + 30, screenRect.top + 25);
-    PaintOval(&eyeRect);
-
-    SetRect(&eyeRect,
-            screenRect.right - 30, screenRect.top + 15,
-            screenRect.right - 20, screenRect.top + 25);
-    PaintOval(&eyeRect);
-
-    /* Smile */
-    Rect smileRect;
-    SetRect(&smileRect,
-            screenRect.left + 15, screenRect.top + 30,
-            screenRect.right - 15, screenRect.top + 50);
-    FrameArc(&smileRect, 0, -180);
-
-    RGBForeColor(&black);
+    /* Draw the Mac Picasso logo bitmap at the specified position */
+    PlatformDrawRGBABitmap(gHappyMacIconData, iconWidth, iconHeight, bounds->left, bounds->top);
 }
 
 /*
@@ -327,7 +278,7 @@ OSErr ShowLoadingExtension(const ExtensionInfo* extension) {
         gStartupScreen.currentPhase = kStartupPhaseExtensions;
 
         /* Clear extension area */
-        SetPort(gStartupScreen.window);
+        SetPort((GrafPtr)gStartupScreen.window);
         EraseRect(&gStartupScreen.extensionRect);
     }
 
@@ -357,12 +308,12 @@ OSErr ShowLoadingExtension(const ExtensionInfo* extension) {
 static void DrawExtensionIcon(const ExtensionInfo* extension, Point position) {
     GrafPtr savePort;
     GetPort(&savePort);
-    SetPort(gStartupScreen.window);
+    SetPort((GrafPtr)gStartupScreen.window);
 
     /* Draw icon if available */
     if (extension->iconID != 0) {
-        DrawResourceIcon(extension->iconID, position.h, position.v);
-    } else {
+        /* DrawResourceIcon(extension->iconID, position.h, position.v); */ /* Commented out - ResourceData not available */
+        /* Draw generic icon instead */
         /* Draw generic extension icon */
         Rect iconRect;
         SetRect(&iconRect,
@@ -434,7 +385,7 @@ void DrawProgressBar(short percent) {
 
     GrafPtr savePort;
     GetPort(&savePort);
-    SetPort(gStartupScreen.window);
+    SetPort((GrafPtr)gStartupScreen.window);
 
     /* Draw progress bar frame */
     FrameRect(&gStartupScreen.progressRect);
@@ -472,7 +423,7 @@ OSErr BeginExtensionLoading(UInt16 extensionCount) {
     SetStartupPhase(kStartupPhaseExtensions);
 
     /* Clear extension area */
-    SetPort(gStartupScreen.window);
+    SetPort((GrafPtr)gStartupScreen.window);
     EraseRect(&gStartupScreen.extensionRect);
 
     return noErr;
@@ -492,30 +443,39 @@ OSErr SetStartupPhase(StartupPhase phase) {
 
         case kStartupPhaseExtensions:
             /* Draw "Loading Extensions..." text */
-            SetPort(gStartupScreen.window);
-            TextFont(geneva);
-            TextSize(12);
-            MoveTo(gStartupScreen.extensionRect.left,
-                   gStartupScreen.extensionRect.top - 10);
-            DrawString("\pLoading Extensions...");
+            {
+                static unsigned char extText[] = {21, 'L','o','a','d','i','n','g',' ','E','x','t','e','n','s','i','o','n','s','.','.','.'};
+                SetPort((GrafPtr)gStartupScreen.window);
+                TextFont(geneva);
+                TextSize(12);
+                MoveTo(gStartupScreen.extensionRect.left,
+                       gStartupScreen.extensionRect.top - 10);
+                DrawString(extText);
+            }
             break;
 
         case kStartupPhaseDrivers:
             /* Draw "Loading Drivers..." text */
-            SetPort(gStartupScreen.window);
-            EraseRect(&gStartupScreen.extensionRect);
-            MoveTo(gStartupScreen.extensionRect.left,
-                   gStartupScreen.extensionRect.top + 20);
-            DrawString("\pLoading Drivers...");
+            {
+                static unsigned char drvText[] = {18, 'L','o','a','d','i','n','g',' ','D','r','i','v','e','r','s','.','.','.'};
+                SetPort((GrafPtr)gStartupScreen.window);
+                EraseRect(&gStartupScreen.extensionRect);
+                MoveTo(gStartupScreen.extensionRect.left,
+                       gStartupScreen.extensionRect.top + 20);
+                DrawString(drvText);
+            }
             break;
 
         case kStartupPhaseFinder:
             /* Draw "Starting Finder..." text */
-            SetPort(gStartupScreen.window);
-            EraseRect(&gStartupScreen.extensionRect);
-            MoveTo(gStartupScreen.extensionRect.left,
-                   gStartupScreen.extensionRect.top + 20);
-            DrawString("\pStarting Finder...");
+            {
+                static unsigned char finderText[] = {18, 'S','t','a','r','t','i','n','g',' ','F','i','n','d','e','r','.','.','.'};
+                SetPort((GrafPtr)gStartupScreen.window);
+                EraseRect(&gStartupScreen.extensionRect);
+                MoveTo(gStartupScreen.extensionRect.left,
+                       gStartupScreen.extensionRect.top + 20);
+                DrawString(finderText);
+            }
             break;
 
         case kStartupPhaseComplete:
@@ -619,7 +579,7 @@ OSErr ShowStartupError(ConstStr255Param errorMessage, OSErr errorCode) {
 
     GrafPtr savePort;
     GetPort(&savePort);
-    SetPort(gStartupScreen.window);
+    SetPort((GrafPtr)gStartupScreen.window);
 
     /* Draw error in red */
     RGBColor red = {0xFFFF, 0x0000, 0x0000};
@@ -667,7 +627,7 @@ OSErr SetStartupBackgroundPattern(const Pattern* pattern) {
         return paramErr;
     }
 
-    SetPort(gStartupScreen.window);
+    SetPort((GrafPtr)gStartupScreen.window);
     BackPat(pattern);
     EraseRect(&gStartupScreen.screenBounds);
 
@@ -699,11 +659,12 @@ OSErr SetStartupColors(const RGBColor* background, const RGBColor* text) {
 void EnableStartupDebugMode(Boolean enable) {
     /* In debug mode, show additional info */
     if (enable && gStartupScreen.visible) {
-        SetPort(gStartupScreen.window);
+        static unsigned char debugText[] = {31, 'D','E','B','U','G',':',' ','S','y','s','t','e','m',' ','7','.','1',' ','S','t','a','r','t','u','p',' ','S','c','r','e','e','n'};
+        SetPort((GrafPtr)gStartupScreen.window);
         TextFont(monaco);
         TextSize(9);
         MoveTo(10, gStartupScreen.screenBounds.bottom - 20);
-        DrawString("\pDEBUG: System 7.1 Startup Screen");
+        DrawString(debugText);
     }
 }
 
@@ -711,12 +672,12 @@ void EnableStartupDebugMode(Boolean enable) {
  * Dump startup screen state
  */
 void DumpStartupScreenState(void) {
-    printf("StartupScreen State:\n");
-    printf("  Initialized: %s\n", gStartupScreen.initialized ? "Yes" : "No");
-    printf("  Visible: %s\n", gStartupScreen.visible ? "Yes" : "No");
-    printf("  Phase: %d\n", gStartupScreen.currentPhase);
-    printf("  Progress: %d%%\n", gStartupScreen.progress.percentComplete);
-    printf("  Extensions: %d/%d\n",
+    serial_printf("StartupScreen State:\n");
+    serial_printf("  Initialized: %s\n", gStartupScreen.initialized ? "Yes" : "No");
+    serial_printf("  Visible: %s\n", gStartupScreen.visible ? "Yes" : "No");
+    serial_printf("  Phase: %d\n", gStartupScreen.currentPhase);
+    serial_printf("  Progress: %d%%\n", gStartupScreen.progress.percentComplete);
+    serial_printf("  Extensions: %d/%d\n",
            gExtensionState.currentExtension,
            gExtensionState.totalExtensions);
 }

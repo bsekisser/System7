@@ -846,3 +846,54 @@ Boolean Platform_PointInWindowPart(WindowPtr window, Point pt, short partCode) {
     }
     return false;
 }
+/*
+ * Draw RGBA bitmap directly to framebuffer
+ * Used by StartupScreen to display the Mac Picasso logo
+ */
+void PlatformDrawRGBABitmap(const UInt8* rgba_data, int width, int height, int dest_x, int dest_y) {
+    if (!framebuffer || !rgba_data) return;
+
+    uint32_t* fb = (uint32_t*)framebuffer;
+    const UInt8* src = rgba_data;
+
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int fb_x = dest_x + x;
+            int fb_y = dest_y + y;
+
+            /* Bounds check */
+            if (fb_x < 0 || fb_x >= (int)fb_width || fb_y < 0 || fb_y >= (int)fb_height) {
+                src += 4;  /* Skip pixel */
+                continue;
+            }
+
+            /* Read RGBA */
+            UInt8 r = *src++;
+            UInt8 g = *src++;
+            UInt8 b = *src++;
+            UInt8 a = *src++;
+
+            /* Alpha blending (if alpha < 255, blend with existing pixel) */
+            if (a == 0) {
+                /* Fully transparent - skip */
+                continue;
+            } else if (a == 255) {
+                /* Fully opaque - direct write */
+                fb[fb_y * fb_width + fb_x] = (0xFF << 24) | (r << 16) | (g << 8) | b;
+            } else {
+                /* Blend with background */
+                uint32_t bg = fb[fb_y * fb_width + fb_x];
+                UInt8 bg_r = (bg >> 16) & 0xFF;
+                UInt8 bg_g = (bg >> 8) & 0xFF;
+                UInt8 bg_b = bg & 0xFF;
+
+                /* Alpha blend formula: result = (fg * alpha + bg * (255 - alpha)) / 255 */
+                UInt8 out_r = (r * a + bg_r * (255 - a)) / 255;
+                UInt8 out_g = (g * a + bg_g * (255 - a)) / 255;
+                UInt8 out_b = (b * a + bg_b * (255 - a)) / 255;
+
+                fb[fb_y * fb_width + fb_x] = (0xFF << 24) | (out_r << 16) | (out_g << 8) | out_b;
+            }
+        }
+    }
+}

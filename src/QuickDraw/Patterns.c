@@ -23,6 +23,8 @@
 /* Platform abstraction layer */
 #include "QuickDrawPlatform.h"
 
+/* Forward declaration for platform function defined later in this file */
+static void QDPlatform_SetPixelInPort(GrafPtr port, SInt16 x, SInt16 y, Boolean foreground);
 
 /* Standard patterns (8x8 pixel patterns) */
 static const Pattern g_standardPatterns[] = {
@@ -407,7 +409,7 @@ static void ExpandPattern(ConstPatternParam srcPattern, Pattern *dstPattern,
 }
 
 /* Additional platform function needed */
-void QDPlatform_SetPixelInPort(GrafPtr port, SInt16 x, SInt16 y, Boolean foreground) {
+static void QDPlatform_SetPixelInPort(GrafPtr port, SInt16 x, SInt16 y, Boolean foreground) {
     /* Platform-specific pixel setting implementation would go here */
     /* This is a stub for the pattern system */
 }

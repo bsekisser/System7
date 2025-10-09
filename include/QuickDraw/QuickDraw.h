@@ -97,6 +97,7 @@ void Line(SInt16 dh, SInt16 dv);
 
 /* Pattern and Color */
 void BackPat(ConstPatternParam pat);
+void GetIndPattern(Pattern* thePat, short patternListID, short index);
 void BackColor(SInt32 color);
 void ForeColor(SInt32 color);
 void ColorBit(SInt16 whichBit);

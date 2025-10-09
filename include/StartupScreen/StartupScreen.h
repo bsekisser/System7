@@ -16,18 +16,62 @@
 /* Forward declarations */
 
 #include "SystemTypes.h"
+#include "EventManager/EventTypes.h"
 #include "WindowManager/WindowTypes.h"
 #include <QuickDraw.h>
 
 /* Startup screen phases */
+typedef enum {
+    kStartupPhaseInit = 0,
+    kStartupPhaseWelcome,
+    kStartupPhaseExtensions,
+    kStartupPhaseDrivers,
+    kStartupPhaseFinder,
+    kStartupPhaseComplete
+} StartupPhase;
 
 /* Extension info for display */
+typedef struct {
+    Str255 name;
+    UInt16 iconID;
+    Boolean loaded;
+    OSErr error;
+} ExtensionInfo;
 
 /* Startup progress info */
+typedef struct {
+    StartupPhase phase;
+    short percentComplete;
+} StartupProgress;
 
 /* Startup screen configuration */
+typedef struct {
+    Boolean showWelcome;
+    Boolean showExtensions;
+    Boolean showProgress;
+    UInt16 welcomeDuration;
+    Boolean enableSound;
+    RGBColor backgroundColor;
+    RGBColor textColor;
+} StartupScreenConfig;
 
 /* Startup screen state */
+typedef struct {
+    Boolean initialized;
+    Boolean visible;
+    WindowPtr window;
+    StartupPhase currentPhase;
+    Rect screenBounds;
+    Rect logoRect;
+    Rect textRect;
+    Rect extensionRect;
+    Rect progressRect;
+    BitMap offscreenBitmap;
+    StartupProgress progress;
+} StartupScreenState;
+
+/* Progress callbacks */
+typedef void (*StartupProgressProc)(StartupPhase phase, short percent, void* userData);
 
 /* Public API */
 

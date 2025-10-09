@@ -96,6 +96,7 @@ C_SOURCES = src/main.c \
             src/QuickDraw/Pictures.c \
             src/QuickDraw/ColorQuickDraw.c \
             src/QuickDraw/GWorld.c \
+            src/QuickDraw/Patterns.c \
             src/OSUtils/OSUtilsTraps.c \
             src/Platform/WindowPlatform.c \
             src/Platform/x86/io.c \
@@ -131,6 +132,7 @@ C_SOURCES = src/main.c \
             src/PatternMgr/pattern_resources.c \
             src/PatternMgr/pram_prefs.c \
             src/Resources/pattern_data.c \
+            src/Resources/happy_mac_icon.c \
             src/ControlPanels/cdev_desktop.c \
             src/simple_resource_manager.c \
             src/ControlManager/ControlManagerCore.c \
@@ -217,7 +219,8 @@ C_SOURCES = src/main.c \
             src/Apps/SimpleText/STView.c \
             src/Apps/SimpleText/STMenus.c \
             src/Apps/SimpleText/STFileIO.c \
-            src/Apps/SimpleText/STClipboard.c
+            src/Apps/SimpleText/STClipboard.c \
+            src/StartupScreen/StartupScreen.c
 
 # Add ResourceMgr sources if enabled
 ifeq ($(ENABLE_RESOURCES),1)
@@ -335,7 +338,7 @@ vpath %.c src:src/System:src/QuickDraw:src/WindowManager:src/MenuManager:src/Con
           src/Resources/Icons:src/Apps/SimpleText:src/Platform:src/Platform/x86:src/PrintManager \
           src/HelpManager:src/ComponentManager:src/EditionManager:src/NotificationManager \
           src/PackageManager:src/NetworkExtension:src/ColorManager:src/CommunicationToolbox \
-          src/FontResources:src/GestaltManager:src/SpeechManager:src/BootLoader \
+          src/GestaltManager:src/SpeechManager:src/BootLoader \
           src/SegmentLoader:src/CPU:src/CPU/m68k_interp:src/DeviceManager:src/Keyboard \
           src/Datetime:src/Calculator:src/Chooser:src/StartupScreen:src/OSUtils
 vpath %.S $(HAL_DIR)

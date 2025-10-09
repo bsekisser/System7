@@ -1782,6 +1782,17 @@ static void init_system71(void) {
     InitMenus();
     serial_puts("  Menu Manager initialized\n");
 
+    /* Startup Screen - show "Welcome to Macintosh" */
+    extern OSErr InitStartupScreen(const void* config);
+    extern OSErr ShowWelcomeScreen(void);
+    extern OSErr SetStartupPhase(int phase);
+    extern void HideStartupScreen(void);
+    if (InitStartupScreen(NULL) == noErr) {
+        serial_puts("  Startup Screen initialized\n");
+        ShowWelcomeScreen();
+        serial_puts("  Welcome screen displayed\n");
+    }
+
     /* Storage HAL (ATA/IDE Driver) */
     extern OSErr hal_storage_init(void);
     serial_puts("  Initializing storage subsystem...\n");
@@ -1895,6 +1906,9 @@ static void init_system71(void) {
     } else {
         serial_puts("  WARNING: Sound Manager initialization failed\n");
     }
+
+    /* Hide startup screen before starting Finder */
+    HideStartupScreen();
 
     /* Initialize Finder */
     OSErr err = InitializeFinder();
