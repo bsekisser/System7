@@ -72,7 +72,7 @@ static OSErr make_block_free_24bit(ZonePtr zone, BlockPtr block, Size size) {
     block->u.allocated.tagByte = BLOCK_FREE;
 
     /* Initialize free block chain link */
-    block->u.free.next = zone->hFstFree;
+    block->u.free.next = (BlockPtr)zone->hFstFree;
     zone->hFstFree = (Ptr)block;
 
     /* Update zone free space accounting */
@@ -99,7 +99,7 @@ static OSErr make_block_free_32bit(ZonePtr zone, BlockPtr block, Size size) {
     block->blkSize = alignedSize;
     block->u.allocated.tagByte = BLOCK_FREE;
 
-    block->u.free.next = zone->hFstFree;
+    block->u.free.next = (BlockPtr)zone->hFstFree;
     zone->hFstFree = (Ptr)block;
 
     update_free_space_accounting(zone, alignedSize);
@@ -129,7 +129,7 @@ static OSErr make_contiguous_block_free_24bit(ZonePtr zone, Ptr startPtr, Size t
     Size alignedSize = (totalSize + MEMORY_ALIGNMENT - 1) & ~(MEMORY_ALIGNMENT - 1);
     newFreeBlock->blkSize = alignedSize;
     newFreeBlock->u.allocated.tagByte = BLOCK_FREE;
-    newFreeBlock->u.free.next = zone->hFstFree;
+    newFreeBlock->u.free.next = (BlockPtr)zone->hFstFree;
 
     /* Update zone's first free pointer */
     zone->hFstFree = startPtr;
@@ -154,7 +154,7 @@ static OSErr make_contiguous_block_free_32bit(ZonePtr zone, Ptr startPtr, Size t
 
     newFreeBlock->blkSize = alignedSize;
     newFreeBlock->u.allocated.tagByte = BLOCK_FREE;
-    newFreeBlock->u.free.next = zone->hFstFree;
+    newFreeBlock->u.free.next = (BlockPtr)zone->hFstFree;
     zone->hFstFree = startPtr;
 
     update_free_space_accounting(zone, alignedSize);
@@ -188,7 +188,7 @@ static void coalesce_adjacent_free_blocks(ZonePtr zone, BlockPtr block) {
 
         /* Remove next block from free chain */
         if (zone->hFstFree == (Ptr)nextBlock) {
-            zone->hFstFree = nextBlock->u.free.next;
+            zone->hFstFree = (Ptr)nextBlock->u.free.next;
         } else {
             /* Find and update previous link in chain */
             BlockPtr prev = (BlockPtr)zone->hFstFree;
@@ -227,7 +227,7 @@ static void coalesce_adjacent_free_blocks(ZonePtr zone, BlockPtr block) {
 
         /* Remove current block from free chain */
         if (zone->hFstFree == (Ptr)block) {
-            zone->hFstFree = block->u.free.next;
+            zone->hFstFree = (Ptr)block->u.free.next;
         } else {
             BlockPtr prev = (BlockPtr)zone->hFstFree;
             while (prev && (Ptr)prev->u.free.next != (Ptr)block) {
