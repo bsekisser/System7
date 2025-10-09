@@ -291,49 +291,49 @@ void PicComment(SInt16 kind, SInt16 dataSize, Handle dataHandle) {
  * Picture Recording Hooks - Called by QuickDraw primitives
  */
 
-static void PictureRecordFrameRect(const Rect *r) {
+void PictureRecordFrameRect(const Rect *r) {
     if (!g_pictureState.recording || !r) return;
     WriteByte(picOpFrameRect);
     WriteRect(r);
 }
 
-static void PictureRecordPaintRect(const Rect *r) {
+void PictureRecordPaintRect(const Rect *r) {
     if (!g_pictureState.recording || !r) return;
     WriteByte(picOpPaintRect);
     WriteRect(r);
 }
 
-static void PictureRecordEraseRect(const Rect *r) {
+void PictureRecordEraseRect(const Rect *r) {
     if (!g_pictureState.recording || !r) return;
     WriteByte(picOpEraseRect);
     WriteRect(r);
 }
 
-static void PictureRecordInvertRect(const Rect *r) {
+void PictureRecordInvertRect(const Rect *r) {
     if (!g_pictureState.recording || !r) return;
     WriteByte(picOpInvertRect);
     WriteRect(r);
 }
 
-static void PictureRecordFrameOval(const Rect *r) {
+void PictureRecordFrameOval(const Rect *r) {
     if (!g_pictureState.recording || !r) return;
     WriteByte(picOpFrameOval);
     WriteRect(r);
 }
 
-static void PictureRecordPaintOval(const Rect *r) {
+void PictureRecordPaintOval(const Rect *r) {
     if (!g_pictureState.recording || !r) return;
     WriteByte(picOpPaintOval);
     WriteRect(r);
 }
 
-static void PictureRecordEraseOval(const Rect *r) {
+void PictureRecordEraseOval(const Rect *r) {
     if (!g_pictureState.recording || !r) return;
     WriteByte(picOpEraseOval);
     WriteRect(r);
 }
 
-static void PictureRecordInvertOval(const Rect *r) {
+void PictureRecordInvertOval(const Rect *r) {
     if (!g_pictureState.recording || !r) return;
     WriteByte(picOpInvertOval);
     WriteRect(r);

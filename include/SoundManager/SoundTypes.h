@@ -22,10 +22,17 @@ extern "C" {
 #endif
 
 /* Basic Mac OS types compatibility */
-/* OSErr is defined in MacTypes.h *//* OSType is defined in MacTypes.h */
+/* OSErr is defined in MacTypes.h */
+/* OSType is defined in MacTypes.h */
 /* Fixed is defined in MacTypes.h */
-/* Fixed is defined in MacTypes.h *//* Boolean is defined in MacTypes.h *//* SInt16 is defined in MacTypes.h *//* SInt32 is defined in MacTypes.h *//* UInt16 is defined in MacTypes.h *//* UInt32 is defined in MacTypes.h *//* Handle is defined in MacTypes.h */
+/* Boolean is defined in MacTypes.h */
+/* SInt16 is defined in MacTypes.h */
+/* SInt32 is defined in MacTypes.h */
+/* UInt16 is defined in MacTypes.h */
+/* UInt32 is defined in MacTypes.h */
+/* Handle is defined in MacTypes.h */
 /* Str255 is defined in MacTypes.h */
+
 #ifndef NULL
 #define NULL ((void*)0)
 #endif
@@ -41,63 +48,91 @@ extern "C" {
 /* Four Character Code macro */
 #define FOUR_CHAR_CODE(x) ((UInt32)(x))
 
-/* Forward declarations */
+/* UnsignedFixed type */
+typedef UInt32 UnsignedFixed;
 
-/* Sound channel pointer types */
-/* Ptr is defined in MacTypes.h */
-/* Handle is defined in MacTypes.h */
-/* Ptr is defined in MacTypes.h */
+/* SndCommand, SndChannel, SndChannelPtr, ModalFilterProcPtr are defined in SystemTypes.h */
 
-/* Point structure (for recording dialogs) */
-/* Point type defined in MacTypes.h */
-
-/* Version information structure */
-
-/* Sound Resource Formats */
-
-/* Sound header format types */
-
-/* Audio encoding types */
-
-/* Standard Sound Header - Format 1 */
-
-/* Extended Sound Header - Format 2 */
-
-/* Compressed Sound Header */
-
-/* Sound List Resource Header */
-
-/* Sound Command Structure */
+/* Sound channel handle types */
+typedef struct SndListResource** SndListHandle;
 
 /* Sound Channel Status */
+typedef struct SCStatus {
+    UnsignedFixed sampleRate;
+    SInt16 sampleSize;
+    SInt16 numChannels;
+    UnsignedFixed synthType;
+    UnsignedFixed init;
+} SCStatus;
 
 /* Sound Manager Status */
-
-/* Sound Channel Structure */
+typedef struct SMStatus {
+    SInt16 smMaxCPULoad;
+    SInt16 smNumChannels;
+    SInt16 smCurCPULoad;
+} SMStatus;
 
 /* Audio Selection Structure */
-
-/* Ptr is defined in MacTypes.h */
+typedef struct AudioSelection {
+    SInt32 unitType;
+    UnsignedFixed selStart;
+    UnsignedFixed selEnd;
+} AudioSelection;
+typedef AudioSelection* AudioSelectionPtr;
 
 /* File Play Completion UPP */
+typedef void (*FilePlayCompletionUPP)(SndChannelPtr chan);
 
 /* Sound Completion UPP */
+typedef void (*SoundCompletionUPP)(void);
 
-/* Modal Filter UPP */
+/* Sound Callback Proc */
+typedef void (*SndCallBackProcPtr)(SndChannelPtr chan, SndCommand* cmd);
 
 /* Sound Parameter Block for Sound Input */
+typedef struct SPB {
+    SInt32 inRefNum;
+    UInt32 count;
+    UInt32 milliseconds;
+    UInt32 bufferLength;
+    Ptr bufferPtr;
+    void* completionRoutine;
+    void* interruptRoutine;
+    SInt32 userLong;
+    OSErr error;
+    SInt32 unused1;
+} SPB;
+typedef SPB* SPBPtr;
 
 /* Compression Information */
-
-/* Ptr is defined in MacTypes.h */
+typedef struct CompressionInfo {
+    SInt32 recordSize;
+    OSType format;
+    SInt16 compressionID;
+    UInt16 samplesPerPacket;
+    UInt16 bytesPerPacket;
+    UInt16 bytesPerFrame;
+    UInt16 bytesPerSample;
+    UInt16 numChannels;
+} CompressionInfo;
+typedef CompressionInfo* CompressionInfoPtr;
 
 /* MIDI Types */
+typedef UInt32 MIDIPortDirectionFlags;
+typedef struct MIDIPortParams {
+    UInt32 flags;
+    Ptr refCon;
+} MIDIPortParams;
 
-/* Ptr is defined in MacTypes.h */
+typedef struct MIDIPacketList* MIDIPacketListPtr;
 
-/* Sound Input Device Information Types */
-
-/* Audio Quality Types */
+/* Version information structure */
+typedef struct NumVersion {
+    UInt8 majorRev;
+    UInt8 minorAndBugRev;
+    UInt8 stage;
+    UInt8 nonRelRev;
+} NumVersion;
 
 /* Fixed Point Utilities */
 #define Fixed2Long(f)       ((SInt32)((f) >> 16))

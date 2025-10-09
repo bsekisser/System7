@@ -89,7 +89,7 @@ void DisposeRgn(RgnHandle rgn) {
     free(rgn);
 }
 
-RgnHandle DuplicateRgn(RgnHandle srcRgn) {
+static RgnHandle DuplicateRgn(RgnHandle srcRgn) {
     if (!srcRgn || !*srcRgn) return NULL;
 
     RgnHandle newRgn = NewRgn();

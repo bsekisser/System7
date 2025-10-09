@@ -24,29 +24,94 @@ extern "C" {
 #endif
 
 /* Platform Audio API Types */
+/* AudioAPIType is defined in SystemTypes.h as UInt32 */
+#define AUDIO_API_DUMMY      0
+#define AUDIO_API_ALSA       1
+#define AUDIO_API_PULSE      2
+#define AUDIO_API_COREAUDIO  3
+#define AUDIO_API_WASAPI     4
 
 /* Audio Device Types */
+typedef enum {
+    AUDIO_DEVICE_OUTPUT = 1,
+    AUDIO_DEVICE_INPUT = 2,
+    AUDIO_DEVICE_DUPLEX = 3
+} AudioDeviceType;
+
+/* Audio encoding types */
+#define k16BitBigEndianFormat    1
 
 /* Audio Format Description */
+typedef struct {
+    UInt32 sampleRate;
+    UInt16 channels;
+    UInt16 bitsPerSample;
+    UInt32 bytesPerFrame;
+    UInt32 bytesPerSecond;
+    UInt16 encoding;
+    Boolean bigEndian;
+    Boolean signedSamples;
+} AudioFormat;
 
 /* Audio Device Information */
+/* AudioDeviceInfo is forward declared in SystemTypes.h */
+struct AudioDeviceInfo {
+    char name[256];
+    char description[256];
+    AudioDeviceType type;
+    Boolean isDefault;
+};
 
 /* Audio Stream Configuration */
+typedef struct {
+    AudioFormat format;
+    UInt32 bufferFrames;
+} AudioStreamConfig;
 
 /* Audio Stream State */
+typedef enum {
+    AUDIO_STREAM_STOPPED = 0,
+    AUDIO_STREAM_RUNNING = 1,
+    AUDIO_STREAM_PAUSED = 2
+} AudioStreamState;
 
 /* Audio Stream Statistics */
+typedef struct {
+    UInt32 underruns;
+    UInt32 overruns;
+} AudioStreamStats;
 
 /* Forward declarations */
-
-/* Ptr is defined in MacTypes.h */
-/* Ptr is defined in MacTypes.h */
+typedef struct SoundHardware* SoundHardwarePtr;
+typedef struct AudioStream* AudioStreamPtr;
 
 /* Audio Stream Callbacks */
+typedef void (*AudioOutputCallback)(void* userData, SInt16* buffer, UInt32 frameCount);
+typedef void (*AudioInputCallback)(void* userData, const SInt16* buffer, UInt32 frameCount);
+typedef void (*AudioDuplexCallback)(void* userData, const SInt16* inBuffer, SInt16* outBuffer, UInt32 frameCount);
+typedef void (*AudioStreamCallback)(void* userData, AudioStreamPtr stream, UInt32 eventType);
 
 /* Sound Hardware Structure */
+typedef struct SoundHardware {
+    AudioAPIType apiType;
+    char apiName[256];
+    Boolean initialized;
+    UInt32 deviceCount;
+    AudioDeviceInfo* devices;
+    AudioDeviceInfo* defaultOutput;
+    AudioDeviceInfo* defaultInput;
+} SoundHardware;
 
 /* Audio Stream Structure */
+typedef struct AudioStream {
+    SoundHardwarePtr hardware;
+    AudioDeviceInfo* device;
+    AudioStreamConfig config;
+    AudioStreamState state;
+} AudioStream;
+
+/* Recorder Structure */
+typedef struct AudioRecorder* RecorderPtr;
 
 /* Hardware Management Functions */
 OSErr SoundHardwareInit(SoundHardwarePtr* hardware, AudioAPIType apiType);
