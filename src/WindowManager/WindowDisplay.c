@@ -381,7 +381,7 @@ static void DrawWindowFrame(WindowPtr window) {
     /* Set up pen for drawing black frames */
     extern void PenNormal(void);
     extern void PenSize(short width, short height);
-    static const Pattern blackPat = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    static const Pattern blackPat = {{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
     PenNormal();  /* Reset pen to normal state */
     PenPat(&blackPat);  /* Use black pattern for frames */
     PenSize(1, 1);  /* 1-pixel pen */
@@ -747,7 +747,7 @@ static void DrawWindowControls(WindowPtr window) {
     /* Set up pen for drawing black controls */
     extern void PenNormal(void);
     extern void PenSize(short width, short height);
-    static const Pattern blackPat = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    static const Pattern blackPat = {{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
     PenNormal();
     PenPat(&blackPat);
     PenSize(1, 1);

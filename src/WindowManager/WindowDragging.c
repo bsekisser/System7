@@ -529,7 +529,7 @@ static void Local_InitializeDragState(WindowPtr window, Point startPt, const Rec
     }
 
     /* Configure drag feedback mode */
-    g_dragState.feedback = Local_GetPreferredDragFeedback();
+    g_dragState.feedback = (DragFeedbackMode)Local_GetPreferredDragFeedback();
 
     /* Create drag region if needed for outline feedback */
     if (g_dragState.feedback == kDragFeedbackOutline) {

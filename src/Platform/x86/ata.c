@@ -312,7 +312,7 @@ OSErr hal_storage_init(void) {
  */
 OSErr hal_storage_shutdown(void) {
     if (!g_ata_initialized) {
-        return;
+        return noErr;
     }
 
     /* Flush all drives */
@@ -324,6 +324,7 @@ OSErr hal_storage_shutdown(void) {
 
     g_ata_initialized = false;
     g_device_count = 0;
+    return noErr;
 }
 
 /*

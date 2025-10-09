@@ -130,7 +130,7 @@ char* strchr(const char* s, int c) {
 }
 
 char* strstr(const char* haystack, const char* needle) {
-    if (!needle || !*needle) return (char*)(uintptr_t)haystack;
+    if (!*needle) return (char*)(uintptr_t)haystack;
 
     while (*haystack) {
         const char* h = haystack;

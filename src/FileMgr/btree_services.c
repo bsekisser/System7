@@ -65,7 +65,7 @@ OSErr BTOpen(FCB* fcb, void* btcb_ptr) {
     memset(header_node, 0, BTREE_NODE_SIZE);
     header_node->ndType = ndHdrNode;
     header_node->ndNHeight = 0;
-    header_node->ndNRecs = 3;  /* Header record, map record, user data record */
+    header_node->ndNRecs = 3;  * Header record, map record, user data record */
 
     /* Extract B-Tree header from header node data area */
     /*
