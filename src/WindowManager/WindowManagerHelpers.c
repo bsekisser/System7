@@ -199,10 +199,10 @@ short WM_GetWindowLayer(WindowPtr window) {
         return 2;  /* Floating window */
     }
 
-    /* Check if modal dialog */
-    if (window->windowDefProc == dBoxProc ||
-        window->windowDefProc == plainDBox ||
-        window->windowDefProc == altDBoxProc) {
+    /* Check if modal dialog - cast windowDefProc to short for resource ID comparison */
+    if ((short)(long)window->windowDefProc == dBoxProc ||
+        (short)(long)window->windowDefProc == plainDBox ||
+        (short)(long)window->windowDefProc == altDBoxProc) {
         return 1;  /* Modal dialog */
     }
 
@@ -222,9 +222,9 @@ Boolean WM_IsFloatingWindow(WindowPtr window) {
 
 Boolean WM_IsAlertDialog(WindowPtr window) {
     if (!window) return false;
-    return (window->windowDefProc == dBoxProc ||
-            window->windowDefProc == plainDBox ||
-            window->windowDefProc == altDBoxProc);
+    return ((short)(long)window->windowDefProc == dBoxProc ||
+            (short)(long)window->windowDefProc == plainDBox ||
+            (short)(long)window->windowDefProc == altDBoxProc);
 }
 
 /* Window overlap testing */

@@ -103,7 +103,7 @@ static void CreateTestWindow(void) {
     viewRect = destRect;
 
     /* Create TextEdit record */
-    SetPort(g_testWindow);
+    SetPort((GrafPtr)g_testWindow);
     g_testTE = TENew(&destRect, &viewRect);
 
     if (!g_testTE) {
@@ -228,7 +228,7 @@ static void DrawTestWindow(void) {
 
     if (!g_testWindow || !g_testTE) return;
 
-    SetPort(g_testWindow);
+    SetPort((GrafPtr)g_testWindow);
 
     /* Begin update */
     BeginUpdate(g_testWindow);

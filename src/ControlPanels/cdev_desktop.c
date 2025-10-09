@@ -70,7 +70,7 @@ void OpenDesktopCdev(void) {
                                  true, documentProc, (WindowPtr)-1L, true, 0);
     if (!gDesktopCdevWin) return;
 
-    SetPort(gDesktopCdevWin);
+    SetPort((GrafPtr)gDesktopCdevWin);
 
     /* Create OK and Cancel buttons */
     Rect buttonRect;
@@ -126,7 +126,7 @@ void HandleDesktopCdevEvent(EventRecord *event) {
         case updateEvt:
             if ((WindowPtr)event->message == gDesktopCdevWin) {
                 BeginUpdate(gDesktopCdevWin);
-                SetPort(gDesktopCdevWin);
+                SetPort((GrafPtr)gDesktopCdevWin);
                 DrawPatternGrid();
                 DrawControls(gDesktopCdevWin);
                 EndUpdate(gDesktopCdevWin);
@@ -139,7 +139,7 @@ void HandleDesktopCdevEvent(EventRecord *event) {
                 switch (part) {
                     case inContent:
                         SelectWindow(gDesktopCdevWin);
-                        SetPort(gDesktopCdevWin);
+                        SetPort((GrafPtr)gDesktopCdevWin);
                         where = event->where;
                         GlobalToLocal(&where);
 
@@ -225,7 +225,7 @@ static void DrawPatternCell(int col, int row, int16_t patID, bool selected) {
 static void DrawPatternGrid(void) {
     if (!gDesktopCdevWin) return;
 
-    SetPort(gDesktopCdevWin);
+    SetPort((GrafPtr)gDesktopCdevWin);
 
     /* Clear the window */
     Rect winRect;

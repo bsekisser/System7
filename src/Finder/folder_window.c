@@ -126,7 +126,7 @@ void DrawFolderWindowContents(WindowPtr window, Boolean isTrash)
 
     GrafPtr savePort;
     GetPort(&savePort);
-    SetPort(window);
+    SetPort((GrafPtr)window);
 
     /* CRITICAL: Log port and coordinate mapping for debugging */
     FINDER_LOG_DEBUG("DrawFolder: window=0x%08x savePort=0x%08x\n",

@@ -382,7 +382,7 @@ void Draw1Control(ControlHandle theControl) {
 
     /* Save and set port */
     GetPort(&savePort);
-    SetPort((*theControl)->contrlOwner);
+    SetPort((GrafPtr)(*theControl)->contrlOwner);
 
     /* Draw control via CDEF */
     _CallControlDefProc(theControl, drawCntl, 0);
@@ -411,7 +411,7 @@ void UpdateControls(WindowPtr theWindow, RgnHandle updateRgn) {
 
     /* Save and set port */
     GetPort(&savePort);
-    SetPort(theWindow);
+    SetPort((GrafPtr)theWindow);
 
     /* Update each visible control in the region */
     control = _GetFirstControl(theWindow);

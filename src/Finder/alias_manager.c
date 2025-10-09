@@ -415,8 +415,8 @@ static Boolean IsValidAliasRecord(AliasRecord *record)
         return false;
     }
 
-    /* Check alias kind */
-    switch (record->aliasKind) {
+    /* Check alias kind - cast to OSType to match case values */
+    switch ((OSType)record->aliasKind) {
         case kContainerFolderAliasType:
         case kContainerTrashAliasType:
         case kContainerHardDiskAliasType:
