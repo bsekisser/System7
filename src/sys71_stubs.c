@@ -942,6 +942,25 @@ OSErr HandleGrowWindow(WindowPtr window, EventRecord* event) {
 }
 
 OSErr CloseFinderWindow(WindowPtr window) {
+    extern void serial_printf(const char *fmt, ...);
+    serial_printf("[FINDER] CloseFinderWindow: ENTRY window=%p\n", window);
+
+    if (!window) {
+        serial_printf("[FINDER] CloseFinderWindow: NULL window\n");
+        return paramErr;
+    }
+
+    /* CloseWindow cleans up and hides the window */
+    serial_printf("[FINDER] CloseFinderWindow: Calling CloseWindow\n");
+    CloseWindow(window);
+    serial_printf("[FINDER] CloseFinderWindow: CloseWindow returned\n");
+
+    /* DisposeWindow frees the window record memory */
+    serial_printf("[FINDER] CloseFinderWindow: Calling DisposeWindow\n");
+    DisposeWindow(window);
+    serial_printf("[FINDER] CloseFinderWindow: DisposeWindow returned\n");
+
+    serial_printf("[FINDER] CloseFinderWindow: EXIT\n");
     return noErr;
 }
 

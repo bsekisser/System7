@@ -40,52 +40,65 @@ static BlockHeader* freenode_to_block(FreeNode* n) {
 }
 
 static void freelist_insert(ZoneInfo* z, BlockHeader* b) {
-    extern void serial_puts(const char* str);
-    serial_puts("freelist_insert: ENTRY\n");
+    extern void serial_printf(const char *fmt, ...);
 
     b->flags = BF_FREE;
     FreeNode* n = block_to_freenode(b);
 
-    serial_puts("freelist_insert: checking freeHead\n");
+    serial_printf("[FL] INSERT: block=%p node=%p size=%u\n", b, n, b->size);
+
     if (!z->freeHead) {
-        serial_puts("freelist_insert: no freeHead, creating\n");
+        serial_printf("[FL] Creating new list, freeHead=%p\n", n);
         z->freeHead = n;
         n->next = n->prev = n;
-        serial_puts("freelist_insert: EXIT (new list)\n");
         return;
     }
 
     /* Insert sorted by address for easier coalescing */
-    serial_puts("freelist_insert: starting loop\n");
+    serial_printf("[FL] freeHead=%p, starting loop\n", z->freeHead);
     FreeNode* it = z->freeHead;
     int loop_count = 0;
+
     while (it->next != z->freeHead && it->next < n) {
+        serial_printf("[FL] loop[%d]: it=%p it->next=%p (target=%p)\n",
+                     loop_count, it, it->next, n);
         it = it->next;
         loop_count++;
         if (loop_count > 100) {
-            serial_puts("freelist_insert: INFINITE LOOP!\n");
+            serial_printf("[FL] INFINITE LOOP! freeHead=%p it=%p n=%p\n",
+                         z->freeHead, it, n);
+            serial_printf("[FL] it->next=%p it->prev=%p\n", it->next, it->prev);
             return;  /* Prevent infinite loop */
         }
     }
-    serial_puts("freelist_insert: loop done\n");
+
+    serial_printf("[FL] Loop done after %d iterations, inserting between it=%p and it->next=%p\n",
+                 loop_count, it, it->next);
 
     n->next = it->next;
     n->prev = it;
     it->next->prev = n;
     it->next = n;
 
-    serial_puts("freelist_insert: updating head\n");
     /* Update head if we're smallest */
     if (n < z->freeHead) {
+        serial_printf("[FL] Updating freeHead from %p to %p\n", z->freeHead, n);
         z->freeHead = n;
     }
-    serial_puts("freelist_insert: EXIT\n");
+
+    serial_printf("[FL] INSERT complete\n");
 }
 
 static void freelist_remove(ZoneInfo* z, BlockHeader* b) {
+    extern void serial_printf(const char *fmt, ...);
     FreeNode* n = block_to_freenode(b);
 
+    serial_printf("[FL] REMOVE: block=%p node=%p size=%u\n", b, n, b->size);
+    serial_printf("[FL] Before: freeHead=%p n->next=%p n->prev=%p\n",
+                 z->freeHead, n->next, n->prev);
+
     if (n->next == n) {
+        serial_printf("[FL] Last node in list, clearing freeHead\n");
         z->freeHead = NULL;
         return;
     }
@@ -94,8 +107,11 @@ static void freelist_remove(ZoneInfo* z, BlockHeader* b) {
     n->next->prev = n->prev;
 
     if (z->freeHead == n) {
+        serial_printf("[FL] Removed head, updating to %p\n", n->next);
         z->freeHead = n->next;
     }
+
+    serial_printf("[FL] REMOVE complete\n");
 }
 
 /* ======================== Coalescing ======================== */
@@ -305,20 +321,32 @@ void* NewPtrClear(u32 byteCount) {
 }
 
 void DisposePtr(void* p) {
+    extern void serial_printf(const char *fmt, ...);
+
     if (!p) return;
 
     ZoneInfo* z = gCurrentZone;
     if (!z) return;
 
     BlockHeader* b = (BlockHeader*)((u8*)p - BLKHDR_SZ);
+    serial_printf("[DISPOSE] ptr=%p block=%p size=%u\n", p, b, b->size);
+
     b->flags &= ~(BF_PTR);
     z->bytesUsed -= b->size;
     z->bytesFree += b->size;
 
     /* Coalesce and insert */
+    serial_printf("[DISPOSE] Calling coalesce_forward\n");
     b = coalesce_forward(z, b);
+    serial_printf("[DISPOSE] After coalesce_forward: block=%p size=%u\n", b, b->size);
+
+    serial_printf("[DISPOSE] Calling coalesce_backward\n");
     b = coalesce_backward(z, b);
+    serial_printf("[DISPOSE] After coalesce_backward: block=%p size=%u\n", b, b->size);
+
+    serial_printf("[DISPOSE] Calling freelist_insert\n");
     freelist_insert(z, b);
+    serial_printf("[DISPOSE] Complete\n");
 }
 
 u32 GetPtrSize(void* p) {
@@ -670,7 +698,10 @@ void* malloc(size_t size) {
 }
 
 void free(void* ptr) {
+    extern void serial_printf(const char *fmt, ...);
+    serial_printf("[FREE] ptr=%p\n", ptr);
     DisposePtr(ptr);
+    serial_printf("[FREE] DisposePtr returned\n");
 }
 
 void* calloc(size_t nmemb, size_t size) {
