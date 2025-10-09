@@ -62,15 +62,16 @@ static Boolean XorScanLines(SInt16 *line1, SInt16 count1, SInt16 *line2, SInt16 
  * ================================================================ */
 
 RgnHandle NewRgn(void) {
-    RgnHandle rgn = (RgnHandle)calloc(1, sizeof(RgnPtr));
+    /* Use NewPtr instead of calloc - calloc is broken in bare-metal kernel */
+    RgnHandle rgn = (RgnHandle)NewPtr(sizeof(RgnPtr));
     if (!rgn) {
         g_lastRegionError = rgnOverflowErr;
         return NULL;
     }
 
-    Region *region = (Region *)calloc(1, kMinRegionSize);
+    Region *region = (Region *)NewPtr(kMinRegionSize);
     if (!region) {
-        free(rgn);
+        DisposePtr((Ptr)rgn);
         g_lastRegionError = rgnOverflowErr;
         return NULL;
     }
@@ -86,8 +87,9 @@ RgnHandle NewRgn(void) {
 void DisposeRgn(RgnHandle rgn) {
     if (!rgn || !*rgn) return;
 
-    free(*rgn);
-    free(rgn);
+    /* Use DisposePtr instead of free - free is broken in bare-metal kernel */
+    DisposePtr((Ptr)*rgn);
+    DisposePtr((Ptr)rgn);
 }
 
 static RgnHandle DuplicateRgn(RgnHandle srcRgn) {
