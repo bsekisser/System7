@@ -171,6 +171,59 @@ typedef enum {
  */
 #define TEST_CC(sr, cc) M68K_TestCondition(sr, cc)
 
+/*
+ * Forward declarations
+ */
+typedef struct M68KAddressSpace M68KAddressSpace;
+
+/*
+ * Opcode Handler Function Prototypes
+ */
+extern void M68K_Fault(M68KAddressSpace* as, const char* reason);
+extern Boolean M68K_TestCondition(UInt16 sr, M68KCondition cc);
+
+/* Data movement operations */
+extern void M68K_Op_MOVE(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_MOVEA(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_MOVEQ(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_LEA(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_PEA(M68KAddressSpace* as, UInt16 opcode);
+
+/* Arithmetic operations */
+extern void M68K_Op_ADD(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_SUB(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_CMP(M68KAddressSpace* as, UInt16 opcode);
+
+/* Logical operations */
+extern void M68K_Op_CLR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_NOT(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_TST(M68KAddressSpace* as, UInt16 opcode);
+
+/* Bit manipulation */
+extern void M68K_Op_EXT(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_SWAP(M68KAddressSpace* as, UInt16 opcode);
+
+/* Control flow - unconditional */
+extern void M68K_Op_JMP(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_JSR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_RTS(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_RTE(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_BRA(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_BSR(M68KAddressSpace* as, UInt16 opcode);
+
+/* Control flow - conditional */
+extern void M68K_Op_Bcc(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_DBcc(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_Scc(M68KAddressSpace* as, UInt16 opcode);
+
+/* Stack operations */
+extern void M68K_Op_LINK(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_UNLK(M68KAddressSpace* as, UInt16 opcode);
+
+/* System operations */
+extern void M68K_Op_TRAP(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_STOP(M68KAddressSpace* as, UInt16 opcode);
+
 #ifdef __cplusplus
 }
 #endif
