@@ -293,8 +293,8 @@ void* NewPtr(u32 byteCount) {
     z->bytesUsed += b->size;
     z->bytesFree -= b->size;
 
+    /* DON'T call serial_puts here - it clobbers the return register! */
     void* result = (u8*)b + BLKHDR_SZ;
-    serial_puts("NewPtr: SUCCESS, returning\n");
     return result;
 }
 
@@ -658,7 +658,15 @@ void PurgeMem(u32 cbNeeded) {
 /* ======================== C Library Interface ======================== */
 
 void* malloc(size_t size) {
-    return NewPtr((u32)size);
+    extern void serial_puts(const char* str);
+    serial_puts("malloc: ENTRY\n");
+    void* result = NewPtr((u32)size);
+    if (result) {
+        serial_puts("malloc: NewPtr succeeded\n");
+    } else {
+        serial_puts("malloc: NewPtr FAILED\n");
+    }
+    return result;
 }
 
 void free(void* ptr) {
@@ -666,9 +674,21 @@ void free(void* ptr) {
 }
 
 void* calloc(size_t nmemb, size_t size) {
+    extern void serial_puts(const char* str);
+    serial_puts("calloc: ENTRY\n");
+
     size_t total = nmemb * size;
+    serial_puts("calloc: calling malloc\n");
     void* p = malloc(total);
-    if (p) memset(p, 0, total);
+
+    if (p) {
+        serial_puts("calloc: malloc succeeded, clearing\n");
+        memset(p, 0, total);
+        serial_puts("calloc: SUCCESS, returning\n");
+    } else {
+        serial_puts("calloc: malloc FAILED, returning NULL\n");
+    }
+
     return p;
 }
 

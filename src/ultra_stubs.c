@@ -13,10 +13,12 @@ int sscanf(const char* str, const char* fmt, ...) { return 0; }
 int vsprintf(char* buf, const char* fmt, void* args) { return 0; }
 int vsnprintf(char* buf, int size, const char* fmt, void* args) { return 0; }
 
-void* malloc(size_t size) { return 0; }
-void free(void* ptr) { }
-void* calloc(size_t n, size_t s) { return 0; }
-void* realloc(void* p, size_t s) { return 0; }
+/* malloc, free, calloc, realloc - real implementations in MemoryManager.c */
+/* REMOVED STUBS - DO NOT RE-ADD */
+/* void* malloc(size_t size) { return 0; } */
+/* void free(void* ptr) { } */
+/* void* calloc(size_t n, size_t s) { return 0; } */
+/* void* realloc(void* p, size_t s) { return 0; } */
 
 int strcmp(const char* a, const char* b) { return 0; }
 int strncmp(const char* a, const char* b, size_t n) { return 0; }
