@@ -218,7 +218,7 @@ Boolean HandleMouseDown(EventRecord* event)
             /* System window - let system handle it */
             return false;
 
-        case inContent:
+        case inContent: {
             /* Click in window content */
             EVT_LOG_DEBUG("HandleMouseDown: inContent case - whichWindow=0x%08x\n", (unsigned int)whichWindow);
 
@@ -264,6 +264,7 @@ Boolean HandleMouseDown(EventRecord* event)
                 EVT_LOG_DEBUG("Click in content of window 0x%08x\n", (unsigned int)whichWindow);
             }
             return true;
+        }
 
         case inDrag:
             /* Drag window */

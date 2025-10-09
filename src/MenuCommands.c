@@ -179,7 +179,7 @@ static void HandleAppleMenu(short item)
 static void HandleFileMenu(short item)
 {
     switch (item) {
-        case kNewItem:
+        case kNewItem: {
             MENU_LOG_DEBUG("File > New\n");
             /* Create new folder in Finder */
             extern Boolean VFS_CreateFolder(SInt16 vref, SInt32 parent, const char* name, SInt32* newID);
@@ -188,13 +188,14 @@ static void HandleFileMenu(short item)
                 MENU_LOG_DEBUG("Created new folder with ID %d\n", (int)newFolderID);
             }
             break;
+        }
 
         case kOpenItem:
             MENU_LOG_DEBUG("File > Open...\n");
             /* TODO: Show open dialog */
             break;
 
-        case kCloseItem:
+        case kCloseItem: {
             MENU_LOG_DEBUG("File > Close\n");
             /* Close current window - but only if it's valid and visible */
             extern WindowPtr FrontWindow(void);
@@ -209,6 +210,7 @@ static void HandleFileMenu(short item)
                                 (unsigned int)P2UL(front), front ? front->visible : -1);
             }
             break;
+        }
 
         case kSaveItem:
             MENU_LOG_DEBUG("File > Save\n");
@@ -360,7 +362,7 @@ static void HandleSpecialMenu(short item)
             MENU_LOG_DEBUG("Desktop cleaned up\n");
             break;
 
-        case 2:
+        case 2: {
             MENU_LOG_DEBUG("Special > Empty Trash\n");
             /* Empty trash */
             extern OSErr EmptyTrash(void);
@@ -371,6 +373,7 @@ static void HandleSpecialMenu(short item)
                 MENU_LOG_WARN("Failed to empty trash (error %d)\n", err);
             }
             break;
+        }
 
         case 3:
             MENU_LOG_DEBUG("Special > Eject\n");
