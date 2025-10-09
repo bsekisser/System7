@@ -32,6 +32,13 @@ static void DrawInvertedText(const char* text, short x, short y, Boolean inverte
 static void DrawInvertedAppleIcon(short x, short y);
 void DrawMenuBarWithHighlight(short highlightMenuID);
 
+/* Forward declarations for menu tracking functions */
+long BeginTrackMenu(short menuID, Point *startPt);
+void UpdateMenuTrackingNew(Point mousePt);
+long EndMenuTrackingNew(void);
+Boolean IsMenuTrackingNew(void);
+long TrackMenu(short menuID, Point *startPt);
+
 /* Global menu tracking state for event-based menu handling */
 static struct {
     Boolean isTracking;        /* Are we currently tracking a menu? */

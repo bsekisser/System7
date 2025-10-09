@@ -33,6 +33,11 @@
 /* PIT base frequency (1.193182 MHz) */
 #define PIT_BASE_FREQ       1193182
 
+/* Forward declarations */
+void PCSpkr_Beep(uint32_t frequency, uint32_t duration_ms);
+int PCSpkr_Init(void);
+void PCSpkr_Shutdown(void);
+
 /*
  * PCSpkr_SetFrequency - Set PC speaker frequency using PIT channel 2
  *

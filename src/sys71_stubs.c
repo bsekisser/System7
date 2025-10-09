@@ -36,6 +36,9 @@
 #include "../include/FontManager/FontManager.h"
 #include "../include/sys71_stubs.h"
 #include "../include/System/SystemLogging.h"
+#include "../include/MemoryMgr/MemoryManager.h"
+#include "../include/FileMgr/file_manager.h"
+#include "../include/Finder/finder.h"
 
 /* DeskHook type definition if not in headers */
 typedef void (*DeskHookProc)(RgnHandle invalidRgn);
@@ -901,7 +904,7 @@ void AddResMenu(MenuHandle theMenu, ResType theType) {
 /* Memory Manager functions provided by Memory Manager */
 /* MemError moved to System71StdLib.c */
 
-void BlockMoveData(const void* srcPtr, void* destPtr, Size byteCount) {
+void BlockMoveData(const void* srcPtr, void* destPtr, u32 byteCount) {
     unsigned char* d = destPtr;
     const unsigned char* s = srcPtr;
     while (byteCount--) *d++ = *s++;
