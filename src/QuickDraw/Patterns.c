@@ -108,12 +108,12 @@ void GetIndPattern(Pattern *thePat, SInt16 patternListID, SInt16 index) {
     }
 }
 
-Boolean PatternPixelValue(ConstPatternParam pattern, SInt16 x, SInt16 y) {
+static Boolean PatternPixelValue(ConstPatternParam pattern, SInt16 x, SInt16 y) {
     assert(pattern != NULL);
     return GetPatternPixel(pattern, x, y);
 }
 
-void FillPatternRect(const Rect *rect, ConstPatternParam pattern, SInt16 mode) {
+static void FillPatternRect(const Rect *rect, ConstPatternParam pattern, SInt16 mode) {
     extern GrafPtr g_currentPort; /* From QuickDrawCore.c */
     assert(rect != NULL);
     assert(pattern != NULL);
@@ -127,11 +127,11 @@ void FillPatternRect(const Rect *rect, ConstPatternParam pattern, SInt16 mode) {
  * PATTERN CREATION
  * ================================================================ */
 
-Pattern MakeGrayPattern(UInt8 grayLevel) {
+static Pattern MakeGrayPattern(UInt8 grayLevel) {
     return CreateGrayPattern(grayLevel);
 }
 
-Pattern MakeCheckerboardPattern(SInt16 checkerSize) {
+static Pattern MakeCheckerboardPattern(SInt16 checkerSize) {
     Pattern pattern;
     memset(pattern.pat, 0, 8);
 
@@ -148,7 +148,7 @@ Pattern MakeCheckerboardPattern(SInt16 checkerSize) {
     return pattern;
 }
 
-Pattern MakeDiagonalPattern(Boolean rising) {
+static Pattern MakeDiagonalPattern(Boolean rising) {
     Pattern pattern;
     memset(pattern.pat, 0, 8);
 
@@ -164,7 +164,7 @@ Pattern MakeDiagonalPattern(Boolean rising) {
  * PATTERN STRETCHING AND TRANSFORMATION
  * ================================================================ */
 
-void StretchPattern(ConstPatternParam srcPattern, Pattern *dstPattern,
+static void StretchPattern(ConstPatternParam srcPattern, Pattern *dstPattern,
                    SInt16 hStretch, SInt16 vStretch) {
     assert(srcPattern != NULL);
     assert(dstPattern != NULL);
@@ -172,7 +172,7 @@ void StretchPattern(ConstPatternParam srcPattern, Pattern *dstPattern,
     ExpandPattern(srcPattern, dstPattern, hStretch, vStretch);
 }
 
-void RotatePattern(ConstPatternParam srcPattern, Pattern *dstPattern, SInt16 angle) {
+static void RotatePattern(ConstPatternParam srcPattern, Pattern *dstPattern, SInt16 angle) {
     assert(srcPattern != NULL);
     assert(dstPattern != NULL);
 
@@ -210,7 +210,7 @@ void RotatePattern(ConstPatternParam srcPattern, Pattern *dstPattern, SInt16 ang
     }
 }
 
-void FlipPattern(ConstPatternParam srcPattern, Pattern *dstPattern,
+static void FlipPattern(ConstPatternParam srcPattern, Pattern *dstPattern,
                 Boolean horizontal, Boolean vertical) {
     assert(srcPattern != NULL);
     assert(dstPattern != NULL);
@@ -233,7 +233,7 @@ void FlipPattern(ConstPatternParam srcPattern, Pattern *dstPattern,
  * DITHERING OPERATIONS
  * ================================================================ */
 
-void DitherColor(const RGBColor *color, SInt16 x, SInt16 y,
+static void DitherColor(const RGBColor *color, SInt16 x, SInt16 y,
                 RGBColor *ditheredColor, SInt16 ditherType) {
     assert(color != NULL);
     assert(ditheredColor != NULL);
@@ -241,7 +241,7 @@ void DitherColor(const RGBColor *color, SInt16 x, SInt16 y,
     DitherPixel(x, y, color, ditheredColor);
 }
 
-void DitherRect(const Rect *rect, const RGBColor *color, SInt16 ditherType) {
+static void DitherRect(const Rect *rect, const RGBColor *color, SInt16 ditherType) {
     assert(rect != NULL);
     assert(color != NULL);
 
@@ -259,7 +259,7 @@ void DitherRect(const Rect *rect, const RGBColor *color, SInt16 ditherType) {
     }
 }
 
-Pattern CreateDitheredPattern(const RGBColor *color) {
+static Pattern CreateDitheredPattern(const RGBColor *color) {
     assert(color != NULL);
 
     Pattern pattern;
@@ -285,7 +285,7 @@ Pattern CreateDitheredPattern(const RGBColor *color) {
  * PATTERN ANALYSIS
  * ================================================================ */
 
-UInt8 CalculatePatternDensity(ConstPatternParam pattern) {
+static UInt8 CalculatePatternDensity(ConstPatternParam pattern) {
     assert(pattern != NULL);
 
     int setBits = 0;
@@ -301,7 +301,7 @@ UInt8 CalculatePatternDensity(ConstPatternParam pattern) {
     return (UInt8)((setBits * 100) / 64);
 }
 
-Boolean IsUniformPattern(ConstPatternParam pattern) {
+static Boolean IsUniformPattern(ConstPatternParam pattern) {
     assert(pattern != NULL);
 
     UInt8 firstByte = pattern->pat[0];
@@ -313,7 +313,7 @@ Boolean IsUniformPattern(ConstPatternParam pattern) {
     return true;
 }
 
-Boolean PatternsEqual(ConstPatternParam pattern1, ConstPatternParam pattern2) {
+static Boolean PatternsEqual(ConstPatternParam pattern1, ConstPatternParam pattern2) {
     assert(pattern1 != NULL);
     assert(pattern2 != NULL);
 
