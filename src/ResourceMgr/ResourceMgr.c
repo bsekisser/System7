@@ -577,6 +577,43 @@ Handle GetResource(ResType theType, ResID theID) {
                  (char)(theType >> 24), (char)(theType >> 16),
                  (char)(theType >> 8), (char)theType, theID);
 
+    /* Built-in PAT patterns (System 7.1 standard patterns 1-10) */
+    if (theType == 0x50415420 /* 'PAT ' */ && theID >= 1 && theID <= 10) {
+        /* Classic Mac OS 8x8 pixel patterns (8 bytes each) */
+        static const UInt8 kBuiltinPatterns[10][8] = {
+            /* PAT 1: White */
+            {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+            /* PAT 2: Light gray */
+            {0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55},
+            /* PAT 3: Dark gray */
+            {0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA},
+            /* PAT 4: Black */
+            {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+            /* PAT 5: Horizontal stripes */
+            {0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00},
+            /* PAT 6: Vertical stripes */
+            {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA},
+            /* PAT 7: Diagonal stripes (45°) */
+            {0x88, 0x44, 0x22, 0x11, 0x88, 0x44, 0x22, 0x11},
+            /* PAT 8: Checkerboard */
+            {0x0F, 0x0F, 0x0F, 0x0F, 0xF0, 0xF0, 0xF0, 0xF0},
+            /* PAT 9: Cross-hatch */
+            {0xFF, 0x88, 0x88, 0x88, 0xFF, 0x88, 0x88, 0x88},
+            /* PAT 10: Dots */
+            {0x11, 0x44, 0x11, 0x44, 0x11, 0x44, 0x11, 0x44}
+        };
+
+        Handle h = NewHandle(8);
+        if (h) {
+            BlockMove(kBuiltinPatterns[theID - 1], *h, 8);
+            RM_LOG_DEBUG("Built-in PAT %d provided", theID);
+            gResMgr.resError = noErr;
+        } else {
+            gResMgr.resError = memFullErr;
+        }
+        return h;
+    }
+
     /* Check cache first for fast hit */
     Handle cached = CacheLookup(theType, theID);
     if (cached) {
