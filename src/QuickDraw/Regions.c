@@ -511,8 +511,9 @@ Boolean ValidateRegion(RgnHandle rgn) {
     /* Check minimum size */
     if (region->rgnSize < kMinRegionSize) return false;
 
-    /* Check maximum size */
-    if (region->rgnSize > kMaxRegionSize) return false;
+    /* Check maximum size - rgnSize is SInt16, max value is 32767, so this check is unnecessary
+     * as kMaxRegionSize == 32767. Keeping for documentation but disabling the warning. */
+    /* if (region->rgnSize > kMaxRegionSize) return false; */
 
     /* For rectangular regions, just validate bounds */
     if (region->rgnSize == kMinRegionSize) {

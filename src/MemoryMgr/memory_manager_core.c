@@ -221,7 +221,7 @@ Ptr compact_heap(ZonePtr zone, Size bytesNeeded, Size* maxFreeSize) {
             break;  /* Invalid block size */
         }
 
-        if ((currentBlock)->u.allocated.tagByte == BLOCK_FREE) {
+        if ((SignedByte)(currentBlock)->u.allocated.tagByte == (SignedByte)BLOCK_FREE) {
             /* Free block found - check if it's large enough */
             largestFree = (blockSize > largestFree) ? blockSize : largestFree;
 
@@ -389,7 +389,7 @@ static OSErr resize_handle_internal(Handle h, Size newSize, Boolean is32Bit) {
  * PROVENANCE: ROM $40B800 - Free block management (disanalysis)
  */
 static void coalesce_free_blocks(ZonePtr zone, BlockPtr block) {
-    if (!zone || !block || (block)->u.allocated.tagByte != BLOCK_FREE) {
+    if (!zone || !block || (SignedByte)(block)->u.allocated.tagByte != (SignedByte)BLOCK_FREE) {
         return;
     }
 
@@ -398,7 +398,7 @@ static void coalesce_free_blocks(ZonePtr zone, BlockPtr block) {
     BlockPtr nextBlock = (BlockPtr)((char*)block + blockSize);
 
     if ((char*)nextBlock < (char*)zone->bkLim &&
-        (nextBlock)->u.allocated.tagByte == BLOCK_FREE) {
+        (SignedByte)(nextBlock)->u.allocated.tagByte == (SignedByte)BLOCK_FREE) {
         /* Merge with next block */
         Size nextSize = nextBlock->blkSize & BLOCK_SIZE_MASK;
         block->blkSize = blockSize + nextSize;
@@ -427,7 +427,7 @@ static BlockPtr find_free_block(ZonePtr zone, Size minSize) {
 
     /* Search for suitable free block */
     while (current < end) {
-        if ((current)->u.allocated.tagByte == BLOCK_FREE) {
+        if ((SignedByte)(current)->u.allocated.tagByte == (SignedByte)BLOCK_FREE) {
             Size blockSize = current->blkSize & BLOCK_SIZE_MASK;
             if (blockSize >= minSize) {
                 /* Update allocation rover */

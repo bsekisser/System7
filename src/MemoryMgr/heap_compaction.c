@@ -173,7 +173,7 @@ static OSErr make_contiguous_block_free_32bit(ZonePtr zone, Ptr startPtr, Size t
  * - Critical for maintaining heap efficiency
  */
 static void coalesce_adjacent_free_blocks(ZonePtr zone, BlockPtr block) {
-    if (!zone || !block || block->u.allocated.tagByte != BLOCK_FREE) {
+    if (!zone || !block || (SignedByte)block->u.allocated.tagByte != (SignedByte)BLOCK_FREE) {
         return;
     }
 
@@ -182,7 +182,7 @@ static void coalesce_adjacent_free_blocks(ZonePtr zone, BlockPtr block) {
     /* Coalesce with next block if it's free */
     BlockPtr nextBlock = (BlockPtr)((char*)block + currentSize);
     if ((char*)nextBlock < (char*)zone->bkLim &&
-        nextBlock->u.allocated.tagByte == BLOCK_FREE) {
+        (SignedByte)nextBlock->u.allocated.tagByte == (SignedByte)BLOCK_FREE) {
 
         Size nextSize = nextBlock->blkSize & BLOCK_SIZE_MASK;
 
@@ -222,7 +222,7 @@ static void coalesce_adjacent_free_blocks(ZonePtr zone, BlockPtr block) {
         scanBlock = nextScanBlock;
     }
 
-    if (prevBlock && prevBlock->u.allocated.tagByte == BLOCK_FREE) {
+    if (prevBlock && (SignedByte)prevBlock->u.allocated.tagByte == (SignedByte)BLOCK_FREE) {
         Size prevSize = prevBlock->blkSize & BLOCK_SIZE_MASK;
 
         /* Remove current block from free chain */
