@@ -27,6 +27,14 @@ PlatformHooks g_PlatformHooks = {0};
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define ALIGN(x, a) (((x) + (a) - 1) & ~((a) - 1))
 
+/*
+ * CONST_CAST_STRINGPTR - Safe const-cast for FileManager parameter blocks
+ * The File Manager API uses non-const StringPtr in parameter blocks for historical
+ * reasons, but input filenames are never modified by the implementation. This macro
+ * documents the intentional const-cast.
+ */
+#define CONST_CAST_STRINGPTR(s) ((StringPtr)(uintptr_t)(s))
+
 /* Convert between Mac and Unix timestamps */
 #define MAC_EPOCH_OFFSET 2082844800UL  /* Seconds between 1904 and 1970 */
 
@@ -152,7 +160,7 @@ OSErr FSOpen(ConstStr255Param fileName, VolumeRefNum vRefNum, FileRefNum* refNum
     ParamBlockRec pb;
 
     memset(&pb, 0, sizeof(pb));
-    pb.ioNamePtr = (StringPtr)fileName;
+    pb.ioNamePtr = CONST_CAST_STRINGPTR(fileName);
     pb.ioVRefNum = vRefNum;
     pb.u.ioParam.ioPermssn = fsRdWrPerm;
 
@@ -203,7 +211,7 @@ OSErr FSWrite(FileRefNum refNum, UInt32* count, const void* buffer)
 
     memset(&pb, 0, sizeof(pb));
     pb.u.ioParam.ioRefNum = refNum;
-    pb.u.ioParam.ioBuffer = (void*)buffer;
+    pb.u.ioParam.ioBuffer = (Ptr)(uintptr_t)buffer;
     pb.u.ioParam.ioReqCount = *count;
 
     OSErr err = PBWriteSync(&pb);
@@ -221,7 +229,7 @@ OSErr FSOpenDF(ConstStr255Param fileName, VolumeRefNum vRefNum, FileRefNum* refN
     ParamBlockRec pb;
 
     memset(&pb, 0, sizeof(pb));
-    pb.ioNamePtr = (StringPtr)fileName;
+    pb.ioNamePtr = CONST_CAST_STRINGPTR(fileName);
     pb.ioVRefNum = vRefNum;
     pb.u.ioParam.ioPermssn = fsRdWrPerm;
     /* pb.u.fileParam.ioDirID = 0; -- FileParam doesn't have ioDirID */  /* Use default directory */
@@ -239,7 +247,7 @@ OSErr FSOpenRF(ConstStr255Param fileName, VolumeRefNum vRefNum, FileRefNum* refN
     ParamBlockRec pb;
 
     memset(&pb, 0, sizeof(pb));
-    pb.ioNamePtr = (StringPtr)fileName;
+    pb.ioNamePtr = CONST_CAST_STRINGPTR(fileName);
     pb.ioVRefNum = vRefNum;
     pb.u.ioParam.ioPermssn = fsRdWrPerm;
     /* pb.u.fileParam.ioDirID = 0; -- FileParam doesn't have ioDirID */
@@ -258,7 +266,7 @@ OSErr FSCreate(ConstStr255Param fileName, VolumeRefNum vRefNum, UInt32 creator, 
 
     /* First create the file */
     memset(&pb, 0, sizeof(pb));
-    pb.ioNamePtr = (StringPtr)fileName;
+    pb.ioNamePtr = CONST_CAST_STRINGPTR(fileName);
     pb.ioVRefNum = vRefNum;
     /* pb.u.fileParam.ioDirID = 0; -- FileParam doesn't have ioDirID */
 
@@ -284,7 +292,7 @@ OSErr FSDelete(ConstStr255Param fileName, VolumeRefNum vRefNum)
     ParamBlockRec pb;
 
     memset(&pb, 0, sizeof(pb));
-    pb.ioNamePtr = (StringPtr)fileName;
+    pb.ioNamePtr = CONST_CAST_STRINGPTR(fileName);
     pb.ioVRefNum = vRefNum;
     /* pb.u.fileParam.ioDirID = 0; -- FileParam doesn't have ioDirID */
 
@@ -296,9 +304,9 @@ OSErr FSRename(ConstStr255Param oldName, ConstStr255Param newName, VolumeRefNum 
     ParamBlockRec pb;
 
     memset(&pb, 0, sizeof(pb));
-    pb.ioNamePtr = (StringPtr)oldName;
+    pb.ioNamePtr = CONST_CAST_STRINGPTR(oldName);
     pb.ioVRefNum = vRefNum;
-    pb.u.ioParam.ioMisc = (void*)newName;
+    pb.u.ioParam.ioMisc = CONST_CAST_STRINGPTR(newName);
     /* pb.u.fileParam.ioDirID = 0; -- FileParam doesn't have ioDirID */
 
     return PBHRenameSync(&pb);
@@ -500,7 +508,7 @@ OSErr FSGetFInfo(ConstStr255Param fileName, VolumeRefNum vRefNum, FInfo* fndrInf
     }
 
     memset(&pb, 0, sizeof(pb));
-    pb.ioNamePtr = (StringPtr)fileName;
+    pb.ioNamePtr = CONST_CAST_STRINGPTR(fileName);
     pb.ioVRefNum = vRefNum;
     pb.u.hFileInfo.ioFDirIndex = 0;
 
@@ -522,7 +530,7 @@ OSErr HGetFInfo(short vRefNum, long dirID, ConstStr255Param fileName, FInfo *fnd
     }
 
     memset(&pb, 0, sizeof(pb));
-    pb.ioNamePtr = (StringPtr)fileName;
+    pb.ioNamePtr = CONST_CAST_STRINGPTR(fileName);
     pb.ioVRefNum = vRefNum;
     pb.u.dirInfo.ioDrDirID = dirID;
     pb.u.hFileInfo.ioFDirIndex = 0;
@@ -549,7 +557,7 @@ OSErr FSSetFInfo(ConstStr255Param fileName, VolumeRefNum vRefNum, const FInfo* f
 
     /* First get current info */
     memset(&pb, 0, sizeof(pb));
-    pb.ioNamePtr = (StringPtr)fileName;
+    pb.ioNamePtr = CONST_CAST_STRINGPTR(fileName);
     pb.ioVRefNum = vRefNum;
     pb.u.hFileInfo.ioFDirIndex = 0;
 
@@ -1433,7 +1441,7 @@ Boolean FM_IsDirectory(const FSSpec* spec)
     }
 
     memset(&pb, 0, sizeof(pb));
-    pb.ioNamePtr = (StringPtr)spec->name;
+    pb.ioNamePtr = CONST_CAST_STRINGPTR(spec->name);
     pb.ioVRefNum = spec->vRefNum;
     pb.u.dirInfo.ioDrDirID = spec->parID;
     pb.u.hFileInfo.ioFDirIndex = 0;
