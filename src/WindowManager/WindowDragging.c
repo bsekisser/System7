@@ -54,10 +54,7 @@ static void Local_CleanupDragState(void);
 #define TITLE_BAR_HEIGHT           20   /* Height of title bar */
 #define TITLE_BAR_DRAG_MARGIN      50   /* Minimum title bar visible */
 #define DRAG_UPDATE_INTERVAL       16   /* Update interval in milliseconds */
-#define MIN_WINDOW_WIDTH            100  /* Minimum window width */
-#define MIN_WINDOW_HEIGHT           50   /* Minimum window height */
-#define MAX_WINDOW_WIDTH            2048 /* Maximum window width */
-#define MAX_WINDOW_HEIGHT           1536 /* Maximum window height */
+/* Window size constraints are defined in WindowManagerInternal.h */
 
 /* Drag feedback modes */
 typedef enum {

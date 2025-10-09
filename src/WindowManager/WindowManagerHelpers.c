@@ -153,12 +153,6 @@ void WM_ConstrainToRect(Rect* rect, const Rect* bounds) {
     }
 }
 
-/* Pascal string utilities */
-short GetPascalStringLength(const unsigned char* str) {
-    if (!str) return 0;
-    return str[0];
-}
-
 /* CopyPascalString is defined in WindowManagerCore.c */
 extern void CopyPascalString(const unsigned char* src, unsigned char* dst);
 

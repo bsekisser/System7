@@ -78,7 +78,6 @@ static AuxWinHandle CreateAuxiliaryWindowRecord(WindowPtr owner);
 static void DisposeAuxiliaryWindowRecord(AuxWinHandle auxWin);
 /* Pascal string helpers - using the one from SuperCompat.h */
 #define WM_CopyPascalString CopyPascalString
-static short GetPascalStringLength(const unsigned char* str);
 
 /* ============================================================================
  * Window Manager Initialization
@@ -981,9 +980,4 @@ void CopyPascalString(const unsigned char* source, unsigned char* dest) {
     if (length > 0) {
         memcpy(&dest[1], &source[1], length);
     }
-}
-
-static short GetPascalStringLength(const unsigned char* str) {
-    if (str == NULL) return 0;
-    return str[0];
 }
