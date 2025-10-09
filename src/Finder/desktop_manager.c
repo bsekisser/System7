@@ -35,10 +35,6 @@
 #include "System71StdLib.h"
 #include "Finder/FinderLogging.h"
 
-#define FINDER_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelDebug, fmt, ##__VA_ARGS__)
-#define FINDER_LOG_TRACE(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelTrace, fmt, ##__VA_ARGS__)
-#define FINDER_LOG_WARN(fmt, ...)  serial_logf(kLogModuleFinder, kLogLevelWarn, fmt, ##__VA_ARGS__)
-
 /* HD Icon data - still needed by icon_system.c */
 extern const uint8_t g_HDIcon[128];
 extern const uint8_t g_HDIconMask[128];

@@ -67,12 +67,11 @@ OSErr BTOpen(FCB* fcb, void* btcb_ptr) {
     header_node->ndNHeight = 0;
     header_node->ndNRecs = 3;  /* Header record, map record, user data record */
 
-    /* Extract B-Tree header from header node data area */
-    /*
+    /* Extract B-Tree header from header node data area
     header = (BTHeader*)header_node->ndData;
 
-    /* Initialize header with default values for testing */
-    header->bthDepth = 1;           /* Single level tree initially */
+    Initialize header with default values for testing
+    header->bthDepth = 1;           Single level tree initially */
     header->bthRoot = 1;            /* Root is node 1 */
     header->bthNRecs = 0;           /* No records initially */
     header->bthFNode = 0;           /* No leaf nodes yet */
@@ -184,9 +183,8 @@ OSErr BTSearch(void* btcb_ptr, void* key, BTNode** node, UInt16* record_index) {
             return fnfErr;
         }
 
-        /* If index node, follow appropriate child pointer */
-        /*
-        /* For simplified implementation, assume we reach leaf immediately */
+        /* If index node, follow appropriate child pointer
+        For simplified implementation, assume we reach leaf immediately */
         break;
     }
 
@@ -217,7 +215,6 @@ OSErr BTInsert(void* btcb_ptr, void* key, void* data, UInt16 data_len) {
     }
 
     /* For simplified implementation, assume insertion succeeds */
-    /*
 
     /* Update record count - Evidence: ROM HFS B-Tree code record count maintenance */
     btcb->btcbNRecs++;
@@ -250,7 +247,6 @@ OSErr BTDelete(void* btcb_ptr, void* key) {
     }
 
     /* For simplified implementation, assume deletion succeeds */
-    /*
 
     /* Update record count - Evidence: ROM HFS B-Tree code record count maintenance */
     if (btcb->btcbNRecs > 0) {

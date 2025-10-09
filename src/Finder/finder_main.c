@@ -34,11 +34,6 @@
 #include "Finder/AboutThisMac.h"
 #include "Finder/FinderLogging.h"
 
-#define FINDER_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelDebug, fmt, ##__VA_ARGS__)
-#define FINDER_LOG_TRACE(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelTrace, fmt, ##__VA_ARGS__)
-#define FINDER_LOG_WARN(fmt, ...)  serial_logf(kLogModuleFinder, kLogLevelWarn, fmt, ##__VA_ARGS__)
-
-
 /* External globals */
 extern QDGlobals qd;  /* QuickDraw globals from main.c */
 
@@ -545,19 +540,19 @@ static void HandleMenuChoice(long menuChoice)
 
     /* Old implementation - kept for reference
     switch (menuID) {
-        case 128:  * Apple Menu *
+        case 128:  /* Apple Menu */
             if (menuItem == 1) {
                 AboutWindow_ShowOrToggle();
             } else {
-                * Get item text to check if it's Shut Down *
+                /* Get item text to check if it's Shut Down */
                 Str255 itemName;
                 GetMenuItemText(gAppleMenu, menuItem, itemName);
 
-                * Check if this is the Shut Down item *
+                /* Check if this is the Shut Down item */
                 if (itemName[0] == 9 &&
                     itemName[1] == 'S' && itemName[2] == 'h' &&
                     itemName[3] == 'u' && itemName[4] == 't') {
-                    * Shut Down *
+                    /* Shut Down */
                     (void)HandleShutDown();
                 } else {
                     /* Handle desk accessories */

@@ -24,10 +24,6 @@
 #include "FS/hfs_types.h"
 #include "System71StdLib.h"
 #include "Finder/FinderLogging.h"
-
-#define FINDER_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelDebug, fmt, ##__VA_ARGS__)
-#define FINDER_LOG_TRACE(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelTrace, fmt, ##__VA_ARGS__)
-#define FINDER_LOG_WARN(fmt, ...)  serial_logf(kLogModuleFinder, kLogLevelWarn, fmt, ##__VA_ARGS__)
 extern void DrawString(const unsigned char* str);
 extern void MoveTo(short h, short v);
 extern void LineTo(short h, short v);

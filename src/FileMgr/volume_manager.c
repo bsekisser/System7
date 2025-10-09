@@ -140,10 +140,9 @@ OSErr MountVol(void* param_block) {
 OSErr CheckRemount(VCB* vcb) {
     if (vcb == NULL) return paramErr;
 
-    /*
-    /* Original would check drive status and compare volume signatures */
+    /* Original would check drive status and compare volume signatures
 
-    /* For basic implementation, assume volume is still mounted */
+    For basic implementation, assume volume is still mounted */
     return noErr;
 }
 
@@ -240,7 +239,6 @@ OSErr OffLine(VCB* vcb) {
 OSErr FlushVol(VCB* vcb) {
     if (vcb == NULL) return paramErr;
 
-    /*
     /* Original implementation would:
      * 1. Flush all dirty cache buffers for the volume
      * 2. Update Master Directory Block
