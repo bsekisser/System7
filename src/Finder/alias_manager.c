@@ -25,6 +25,7 @@
 #include "MemoryMgr/memory_manager_types.h"
 #include "ResourceManager.h"
 #include "Finder/FinderLogging.h"
+#include "sys71_stubs.h"
 /* Note: Aliases.h may not exist yet */
 
 

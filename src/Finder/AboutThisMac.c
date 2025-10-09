@@ -9,6 +9,7 @@
 #include <string.h>
 #include "System71StdLib.h"
 #include "Finder/FinderLogging.h"
+#include "Finder/finder.h"
 
 /* External QuickDraw & Window Manager APIs */
 extern void GetPort(GrafPtr* port);
@@ -404,7 +405,7 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     MemSnapshot mem;
     Rect box, bar, seg;
     /* short barX, barY, barW, barH; */ /* TODO: Progress bar geometry for memory visualization */
-    /* short wSys, wApp, wCac, wUnu; */ /* TODO: Memory segment widths */
+    short wSys, wApp, wCac; /* wUnu; */ /* Memory segment widths */
     /* UInt32 denom; */ /* TODO: Denominator for memory calculations */
     /* unsigned char pstr[64]; */ /* TODO: Pascal string buffer for display */
     /* char valueStr[32]; */ /* TODO: C string buffer for formatted values */

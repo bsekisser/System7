@@ -104,11 +104,22 @@ OSErr ShowWindowContents(WindowPtr window, FSSpec *folder, short maxItems);
 Size FreeWindowMemory(void);
 WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title);
 
+/* Folder Window API */
+void DrawFolderWindowContents(WindowPtr window, Boolean isTrash);
+void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID);
+WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param title);
+Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleClick);
+void FolderWindow_Draw(WindowPtr w);
+Boolean IsFolderWindow(WindowPtr w);
+void FolderWindowProc(WindowPtr window, short message, long param);
+void CleanupFolderWindow(WindowPtr w);
+
 /* Trash Folder API - Evidence: "Empty Trash", "The Trash cannot be emptied" */
 OSErr EmptyTrash(Boolean force);
 Boolean CanEmptyTrash(void);
 OSErr MoveToTrash(FSSpec *items, short count);
 OSErr HandleFloppyTrashItems(void);
+OSErr InitializeTrashFolder(void);
 
 /* View Manager API - Evidence: "Icon Views", "List Views", "Clean Up Selection" */
 OSErr SetIconView(WindowPtr window);
@@ -135,6 +146,11 @@ OSErr CreateAlias(FSSpec *target, FSSpec *aliasFile);
 /* About Dialog API - Evidence: "About The Finder", "Macintosh Finder Version 7.1" */
 OSErr ShowAboutFinder(void);
 StringPtr GetFinderVersion(void);
+void AboutWindow_ShowOrToggle(void);
+void AboutWindow_CloseIf(WindowPtr w);
+Boolean AboutWindow_HandleUpdate(WindowPtr w);
+Boolean AboutWindow_HandleMouseDown(WindowPtr w, short part, Point localPt);
+Boolean AboutWindow_IsOurs(WindowPtr w);
 
 /* Utility Functions */
 OSErr ShowErrorDialog(StringPtr message, OSErr errorCode);

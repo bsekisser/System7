@@ -167,5 +167,6 @@ OSErr FSWrite(short refNum, long *count, const void *buffPtr);
 OSErr SetEOF(short refNum, long logEOF);
 OSErr PBHGetVInfoSync(void *paramBlock);
 OSErr PBGetCatInfoSync(void *paramBlock);
+OSErr PBSetCatInfoSync(void *paramBlock);
 
 #endif /* FILE_MANAGER_H */

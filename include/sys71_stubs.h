@@ -60,16 +60,11 @@ OSErr FSpDirDelete(const FSSpec *spec);
 OSErr FSpCatMove(const FSSpec *source, const FSSpec *dest);
 
 /* Parameter Block */
-OSErr PBHGetVInfoSync(HParamBlockRec* paramBlock);
+/* Note: PBHGetVInfoSync, PBGetCatInfoSync declared in FileMgr/file_manager.h */
+OSErr PBSetCatInfoSync(void *paramBlock);
 
 /* File Manager */
-OSErr SetEOF(SInt16 refNum, SInt32 logEOF);
-OSErr FSMakeFSSpec(short vRefNum, long dirID, ConstStr255Param fileName, FSSpec *spec);
-OSErr FSRead(short refNum, long *count, void *buffPtr);
-OSErr FSWrite(short refNum, long *count, const void *buffPtr);
-OSErr FSClose(short refNum);
-OSErr PBGetCatInfoSync(CInfoPBPtr paramBlock);
-OSErr PBSetCatInfoSync(CInfoPBPtr paramBlock);
+/* Note: FSMakeFSSpec, FSRead, FSWrite, FSClose, SetEOF declared in FileMgr/file_manager.h */
 
 /* Memory Manager */
 void BlockMoveData(const void *srcPtr, void *destPtr, Size byteCount);
@@ -110,7 +105,7 @@ OSErr CloseFinderWindow(WindowPtr window);
 void DoUpdate(WindowPtr window);
 void DoActivate(WindowPtr window, Boolean becomingActive);
 void DoBackgroundTasks(void);
-OSErr ShowConfirmDialog(ConstStr255Param message, Boolean* confirmed);
+/* Note: ShowConfirmDialog declared in Finder/finder.h */
 OSErr CloseAllWindows(void);
 OSErr CleanUpSelection(WindowPtr window);
 OSErr CleanUpBy(WindowPtr window, short sortOrder);

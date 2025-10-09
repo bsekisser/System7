@@ -24,7 +24,10 @@
 /* Use local headers instead of system headers */
 #include "MemoryMgr/memory_manager_types.h"
 #include "DialogManager/DialogTypes.h"
+#include "DialogManager/DialogManager.h"
+#include "EventManager/EventManager.h"
 #include "Finder/FinderLogging.h"
+#include "sys71_stubs.h"
 
 
 /* Trash Folder Constants */
