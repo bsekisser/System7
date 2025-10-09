@@ -11,6 +11,8 @@
 #include "SystemTypes.h"
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <sched.h>
 #include "System71StdLib.h"
 #include "FileManager_Internal.h"
 #include "FS/FSLogging.h"

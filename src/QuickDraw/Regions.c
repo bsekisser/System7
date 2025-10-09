@@ -21,6 +21,7 @@
 #include "QuickDraw/QDRegions.h"
 #include "QuickDraw/QuickDraw.h"
 #include <assert.h>
+#include <math.h>
 
 /* Platform abstraction layer */
 #include "QuickDrawPlatform.h"

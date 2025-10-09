@@ -14,7 +14,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-/* For pack_color */
+/* External functions */
+extern int sprintf(char* str, const char* format, ...);
 extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 
 /*
