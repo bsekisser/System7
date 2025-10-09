@@ -279,6 +279,11 @@ void DrawDesktop(void)
 
     /* Create a region for the desktop (excluding menu bar) */
     desktopRgn = NewRgn();
+    if (!desktopRgn) {
+        FINDER_LOG_DEBUG("DrawDesktop: NewRgn failed (out of memory)\n");
+        gInDesktopPaint = false;
+        return;
+    }
     Rect desktopRect = qd.screenBits.bounds;
     desktopRect.top = 20;  /* Start below menu bar */
     RectRgn(desktopRgn, &desktopRect);
