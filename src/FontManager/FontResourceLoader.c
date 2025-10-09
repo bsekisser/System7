@@ -103,8 +103,8 @@ OSErr FM_ParseOWTTable(const NFNTResource *nfnt, OWTEntry **owtOut) {
     /* Calculate where OWT starts in the resource */
     /* After bitmap: rowWords * fRectHeight * 2 bytes */
     Size bitmapSize = nfnt->rowWords * nfnt->fRectHeight * 2;
-    UInt8 *resourceBase = (UInt8*)nfnt;
-    UInt8 *owtPtr = resourceBase + sizeof(NFNTResource) + bitmapSize;
+    const UInt8 *resourceBase = (const UInt8*)nfnt;
+    const UInt8 *owtPtr = resourceBase + sizeof(NFNTResource) + bitmapSize;
 
     /* Allocate OWT array (+1 for the extra entry that defines last char's width) */
     Size owtSize = (numChars + 1) * sizeof(OWTEntry);
@@ -186,7 +186,7 @@ OSErr FM_ExtractBitmap(const NFNTResource *nfnt, UInt8 **bitmapOut, Size *sizeOu
     }
 
     /* Copy bitmap data (starts right after NFNTResource header) */
-    UInt8 *sourcePtr = (UInt8*)nfnt + sizeof(NFNTResource);
+    const UInt8 *sourcePtr = (const UInt8*)nfnt + sizeof(NFNTResource);
     memcpy(bitmap, sourcePtr, bitmapSize);
 
     FRL_LOG("Extracted bitmap: %ld bytes (%d words x %d rows)\n",
@@ -244,7 +244,7 @@ SInt16 FM_FindBestMatch(const FONDResource *fond, SInt16 size, Style face) {
     }
 
     /* Get pointer to font association table */
-    FontAssocEntry *entries = (FontAssocEntry*)((UInt8*)fond + sizeof(FONDResource));
+    const FontAssocEntry *entries = (const FontAssocEntry*)((const UInt8*)fond + sizeof(FONDResource));
 
     SInt16 bestID = -1;
     SInt16 bestSizeDiff = 32767;
@@ -284,8 +284,8 @@ OSErr FM_GetFontAssociation(const FONDResource *fond, SInt16 index, FontAssocEnt
         return paramErr;
     }
 
-    FontAssocEntry *entries = (FontAssocEntry*)((UInt8*)fond + sizeof(FONDResource));
-    *entryOut = &entries[index];
+    const FontAssocEntry *entries = (const FontAssocEntry*)((const UInt8*)fond + sizeof(FONDResource));
+    *entryOut = (FontAssocEntry*)&entries[index];
 
     return noErr;
 }
@@ -361,7 +361,7 @@ void FM_DumpFOND(const FONDResource *fond) {
     FRL_LOG("  Associations: %d entries\n", fond->ffNumEntries);
 
     /* Dump associations */
-    FontAssocEntry *entries = (FontAssocEntry*)((UInt8*)fond + sizeof(FONDResource));
+    const FontAssocEntry *entries = (const FontAssocEntry*)((const UInt8*)fond + sizeof(FONDResource));
     for (SInt16 i = 0; i < fond->ffNumEntries; i++) {
         FRL_LOG("    [%d] size=%d style=0x%02X -> NFNT %d\n",
                 i, entries[i].fontSize, entries[i].fontStyle, entries[i].fontID);

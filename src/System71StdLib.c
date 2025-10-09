@@ -122,7 +122,7 @@ char* strcat(char* dest, const char* src) {
 char* strchr(const char* s, int c) {
     while (*s) {
         if (*s == c) {
-            return (char*)s;
+            return (char*)(uintptr_t)s;
         }
         s++;
     }
@@ -130,7 +130,7 @@ char* strchr(const char* s, int c) {
 }
 
 char* strstr(const char* haystack, const char* needle) {
-    if (!needle || !*needle) return (char*)haystack;
+    if (!needle || !*needle) return (char*)(uintptr_t)haystack;
 
     while (*haystack) {
         const char* h = haystack;
@@ -142,7 +142,7 @@ char* strstr(const char* haystack, const char* needle) {
         }
 
         if (!*n) {
-            return (char*)haystack;
+            return (char*)(uintptr_t)haystack;
         }
 
         haystack++;
