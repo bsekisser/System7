@@ -183,37 +183,60 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
  * DisposeGWorld - Dispose of offscreen graphics world
  */
 void DisposeGWorld(GWorldPtr offscreenGWorld) {
-    if (!offscreenGWorld) return;
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("[GWORLD] DisposeGWorld ENTRY: gworld=%p\n", offscreenGWorld);
+
+    if (!offscreenGWorld) {
+        serial_printf("[GWORLD] DisposeGWorld: NULL gworld, returning\n");
+        return;
+    }
 
     /* Free pixel buffer */
+    serial_printf("[GWORLD] About to check portPixMap\n");
     if (offscreenGWorld->portPixMap && *offscreenGWorld->portPixMap) {
         PixMapPtr pm = *offscreenGWorld->portPixMap;
+        serial_printf("[GWORLD] About to check baseAddr\n");
         if (pm->baseAddr) {
+            serial_printf("[GWORLD] About to call DisposePtr for pixel buffer\n");
             DisposePtr(pm->baseAddr);
+            serial_printf("[GWORLD] DisposePtr for pixel buffer returned\n");
             pm->baseAddr = NULL;
         }
     }
 
     /* Free PixMap */
+    serial_printf("[GWORLD] About to check portPixMap for DisposePixMap\n");
     if (offscreenGWorld->portPixMap) {
+        serial_printf("[GWORLD] About to call DisposePixMap\n");
         DisposePixMap(offscreenGWorld->portPixMap);
+        serial_printf("[GWORLD] DisposePixMap returned\n");
     }
 
     /* Free regions */
+    serial_printf("[GWORLD] About to check visRgn\n");
     if (offscreenGWorld->visRgn) {
+        serial_printf("[GWORLD] About to call DisposeRgn for visRgn\n");
         DisposeRgn(offscreenGWorld->visRgn);
+        serial_printf("[GWORLD] DisposeRgn for visRgn returned\n");
     }
+    serial_printf("[GWORLD] About to check clipRgn\n");
     if (offscreenGWorld->clipRgn) {
+        serial_printf("[GWORLD] About to call DisposeRgn for clipRgn\n");
         DisposeRgn(offscreenGWorld->clipRgn);
+        serial_printf("[GWORLD] DisposeRgn for clipRgn returned\n");
     }
 
     /* Clear current if this was current */
+    serial_printf("[GWORLD] About to check if this is current gworld\n");
     if (g_currentGWorld == offscreenGWorld) {
         g_currentGWorld = NULL;
+        serial_printf("[GWORLD] Cleared current gworld\n");
     }
 
     /* Free port structure */
+    serial_printf("[GWORLD] About to call DisposePtr for port structure\n");
     DisposePtr((Ptr)offscreenGWorld);
+    serial_printf("[GWORLD] DisposeGWorld RETURN\n");
 }
 
 /*

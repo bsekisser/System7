@@ -115,34 +115,7 @@ void GetClip(RgnHandle rgn)
     }
 }
 
-/* Region management functions */
-
-/*
- * NewRgn - Create new region
-
- */
-RgnHandle NewRgn(void)
-{
-    /* TODO: Allocate memory for new region */
-    /* This would typically use Mac memory management */
-    RgnHandle rgn = (RgnHandle)NewHandle(sizeof(Region));
-    if (rgn != NULL && *rgn != NULL) {
-        SetEmptyRgn(rgn);
-    }
-    return rgn;
-}
-
-/*
- * DisposeRgn - Dispose of region
-
- */
-void DisposeRgn(RgnHandle rgn)
-{
-    if (rgn != NULL) {
-        /* TODO: Use Mac memory management to dispose handle */
-        DisposeHandle((Handle)rgn);
-    }
-}
+/* Region management functions - NewRgn/DisposeRgn implemented in Regions.c */
 
 /*
  * SetEmptyRgn - Set region to empty

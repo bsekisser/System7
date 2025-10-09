@@ -945,37 +945,33 @@ void ShowWindow(WindowPtr window) {
 }
 
 void HideWindow(WindowPtr window) {
-    WM_LOG_DEBUG("[WM] HideWindow: STUB ENTRY\n");
-    return;
-
-    /* DISABLED FOR TESTING
-    WM_DEBUG("HideWindow: ENTRY, window=0x%08x", (unsigned int)P2UL(window));
+    WM_LOG_DEBUG("[WM] HideWindow: ENTRY\n");
 
     if (!window) {
-        WM_DEBUG("HideWindow: NULL window, returning");
+        WM_LOG_DEBUG("[WM] HideWindow: NULL window, returning\n");
         return;
     }
 
-    WM_DEBUG("HideWindow: window->visible=%d", window->visible);
-    if (!window->visible) {
-        WM_DEBUG("HideWindow: Window not visible, returning");
-        return;
-    }
-
-    WM_DEBUG("HideWindow: Setting visible=false");
-    */
+    WM_LOG_DEBUG("[WM] HideWindow: Setting visible=false\n");
     window->visible = false;
 
     /* Save the region that needs repainting */
+    WM_LOG_DEBUG("[WM] HideWindow: About to declare clobberedRgn\n");
     RgnHandle clobberedRgn = NULL;
-    WM_DEBUG("HideWindow: Checking strucRgn=0x%08x", (unsigned int)P2UL(window->strucRgn));
-    if (window->strucRgn) {
-        WM_DEBUG("HideWindow: Calling NewRgn()");
+    WM_LOG_DEBUG("[WM] HideWindow: clobberedRgn declared\n");
+    WM_LOG_DEBUG("[WM] HideWindow: window pointer = 0x%08x\n", (unsigned int)P2UL(window));
+    WM_LOG_DEBUG("[WM] HideWindow: &(window->strucRgn) = 0x%08x\n", (unsigned int)P2UL(&(window->strucRgn)));
+    WM_LOG_DEBUG("[WM] HideWindow: About to read window->strucRgn value...\n");
+    RgnHandle strucRgn_value = window->strucRgn;
+    WM_LOG_DEBUG("[WM] HideWindow: strucRgn value = 0x%08x\n", (unsigned int)P2UL(strucRgn_value));
+    WM_LOG_DEBUG("[WM] HideWindow: About to check if strucRgn is NULL\n");
+    if (strucRgn_value) {
+        WM_LOG_DEBUG("[WM] HideWindow: strucRgn is NOT NULL, calling NewRgn()\n");
         clobberedRgn = NewRgn();
-        WM_DEBUG("HideWindow: NewRgn returned 0x%08x", (unsigned int)P2UL(clobberedRgn));
+        WM_LOG_DEBUG("[WM] HideWindow: NewRgn returned 0x%08x\n", (unsigned int)P2UL(clobberedRgn));
         if (clobberedRgn) {
             WM_DEBUG("HideWindow: Calling CopyRgn()");
-            CopyRgn(window->strucRgn, clobberedRgn);
+            CopyRgn(strucRgn_value, clobberedRgn);
             WM_DEBUG("HideWindow: CopyRgn returned");
         }
     }

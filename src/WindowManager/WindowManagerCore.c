@@ -431,34 +431,35 @@ void CloseWindow(WindowPtr theWindow) {
     }
 
     /* Remove from window list */
-    WM_LOG_TRACE("CloseWindow: Calling RemoveWindowFromList\n");
+    WM_LOG_DEBUG("CloseWindow: About to call RemoveWindowFromList(0x%08x)\n", (unsigned int)P2UL(theWindow));
     RemoveWindowFromList(theWindow);
-    WM_LOG_TRACE("CloseWindow: RemoveWindowFromList returned\n");
+    WM_LOG_DEBUG("CloseWindow: RemoveWindowFromList returned\n");
 
     /* Dispose of auxiliary window record if it exists */
-    WM_LOG_TRACE("CloseWindow: Checking for AuxWin\n");
+    WM_LOG_DEBUG("CloseWindow: Checking for AuxWin\n");
     AuxWinHandle auxWin;
     if (GetAuxWin(theWindow, &auxWin)) {
-        WM_LOG_TRACE("CloseWindow: Disposing AuxWin\n");
+        WM_LOG_DEBUG("CloseWindow: Disposing AuxWin\n");
         DisposeAuxiliaryWindowRecord(auxWin);
-        WM_LOG_TRACE("CloseWindow: AuxWin disposed\n");
+        WM_LOG_DEBUG("CloseWindow: AuxWin disposed\n");
     }
 
     /* Dispose of offscreen GWorld if it exists */
+    WM_LOG_DEBUG("CloseWindow: About to check offscreenGWorld\n");
     if (theWindow->offscreenGWorld) {
-        WM_LOG_TRACE("CloseWindow: Disposing offscreen GWorld\n");
+        WM_LOG_DEBUG("CloseWindow: Calling DisposeGWorld\n");
         DisposeGWorld(theWindow->offscreenGWorld);
         theWindow->offscreenGWorld = NULL;
-        WM_LOG_TRACE("CloseWindow: Offscreen GWorld disposed\n");
+        WM_LOG_DEBUG("CloseWindow: DisposeGWorld completed\n");
     }
 
     /* Destroy native platform window */
-    WM_LOG_TRACE("CloseWindow: Destroying native window\n");
+    WM_LOG_DEBUG("CloseWindow: About to destroy native window\n");
     Platform_DestroyNativeWindow(theWindow);
-    WM_LOG_TRACE("CloseWindow: Native window destroyed\n");
+    WM_LOG_DEBUG("CloseWindow: Native window destroyed\n");
 
     /* Dispose of window regions */
-    WM_LOG_TRACE("CloseWindow: Disposing regions\n");
+    WM_LOG_DEBUG("CloseWindow: About to dispose regions\n");
     if (theWindow->strucRgn) {
         Platform_DisposeRgn(theWindow->strucRgn);
         theWindow->strucRgn = NULL;
@@ -475,7 +476,7 @@ void CloseWindow(WindowPtr theWindow) {
         Platform_DisposeRgn(theWindow->updateRgn);
         theWindow->updateRgn = NULL;
     }
-    WM_LOG_TRACE("CloseWindow: Regions disposed\n");
+    WM_LOG_DEBUG("CloseWindow: Regions disposed\n");
 
     /* Dispose of title */
     WM_LOG_TRACE("CloseWindow: Disposing title\n");

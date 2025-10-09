@@ -40,30 +40,46 @@ static BlockHeader* freenode_to_block(FreeNode* n) {
 }
 
 static void freelist_insert(ZoneInfo* z, BlockHeader* b) {
+    extern void serial_puts(const char* str);
+    serial_puts("freelist_insert: ENTRY\n");
+
     b->flags = BF_FREE;
     FreeNode* n = block_to_freenode(b);
 
+    serial_puts("freelist_insert: checking freeHead\n");
     if (!z->freeHead) {
+        serial_puts("freelist_insert: no freeHead, creating\n");
         z->freeHead = n;
         n->next = n->prev = n;
+        serial_puts("freelist_insert: EXIT (new list)\n");
         return;
     }
 
     /* Insert sorted by address for easier coalescing */
+    serial_puts("freelist_insert: starting loop\n");
     FreeNode* it = z->freeHead;
+    int loop_count = 0;
     while (it->next != z->freeHead && it->next < n) {
         it = it->next;
+        loop_count++;
+        if (loop_count > 100) {
+            serial_puts("freelist_insert: INFINITE LOOP!\n");
+            return;  /* Prevent infinite loop */
+        }
     }
+    serial_puts("freelist_insert: loop done\n");
 
     n->next = it->next;
     n->prev = it;
     it->next->prev = n;
     it->next = n;
 
+    serial_puts("freelist_insert: updating head\n");
     /* Update head if we're smallest */
     if (n < z->freeHead) {
         z->freeHead = n;
     }
+    serial_puts("freelist_insert: EXIT\n");
 }
 
 static void freelist_remove(ZoneInfo* z, BlockHeader* b) {
@@ -229,48 +245,48 @@ static void split_block(ZoneInfo* z, BlockHeader* b, u32 need) {
 /* ======================== Ptr Operations ======================== */
 
 void* NewPtr(u32 byteCount) {
-    extern void serial_printf(const char *fmt, ...);
-    serial_printf("[NewPtr] ENTER: requested=%u bytes\n", byteCount);
+    /* TEST: Use simple serial output to see if we even enter this function */
+    extern void serial_puts(const char* str);
+    serial_puts("NewPtr: ENTRY\n");
 
     ZoneInfo* z = gCurrentZone;
+    serial_puts("NewPtr: got zone\n");
     if (!z) {
-        serial_printf("[NewPtr] FAIL: no current zone\n");
+        serial_puts("NewPtr: no zone!\n");
         return NULL;
     }
 
-    serial_printf("[NewPtr] Zone state: bytesUsed=%u bytesFree=%u\n", z->bytesUsed, z->bytesFree);
-
+    serial_puts("NewPtr: aligning\n");
     u32 need = align_up(byteCount + BLKHDR_SZ);
-    serial_printf("[NewPtr] After alignment: need=%u bytes\n", need);
 
-    serial_printf("[NewPtr] Calling find_fit...\n");
+    serial_puts("NewPtr: calling find_fit\n");
     BlockHeader* b = find_fit(z, need);
-    serial_printf("[NewPtr] find_fit returned: %p\n", b);
+    serial_puts("NewPtr: find_fit returned\n");
 
     if (!b) {
         /* Try compaction */
-        serial_printf("[NewPtr] No fit found, trying compaction for %u bytes...\n", need);
+        // MEMORY_LOG_DEBUG("[NewPtr] No fit found, trying compaction for %u bytes...\n", need);
         u32 compact_result = CompactMem(need);
-        serial_printf("[NewPtr] CompactMem returned: %u (need %u)\n", compact_result, need);
+        // MEMORY_LOG_DEBUG("[NewPtr] CompactMem returned: %u (need %u)\n", compact_result, need);
 
         if (compact_result < need) {
-            serial_printf("[NewPtr] FAIL: compaction insufficient\n");
+            // MEMORY_LOG_DEBUG("[NewPtr] FAIL: compaction insufficient\n");
             return NULL;
         }
 
-        serial_printf("[NewPtr] Calling find_fit after compaction...\n");
+        // MEMORY_LOG_DEBUG("[NewPtr] Calling find_fit after compaction...\n");
         b = find_fit(z, need);
-        serial_printf("[NewPtr] find_fit after compaction returned: %p\n", b);
+        // MEMORY_LOG_DEBUG("[NewPtr] find_fit after compaction returned: %p\n", b);
 
         if (!b) {
-            serial_printf("[NewPtr] FAIL: no fit even after compaction\n");
+            // MEMORY_LOG_DEBUG("[NewPtr] FAIL: no fit even after compaction\n");
             return NULL;
         }
     }
 
-    serial_printf("[NewPtr] Splitting block at %p...\n", b);
+    serial_puts("NewPtr: splitting block\n");
     split_block(z, b, need);
-    serial_printf("[NewPtr] Block split complete\n");
+    serial_puts("NewPtr: block split\n");
 
     b->flags |= BF_PTR;
     b->masterPtr = NULL;
@@ -278,7 +294,7 @@ void* NewPtr(u32 byteCount) {
     z->bytesFree -= b->size;
 
     void* result = (u8*)b + BLKHDR_SZ;
-    serial_printf("[NewPtr] SUCCESS: returning %p\n", result);
+    serial_puts("NewPtr: SUCCESS, returning\n");
     return result;
 }
 
@@ -498,27 +514,27 @@ bool SetHandleSize_MemMgr(Handle h, u32 newSize) {
 /* ======================== Compaction ======================== */
 
 u32 CompactMem(u32 cbNeeded) {
-    extern void serial_printf(const char *fmt, ...);
-    serial_printf("[CompactMem] ENTER: cbNeeded=%u\n", cbNeeded);
+    /* LOGGING DISABLED - CAUSES FREEZE */
+    // MEMORY_LOG_DEBUG("[CompactMem] ENTER: cbNeeded=%u\n", cbNeeded);
 
     ZoneInfo* z = gCurrentZone;
     if (!z) {
-        serial_printf("[CompactMem] FAIL: no current zone\n");
+        // MEMORY_LOG_DEBUG("[CompactMem] FAIL: no current zone\n");
         return 0;
     }
 
-    serial_printf("[CompactMem] Zone state before: bytesUsed=%u bytesFree=%u\n", z->bytesUsed, z->bytesFree);
+    // MEMORY_LOG_DEBUG("[CompactMem] Zone state before: bytesUsed=%u bytesFree=%u\n", z->bytesUsed, z->bytesFree);
 
     /* First, try purging */
-    serial_printf("[CompactMem] Calling PurgeMem...\n");
+    // MEMORY_LOG_DEBUG("[CompactMem] Calling PurgeMem...\n");
     PurgeMem(cbNeeded);
-    serial_printf("[CompactMem] PurgeMem complete\n");
+    // MEMORY_LOG_DEBUG("[CompactMem] PurgeMem complete\n");
 
     /* Then compact: move unlocked handles together */
     u8* scan = z->base;
     u8* dest = z->base;
 
-    serial_printf("[CompactMem] Starting heap walk from %p to %p\n", scan, z->limit);
+    // MEMORY_LOG_DEBUG("[CompactMem] Starting heap walk from %p to %p\n", scan, z->limit);
     int block_count = 0;
 
     while (scan < z->limit) {
@@ -526,13 +542,13 @@ u32 CompactMem(u32 cbNeeded) {
         block_count++;
 
         if (block_count % 100 == 0) {
-            serial_printf("[CompactMem] Processed %d blocks, scan=%p\n", block_count, scan);
+            // MEMORY_LOG_DEBUG("[CompactMem] Processed %d blocks, scan=%p\n", block_count, scan);
         }
 
         /* Safety check: detect corrupted block size */
         if (b->size == 0 || b->size > (u32)(z->limit - scan)) {
-            serial_printf("[CompactMem] ERROR: corrupted block at %p: size=%u (remaining=%u)\n",
-                          b, b->size, (u32)(z->limit - scan));
+            // MEMORY_LOG_DEBUG("[CompactMem] ERROR: corrupted block at %p: size=%u (remaining=%u)\n",
+            //              b, b->size, (u32)(z->limit - scan));
             break;
         }
 
@@ -596,9 +612,9 @@ u32 CompactMem(u32 cbNeeded) {
         freelist_insert(z, tail);
     }
 
-    serial_printf("[CompactMem] Heap walk complete: processed %d blocks\n", block_count);
+    // MEMORY_LOG_DEBUG("[CompactMem] Heap walk complete: processed %d blocks\n", block_count);
     u32 max_free = MaxMem();
-    serial_printf("[CompactMem] SUCCESS: MaxMem=%u\n", max_free);
+    // MEMORY_LOG_DEBUG("[CompactMem] SUCCESS: MaxMem=%u\n", max_free);
     return max_free;
 }
 

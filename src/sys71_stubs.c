@@ -1063,18 +1063,8 @@ OSErr ScanDirectoryForDesktopEntries(SInt16 vRefNum, SInt32 dirID, SInt16 databa
 }
 
 /* [WM-053] QuickDraw Region stubs - only for bootstrap, real implementations in QuickDraw/Regions.c */
+/* NewRgn and DisposeRgn moved to QuickDraw/Regions.c - removed to fix multiple definition linker errors */
 #if !defined(SYS71_STUBS_DISABLED)
-RgnHandle NewRgn(void) {
-    static Region dummyRegion;
-    static Region* regionPtr = &dummyRegion;
-    dummyRegion.rgnSize = sizeof(Region);
-    SetRect(&dummyRegion.rgnBBox, 0, 0, 1024, 768);
-    return (RgnHandle)&regionPtr;
-}
-
-void DisposeRgn(RgnHandle rgn) {
-    /* Stub */
-}
 
 void RectRgn(RgnHandle rgn, const Rect* r) {
     if (rgn && r && *rgn) {

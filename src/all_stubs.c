@@ -177,8 +177,7 @@ void FrameRect(const Rect* r) {}
 void PaintRect(const Rect* r) {}
 void InvertRect(const Rect* r) {}
 void FillRect(const Rect* r, Pattern* pat) {}
-RgnHandle NewRgn(void) { return NULL; }
-void DisposeRgn(RgnHandle rgn) {}
+/* NewRgn and DisposeRgn removed - real implementations in QuickDraw/Regions.c */
 void CopyRgn(RgnHandle srcRgn, RgnHandle dstRgn) {}
 void SetEmptyRgn(RgnHandle rgn) {}
 void RectRgn(RgnHandle rgn, const Rect* r) {}

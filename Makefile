@@ -46,6 +46,7 @@ endif
 
 CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 -DTM_SMOKE_TEST \
          -ffreestanding -fno-builtin -fno-stack-protector -nostdlib \
+         -fno-pic -fno-pie \
          -Wall -Wextra -Wformat=2 -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wcast-qual \
          -Wpointer-arith -Wstrict-prototypes -Wno-unused-parameter \
          -Wundef -Wvla -Wcast-align -Wlogical-op -Wduplicated-cond -Wduplicated-branches \
@@ -70,7 +71,7 @@ ifeq ($(MODERN_INPUT_ONLY),1)
   CFLAGS += -DMODERN_INPUT_ONLY=1
 endif
 ASFLAGS = --32
-LDFLAGS = -melf_i386 -nostdlib
+LDFLAGS = -melf_i386 -nostdlib -no-pie
 
 # Resource files
 RSRC_JSON = patterns.json
