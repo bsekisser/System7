@@ -30,17 +30,23 @@
 
 /* Forward declarations */
 Boolean WM_ValidateWindowPosition(WindowPtr window, const Rect* bounds);
+#if 0  /* UNUSED forward declarations */
 static Point Local_ApplySnapToEdges(Point windowPos);
+#endif
 void WM_ConstrainWindowPosition(WindowPtr window, Rect* bounds);
 void WM_UpdateWindowVisibility(WindowPtr window);
 void WM_OffsetRect(Rect* rect, short deltaH, short deltaV);
+#if 0  /* UNUSED forward declarations - orphaned helper functions */
 static Point Local_ConstrainToRect(Point windowPos, const Rect* constraintRect);
 static Point Local_ConstrainToScreen(Point windowPos);
+#endif
+#if 0  /* UNUSED forward declarations for commented-out functions */
 static Point Local_CalculateConstrainedWindowPosition(Point mousePt);
 static void Local_EndDragFeedback(void);
 static void Local_UpdateDragFeedback(Point currentPt);
 static void Local_StartDragFeedback(void);
 static void Local_CleanupDragState(void);
+#endif
 
 
 /* ============================================================================
@@ -56,6 +62,7 @@ static void Local_CleanupDragState(void);
 #define DRAG_UPDATE_INTERVAL       16   /* Update interval in milliseconds */
 /* Window size constraints are defined in WindowManagerInternal.h */
 
+#if 0  /* UNUSED: Drag state system - preserved for possible future use */
 /* Drag feedback modes */
 typedef enum {
     kDragFeedbackNone = 0,      /* No visual feedback */
@@ -71,12 +78,6 @@ typedef enum {
     kDragFeedbackWindow_Local = 2,
     kDragFeedbackSolid_Local = 3
 } DragFeedbackMode_Local;
-static DragFeedbackMode_Local Local_GetPreferredDragFeedback(void);
-Boolean Platform_IsSnapToEdgesEnabled(void);
-static void Local_InvalidateScreenRegion(RgnHandle region);
-static Boolean Local_RectsIntersect(const Rect* rect1, const Rect* rect2);
-static Point Local_CalculateFinalWindowPosition(Point mousePt);
-static void Local_InitializeDragState(WindowPtr theWindow, Point startPt, const Rect* bounds);
 
 /* Drag constraint modes */
 typedef enum {
@@ -108,12 +109,26 @@ static DragState g_dragState = {
     kDragFeedbackOutline, kDragConstraintScreen, false, false,
     NULL, 0
 };
+#endif /* Drag state system */
 
+#if 0  /* UNUSED forward declarations */
+static DragFeedbackMode_Local Local_GetPreferredDragFeedback(void);
+Boolean Platform_IsSnapToEdgesEnabled(void);
+#endif
+static void Local_InvalidateScreenRegion(RgnHandle region);
+static Boolean Local_RectsIntersect(const Rect* rect1, const Rect* rect2);
+#if 0  /* UNUSED forward declarations */
+static Point Local_CalculateFinalWindowPosition(Point mousePt);
+static void Local_InitializeDragState(WindowPtr theWindow, Point startPt, const Rect* bounds);
+#endif
+
+#if 0  /* UNUSED: Local_GetPreferredDragFeedback - orphaned by commenting out drag state functions */
 /* Implementation of Local_GetPreferredDragFeedback */
 static DragFeedbackMode_Local Local_GetPreferredDragFeedback(void) {
     /* Return outline feedback mode as default */
     return kDragFeedbackOutline_Local;
 }
+#endif /* Local_GetPreferredDragFeedback */
 
 /* ============================================================================
  * Window Movement Functions
@@ -517,6 +532,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
  * Drag State Management
  * ============================================================================ */
 
+#if 0  /* UNUSED: Local_InitializeDragState - preserved for possible future use */
 static void Local_InitializeDragState(WindowPtr window, Point startPt, const Rect* boundsRect) {
     WM_DEBUG("Local_InitializeDragState: Initializing drag state");
 
@@ -558,7 +574,9 @@ static void Local_InitializeDragState(WindowPtr window, Point startPt, const Rec
 
     WM_DEBUG("Local_InitializeDragState: Drag state initialized");
 }
+#endif /* Local_InitializeDragState */
 
+#if 0  /* UNUSED: Local_CleanupDragState - orphaned by commenting out Local_InitializeDragState */
 static void Local_CleanupDragState(void) {
     if (!g_dragState.active) return;
 
@@ -575,11 +593,13 @@ static void Local_CleanupDragState(void) {
 
     WM_DEBUG("Local_CleanupDragState: Cleanup complete");
 }
+#endif /* Local_CleanupDragState */
 
 /* ============================================================================
  * Drag Feedback Management
  * ============================================================================ */
 
+#if 0  /* UNUSED: Local_StartDragFeedback - preserved for possible future use */
 static void Local_StartDragFeedback(void) {
     WM_DEBUG("Local_StartDragFeedback: Starting drag feedback, mode = %d", g_dragState.feedback);
 
@@ -606,7 +626,9 @@ static void Local_StartDragFeedback(void) {
             break;
     }
 }
+#endif /* Local_StartDragFeedback */
 
+#if 0  /* UNUSED: Local_UpdateDragFeedback - preserved for possible future use */
 static void Local_UpdateDragFeedback(Point currentPt) {
     Point windowPos = Local_CalculateConstrainedWindowPosition(currentPt);
 
@@ -648,7 +670,9 @@ static void Local_UpdateDragFeedback(Point currentPt) {
             break;
     }
 }
+#endif /* Local_UpdateDragFeedback */
 
+#if 0  /* UNUSED: Local_EndDragFeedback - preserved for possible future use */
 static void Local_EndDragFeedback(void) {
     WM_DEBUG("Local_EndDragFeedback: Ending drag feedback");
 
@@ -681,11 +705,13 @@ static void Local_EndDragFeedback(void) {
             break;
     }
 }
+#endif /* Local_EndDragFeedback */
 
 /* ============================================================================
  * Position Calculation and Constraints
  * ============================================================================ */
 
+#if 0  /* UNUSED: Local_CalculateConstrainedWindowPosition - orphaned by commenting out drag feedback functions */
 static Point Local_CalculateConstrainedWindowPosition(Point mousePt) {
     /* Calculate unconstrained window position */
     Point windowPos;
@@ -714,7 +740,9 @@ static Point Local_CalculateConstrainedWindowPosition(Point mousePt) {
 
     return windowPos;
 }
+#endif /* Local_CalculateConstrainedWindowPosition */
 
+#if 0  /* UNUSED: Local_CalculateFinalWindowPosition - preserved for possible future use */
 static Point Local_CalculateFinalWindowPosition(Point mousePt) {
     Point windowPos = Local_CalculateConstrainedWindowPosition(mousePt);
 
@@ -730,7 +758,9 @@ static Point Local_CalculateFinalWindowPosition(Point mousePt) {
 
     return offset;
 }
+#endif /* Local_CalculateFinalWindowPosition */
 
+#if 0  /* UNUSED: Local_ConstrainToScreen - orphaned by commenting out Local_CalculateConstrainedWindowPosition */
 static Point Local_ConstrainToScreen(Point windowPos) {
     Rect screenBounds;
     Platform_GetScreenBounds(&screenBounds);
@@ -762,7 +792,9 @@ static Point Local_ConstrainToScreen(Point windowPos) {
 
     return windowPos;
 }
+#endif /* Local_ConstrainToScreen */
 
+#if 0  /* UNUSED: Local_ConstrainToRect - orphaned by commenting out Local_CalculateConstrainedWindowPosition */
 static Point Local_ConstrainToRect(Point windowPos, const Rect* constraintRect) {
     if (constraintRect == NULL) return windowPos;
 
@@ -788,7 +820,9 @@ static Point Local_ConstrainToRect(Point windowPos, const Rect* constraintRect) 
 
     return windowPos;
 }
+#endif /* Local_ConstrainToRect */
 
+#if 0  /* UNUSED: Local_ApplySnapToEdges - orphaned by commenting out Local_CalculateFinalWindowPosition */
 static Point Local_ApplySnapToEdges(Point windowPos) {
     Rect screenBounds;
     Platform_GetScreenBounds(&screenBounds);
@@ -817,6 +851,7 @@ static Point Local_ApplySnapToEdges(Point windowPos) {
 
     return windowPos;
 }
+#endif /* Local_ApplySnapToEdges */
 
 /* ============================================================================
  * Window Position Validation
