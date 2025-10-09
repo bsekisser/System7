@@ -540,7 +540,7 @@ static void HandleMenuChoice(long menuChoice)
 
     /* Old implementation - kept for reference
     switch (menuID) {
-        case 128:  /* Apple Menu */
+        case 128:  // Apple Menu
             if (menuItem == 1) {
                 AboutWindow_ShowOrToggle();
             } else {

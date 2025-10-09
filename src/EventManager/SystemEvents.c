@@ -22,6 +22,7 @@
 #include "EventManager/SystemEvents.h"
 #include "EventManager/EventManager.h"
 #include "EventManager/EventLogging.h"
+#include "QuickDraw/QuickDraw.h"
 
 
 /*---------------------------------------------------------------------------

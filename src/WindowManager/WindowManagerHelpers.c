@@ -9,6 +9,7 @@
 #include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowManagerInternal.h"
 #include "WindowManager/WMLogging.h"
+#include "QuickDraw/QuickDraw.h"
 
 /* External globals */
 extern QDGlobals qd;

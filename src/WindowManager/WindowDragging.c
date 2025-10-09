@@ -23,6 +23,7 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "WindowManager/WMLogging.h"
+#include "QuickDraw/QuickDraw.h"
 
 #include "WindowManager/WindowManagerInternal.h"
 #include <math.h>

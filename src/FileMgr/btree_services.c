@@ -67,8 +67,8 @@ OSErr BTOpen(FCB* fcb, void* btcb_ptr) {
     header_node->ndNHeight = 0;
     header_node->ndNRecs = 3;  /* Header record, map record, user data record */
 
-    /* Extract B-Tree header from header node data area
-    header = (BTHeader*)header_node->ndData;
+    /* Extract B-Tree header from header node data area */
+    /* header = (BTHeader*)header_node->ndData;
 
     Initialize header with default values for testing
     header->bthDepth = 1;           Single level tree initially */
