@@ -22,7 +22,7 @@
 #include <assert.h>
 
 /* Platform abstraction layer */
-#include "QuickDrawPlatform.h"
+#include "QuickDraw/QuickDrawPlatform.h"
 
 /* Current QuickDraw port from QuickDrawCore.c */
 extern GrafPtr g_currentPort;

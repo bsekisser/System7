@@ -24,7 +24,7 @@
 #include <math.h>
 
 /* Platform abstraction layer */
-#include "QuickDrawPlatform.h"
+#include "QuickDraw/QuickDrawPlatform.h"
 
 
 /* Region constants */

@@ -24,7 +24,7 @@
 #include <assert.h>
 
 /* Platform abstraction layer */
-#include "QuickDrawPlatform.h"
+#include "QuickDraw/QuickDrawPlatform.h"
 
 
 /* Color QuickDraw globals */
@@ -464,8 +464,11 @@ void SetCPixel(SInt16 h, SInt16 v, const RGBColor *cPix) {
     assert(g_currentCPort != NULL);
     assert(cPix != NULL);
 
+    /* Convert RGBColor to native pixel color */
+    UInt32 color = QDPlatform_RGBToNative(cPix->red, cPix->green, cPix->blue);
+
     /* Set pixel in current color port */
-    QDPlatform_SetPixel(g_currentCPort, h, v, cPix);
+    QDPlatform_SetPixel(h, v, color);
 }
 
 void GetCPixel(SInt16 h, SInt16 v, RGBColor *cPix) {
@@ -473,7 +476,10 @@ void GetCPixel(SInt16 h, SInt16 v, RGBColor *cPix) {
     assert(cPix != NULL);
 
     /* Get pixel from current color port */
-    QDPlatform_GetPixel(g_currentCPort, h, v, cPix);
+    UInt32 color = QDPlatform_GetPixel(h, v);
+
+    /* Convert native pixel color to RGBColor */
+    QDPlatform_NativeToRGB(color, &cPix->red, &cPix->green, &cPix->blue);
 }
 
 /* ================================================================

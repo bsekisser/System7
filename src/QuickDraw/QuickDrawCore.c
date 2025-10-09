@@ -25,7 +25,7 @@
 #include <assert.h>
 
 /* Platform abstraction layer */
-#include "QuickDrawPlatform.h"
+#include "QuickDraw/QuickDrawPlatform.h"
 
 /* Picture recording hooks - from Pictures.c */
 extern void PictureRecordFrameRect(const Rect *r);

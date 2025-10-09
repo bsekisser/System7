@@ -21,7 +21,7 @@
 #include <assert.h>
 
 /* Platform abstraction layer */
-#include "QuickDrawPlatform.h"
+#include "QuickDraw/QuickDrawPlatform.h"
 
 /* Forward declaration for platform function defined later in this file */
 static void QDPlatform_SetPixelInPort(GrafPtr port, SInt16 x, SInt16 y, Boolean foreground);
@@ -253,7 +253,9 @@ static void DitherRect(const Rect *rect, const RGBColor *color, SInt16 ditherTyp
             /* Set the dithered pixel */
             extern CGrafPtr g_currentCPort; /* From ColorQuickDraw.c */
             if (g_currentCPort) {
-                QDPlatform_SetPixel(g_currentCPort, x, y, &ditheredColor);
+                /* Convert RGBColor to native pixel color */
+                UInt32 pixelColor = QDPlatform_RGBToNative(ditheredColor.red, ditheredColor.green, ditheredColor.blue);
+                QDPlatform_SetPixel(x, y, pixelColor);
             }
         }
     }
