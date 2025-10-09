@@ -28,8 +28,7 @@ static UInt32 gHeapSize = 0;
 static UInt32 gGenCounter = 1;
 static Boolean gInitialized = false;
 
-/* Deferred queue interface */
-extern void EnqueueDeferred(TMTask *task, UInt32 gen);
+/* Deferred queue interface declared in TimeManagerPriv.h */
 
 /* Interrupt masking stubs */
 static inline UInt32 DisableInterrupts(void) { return 0; }

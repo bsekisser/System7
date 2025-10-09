@@ -318,7 +318,7 @@ void InvalRgn(RgnHandle badRgn) {
         Platform_InvalidateWindowRect(window, &regionBounds);
 
         /* Post update event to Event Manager so application can redraw */
-        extern SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg);
+        /* PostEvent declared in EventManager.h */
         PostEvent(6 /* updateEvt */, (SInt32)window);
         WM_LOG_DEBUG("WindowManager: InvalRgn - Posted updateEvt for window=0x%08x\n", (unsigned int)window);
     } else {

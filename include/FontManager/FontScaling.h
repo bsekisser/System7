@@ -14,6 +14,10 @@
 extern "C" {
 #endif
 
+/* Font Scaling API - Simple wrapper functions */
+/* NOTE: FontInternal.h declares the canonical multi-font API (not yet implemented) */
+/* These are interim single-font wrappers that use current graphics port */
+
 /* Size Selection */
 short FM_FindNearestStandardSize(short requestedSize);
 short FM_SelectBestSize(short fontID, short requestedSize, Boolean allowScaling);

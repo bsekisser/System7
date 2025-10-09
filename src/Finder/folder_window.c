@@ -36,7 +36,7 @@ extern void GetPort(GrafPtr* port);
 extern void SetPort(GrafPtr port);
 extern UInt32 TickCount(void);
 extern UInt32 GetDblTime(void);
-extern OSErr PostEvent(EventKind eventNum, UInt32 eventMsg);
+/* PostEvent declared in EventManager.h */
 extern QDGlobals qd;
 extern void GetMouse(Point* pt);
 extern volatile UInt8 gCurrentButtons;

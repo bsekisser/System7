@@ -137,7 +137,7 @@ static DiskEventCallback g_diskEventCallback = NULL;
 static void* g_diskEventUserData = NULL;
 
 /* External references */
-extern SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg);
+/* PostEvent declared in EventManager.h */
 extern UInt32 TickCount(void);
 
 /*---------------------------------------------------------------------------

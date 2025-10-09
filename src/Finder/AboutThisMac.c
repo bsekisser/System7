@@ -43,7 +43,7 @@ extern void DragWindow(WindowPtr window, Point startPt, const Rect* boundsRect);
 extern Boolean TrackGoAway(WindowPtr window, Point pt);
 
 /* External Event Manager */
-extern OSErr PostEvent(short eventNum, UInt32 eventMsg);
+/* PostEvent declared in EventManager.h */
 
 /* External memory introspection - try to use real APIs if available */
 extern Size FreeMem(void);

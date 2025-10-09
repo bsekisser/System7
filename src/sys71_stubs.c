@@ -849,7 +849,8 @@ OSErr FSpCatMove(const FSSpec* source, const FSSpec* dest) {
 }
 
 
-OSErr PBHGetVInfoSync(HParamBlockRec* pb) {
+OSErr PBHGetVInfoSync(void *paramBlock) {
+    HParamBlockRec* pb = (HParamBlockRec*)paramBlock;
     if (pb) {
         pb->u.volumeParam.ioVAlBlkSiz = 512;
         pb->u.volumeParam.ioVNmAlBlks = 800;  /* Simulate 400K disk */
@@ -858,7 +859,7 @@ OSErr PBHGetVInfoSync(HParamBlockRec* pb) {
 }
 
 
-OSErr SetEOF(SInt16 refNum, SInt32 logEOF) {
+OSErr SetEOF(short refNum, long logEOF) {
     return noErr;
 }
 
@@ -1022,7 +1023,7 @@ Boolean EventAvail_DISABLED(short eventMask, EventRecord* theEvent) {
  * FrontWindow - WindowDisplay.c
  */
 
-OSErr ShowConfirmDialog(ConstStr255Param message, Boolean* confirmed) {
+OSErr ShowConfirmDialog(StringPtr message, Boolean* confirmed) {
     if (confirmed) *confirmed = true;  /* Always confirm for testing */
     return noErr;
 }

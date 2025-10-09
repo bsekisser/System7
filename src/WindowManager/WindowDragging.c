@@ -235,6 +235,8 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     Rect frameG;
     if (theWindow->strucRgn && *(theWindow->strucRgn)) {
         frameG = (*(theWindow->strucRgn))->rgnBBox;  /* GLOBAL coords */
+        WM_LOG_TRACE("DragWindow: frameG=(%d,%d,%d,%d)\n",
+                     frameG.top, frameG.left, frameG.bottom, frameG.right);
     } else {
         /* Should never happen if Window Manager initialized properly */
         WM_LOG_ERROR("DragWindow: ERROR - no strucRgn!\n");
@@ -301,10 +303,15 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     InvalidateCursor();
 
     /* Main modal drag loop - System 7 idiom with XOR outline feedback
-     * Minimal logging to avoid blocking */
+     * With safety timeout to prevent infinite loop if StillDown() gets stuck */
     extern void EventPumpYield(void);
     extern void UpdateCursorDisplay(void);
-    while (StillDown()) {
+    UInt32 loopCount = 0;
+    const UInt32 MAX_DRAG_ITERATIONS = 100000;  /* Safety timeout: ~1666 seconds at 60Hz */
+
+    while (StillDown() && loopCount < MAX_DRAG_ITERATIONS) {
+        loopCount++;
+
         /* Poll hardware for new input events (mouse button state) */
         EventPumpYield();
 
@@ -364,6 +371,14 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         }
     }
 
+    /* Check if we hit the safety timeout */
+    if (loopCount >= MAX_DRAG_ITERATIONS) {
+        WM_LOG_ERROR("DragWindow: TIMEOUT! Loop iterated %u times, StillDown() never returned false!\n", loopCount);
+        WM_LOG_ERROR("DragWindow: This indicates mouse button tracking is broken.\n");
+    } else {
+        WM_LOG_DEBUG("DragWindow: Exited drag loop normally after %u iterations\n", loopCount);
+    }
+
     /* Erase final outline before moving window (XOR erases by redrawing) */
     if (outlineDrawn) {
         extern void InvertRect(const Rect* rect);
@@ -387,7 +402,9 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         extern void PaintOne(WindowPtr window, RgnHandle clobberedRgn);
         extern void CalcVis(WindowPtr window);
 
+        WM_LOG_DEBUG("DragWindow: About to call NewRgn()\n");
         RgnHandle oldRgn = NewRgn();
+        WM_LOG_DEBUG("DragWindow: NewRgn() returned %p\n", oldRgn);
         RectRgn(oldRgn, &oldBounds);
 
         WM_LOG_TRACE("DragWindow: Created oldRgn for bounds (%d,%d,%d,%d)\n",

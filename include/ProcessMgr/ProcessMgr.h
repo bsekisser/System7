@@ -146,8 +146,21 @@ OSErr GetNextProcess(ProcessSerialNumber* psn);
 OSErr SetFrontProcess(ProcessSerialNumber* psn);
 
 /* Event Integration for Cooperative Multitasking */
-/* Note: Event functions are declared in EventManager/EventManager.h */
-/* ProcessMgr uses these functions but doesn't declare them to avoid conflicts */
+/* Process-aware event functions that integrate with the scheduler */
+Boolean Proc_GetNextEvent(EventMask mask, EventRecord* evt);
+Boolean Proc_EventAvail(EventMask mask, EventRecord* evt);
+OSErr Proc_PostEvent(EventMask evtType, UInt32 evtMessage);
+
+/* Event queue management */
+void Event_InitQueue(void);
+UInt16 Event_QueueCount(void);
+void Event_DumpQueue(void);
+
+/* Standard event functions - canonical implementations */
+Boolean GetNextEvent(EventMask mask, EventRecord* evt);
+Boolean EventAvail(EventMask mask, EventRecord* evt);
+OSErr PostEvent(EventMask evtType, UInt32 evtMessage);
+void FlushEvents(EventMask whichMask, EventMask stopMask);
 
 /* Memory Management Integration */
 OSErr Process_AllocateMemory(ProcessSerialNumber* psn, Size blockSize, Ptr* block);

@@ -5,6 +5,7 @@
 
 #include "SystemTypes.h"
 #include "TimeManager/TimeManager.h"
+#include "TimeManager/TimeManagerPriv.h"
 #include "TimeManager/TimeBase.h"
 
 #define TM_DEFERRED_QUEUE_SIZE 256
@@ -19,8 +20,7 @@ static DeferredEntry gDeferredQueue[TM_DEFERRED_QUEUE_SIZE];
 static volatile UInt32 gDeferredHead = 0;  /* ISR writes */
 static volatile UInt32 gDeferredTail = 0;  /* Main reads */
 
-/* External: find entry generation (from Core) */
-extern UInt32 Core_GetTaskGeneration(TMTask *task);
+/* Core_GetTaskGeneration declared in TimeManagerPriv.h */
 
 void InitDeferredQueue(void) {
     gDeferredHead = 0;

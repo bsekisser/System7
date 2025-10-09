@@ -22,7 +22,7 @@
 #include <string.h>
 
 /* External functions */
-extern SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg);
+/* PostEvent declared in EventManager.h */
 extern UInt32 TickCount(void);
 
 /* Tracking guard to suppress events during modal drag loops */

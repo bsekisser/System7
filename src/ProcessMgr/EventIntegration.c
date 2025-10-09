@@ -8,6 +8,7 @@
 
 #include "SystemTypes.h"
 #include "EventManager/EventTypes.h"
+#include "ProcessMgr/ProcessMgr.h"
 #include "ProcessMgr/ProcessLogging.h"
 
 /* Event queue - ring buffer */
@@ -121,7 +122,7 @@ Boolean Proc_EventAvail(EventMask mask, EventRecord* evt) {
  * NOTE: This is a process-aware version that unblocks waiting processes.
  * It can be called in addition to the standard PostEvent.
  */
-OSErr Proc_PostEvent(EventKind what, UInt32 message) {
+OSErr Proc_PostEvent(EventMask what, UInt32 message) {
     EventRecord evt;
 
     if (gQueueCount >= EVENT_QUEUE_SIZE) {
@@ -347,7 +348,7 @@ Boolean EventAvail(EventMask mask, EventRecord* evt) {
 }
 
 /* Override the canonical PostEvent */
-OSErr PostEvent(EventKind what, UInt32 message) {
+OSErr PostEvent(EventMask what, UInt32 message) {
     return Proc_PostEvent(what, message);
 }
 

@@ -1629,8 +1629,7 @@ extern void InsertMenu(MenuHandle menu, short beforeID);
 extern void DrawMenuBar(void);
 
 /* Event Manager functions */
-extern Boolean GetNextEvent(short eventMask, EventRecord* theEvent);
-extern Boolean EventAvail(short eventMask, EventRecord* theEvent);
+/* GetNextEvent, EventAvail declared in EventManager.h */
 extern void SystemTask(void);
 
 /* Finder functions */

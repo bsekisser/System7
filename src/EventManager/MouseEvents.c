@@ -135,7 +135,7 @@ static UInt32 g_lastButtonChangeTime = 0;
 
 /* External references */
 extern void UpdateMouseState(Point newPos, UInt8 buttonState);
-extern SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg);
+/* PostEvent declared in EventManager.h */
 extern UInt32 TickCount(void);
 extern UInt32 GetDblTime(void);
 

@@ -46,7 +46,7 @@ static void DumpWindowList(const char* context);
 
 /* Check windows for update events (called by GetNextEvent) */
 void CheckWindowsNeedingUpdate(void) {
-    extern SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg);
+    /* PostEvent declared in EventManager.h */
     extern WindowPtr FrontWindow(void);
     extern Boolean EmptyRgn(RgnHandle rgn);
 

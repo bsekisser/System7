@@ -46,8 +46,9 @@ static Boolean gNavigationRequested = false;
 
 #define INITIAL_FILE_LIST_CAPACITY 100
 
-/* Forward declaration of repopulation trigger */
+/* Forward declarations */
 extern void SF_PopulateFileList(void);
+static void StandardFile_HAL_NavigateToFolder(const FSSpec *folderSpec);
 
 /*
  * StandardFile_HAL_Init - Initialize HAL subsystem
@@ -389,7 +390,7 @@ Boolean StandardFile_HAL_GetNewFolderName(Str255 folderName) {
  * StandardFile_HAL_NavigateToFolder - Navigate to a folder
  * Called internally when user double-clicks a folder
  */
-void StandardFile_HAL_NavigateToFolder(const FSSpec *folderSpec) {
+static void StandardFile_HAL_NavigateToFolder(const FSSpec *folderSpec) {
     if (!folderSpec) return;
 
     /* Get the dirID of this folder */

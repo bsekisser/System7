@@ -98,7 +98,7 @@ SInt16 InitEvents(SInt16 numEvents);
  * @param theEvent Pointer to event record to fill
  * @return true if event found, false if null event
  */
-Boolean GetNextEvent(short eventMask, EventRecord* theEvent);
+Boolean GetNextEvent(EventMask eventMask, EventRecord* theEvent);
 
 /**
  * Wait for next event with idle processing
@@ -117,15 +117,15 @@ Boolean WaitNextEvent(short eventMask, EventRecord* theEvent,
  * @param theEvent Pointer to event record to fill
  * @return true if event found, false if null event
  */
-Boolean EventAvail(short eventMask, EventRecord* theEvent);
+Boolean EventAvail(EventMask eventMask, EventRecord* theEvent);
 
 /**
  * Post an event to the queue
- * @param eventNum Event type
- * @param eventMsg Event message
+ * @param evtType Event type
+ * @param evtMessage Event message
  * @return Error code (0 = success, 1 = not enabled)
  */
-SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg);
+OSErr PostEvent(EventMask evtType, UInt32 evtMessage);
 
 /**
  * Post an event with queue element return
@@ -157,7 +157,7 @@ Boolean GetOSEvent(SInt16 mask, EventRecord* theEvent);
  * @param whichMask Mask of events to remove
  * @param stopMask Mask of events that stop flushing
  */
-void FlushEvents(SInt16 whichMask, SInt16 stopMask);
+void FlushEvents(EventMask whichMask, EventMask stopMask);
 
 /*---------------------------------------------------------------------------
  * Mouse Event API

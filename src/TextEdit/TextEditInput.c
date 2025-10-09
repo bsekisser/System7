@@ -46,6 +46,9 @@ typedef TEExtRec *TEExtPtr, **TEExtHandle;
 #define TEI_LOG(...)
 #endif
 
+/* Forward declarations */
+static void TE_TrackMouse(TEHandle hTE, Point startPt);
+
 /* Key codes */
 #define kBackspace      0x08
 #define kTab            0x09
@@ -265,7 +268,7 @@ void TEClick(Point pt, Boolean extendSelection, TEHandle hTE) {
 /*
  * TE_TrackMouse - Track mouse during drag selection
  */
-void TE_TrackMouse(TEHandle hTE, Point startPt) {
+static void TE_TrackMouse(TEHandle hTE, Point startPt) {
     TEExtPtr pTE;
     Point pt;
     SInt32 offset;

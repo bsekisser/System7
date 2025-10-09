@@ -289,6 +289,11 @@ OSErr AudioRecorderPause(RecorderPtr recorder);
 OSErr AudioRecorderResume(RecorderPtr recorder);
 OSErr AudioRecorderGetData(RecorderPtr recorder, SInt16** buffer, UInt32* frameCount);
 
+/* PC Speaker Functions (x86 platform) */
+void PCSpkr_Beep(uint32_t frequency, uint32_t duration_ms);
+int PCSpkr_Init(void);
+void PCSpkr_Shutdown(void);
+
 #ifdef __cplusplus
 }
 #endif

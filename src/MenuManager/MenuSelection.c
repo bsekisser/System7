@@ -95,11 +95,7 @@ static Boolean gTrackingActive = false;
 static long gLastMenuChoice = 0;
 
 /* Platform function prototypes */
-extern Boolean Platform_TrackMouse(Point* mousePt, Boolean* mouseDown);
-extern Boolean Platform_GetKeyModifiers(unsigned long* modifiers);
-extern void Platform_SetMenuCursor(short cursorType);
-extern Boolean Platform_IsMenuVisible(MenuHandle theMenu);
-extern void Platform_MenuFeedback(short feedbackType, short menuID, short item);
+/* Platform functions declared in menu_private.h */
 
 /* External function from MenuTitleTracking.c */
 extern short FindMenuAtPoint_Internal(Point pt);

@@ -66,7 +66,7 @@ static KeyTransState g_globalTransState = {0};
 static Boolean g_abortPressed = false;
 
 /* External references */
-extern SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg);
+/* PostEvent declared in EventManager.h */
 extern UInt32 TickCount(void);
 extern void UpdateKeyboardState(const KeyMap newKeyMap);
 

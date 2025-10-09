@@ -142,6 +142,18 @@ long TrackMenu(short menuID, Point *startPt);
 /* Menu save/restore bits - declared in MenuDisplay.h */
 
 /* Platform stubs - actual signatures vary by implementation */
+void Platform_RestoreScreenBits(Handle bits, const Rect* rect);
+void Platform_DisposeScreenBits(Handle bits);
+void Platform_DrawMenuBar(const void* drawInfo);
+void Platform_DrawMenu(const void* drawInfo);
+void Platform_DrawMenuItem(const void* drawInfo);
+Boolean Platform_TrackMouse(Point* mousePt, Boolean* isMouseDown);
+Boolean Platform_GetKeyModifiers(unsigned long* modifiers);
+void Platform_SetMenuCursor(short cursorType);
+Boolean Platform_IsMenuVisible(void* theMenu);
+void Platform_MenuFeedback(short feedbackType, short menuID, short item);
+void Platform_HiliteMenuItem(void* theMenu, short item, Boolean hilite);
+Handle Platform_SaveScreenBits(const Rect* rect);
 
 #ifdef __cplusplus
 }

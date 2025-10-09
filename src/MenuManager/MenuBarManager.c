@@ -45,7 +45,7 @@ Boolean IsMenuBarVisible(void) {
 }
 
 /* Menu title utilities */
-OSErr GetMenuTitleRect(short menuID, Rect* theRect) {
+static OSErr GetMenuTitleRect_ByID(short menuID, Rect* theRect) {
     if (!theRect) return -1;
 
     /* Calculate menu title rectangle based on menu bar layout */

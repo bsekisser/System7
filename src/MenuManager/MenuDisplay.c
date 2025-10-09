@@ -53,19 +53,12 @@ static Handle gCurrentSavedBits = NULL;
 static MenuHandle gCurrentlyShownMenu = NULL;
 static Rect gCurrentMenuRect;
 
-/* Platform function prototypes */
-extern void Platform_DrawMenuBar(const MenuBarDrawInfo* drawInfo);
-extern void Platform_DrawMenu(const MenuDrawInfo* drawInfo);
-extern void Platform_DrawMenuItem(const MenuItemDrawInfo* drawInfo);
+/* Platform function prototypes declared in menu_private.h */
 
 /* Forward declarations */
 Handle SaveMenuBits_Display(const Rect* menuRect);
 void RestoreMenuBits_Display(Handle savedBits, const Rect* menuRect);
-extern void Platform_HiliteMenuItem(MenuHandle theMenu, short item, Boolean hilite);
 extern void Platform_FlashMenuBar(short menuID);
-extern Handle Platform_SaveScreenBits(const Rect* rect);
-extern void Platform_RestoreScreenBits(Handle savedBits, const Rect* rect);
-extern void Platform_DisposeScreenBits(Handle savedBits);
 
 /* Internal function prototypes */
 static void InitializeDrawingContext(MenuDrawContext* context);

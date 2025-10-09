@@ -1,9 +1,10 @@
 /*
-#include "MenuManager/menu_private.h"
  * platform_stubs.c - Platform-specific stub functions
  */
 
 #include "SystemTypes.h"
+#include "MenuManager/MenuManager.h"
+#include "MenuManager/menu_private.h"
 
 /* Platform screen bit functions */
 void Platform_RestoreScreenBits(Handle bits, const Rect* rect)
@@ -100,7 +101,7 @@ Handle Platform_SaveScreenBits(const Rect* rect)
 //     return 0;
 // }
 
-OSErr GetMenuTitleRect(short menuID, Rect* theRect)
+static OSErr GetMenuTitleRect_Stub(short menuID, Rect* theRect)
 {
     /* TODO: Get menu title rectangle */
     if (theRect) {

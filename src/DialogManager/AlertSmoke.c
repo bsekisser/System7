@@ -11,7 +11,7 @@ extern void CenterDialogOnScreen(DialogPtr dlg);
 extern void ShowWindow(WindowPtr w);
 extern void HideWindow(WindowPtr w);
 extern void InvalRect(const Rect* r);
-extern SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg);
+/* PostEvent declared in EventManager.h */
 
 /* Minimal inline DLOG/DITL fallbacks if resources aren't wired yet */
 static short kTestDLOG = 128; /* if you have real resources, use them */

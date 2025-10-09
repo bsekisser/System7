@@ -1,5 +1,4 @@
 /*
-#include "FontManager/FontInternal.h"
  * FontScaling.c - Font Size Scaling Implementation
  *
  * Provides bitmap font scaling for multiple point sizes
@@ -8,6 +7,8 @@
 
 #include "FontManager/FontManager.h"
 #include "FontManager/FontTypes.h"
+#include "FontManager/FontScaling.h"
+/* FontInternal.h not included - this file implements simple wrapper API */
 #include "QuickDraw/QuickDraw.h"
 #include "SystemTypes.h"
 #include "MemoryMgr/MemoryManager.h"

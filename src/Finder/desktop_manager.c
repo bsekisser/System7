@@ -50,7 +50,7 @@ extern void InvalRect(const Rect* badRect);
 extern void SetDeskHook(void (*hookProc)(RgnHandle));
 extern Boolean EventAvail(short eventMask, EventRecord *theEvent);
 extern Boolean GetNextEvent(short eventMask, EventRecord *theEvent);
-extern SInt16 PostEvent(SInt16 eventNum, SInt32 eventMsg);
+/* PostEvent declared in EventManager.h */
 extern WindowPtr NewWindow(void *wStorage, const Rect *boundsRect, const unsigned char *title,
                            Boolean visible, short procID, WindowPtr behind, Boolean goAwayFlag, long refCon);
 extern void ShowWindow(WindowPtr theWindow);
@@ -793,11 +793,16 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     ghost.right += 20;
     ghost.bottom += 16;
 
+    /* Safety timeout to prevent infinite loops */
+    UInt32 loopCount = 0;
+    const UInt32 MAX_DRAG_ITERATIONS = 100000;  /* ~1666 seconds at 60Hz */
+
     /* Threshold using current button state (PS/2/USB safe) */
     Point last = startPt, cur;
     extern volatile UInt8 gCurrentButtons;
 
-    while ((gCurrentButtons & 1) != 0) {
+    while ((gCurrentButtons & 1) != 0 && loopCount < MAX_DRAG_ITERATIONS) {
+        loopCount++;
         GetMouse(&cur);
         if (abs(cur.h - startPt.h) >= kDragThreshold || abs(cur.v - startPt.v) >= kDragThreshold) {
             last = cur;
@@ -807,8 +812,17 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
         DesktopYield();
     }
 
+    /* Check if we hit timeout in threshold wait loop */
+    if (loopCount >= MAX_DRAG_ITERATIONS) {
+        FINDER_LOG_ERROR("TrackIconDragSync: TIMEOUT in threshold wait! Looped %u times, button never released!\n", loopCount);
+        FINDER_LOG_ERROR("TrackIconDragSync: This indicates mouse button tracking is broken.\n");
+        gDraggingIconIndex = -1;
+        gInMouseTracking = false;
+        return;
+    }
+
     if ((gCurrentButtons & 1) == 0) {  /* released before threshold */
-        FINDER_LOG_DEBUG("TrackIconDragSync: button released before threshold\n");
+        FINDER_LOG_DEBUG("TrackIconDragSync: button released before threshold (after %u iterations)\n", loopCount);
         gDraggingIconIndex = -1;
         gInMouseTracking = false;
         return;
@@ -821,7 +835,11 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
     GhostShowAt(&ghost);  /* visible immediately */
     FINDER_LOG_DEBUG("TrackIconDragSync: ghost visible, entering drag loop\n");
 
-    while ((gCurrentButtons & 1) != 0) {
+    /* Reset loop counter for drag loop */
+    loopCount = 0;
+
+    while ((gCurrentButtons & 1) != 0 && loopCount < MAX_DRAG_ITERATIONS) {
+        loopCount++;
         DesktopYield();  /* keeps input flowing but we don't paint desktop */
         GetMouse(&cur);
 
@@ -846,10 +864,21 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
         }
     }
 
+    /* Check if we hit timeout in drag loop */
+    if (loopCount >= MAX_DRAG_ITERATIONS) {
+        FINDER_LOG_ERROR("TrackIconDragSync: TIMEOUT in drag loop! Looped %u times, button never released!\n", loopCount);
+        FINDER_LOG_ERROR("TrackIconDragSync: This indicates mouse button tracking is broken.\n");
+        GhostEraseIf();
+        SetPort(savePort);
+        gDraggingIconIndex = -1;
+        gInMouseTracking = false;
+        return;
+    }
+
     /* Button released: erase ghost, restore port */
     GhostEraseIf();
     SetPort(savePort);
-    FINDER_LOG_DEBUG("TrackIconDragSync: drag complete, ghost erased\n");
+    FINDER_LOG_DEBUG("TrackIconDragSync: drag complete after %u iterations, ghost erased\n", loopCount);
 
     /* Determine drop target and action */
     Point dropPoint = (Point){ .h = ghost.left + 20 + 16, .v = ghost.top + 16 };  /* Icon center */

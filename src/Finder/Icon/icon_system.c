@@ -3,6 +3,7 @@
  */
 
 #include "Finder/Icon/icon_types.h"
+#include "Finder/Icon/icon_system.h"
 #include <stdint.h>
 #include <stddef.h>
 

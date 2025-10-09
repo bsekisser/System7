@@ -1,5 +1,4 @@
 /*
-#include "DialogManager/DialogInternal.h"
  * DialogDrawing.c - Dialog Item Drawing Implementation
  *
  * Implements faithful System 7.1-style drawing for all dialog item types including
@@ -13,6 +12,8 @@
 #include "System71StdLib.h"
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/DialogTypes.h"
+#include "DialogManager/DialogDrawing.h"
+#include "DialogManager/DialogInternal.h"
 #include "DialogManager/DialogManagerInternal.h"  /* For DialogItemEx */
 #include "DialogManager/DialogManagerStateExt.h"   /* For extended state with focus tracking */
 #include "DialogManager/DialogLogging.h"

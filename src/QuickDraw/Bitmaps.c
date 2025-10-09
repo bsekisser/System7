@@ -208,10 +208,24 @@ static void CopyBitsScaled(const BitMap *srcBits, const BitMap *dstBits,
 static void CopyBitsUnscaled(const BitMap *srcBits, const BitMap *dstBits,
                             const Rect *srcRect, const Rect *dstRect,
                             SInt16 mode, RgnHandle maskRgn) {
+    /* Validate pointers */
+    if (!srcBits || !dstBits || !srcRect || !dstRect) {
+        serial_logf(3, 0, "[CB] ERROR: NULL pointer - srcBits=%p dstBits=%p srcRect=%p dstRect=%p\n",
+                    srcBits, dstBits, srcRect, dstRect);
+        return;
+    }
+
+    serial_logf(3, 2, "[CB] srcRect=(%d,%d,%d,%d) dstRect=(%d,%d,%d,%d)\n",
+                srcRect->top, srcRect->left, srcRect->bottom, srcRect->right,
+                dstRect->top, dstRect->left, dstRect->bottom, dstRect->right);
+
     SInt16 width = srcRect->right - srcRect->left;
     SInt16 height = srcRect->bottom - srcRect->top;
 
+    serial_logf(3, 2, "[CB] Calculated width=%d height=%d\n", width, height);
+
     if (width <= 0 || height <= 0) {
+        serial_logf(3, 1, "[CB] Invalid dimensions: width=%d height=%d\n", width, height);
         return;
     }
 

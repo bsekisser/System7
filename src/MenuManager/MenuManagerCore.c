@@ -125,7 +125,7 @@ static void InvalidateMenuBar(void);
 /* Platform function prototypes (implemented elsewhere) */
 extern void Platform_InitMenuSystem(void);
 extern void Platform_CleanupMenuSystem(void);
-extern void Platform_DrawMenuBar(void);
+/* Platform_DrawMenuBar declared in menu_private.h */
 extern void Platform_EraseMenuBar(void);
 
 /* ============================================================================
