@@ -7,6 +7,7 @@
 
 #include "SystemTypes.h"
 #include "EventManager/EventTypes.h"
+#include "Platform/PS2Input.h"
 #include <stdint.h>
 #include "Platform/PlatformLogging.h"
 

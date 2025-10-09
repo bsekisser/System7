@@ -11,6 +11,7 @@
 
 #include "SystemTypes.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/QDPictures.h"
 #include "QuickDrawConstants.h"
 #include "MemoryMgr/MemoryManager.h"
 #include <string.h>
