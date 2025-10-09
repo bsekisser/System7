@@ -192,7 +192,7 @@ static void coalesce_adjacent_free_blocks(ZonePtr zone, BlockPtr block) {
         } else {
             /* Find and update previous link in chain */
             BlockPtr prev = (BlockPtr)zone->hFstFree;
-            while (prev && prev->u.free.next != (Ptr)nextBlock) {
+            while (prev && (Ptr)prev->u.free.next != (Ptr)nextBlock) {
                 prev = (BlockPtr)prev->u.free.next;
             }
             if (prev) {
@@ -230,7 +230,7 @@ static void coalesce_adjacent_free_blocks(ZonePtr zone, BlockPtr block) {
             zone->hFstFree = block->u.free.next;
         } else {
             BlockPtr prev = (BlockPtr)zone->hFstFree;
-            while (prev && prev->u.free.next != (Ptr)block) {
+            while (prev && (Ptr)prev->u.free.next != (Ptr)block) {
                 prev = (BlockPtr)prev->u.free.next;
             }
             if (prev) {

@@ -843,7 +843,7 @@ OSErr FSUnmount(VolumeRefNum vRefNum)
     /* Close all files on this volume */
     for (int i = 0; i < g_FSGlobals.fcbCount; i++) {
         FCB* fcb = &g_FSGlobals.fcbArray[i];
-        if (fcb->base.fcbVPtr == vcb) {
+        if ((VCB*)fcb->base.fcbVPtr == vcb) {
             FCB_Close(fcb);
         }
     }

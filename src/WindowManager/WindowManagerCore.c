@@ -943,7 +943,7 @@ static void DisposeAuxiliaryWindowRecord(AuxWinHandle auxWin) {
         g_wmState.auxWinHead = (**auxWin).awNext;
     } else {
         AuxWinHandle current = g_wmState.auxWinHead;
-        while (current && *current && (**current).awNext != auxWin) {
+        while (current && *current && (**current).awNext != *auxWin) {
             current = (**current).awNext;
         }
         if (current && *current) {
