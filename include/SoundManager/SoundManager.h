@@ -60,6 +60,10 @@ extern "C" {
 OSErr SoundManagerInit(void);
 OSErr SoundManagerShutdown(void);
 
+/* System Sounds */
+void SysBeep(short duration);
+void StartupChime(void);
+
 /* Channel Management */
 OSErr SndNewChannel(SndChannelPtr *chan,
                    SInt16 synth,

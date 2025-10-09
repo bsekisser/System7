@@ -8,6 +8,7 @@
 #include "SystemTypes.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include "SoundManager/SoundManager.h"
 #include "SoundManager/SoundLogging.h"
 
 /* Error codes */
@@ -56,13 +57,14 @@ OSErr SoundManagerInit(void) {
 /*
  * SoundManagerShutdown - Shut down Sound Manager
  */
-void SoundManagerShutdown(void) {
+OSErr SoundManagerShutdown(void) {
     if (!g_soundManagerInitialized) {
-        return;
+        return noErr;
     }
 
     PCSpkr_Shutdown();
     g_soundManagerInitialized = false;
+    return noErr;
 }
 
 /*
@@ -141,32 +143,32 @@ void StartupChime(void) {
  * They can be filled in later as needed.
  */
 
-OSErr SndNewChannel(void** chan, short synth, long init, void* userRoutine) {
+OSErr SndNewChannel(SndChannelPtr* chan, SInt16 synth, SInt32 init, SndCallBackProcPtr userRoutine) {
     return unimpErr;
 }
 
-OSErr SndDisposeChannel(void* chan, Boolean quietNow) {
+OSErr SndDisposeChannel(SndChannelPtr chan, Boolean quietNow) {
     return unimpErr;
 }
 
-OSErr SndDoCommand(void* chan, const SndCommand* cmd, Boolean noWait) {
+OSErr SndDoCommand(SndChannelPtr chan, const SndCommand* cmd, Boolean noWait) {
     return unimpErr;
 }
 
-OSErr SndDoImmediate(void* chan, const SndCommand* cmd) {
+OSErr SndDoImmediate(SndChannelPtr chan, const SndCommand* cmd) {
     return unimpErr;
 }
 
-OSErr SndPlay(void* chan, void* sndHandle, Boolean async) {
+OSErr SndPlay(SndChannelPtr chan, SndListHandle sndHandle, Boolean async) {
     return unimpErr;
 }
 
-OSErr SndControl(short id, void* cmd) {
+OSErr SndControl(SInt16 id, SndCommand* cmd) {
     return unimpErr;
 }
 
 /* Legacy Sound Manager 1.0 stubs */
-void StartSound(const void* soundPtr, long numBytes, void* completionRtn) {
+void StartSound(const void* soundPtr, SInt32 numBytes, SoundCompletionUPP completionRtn) {
     /* No-op */
 }
 
@@ -179,26 +181,28 @@ Boolean SoundDone(void) {
 }
 
 /* Volume control stubs */
-void GetSysBeepVolume(long* level) {
+void GetSysBeepVolume(SInt32* level) {
     if (level) *level = 7;  /* Maximum volume */
 }
 
-void SetSysBeepVolume(long level) {
+OSErr SetSysBeepVolume(SInt32 level) {
     /* No-op - PC speaker has no volume control */
+    return noErr;
 }
 
-void GetDefaultOutputVolume(long* level) {
+void GetDefaultOutputVolume(SInt32* level) {
     if (level) *level = 255;  /* Maximum volume */
 }
 
-void SetDefaultOutputVolume(long level) {
+OSErr SetDefaultOutputVolume(SInt32 level) {
     /* No-op */
+    return noErr;
 }
 
-void GetSoundVol(short* level) {
+void GetSoundVol(SInt16* level) {
     if (level) *level = 7;
 }
 
-void SetSoundVol(short level) {
+void SetSoundVol(SInt16 level) {
     /* No-op */
 }
