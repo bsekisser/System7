@@ -493,7 +493,8 @@ static Boolean TrackFolderItemDrag(WindowPtr w, FolderWindowState* state, short 
     SetPort((GrafPtr)w);
 
     /* Wait for drag threshold or button release */
-    Point last = startGlobal, cur;
+    /* Point last = startGlobal; */ /* TODO: Track previous position for drag delta calculation */
+    Point cur;
     extern void ProcessModernInput(void);
 
     while ((gCurrentButtons & 1) != 0) {

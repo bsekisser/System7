@@ -78,7 +78,7 @@ void TETestInit(void) {
 static void CreateTestWindow(void) {
     Rect bounds;
     Rect destRect, viewRect;
-    Str255 title = "\pTextEdit Test";
+    static unsigned char title[] = {14, 'T','e','x','t','E','d','i','t',' ','T','e','s','t'};
     char *sampleText = "Welcome to TextEdit!\r\rType here to test text editing.\r"
                        "Try selecting text with the mouse.\r"
                        "Use arrow keys to navigate.\r"

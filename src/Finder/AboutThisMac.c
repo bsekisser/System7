@@ -272,7 +272,7 @@ static void DrawLabeledValue(short x, short y, const char* label, UInt32 bytes)
 {
     char valueStr[32];
     unsigned char pstr[64];
-    short labelLen, colonLen;
+    short labelLen; /* , colonLen; */ /* TODO: Calculate colon position for aligned display */
 
     /* Draw label */
     pstr[0] = (unsigned char)strlen(label);
@@ -403,12 +403,12 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     GrafPtr savedPort;
     MemSnapshot mem;
     Rect box, bar, seg;
-    short barX, barY, barW, barH;
-    short wSys, wApp, wCac, wUnu;
-    UInt32 denom;
-    unsigned char pstr[64];
-    char valueStr[32];
-    const char* versionStr;
+    /* short barX, barY, barW, barH; */ /* TODO: Progress bar geometry for memory visualization */
+    /* short wSys, wApp, wCac, wUnu; */ /* TODO: Memory segment widths */
+    /* UInt32 denom; */ /* TODO: Denominator for memory calculations */
+    /* unsigned char pstr[64]; */ /* TODO: Pascal string buffer for display */
+    /* char valueStr[32]; */ /* TODO: C string buffer for formatted values */
+    /* const char* versionStr; */ /* TODO: System version display string */
     UInt32 currentTicks;
     extern UInt32 TickCount(void);
 

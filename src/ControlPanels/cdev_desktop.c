@@ -65,7 +65,8 @@ void OpenDesktopCdev(void) {
     winRect.right = winRect.left + (GRID_COLS * (CELL_W + CELL_PAD)) + 32;
 
     /* Create the window */
-    gDesktopCdevWin = NewWindow(NULL, &winRect, "\pDesktop Patterns",
+    static unsigned char winTitle[] = {17, 'D','e','s','k','t','o','p',' ','P','a','t','t','e','r','n','s'};
+    gDesktopCdevWin = NewWindow(NULL, &winRect, winTitle,
                                  true, documentProc, (WindowPtr)-1L, true, 0);
     if (!gDesktopCdevWin) return;
 
@@ -78,12 +79,14 @@ void OpenDesktopCdev(void) {
     buttonRect.right = winRect.right - winRect.left - 20;
     buttonRect.left = buttonRect.right - 80;
 
-    gOKButton = NewControl(gDesktopCdevWin, &buttonRect, "\pOK",
+    static unsigned char okTitle[] = {2, 'O','K'};
+    gOKButton = NewControl(gDesktopCdevWin, &buttonRect, okTitle,
                            true, 0, 0, 1, pushButProc, 0);
 
     buttonRect.right = buttonRect.left - 10;
     buttonRect.left = buttonRect.right - 80;
-    gCancelButton = NewControl(gDesktopCdevWin, &buttonRect, "\pCancel",
+    static unsigned char cancelTitle[] = {6, 'C','a','n','c','e','l'};
+    gCancelButton = NewControl(gDesktopCdevWin, &buttonRect, cancelTitle,
                                true, 0, 0, 1, pushButProc, 0);
 
     /* Save current pattern so we can restore on cancel */
@@ -234,7 +237,8 @@ static void DrawPatternGrid(void) {
 
     /* Draw title */
     MoveTo(WINDOW_MARGIN, 25);
-    DrawString("\pSelect Desktop Pattern:");
+    static unsigned char titleStr[] = {24, 'S','e','l','e','c','t',' ','D','e','s','k','t','o','p',' ','P','a','t','t','e','r','n',':'};
+    DrawString(titleStr);
 
     /* Draw pattern grid */
     /* Start with standard pattern IDs */

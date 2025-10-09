@@ -73,7 +73,8 @@ OSErr StandardFile_HAL_CreateOpenDialog(DialogPtr *outDialog, ConstStr255Param p
 
     /* Create a simple modal dialog */
     Rect bounds = {100, 100, 350, 450};
-    *outDialog = NewDialog(NULL, &bounds, "\pOpen File", true, dBoxProc,
+    static unsigned char title[] = {9, 'O','p','e','n',' ','F','i','l','e'};
+    *outDialog = NewDialog(NULL, &bounds, title, true, dBoxProc,
                            (WindowPtr)-1, false, 0, NULL);
 
     if (*outDialog == NULL) {
@@ -93,7 +94,8 @@ OSErr StandardFile_HAL_CreateSaveDialog(DialogPtr *outDialog, ConstStr255Param p
 
     /* Create a simple modal dialog */
     Rect bounds = {100, 100, 350, 400};
-    *outDialog = NewDialog(NULL, &bounds, "\pSave File", true, dBoxProc,
+    static unsigned char title[] = {9, 'S','a','v','e',' ','F','i','l','e'};
+    *outDialog = NewDialog(NULL, &bounds, title, true, dBoxProc,
                            (WindowPtr)-1, false, 0, NULL);
 
     if (*outDialog == NULL) {

@@ -9,12 +9,12 @@
 #include "MemoryMgr/MemoryManager.h"
 
 /* Menu item strings */
-static const char* kAppleMenuItems = "\pAbout SimpleText...;-";
-static const char* kFileMenuItems = "\pNew/N;Open.../O;-;Close/W;Save/S;Save As.../^S;-;Page Setup...;Print.../P;-;Quit/Q";
-static const char* kEditMenuItems = "\pUndo/Z;-;Cut/X;Copy/C;Paste/V;Clear;-;Select All/A";
-static const char* kFontMenuItems = "\pMonaco;Geneva;Chicago";
-static const char* kSizeMenuItems = "\p9 Point;10 Point;12 Point;14 Point;18 Point;24 Point";
-static const char* kStyleMenuItems = "\pPlain;Bold;Italic;Underline";
+static const unsigned char kAppleMenuItems[] = {22, 'A','b','o','u','t',' ','S','i','m','p','l','e','T','e','x','t','.','.','.', ';','-'};
+static const unsigned char kFileMenuItems[] = {89, 'N','e','w','/','N',';','O','p','e','n','.','.','.','/','O',';','-',';','C','l','o','s','e','/','W',';','S','a','v','e','/','S',';','S','a','v','e',' ','A','s','.','.','.','/','S',';','-',';','P','a','g','e',' ','S','e','t','u','p','.','.','.',';','P','r','i','n','t','.','.','.','/','P',';','-',';','Q','u','i','t','/','Q'};
+static const unsigned char kEditMenuItems[] = {47, 'U','n','d','o','/','Z',';','-',';','C','u','t','/','X',';','C','o','p','y','/','C',';','P','a','s','t','e','/','V',';','C','l','e','a','r',';','-',';','S','e','l','e','c','t',' ','A','l','l','/','A'};
+static const unsigned char kFontMenuItems[] = {22, 'M','o','n','a','c','o',';','G','e','n','e','v','a',';','C','h','i','c','a','g','o'};
+static const unsigned char kSizeMenuItems[] = {62, '9',' ','P','o','i','n','t',';','1','0',' ','P','o','i','n','t',';','1','2',' ','P','o','i','n','t',';','1','4',' ','P','o','i','n','t',';','1','8',' ','P','o','i','n','t',';','2','4',' ','P','o','i','n','t'};
+static const unsigned char kStyleMenuItems[] = {28, 'P','l','a','i','n',';','B','o','l','d',';','I','t','a','l','i','c',';','U','n','d','e','r','l','i','n','e'};
 
 /* Static helper functions */
 static void HandleAppleMenu(short item);
@@ -38,42 +38,48 @@ void STMenu_Init(void) {
     ST_Log("Initializing menus\n");
 
     /* Create Apple menu */
-    g_ST.appleMenu = NewMenu(mApple, "\p\024");  /* Apple symbol */
+    static unsigned char appleTitle[] = {1, 0x14};  /* Apple symbol */
+    g_ST.appleMenu = NewMenu(mApple, appleTitle);
     if (g_ST.appleMenu) {
         AppendMenu(g_ST.appleMenu, kAppleMenuItems);
         InsertMenu(g_ST.appleMenu, 0);
     }
 
     /* Create File menu */
-    g_ST.fileMenu = NewMenu(mFile, "\pFile");
+    static unsigned char fileTitle[] = {4, 'F','i','l','e'};
+    g_ST.fileMenu = NewMenu(mFile, fileTitle);
     if (g_ST.fileMenu) {
         AppendMenu(g_ST.fileMenu, kFileMenuItems);
         InsertMenu(g_ST.fileMenu, 0);
     }
 
     /* Create Edit menu */
-    g_ST.editMenu = NewMenu(mEdit, "\pEdit");
+    static unsigned char editTitle[] = {4, 'E','d','i','t'};
+    g_ST.editMenu = NewMenu(mEdit, editTitle);
     if (g_ST.editMenu) {
         AppendMenu(g_ST.editMenu, kEditMenuItems);
         InsertMenu(g_ST.editMenu, 0);
     }
 
     /* Create Font menu */
-    g_ST.fontMenu = NewMenu(mFont, "\pFont");
+    static unsigned char fontTitle[] = {4, 'F','o','n','t'};
+    g_ST.fontMenu = NewMenu(mFont, fontTitle);
     if (g_ST.fontMenu) {
         AppendMenu(g_ST.fontMenu, kFontMenuItems);
         InsertMenu(g_ST.fontMenu, 0);
     }
 
     /* Create Size menu */
-    g_ST.sizeMenu = NewMenu(mSize, "\pSize");
+    static unsigned char sizeTitle[] = {4, 'S','i','z','e'};
+    g_ST.sizeMenu = NewMenu(mSize, sizeTitle);
     if (g_ST.sizeMenu) {
         AppendMenu(g_ST.sizeMenu, kSizeMenuItems);
         InsertMenu(g_ST.sizeMenu, 0);
     }
 
     /* Create Style menu */
-    g_ST.styleMenu = NewMenu(mStyle, "\pStyle");
+    static unsigned char styleTitle[] = {5, 'S','t','y','l','e'};
+    g_ST.styleMenu = NewMenu(mStyle, styleTitle);
     if (g_ST.styleMenu) {
         AppendMenu(g_ST.styleMenu, kStyleMenuItems);
         InsertMenu(g_ST.styleMenu, 0);

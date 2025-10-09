@@ -164,7 +164,7 @@ OSErr CreateAlias(FSSpec *target, FSSpec *aliasFile)
 {
     OSErr err;
     AliasHandle aliasHandle = nil;
-    short aliasRefNum;
+    /* short aliasRefNum; */ /* TODO: Resource file reference for alias storage */
     CInfoPBRec pb;
     FInfo finderInfo;
 
