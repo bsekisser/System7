@@ -46,7 +46,7 @@ endif
 
 CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 -DTM_SMOKE_TEST \
          -ffreestanding -fno-builtin -fno-stack-protector -nostdlib \
-         -Wall -Wextra -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wcast-qual \
+         -Wall -Wextra -Wformat=2 -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wcast-qual \
          -Wpointer-arith -Wstrict-prototypes -Wno-unused-parameter \
          $(OPT_FLAGS) -fno-inline -fno-optimize-sibling-calls -I./include -I./src -std=c17 -m32 \
          -Wuninitialized -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \

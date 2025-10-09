@@ -46,7 +46,8 @@ SystemLogLevel SysLogGetGlobalLevel(void);
 void SysLogSetModuleLevel(SystemLogModule module, SystemLogLevel level);
 SystemLogLevel SysLogGetModuleLevel(SystemLogModule module);
 const char* SysLogModuleName(SystemLogModule module);
-void serial_logf(SystemLogModule module, SystemLogLevel level, const char* fmt, ...);
+void serial_logf(SystemLogModule module, SystemLogLevel level, const char* fmt, ...)
+    __attribute__((format(printf, 3, 4)));
 
 /* Memory functions */
 void* memcpy(void* dest, const void* src, size_t n);
@@ -78,9 +79,12 @@ void serial_puts(const char* str);
 int serial_data_ready(void);
 char serial_getchar(void);
 void serial_print_hex(uint32_t value);
-void serial_printf(const char* fmt, ...);
-int sprintf(char* str, const char* format, ...);
-int snprintf(char* str, size_t size, const char* format, ...);
+void serial_printf(const char* fmt, ...)
+    __attribute__((format(printf, 1, 2)));
+int sprintf(char* str, const char* format, ...)
+    __attribute__((format(printf, 2, 3)));
+int snprintf(char* str, size_t size, const char* format, ...)
+    __attribute__((format(printf, 3, 4)));
 
 /* Pointer-to-unsigned-long helper to avoid %p format pitfalls */
 #define P2UL(p) ((unsigned long)(uintptr_t)(p))
