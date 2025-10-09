@@ -1010,6 +1010,14 @@ void CleanupFolderWindow(WindowPtr w) {
 
 FINDER_LOG_DEBUG("CleanupFolderWindow: cleaning up window 0x%08x\n", (unsigned int)P2UL(w));
 
+    /* Debug: Show all window slots before search */
+    for (int j = 0; j < MAX_FOLDER_WINDOWS; j++) {
+        if (gFolderWindows[j].window != NULL) {
+            FINDER_LOG_DEBUG("CleanupFolderWindow: slot[%d] = 0x%08x\n", j,
+                          (unsigned int)P2UL(gFolderWindows[j].window));
+        }
+    }
+
     /* Find and clear this window's state */
     for (int i = 0; i < MAX_FOLDER_WINDOWS; i++) {
         if (gFolderWindows[i].window == w) {
@@ -1032,6 +1040,8 @@ FINDER_LOG_DEBUG("CleanupFolderWindow: cleaning up window 0x%08x\n", (unsigned i
             /* Clear the slot */
             FINDER_LOG_DEBUG("CleanupFolderWindow: clearing window pointer\n");
             gFolderWindows[i].window = NULL;
+            FINDER_LOG_DEBUG("CleanupFolderWindow: window pointer now=0x%08x\n",
+                          (unsigned int)P2UL(gFolderWindows[i].window));
             FINDER_LOG_DEBUG("CleanupFolderWindow: clearing items pointer\n");
             gFolderWindows[i].state.items = NULL;
             FINDER_LOG_DEBUG("CleanupFolderWindow: clearing itemCount\n");
@@ -1046,5 +1056,6 @@ FINDER_LOG_DEBUG("CleanupFolderWindow: cleaning up window 0x%08x\n", (unsigned i
         }
     }
 
-FINDER_LOG_DEBUG("CleanupFolderWindow: window 0x%08x not found in state table\n", (unsigned int)P2UL(w));
+    /* Window not found - this is OK if it was already closed, but warn about potential double-close */
+    FINDER_LOG_WARN("CleanupFolderWindow: window 0x%08x not found in state table (already cleaned up or never registered)\n", (unsigned int)P2UL(w));
 }

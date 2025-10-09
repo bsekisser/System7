@@ -399,28 +399,28 @@ WindowPtr GetNewCWindow(short windowID, void* wStorage, WindowPtr behind) {
 void CloseWindow(WindowPtr theWindow) {
     extern void CleanupFolderWindow(WindowPtr w);
 
-    WM_LOG_TRACE("CloseWindow: ENTRY, window=%p\n", theWindow);
+    WM_LOG_DEBUG("CloseWindow: ENTRY, window=0x%08x\n", (unsigned int)P2UL(theWindow));
     if (theWindow == NULL) {
         WM_LOG_WARN("CloseWindow: NULL window, returning\n");
         return;
     }
 
     /* Clean up folder window state if this is a folder window */
-    WM_LOG_TRACE("CloseWindow: Calling CleanupFolderWindow\n");
+    WM_LOG_DEBUG("CloseWindow: Calling CleanupFolderWindow\n");
     CleanupFolderWindow(theWindow);
     __asm__ volatile("nop");  /* Marker after call */
-    WM_LOG_TRACE("CloseWindow: CleanupFolderWindow returned\n");
+    WM_LOG_DEBUG("CloseWindow: CleanupFolderWindow returned\n");
 
     #ifdef DEBUG_WINDOW_MANAGER
     printf("CloseWindow: Closing window\n");
     #endif
 
     /* Hide the window if it's visible */
-    WM_LOG_TRACE("CloseWindow: Checking visible flag=%d\n", theWindow->visible);
+    WM_LOG_DEBUG("CloseWindow: Checking visible flag=%d\n", theWindow->visible);
     if (theWindow->visible) {
-        WM_LOG_TRACE("CloseWindow: Calling HideWindow\n");
+        WM_LOG_DEBUG("CloseWindow: Calling HideWindow\n");
         HideWindow(theWindow);
-        WM_LOG_TRACE("CloseWindow: HideWindow returned\n");
+        WM_LOG_DEBUG("CloseWindow: HideWindow returned\n");
     }
 
     /* Remove from window list */
