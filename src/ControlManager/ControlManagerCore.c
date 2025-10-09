@@ -27,6 +27,7 @@
 #include "EventManager/EventManager.h"
 #include "DialogManager/DialogManager.h"
 #include "ResourceMgr/resource_types.h"
+#include "ResourceMgr/ResourceMgr.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "SystemTypes.h"
 #include "System71StdLib.h"
