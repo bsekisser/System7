@@ -406,10 +406,11 @@ long MenuKey(short ch)
 long MenuKeyEx(short keyChar, unsigned long modifiers, MenuCmdSearch* search)
 {
     long result = 0;
+    MenuCmdSearch localSearch = {0};
 
     /* Set up search parameters */
     if (search == NULL) {
-        search = &(MenuCmdSearch){0};
+        search = &localSearch;
     }
 
     search->searchChar = keyChar;
