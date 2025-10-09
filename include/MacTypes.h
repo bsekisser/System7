@@ -164,13 +164,7 @@ extern GrafPtr thePort;
 #define fsFromLEOF  2       /* From logical end of file */
 #define fsFromMark  3       /* From current mark */
 
-/* Resource attributes */
-#define resSysHeap      64  /* System heap */
-#define resPurgeable    32  /* Purgeable */
-#define resLocked       16  /* Locked */
-#define resProtected    8   /* Protected */
-#define resPreload      4   /* Preload */
-#define resChanged      2   /* Changed */
+/* Resource attributes - now defined in ResourceMgr/resource_types.h */
 
 /* B-Tree Control Block Flags */
 #define BTCDirty        0x0001  /* B-Tree needs to be written */

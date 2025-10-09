@@ -6,6 +6,7 @@
 
 #include "SegmentLoader/CodeParser.h"
 #include "SegmentLoader/SegmentLoader.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
 #include <string.h>
 

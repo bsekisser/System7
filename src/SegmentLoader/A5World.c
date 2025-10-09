@@ -10,6 +10,7 @@
 #include "SegmentLoader/SegmentLoader.h"
 #include "SegmentLoader/CodeParser.h"
 #include "SegmentLoader/SegmentLoaderLogging.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
 #include <string.h>
 

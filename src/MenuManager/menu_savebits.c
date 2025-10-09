@@ -13,6 +13,7 @@
 #include "System71StdLib.h"
 
 #include "MenuManager/menu_private.h"
+#include "MemoryMgr/MemoryManager.h"
 
 
 /* Screen bits handle structure */

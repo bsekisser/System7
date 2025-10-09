@@ -10,6 +10,7 @@
 #include "FontManager/FontTypes.h"
 #include "QuickDraw/QuickDraw.h"
 #include "SystemTypes.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "chicago_font.h"
 #include <string.h>
 #include "FontManager/FontLogging.h"
