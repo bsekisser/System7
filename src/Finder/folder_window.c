@@ -1030,13 +1030,18 @@ FINDER_LOG_DEBUG("CleanupFolderWindow: cleaning up window 0x%08x\n", (unsigned i
             }
 
             /* Clear the slot */
+            FINDER_LOG_DEBUG("CleanupFolderWindow: clearing window pointer\n");
             gFolderWindows[i].window = NULL;
+            FINDER_LOG_DEBUG("CleanupFolderWindow: clearing items pointer\n");
             gFolderWindows[i].state.items = NULL;
+            FINDER_LOG_DEBUG("CleanupFolderWindow: clearing itemCount\n");
             gFolderWindows[i].state.itemCount = 0;
+            FINDER_LOG_DEBUG("CleanupFolderWindow: clearing selectedIndex\n");
             gFolderWindows[i].state.selectedIndex = -1;
 
             FINDER_LOG_DEBUG("CleanupFolderWindow: slot %d cleared\n", i);
             FINDER_LOG_DEBUG("CleanupFolderWindow: about to return\n");
+            FINDER_LOG_DEBUG("CleanupFolderWindow: RETURN NOW\n");
             return;
         }
     }
