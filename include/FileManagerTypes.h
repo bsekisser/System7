@@ -144,9 +144,7 @@ typedef struct {
 #ifndef wrPermErr
 #define wrPermErr       -61    /* Write permission error */
 #define fsRdWrPerm      3      /* Read/write permission */
-#define fsAtMark        0x0002 /* At current mark */
-#define fsFromStart     1      /* From start of file */
-#define fsFromLEOF      2      /* From logical end-of-file */
+/* Note: fsAtMark, fsFromStart, fsFromLEOF defined in MacTypes.h */
 #define fsFromMark      3      /* From current mark */
 #define kioFlAttribDir  0x10   /* Directory attribute */
 #define notAFileErr     -1302  /* Not a file error */

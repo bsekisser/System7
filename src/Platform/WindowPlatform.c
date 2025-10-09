@@ -851,7 +851,7 @@ void PlatformDrawRGBABitmap(const UInt8* rgba_data, int width, int height, int d
                 continue;
             } else if (a == 255) {
                 /* Fully opaque - direct write */
-                fb[fb_y * fb_width + fb_x] = (0xFF << 24) | (r << 16) | (g << 8) | b;
+                fb[fb_y * fb_width + fb_x] = (0xFFU << 24) | (r << 16) | (g << 8) | b;
             } else {
                 /* Blend with background */
                 uint32_t bg = fb[fb_y * fb_width + fb_x];
@@ -864,7 +864,7 @@ void PlatformDrawRGBABitmap(const UInt8* rgba_data, int width, int height, int d
                 UInt8 out_g = (g * a + bg_g * (255 - a)) / 255;
                 UInt8 out_b = (b * a + bg_b * (255 - a)) / 255;
 
-                fb[fb_y * fb_width + fb_x] = (0xFF << 24) | (out_r << 16) | (out_g << 8) | out_b;
+                fb[fb_y * fb_width + fb_x] = (0xFFU << 24) | (out_r << 16) | (out_g << 8) | out_b;
             }
         }
     }

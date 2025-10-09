@@ -9,6 +9,7 @@
  */
 
 #include "SystemTypes.h"
+#include "MacTypes.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -434,9 +435,9 @@ OSErr FSSetEOF(FileRefNum refNum, UInt32 eof)
 
     /* Extend or truncate as needed */
     if (eof > fcb->base.fcbEOF) {
-        err = Ext_Extend(fcb->base.fcbVPtr, fcb, eof);
+        err = Ext_Extend((VCBExt*)fcb->base.fcbVPtr, fcb, eof);
     } else if (eof < fcb->base.fcbEOF) {
-        err = Ext_Truncate(fcb->base.fcbVPtr, fcb, eof);
+        err = Ext_Truncate((VCBExt*)fcb->base.fcbVPtr, fcb, eof);
     } else {
         err = noErr;
     }
@@ -483,7 +484,7 @@ OSErr FSAllocate(FileRefNum refNum, UInt32* count)
     newSize = fcb->fcbPLen + *count;
 
     /* Try to allocate the space */
-    err = Ext_Extend(fcb->base.fcbVPtr, fcb, newSize);
+    err = Ext_Extend((VCBExt*)fcb->base.fcbVPtr, fcb, newSize);
     if (err == noErr) {
         *count = newSize - fcb->fcbPLen;
         fcb->fcbPLen = newSize;

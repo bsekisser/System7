@@ -229,26 +229,57 @@ static void split_block(ZoneInfo* z, BlockHeader* b, u32 need) {
 /* ======================== Ptr Operations ======================== */
 
 void* NewPtr(u32 byteCount) {
+    extern void serial_printf(const char *fmt, ...);
+    serial_printf("[NewPtr] ENTER: requested=%u bytes\n", byteCount);
+
     ZoneInfo* z = gCurrentZone;
-    if (!z) return NULL;
+    if (!z) {
+        serial_printf("[NewPtr] FAIL: no current zone\n");
+        return NULL;
+    }
+
+    serial_printf("[NewPtr] Zone state: bytesUsed=%u bytesFree=%u\n", z->bytesUsed, z->bytesFree);
 
     u32 need = align_up(byteCount + BLKHDR_SZ);
+    serial_printf("[NewPtr] After alignment: need=%u bytes\n", need);
+
+    serial_printf("[NewPtr] Calling find_fit...\n");
     BlockHeader* b = find_fit(z, need);
+    serial_printf("[NewPtr] find_fit returned: %p\n", b);
 
     if (!b) {
         /* Try compaction */
-        if (CompactMem(need) < need) return NULL;
+        serial_printf("[NewPtr] No fit found, trying compaction for %u bytes...\n", need);
+        u32 compact_result = CompactMem(need);
+        serial_printf("[NewPtr] CompactMem returned: %u (need %u)\n", compact_result, need);
+
+        if (compact_result < need) {
+            serial_printf("[NewPtr] FAIL: compaction insufficient\n");
+            return NULL;
+        }
+
+        serial_printf("[NewPtr] Calling find_fit after compaction...\n");
         b = find_fit(z, need);
-        if (!b) return NULL;
+        serial_printf("[NewPtr] find_fit after compaction returned: %p\n", b);
+
+        if (!b) {
+            serial_printf("[NewPtr] FAIL: no fit even after compaction\n");
+            return NULL;
+        }
     }
 
+    serial_printf("[NewPtr] Splitting block at %p...\n", b);
     split_block(z, b, need);
+    serial_printf("[NewPtr] Block split complete\n");
+
     b->flags |= BF_PTR;
     b->masterPtr = NULL;
     z->bytesUsed += b->size;
     z->bytesFree -= b->size;
 
-    return (u8*)b + BLKHDR_SZ;
+    void* result = (u8*)b + BLKHDR_SZ;
+    serial_printf("[NewPtr] SUCCESS: returning %p\n", result);
+    return result;
 }
 
 void* NewPtrClear(u32 byteCount) {
@@ -467,18 +498,43 @@ bool SetHandleSize_MemMgr(Handle h, u32 newSize) {
 /* ======================== Compaction ======================== */
 
 u32 CompactMem(u32 cbNeeded) {
+    extern void serial_printf(const char *fmt, ...);
+    serial_printf("[CompactMem] ENTER: cbNeeded=%u\n", cbNeeded);
+
     ZoneInfo* z = gCurrentZone;
-    if (!z) return 0;
+    if (!z) {
+        serial_printf("[CompactMem] FAIL: no current zone\n");
+        return 0;
+    }
+
+    serial_printf("[CompactMem] Zone state before: bytesUsed=%u bytesFree=%u\n", z->bytesUsed, z->bytesFree);
 
     /* First, try purging */
+    serial_printf("[CompactMem] Calling PurgeMem...\n");
     PurgeMem(cbNeeded);
+    serial_printf("[CompactMem] PurgeMem complete\n");
 
     /* Then compact: move unlocked handles together */
     u8* scan = z->base;
     u8* dest = z->base;
 
+    serial_printf("[CompactMem] Starting heap walk from %p to %p\n", scan, z->limit);
+    int block_count = 0;
+
     while (scan < z->limit) {
         BlockHeader* b = (BlockHeader*)scan;
+        block_count++;
+
+        if (block_count % 100 == 0) {
+            serial_printf("[CompactMem] Processed %d blocks, scan=%p\n", block_count, scan);
+        }
+
+        /* Safety check: detect corrupted block size */
+        if (b->size == 0 || b->size > (u32)(z->limit - scan)) {
+            serial_printf("[CompactMem] ERROR: corrupted block at %p: size=%u (remaining=%u)\n",
+                          b, b->size, (u32)(z->limit - scan));
+            break;
+        }
 
         if (b->flags & BF_FREE) {
             scan += b->size;
@@ -540,7 +596,10 @@ u32 CompactMem(u32 cbNeeded) {
         freelist_insert(z, tail);
     }
 
-    return MaxMem();
+    serial_printf("[CompactMem] Heap walk complete: processed %d blocks\n", block_count);
+    u32 max_free = MaxMem();
+    serial_printf("[CompactMem] SUCCESS: MaxMem=%u\n", max_free);
+    return max_free;
 }
 
 void PurgeMem(u32 cbNeeded) {

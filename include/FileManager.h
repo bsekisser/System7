@@ -111,6 +111,10 @@ OSErr FSDeleteFileIDRef(ConstStr255Param fileName, VolumeRefNum vRefNum);
 OSErr FSResolveFileIDRef(ConstStr255Param volName, VolumeRefNum vRefNum, FileID fileID, FSSpec* spec);
 OSErr FSExchangeFiles(const FSSpec* file1, const FSSpec* file2);
 
+/* High-level wrappers */
+OSErr HGetFInfo(short vRefNum, long dirID, ConstStr255Param fileName, FInfo *fndrInfo);
+OSErr DirCreate(short vRefNum, long parentDirID, ConstStr255Param directoryName, long *createdDirID);
+
 /* Alias and Path Resolution */
 OSErr FSResolveAliasFile(FSSpec* theSpec, Boolean resolveAliasChains, Boolean* targetIsFolder, Boolean* wasAliased);
 OSErr FSMakeAlias(const FSSpec* fromFile, const FSSpec* target, void** alias);

@@ -282,6 +282,12 @@ Boolean HandleMouseDown(EventRecord* event)
                 EVT_LOG_DEBUG("HandleMouseDown: inDrag window=0x%08x bounds=(%d,%d,%d,%d)\n",
                              (unsigned int)whichWindow, dragBounds.top, dragBounds.left,
                              dragBounds.bottom, dragBounds.right);
+
+                extern void serial_printf(const char *fmt, ...);
+                serial_printf("[EVT] ABOUT TO CALL DragWindow: window=%p, where=(%d,%d), bounds=%p\n",
+                             whichWindow, event->where.h, event->where.v, &dragBounds);
+                serial_printf("[EVT] DragWindow function ptr=%p\n", DragWindow);
+
                 DragWindow(whichWindow, event->where, &dragBounds);
                 EVT_LOG_DEBUG("HandleMouseDown: DragWindow returned\n");
             } else {

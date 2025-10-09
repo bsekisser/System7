@@ -242,9 +242,13 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
  * ============================================================================ */
 
 void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
-    if (theWindow == NULL) return;
+    extern void serial_printf(const char *fmt, ...);
+    serial_printf("[WM_DRAG] DragWindow ENTRY: window=%p from (%d,%d)\n", theWindow, startPt.h, startPt.v);
 
-    WM_LOG_TRACE("DragWindow ENTRY: window=%p from (%d,%d)\n", theWindow, startPt.h, startPt.v);
+    if (theWindow == NULL) {
+        serial_printf("[WM_DRAG] DragWindow: NULL window, returning\n");
+        return;
+    }
 
     /* Get GLOBAL window bounds from strucRgn - System 7 faithful */
     Rect frameG;
