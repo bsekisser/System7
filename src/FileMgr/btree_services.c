@@ -68,12 +68,14 @@ OSErr BTOpen(FCB* fcb, void* btcb_ptr) {
     header_node->ndNRecs = 3;  /* Header record, map record, user data record */
 
     /* Extract B-Tree header from header node data area */
-    /* header = (BTHeader*)header_node->ndData;
-
-    Initialize header with default values for testing
-    header->bthDepth = 1;           Single level tree initially */
-    header->bthRoot = 1;            /* Root is node 1 */
-    header->bthNRecs = 0;           /* No records initially */
+    /*
+     * Commented out for now - BTHeader initialization
+     * header = (BTHeader*)header_node->ndData;
+     * Initialize header with default values for testing
+     * header->bthDepth = 1;          Single level tree initially
+     * header->bthRoot = 1;           Root is node 1
+     * header->bthNRecs = 0;          No records initially
+     */
     header->bthFNode = 0;           /* No leaf nodes yet */
     header->bthLNode = 0;           /* No leaf nodes yet */
     header->bthNodeSize = BTREE_NODE_SIZE;

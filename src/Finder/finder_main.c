@@ -538,7 +538,7 @@ static void HandleMenuChoice(long menuChoice)
     extern void DoMenuCommand(short menuID, short item);
     DoMenuCommand(menuID, menuItem);
 
-    /* Old implementation - kept for reference
+#if 0  /* Old implementation - kept for reference */
     switch (menuID) {
         case 128:  // Apple Menu
             if (menuItem == 1) {
@@ -625,6 +625,7 @@ static void HandleMenuChoice(long menuChoice)
             }
             break;
     }
+#endif  /* End of old implementation */
 
     HiliteMenu(0);
 }
