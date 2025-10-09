@@ -14,6 +14,7 @@
 #include "SystemTypes.h"
 /* ControlTracking.h local */
 #include "ControlManager/ControlManager.h"
+#include "ControlManager/ControlInternal.h"
 #include "ControlManager/ControlTypes.h"
 #include "EventManager/EventManager.h"
 #include "QuickDraw/QuickDraw.h"

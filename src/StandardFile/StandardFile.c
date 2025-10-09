@@ -23,7 +23,13 @@
 #include "WindowManager/WindowManager.h"
 #include "ControlManager/ControlManager.h"
 #include "FileMgr/file_manager.h"
+#include "MemoryMgr/MemoryManager.h"
+#include "ToolboxCompat.h"
 /* #include "ListManager/ListManager.h" */
+
+/* External File Manager functions not in file_manager.h */
+extern OSErr HGetFInfo(SInt16 vRefNum, SInt32 dirID, ConstStr255Param fileName, void* fInfo);
+extern OSErr DirCreate(SInt16 vRefNum, SInt32 parentDirID, ConstStr255Param dirName, SInt32* createdDirID);
 
 
 /* Dialog state */

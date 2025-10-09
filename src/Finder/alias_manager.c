@@ -23,6 +23,7 @@
 #include "FileMgr/file_manager.h"
 /* Use local headers instead of system headers */
 #include "MemoryMgr/memory_manager_types.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "ResourceManager.h"
 #include "Finder/FinderLogging.h"
 #include "sys71_stubs.h"

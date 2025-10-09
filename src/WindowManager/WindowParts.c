@@ -25,6 +25,7 @@
 #include "System71StdLib.h"
 
 #include "WindowManager/WindowManagerInternal.h"
+#include "QuickDraw/ColorQuickDraw.h"
 #include "FontManager/FontManager.h"
 #include "FontManager/FontTypes.h"
 #include <math.h>

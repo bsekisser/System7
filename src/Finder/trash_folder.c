@@ -23,6 +23,7 @@
 #include "FileMgr/file_manager.h"
 /* Use local headers instead of system headers */
 #include "MemoryMgr/memory_manager_types.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "DialogManager/DialogTypes.h"
 #include "DialogManager/DialogManager.h"
 #include "EventManager/EventManager.h"

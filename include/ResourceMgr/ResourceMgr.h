@@ -46,8 +46,8 @@ void LoadResource(Handle theResource);
 SInt16 CurResFile(void);
 SInt16 HomeResFile(Handle theResource);
 void UseResFile(SInt16 refNum);
-/* Use const unsigned char* to match existing declaration */
-SInt16 OpenResFile(const unsigned char* fileName);
+/* Note: OpenResFile declared in ResourceMgr/resource_manager.h */
+// SInt16 OpenResFile(const unsigned char* fileName);
 void CloseResFile(SInt16 refNum);
 
 /* Error Handling */

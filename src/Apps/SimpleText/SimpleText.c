@@ -8,6 +8,7 @@
 #include <string.h>
 #include "Apps/SimpleText.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "SoundManager/SoundManager.h"
 
 /* External functions */
 extern UInt32 TickCount(void);

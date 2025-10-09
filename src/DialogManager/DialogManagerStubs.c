@@ -10,6 +10,7 @@
 #include "DialogManager/DialogItems.h"
 #include "DialogManager/DialogManagerStateExt.h"
 #include "DialogManager/DialogLogging.h"
+#include "MemoryMgr/MemoryManager.h"
 
 /* DialogItemInternal is now defined in DialogManagerStateExt.h */
 

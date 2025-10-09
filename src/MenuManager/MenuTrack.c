@@ -1,5 +1,4 @@
 /*
-#include "MenuManager/menu_private.h"
  * MenuTrack.c - Basic dropdown rendering and tracking
  *
  * Draws menu item list under the title and lets user select with mouse.
@@ -10,7 +9,11 @@
 #include "MenuManager/MenuLogging.h"
 #include "MenuManager/MenuTypes.h"
 #include "QuickDraw/QuickDraw.h"
+#include "FontManager/FontManager.h"
 #include "EventManager/EventTypes.h"  /* For mouse masks */
+
+/* Function declarations */
+extern SInt16 CountMenuItems(MenuHandle theMenu);
 
 /* External functions */
 extern void serial_puts(const char* str);

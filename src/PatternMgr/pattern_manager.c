@@ -12,6 +12,7 @@
 #include "PatternMgr/pattern_resources.h"
 #include "PatternMgr/pram_prefs.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/ColorQuickDraw.h"
 #include "WindowManager/window_manager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include <string.h>

@@ -98,6 +98,10 @@ u32     MaxMem(void);
 u32     CompactMem(u32 cbNeeded);
 void    PurgeMem(u32 cbNeeded);
 
+/* Memory utility functions */
+void    BlockMoveData(const void* srcPtr, void* destPtr, u32 byteCount);
+SInt16  MemError(void);
+
 /* Standard C library interface */
 void*   malloc(size_t size);
 void    free(void* ptr);

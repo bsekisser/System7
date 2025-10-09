@@ -21,8 +21,7 @@
 
 /* Additional function declarations */
 extern OSErr Gestalt_RegisterSelector(OSType selector, SInt32 value);
-extern void BlockMoveData(const void* src, void* dest, Size size);
-extern OSErr MemError(void);
+/* Note: BlockMoveData and MemError declared in MemoryMgr/MemoryManager.h */
 
 /* Debug logging control */
 #define SCRAP_DEBUG 1

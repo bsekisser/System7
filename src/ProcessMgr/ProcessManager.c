@@ -36,6 +36,7 @@
 #include "CPU/CPUBackend.h"
 #include "CPU/M68KInterp.h"
 #include "EventManager/EventManager.h"
+#include "MemoryMgr/MemoryManager.h"
 /* #include <Traps.h> - not available */
 /* #include <ToolUtils.h> - not available */
 
@@ -141,8 +142,7 @@ OSErr Process_Create(const void* appSpec, Size memorySize, LaunchFlags flags)
 
     /* Setup heap zone */
     newProcess->processHeapZone = (THz)newProcess->processLocation;
-    InitZone(NULL, 64, (Ptr)newProcess->processHeapZone + memorySize,
-             (Ptr)newProcess->processHeapZone);
+    InitZone(NULL, (void*)newProcess->processHeapZone, memorySize, NULL, 0);
 
     /* Initialize stack */
     newProcess->processStackSize = 8192; /* 8K default stack */

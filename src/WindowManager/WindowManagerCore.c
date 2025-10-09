@@ -28,6 +28,7 @@
 #include "WindowManager/WindowManagerInternal.h"
 #include "WindowManager/WindowKinds.h"
 #include "WindowManager/LayoutGuards.h"
+#include "QuickDraw/ColorQuickDraw.h"
 #include "DialogManager/DialogManager.h"
 #include "WindowManager/WMLogging.h"
 

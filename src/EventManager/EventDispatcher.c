@@ -1,5 +1,4 @@
 /**
-#include "EventManager/EventManagerInternal.h"
  * @file EventDispatcher.c
  * @brief Event Dispatcher - Routes events from EventManager to appropriate handlers
  *
@@ -12,10 +11,12 @@
  */
 
 #include "SystemTypes.h"
+#include "EventManager/EventManagerInternal.h"
 #include "EventManager/EventTypes.h"  /* Include EventTypes.h first to define activeFlag */
 #include "EventManager/EventManager.h"
 #include "WindowManager/WindowManager.h"
 #include "MenuManager/MenuManager.h"
+#include "QuickDraw/QuickDraw.h"
 #include "Finder/AboutThisMac.h"  /* About This Macintosh window */
 #include <stdlib.h>  /* For abs() */
 #include "EventManager/EventLogging.h"

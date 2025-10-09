@@ -67,11 +67,12 @@ OSErr PBSetCatInfoSync(void *paramBlock);
 /* Note: FSMakeFSSpec, FSRead, FSWrite, FSClose, SetEOF declared in FileMgr/file_manager.h */
 
 /* Memory Manager */
-void BlockMoveData(const void *srcPtr, void *destPtr, Size byteCount);
-Ptr NewPtr(Size byteCount);
-Handle NewHandle(Size byteCount);
-void DisposeHandle(Handle h);
-Size GetHandleSize(Handle h);
+/* Note: BlockMoveData, NewPtr, NewHandle, DisposeHandle, GetHandleSize declared in MemoryMgr/MemoryManager.h */
+// void BlockMoveData(const void *srcPtr, void *destPtr, Size byteCount);
+// Ptr NewPtr(Size byteCount);
+// Handle NewHandle(Size byteCount);
+// void DisposeHandle(Handle h);
+// Size GetHandleSize(Handle h);
 
 /* FindFolder */
 OSErr FindFolder(SInt16 vRefNum, OSType folderType, Boolean createFolder, SInt16* foundVRefNum, SInt32* foundDirID);

@@ -13,6 +13,9 @@
 #include "ControlManager/ControlManager.h"
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/ColorQuickDraw.h"
+#include "FontManager/FontManager.h"
+#include "FontManager/FontInternal.h"
 #include "DialogManager/DialogManager.h"
 #include <string.h>
 #include <stdlib.h>

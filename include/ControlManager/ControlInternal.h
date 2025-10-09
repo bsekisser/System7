@@ -7,7 +7,7 @@
 /* Control tracking */
 ControlHandle GetTrackingControl(void);
 SInt16 GetTrackingPart(void);
-Boolean IsControlTracking(void);
+Boolean IsControlTracking(ControlHandle control);
 
 /* Standard controls */
 void SetCheckboxMixed(ControlHandle ctrl, Boolean mixed);

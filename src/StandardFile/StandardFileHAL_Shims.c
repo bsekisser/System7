@@ -16,6 +16,7 @@
 #include "EventManager/EventManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "FileMgr/file_manager.h"
+#include "DeskManager/DeskManager.h"
 
 /* Debug logging */
 #ifdef SF_HAL_DEBUG
