@@ -175,7 +175,7 @@ void ModalDialog(ModalFilterProcPtr filterProc, SInt16* itemHit)
             continue;
         }
 
-        DIALOG_LOG_DEBUG("ModalDialog: Got event what=%d, message=0x%lx\n", evt.what, evt.message);
+        DIALOG_LOG_DEBUG("ModalDialog: Got event what=%d, message=0x%x\n", evt.what, evt.message);
 
         /* Check for user cancel event (Command-. or Escape) */
         if (IsUserCancelEvent(&evt)) {

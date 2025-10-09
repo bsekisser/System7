@@ -344,7 +344,7 @@ bool VFS_PopulateInitialFiles(void) {
         FS_LOG_DEBUG("VFS: Failed to create System Folder\n");
         return false;
     }
-    FS_LOG_DEBUG("VFS: Created System Folder (ID=%ld)\n", systemID);
+    FS_LOG_DEBUG("VFS: Created System Folder (ID=%d)\n", systemID);
 
     /* Create Documents folder */
     DirID documentsID = 0;
@@ -352,7 +352,7 @@ bool VFS_PopulateInitialFiles(void) {
         FS_LOG_DEBUG("VFS: Failed to create Documents folder\n");
         return false;
     }
-    FS_LOG_DEBUG("VFS: Created Documents folder (ID=%ld)\n", documentsID);
+    FS_LOG_DEBUG("VFS: Created Documents folder (ID=%d)\n", documentsID);
 
     /* Create Applications folder */
     DirID appsID = 0;
@@ -360,7 +360,7 @@ bool VFS_PopulateInitialFiles(void) {
         FS_LOG_DEBUG("VFS: Failed to create Applications folder\n");
         return false;
     }
-    FS_LOG_DEBUG("VFS: Created Applications folder (ID=%ld)\n", appsID);
+    FS_LOG_DEBUG("VFS: Created Applications folder (ID=%d)\n", appsID);
 
     /* Create README file in root */
     FileID readmeID = 0;
@@ -368,7 +368,7 @@ bool VFS_PopulateInitialFiles(void) {
         FS_LOG_DEBUG("VFS: Failed to create Read Me file\n");
         return false;
     }
-    FS_LOG_DEBUG("VFS: Created Read Me file (ID=%ld)\n", readmeID);
+    FS_LOG_DEBUG("VFS: Created Read Me file (ID=%u)\n", readmeID);
 
     /* Create About This Mac file */
     FileID aboutID = 0;
@@ -376,7 +376,7 @@ bool VFS_PopulateInitialFiles(void) {
         FS_LOG_DEBUG("VFS: Failed to create About This Mac file\n");
         return false;
     }
-    FS_LOG_DEBUG("VFS: Created About This Mac file (ID=%ld)\n", aboutID);
+    FS_LOG_DEBUG("VFS: Created About This Mac file (ID=%u)\n", aboutID);
 
     /* Create some sample documents */
     FileID doc1ID = 0;
@@ -384,14 +384,14 @@ bool VFS_PopulateInitialFiles(void) {
         FS_LOG_DEBUG("VFS: Failed to create Sample Document\n");
         return false;
     }
-    FS_LOG_DEBUG("VFS: Created Sample Document (ID=%ld)\n", doc1ID);
+    FS_LOG_DEBUG("VFS: Created Sample Document (ID=%u)\n", doc1ID);
 
     FileID doc2ID = 0;
     if (!VFS_CreateFile(vref, documentsID, "Notes", 'TEXT', 'ttxt', &doc2ID)) {
         FS_LOG_DEBUG("VFS: Failed to create Notes file\n");
         return false;
     }
-    FS_LOG_DEBUG("VFS: Created Notes file (ID=%ld)\n", doc2ID);
+    FS_LOG_DEBUG("VFS: Created Notes file (ID=%u)\n", doc2ID);
 
     FS_LOG_DEBUG("VFS: Initial file system population complete\n");
     return true;
@@ -543,7 +543,7 @@ uint32_t VFS_GetFilePosition(VFSFile* file) {
 
 /* Write operations - stubs for now */
 bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID) {
-    FS_LOG_DEBUG("VFS_CreateFolder: Creating folder '%s' in parent %ld\n", name, parent);
+    FS_LOG_DEBUG("VFS_CreateFolder: Creating folder '%s' in parent %d\n", name, parent);
 
     /* Validate parameters */
     if (!name || !newID) {
@@ -562,7 +562,7 @@ bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID
     *newID = nextDirID++;
 
     /* Log success for now - full implementation would update HFS catalog */
-    FS_LOG_DEBUG("VFS_CreateFolder: Created folder '%s' with ID %ld\n", name, *newID);
+    FS_LOG_DEBUG("VFS_CreateFolder: Created folder '%s' with ID %d\n", name, *newID);
     return true;
 }
 
@@ -588,12 +588,12 @@ bool VFS_CreateFile(VRefNum vref, DirID parent, const char* name,
     *newID = nextFileID++;
 
     /* Log success for now - full implementation would update HFS catalog */
-    FS_LOG_DEBUG("VFS_CreateFile: Created file '%s' with ID %ld\n", name, *newID);
+    FS_LOG_DEBUG("VFS_CreateFile: Created file '%s' with ID %u\n", name, *newID);
     return true;
 }
 
 bool VFS_Rename(VRefNum vref, FileID id, const char* newName) {
-    FS_LOG_DEBUG("VFS_Rename: Renaming file/folder %ld to '%s'\n", id, newName);
+    FS_LOG_DEBUG("VFS_Rename: Renaming file/folder %u to '%s'\n", id, newName);
 
     /* Validate parameters */
     if (!newName || strlen(newName) == 0 || strlen(newName) > 31) {
@@ -608,12 +608,12 @@ bool VFS_Rename(VRefNum vref, FileID id, const char* newName) {
     }
 
     /* Log success for now - full implementation would update HFS catalog */
-    FS_LOG_DEBUG("VFS_Rename: Successfully renamed ID %ld to '%s'\n", id, newName);
+    FS_LOG_DEBUG("VFS_Rename: Successfully renamed ID %u to '%s'\n", id, newName);
     return true;
 }
 
 bool VFS_Delete(VRefNum vref, FileID id) {
-    FS_LOG_DEBUG("VFS_Delete: Deleting file/folder ID %ld\n", id);
+    FS_LOG_DEBUG("VFS_Delete: Deleting file/folder ID %u\n", id);
 
     /* Check volume - for now just validate vref */
     if (vref != 0 && vref != -1) {
@@ -628,6 +628,6 @@ bool VFS_Delete(VRefNum vref, FileID id) {
     }
 
     /* Log success for now - full implementation would update HFS catalog */
-    FS_LOG_DEBUG("VFS_Delete: Successfully deleted ID %ld\n", id);
+    FS_LOG_DEBUG("VFS_Delete: Successfully deleted ID %u\n", id);
     return true;
 }

@@ -52,7 +52,7 @@ OSErr FM_LoadNFNTResource(Handle nfntHandle, NFNTResource **nfntOut) {
 
     Size handleSize = GetHandleSize(nfntHandle);
     if (handleSize < sizeof(NFNTResource)) {
-        FRL_LOG("NFNT handle too small: %ld bytes\n", handleSize);
+        FRL_LOG("NFNT handle too small: %d bytes\n", handleSize);
         return resNotFound;
     }
 
@@ -189,7 +189,7 @@ OSErr FM_ExtractBitmap(const NFNTResource *nfnt, UInt8 **bitmapOut, Size *sizeOu
     const UInt8 *sourcePtr = (const UInt8*)nfnt + sizeof(NFNTResource);
     memcpy(bitmap, sourcePtr, bitmapSize);
 
-    FRL_LOG("Extracted bitmap: %ld bytes (%d words x %d rows)\n",
+    FRL_LOG("Extracted bitmap: %d bytes (%d words x %d rows)\n",
             bitmapSize, nfnt->rowWords, nfnt->fRectHeight);
 
     *bitmapOut = bitmap;
@@ -208,7 +208,7 @@ OSErr FM_LoadFONDResource(Handle fondHandle, FONDResource **fondOut) {
 
     Size handleSize = GetHandleSize(fondHandle);
     if (handleSize < sizeof(FONDResource)) {
-        FRL_LOG("FOND handle too small: %ld bytes\n", handleSize);
+        FRL_LOG("FOND handle too small: %d bytes\n", handleSize);
         return resNotFound;
     }
 
