@@ -366,16 +366,15 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
         FINDER_LOG_DEBUG("[WIN_OPEN] Using provided title: len=%d\n", windowTitle[0]);
     }
 
-    extern void serial_printf(const char *fmt, ...);
-    serial_printf("[FINDER] ABOUT TO CALL NewWindow: bounds=(%d,%d,%d,%d), title_len=%d, isTrash=%d\n",
+    FINDER_LOG_DEBUG("[WIN_OPEN] ABOUT TO CALL NewWindow: bounds=(%d,%d,%d,%d), title_len=%d, isTrash=%d\n",
                   r.top, r.left, r.bottom, r.right, windowTitle[0], isTrash);
-    serial_printf("[FINDER] NewWindow function ptr=%p\n", NewWindow);
+    FINDER_LOG_DEBUG("[WIN_OPEN] NewWindow function ptr=%p\n", NewWindow);
 
     WindowPtr w = NewWindow(NULL, &r, windowTitle,
                             false, 0, (WindowPtr)-1L, true,
                             isTrash ? 0x54525348 : 0x4449534B);  /* 'TRSH' or 'DISK' */
 
-    serial_printf("[FINDER] NewWindow RETURNED: w=%p\n", w);
+    FINDER_LOG_DEBUG("[WIN_OPEN] NewWindow RETURNED: w=%p\n", w);
 
     if (!w) {
         FINDER_LOG_DEBUG("[WIN_OPEN] NewWindow returned NULL!\n");
