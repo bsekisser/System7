@@ -304,5 +304,5 @@ void ExpandMemCleanup(void) {}
 void ExpandMemDump(void) {}
 OSErr ExpandMemValidate(void) { return 0; }
 
-/* Serial output */
-int serial_printf(const char* format, ...) { return 0; }
+/* Serial output - real implementation in src/System71StdLib.c */
+/* serial_printf removed from stubs - use actual implementation */

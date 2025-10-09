@@ -1027,6 +1027,7 @@ FINDER_LOG_DEBUG("CleanupFolderWindow: cleaning up window 0x%08x\n", (unsigned i
             gFolderWindows[i].state.selectedIndex = -1;
 
             FINDER_LOG_DEBUG("CleanupFolderWindow: slot %d cleared\n", i);
+            FINDER_LOG_DEBUG("CleanupFolderWindow: about to return\n");
             return;
         }
     }

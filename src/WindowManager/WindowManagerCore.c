@@ -408,6 +408,7 @@ void CloseWindow(WindowPtr theWindow) {
     /* Clean up folder window state if this is a folder window */
     WM_LOG_TRACE("CloseWindow: Calling CleanupFolderWindow\n");
     CleanupFolderWindow(theWindow);
+    __asm__ volatile("nop");  /* Marker after call */
     WM_LOG_TRACE("CloseWindow: CleanupFolderWindow returned\n");
 
     #ifdef DEBUG_WINDOW_MANAGER
