@@ -407,7 +407,7 @@ void DrawMenuBar(void)
                     /* serial_puts("DrawMenuBar: Menu handle found\n"); */
 
                     /* Debug: show MenuInfo offsets */
-                    MenuInfo* mptr = *menu;
+                    MenuInfo* mptr = (MenuInfo*)*menu;
                     /* MENU_LOG_TRACE("  MenuID: %d\n", mptr->menuID); */
                     /* MENU_LOG_TRACE("  sizeof(MenuInfo): %d\n", sizeof(MenuInfo)); */
                     /* MENU_LOG_TRACE("  offsetof menuData: %d\n", ((char*)&(mptr->menuData) - (char*)mptr)); */
@@ -598,7 +598,7 @@ MenuHandle NewMenu(short menuID, ConstStr255Param menuTitle)
 
     /* Initialize menu info */
     memset(menuPtr, 0, sizeof(MenuInfo));
-    *theMenu = menuPtr;
+    *theMenu = (struct Menu*)menuPtr;
 
     menuPtr->menuID = menuID;
     menuPtr->menuWidth = 0;  /* Will be calculated */

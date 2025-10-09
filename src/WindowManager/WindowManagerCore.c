@@ -599,7 +599,7 @@ Boolean GetAuxWin(WindowPtr theWindow, AuxWinHandle* awHndl) {
             return true;
         }
         if (*current != NULL) {
-            current = (**current).awNext;
+            current = (AuxWinHandle)&(**current).awNext;
         } else {
             break;
         }
@@ -917,7 +917,7 @@ static AuxWinHandle CreateAuxiliaryWindowRecord(WindowPtr owner) {
 
     /* Initialize record */
     *auxHandle = (AuxWinRec*)auxRec;
-    auxRec->awNext = g_wmState.auxWinHead;
+    auxRec->awNext = (struct AuxWinRec*)g_wmState.auxWinHead;
     auxRec->awOwner = owner;
     auxRec->awCTable = NULL;
     auxRec->dialogCItem = NULL;
@@ -940,11 +940,11 @@ static void DisposeAuxiliaryWindowRecord(AuxWinHandle auxWin) {
 
     /* Remove from auxiliary window list */
     if (g_wmState.auxWinHead == auxWin) {
-        g_wmState.auxWinHead = (**auxWin).awNext;
+        g_wmState.auxWinHead = (AuxWinHandle)&(**auxWin).awNext;
     } else {
         AuxWinHandle current = g_wmState.auxWinHead;
         while (current && *current && (**current).awNext != *auxWin) {
-            current = (**current).awNext;
+            current = (AuxWinHandle)&(**current).awNext;
         }
         if (current && *current) {
             (**current).awNext = (**auxWin).awNext;

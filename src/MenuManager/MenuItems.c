@@ -377,7 +377,7 @@ void EnableItem(MenuHandle theMenu, short item) {
 
     if (!theMenu) return;
 
-    menu = *theMenu;
+    menu = (MenuInfo*)*theMenu;
 
     if (item == 0) {
         /* Enable entire menu */
@@ -404,7 +404,7 @@ void DisableItem(MenuHandle theMenu, short item) {
 
     if (!theMenu) return;
 
-    menu = *theMenu;
+    menu = (MenuInfo*)*theMenu;
 
     if (item == 0) {
         /* Disable entire menu */
@@ -657,7 +657,7 @@ void CalcMenuSize(MenuHandle theMenu) {
 
     if (!theMenu || !*theMenu) return;
 
-    menu = *theMenu;
+    menu = (MenuInfo*)*theMenu;
     extData = GetMenuExtData(theMenu);
     if (!extData) return;
 
