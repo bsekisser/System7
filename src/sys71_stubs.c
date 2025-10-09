@@ -655,7 +655,7 @@ void SetWTitle(WindowPtr window, ConstStr255Param title) {
 
     /* Copy title string - Pascal string with length byte */
     unsigned char len = title[0];
-    if (len > 255) len = 255;
+    /* len is unsigned char, already limited to 255 */
 
     SYSTEM_LOG_DEBUG("SetWTitle: Setting window title length %d\n", len);
 
