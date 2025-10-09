@@ -239,12 +239,12 @@ static IconFamily gDocIF = {
 };
 
 static IconFamily gTrashEmptyIF = {
-    .large = {32, 32, kIconColor32, (uint8_t*)icon_TrashEmpty_mask, (uint8_t*)icon_TrashEmpty_image, icon_TrashEmpty_color},
+    .large = {32, 32, kIconColor32, icon_TrashEmpty_mask, icon_TrashEmpty_image, icon_TrashEmpty_color},
     .hasSmall = false
 };
 
 static IconFamily gTrashFullIF = {
-    .large = {32, 32, kIconColor32, (uint8_t*)icon_TrashFull_mask, (uint8_t*)icon_TrashFull_image, icon_TrashFull_color},
+    .large = {32, 32, kIconColor32, icon_TrashFull_mask, icon_TrashFull_image, icon_TrashFull_color},
     .hasSmall = false
 };
 

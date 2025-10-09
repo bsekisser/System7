@@ -5,8 +5,8 @@
 #include <stddef.h>
 
 typedef struct {
-    uint8_t* mask;
-    uint8_t* image;
+    const uint8_t* mask;
+    const uint8_t* image;
 } IconData;
 
 typedef struct {
@@ -55,8 +55,8 @@ const uint8_t icon_TrashFull_image[128] = {
 
 static const IconFamily iconFamily_TrashFull = {
     .large = {
-        .mask = (uint8_t*)icon_TrashFull_mask,
-        .image = (uint8_t*)icon_TrashFull_image
+        .mask = icon_TrashFull_mask,
+        .image = icon_TrashFull_image
     },
     .small = {
         .mask = NULL,  // No 16x16 version available
@@ -105,8 +105,8 @@ const uint8_t icon_TrashEmpty_image[128] = {
 
 static const IconFamily iconFamily_TrashEmpty = {
     .large = {
-        .mask = (uint8_t*)icon_TrashEmpty_mask,
-        .image = (uint8_t*)icon_TrashEmpty_image
+        .mask = icon_TrashEmpty_mask,
+        .image = icon_TrashEmpty_image
     },
     .small = {
         .mask = NULL,  // No 16x16 version available
