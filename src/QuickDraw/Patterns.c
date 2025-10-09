@@ -23,8 +23,10 @@
 /* Platform abstraction layer */
 #include "QuickDraw/QuickDrawPlatform.h"
 
+#if 0  /* UNUSED forward declaration */
 /* Forward declaration for platform function defined later in this file */
 static void QDPlatform_SetPixelInPort(GrafPtr port, SInt16 x, SInt16 y, Boolean foreground);
+#endif
 
 /* Standard patterns (8x8 pixel patterns) */
 static const Pattern g_standardPatterns[] = {
@@ -63,6 +65,7 @@ static const Pattern g_standardPatterns[] = {
 
 #define NUM_STANDARD_PATTERNS (sizeof(g_standardPatterns) / sizeof(g_standardPatterns[0]))
 
+#if 0  /* UNUSED: Dithering matrices - only used by commented-out dithering functions */
 /* Dithering matrices for color quantization */
 static const UInt8 g_ditherMatrix4x4[4][4] = {
     { 0, 8, 2, 10},
@@ -81,7 +84,9 @@ static const UInt8 g_ditherMatrix8x8[8][8] = {
     {15, 47,  7, 39, 13, 45,  5, 37},
     {63, 31, 55, 23, 61, 29, 53, 21}
 };
+#endif /* Dithering matrices */
 
+#if 0  /* UNUSED forward declarations for commented-out functions */
 /* Forward declarations */
 static Boolean GetPatternPixel(ConstPatternParam pattern, SInt16 x, SInt16 y);
 static void ApplyPatternToRect(const Rect *rect, ConstPatternParam pattern,
@@ -91,6 +96,7 @@ static void DitherPixel(SInt16 x, SInt16 y, const RGBColor *color,
 static Pattern CreateGrayPattern(UInt8 grayLevel);
 static void ExpandPattern(ConstPatternParam srcPattern, Pattern *dstPattern,
                          SInt16 hStretch, SInt16 vStretch);
+#endif
 
 /* ================================================================
  * PATTERN OPERATIONS
@@ -108,11 +114,14 @@ void GetIndPattern(Pattern *thePat, SInt16 patternListID, SInt16 index) {
     }
 }
 
+#if 0  /* UNUSED: PatternPixelValue - preserved for possible future use */
 static Boolean PatternPixelValue(ConstPatternParam pattern, SInt16 x, SInt16 y) {
     assert(pattern != NULL);
     return GetPatternPixel(pattern, x, y);
 }
+#endif /* PatternPixelValue */
 
+#if 0  /* UNUSED: FillPatternRect - preserved for possible future use */
 static void FillPatternRect(const Rect *rect, ConstPatternParam pattern, SInt16 mode) {
     extern GrafPtr g_currentPort; /* From QuickDrawCore.c */
     assert(rect != NULL);
@@ -122,15 +131,19 @@ static void FillPatternRect(const Rect *rect, ConstPatternParam pattern, SInt16 
         ApplyPatternToRect(rect, pattern, mode, g_currentPort);
     }
 }
+#endif /* FillPatternRect */
 
 /* ================================================================
  * PATTERN CREATION
  * ================================================================ */
 
+#if 0  /* UNUSED: MakeGrayPattern - preserved for possible future use */
 static Pattern MakeGrayPattern(UInt8 grayLevel) {
     return CreateGrayPattern(grayLevel);
 }
+#endif /* MakeGrayPattern */
 
+#if 0  /* UNUSED: MakeCheckerboardPattern - preserved for possible future use */
 static Pattern MakeCheckerboardPattern(SInt16 checkerSize) {
     Pattern pattern;
     memset(pattern.pat, 0, 8);
@@ -147,7 +160,9 @@ static Pattern MakeCheckerboardPattern(SInt16 checkerSize) {
 
     return pattern;
 }
+#endif /* MakeCheckerboardPattern */
 
+#if 0  /* UNUSED: MakeDiagonalPattern - preserved for possible future use */
 static Pattern MakeDiagonalPattern(Boolean rising) {
     Pattern pattern;
     memset(pattern.pat, 0, 8);
@@ -159,11 +174,13 @@ static Pattern MakeDiagonalPattern(Boolean rising) {
 
     return pattern;
 }
+#endif /* MakeDiagonalPattern */
 
 /* ================================================================
  * PATTERN STRETCHING AND TRANSFORMATION
  * ================================================================ */
 
+#if 0  /* UNUSED: StretchPattern - preserved for possible future use */
 static void StretchPattern(ConstPatternParam srcPattern, Pattern *dstPattern,
                    SInt16 hStretch, SInt16 vStretch) {
     assert(srcPattern != NULL);
@@ -171,7 +188,9 @@ static void StretchPattern(ConstPatternParam srcPattern, Pattern *dstPattern,
 
     ExpandPattern(srcPattern, dstPattern, hStretch, vStretch);
 }
+#endif /* StretchPattern */
 
+#if 0  /* UNUSED: RotatePattern - preserved for possible future use */
 static void RotatePattern(ConstPatternParam srcPattern, Pattern *dstPattern, SInt16 angle) {
     assert(srcPattern != NULL);
     assert(dstPattern != NULL);
@@ -209,7 +228,9 @@ static void RotatePattern(ConstPatternParam srcPattern, Pattern *dstPattern, SIn
         }
     }
 }
+#endif /* RotatePattern */
 
+#if 0  /* UNUSED: FlipPattern - preserved for possible future use */
 static void FlipPattern(ConstPatternParam srcPattern, Pattern *dstPattern,
                 Boolean horizontal, Boolean vertical) {
     assert(srcPattern != NULL);
@@ -228,11 +249,13 @@ static void FlipPattern(ConstPatternParam srcPattern, Pattern *dstPattern,
         }
     }
 }
+#endif /* FlipPattern */
 
 /* ================================================================
  * DITHERING OPERATIONS
  * ================================================================ */
 
+#if 0  /* UNUSED: DitherColor - preserved for possible future use */
 static void DitherColor(const RGBColor *color, SInt16 x, SInt16 y,
                 RGBColor *ditheredColor, SInt16 ditherType) {
     assert(color != NULL);
@@ -240,7 +263,9 @@ static void DitherColor(const RGBColor *color, SInt16 x, SInt16 y,
 
     DitherPixel(x, y, color, ditheredColor);
 }
+#endif /* DitherColor */
 
+#if 0  /* UNUSED: DitherRect - preserved for possible future use */
 static void DitherRect(const Rect *rect, const RGBColor *color, SInt16 ditherType) {
     assert(rect != NULL);
     assert(color != NULL);
@@ -260,7 +285,9 @@ static void DitherRect(const Rect *rect, const RGBColor *color, SInt16 ditherTyp
         }
     }
 }
+#endif /* DitherRect */
 
+#if 0  /* UNUSED: CreateDitheredPattern - preserved for possible future use */
 static Pattern CreateDitheredPattern(const RGBColor *color) {
     assert(color != NULL);
 
@@ -282,11 +309,13 @@ static Pattern CreateDitheredPattern(const RGBColor *color) {
 
     return pattern;
 }
+#endif /* CreateDitheredPattern */
 
 /* ================================================================
  * PATTERN ANALYSIS
  * ================================================================ */
 
+#if 0  /* UNUSED: CalculatePatternDensity - preserved for possible future use */
 static UInt8 CalculatePatternDensity(ConstPatternParam pattern) {
     assert(pattern != NULL);
 
@@ -302,7 +331,9 @@ static UInt8 CalculatePatternDensity(ConstPatternParam pattern) {
     /* Return density as percentage (0-100) */
     return (UInt8)((setBits * 100) / 64);
 }
+#endif /* CalculatePatternDensity */
 
+#if 0  /* UNUSED: IsUniformPattern - preserved for possible future use */
 static Boolean IsUniformPattern(ConstPatternParam pattern) {
     assert(pattern != NULL);
 
@@ -314,18 +345,22 @@ static Boolean IsUniformPattern(ConstPatternParam pattern) {
     }
     return true;
 }
+#endif /* IsUniformPattern */
 
+#if 0  /* UNUSED: PatternsEqual - preserved for possible future use */
 static Boolean PatternsEqual(ConstPatternParam pattern1, ConstPatternParam pattern2) {
     assert(pattern1 != NULL);
     assert(pattern2 != NULL);
 
     return memcmp(pattern1->pat, pattern2->pat, 8) == 0;
 }
+#endif /* PatternsEqual */
 
 /* ================================================================
  * INTERNAL HELPER FUNCTIONS
  * ================================================================ */
 
+#if 0  /* UNUSED: GetPatternPixel - helper for commented-out functions, preserved for possible future use */
 static Boolean GetPatternPixel(ConstPatternParam pattern, SInt16 x, SInt16 y) {
     /* Wrap coordinates to pattern size */
     x = x % 8;
@@ -335,7 +370,9 @@ static Boolean GetPatternPixel(ConstPatternParam pattern, SInt16 x, SInt16 y) {
 
     return (pattern->pat[y] & (0x80 >> x)) != 0;
 }
+#endif /* GetPatternPixel */
 
+#if 0  /* UNUSED: ApplyPatternToRect - helper for FillPatternRect, preserved for possible future use */
 static void ApplyPatternToRect(const Rect *rect, ConstPatternParam pattern,
                               SInt16 mode, GrafPtr port) {
     /* This would fill the rectangle with the pattern using the specified mode */
@@ -355,7 +392,9 @@ static void ApplyPatternToRect(const Rect *rect, ConstPatternParam pattern,
         }
     }
 }
+#endif /* ApplyPatternToRect */
 
+#if 0  /* UNUSED: DitherPixel - helper for DitherColor/DitherRect, preserved for possible future use */
 static void DitherPixel(SInt16 x, SInt16 y, const RGBColor *color,
                        RGBColor *ditheredColor) {
     /* Use 4x4 dither matrix for simplicity */
@@ -369,7 +408,9 @@ static void DitherPixel(SInt16 x, SInt16 y, const RGBColor *color,
     ditheredColor->green = (color->green > threshold) ? 0xFFFF : 0x0000;
     ditheredColor->blue = (color->blue > threshold) ? 0xFFFF : 0x0000;
 }
+#endif /* DitherPixel */
 
+#if 0  /* UNUSED: CreateGrayPattern - helper for MakeGrayPattern, preserved for possible future use */
 static Pattern CreateGrayPattern(UInt8 grayLevel) {
     Pattern pattern;
     memset(pattern.pat, 0, 8);
@@ -386,7 +427,9 @@ static Pattern CreateGrayPattern(UInt8 grayLevel) {
 
     return pattern;
 }
+#endif /* CreateGrayPattern */
 
+#if 0  /* UNUSED: ExpandPattern - helper for StretchPattern, preserved for possible future use */
 static void ExpandPattern(ConstPatternParam srcPattern, Pattern *dstPattern,
                          SInt16 hStretch, SInt16 vStretch) {
     memset(dstPattern->pat, 0, 8);
@@ -409,9 +452,12 @@ static void ExpandPattern(ConstPatternParam srcPattern, Pattern *dstPattern,
         }
     }
 }
+#endif /* ExpandPattern */
 
+#if 0  /* UNUSED: QDPlatform_SetPixelInPort - stub only called by ApplyPatternToRect */
 /* Additional platform function needed */
 static void QDPlatform_SetPixelInPort(GrafPtr port, SInt16 x, SInt16 y, Boolean foreground) {
     /* Platform-specific pixel setting implementation would go here */
     /* This is a stub for the pattern system */
 }
+#endif /* QDPlatform_SetPixelInPort */
