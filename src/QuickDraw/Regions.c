@@ -105,13 +105,8 @@ void SetEmptyRgn(RgnHandle rgn) {
 
     Region *region = *rgn;
 
-    /* Resize to minimum */
-    Region *newRegion = (Region *)realloc(region, kMinRegionSize);
-    if (newRegion) {
-        *rgn = newRegion;
-        region = newRegion;
-    }
-
+    /* Don't resize - just mark as empty
+     * realloc() is broken in bare-metal kernel and causes freeze */
     region->rgnSize = kMinRegionSize;
     SetRect(&region->rgnBBox, 0, 0, 0, 0);
 }
@@ -127,12 +122,16 @@ void SetRectRgn(RgnHandle rgn, SInt16 left, SInt16 top, SInt16 right, SInt16 bot
         return;
     }
 
-    /* Resize to minimum for rectangular region */
-    Region *newRegion = (Region *)realloc(region, kMinRegionSize);
+    /* Don't resize - realloc() is broken in bare-metal kernel
+     * Just use existing allocation */
+    Region *newRegion = region;  /* No realloc, use existing */
+    #if 0  /* DISABLED - realloc causes freeze */
+    newRegion = (Region *)realloc(region, kMinRegionSize);
     if (newRegion) {
         *rgn = newRegion;
         region = newRegion;
     }
+    #endif
 
     region->rgnSize = kMinRegionSize;
     SetRect(&region->rgnBBox, left, top, right, bottom);

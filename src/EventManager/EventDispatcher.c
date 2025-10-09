@@ -495,39 +495,56 @@ Boolean HandleUpdate(EventRecord* event)
 
     if (updateWindow) {
         /* Check if this is the About This Macintosh window */
+        EVT_LOG_DEBUG("HandleUpdate: checking if About window...\n");
         if (AboutWindow_IsOurs(updateWindow)) {
             /* About window handles its own BeginUpdate/EndUpdate */
+            EVT_LOG_DEBUG("HandleUpdate: About window, delegating...\n");
             AboutWindow_HandleUpdate(updateWindow);
             return true;
         }
+        EVT_LOG_DEBUG("HandleUpdate: not About window, proceeding...\n");
 
         /* Begin update to set up clipping */
+        EVT_LOG_DEBUG("HandleUpdate: calling BeginUpdate...\n");
         BeginUpdate(updateWindow);
+        EVT_LOG_DEBUG("HandleUpdate: BeginUpdate returned\n");
 
         /* Draw window contents */
+        EVT_LOG_DEBUG("HandleUpdate: calling SetPort...\n");
         SetPort((GrafPtr)updateWindow);
+        EVT_LOG_DEBUG("HandleUpdate: SetPort returned\n");
 
         /* Check if this is a folder window - use new integrated drawing */
         extern Boolean IsFolderWindow(WindowPtr w);
         extern void FolderWindow_Draw(WindowPtr w);
 
+        EVT_LOG_DEBUG("HandleUpdate: checking if folder window...\n");
         if (IsFolderWindow(updateWindow)) {
+            EVT_LOG_DEBUG("HandleUpdate: is folder window, calling FolderWindow_Draw...\n");
             /* Call integrated folder window drawing (handles icons, selection, etc.) */
             FolderWindow_Draw(updateWindow);
+            EVT_LOG_DEBUG("HandleUpdate: FolderWindow_Draw returned\n");
         } else {
+            EVT_LOG_DEBUG("HandleUpdate: not folder window, erasing rect...\n");
             /* Application would do the actual drawing */
             /* For now, just fill with white to show content area */
             Rect r = updateWindow->port.portRect;
             EraseRect(&r);
+            EVT_LOG_DEBUG("HandleUpdate: EraseRect returned\n");
         }
 
         /* Draw grow icon if window has grow box */
+        EVT_LOG_DEBUG("HandleUpdate: checking for grow icon...\n");
         if (updateWindow->windowKind >= 0) {
+            EVT_LOG_DEBUG("HandleUpdate: drawing grow icon...\n");
             DrawGrowIcon(updateWindow);
+            EVT_LOG_DEBUG("HandleUpdate: DrawGrowIcon returned\n");
         }
 
         /* End update to restore clipping */
+        EVT_LOG_DEBUG("HandleUpdate: calling EndUpdate...\n");
         EndUpdate(updateWindow);
+        EVT_LOG_DEBUG("HandleUpdate: EndUpdate returned\n");
 
         /* Log successful update */
         EVT_LOG_DEBUG("UPDATE: drew content for window=%p\n", updateWindow);
