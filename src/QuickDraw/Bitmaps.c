@@ -240,15 +240,6 @@ static void CopyBitsUnscaled(const BitMap *srcBits, const BitMap *dstBits,
         UInt32* srcBase = (UInt32*)srcBits->baseAddr;
         UInt32* dstBase = (UInt32*)dstBits->baseAddr;
 
-        extern void serial_logf(SystemLogModule module, SystemLogLevel level, const char* fmt, ...);
-        serial_logf(3, 2, "[CB_FAST] src=%p dst=%p w=%d h=%d\n", srcBase, dstBase, width, height);
-
-        /* Check first pixel of source */
-        if (srcBase) {
-            UInt32 firstPixel = srcBase[0];
-            serial_logf(3, 2, "[CB_FAST] First src pixel: 0x%08x (should be 0xFFFFFFFF)\n", firstPixel);
-        }
-
         for (SInt16 y = 0; y < height; y++) {
             SInt16 srcY = srcRect->top + y - srcBits->bounds.top;
             SInt16 dstY = dstRect->top + y - dstBits->bounds.top;

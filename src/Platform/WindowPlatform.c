@@ -31,19 +31,10 @@ Boolean Platform_HasColorQuickDraw(void) {
 Boolean Platform_InitializeWindowPort(WindowPtr window) {
     if (!window) return false;
 
-    PLATFORM_LOG_DEBUG("[Platform_InitializeWindowPort] START: window=%p, portRect=(%d,%d,%d,%d)\n",
-                  window,
-                  window->port.portRect.top, window->port.portRect.left,
-                  window->port.portRect.bottom, window->port.portRect.right);
-
     /* Initialize the GrafPort part of the window */
     window->port.portBits.baseAddr = (Ptr)framebuffer;
     /* Set PixMap flag (bit 15) to indicate 32-bit PixMap, not 1-bit BitMap */
     window->port.portBits.rowBytes = (fb_width * 4) | 0x8000;
-
-    PLATFORM_LOG_DEBUG("[Platform_InitializeWindowPort] After setting baseAddr/rowBytes: portRect=(%d,%d,%d,%d)\n",
-                  window->port.portRect.top, window->port.portRect.left,
-                  window->port.portRect.bottom, window->port.portRect.right);
 
     /* CRITICAL: Set portBits.bounds to map local (0,0) to global content position
      * This is the canonical QuickDraw way - local coords in the window port
@@ -61,19 +52,8 @@ Boolean Platform_InitializeWindowPort(WindowPtr window) {
         short w = window->port.portRect.right;
         short h = window->port.portRect.bottom;
 
-        PLATFORM_LOG_DEBUG("[Platform_InitializeWindowPort] Read portRect: w=%d, h=%d, portRect=(%d,%d,%d,%d)\n",
-                      w, h,
-                      window->port.portRect.top, window->port.portRect.left,
-                      window->port.portRect.bottom, window->port.portRect.right);
-
         /* This mapping makes local (0,0) → global (gx,gy) */
         SetRect(&window->port.portBits.bounds, gx, gy, gx + w, gy + h);
-
-        PLATFORM_LOG_DEBUG("[Platform_InitializeWindowPort] FINAL: portBits.bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
-                      window->port.portBits.bounds.left, window->port.portBits.bounds.top,
-                      window->port.portBits.bounds.right, window->port.portBits.bounds.bottom,
-                      window->port.portRect.left, window->port.portRect.top,
-                      window->port.portRect.right, window->port.portRect.bottom);
     } else {
         /* Fallback if strucRgn not set yet */
         SetRect(&window->port.portBits.bounds, 0, 0, fb_width, fb_height);
@@ -91,16 +71,8 @@ Boolean Platform_InitializeWindowPort(WindowPtr window) {
         window->port.visRgn = NewRgn();
     }
 
-    PLATFORM_LOG_DEBUG("[Platform_InitializeWindowPort] Before RectRgn: portRect=(%d,%d,%d,%d)\n",
-                  window->port.portRect.top, window->port.portRect.left,
-                  window->port.portRect.bottom, window->port.portRect.right);
-
     RectRgn(window->port.clipRgn, &window->port.portRect);
     RectRgn(window->port.visRgn, &window->port.portRect);
-
-    PLATFORM_LOG_DEBUG("[Platform_InitializeWindowPort] DONE: portRect=(%d,%d,%d,%d)\n",
-                  window->port.portRect.top, window->port.portRect.left,
-                  window->port.portRect.bottom, window->port.portRect.right);
 
     return true;
 }

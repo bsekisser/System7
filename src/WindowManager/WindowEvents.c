@@ -453,15 +453,9 @@ void BeginUpdate(WindowPtr theWindow) {
                 SInt16 height = gwBounds.bottom - gwBounds.top;
                 SInt16 rowBytes = pm->rowBytes & 0x3FFF;
 
-                serial_logf(kLogModuleWindow, kLogLevelDebug,
-                           "[GW_FILL] pixels=%p height=%d rowBytes=%d\n",
-                           pixels, height, rowBytes);
-
                 /* Fill with opaque white (0xFFFFFFFF = ARGB white) - use memset for speed */
                 size_t bytesToFill = (size_t)height * (size_t)rowBytes;
                 memset(pixels, 0xFF, bytesToFill);
-
-                serial_logf(kLogModuleWindow, kLogLevelDebug, "[GW_FILL] Done, filled %zu bytes\n", bytesToFill);
             } else {
                 /* Fall back to EraseRect for non-32-bit modes */
                 EraseRect(&gwBounds);
