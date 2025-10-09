@@ -1,5 +1,4 @@
 /*
-#include "MenuManager/menu_private.h"
  * MenuTitleTracking.c - Menu Title Hit-Testing and Position Tracking
  *
  * Tracks menu title positions in the menu bar for proper hit-testing
@@ -11,6 +10,7 @@
 
 /* Printf for debugging */
 #include "MenuManager/MenuManager.h"
+#include "MenuManager/menu_private.h"
 #include "MenuManager/MenuLogging.h"
 #include "MenuManager/MenuTypes.h"
 
@@ -125,12 +125,11 @@ void GetMenuBarRect(Rect* outRect)
 }
 
 /* Update menu bar dimensions */
-void SetMenuBarRect(short left, short top, short right, short bottom)
+void SetMenuBarRect(const Rect* rect)
 {
-    gMenuBarRect.left = left;
-    gMenuBarRect.top = top;
-    gMenuBarRect.right = right;
-    gMenuBarRect.bottom = bottom;
+    if (rect) {
+        gMenuBarRect = *rect;
+    }
 }
 
 /* Get menu title count */
@@ -140,33 +139,18 @@ short GetMenuTitleCount(void)
 }
 
 /* Get menu title info by index */
-Boolean GetMenuTitleByIndex(short index, short* menuID, Rect* titleRect, char* titleText)
+MenuHandle GetMenuTitleByIndex(SInt16 index)
 {
     if (index < 0 || index >= gMenuTitleCount) {
-        return false;
+        return NULL;
     }
+
+    /* Get the menu by ID - this requires GetMenuHandle which is in MenuList.c */
+    /* For now, return NULL as we don't have access to the menu list here */
+    extern MenuHandle GetMenuHandle(short menuID);
 
     MenuTitleSlot* slot = &gMenuTitles[index];
-
-    if (menuID) {
-        *menuID = slot->menuID;
-    }
-
-    if (titleRect) {
-        *titleRect = slot->titleRect;
-    }
-
-    if (titleText) {
-        /* Simple string copy */
-        char* src = slot->titleText;
-        char* dst = titleText;
-        while (*src) {
-            *dst++ = *src++;
-        }
-        *dst = '\0';
-    }
-
-    return true;
+    return GetMenuHandle(slot->menuID);
 }
 
 /* Export for MenuSelection.c to use */

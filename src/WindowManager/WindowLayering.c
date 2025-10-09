@@ -621,7 +621,7 @@ void WM_InvalidateWindowsBelow(WindowPtr topWindow, const Rect* rect) {
  * Debug and Diagnostic Functions
  * ============================================================================ */
 
-void WM_DumpWindowLayerInfo(void) {
+static void WM_DumpWindowLayerInfo(void) {
     #ifdef DEBUG_WINDOW_MANAGER
     printf("\n=== Window Layer Information ===\n");
 

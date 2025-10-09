@@ -6,6 +6,7 @@
 #include "MacTypes.h"
 #include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowManagerInternal.h"
+#include "WindowManager/WindowPlatform.h"
 #include "QuickDraw/QuickDraw.h"
 #include "System71StdLib.h"
 #include "Platform/PlatformLogging.h"
@@ -520,7 +521,6 @@ void Platform_DrawCloseBoxDirect(WindowPtr window) {
     /* Get framebuffer directly - we need to draw outside the GWorld */
     extern void* framebuffer;
     extern uint32_t fb_width, fb_height, fb_pitch;
-    extern uint32_t qd_gray_pattern[];  /* Gray50 pattern from QuickDraw */
 
     /* Fill close box area with gray50 pattern (title bar background) */
     uint32_t* fb = (uint32_t*)framebuffer;
@@ -703,7 +703,7 @@ void Platform_SizeNativeWindow(WindowPtr window, short width, short height) {
 }
 
 /* Drag feedback */
-void Platform_ShowDragOutline(const Rect* rect) {
+void Platform_ShowDragOutline(Rect* rect) {
     /* Draw drag outline */
     GrafPtr savePort;
     GetPort(&savePort);
@@ -720,47 +720,47 @@ void Platform_ShowDragOutline(const Rect* rect) {
     SetPort(savePort);
 }
 
-void Platform_HideDragOutline(const Rect* rect) {
+void Platform_HideDragOutline(Rect* rect) {
     /* Erase drag outline by drawing again in XOR mode */
     Platform_ShowDragOutline(rect);
 }
 
-void Platform_UpdateDragOutline(const Rect* oldRect, const Rect* newRect) {
+void Platform_UpdateDragOutline(Rect* oldRect, Rect* newRect) {
     if (oldRect) Platform_HideDragOutline(oldRect);
     if (newRect) Platform_ShowDragOutline(newRect);
 }
 
-void Platform_ShowDragRect(const Rect* rect) {
+void Platform_ShowDragRect(Rect* rect) {
     Platform_ShowDragOutline(rect);
 }
 
-void Platform_HideDragRect(const Rect* rect) {
+void Platform_HideDragRect(Rect* rect) {
     Platform_HideDragOutline(rect);
 }
 
-void Platform_UpdateDragRect(const Rect* oldRect, const Rect* newRect) {
+void Platform_UpdateDragRect(Rect* oldRect, Rect* newRect) {
     Platform_UpdateDragOutline(oldRect, newRect);
 }
 
 /* Size feedback */
-void Platform_ShowSizeFeedback(const Rect* rect) {
+void Platform_ShowSizeFeedback(Rect* rect) {
     Platform_ShowDragOutline(rect);
 }
 
-void Platform_HideSizeFeedback(const Rect* rect) {
+void Platform_HideSizeFeedback(Rect* rect) {
     Platform_HideDragOutline(rect);
 }
 
-void Platform_UpdateSizeFeedback(const Rect* oldRect, const Rect* newRect) {
+void Platform_UpdateSizeFeedback(Rect* oldRect, Rect* newRect) {
     Platform_UpdateDragOutline(oldRect, newRect);
 }
 
 /* Zoom animation */
-void Platform_ShowZoomFrame(const Rect* rect) {
+void Platform_ShowZoomFrame(Rect* rect) {
     Platform_ShowDragOutline(rect);
 }
 
-void Platform_HideZoomFrame(const Rect* rect) {
+void Platform_HideZoomFrame(Rect* rect) {
     Platform_HideDragOutline(rect);
 }
 

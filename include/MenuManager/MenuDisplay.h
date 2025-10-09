@@ -13,10 +13,9 @@
 
 #include "SystemTypes.h"
 
-#include "SystemTypes.h"
-
 #include "MenuManager.h"
 #include "MenuTypes.h"
+#include "MenuManager/MenuInternalTypes.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,20 +26,19 @@ extern "C" {
  * ============================================================================ */
 
 /* Menu drawing flags */
+/* (Defined in MenuTypes.h) */
 
 /* Menu item drawing flags */
+/* (Defined in MenuTypes.h) */
 
 /* Menu bar drawing modes */
+/* (Defined in MenuTypes.h) */
 
 /* ============================================================================
  * Menu Display Data Structures
  * ============================================================================ */
 
-/* Menu drawing information */
-
-/* Menu item drawing information */
-
-/* Menu bar drawing information */
+/* MenuDrawInfo, MenuItemDrawInfo, MenuBarDrawInfo defined in MenuInternalTypes.h */
 
 /* ============================================================================
  * Menu Bar Display Functions

@@ -13,6 +13,7 @@
 #include "System71StdLib.h"
 
 #include "MenuManager/menu_private.h"
+#include "MenuManager/MenuDisplay.h"
 #include "MemoryMgr/MemoryManager.h"
 
 

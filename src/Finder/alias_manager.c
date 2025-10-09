@@ -82,11 +82,10 @@ OSErr ResolveAlias(FSSpec *alias, FSSpec *target, Boolean *wasChanged)
     }
 
     /* Use Alias Manager to resolve the alias */
-    err = ResolveAliasFile(alias, true, &targetChanged, &wasAliasFile);
+    err = ResolveAliasFile(alias, target, &targetChanged, &wasAliasFile);
 
     if (err == noErr) {
-        /* Copy the resolved target */
-        *target = *alias; /* ResolveAliasFile modifies the input FSSpec to point to target */
+        /* target is now populated by ResolveAliasFile */
 
         if (wasChanged != nil) {
             *wasChanged = targetChanged;

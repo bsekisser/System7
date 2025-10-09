@@ -58,6 +58,14 @@ extern "C" {
  * Internal Enumerations
  * ============================================================================ */
 
+/* Window part visual states (used by WindowParts.c) */
+typedef enum {
+    kPartStateNormal = 0,
+    kPartStatePressed = 1,
+    kPartStateHighlighted = 2,
+    kPartStateDisabled = 3
+} WindowPartState;
+
 /* Window state flags for internal tracking */
 
 /* Window update flags */
@@ -177,17 +185,17 @@ Boolean Platform_ProcessPendingEvents(void);
 /*
  * Window feedback and visual effects
  */
-void Platform_ShowDragOutline(const Rect* rect);
-void Platform_HideDragOutline(const Rect* rect);
-void Platform_UpdateDragOutline(const Rect* oldRect, const Rect* newRect);
-void Platform_ShowDragRect(const Rect* rect);
-void Platform_HideDragRect(const Rect* rect);
-void Platform_UpdateDragRect(const Rect* oldRect, const Rect* newRect);
-void Platform_ShowSizeFeedback(const Rect* rect);
-void Platform_HideSizeFeedback(const Rect* rect);
-void Platform_UpdateSizeFeedback(const Rect* oldRect, const Rect* newRect);
-void Platform_ShowZoomFrame(const Rect* rect);
-void Platform_HideZoomFrame(const Rect* rect);
+void Platform_ShowDragOutline(Rect* rect);
+void Platform_HideDragOutline(Rect* rect);
+void Platform_UpdateDragOutline(Rect* oldRect, Rect* newRect);
+void Platform_ShowDragRect(Rect* rect);
+void Platform_HideDragRect(Rect* rect);
+void Platform_UpdateDragRect(Rect* oldRect, Rect* newRect);
+void Platform_ShowSizeFeedback(Rect* rect);
+void Platform_HideSizeFeedback(Rect* rect);
+void Platform_UpdateSizeFeedback(Rect* oldRect, Rect* newRect);
+void Platform_ShowZoomFrame(Rect* rect);
+void Platform_HideZoomFrame(Rect* rect);
 void Platform_EnableWindow(WindowPtr window);
 Boolean Platform_GetPreferredDragFeedback(void);
 Boolean Platform_IsResizeFeedbackEnabled(void);
@@ -200,9 +208,10 @@ Boolean Platform_IsZoomAnimationEnabled(void);
  * ============================================================================ */
 
 /*
- * Window list management
+ * Window list management (WindowLayering.c)
  */
 void WM_RecalculateWindowOrder(void);
+void WM_RecalculateAllVisibility(void);
 void WM_UpdateWindowVisibility(WindowPtr window);
 WindowPtr WM_FindWindowAt(Point pt);
 WindowPtr WM_GetNextVisibleWindow(WindowPtr window);
@@ -212,6 +221,34 @@ void WM_SetWindowLayer(WindowPtr window, short layer);
 Boolean WM_IsFloatingWindow(WindowPtr window);
 Boolean WM_IsAlertDialog(WindowPtr window);
 Boolean WM_WindowsOverlap(WindowPtr window1, WindowPtr window2);
+
+/*
+ * Modal window management (WindowLayering.c)
+ */
+void WM_SetModalWindow(WindowPtr window);
+void WM_ClearModalWindow(void);
+WindowPtr WM_GetModalWindow(void);
+void WM_EnableAllWindows(void);
+
+/*
+ * Floating window management (WindowLayering.c)
+ */
+void WM_AddFloatingWindow(WindowPtr window);
+void WM_RemoveFloatingWindow(WindowPtr window);
+
+/*
+ * Window intersection and overlap detection (WindowLayering.c)
+ */
+Boolean WM_WindowIntersectsRect(WindowPtr window, const Rect* rect);
+void WM_GetWindowsInRect(const Rect* rect, WindowPtr* windows, short maxWindows, short* numWindows);
+WindowPtr WM_GetTopmostWindowInRect(const Rect* rect);
+
+/*
+ * Layer update and maintenance (WindowLayering.c)
+ */
+void WM_InvalidateLayerOrder(void);
+Boolean WM_LayersNeedUpdate(void);
+void WM_UpdateWindowLayers(void);
 
 /*
  * Window state management
@@ -290,6 +327,33 @@ Boolean WM_WindowIsZoomed(WindowPtr window);
  */
 long WM_StandardWindowDefProc(short varCode, WindowPtr theWindow, short message, long param);
 long WM_DialogWindowDefProc(short varCode, WindowPtr theWindow, short message, long param);
+
+/*
+ * Window frame drawing (WindowParts.c)
+ */
+void WM_DrawStandardWindowFrame(WindowPtr window, short varCode);
+void WM_DrawDialogWindowFrame(WindowPtr window, short varCode);
+void WM_DrawWindowBorder(WindowPtr window);
+void WM_DrawDialogBorder(WindowPtr window);
+void WM_DrawWindowTitleBar(WindowPtr window);
+void WM_DrawWindowTitle(WindowPtr window, const Rect* titleRect);
+void WM_DrawWindowCloseBox(WindowPtr window, WindowPartState state);
+void WM_DrawWindowZoomBox(WindowPtr window, WindowPartState state);
+void WM_DrawGrowIcon(WindowPtr window);
+void WM_DrawGrowImage(WindowPtr window);
+
+/*
+ * Window region calculation (WindowParts.c)
+ */
+void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode);
+void WM_CalculateDialogWindowRegions(WindowPtr window, short varCode);
+
+/*
+ * Window parts initialization (WindowParts.c)
+ */
+void WM_InitializeWindowParts(WindowPtr window, short varCode);
+void WM_InitializeDialogParts(WindowPtr window, short varCode);
+void WM_CleanupWindowParts(WindowPtr window);
 
 /*
  * Memory management helpers

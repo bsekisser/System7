@@ -247,7 +247,7 @@ void DisposePixMap(PixMapHandle pm) {
 
     /* Dispose of color table */
     if (pixMap->pmTable) {
-        DisposeCTable(pixMap->pmTable);
+        DisposeCTable((CTabHandle)pixMap->pmTable);
     }
 
     free(pixMap);
@@ -267,7 +267,7 @@ void CopyPixMap(PixMapHandle srcPM, PixMapHandle dstPM) {
     /* Duplicate color table if present */
     if (src->pmTable) {
         ColorTable* srcTable = (ColorTable*)*((Handle)src->pmTable);
-        dst->pmTable = GetCTable(srcTable->ctSize + 1);
+        dst->pmTable = (Handle)GetCTable(srcTable->ctSize + 1);
         if (dst->pmTable) {
             ColorTable* dstTable = (ColorTable*)*((Handle)dst->pmTable);
             memcpy(dstTable, srcTable,
@@ -677,7 +677,7 @@ static void InitializeDevice(GDHandle device, SInt16 depth) {
         pm->rowBytes = 0x8000 | ((gd->gdRect.right - gd->gdRect.left) * depth / 8);
 
         /* Create color table */
-        pm->pmTable = GetCTable(1 << depth);
+        pm->pmTable = (Handle)GetCTable(1 << depth);
     }
 }
 

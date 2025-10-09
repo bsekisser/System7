@@ -55,7 +55,7 @@ extern void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color
  * FM_SynthesizeBold - Create bold version by horizontal emboldening
  * Algorithm: Draw character twice, offset by BOLD_OFFSET pixels
  */
-void FM_SynthesizeBold(short x, short y, char ch, uint32_t color) {
+static void FM_SynthesizeBold(short x, short y, char ch, uint32_t color) {
     FSS_LOG("SynthesizeBold: char='%c' at (%d,%d)\n", ch, x, y);
 
     /* Draw original character */
@@ -81,7 +81,7 @@ short FM_GetBoldWidth(short normalWidth) {
  * FM_SynthesizeItalic - Create italic by shearing transform
  * Algorithm: Shift each scanline proportionally (1:4 ratio)
  */
-void FM_SynthesizeItalic(short x, short y, char ch, uint32_t color) {
+static void FM_SynthesizeItalic(short x, short y, char ch, uint32_t color) {
     FSS_LOG("SynthesizeItalic: char='%c' at (%d,%d)\n", ch, x, y);
 
     /* For now, draw with simple offset simulation */
@@ -109,7 +109,7 @@ short FM_GetItalicWidth(short normalWidth, short height) {
  * FM_DrawUnderline - Draw underline for text run
  * Position: baseline + descent/2 (per System 7.1)
  */
-void FM_DrawUnderline(short x, short y, short width, uint32_t color) {
+static void FM_DrawUnderline(short x, short y, short width, uint32_t color) {
     short underlineY = y + UNDERLINE_OFFSET;
 
     FSS_LOG("DrawUnderline: from (%d,%d) width=%d\n", x, underlineY, width);
@@ -129,7 +129,7 @@ void FM_DrawUnderline(short x, short y, short width, uint32_t color) {
  * FM_SynthesizeShadow - Create shadow effect
  * Algorithm: Draw character, then draw offset shadow behind
  */
-void FM_SynthesizeShadow(short x, short y, char ch, uint32_t foreColor, uint32_t shadowColor) {
+static void FM_SynthesizeShadow(short x, short y, char ch, uint32_t foreColor, uint32_t shadowColor) {
     FSS_LOG("SynthesizeShadow: char='%c' at (%d,%d)\n", ch, x, y);
 
     /* Draw shadow first (offset and in shadow color) */
@@ -155,7 +155,7 @@ short FM_GetShadowWidth(short normalWidth) {
  * FM_SynthesizeOutline - Create outline effect
  * Algorithm: Draw character stroked, then fill center
  */
-void FM_SynthesizeOutline(short x, short y, char ch, uint32_t outlineColor, uint32_t fillColor) {
+static void FM_SynthesizeOutline(short x, short y, char ch, uint32_t outlineColor, uint32_t fillColor) {
     FSS_LOG("SynthesizeOutline: char='%c' at (%d,%d)\n", ch, x, y);
 
     /* Draw outline in 8 directions */
@@ -207,7 +207,7 @@ short FM_GetExtendedWidth(short normalWidth) {
  * FM_SynthesizeStyledChar - Apply multiple styles to character
  * Handles combination of bold, italic, underline, etc.
  */
-void FM_SynthesizeStyledChar(short x, short y, char ch, Style face, uint32_t color) {
+static void FM_SynthesizeStyledChar(short x, short y, char ch, Style face, uint32_t color) {
     Boolean hasBold = (face & bold) != 0;
     Boolean hasItalic = (face & italic) != 0;
     Boolean hasUnderline = (face & underline) != 0;
@@ -295,7 +295,7 @@ short FM_GetStyledCharWidth(char ch, Style face) {
 /*
  * FM_DrawStyledString - Draw complete string with styles
  */
-void FM_DrawStyledString(ConstStr255Param s, Style face) {
+static void FM_DrawStyledString(ConstStr255Param s, Style face) {
     if (!s || s[0] == 0) return;
 
     Point pen = g_currentPort->pnLoc;

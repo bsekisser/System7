@@ -37,9 +37,8 @@ extern "C" {
  * Platform_InitWindowing - Initialize platform windowing system
  *
  * Must be called before any other platform functions.
- * Returns true on success, false on failure.
  */
-Boolean Platform_InitWindowing(void);
+void Platform_InitWindowing(void);
 
 /*
  * Platform_ShutdownWindowing - Shutdown platform windowing system
@@ -53,7 +52,7 @@ void Platform_ShutdownWindowing(void);
  *
  * Returns a bitmask of supported platform features.
  */
-PlatformCapabilities Platform_GetCapabilities(void);
+UInt32 Platform_GetCapabilities(void);
 
 /*
  * Platform_HasColorQuickDraw - Check for Color QuickDraw support
@@ -103,7 +102,7 @@ short Platform_GetScreenFromPoint(Point pt);
  *
  * Creates the underlying native window for a Mac OS window.
  */
-Boolean Platform_CreateNativeWindow(WindowPtr window);
+void Platform_CreateNativeWindow(WindowPtr window);
 
 /*
  * Platform_DestroyNativeWindow - Destroy platform native window
@@ -433,23 +432,23 @@ void Platform_HighlightWindowPart(WindowPtr window, short part, Boolean highligh
 /*
  * Platform_ShowDragOutline - Show drag outline
  *
- * Displays a gray outline of the region being dragged.
+ * Displays a gray outline of the rectangle being dragged.
  */
-void Platform_ShowDragOutline(RgnHandle rgn, Point pt);
+void Platform_ShowDragOutline(Rect* rect);
 
 /*
  * Platform_UpdateDragOutline - Update drag outline
  *
- * Updates the position of the drag outline.
+ * Updates the position of the drag outline from oldRect to newRect.
  */
-void Platform_UpdateDragOutline(RgnHandle rgn, Point pt);
+void Platform_UpdateDragOutline(Rect* oldRect, Rect* newRect);
 
 /*
  * Platform_HideDragOutline - Hide drag outline
  *
  * Removes the drag outline from the display.
  */
-void Platform_HideDragOutline(void);
+void Platform_HideDragOutline(Rect* rect);
 
 /* ============================================================================
  * Event System Integration
@@ -503,14 +502,14 @@ void Platform_DisposeCTable(CTabHandle ctab);
  *
  * Returns platform-specific data associated with a window.
  */
-PlatformWindowData* Platform_GetPlatformWindowData(WindowPtr window);
+void* Platform_GetPlatformWindowData(WindowPtr window);
 
 /*
  * Platform_SetPlatformWindowData - Set platform-specific data
  *
  * Associates platform-specific data with a window.
  */
-void Platform_SetPlatformWindowData(WindowPtr window, PlatformWindowData* data);
+void Platform_SetPlatformWindowData(WindowPtr window, void* data);
 
 /*
  * Platform_GetNativeWindowHandle - Get native window handle

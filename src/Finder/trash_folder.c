@@ -110,7 +110,10 @@ OSErr EmptyTrash(Boolean force)
     } while (err == noErr);
 
     /* Update trash info */
-    err = CountTrashItems(&gTrashInfo.itemCount, &gTrashInfo.totalSize);
+    UInt32 tempItemCount, tempTotalSize;
+    err = CountTrashItems(&tempItemCount, &tempTotalSize);
+    gTrashInfo.itemCount = (UInt16)tempItemCount;
+    gTrashInfo.totalSize = tempTotalSize;
     gTrashInfo.lastEmptied = TickCount() / 60; /* Convert to seconds */
 
     /* Show warning if some locked items remain */
@@ -177,7 +180,7 @@ OSErr MoveToTrash(FSSpec *items, short count)
         err = FSMakeFSSpec(gTrashFolder.vRefNum, gTrashFolder.parID, uniqueName, &trashItemSpec);
         if (err == noErr) {
             /* Name conflict - append number */
-            err = GenerateUniqueTrashName(&items[itemIndex], uniqueName);
+            err = GenerateUniqueTrashName(items[itemIndex].name, uniqueName);
             if (err != noErr) continue;
         }
 
@@ -190,7 +193,10 @@ OSErr MoveToTrash(FSSpec *items, short count)
     }
 
     /* Update trash statistics */
-    err = CountTrashItems(&gTrashInfo.itemCount, &gTrashInfo.totalSize);
+    UInt32 tempItemCount, tempTotalSize;
+    err = CountTrashItems(&tempItemCount, &tempTotalSize);
+    gTrashInfo.itemCount = (UInt16)tempItemCount;
+    gTrashInfo.totalSize = tempTotalSize;
     return err;
 }
 
@@ -283,7 +289,10 @@ OSErr InitializeTrashFolder(void)
     gTrashInfo.lastEmptied = 0;
 
     /* Count current trash contents */
-    err = CountTrashItems(&gTrashInfo.itemCount, &gTrashInfo.totalSize);
+    UInt32 tempItemCount, tempTotalSize;
+    err = CountTrashItems(&tempItemCount, &tempTotalSize);
+    gTrashInfo.itemCount = (UInt16)tempItemCount;
+    gTrashInfo.totalSize = tempTotalSize;
 
     gTrashInitialized = true;
     return err;
@@ -297,7 +306,7 @@ static OSErr FindTrashFolder(FSSpec *trashSpec)
 {
     OSErr err;
     short vRefNum;
-    long dirID;
+    SInt32 dirID;
 
     /* Get system volume */
     err = FindFolder(kOnSystemDisk, kTrashFolderType, kDontCreateFolder, &vRefNum, &dirID);

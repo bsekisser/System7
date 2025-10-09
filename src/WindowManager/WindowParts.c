@@ -57,13 +57,7 @@ long WM_DialogWindowDefProc(short varCode, WindowPtr theWindow, short message, l
 #define WINDOW_BORDER_WIDTH     1
 #define WINDOW_SHADOW_WIDTH     3
 
-/* Window part visual states */
-typedef enum {
-    kPartStateNormal = 0,
-    kPartStatePressed = 1,
-    kPartStateHighlighted = 2,
-    kPartStateDisabled = 3
-} WindowPartState;
+/* Window part visual states - now defined in WindowManagerInternal.h */
 
 /* ============================================================================
  * Window Part Calculation Functions
