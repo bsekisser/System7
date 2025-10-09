@@ -416,11 +416,18 @@ void CloseWindow(WindowPtr theWindow) {
     #endif
 
     /* Hide the window if it's visible */
-    WM_LOG_DEBUG("CloseWindow: Checking visible flag=%d\n", theWindow->visible);
-    if (theWindow->visible) {
-        WM_LOG_DEBUG("CloseWindow: Calling HideWindow\n");
+    WM_LOG_DEBUG("CloseWindow: About to check visible flag, window=0x%08x\n", (unsigned int)P2UL(theWindow));
+    WM_LOG_DEBUG("CloseWindow: Reading theWindow->visible...\n");
+    Boolean isVisible = theWindow->visible;
+    WM_LOG_DEBUG("CloseWindow: visible flag=%d\n", isVisible);
+    if (isVisible) {
+        WM_LOG_DEBUG("CloseWindow: Window is visible, about to call HideWindow(0x%08x)\n", (unsigned int)P2UL(theWindow));
+        __asm__ volatile("nop; nop; nop;");
         HideWindow(theWindow);
+        __asm__ volatile("nop; nop; nop;");
         WM_LOG_DEBUG("CloseWindow: HideWindow returned\n");
+    } else {
+        WM_LOG_DEBUG("CloseWindow: Window not visible, skipping HideWindow\n");
     }
 
     /* Remove from window list */

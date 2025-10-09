@@ -945,22 +945,43 @@ void ShowWindow(WindowPtr window) {
 }
 
 void HideWindow(WindowPtr window) {
-    if (!window || !window->visible) return;
+    WM_LOG_DEBUG("[WM] HideWindow: STUB ENTRY\n");
+    return;
 
-    WM_DEBUG("HideWindow: Hiding window");
+    /* DISABLED FOR TESTING
+    WM_DEBUG("HideWindow: ENTRY, window=0x%08x", (unsigned int)P2UL(window));
 
+    if (!window) {
+        WM_DEBUG("HideWindow: NULL window, returning");
+        return;
+    }
+
+    WM_DEBUG("HideWindow: window->visible=%d", window->visible);
+    if (!window->visible) {
+        WM_DEBUG("HideWindow: Window not visible, returning");
+        return;
+    }
+
+    WM_DEBUG("HideWindow: Setting visible=false");
+    */
     window->visible = false;
 
     /* Save the region that needs repainting */
     RgnHandle clobberedRgn = NULL;
+    WM_DEBUG("HideWindow: Checking strucRgn=0x%08x", (unsigned int)P2UL(window->strucRgn));
     if (window->strucRgn) {
+        WM_DEBUG("HideWindow: Calling NewRgn()");
         clobberedRgn = NewRgn();
+        WM_DEBUG("HideWindow: NewRgn returned 0x%08x", (unsigned int)P2UL(clobberedRgn));
         if (clobberedRgn) {
+            WM_DEBUG("HideWindow: Calling CopyRgn()");
             CopyRgn(window->strucRgn, clobberedRgn);
+            WM_DEBUG("HideWindow: CopyRgn returned");
         }
     }
 
     /* Erase the window's area with desktop pattern FIRST */
+    WM_DEBUG("HideWindow: About to erase region, clobberedRgn=0x%08x", (unsigned int)P2UL(clobberedRgn));
     if (clobberedRgn) {
         extern void EraseRgn(RgnHandle rgn);
         extern void GetWMgrPort(GrafPtr* port);
@@ -968,24 +989,46 @@ void HideWindow(WindowPtr window) {
         extern void GetPort(GrafPtr* port);
 
         GrafPtr savePort, wmPort;
+        WM_DEBUG("HideWindow: Calling GetPort()");
         GetPort(&savePort);
+        WM_DEBUG("HideWindow: GetPort returned, savePort=0x%08x", (unsigned int)P2UL(savePort));
+
+        WM_DEBUG("HideWindow: Calling GetWMgrPort()");
         GetWMgrPort(&wmPort);
+        WM_DEBUG("HideWindow: GetWMgrPort returned, wmPort=0x%08x", (unsigned int)P2UL(wmPort));
+
         if (wmPort) {
+            WM_DEBUG("HideWindow: Calling SetPort(wmPort)");
             SetPort(wmPort);  /* Set to desktop port for erasing */
+            WM_DEBUG("HideWindow: SetPort returned");
         }
+
+        WM_DEBUG("HideWindow: Calling EraseRgn()");
         EraseRgn(clobberedRgn);
+        WM_DEBUG("HideWindow: EraseRgn returned");
+
+        WM_DEBUG("HideWindow: Restoring port");
         SetPort(savePort);  /* Restore previous port */
+        WM_DEBUG("HideWindow: Port restored");
     }
 
     /* Recalculate visible regions */
+    WM_DEBUG("HideWindow: Calling CalcVisBehind()");
     CalcVisBehind(window->nextWindow, clobberedRgn);
+    WM_DEBUG("HideWindow: CalcVisBehind returned");
 
     /* Repaint windows behind */
+    WM_DEBUG("HideWindow: Calling PaintBehind()");
     PaintBehind(window->nextWindow, clobberedRgn);
+    WM_DEBUG("HideWindow: PaintBehind returned");
 
     if (clobberedRgn) {
+        WM_DEBUG("HideWindow: Calling DisposeRgn()");
         DisposeRgn(clobberedRgn);
+        WM_DEBUG("HideWindow: DisposeRgn returned");
     }
+
+    WM_DEBUG("HideWindow: RETURN");
 }
 
 void ShowHide(WindowPtr window, Boolean showFlag) {

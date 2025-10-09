@@ -587,21 +587,8 @@ void ShowWindow(WindowPtr window) {
     PaintOne(window, NULL);
     CalcVisBehind(window->nextWindow, window->strucRgn);
 }
-void HideWindow(WindowPtr window) {
-    if (!window) {
-        SYSTEM_LOG_DEBUG("HideWindow: NULL window\n");
-        return;
-    }
-
-    SYSTEM_LOG_DEBUG("HideWindow: Hiding window at %p\n", window);
-
-    window->visible = false;
-
-    /* Invalidate area behind window */
-    extern void InvalRect(const Rect* rect);
-    GrafPort* port = (GrafPort*)window;
-    InvalRect(&port->portRect);
-}
+/* HideWindow stub removed - real implementation in WindowManager/WindowDisplay.c */
+/* void HideWindow(WindowPtr window) { ... } */
 void SelectWindow(WindowPtr window) {
     if (!window) {
         SYSTEM_LOG_DEBUG("SelectWindow: NULL window\n");
