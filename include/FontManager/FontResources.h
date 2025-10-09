@@ -110,7 +110,7 @@ OSErr FM_ExtractBitmap(const NFNTResource *nfnt, UInt8 **bitmapOut, Size *sizeOu
 
 /* Font Association Functions */
 SInt16 FM_FindBestMatch(const FONDResource *fond, SInt16 size, Style face);
-OSErr FM_GetFontAssociation(const FONDResource *fond, SInt16 index, FontAssocEntry **entryOut);
+OSErr FM_GetFontAssociation(const FONDResource *fond, SInt16 index, const FontAssocEntry **entryOut);
 
 /* Resource Utilities */
 Boolean FM_IsValidFOND(Handle fondHandle);

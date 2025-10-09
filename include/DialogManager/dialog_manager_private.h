@@ -122,7 +122,7 @@ void DMgrCite4(SInt16 param1, SInt32 param2, SInt32 param3, SInt32 param4, SInt1
  */
 
 /* Internal utility functions */
-void* GetDialogManagerDispatchTable(void);
+const void* GetDialogManagerDispatchTable(void);
 Boolean IsValidDialogManagerSelector(SInt16 selector);
 
 /* Global state manipulation - evidence from DialogMgrGlobals structure */

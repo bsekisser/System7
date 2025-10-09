@@ -247,7 +247,7 @@ void InitResourceManager(void) {
     extern const unsigned char patterns_rsrc_data[];
     extern const unsigned int patterns_rsrc_size;
 
-    gResMgr.resFiles[0].data = (UInt8*)patterns_rsrc_data;
+    gResMgr.resFiles[0].data = (UInt8*)(uintptr_t)patterns_rsrc_data;
     gResMgr.resFiles[0].dataSize = patterns_rsrc_size;
 
     /* Parse resource header and map */

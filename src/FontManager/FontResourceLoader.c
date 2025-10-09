@@ -279,13 +279,13 @@ SInt16 FM_FindBestMatch(const FONDResource *fond, SInt16 size, Style face) {
     return bestID;
 }
 
-OSErr FM_GetFontAssociation(const FONDResource *fond, SInt16 index, FontAssocEntry **entryOut) {
+OSErr FM_GetFontAssociation(const FONDResource *fond, SInt16 index, const FontAssocEntry **entryOut) {
     if (!fond || !entryOut || index < 0 || index >= fond->ffNumEntries) {
         return paramErr;
     }
 
     const FontAssocEntry *entries = (const FontAssocEntry*)((const UInt8*)fond + sizeof(FONDResource));
-    *entryOut = (FontAssocEntry*)&entries[index];
+    *entryOut = &entries[index];
 
     return noErr;
 }

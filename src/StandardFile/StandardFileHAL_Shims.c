@@ -251,7 +251,7 @@ void StandardFile_HAL_AddFileToList(DialogPtr dialog, const FSSpec *spec, OSType
     /* Determine if this is a folder by checking with File Manager */
     CInfoPBRec pb;
     memset(&pb, 0, sizeof(pb));
-    pb.ioNamePtr = (StringPtr)spec->name;
+    pb.ioNamePtr = (StringPtr)(uintptr_t)spec->name;
     pb.ioVRefNum = spec->vRefNum;
     pb.u.dirInfo.ioDrDirID = spec->parID;
     pb.u.hFileInfo.ioFDirIndex = 0;
@@ -395,7 +395,7 @@ void StandardFile_HAL_NavigateToFolder(const FSSpec *folderSpec) {
     /* Get the dirID of this folder */
     CInfoPBRec pb;
     memset(&pb, 0, sizeof(pb));
-    pb.ioNamePtr = (StringPtr)folderSpec->name;
+    pb.ioNamePtr = (StringPtr)(uintptr_t)folderSpec->name;
     pb.ioVRefNum = folderSpec->vRefNum;
     pb.u.dirInfo.ioDrDirID = folderSpec->parID;
     pb.u.hFileInfo.ioFDirIndex = 0;

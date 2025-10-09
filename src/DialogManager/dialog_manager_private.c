@@ -206,8 +206,8 @@ static const DialogDispatchEntry gDispatchTable[] = {
 /*
  * GetDialogManagerDispatchTable - Get dispatch table
  */
-void* GetDialogManagerDispatchTable(void) {
-    return (void*)gDispatchTable;
+const void* GetDialogManagerDispatchTable(void) {
+    return gDispatchTable;
 }
 
 /*
