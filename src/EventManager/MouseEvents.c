@@ -143,10 +143,12 @@ extern UInt32 GetDblTime(void);
  * Private Function Declarations
  *---------------------------------------------------------------------------*/
 
+#if 0  /* UNUSED forward declarations for commented-out functions */
 static SInt16 DetectClickCount(Point clickPos, UInt32 clickTime);
-static Boolean IsWithinClickTolerance(Point pt1, Point pt2);
 static void UpdateMouseRegionTracking(Point mousePos);
 static void ApplyMouseAcceleration(SInt16* deltaX, SInt16* deltaY);
+static Boolean IsWithinClickTolerance(Point pt1, Point pt2);
+#endif
 static SInt16 MapMouseButton(SInt16 buttonID);
 
 /*---------------------------------------------------------------------------
@@ -174,6 +176,7 @@ Boolean PointInRect(Point pt, const Rect* rect)
             pt.v >= rect->top && pt.v < rect->bottom);
 }
 
+#if 0  /* UNUSED: IsWithinClickTolerance - orphaned by commenting out DetectClickCount */
 /**
  * Check if points are within double-click tolerance
  */
@@ -182,7 +185,9 @@ static Boolean IsWithinClickTolerance(Point pt1, Point pt2)
     SInt16 distance = PointDistance(pt1, pt2);
     return distance <= kDoubleClickTolerance;
 }
+#endif /* IsWithinClickTolerance */
 
+#if 0  /* UNUSED: ApplyMouseAcceleration - preserved for possible future use */
 /**
  * Apply mouse acceleration to movement delta
  */
@@ -203,6 +208,7 @@ static void ApplyMouseAcceleration(SInt16* deltaX, SInt16* deltaY)
         *deltaY = (SInt16)((*deltaY) * g_mouseSensitivity);
     }
 }
+#endif /* ApplyMouseAcceleration */
 
 /**
  * Map physical button to logical button (for left-handed support)
@@ -222,6 +228,7 @@ static SInt16 MapMouseButton(SInt16 buttonID)
     return buttonID;
 }
 
+#if 0  /* UNUSED: DetectClickCount - preserved for possible future use */
 /**
  * Detect multi-click count
  */
@@ -244,6 +251,7 @@ static SInt16 DetectClickCount(Point clickPos, UInt32 clickTime)
 
     return g_clickCount;
 }
+#endif /* DetectClickCount */
 
 /*---------------------------------------------------------------------------
  * Core Mouse Event API
@@ -674,6 +682,7 @@ void RemoveMouseRegion(MouseRegion* region)
     }
 }
 
+#if 0  /* UNUSED: UpdateMouseRegionTracking - preserved for possible future use */
 /**
  * Update mouse region tracking
  */
@@ -694,6 +703,7 @@ static void UpdateMouseRegionTracking(Point mousePos)
         region = region->next;
     }
 }
+#endif /* UpdateMouseRegionTracking */
 
 /**
  * Get mouse region at point
