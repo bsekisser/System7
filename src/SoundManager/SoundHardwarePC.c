@@ -1,4 +1,5 @@
 /*
+#include "SoundManager/PCSpkr.h"
  * SoundHardwarePC.c - PC Speaker hardware driver for bare-metal x86
  *
  * Provides basic audio output using the PC speaker (I/O port 0x61)

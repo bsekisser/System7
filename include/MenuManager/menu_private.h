@@ -123,6 +123,7 @@ SInt16 CountMenuItems(MenuHandle theMenu);
 void InitMenuTitleTracking(void);
 void AddMenuTitle(short menuID, short left, short width, const char* title);
 void ClearMenuTitles(void);
+
 Boolean MenuTitleAt(Point pt, SInt16* outMenuID);
 Boolean GetMenuTitleRectByID(SInt16 menuID, Rect* rect);
 void GetMenuBarRect(Rect* rect);

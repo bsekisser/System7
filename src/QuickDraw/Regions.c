@@ -635,14 +635,14 @@ Boolean ClipRectToRegion(Rect *rect, RgnHandle clipRgn, Rect *clippedRect) {
  * REGION HIT TESTING
  * ================================================================ */
 
-HitTestResult HitTestRegion(Point pt, RgnHandle rgn) {
+static HitTestResult HitTestRegion(Point pt, RgnHandle rgn) {
     if (PtInRgn(pt, rgn)) {
         return kHitTestHit;
     }
     return kHitTestMiss;
 }
 
-Point FindClosestPointOnRegion(Point pt, RgnHandle rgn) {
+static Point FindClosestPointOnRegion(Point pt, RgnHandle rgn) {
     assert(rgn != NULL && *rgn != NULL);
 
     Region *region = *rgn;
@@ -660,7 +660,7 @@ Point FindClosestPointOnRegion(Point pt, RgnHandle rgn) {
     return closest;
 }
 
-SInt16 DistanceToRegion(Point pt, RgnHandle rgn) {
+static SInt16 DistanceToRegion(Point pt, RgnHandle rgn) {
     Point closest = FindClosestPointOnRegion(pt, rgn);
     SInt16 dx = pt.h - closest.h;
     SInt16 dv = pt.v - closest.v;

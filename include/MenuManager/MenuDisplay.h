@@ -395,7 +395,9 @@ Handle SaveMenuBits(const Rect* menuRect);
  *   savedBits - Handle to saved bits
  *   menuRect  - Rectangle to restore
  */
-void RestoreMenuBits(Handle savedBits, const Rect* menuRect);
+OSErr RestoreMenuBits(Handle bitsHandle);
+OSErr DiscardMenuBits(Handle bitsHandle);
+OSErr SaveRestoreBitsDispatch(SInt16 selector, void *params);
 
 /*
  * DisposeMenuBits - Dispose saved screen bits
