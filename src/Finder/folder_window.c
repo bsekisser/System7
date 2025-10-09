@@ -78,7 +78,7 @@ typedef struct FolderWindowState {
 static struct {
     WindowPtr window;
     FolderWindowState state;
-} gFolderWindows[MAX_FOLDER_WINDOWS];
+} gFolderWindows[MAX_FOLDER_WINDOWS] = {0};
 
 /* Get or create state for a folder window */
 FolderWindowState* GetFolderState(WindowPtr w);
@@ -1014,10 +1014,19 @@ FINDER_LOG_DEBUG("CleanupFolderWindow: cleaning up window 0x%08x\n", (unsigned i
     for (int i = 0; i < MAX_FOLDER_WINDOWS; i++) {
         if (gFolderWindows[i].window == w) {
             FINDER_LOG_DEBUG("CleanupFolderWindow: found slot %d, freeing items\n", i);
+            FINDER_LOG_DEBUG("CleanupFolderWindow: items ptr=0x%08x, count=%d\n",
+                          (unsigned int)gFolderWindows[i].state.items,
+                          gFolderWindows[i].state.itemCount);
 
-            /* Free the items array if allocated */
-            if (gFolderWindows[i].state.items) {
+            /* Sanity check before free - itemCount should be reasonable */
+            if (gFolderWindows[i].state.itemCount > 1000) {
+                FINDER_LOG_WARN("CleanupFolderWindow: CORRUPTED itemCount=%d, skipping free\n",
+                             gFolderWindows[i].state.itemCount);
+            } else if (gFolderWindows[i].state.items) {
+                /* Free the items array if allocated */
+                FINDER_LOG_DEBUG("CleanupFolderWindow: calling free()\n");
                 free(gFolderWindows[i].state.items);
+                FINDER_LOG_DEBUG("CleanupFolderWindow: free() returned\n");
             }
 
             /* Clear the slot */
