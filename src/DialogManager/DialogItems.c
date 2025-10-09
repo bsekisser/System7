@@ -726,6 +726,7 @@ static Boolean ValidateItemNumber(DialogPtr theDialog, SInt16 itemNo)
     return (itemNo <= cache->itemCount);
 }
 
+#if 0  /* UNUSED: DrawButtonItem - preserved for possible future use */
 static void DrawButtonItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemEx* item)
 {
     if (!item) {
@@ -737,7 +738,9 @@ static void DrawButtonItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemE
 
     DrawDialogButton(theDialog, &item->bounds, title, isDefault, item->enabled, false);
 }
+#endif /* DrawButtonItem */
 
+#if 0  /* UNUSED: DrawTextItem - preserved for possible future use */
 static void DrawTextItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemEx* item)
 {
     if (!item) {
@@ -754,7 +757,9 @@ static void DrawTextItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemEx*
         DrawDialogStaticText(theDialog, &item->bounds, text, item->enabled);
     }
 }
+#endif /* DrawTextItem */
 
+#if 0  /* UNUSED: DrawIconItem - preserved for possible future use */
 static void DrawIconItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemEx* item)
 {
     if (!item) {
@@ -763,7 +768,9 @@ static void DrawIconItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemEx*
 
     DrawDialogIcon(&item->bounds, (SInt16)item->refCon, item->enabled);
 }
+#endif /* DrawIconItem */
 
+#if 0  /* UNUSED: DrawUserItem - preserved for possible future use */
 static void DrawUserItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemEx* item)
 {
     if (!item) {
@@ -773,6 +780,7 @@ static void DrawUserItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemEx*
     UserItemProcPtr userProc = (UserItemProcPtr)item->handle;
     DrawDialogUserItem(theDialog, itemNo, &item->bounds, userProc);
 }
+#endif /* DrawUserItem */
 
 static void InvalidateItemRect(DialogPtr theDialog, const Rect* rect)
 {
