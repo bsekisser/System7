@@ -67,6 +67,7 @@ typedef struct ControlRecord Control;
 typedef Control **ControlHandle;
 typedef struct Menu **MenuHandle;
 typedef struct ListRec **ListHandle;
+typedef struct PixPat **PixPatHandle;
 
 // Pointer aliases
 typedef void* VoidPtr;
@@ -178,14 +179,14 @@ typedef struct CGrafPort {
     Rect          portRect;
     RgnHandle     visRgn;
     RgnHandle     clipRgn;
-    PixMapHandle  bkPixPat;
+    PixPatHandle  bkPixPat;
     RGBColor      rgbFgColor;
     RGBColor      rgbBkColor;
     Point         pnLoc;
     Point         pnSize;
     SInt16        pnMode;
-    PixMapHandle  pnPixPat;
-    PixMapHandle  fillPixPat;
+    PixPatHandle  pnPixPat;
+    PixPatHandle  fillPixPat;
     SInt16        pnVis;
     SInt16        txFont;
     UInt8         txFace;
