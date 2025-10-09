@@ -40,7 +40,7 @@ uint8_t ATA_ReadStatus(uint16_t base_io) {
  * ATA_WaitBusy - Wait for BSY bit to clear
  */
 void ATA_WaitBusy(uint16_t base_io) {
-    uint8_t status;
+    uint8_t status = 0;
     int timeout = 100000;
 
     while (timeout-- > 0) {
@@ -57,7 +57,7 @@ void ATA_WaitBusy(uint16_t base_io) {
  * ATA_WaitReady - Wait for DRDY bit to set
  */
 void ATA_WaitReady(uint16_t base_io) {
-    uint8_t status;
+    uint8_t status = 0;
     int timeout = 100000;
 
     ATA_WaitBusy(base_io);
@@ -76,7 +76,7 @@ void ATA_WaitReady(uint16_t base_io) {
  * ATA_WaitDRQ - Wait for DRQ bit to set
  */
 bool ATA_WaitDRQ(uint16_t base_io) {
-    uint8_t status;
+    uint8_t status = 0;
     int timeout = 100000;
 
     ATA_WaitBusy(base_io);

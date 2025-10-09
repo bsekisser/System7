@@ -122,7 +122,7 @@ extern void TESetSelect(SInt32 selStart, SInt32 selEnd, TEHandle hTE);
 extern void TEGetSelection(SInt32 *selStart, SInt32 *selEnd, TEHandle hTE);
 
 /* Mouse handling */
-extern void TEClick(Point pt, Boolean extend, TEHandle hTE);
+extern void TEClick(Point pt, Boolean extendSelection, TEHandle hTE);
 
 /* Clipboard operations */
 extern void TECut(TEHandle hTE);

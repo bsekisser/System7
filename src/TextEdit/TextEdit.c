@@ -747,8 +747,8 @@ void TextEdit_HandleEvent(void* event) {
             SetPort((GrafPtr)g_textEditWindow);
             Point pt = evt->where;
             GlobalToLocal(&pt);
-            Boolean extend = (evt->modifiers & shiftKey) != 0;
-            TEClick(pt, extend, g_appTE);
+            Boolean extendSelection = (evt->modifiers & shiftKey) != 0;
+            TEClick(pt, extendSelection, g_appTE);
         }
     } else if ((evt->what == keyDown || evt->what == autoKey) &&
                FrontWindow() == g_textEditWindow) {

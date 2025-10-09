@@ -185,7 +185,7 @@ void TEKey(CharParameter key, TEHandle hTE) {
 /*
  * TEClick - Handle mouse click
  */
-void TEClick(Point pt, Boolean extend, TEHandle hTE) {
+void TEClick(Point pt, Boolean extendSelection, TEHandle hTE) {
     TEExtPtr pTE;
     SInt32 offset;
     UInt32 currentTime;
@@ -202,10 +202,10 @@ void TEClick(Point pt, Boolean extend, TEHandle hTE) {
     offset = TEGetOffset(pt, hTE);
 
     TEI_LOG("TEClick: pt=(%d,%d) offset=%d extend=%d\n",
-            pt.h, pt.v, offset, extend);
+            pt.h, pt.v, offset, extendSelection);
 
     /* Check for multi-click */
-    if (!extend && currentTime - pTE->lastClickTime < DOUBLE_CLICK_TIME) {
+    if (!extendSelection && currentTime - pTE->lastClickTime < DOUBLE_CLICK_TIME) {
         clickDelta = offset - pTE->base.clickLoc;
         if (clickDelta < 0) clickDelta = -clickDelta;
 
@@ -236,7 +236,7 @@ void TEClick(Point pt, Boolean extend, TEHandle hTE) {
             /* Different location - reset */
             pTE->clickCount = 1;
         }
-    } else if (!extend) {
+    } else if (!extendSelection) {
         /* New click */
         pTE->clickCount = 1;
     }
@@ -246,7 +246,7 @@ void TEClick(Point pt, Boolean extend, TEHandle hTE) {
     pTE->base.clickLoc = offset;
 
     /* Handle selection */
-    if (extend) {
+    if (extendSelection) {
         /* Extend selection */
         TE_ExtendSelection(hTE, offset);
     } else {

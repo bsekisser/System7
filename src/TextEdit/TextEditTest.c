@@ -146,10 +146,10 @@ void TETestHandleEvent(EventRecord *event) {
                     GlobalToLocal(&pt);
 
                     /* Check for shift key */
-                    Boolean extend = (event->modifiers & shiftKey) != 0;
+                    Boolean extendSelection = (event->modifiers & shiftKey) != 0;
 
                     /* Handle click in TE */
-                    TEClick(pt, extend, g_testTE);
+                    TEClick(pt, extendSelection, g_testTE);
                 }
             }
             break;

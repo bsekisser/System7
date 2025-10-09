@@ -65,7 +65,7 @@ void TESetText(void *text, SInt32 length, TEHandle hTE);
 CharsHandle TEGetText(TEHandle hTE);
 
 /* User interaction - Trap: 0xA9D4, Evidence: offset 0x00004450 */
-void TEClick(Point pt, SInt16 extend, TEHandle hTE);
+void TEClick(Point pt, SInt16 extendSelection, TEHandle hTE);
 
 /* Keyboard input - Trap: 0xA9DC, Evidence: offset 0x00004650 */
 void TEKey(SInt16 key, TEHandle hTE);
