@@ -36,13 +36,15 @@
 
 /* Forward declarations */
 static OSErr make_block_free_24bit(ZonePtr zone, BlockPtr block, Size size);
+#if 0  /* UNUSED forward declarations for commented-out functions */
 static OSErr make_block_free_32bit(ZonePtr zone, BlockPtr block, Size size);
 static OSErr make_contiguous_block_free_24bit(ZonePtr zone, Ptr startPtr, Size totalSize);
 static OSErr make_contiguous_block_free_32bit(ZonePtr zone, Ptr startPtr, Size totalSize);
-static void coalesce_adjacent_free_blocks(ZonePtr zone, BlockPtr block);
-static OSErr purge_memory_block_24bit(ZonePtr zone, Handle h);
 static OSErr purge_memory_block_32bit(ZonePtr zone, Handle h);
 static OSErr call_purge_procedure(Handle h, PurgeProc purgeProc);
+#endif
+static void coalesce_adjacent_free_blocks(ZonePtr zone, BlockPtr block);
+static OSErr purge_memory_block_24bit(ZonePtr zone, Handle h);
 static OSErr call_grow_zone_procedure(ZonePtr zone, Size bytesNeeded);
 static void update_free_space_accounting(ZonePtr zone, Size deltaBytes);
 
@@ -84,6 +86,7 @@ static OSErr make_block_free_24bit(ZonePtr zone, BlockPtr block, Size size) {
     return noErr;
 }
 
+#if 0  /* UNUSED: make_block_free_32bit - orphaned by commenting out purge_memory_block_32bit */
 /*
  * Make Block Free (32-bit addressing mode)
  * PROVENANCE: ROM $40B420 - Mark block as free (32-bit mode)
@@ -107,7 +110,9 @@ static OSErr make_block_free_32bit(ZonePtr zone, BlockPtr block, Size size) {
 
     return noErr;
 }
+#endif /* make_block_free_32bit */
 
+#if 0  /* UNUSED: make_contiguous_block_free_24bit - preserved for possible future use */
 /*
  * Make Contiguous Block Free (24-bit addressing mode)
  * PROVENANCE: ROM $40B500 - Create contiguous free block (24-bit)
@@ -139,7 +144,9 @@ static OSErr make_contiguous_block_free_24bit(ZonePtr zone, Ptr startPtr, Size t
 
     return noErr;
 }
+#endif /* make_contiguous_block_free_24bit */
 
+#if 0  /* UNUSED: make_contiguous_block_free_32bit - preserved for possible future use */
 /*
  * Make Contiguous Block Free (32-bit addressing mode)
  * PROVENANCE: ROM $40B520 - Create contiguous free block (32-bit)
@@ -161,6 +168,7 @@ static OSErr make_contiguous_block_free_32bit(ZonePtr zone, Ptr startPtr, Size t
 
     return noErr;
 }
+#endif /* make_contiguous_block_free_32bit */
 
 /*
  * Advanced Free Block Coalescing
@@ -279,6 +287,7 @@ static OSErr purge_memory_block_24bit(ZonePtr zone, Handle h) {
     return make_block_free_24bit(zone, block, blockSize);
 }
 
+#if 0  /* UNUSED: purge_memory_block_32bit - preserved for possible future use */
 /*
  * Purge Memory Block (32-bit addressing mode)
  * PROVENANCE: ROM $40BC20 - Purge block (32-bit mode)
@@ -303,7 +312,9 @@ static OSErr purge_memory_block_32bit(ZonePtr zone, Handle h) {
     *h = (Ptr)HANDLE_PURGED;
     return make_block_free_32bit(zone, block, blockSize);
 }
+#endif /* purge_memory_block_32bit */
 
+#if 0  /* UNUSED: call_purge_procedure - preserved for possible future use */
 /*
  * Call Purge Procedure
  * PROVENANCE: ROM $40BB00 - Invoke purge procedure callback
@@ -324,6 +335,7 @@ static OSErr call_purge_procedure(Handle h, PurgeProc purgeProc) {
     /* Return noErr since void procedures don't return error codes */
     return noErr;
 }
+#endif /* call_purge_procedure */
 
 /*
  * Call Grow Zone Procedure
