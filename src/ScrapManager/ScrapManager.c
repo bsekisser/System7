@@ -8,8 +8,7 @@
 /* Standard includes */
 #include <string.h>
 #include "SystemTypes.h"
-/* Only include ScrapTypes.h to avoid conflicts with existing ScrapManager.h */
-#define SCRAP_MANAGER_H  /* Prevent ScrapManager.h inclusion */
+#include "ScrapManager/ScrapManager.h"
 #include "ScrapManager/ScrapTypes.h"
 #include "MemoryMgr/MemoryManager.h"
 #ifdef ENABLE_PROCESS_COOP
@@ -22,9 +21,6 @@
 /* Additional function declarations */
 extern OSErr Gestalt_RegisterSelector(OSType selector, SInt32 value);
 /* Note: BlockMoveData and MemError declared in MemoryMgr/MemoryManager.h */
-
-/* Forward declaration for test function */
-void Scrap_RunSelfTest(void);
 
 /* Debug logging control */
 #define SCRAP_DEBUG 1
