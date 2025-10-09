@@ -7,6 +7,7 @@
 
 #include "SystemTypes.h"
 #include "EventManager/EventTypes.h"
+#include "EventManager/EventManager.h"
 #include "Platform/PS2Input.h"
 #include <stdint.h>
 #include "Platform/PlatformLogging.h"
@@ -74,8 +75,7 @@
 #define SCAN_CODE_SET_2         2
 
 /* External functions */
-extern Boolean GetNextEvent(short eventMask, EventRecord* theEvent);
-/* PostEvent declared in EventManager.h */
+/* GetNextEvent and PostEvent declared in EventManager.h */
 extern UInt32 TickCount(void);
 
 /* I/O port functions */

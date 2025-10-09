@@ -24,6 +24,7 @@
 #include "FS/hfs_types.h"
 #include "System71StdLib.h"
 #include "Finder/FinderLogging.h"
+#include "EventManager/EventManager.h"
 extern void DrawString(const unsigned char* str);
 extern void MoveTo(short h, short v);
 extern void LineTo(short h, short v);

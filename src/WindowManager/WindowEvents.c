@@ -23,6 +23,7 @@
 #include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowManagerInternal.h"
 #include "WindowManager/WMLogging.h"
+#include "EventManager/EventManager.h"
 
 /* External logging function */
 extern void serial_logf(SystemLogModule module, SystemLogLevel level, const char* fmt, ...);

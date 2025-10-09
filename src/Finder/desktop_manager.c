@@ -34,6 +34,7 @@
 #include "QuickDrawConstants.h"
 #include "System71StdLib.h"
 #include "Finder/FinderLogging.h"
+#include "EventManager/EventManager.h"
 
 /* HD Icon data - still needed by icon_system.c */
 extern const uint8_t g_HDIcon[128];
@@ -48,9 +49,6 @@ extern int snprintf(char* str, size_t size, const char* format, ...);
 extern Ptr NewPtr(Size byteCount);
 extern void InvalRect(const Rect* badRect);
 extern void SetDeskHook(void (*hookProc)(RgnHandle));
-extern Boolean EventAvail(short eventMask, EventRecord *theEvent);
-extern Boolean GetNextEvent(short eventMask, EventRecord *theEvent);
-/* PostEvent declared in EventManager.h */
 extern WindowPtr NewWindow(void *wStorage, const Rect *boundsRect, const unsigned char *title,
                            Boolean visible, short procID, WindowPtr behind, Boolean goAwayFlag, long refCon);
 extern void ShowWindow(WindowPtr theWindow);

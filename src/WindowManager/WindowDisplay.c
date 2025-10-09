@@ -5,6 +5,7 @@
 #include "ControlManager/ControlTypes.h"
 #include "SystemTheme.h"
 #include "WindowManager/WMLogging.h"
+#include "EventManager/EventManager.h"
 
 /* Color constants */
 #define blackColor 33
