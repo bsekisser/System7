@@ -779,7 +779,7 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                 /* Check for .txt extension */
                 if (len >= 4) {
                     const char* ext = name + len - 4;
-                    if ((ext[0] == '.' || ext[0] == '.') &&
+                    if (ext[0] == '.' &&
                         (ext[1] == 't' || ext[1] == 'T') &&
                         (ext[2] == 'x' || ext[2] == 'X') &&
                         (ext[3] == 't' || ext[3] == 'T')) {

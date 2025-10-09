@@ -841,7 +841,7 @@ EventRecord GenerateMouseMovedEvent(Point position, SInt16 modifiers)
     EventRecord event = {0};
 
     event.what = osEvt;
-    event.message = mouseMovedMessage << 24;
+    event.message = (UInt32)mouseMovedMessage << 24;
     event.when = TickCount();
     event.where = position;
     event.modifiers = modifiers;
