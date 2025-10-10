@@ -12,8 +12,9 @@
 #define ALIGN     8u
 #define BLKHDR_SZ ((u32)sizeof(BlockHeader))
 
-/* Minimum block size must accommodate BlockHeader + FreeNode */
-#define MIN_BLOCK_SIZE (BLKHDR_SZ + (u32)sizeof(FreeNode))
+/* Minimum block size must accommodate BlockHeader + FreeNode AND be aligned */
+#define MIN_BLOCK_SIZE_RAW (BLKHDR_SZ + (u32)sizeof(FreeNode))
+#define MIN_BLOCK_SIZE ((MIN_BLOCK_SIZE_RAW + (ALIGN-1)) & ~(ALIGN-1))
 
 /* Heap validation magic numbers */
 #define BLOCK_MAGIC_ALLOCATED  0xA110C8ED  /* "ALLOCATED" */
@@ -69,23 +70,47 @@ static inline bool is_valid_freenode(ZoneInfo* z, FreeNode* n) {
 
 /* Validate block header integrity */
 static inline bool validate_block(ZoneInfo* z, BlockHeader* b) {
-    if (!b || !z) return false;
+    extern void serial_puts(const char* str);
+
+    if (!b || !z) {
+        serial_puts("[HEAP] validate_block: NULL block or zone\n");
+        return false;
+    }
 
     /* Block must be within zone */
     u8* bptr = (u8*)b;
-    if (bptr < z->base || bptr >= z->limit) return false;
+    if (bptr < z->base || bptr >= z->limit) {
+        serial_puts("[HEAP] validate_block: Block outside zone bounds\n");
+        return false;
+    }
 
     /* Size must be non-zero and aligned */
-    if (b->size == 0 || (b->size & (ALIGN - 1)) != 0) return false;
+    if (b->size == 0) {
+        serial_puts("[HEAP] validate_block: Block size is zero\n");
+        return false;
+    }
+    if ((b->size & (ALIGN - 1)) != 0) {
+        serial_puts("[HEAP] validate_block: Block size not aligned\n");
+        return false;
+    }
 
     /* Size must not exceed remaining zone space */
-    if (b->size > (u32)(z->limit - bptr)) return false;
+    if (b->size > (u32)(z->limit - bptr)) {
+        serial_puts("[HEAP] validate_block: Block size exceeds zone\n");
+        return false;
+    }
 
     /* For free blocks, size must be at least MIN_BLOCK_SIZE */
-    if ((b->flags & BF_FREE) && b->size < MIN_BLOCK_SIZE) return false;
+    if ((b->flags & BF_FREE) && b->size < MIN_BLOCK_SIZE) {
+        serial_puts("[HEAP] validate_block: Free block too small\n");
+        return false;
+    }
 
     /* prevSize must be reasonable */
-    if (b->prevSize > (u32)(bptr - z->base)) return false;
+    if (b->prevSize > (u32)(bptr - z->base)) {
+        serial_puts("[HEAP] validate_block: Invalid prevSize\n");
+        return false;
+    }
 
     return true;
 }
@@ -160,6 +185,16 @@ static void freelist_insert(ZoneInfo* z, BlockHeader* b) {
     /* CRITICAL: Block must be large enough to hold FreeNode! */
     if (b->size < MIN_BLOCK_SIZE) {
         return;  /* Block too small, would corrupt memory */
+    }
+
+    /* CRITICAL: Block size must be aligned! */
+    if ((b->size & (ALIGN - 1)) != 0) {
+        extern void serial_puts(const char* str);
+        serial_puts("[FREELIST_INSERT] WARNING: block size not aligned, aligning down!\n");
+        b->size = b->size & ~(ALIGN - 1);  /* Align down */
+        if (b->size < MIN_BLOCK_SIZE) {
+            return;  /* Too small after alignment */
+        }
     }
 
     b->flags = BF_FREE;
@@ -261,6 +296,13 @@ static BlockHeader* coalesce_forward(ZoneInfo* z, BlockHeader* b) {
         freelist_remove(z, next);
         b->size += next->size;
 
+        /* CRITICAL: Ensure coalesced size is aligned */
+        if ((b->size & (ALIGN - 1)) != 0) {
+            extern void serial_puts(const char* str);
+            serial_puts("[COALESCE_FWD] WARNING: merged size not aligned!\n");
+            b->size = b->size & ~(ALIGN - 1);  /* Align down */
+        }
+
         /* Update following block's prevSize */
         u8* after = (u8*)b + b->size;
         if (after < z->limit && after + BLKHDR_SZ <= z->limit) {
@@ -299,6 +341,13 @@ static BlockHeader* coalesce_backward(ZoneInfo* z, BlockHeader* b) {
 
         freelist_remove(z, prev);
         prev->size += b->size;
+
+        /* CRITICAL: Ensure coalesced size is aligned */
+        if ((prev->size & (ALIGN - 1)) != 0) {
+            extern void serial_puts(const char* str);
+            serial_puts("[COALESCE_BWD] WARNING: merged size not aligned!\n");
+            prev->size = prev->size & ~(ALIGN - 1);  /* Align down */
+        }
 
         /* Update following block's prevSize */
         u8* after = (u8*)prev + prev->size;
@@ -473,6 +522,18 @@ static void split_block(ZoneInfo* z, BlockHeader* b, u32 need) {
 
     /* CRITICAL FIX: Use MIN_BLOCK_SIZE instead of BLKHDR_SZ + ALIGN */
     if (remain >= MIN_BLOCK_SIZE) {
+        /* CRITICAL: Ensure remain is aligned! */
+        if ((remain & (ALIGN - 1)) != 0) {
+            /* This should never happen - but if it does, align it down */
+            extern void serial_puts(const char* str);
+            serial_puts("[SPLIT] WARNING: remain not aligned, aligning down!\n");
+            remain = remain & ~(ALIGN - 1);
+            if (remain < MIN_BLOCK_SIZE) {
+                /* Can't create tail block, just shrink main block */
+                b->flags = 0;
+                return;
+            }
+        }
         /* Create a tail free block */
         BlockHeader* tail = (BlockHeader*)((u8*)b + need);
         tail->size = remain;
@@ -911,15 +972,20 @@ u32 CompactMem(u32 cbNeeded) {
 
         /* Non-movable or locked - skip any gap and continue */
         /* CRITICAL FIX: Use MIN_BLOCK_SIZE instead of BLKHDR_SZ + ALIGN */
-        if (scan != dest && (scan - dest) >= MIN_BLOCK_SIZE) {
-            /* Create free block in the gap */
-            BlockHeader* fb = (BlockHeader*)dest;
-            fb->size = scan - dest;
-            fb->flags = BF_FREE;
-            fb->prevSize = (dest > z->base) ?
-                ((BlockHeader*)(dest - ((BlockHeader*)(scan))->prevSize))->size : 0;
-            fb->masterPtr = NULL;
-            freelist_insert(z, fb);
+        u32 gap = scan - dest;
+        if (scan != dest && gap >= MIN_BLOCK_SIZE) {
+            /* CRITICAL: Align gap DOWN to avoid overflow! */
+            u32 aligned_gap = gap & ~(ALIGN - 1);
+            if (aligned_gap >= MIN_BLOCK_SIZE) {
+                /* Create free block in the gap */
+                BlockHeader* fb = (BlockHeader*)dest;
+                fb->size = aligned_gap;
+                fb->flags = BF_FREE;
+                fb->prevSize = (dest > z->base) ?
+                    ((BlockHeader*)(dest - ((BlockHeader*)(scan))->prevSize))->size : 0;
+                fb->masterPtr = NULL;
+                freelist_insert(z, fb);
+            }
         }
 
         dest = scan + b->size;
@@ -928,13 +994,18 @@ u32 CompactMem(u32 cbNeeded) {
 
     /* Create trailing free block if needed */
     if (dest < z->limit) {
-        BlockHeader* tail = (BlockHeader*)dest;
-        tail->flags = BF_FREE;
-        tail->size = z->limit - dest;
-        tail->prevSize = dest > z->base ?
-            ((BlockHeader*)(dest - BLKHDR_SZ))->size : 0;
-        tail->masterPtr = NULL;
-        freelist_insert(z, tail);
+        u32 remaining = z->limit - dest;
+        /* CRITICAL: Align remaining DOWN to avoid exceeding zone limit! */
+        u32 aligned_remaining = remaining & ~(ALIGN - 1);
+        if (aligned_remaining >= MIN_BLOCK_SIZE) {
+            BlockHeader* tail = (BlockHeader*)dest;
+            tail->flags = BF_FREE;
+            tail->size = aligned_remaining;
+            tail->prevSize = dest > z->base ?
+                ((BlockHeader*)(dest - BLKHDR_SZ))->size : 0;
+            tail->masterPtr = NULL;
+            freelist_insert(z, tail);
+        }
     }
 
     // MEMORY_LOG_DEBUG("[CompactMem] Heap walk complete: processed %d blocks\n", block_count);
