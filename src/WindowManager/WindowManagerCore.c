@@ -502,20 +502,28 @@ void CloseWindow(WindowPtr theWindow) {
 }
 
 void DisposeWindow(WindowPtr theWindow) {
-    if (theWindow == NULL) return;
+    extern void serial_printf(const char *fmt, ...);
 
-    #ifdef DEBUG_WINDOW_MANAGER
-    printf("DisposeWindow: Disposing window\n");
-    #endif
+    serial_printf("[WM] DisposeWindow: ENTRY window=0x%08x\n", (unsigned int)P2UL(theWindow));
 
-    /* Clear keyboard focus before disposal to erase focus ring and prevent dangling pointers */
+    if (theWindow == NULL) {
+        serial_printf("[WM] DisposeWindow: NULL window, returning\n");
+        return;
+    }
+
+    serial_printf("[WM] DisposeWindow: About to call DM_ClearFocusForWindow\n");
     DM_ClearFocusForWindow(theWindow);
+    serial_printf("[WM] DisposeWindow: DM_ClearFocusForWindow returned\n");
 
-    /* Close the window first */
+    serial_printf("[WM] DisposeWindow: About to call CloseWindow\n");
     CloseWindow(theWindow);
+    serial_printf("[WM] DisposeWindow: CloseWindow returned\n");
 
-    /* Free the window record memory */
+    serial_printf("[WM] DisposeWindow: About to call DeallocateWindowRecord\n");
     DeallocateWindowRecord(theWindow);
+    serial_printf("[WM] DisposeWindow: DeallocateWindowRecord returned\n");
+
+    serial_printf("[WM] DisposeWindow: EXIT\n");
 }
 
 /**
@@ -710,10 +718,18 @@ static void InitializeDesktopPattern(void) {
 }
 
 static WindowPtr AllocateWindowRecord(Boolean isColorWindow) {
+    extern void serial_printf(const char *fmt, ...);
+
     size_t recordSize = isColorWindow ? sizeof(CWindowRecord) : sizeof(WindowRecord);
+    serial_printf("[WM] AllocateWindowRecord: Calling calloc(1, %d) for %s window\n",
+                  (int)recordSize, isColorWindow ? "COLOR" : "B&W");
+
     WindowPtr window = (WindowPtr)calloc(1, recordSize);
 
+    serial_printf("[WM] AllocateWindowRecord: calloc returned 0x%08x\n", (unsigned int)P2UL(window));
+
     if (window == NULL) {
+        serial_printf("[WM] AllocateWindowRecord: FAILED - calloc returned NULL!\n");
         #ifdef DEBUG_WINDOW_MANAGER
         printf("AllocateWindowRecord: Failed to allocate window record\n");
         #endif
@@ -723,9 +739,20 @@ static WindowPtr AllocateWindowRecord(Boolean isColorWindow) {
 }
 
 static void DeallocateWindowRecord(WindowPtr window) {
+    extern void serial_printf(const char *fmt, ...);
+    extern void DisposePtr(void* p);  /* Direct call to MemoryManager */
+
+    serial_printf("[WM] DeallocateWindowRecord: ENTRY window=0x%08x\n", (unsigned int)P2UL(window));
+
     if (window) {
-        free(window);
+        serial_printf("[WM] DeallocateWindowRecord: Calling DisposePtr directly\n");
+        DisposePtr(window);  /* Bypass free(), call DisposePtr directly */
+        serial_printf("[WM] DeallocateWindowRecord: DisposePtr returned\n");
+    } else {
+        serial_printf("[WM] DeallocateWindowRecord: NULL window, skipping\n");
     }
+
+    serial_printf("[WM] DeallocateWindowRecord: EXIT\n");
 }
 
 static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,

@@ -307,8 +307,9 @@ Boolean HandleMouseDown(EventRecord* event)
         case inGoAway:
             /* Close box clicked - directly close without tracking (TrackGoAway not fully implemented) */
             if (whichWindow) {
-                EVT_LOG_DEBUG("DISP: Close box clicked, closing window 0x%08x\n", (unsigned int)whichWindow);
-                CloseWindow(whichWindow);
+                extern void DisposeWindow(WindowPtr window);
+                EVT_LOG_DEBUG("DISP: Close box clicked, disposing window 0x%08x\n", (unsigned int)whichWindow);
+                DisposeWindow(whichWindow);  /* Calls CloseWindow internally + frees memory */
             }
             return true;
 
