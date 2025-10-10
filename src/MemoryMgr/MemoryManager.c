@@ -321,32 +321,42 @@ void* NewPtrClear(u32 byteCount) {
 }
 
 void DisposePtr(void* p) {
-    extern void serial_printf(const char *fmt, ...);
+    extern void serial_puts(const char* str);
 
-    if (!p) return;
+    serial_puts("[DISPOSE] ENTRY\n");
+
+    if (!p) {
+        serial_puts("[DISPOSE] Early return: p is NULL\n");
+        return;
+    }
 
     ZoneInfo* z = gCurrentZone;
-    if (!z) return;
+    serial_puts("[DISPOSE] gCurrentZone read\n");
+
+    if (!z) {
+        serial_puts("[DISPOSE] Early return: gCurrentZone is NULL\n");
+        return;
+    }
 
     BlockHeader* b = (BlockHeader*)((u8*)p - BLKHDR_SZ);
-    serial_printf("[DISPOSE] ptr=%p block=%p size=%u\n", p, b, b->size);
+    serial_puts("[DISPOSE] BlockHeader calculated\n");
 
     b->flags &= ~(BF_PTR);
     z->bytesUsed -= b->size;
     z->bytesFree += b->size;
 
     /* Coalesce and insert */
-    serial_printf("[DISPOSE] Calling coalesce_forward\n");
+    serial_puts("[DISPOSE] Calling coalesce_forward\n");
     b = coalesce_forward(z, b);
-    serial_printf("[DISPOSE] After coalesce_forward: block=%p size=%u\n", b, b->size);
+    serial_puts("[DISPOSE] After coalesce_forward\n");
 
-    serial_printf("[DISPOSE] Calling coalesce_backward\n");
+    serial_puts("[DISPOSE] Calling coalesce_backward\n");
     b = coalesce_backward(z, b);
-    serial_printf("[DISPOSE] After coalesce_backward: block=%p size=%u\n", b, b->size);
+    serial_puts("[DISPOSE] After coalesce_backward\n");
 
-    serial_printf("[DISPOSE] Calling freelist_insert\n");
+    serial_puts("[DISPOSE] Calling freelist_insert\n");
     freelist_insert(z, b);
-    serial_printf("[DISPOSE] Complete\n");
+    serial_puts("[DISPOSE] Complete\n");
 }
 
 u32 GetPtrSize(void* p) {

@@ -51,7 +51,7 @@ CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 -DTM_SMOKE_TEST \
          -Wpointer-arith -Wstrict-prototypes -Wno-unused-parameter \
          -Wundef -Wvla -Wcast-align -Wlogical-op -Wduplicated-cond -Wduplicated-branches \
          -Wnull-dereference -Wjump-misses-init -Warray-bounds=2 -Wshift-overflow=2 \
-         $(OPT_FLAGS) -fno-inline -fno-optimize-sibling-calls -I./include -I./src -std=c17 -m32 \
+         $(OPT_FLAGS) -fno-inline -fno-optimize-sibling-calls -I./include -I./src -std=c2x -m32 \
          -Wuninitialized -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
          -Wno-multichar -Wno-pointer-sign -Wno-sign-compare \
          -fno-common -fno-delete-null-pointer-checks \
