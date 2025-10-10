@@ -41,11 +41,19 @@ typedef struct FreeNode {
     struct FreeNode* prev;
 } FreeNode;
 
+/* Size class configuration for segregated freelists */
+#define NUM_SIZE_CLASSES 8
+
 /* Extended zone info for our implementation */
 typedef struct ZoneInfo {
     u8*         base;           /* Start of zone memory */
     u8*         limit;          /* End (exclusive) */
-    FreeNode*   freeHead;       /* Doubly-linked list of free blocks */
+
+    /* Segregated freelists by size class:
+     * [0] 0-64B, [1] 65-128B, [2] 129-256B, [3] 257-512B,
+     * [4] 513-1KB, [5] 1KB-2KB, [6] 2KB-4KB, [7] 4KB+ */
+    FreeNode*   freelists[NUM_SIZE_CLASSES];
+
     u32         bytesUsed;      /* Bytes allocated */
     u32         bytesFree;      /* Bytes available */
 

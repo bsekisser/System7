@@ -396,6 +396,16 @@ WindowPtr GetNewCWindow(short windowID, void* wStorage, WindowPtr behind) {
  * Window Disposal Functions
  * ============================================================================ */
 
+/* Temporarily disable ALL WM logging to prevent heap corruption from variadic serial_logf */
+#undef WM_LOG_DEBUG
+#undef WM_LOG_TRACE
+#undef WM_LOG_WARN
+#undef WM_LOG_ERROR
+#define WM_LOG_DEBUG(...) do {} while(0)
+#define WM_LOG_TRACE(...) do {} while(0)
+#define WM_LOG_WARN(...) do {} while(0)
+#define WM_LOG_ERROR(...) do {} while(0)
+
 void CloseWindow(WindowPtr theWindow) {
     extern void CleanupFolderWindow(WindowPtr w);
 
@@ -409,7 +419,7 @@ void CloseWindow(WindowPtr theWindow) {
     WM_LOG_DEBUG("CloseWindow: Calling CleanupFolderWindow\n");
     CleanupFolderWindow(theWindow);
     __asm__ volatile("nop");  /* Marker after call */
-    WM_LOG_DEBUG("CloseWindow: CleanupFolderWindow returned\n");
+    /* NO LOGGING - WM_LOG_DEBUG uses variadic serial_logf which corrupts stack! */
 
     #ifdef DEBUG_WINDOW_MANAGER
     printf("CloseWindow: Closing window\n");
@@ -502,28 +512,20 @@ void CloseWindow(WindowPtr theWindow) {
 }
 
 void DisposeWindow(WindowPtr theWindow) {
-    extern void serial_printf(const char *fmt, ...);
+    extern void serial_puts(const char *str);
 
-    serial_printf("[WM] DisposeWindow: ENTRY window=0x%08x\n", (unsigned int)P2UL(theWindow));
+    serial_puts("[WM] DisposeWindow: ENTRY\n");
 
     if (theWindow == NULL) {
-        serial_printf("[WM] DisposeWindow: NULL window, returning\n");
+        serial_puts("[WM] DisposeWindow: NULL window\n");
         return;
     }
 
-    serial_printf("[WM] DisposeWindow: About to call DM_ClearFocusForWindow\n");
     DM_ClearFocusForWindow(theWindow);
-    serial_printf("[WM] DisposeWindow: DM_ClearFocusForWindow returned\n");
-
-    serial_printf("[WM] DisposeWindow: About to call CloseWindow\n");
     CloseWindow(theWindow);
-    serial_printf("[WM] DisposeWindow: CloseWindow returned\n");
-
-    serial_printf("[WM] DisposeWindow: About to call DeallocateWindowRecord\n");
     DeallocateWindowRecord(theWindow);
-    serial_printf("[WM] DisposeWindow: DeallocateWindowRecord returned\n");
 
-    serial_printf("[WM] DisposeWindow: EXIT\n");
+    serial_puts("[WM] DisposeWindow: EXIT\n");
 }
 
 /**
@@ -718,18 +720,17 @@ static void InitializeDesktopPattern(void) {
 }
 
 static WindowPtr AllocateWindowRecord(Boolean isColorWindow) {
-    extern void serial_printf(const char *fmt, ...);
+    extern void serial_puts(const char *str);
 
     size_t recordSize = isColorWindow ? sizeof(CWindowRecord) : sizeof(WindowRecord);
-    serial_printf("[WM] AllocateWindowRecord: Calling calloc(1, %d) for %s window\n",
-                  (int)recordSize, isColorWindow ? "COLOR" : "B&W");
+    /* NO serial_printf - variadic funcs corrupt heap before calloc! */
 
     WindowPtr window = (WindowPtr)calloc(1, recordSize);
 
-    serial_printf("[WM] AllocateWindowRecord: calloc returned 0x%08x\n", (unsigned int)P2UL(window));
-
-    if (window == NULL) {
-        serial_printf("[WM] AllocateWindowRecord: FAILED - calloc returned NULL!\n");
+    if (window) {
+        serial_puts("[WM] AllocateWindowRecord: SUCCESS\n");
+    } else {
+        serial_puts("[WM] AllocateWindowRecord: FAILED\n");
         #ifdef DEBUG_WINDOW_MANAGER
         printf("AllocateWindowRecord: Failed to allocate window record\n");
         #endif
@@ -739,20 +740,16 @@ static WindowPtr AllocateWindowRecord(Boolean isColorWindow) {
 }
 
 static void DeallocateWindowRecord(WindowPtr window) {
-    extern void serial_printf(const char *fmt, ...);
+    extern void serial_puts(const char *str);
     extern void DisposePtr(void* p);  /* Direct call to MemoryManager */
 
-    serial_printf("[WM] DeallocateWindowRecord: ENTRY window=0x%08x\n", (unsigned int)P2UL(window));
+    serial_puts("[WM] DeallocateWindowRecord: ENTRY\n");
 
     if (window) {
-        serial_printf("[WM] DeallocateWindowRecord: Calling DisposePtr directly\n");
         DisposePtr(window);  /* Bypass free(), call DisposePtr directly */
-        serial_printf("[WM] DeallocateWindowRecord: DisposePtr returned\n");
-    } else {
-        serial_printf("[WM] DeallocateWindowRecord: NULL window, skipping\n");
     }
 
-    serial_printf("[WM] DeallocateWindowRecord: EXIT\n");
+    serial_puts("[WM] DeallocateWindowRecord: EXIT\n");
 }
 
 static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,

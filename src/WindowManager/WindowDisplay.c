@@ -944,6 +944,18 @@ void ShowWindow(WindowPtr window) {
     WM_LOG_TRACE("ShowWindow: EXIT\n");
 }
 
+/* Temporarily disable ALL WM logging to prevent heap corruption from variadic serial_logf */
+#undef WM_LOG_DEBUG
+#undef WM_LOG_TRACE
+#undef WM_LOG_WARN
+#undef WM_LOG_ERROR
+#undef WM_DEBUG
+#define WM_LOG_DEBUG(...) do {} while(0)
+#define WM_LOG_TRACE(...) do {} while(0)
+#define WM_LOG_WARN(...) do {} while(0)
+#define WM_LOG_ERROR(...) do {} while(0)
+#define WM_DEBUG(...) do {} while(0)
+
 void HideWindow(WindowPtr window) {
     WM_LOG_DEBUG("[WM] HideWindow: ENTRY\n");
 

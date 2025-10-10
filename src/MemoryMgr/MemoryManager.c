@@ -12,6 +12,14 @@
 #define ALIGN     8u
 #define BLKHDR_SZ ((u32)sizeof(BlockHeader))
 
+/* Minimum block size must accommodate BlockHeader + FreeNode */
+#define MIN_BLOCK_SIZE (BLKHDR_SZ + (u32)sizeof(FreeNode))
+
+/* Heap validation magic numbers */
+#define BLOCK_MAGIC_ALLOCATED  0xA110C8ED  /* "ALLOCATED" */
+#define BLOCK_MAGIC_FREE       0xFEEEFEEE  /* "FREE" */
+#define FREENODE_MAGIC         0xF4EE1157  /* "FREELIST" */
+
 static inline u32 align_up(u32 n) {
     return (n + (ALIGN-1)) & ~(ALIGN-1);
 }
@@ -39,95 +47,226 @@ static BlockHeader* freenode_to_block(FreeNode* n) {
     return (BlockHeader*)((u8*)n - BLKHDR_SZ);
 }
 
+/* Validate that a FreeNode pointer is within zone bounds */
+static inline bool is_valid_freenode(ZoneInfo* z, FreeNode* n) {
+    if (!n) return false;
+    u8* ptr = (u8*)n;
+    /* FreeNode must be within zone and have room for header before it */
+    return (ptr >= z->base + BLKHDR_SZ) && (ptr + sizeof(FreeNode) <= z->limit);
+}
+
+/* Validate block header integrity */
+static inline bool validate_block(ZoneInfo* z, BlockHeader* b) {
+    if (!b || !z) return false;
+
+    /* Block must be within zone */
+    u8* bptr = (u8*)b;
+    if (bptr < z->base || bptr >= z->limit) return false;
+
+    /* Size must be non-zero and aligned */
+    if (b->size == 0 || (b->size & (ALIGN - 1)) != 0) return false;
+
+    /* Size must not exceed remaining zone space */
+    if (b->size > (u32)(z->limit - bptr)) return false;
+
+    /* For free blocks, size must be at least MIN_BLOCK_SIZE */
+    if ((b->flags & BF_FREE) && b->size < MIN_BLOCK_SIZE) return false;
+
+    /* prevSize must be reasonable */
+    if (b->prevSize > (u32)(bptr - z->base)) return false;
+
+    return true;
+}
+
+/* Validate freelist integrity */
+static bool validate_freelist(ZoneInfo* z) {
+    extern void serial_puts(const char* str);
+
+    if (!z || !z->freeHead) return true;  /* Empty list is valid */
+
+    if (!is_valid_freenode(z, z->freeHead)) {
+        serial_puts("[HEAP] CORRUPTION: Invalid freelist head\n");
+        return false;
+    }
+
+    FreeNode* it = z->freeHead;
+    FreeNode* start = it;
+    u32 count = 0;
+
+    do {
+        /* Validate current node */
+        if (!is_valid_freenode(z, it)) {
+            serial_puts("[HEAP] CORRUPTION: Invalid freenode in list\n");
+            return false;
+        }
+
+        /* Validate next pointer */
+        if (!is_valid_freenode(z, it->next)) {
+            serial_puts("[HEAP] CORRUPTION: Invalid next pointer\n");
+            return false;
+        }
+
+        /* Validate block header */
+        BlockHeader* b = freenode_to_block(it);
+        if (!validate_block(z, b)) {
+            serial_puts("[HEAP] CORRUPTION: Invalid block header\n");
+            return false;
+        }
+
+        /* Check circular consistency */
+        if (it->next->prev != it) {
+            serial_puts("[HEAP] CORRUPTION: Broken circular link (next->prev != this)\n");
+            return false;
+        }
+
+        it = it->next;
+        count++;
+
+        if (count > 10000) {
+            serial_puts("[HEAP] CORRUPTION: Freelist too long or infinite loop\n");
+            return false;
+        }
+    } while (it != start);
+
+    return true;
+}
+
 static void freelist_insert(ZoneInfo* z, BlockHeader* b) {
-    extern void serial_printf(const char *fmt, ...);
+    /* NO LOGGING - serial_printf corrupts registers! */
+
+    /* Bounds check - block must be within zone */
+    if ((u8*)b < z->base || (u8*)b >= z->limit) {
+        return;  /* Invalid block, don't insert */
+    }
+
+    /* CRITICAL: Block must be large enough to hold FreeNode! */
+    if (b->size < MIN_BLOCK_SIZE) {
+        return;  /* Block too small, would corrupt memory */
+    }
 
     b->flags = BF_FREE;
     FreeNode* n = block_to_freenode(b);
 
-    serial_printf("[FL] INSERT: block=%p node=%p size=%u\n", b, n, b->size);
+    /* Initialize node pointers */
+    n->next = n->prev = NULL;
 
     if (!z->freeHead) {
-        serial_printf("[FL] Creating new list, freeHead=%p\n", n);
+        /* First block in list - create single-node circular list */
         z->freeHead = n;
         n->next = n->prev = n;
         return;
     }
 
-    /* Insert sorted by address for easier coalescing */
-    serial_printf("[FL] freeHead=%p, starting loop\n", z->freeHead);
+    /* Insert sorted by address for efficient coalescing */
     FreeNode* it = z->freeHead;
-    int loop_count = 0;
+    FreeNode* start = it;  /* Remember where we started */
 
-    while (it->next != z->freeHead && it->next < n) {
-        serial_printf("[FL] loop[%d]: it=%p it->next=%p (target=%p)\n",
-                     loop_count, it, it->next, n);
-        it = it->next;
-        loop_count++;
-        if (loop_count > 100) {
-            serial_printf("[FL] INFINITE LOOP! freeHead=%p it=%p n=%p\n",
-                         z->freeHead, it, n);
-            serial_printf("[FL] it->next=%p it->prev=%p\n", it->next, it->prev);
-            return;  /* Prevent infinite loop */
+    /* Find insertion point - REMOVE LOOP LIMIT to fix corruption bug! */
+    /* We MUST traverse the entire list to find the correct position */
+    do {
+        /* Defensive: validate pointers before dereferencing */
+        if (!is_valid_freenode(z, it) || !is_valid_freenode(z, it->next)) {
+            /* Corrupted list - rebuild as single node */
+            z->freeHead = n;
+            n->next = n->prev = n;
+            return;
         }
-    }
 
-    serial_printf("[FL] Loop done after %d iterations, inserting between it=%p and it->next=%p\n",
-                 loop_count, it, it->next);
+        /* Check if we should insert between it and it->next */
+        if (it->next == start) {
+            /* Wrapped around - insert at end */
+            break;
+        }
 
+        if (it->next > n) {
+            /* Found insertion point */
+            break;
+        }
+
+        it = it->next;
+
+    } while (it != start);
+
+    /* Insert n between it and it->next */
     n->next = it->next;
     n->prev = it;
-    it->next->prev = n;
+
+    /* Update neighboring nodes */
+    if (it->next) {
+        it->next->prev = n;
+    }
     it->next = n;
 
-    /* Update head if we're smallest */
+    /* Update head if we're the smallest address */
     if (n < z->freeHead) {
-        serial_printf("[FL] Updating freeHead from %p to %p\n", z->freeHead, n);
         z->freeHead = n;
     }
-
-    serial_printf("[FL] INSERT complete\n");
 }
 
 static void freelist_remove(ZoneInfo* z, BlockHeader* b) {
-    extern void serial_printf(const char *fmt, ...);
+    /* NO LOGGING - serial_printf corrupts registers! */
+
+    if (!b) return;  /* Defensive: NULL check */
+
     FreeNode* n = block_to_freenode(b);
 
-    serial_printf("[FL] REMOVE: block=%p node=%p size=%u\n", b, n, b->size);
-    serial_printf("[FL] Before: freeHead=%p n->next=%p n->prev=%p\n",
-                 z->freeHead, n->next, n->prev);
-
-    if (n->next == n) {
-        serial_printf("[FL] Last node in list, clearing freeHead\n");
+    /* Defensive: NULL checks before dereferencing */
+    if (!n || !n->next || !n->prev) {
+        /* Corrupted node - clear the freelist */
         z->freeHead = NULL;
         return;
     }
 
+    /* Single node in list? */
+    if (n->next == n) {
+        z->freeHead = NULL;
+        return;
+    }
+
+    /* Remove from circular list */
     n->prev->next = n->next;
     n->next->prev = n->prev;
 
+    /* Update head if we're removing the head node */
     if (z->freeHead == n) {
-        serial_printf("[FL] Removed head, updating to %p\n", n->next);
         z->freeHead = n->next;
     }
 
-    serial_printf("[FL] REMOVE complete\n");
+    /* Clear pointers to prevent use-after-free */
+    n->next = n->prev = NULL;
 }
 
 /* ======================== Coalescing ======================== */
 
 static BlockHeader* coalesce_forward(ZoneInfo* z, BlockHeader* b) {
+    if (!b || !z) return b;  /* Defensive: NULL checks */
+
+    /* Validate block is within zone bounds */
+    if ((u8*)b < z->base || (u8*)b >= z->limit) return b;
+
     u8* end = (u8*)b + b->size;
+
+    /* Bounds check: end must be within zone */
     if (end >= z->limit) return b;
 
     BlockHeader* next = (BlockHeader*)end;
+
+    /* Validate next block is fully within bounds */
+    if ((u8*)next + BLKHDR_SZ > z->limit) return b;
+
+    /* Only coalesce if next block is free */
     if (next->flags & BF_FREE) {
+        /* Validate next block size before coalescing */
+        if (next->size == 0 || next->size > (u32)(z->limit - (u8*)next)) {
+            return b;  /* Corrupted next block, don't coalesce */
+        }
+
         freelist_remove(z, next);
         b->size += next->size;
 
-        /* Update next block's prevSize */
+        /* Update following block's prevSize */
         u8* after = (u8*)b + b->size;
-        if (after < z->limit) {
+        if (after < z->limit && after + BLKHDR_SZ <= z->limit) {
             BlockHeader* nxt = (BlockHeader*)after;
             nxt->prevSize = b->size;
         }
@@ -136,20 +275,42 @@ static BlockHeader* coalesce_forward(ZoneInfo* z, BlockHeader* b) {
 }
 
 static BlockHeader* coalesce_backward(ZoneInfo* z, BlockHeader* b) {
-    if (b->prevSize) {
-        BlockHeader* prev = (BlockHeader*)((u8*)b - b->prevSize);
-        if (prev->flags & BF_FREE) {
-            freelist_remove(z, prev);
-            prev->size += b->size;
+    if (!b || !z) return b;  /* Defensive: NULL checks */
 
-            /* Update next block's prevSize */
-            u8* after = (u8*)prev + prev->size;
-            if (after < z->limit) {
-                BlockHeader* nxt = (BlockHeader*)after;
-                nxt->prevSize = prev->size;
-            }
-            b = prev;
+    /* Validate block is within zone bounds */
+    if ((u8*)b < z->base || (u8*)b >= z->limit) return b;
+
+    /* Only try if there's a previous block */
+    if (b->prevSize == 0) return b;
+
+    /* Validate prevSize is reasonable */
+    if (b->prevSize > (u32)((u8*)b - z->base)) {
+        return b;  /* Corrupted prevSize, don't coalesce */
+    }
+
+    BlockHeader* prev = (BlockHeader*)((u8*)b - b->prevSize);
+
+    /* Validate prev is within bounds */
+    if ((u8*)prev < z->base) return b;
+
+    /* Only coalesce if prev block is free */
+    if (prev->flags & BF_FREE) {
+        /* Validate prev block size */
+        if (prev->size != b->prevSize) {
+            return b;  /* Size mismatch, corruption detected */
         }
+
+        freelist_remove(z, prev);
+        prev->size += b->size;
+
+        /* Update following block's prevSize */
+        u8* after = (u8*)prev + prev->size;
+        if (after < z->limit && after + BLKHDR_SZ <= z->limit) {
+            BlockHeader* nxt = (BlockHeader*)after;
+            nxt->prevSize = prev->size;
+        }
+
+        b = prev;
     }
     return b;
 }
@@ -201,15 +362,43 @@ u32 FreeMem(void) {
 u32 MaxMem(void) {
     if (!gCurrentZone || !gCurrentZone->freeHead) return 0;
 
+    /* Validate head pointer before use */
+    if (!is_valid_freenode(gCurrentZone, gCurrentZone->freeHead)) {
+        gCurrentZone->freeHead = NULL;
+        return 0;
+    }
+
     u32 maxBlock = 0;
     FreeNode* it = gCurrentZone->freeHead;
+    FreeNode* start = it;
+    u32 loop_safety = 0;
+
     do {
+        /* Defensive: validate pointer is within zone bounds */
+        if (!is_valid_freenode(gCurrentZone, it)) {
+            gCurrentZone->freeHead = NULL;
+            return maxBlock > BLKHDR_SZ ? maxBlock - BLKHDR_SZ : 0;
+        }
+
+        /* Validate next pointer */
+        if (!is_valid_freenode(gCurrentZone, it->next)) {
+            gCurrentZone->freeHead = NULL;
+            return maxBlock > BLKHDR_SZ ? maxBlock - BLKHDR_SZ : 0;
+        }
+
         BlockHeader* b = freenode_to_block(it);
         if (b->size > maxBlock) {
             maxBlock = b->size;
         }
         it = it->next;
-    } while (it != gCurrentZone->freeHead);
+
+        /* Safety limit to prevent infinite loop on corruption */
+        loop_safety++;
+        if (loop_safety > 10000) {
+            gCurrentZone->freeHead = NULL;
+            return maxBlock > BLKHDR_SZ ? maxBlock - BLKHDR_SZ : 0;
+        }
+    } while (it != start);
 
     return maxBlock > BLKHDR_SZ ? maxBlock - BLKHDR_SZ : 0;
 }
@@ -217,14 +406,44 @@ u32 MaxMem(void) {
 /* ======================== Block Allocation ======================== */
 
 static BlockHeader* find_fit(ZoneInfo* z, u32 need) {
+    /* NO LOGGING - even serial_puts corrupts return value! */
     if (!z->freeHead) return NULL;
 
+    /* Validate head pointer before use */
+    if (!is_valid_freenode(z, z->freeHead)) {
+        z->freeHead = NULL;  /* Clear corrupted head */
+        return NULL;
+    }
+
     FreeNode* it = z->freeHead;
+    FreeNode* start = it;
+    u32 loop_safety = 0;
+
     do {
+        /* Defensive: validate pointer is within zone bounds before dereferencing */
+        if (!is_valid_freenode(z, it)) {
+            z->freeHead = NULL;  /* Clear corrupted freelist */
+            return NULL;
+        }
+
+        /* Validate next pointer before using it */
+        if (!is_valid_freenode(z, it->next)) {
+            z->freeHead = NULL;  /* Clear corrupted freelist */
+            return NULL;
+        }
+
         BlockHeader* b = freenode_to_block(it);
         if (b->size >= need) return b;
+
         it = it->next;
-    } while (it != z->freeHead);
+
+        /* Safety limit to prevent infinite loop on corruption */
+        loop_safety++;
+        if (loop_safety > 10000) {
+            z->freeHead = NULL;  /* Clear likely corrupted freelist */
+            return NULL;
+        }
+    } while (it != start);
 
     return NULL;
 }
@@ -233,7 +452,8 @@ static void split_block(ZoneInfo* z, BlockHeader* b, u32 need) {
     u32 remain = b->size - need;
     freelist_remove(z, b);
 
-    if (remain >= BLKHDR_SZ + ALIGN) {
+    /* CRITICAL FIX: Use MIN_BLOCK_SIZE instead of BLKHDR_SZ + ALIGN */
+    if (remain >= MIN_BLOCK_SIZE) {
         /* Create a tail free block */
         BlockHeader* tail = (BlockHeader*)((u8*)b + need);
         tail->size = remain;
@@ -261,55 +481,39 @@ static void split_block(ZoneInfo* z, BlockHeader* b, u32 need) {
 /* ======================== Ptr Operations ======================== */
 
 void* NewPtr(u32 byteCount) {
-    /* TEST: Use simple serial output to see if we even enter this function */
-    extern void serial_puts(const char* str);
-    serial_puts("NewPtr: ENTRY\n");
+    /* NO LOGGING AT ALL - serial_puts corrupts registers in bare-metal! */
 
     ZoneInfo* z = gCurrentZone;
-    serial_puts("NewPtr: got zone\n");
     if (!z) {
-        serial_puts("NewPtr: no zone!\n");
         return NULL;
     }
 
-    serial_puts("NewPtr: aligning\n");
     u32 need = align_up(byteCount + BLKHDR_SZ);
 
-    serial_puts("NewPtr: calling find_fit\n");
+    /* Enforce minimum block size to ensure blocks can be freed */
+    if (need < MIN_BLOCK_SIZE) {
+        need = MIN_BLOCK_SIZE;
+    }
     BlockHeader* b = find_fit(z, need);
-    serial_puts("NewPtr: find_fit returned\n");
 
     if (!b) {
-        /* Try compaction */
-        // MEMORY_LOG_DEBUG("[NewPtr] No fit found, trying compaction for %u bytes...\n", need);
         u32 compact_result = CompactMem(need);
-        // MEMORY_LOG_DEBUG("[NewPtr] CompactMem returned: %u (need %u)\n", compact_result, need);
-
         if (compact_result < need) {
-            // MEMORY_LOG_DEBUG("[NewPtr] FAIL: compaction insufficient\n");
             return NULL;
         }
-
-        // MEMORY_LOG_DEBUG("[NewPtr] Calling find_fit after compaction...\n");
         b = find_fit(z, need);
-        // MEMORY_LOG_DEBUG("[NewPtr] find_fit after compaction returned: %p\n", b);
-
         if (!b) {
-            // MEMORY_LOG_DEBUG("[NewPtr] FAIL: no fit even after compaction\n");
             return NULL;
         }
     }
 
-    serial_puts("NewPtr: splitting block\n");
     split_block(z, b, need);
-    serial_puts("NewPtr: block split\n");
 
     b->flags |= BF_PTR;
     b->masterPtr = NULL;
     z->bytesUsed += b->size;
     z->bytesFree -= b->size;
 
-    /* DON'T call serial_puts here - it clobbers the return register! */
     void* result = (u8*)b + BLKHDR_SZ;
     return result;
 }
@@ -338,8 +542,21 @@ void DisposePtr(void* p) {
         return;
     }
 
+    /* Validate freelist BEFORE disposal */
+    if (!validate_freelist(z)) {
+        serial_puts("[DISPOSE] ERROR: Freelist already corrupted before disposal!\n");
+        z->freeHead = NULL;  /* Reset to prevent crashes */
+        return;
+    }
+
     BlockHeader* b = (BlockHeader*)((u8*)p - BLKHDR_SZ);
     serial_puts("[DISPOSE] BlockHeader calculated\n");
+
+    /* Validate the block being freed */
+    if (!validate_block(z, b)) {
+        serial_puts("[DISPOSE] ERROR: Invalid block being freed\n");
+        return;
+    }
 
     b->flags &= ~(BF_PTR);
     z->bytesUsed -= b->size;
@@ -354,8 +571,21 @@ void DisposePtr(void* p) {
     b = coalesce_backward(z, b);
     serial_puts("[DISPOSE] After coalesce_backward\n");
 
+    /* Validate coalesced block */
+    if (!validate_block(z, b)) {
+        serial_puts("[DISPOSE] ERROR: Coalesced block invalid\n");
+        return;
+    }
+
     serial_puts("[DISPOSE] Calling freelist_insert\n");
     freelist_insert(z, b);
+
+    /* Validate freelist AFTER insertion */
+    if (!validate_freelist(z)) {
+        serial_puts("[DISPOSE] ERROR: Freelist corrupted after freelist_insert!\n");
+        z->freeHead = NULL;  /* Reset to prevent crashes */
+    }
+
     serial_puts("[DISPOSE] Complete\n");
 }
 
@@ -393,6 +623,11 @@ Handle NewHandle(u32 byteCount) {
     if (!mp) return NULL;
 
     u32 need = align_up(byteCount + BLKHDR_SZ);
+
+    /* Enforce minimum block size to ensure blocks can be freed */
+    if (need < MIN_BLOCK_SIZE) {
+        need = MIN_BLOCK_SIZE;
+    }
     BlockHeader* b = find_fit(z, need);
 
     if (!b) {
@@ -433,8 +668,19 @@ void DisposeHandle(Handle h) {
     ZoneInfo* z = gCurrentZone;
     if (!z) return;
 
+    /* Validate freelist before disposal */
+    if (!validate_freelist(z)) {
+        z->freeHead = NULL;
+        return;
+    }
+
     u8* p = (u8*)*h;
     BlockHeader* b = (BlockHeader*)(p - BLKHDR_SZ);
+
+    /* Validate block being freed */
+    if (!validate_block(z, b)) {
+        return;
+    }
 
     /* Clear master pointer */
     *h = NULL;
@@ -446,7 +692,18 @@ void DisposeHandle(Handle h) {
 
     b = coalesce_forward(z, b);
     b = coalesce_backward(z, b);
+
+    /* Validate after coalescing */
+    if (!validate_block(z, b)) {
+        return;
+    }
+
     freelist_insert(z, b);
+
+    /* Validate freelist after insertion */
+    if (!validate_freelist(z)) {
+        z->freeHead = NULL;
+    }
 }
 
 void HLock(Handle h) {
@@ -624,7 +881,8 @@ u32 CompactMem(u32 cbNeeded) {
         }
 
         /* Non-movable or locked - skip any gap and continue */
-        if (scan != dest && (scan - dest) >= BLKHDR_SZ + ALIGN) {
+        /* CRITICAL FIX: Use MIN_BLOCK_SIZE instead of BLKHDR_SZ + ALIGN */
+        if (scan != dest && (scan - dest) >= MIN_BLOCK_SIZE) {
             /* Create free block in the gap */
             BlockHeader* fb = (BlockHeader*)dest;
             fb->size = scan - dest;
@@ -696,40 +954,24 @@ void PurgeMem(u32 cbNeeded) {
 /* ======================== C Library Interface ======================== */
 
 void* malloc(size_t size) {
-    extern void serial_puts(const char* str);
-    serial_puts("malloc: ENTRY\n");
-    void* result = NewPtr((u32)size);
-    if (result) {
-        serial_puts("malloc: NewPtr succeeded\n");
-    } else {
-        serial_puts("malloc: NewPtr FAILED\n");
-    }
-    return result;
+    /* NO LOGGING - serial_puts corrupts registers! */
+    return NewPtr((u32)size);
 }
 
 void free(void* ptr) {
-    extern void serial_printf(const char *fmt, ...);
-    serial_printf("[FREE] ptr=%p\n", ptr);
+    extern void serial_puts(const char* str);
+    serial_puts("[FREE] ENTRY\n");
     DisposePtr(ptr);
-    serial_printf("[FREE] DisposePtr returned\n");
+    serial_puts("[FREE] Complete\n");
 }
 
 void* calloc(size_t nmemb, size_t size) {
-    extern void serial_puts(const char* str);
-    serial_puts("calloc: ENTRY\n");
-
+    /* NO LOGGING - serial_puts corrupts registers! */
     size_t total = nmemb * size;
-    serial_puts("calloc: calling malloc\n");
     void* p = malloc(total);
-
     if (p) {
-        serial_puts("calloc: malloc succeeded, clearing\n");
         memset(p, 0, total);
-        serial_puts("calloc: SUCCESS, returning\n");
-    } else {
-        serial_puts("calloc: malloc FAILED, returning NULL\n");
     }
-
     return p;
 }
 

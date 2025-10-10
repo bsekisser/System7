@@ -1,10 +1,16 @@
-# Window Close Memory Leak - RESOLVED ✅
+# Window Close/Reopen Bug - IN PROGRESS ⚠️
 
-## Problem (SOLVED)
-Windows would close but fail to reopen - `NewWindow()` returned NULL after closing a window, indicating memory allocation failure.
+## Current Problem
+Windows still fail to reopen after being closed. The issue has evolved through multiple fixes:
+1. **Phase 1 (FIXED)**: NULL pointer returns - caused by variadic logging corruption
+2. **Phase 2 (FIXED)**: Freelist corruption from 100-iteration loop limit
+3. **Phase 3 (FIXED)**: Infinite loops from missing NULL checks
+4. **Phase 4 (CURRENT)**: Freelist still corrupts after disposal, causing freezes
 
-## Root Cause Identified
-**serial_printf() with variadic arguments was crashing/hanging when called from inside DisposePtr()**, preventing the memory manager from freeing window memory. This caused subsequent calloc() calls to return NULL.
+## Root Causes Identified
+
+### PRIMARY ISSUE (FIXED): Variadic Logging Corruption
+**serial_printf() with variadic arguments was crashing/hanging when called from inside DisposePtr()**, preventing the memory manager from freeing window memory.
 
 ## Investigation Journey
 
@@ -77,4 +83,43 @@ Windows now close and reopen perfectly.
 3. Disassembly + symbol table analysis is essential for tracking "ghost" bugs
 4. Simple is better: serial_puts > serial_printf for critical paths
 
-**Status: COMPLETELY RESOLVED** ✅
+---
+
+## CURRENT STATUS (Latest Session)
+
+### Secondary Issues Discovered - Freelist Corruption
+
+**Problem**: After fixing variadic logging, windows still fail to reopen due to freelist corruption during disposal.
+
+**Fixes Applied (src/MemoryMgr/MemoryManager.c)**:
+
+1. **freelist_insert() Loop Limit Bug (FIXED)**
+   - Removed arbitrary 100-iteration limit that caused silent failures
+   - When freelist grew beyond 100 nodes (common after window disposal with ~40+ freed blocks), insertions would silently fail
+   - **Fix**: Use proper circular list traversal with start marker
+
+2. **Missing Bounds Validation (FIXED)**
+   - Added `is_valid_freenode()` helper to validate pointers are within zone bounds
+   - Prevents crashes from dereferencing corrupt pointers outside valid memory
+
+3. **Infinite Loop Protection (FIXED)**
+   - Added 10000-iteration safety limits to `find_fit()` and `MaxMem()`
+   - Added pointer validation before dereferencing in circular list traversal
+   - Clear freelist when corruption detected to prevent crashes
+
+**Test Results**:
+- ✅ No more crashes/reboots
+- ✅ Allocations succeed initially
+- ❌ Still freezes after first window disposal (freeze point varies)
+- ❌ Freelist corruption persists despite all protections
+
+**Current Hypothesis**:
+The freelist is still being corrupted during disposal operations, but now the corruption is detected and the freelist is cleared (`z->freeHead = NULL`). This prevents crashes but causes subsequent allocations to fail or freeze as the allocator tries to recover with an empty freelist.
+
+### Next Steps Needed
+1. Identify the actual source of freelist corruption (buffer overrun, incorrect size calculations, etc.)
+2. Add heap validation function to detect corruption earlier
+3. Consider alternative freelist structures (size-class segregated lists)
+4. Add magic numbers/checksums to FreeNode structures
+
+**Status: PARTIALLY RESOLVED - Core issues fixed, underlying corruption persists** ⚠️

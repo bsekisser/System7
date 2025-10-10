@@ -1005,6 +1005,15 @@ static void GhostEraseIf(void) {
  * CleanupFolderWindow - Clean up state when a folder window is closed
  * This prevents crashes when the window is closed and then File > Close is used
  */
+
+/* Temporarily disable ALL FINDER logging to prevent heap corruption from variadic serial_logf */
+#undef FINDER_LOG_DEBUG
+#undef FINDER_LOG_WARN
+#undef FINDER_LOG_ERROR
+#define FINDER_LOG_DEBUG(...) do {} while(0)
+#define FINDER_LOG_WARN(...) do {} while(0)
+#define FINDER_LOG_ERROR(...) do {} while(0)
+
 void CleanupFolderWindow(WindowPtr w) {
     if (!w) return;
 
