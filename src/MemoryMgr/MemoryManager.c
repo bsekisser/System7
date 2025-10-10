@@ -24,6 +24,18 @@ static inline u32 align_up(u32 n) {
     return (n + (ALIGN-1)) & ~(ALIGN-1);
 }
 
+/* Get size class index for a block size (segregated freelists) */
+static inline u32 get_size_class(u32 size) {
+    if (size <= 64) return 0;
+    if (size <= 128) return 1;
+    if (size <= 256) return 2;
+    if (size <= 512) return 3;
+    if (size <= 1024) return 4;
+    if (size <= 2048) return 5;
+    if (size <= 4096) return 6;
+    return 7;  /* 4KB+ */
+}
+
 /* Global zones */
 static ZoneInfo gSystemZone;       /* System heap */
 static ZoneInfo gAppZone;          /* Application heap */
@@ -78,55 +90,61 @@ static inline bool validate_block(ZoneInfo* z, BlockHeader* b) {
     return true;
 }
 
-/* Validate freelist integrity */
+/* Validate freelist integrity for segregated lists */
 static bool validate_freelist(ZoneInfo* z) {
     extern void serial_puts(const char* str);
 
-    if (!z || !z->freeHead) return true;  /* Empty list is valid */
+    if (!z) return false;
 
-    if (!is_valid_freenode(z, z->freeHead)) {
-        serial_puts("[HEAP] CORRUPTION: Invalid freelist head\n");
-        return false;
+    /* Validate each size class */
+    for (u32 sc = 0; sc < NUM_SIZE_CLASSES; sc++) {
+        FreeNode* head = z->freelists[sc];
+        if (!head) continue;  /* Empty class is valid */
+
+        if (!is_valid_freenode(z, head)) {
+            serial_puts("[HEAP] CORRUPTION: Invalid freelist head in size class\n");
+            return false;
+        }
+
+        FreeNode* it = head;
+        FreeNode* start = it;
+        u32 count = 0;
+
+        do {
+            /* Validate current node */
+            if (!is_valid_freenode(z, it)) {
+                serial_puts("[HEAP] CORRUPTION: Invalid freenode in list\n");
+                return false;
+            }
+
+            /* Validate next pointer */
+            if (!is_valid_freenode(z, it->next)) {
+                serial_puts("[HEAP] CORRUPTION: Invalid next pointer\n");
+                return false;
+            }
+
+            /* Validate block header */
+            BlockHeader* b = freenode_to_block(it);
+            if (!validate_block(z, b)) {
+                serial_puts("[HEAP] CORRUPTION: Invalid block header\n");
+                return false;
+            }
+
+            /* Check circular consistency */
+            if (it->next->prev != it) {
+                serial_puts("[HEAP] CORRUPTION: Broken circular link\n");
+                return false;
+            }
+
+            it = it->next;
+            count++;
+
+            if (count > 10000) {
+                serial_puts("[HEAP] CORRUPTION: Freelist too long or infinite loop\n");
+                return false;
+            }
+        } while (it != start);
     }
-
-    FreeNode* it = z->freeHead;
-    FreeNode* start = it;
-    u32 count = 0;
-
-    do {
-        /* Validate current node */
-        if (!is_valid_freenode(z, it)) {
-            serial_puts("[HEAP] CORRUPTION: Invalid freenode in list\n");
-            return false;
-        }
-
-        /* Validate next pointer */
-        if (!is_valid_freenode(z, it->next)) {
-            serial_puts("[HEAP] CORRUPTION: Invalid next pointer\n");
-            return false;
-        }
-
-        /* Validate block header */
-        BlockHeader* b = freenode_to_block(it);
-        if (!validate_block(z, b)) {
-            serial_puts("[HEAP] CORRUPTION: Invalid block header\n");
-            return false;
-        }
-
-        /* Check circular consistency */
-        if (it->next->prev != it) {
-            serial_puts("[HEAP] CORRUPTION: Broken circular link (next->prev != this)\n");
-            return false;
-        }
-
-        it = it->next;
-        count++;
-
-        if (count > 10000) {
-            serial_puts("[HEAP] CORRUPTION: Freelist too long or infinite loop\n");
-            return false;
-        }
-    } while (it != start);
 
     return true;
 }
@@ -147,60 +165,35 @@ static void freelist_insert(ZoneInfo* z, BlockHeader* b) {
     b->flags = BF_FREE;
     FreeNode* n = block_to_freenode(b);
 
+    /* Determine size class for segregated freelist */
+    u32 sc = get_size_class(b->size);
+    FreeNode** head = &z->freelists[sc];
+
     /* Initialize node pointers */
     n->next = n->prev = NULL;
 
-    if (!z->freeHead) {
-        /* First block in list - create single-node circular list */
-        z->freeHead = n;
+    if (!*head) {
+        /* First block in this size class - create single-node circular list */
+        *head = n;
         n->next = n->prev = n;
         return;
     }
 
-    /* Insert sorted by address for efficient coalescing */
-    FreeNode* it = z->freeHead;
-    FreeNode* start = it;  /* Remember where we started */
+    /* Insert at head (LIFO for better cache locality) */
+    n->next = *head;
+    n->prev = (*head)->prev;
 
-    /* Find insertion point - REMOVE LOOP LIMIT to fix corruption bug! */
-    /* We MUST traverse the entire list to find the correct position */
-    do {
-        /* Defensive: validate pointers before dereferencing */
-        if (!is_valid_freenode(z, it) || !is_valid_freenode(z, it->next)) {
-            /* Corrupted list - rebuild as single node */
-            z->freeHead = n;
-            n->next = n->prev = n;
-            return;
-        }
-
-        /* Check if we should insert between it and it->next */
-        if (it->next == start) {
-            /* Wrapped around - insert at end */
-            break;
-        }
-
-        if (it->next > n) {
-            /* Found insertion point */
-            break;
-        }
-
-        it = it->next;
-
-    } while (it != start);
-
-    /* Insert n between it and it->next */
-    n->next = it->next;
-    n->prev = it;
-
-    /* Update neighboring nodes */
-    if (it->next) {
-        it->next->prev = n;
+    /* Defensive: validate head before dereferencing */
+    if (!is_valid_freenode(z, *head)) {
+        /* Corrupted list - rebuild as single node */
+        *head = n;
+        n->next = n->prev = n;
+        return;
     }
-    it->next = n;
 
-    /* Update head if we're the smallest address */
-    if (n < z->freeHead) {
-        z->freeHead = n;
-    }
+    (*head)->prev->next = n;
+    (*head)->prev = n;
+    *head = n;  /* New head */
 }
 
 static void freelist_remove(ZoneInfo* z, BlockHeader* b) {
@@ -212,14 +205,18 @@ static void freelist_remove(ZoneInfo* z, BlockHeader* b) {
 
     /* Defensive: NULL checks before dereferencing */
     if (!n || !n->next || !n->prev) {
-        /* Corrupted node - clear the freelist */
-        z->freeHead = NULL;
+        /* Corrupted node - can't safely remove */
         return;
     }
 
-    /* Single node in list? */
+    /* Determine size class */
+    u32 sc = get_size_class(b->size);
+    FreeNode** head = &z->freelists[sc];
+
+    /* Single node in this size class? */
     if (n->next == n) {
-        z->freeHead = NULL;
+        *head = NULL;
+        n->next = n->prev = NULL;
         return;
     }
 
@@ -228,8 +225,8 @@ static void freelist_remove(ZoneInfo* z, BlockHeader* b) {
     n->next->prev = n->prev;
 
     /* Update head if we're removing the head node */
-    if (z->freeHead == n) {
-        z->freeHead = n->next;
+    if (*head == n) {
+        *head = n->next;
     }
 
     /* Clear pointers to prevent use-after-free */
@@ -322,6 +319,11 @@ void InitZone(ZoneInfo* zone, void* memory, u32 size, void** masterTable, u32 ma
     zone->base = (u8*)memory;
     zone->limit = zone->base + size;
 
+    /* Initialize all segregated freelists to NULL */
+    for (u32 i = 0; i < NUM_SIZE_CLASSES; i++) {
+        zone->freelists[i] = NULL;
+    }
+
     /* Create one big free block spanning the zone */
     BlockHeader* b = (BlockHeader*)zone->base;
     b->size = align_up(size);
@@ -329,9 +331,12 @@ void InitZone(ZoneInfo* zone, void* memory, u32 size, void** masterTable, u32 ma
     b->prevSize = 0;
     b->masterPtr = NULL;
 
-    /* Free list points to this block */
-    zone->freeHead = (FreeNode*)((u8*)b + BLKHDR_SZ);
-    zone->freeHead->next = zone->freeHead->prev = zone->freeHead;
+    /* Insert initial block into appropriate size class */
+    u32 sc = get_size_class(b->size);
+    FreeNode* n = (FreeNode*)((u8*)b + BLKHDR_SZ);
+    n->next = n->prev = n;
+    zone->freelists[sc] = n;
+
     zone->bytesFree = size - BLKHDR_SZ;
     zone->bytesUsed = BLKHDR_SZ;
 
@@ -360,45 +365,47 @@ u32 FreeMem(void) {
 }
 
 u32 MaxMem(void) {
-    if (!gCurrentZone || !gCurrentZone->freeHead) return 0;
-
-    /* Validate head pointer before use */
-    if (!is_valid_freenode(gCurrentZone, gCurrentZone->freeHead)) {
-        gCurrentZone->freeHead = NULL;
-        return 0;
-    }
+    if (!gCurrentZone) return 0;
 
     u32 maxBlock = 0;
-    FreeNode* it = gCurrentZone->freeHead;
-    FreeNode* start = it;
-    u32 loop_safety = 0;
 
-    do {
-        /* Defensive: validate pointer is within zone bounds */
-        if (!is_valid_freenode(gCurrentZone, it)) {
-            gCurrentZone->freeHead = NULL;
-            return maxBlock > BLKHDR_SZ ? maxBlock - BLKHDR_SZ : 0;
+    /* Search all size classes for largest block */
+    for (u32 sc = 0; sc < NUM_SIZE_CLASSES; sc++) {
+        FreeNode* head = gCurrentZone->freelists[sc];
+        if (!head) continue;
+
+        /* Validate head pointer before use */
+        if (!is_valid_freenode(gCurrentZone, head)) {
+            gCurrentZone->freelists[sc] = NULL;
+            continue;
         }
 
-        /* Validate next pointer */
-        if (!is_valid_freenode(gCurrentZone, it->next)) {
-            gCurrentZone->freeHead = NULL;
-            return maxBlock > BLKHDR_SZ ? maxBlock - BLKHDR_SZ : 0;
-        }
+        FreeNode* it = head;
+        FreeNode* start = it;
+        u32 loop_safety = 0;
 
-        BlockHeader* b = freenode_to_block(it);
-        if (b->size > maxBlock) {
-            maxBlock = b->size;
-        }
-        it = it->next;
+        do {
+            /* Defensive: validate pointer */
+            if (!is_valid_freenode(gCurrentZone, it) ||
+                !is_valid_freenode(gCurrentZone, it->next)) {
+                gCurrentZone->freelists[sc] = NULL;
+                break;
+            }
 
-        /* Safety limit to prevent infinite loop on corruption */
-        loop_safety++;
-        if (loop_safety > 10000) {
-            gCurrentZone->freeHead = NULL;
-            return maxBlock > BLKHDR_SZ ? maxBlock - BLKHDR_SZ : 0;
-        }
-    } while (it != start);
+            BlockHeader* b = freenode_to_block(it);
+            if (b->size > maxBlock) {
+                maxBlock = b->size;
+            }
+            it = it->next;
+
+            /* Safety limit */
+            loop_safety++;
+            if (loop_safety > 10000) {
+                gCurrentZone->freelists[sc] = NULL;
+                break;
+            }
+        } while (it != start);
+    }
 
     return maxBlock > BLKHDR_SZ ? maxBlock - BLKHDR_SZ : 0;
 }
@@ -407,45 +414,57 @@ u32 MaxMem(void) {
 
 static BlockHeader* find_fit(ZoneInfo* z, u32 need) {
     /* NO LOGGING - even serial_puts corrupts return value! */
-    if (!z->freeHead) return NULL;
 
-    /* Validate head pointer before use */
-    if (!is_valid_freenode(z, z->freeHead)) {
-        z->freeHead = NULL;  /* Clear corrupted head */
-        return NULL;
+    /* Determine starting size class */
+    u32 start_class = get_size_class(need);
+
+    /* Try exact size class first */
+    FreeNode* head = z->freelists[start_class];
+    if (head) {
+        /* Validate head pointer before use */
+        if (!is_valid_freenode(z, head)) {
+            z->freelists[start_class] = NULL;
+        } else {
+            FreeNode* it = head;
+            FreeNode* start = it;
+            u32 loop_safety = 0;
+
+            do {
+                /* Defensive: validate pointer before dereferencing */
+                if (!is_valid_freenode(z, it) || !is_valid_freenode(z, it->next)) {
+                    z->freelists[start_class] = NULL;
+                    break;
+                }
+
+                BlockHeader* b = freenode_to_block(it);
+                if (b->size >= need) return b;
+
+                it = it->next;
+                loop_safety++;
+                if (loop_safety > 10000) {
+                    z->freelists[start_class] = NULL;
+                    break;
+                }
+            } while (it != start);
+        }
     }
 
-    FreeNode* it = z->freeHead;
-    FreeNode* start = it;
-    u32 loop_safety = 0;
+    /* Try larger size classes */
+    for (u32 sc = start_class + 1; sc < NUM_SIZE_CLASSES; sc++) {
+        head = z->freelists[sc];
+        if (!head) continue;
 
-    do {
-        /* Defensive: validate pointer is within zone bounds before dereferencing */
-        if (!is_valid_freenode(z, it)) {
-            z->freeHead = NULL;  /* Clear corrupted freelist */
-            return NULL;
+        /* Validate and return first block from larger class */
+        if (!is_valid_freenode(z, head)) {
+            z->freelists[sc] = NULL;
+            continue;
         }
 
-        /* Validate next pointer before using it */
-        if (!is_valid_freenode(z, it->next)) {
-            z->freeHead = NULL;  /* Clear corrupted freelist */
-            return NULL;
-        }
-
-        BlockHeader* b = freenode_to_block(it);
+        BlockHeader* b = freenode_to_block(head);
         if (b->size >= need) return b;
+    }
 
-        it = it->next;
-
-        /* Safety limit to prevent infinite loop on corruption */
-        loop_safety++;
-        if (loop_safety > 10000) {
-            z->freeHead = NULL;  /* Clear likely corrupted freelist */
-            return NULL;
-        }
-    } while (it != start);
-
-    return NULL;
+    return NULL;  /* No fit found */
 }
 
 static void split_block(ZoneInfo* z, BlockHeader* b, u32 need) {
@@ -545,7 +564,10 @@ void DisposePtr(void* p) {
     /* Validate freelist BEFORE disposal */
     if (!validate_freelist(z)) {
         serial_puts("[DISPOSE] ERROR: Freelist already corrupted before disposal!\n");
-        z->freeHead = NULL;  /* Reset to prevent crashes */
+        /* Clear all freelists to prevent crashes */
+        for (u32 i = 0; i < NUM_SIZE_CLASSES; i++) {
+            z->freelists[i] = NULL;
+        }
         return;
     }
 
@@ -583,7 +605,10 @@ void DisposePtr(void* p) {
     /* Validate freelist AFTER insertion */
     if (!validate_freelist(z)) {
         serial_puts("[DISPOSE] ERROR: Freelist corrupted after freelist_insert!\n");
-        z->freeHead = NULL;  /* Reset to prevent crashes */
+        /* Clear all freelists to prevent crashes */
+        for (u32 i = 0; i < NUM_SIZE_CLASSES; i++) {
+            z->freelists[i] = NULL;
+        }
     }
 
     serial_puts("[DISPOSE] Complete\n");
@@ -670,7 +695,9 @@ void DisposeHandle(Handle h) {
 
     /* Validate freelist before disposal */
     if (!validate_freelist(z)) {
-        z->freeHead = NULL;
+        for (u32 i = 0; i < NUM_SIZE_CLASSES; i++) {
+            z->freelists[i] = NULL;
+        }
         return;
     }
 
@@ -702,7 +729,9 @@ void DisposeHandle(Handle h) {
 
     /* Validate freelist after insertion */
     if (!validate_freelist(z)) {
-        z->freeHead = NULL;
+        for (u32 i = 0; i < NUM_SIZE_CLASSES; i++) {
+            z->freelists[i] = NULL;
+        }
     }
 }
 
