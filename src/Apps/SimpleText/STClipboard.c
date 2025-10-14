@@ -94,7 +94,6 @@ void STClip_Copy(STDocument* doc)
 /* Paste text from clipboard */
 void STClip_Paste(STDocument* doc)
 {
-    Handle scrapHandle;
     SInt32 scrapLen;
     OSErr err;
 
@@ -105,7 +104,7 @@ void STClip_Paste(STDocument* doc)
     }
 
     /* Check if there's text in the scrap */
-    err = GetScrap(NULL, 'TEXT', (long int *)&scrapLen);
+    err = GetScrap(NULL, 'TEXT', (long *)&scrapLen);
     if (err != noErr || scrapLen <= 0) {
         ST_Log("No text in clipboard");
         return;
@@ -169,7 +168,7 @@ Boolean STClip_HasText(void)
     OSErr err;
 
     /* Check for TEXT in scrap */
-    err = GetScrap(NULL, 'TEXT', (long int *)&scrapLen);
+    err = GetScrap(NULL, 'TEXT', (long *)&scrapLen);
 
     return (err == noErr && scrapLen > 0);
 }
@@ -177,9 +176,7 @@ Boolean STClip_HasText(void)
 /* Undo last operation (single-level) */
 void STClip_Undo(STDocument* doc)
 {
-    CharsHandle textHandle;
-    Handle tempHandle;
-    SInt16 tempStart, tempEnd;
+    /* Placeholders for future redo support removed to avoid warnings */
     SInt32 undoLen;
 
     ST_Log("STClip_Undo");
@@ -188,9 +185,7 @@ void STClip_Undo(STDocument* doc)
         return;
     }
 
-    /* Get current selection to save for redo (which we don't support yet) */
-    tempStart = (*doc->hTE)->selStart;
-    tempEnd = (*doc->hTE)->selEnd;
+    /* TODO: capture current selection for future redo support */
 
     /* If we have undo text, it was a deletion - restore it */
     if (doc->undoText) {

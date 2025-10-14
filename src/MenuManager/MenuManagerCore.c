@@ -432,7 +432,7 @@ void DrawMenuBar(void)
                     */
 
                     /* Check if title is at wrong offset */
-                    unsigned char alt_len = (**menu).menuData[1];
+                    /* unsigned char alt_len = (**menu).menuData[1]; */
                     /* MENU_LOG_TRACE("  Alt titleLen at [1]: %d\n", alt_len); */
                     if (titleLen > 0 && titleLen <= 20) { /* More restrictive sanity check */
                         short menuWidth = 0;
