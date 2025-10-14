@@ -1605,9 +1605,7 @@ extern void InitGraf(void *globalPtr);
 extern void InitFonts(void);
 extern void InitWindows(void);
 extern void InitMenus(void);
-extern void InitTE(void);
 extern void InitDialogs(ResumeProcPtr resumeProc);
-extern void InitCursor(void);
 extern void InitListManager(void);
 extern void InitControlManager_Sys7(void);
 extern SInt16 InitEvents(SInt16 numEvents);
@@ -1834,7 +1832,7 @@ static void init_system71(void) {
     /* Additional menus will be created by Finder after initialization */
 
     /* TextEdit */
-    InitTE();
+    TEInit();
     serial_puts("  TextEdit initialized\n");
 
     /* Dialog Manager */

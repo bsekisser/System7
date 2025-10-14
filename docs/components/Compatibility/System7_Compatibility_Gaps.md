@@ -28,7 +28,7 @@ This checklist captures the most significant differences between the current too
 - ~~`src/TextEdit/textedit_core.c:586`–`604` – Core TextEdit routines (`TECalcLines`, font setup, drawing, caret updates) remain TODOs; the current implementation cannot handle wrapping, styled runs, or caret management like System 7's TextEdit.~~ **FIXED** (2025-10-06): Implemented TECalcLines (word wrapping), TESetupFont (Font Manager integration), TEDrawText (QuickDraw rendering), and TEUpdateCaret (blinking caret with position calculation)
 - `src/TextEdit/TextEditScroll.c:91` & `:180` – Horizontal scroll limits are uncomputed, so TE windows cannot properly constrain scroll bars.
 - `src/TextEdit/TextEditClipboard.c:164`–`267` – Styled scrap handling is stubbed; classic TE mirrored styled text into the clipboard flavours.
-- `src/textedit_stubs.c:13` – Numerous TextEdit traps still drop to simple stubs, preventing compatibility with applications calling less common TE routines.
+- `src/TextEdit/textedit_core.c:192` – Several lesser-used TextEdit traps still carry TODO placeholders (e.g., point-to-char conversion, click bookkeeping), so applications relying on the full trap surface continue to observe incomplete behaviour.
 
 ## Resource & File Systems
 - `src/ResourceManager.c:1095`–`1518` – Purge flags, map enumeration (`Count1Resources`, `Get1IndResource`, `CountTypes`, etc.), unique ID generation, and resource file attribute setters all return placeholders; full resource map traversal is required for ROM compatibility.

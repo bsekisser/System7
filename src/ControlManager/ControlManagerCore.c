@@ -74,7 +74,6 @@ static ControlManagerGlobals gControlMgr = {0};
 /* Internal utility functions */
 static void LinkControl(WindowPtr window, ControlHandle control);
 static void UnlinkControl(ControlHandle control);
-static void CalcControlBounds(ControlHandle control);
 static void NotifyControlChange(ControlHandle control, SInt16 changeType);
 static AuxCtlHandle NewAuxCtlRec(ControlHandle control);
 static void DisposeAuxCtlRec(AuxCtlHandle auxRec);
@@ -346,8 +345,6 @@ void HideControl(ControlHandle theControl) {
 /**
  * Draw all controls in a window
  */
-/* DrawControls is already defined in sys71_stubs.c */
-#if 0
 void DrawControls(WindowPtr theWindow) {
     ControlHandle control;
     GrafPtr savePort;
@@ -358,7 +355,7 @@ void DrawControls(WindowPtr theWindow) {
 
     /* Save and set port */
     GetPort(&savePort);
-    SetPort(theWindow);
+    SetPort((GrafPtr)theWindow);
 
     /* Draw each visible control */
     control = _GetFirstControl(theWindow);
@@ -372,7 +369,6 @@ void DrawControls(WindowPtr theWindow) {
     /* Restore port */
     SetPort(savePort);
 }
-#endif
 
 /**
  * Draw a single control

@@ -18,9 +18,6 @@
 void Platform_InitMenuSystem(void);
 void Platform_CleanupMenuSystem(void);
 
-/* TextEdit */
-void InitTE(void);
-
 /* Control Manager */
 void InitControlManager_Sys7(void);
 

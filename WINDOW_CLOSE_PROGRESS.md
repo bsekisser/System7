@@ -11,7 +11,7 @@ Windows could not be closed - clicking the close box caused system freezes or cr
 - **Status**: RESOLVED - No more PLT crashes
 
 ### 2. ✅ FIXED: Stub Function Override
-- **Problem**: Stub implementations of malloc/calloc/realloc in `all_stubs.c` and `ultra_stubs.c` were being linked instead of real implementations in `MemoryManager.c`
+- **Problem**: Stub implementations of malloc/calloc/realloc in the old `all_stubs.c` and `ultra_stubs.c` files were being linked instead of real implementations in `MemoryManager.c`
 - **Symptoms**: calloc() always returned NULL, causing all window allocations to fail
 - **Solution**: Commented out stub implementations in both stub files
 - **Status**: RESOLVED - Real memory manager functions now properly linked
@@ -94,8 +94,8 @@ Should terminate when wrapping back to `freeHead`, but doesn't, indicating:
 ## Files Modified
 
 - `Makefile` - Added PIC/PIE disable flags
-- `src/all_stubs.c` - Removed malloc/calloc/realloc stubs
-- `src/ultra_stubs.c` - Removed malloc/calloc/realloc stubs
+- `src/all_stubs.c` - Removed from the tree (legacy stub implementations deleted)
+- `src/ultra_stubs.c` - Removed from the tree (legacy stub implementations deleted)
 - `src/MemoryMgr/MemoryManager.c` - Removed serial_puts from return path, added debug tracing
 - `src/WindowManager/WindowDisplay.c` - Extensive HideWindow debug logging
 - `src/WindowManager/WindowManagerCore.c` - CloseWindow debug logging

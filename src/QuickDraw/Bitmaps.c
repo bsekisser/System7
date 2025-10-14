@@ -29,6 +29,7 @@
 /* Current QuickDraw port from QuickDrawCore.c */
 extern GrafPtr g_currentPort;
 extern CGrafPtr g_currentCPort;
+extern QDGlobals qd;
 extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 
 
@@ -525,6 +526,14 @@ static void CopyBitsScaled(const BitMap *srcBits, const BitMap *dstBits,
     GetPortColors(&fgColor, &bgColor);
 
     Boolean usePattern = (mode >= patCopy && mode <= notPatBic);
+    const Pattern *activePattern = NULL;
+    if (usePattern) {
+        if (g_currentPort) {
+            activePattern = &g_currentPort->pnPat;
+        } else {
+            activePattern = &qd.black;
+        }
+    }
     Boolean useMask = (maskRgn && *maskRgn);
 
     for (SInt16 dy = 0; dy < dstHeight; dy++) {
@@ -551,8 +560,8 @@ static void CopyBitsScaled(const BitMap *srcBits, const BitMap *dstBits,
             }
 
             UInt32 patternColor = 0;
-            if (usePattern) {
-                patternColor = SamplePatternColor(&g_currentPort->pnPat, dstX, dstY, fgColor, bgColor);
+            if (activePattern) {
+                patternColor = SamplePatternColor(activePattern, dstX, dstY, fgColor, bgColor);
             }
 
             UInt32 srcColor = ReadPixelColor(srcBits, &srcDesc, srcX, srcY, fgColor, bgColor);
@@ -586,6 +595,14 @@ static void CopyBitsUnscaled(const BitMap *srcBits, const BitMap *dstBits,
 
     Boolean useMask = (maskRgn && *maskRgn);
     Boolean usePattern = (mode >= patCopy && mode <= notPatBic);
+    const Pattern *activePattern = NULL;
+    if (usePattern) {
+        if (g_currentPort) {
+            activePattern = &g_currentPort->pnPat;
+        } else {
+            activePattern = &qd.black;
+        }
+    }
 
     if (srcDesc.isPixMap && dstDesc.isPixMap &&
         srcDesc.pixelSize == 32 && dstDesc.pixelSize == 32 &&
@@ -629,8 +646,8 @@ static void CopyBitsUnscaled(const BitMap *srcBits, const BitMap *dstBits,
             }
 
             UInt32 patternColor = 0;
-            if (usePattern) {
-                patternColor = SamplePatternColor(&g_currentPort->pnPat, dstX, dstY, fgColor, bgColor);
+            if (activePattern) {
+                patternColor = SamplePatternColor(activePattern, dstX, dstY, fgColor, bgColor);
             }
 
             UInt32 srcColor = ReadPixelColor(srcBits, &srcDesc, srcX, srcY, fgColor, bgColor);
