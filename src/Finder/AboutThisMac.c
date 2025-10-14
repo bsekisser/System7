@@ -13,6 +13,8 @@
 #include "QuickDraw/QuickDraw.h"
 
 extern void DisposeGWorld(GWorldPtr offscreenGWorld);
+extern void* framebuffer;
+extern uint32_t fb_pitch;
 
 /* External QuickDraw & Window Manager APIs */
 extern void GetPort(GrafPtr* port);
@@ -342,10 +344,12 @@ static void AboutWindow_CreateIfNeeded(void)
         return;
     }
 
-    /* Disable offscreen GWorld so text draws directly to framebuffer */
+    /* Disable double-buffering so text renders directly to framebuffer */
     if (sAboutWin->offscreenGWorld) {
         DisposeGWorld((GWorldPtr)sAboutWin->offscreenGWorld);
         sAboutWin->offscreenGWorld = NULL;
+        sAboutWin->port.portBits.baseAddr = (Ptr)framebuffer;
+        sAboutWin->port.portBits.rowBytes = (fb_pitch | 0x8000);
     }
 
     FINDER_LOG_DEBUG("AboutThisMac: Created window at 0x%08x, refCon=0x%08X\n",
