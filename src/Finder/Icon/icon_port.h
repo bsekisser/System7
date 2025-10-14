@@ -24,13 +24,6 @@ static inline void IconPort_WritePixel(int x, int y, uint32_t color) {
             return;
         }
 
-        if (g_currentPort->clipRgn && *g_currentPort->clipRgn) {
-            Point localPt = {(short)(x - localLeft), (short)(y - localTop)};
-            if (!PtInRgn(localPt, g_currentPort->clipRgn)) {
-                return;
-            }
-        }
-
         uint8_t* baseAddr = (uint8_t*)g_currentPort->portBits.baseAddr;
         SInt16 rowBytes = g_currentPort->portBits.rowBytes & 0x3FFF;
 

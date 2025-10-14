@@ -1433,6 +1433,9 @@ void DrawVolumeIcon(void)
 {
     static Boolean gInVolumeIconPaint = false;
     IconHandle iconHandle;
+    GrafPtr savePort;
+    RgnHandle savedClip = NULL;
+    Boolean clipSaved = false;
 
     FINDER_LOG_DEBUG("DrawVolumeIcon: ENTRY\n");
 
@@ -1446,9 +1449,29 @@ void DrawVolumeIcon(void)
     }
     gInVolumeIconPaint = true;
 
+    GetPort(&savePort);
+    SetPort(qd.thePort);
+
+    if (qd.thePort->clipRgn && *qd.thePort->clipRgn) {
+        savedClip = NewRgn();
+        if (savedClip) {
+            CopyRgn(qd.thePort->clipRgn, savedClip);
+            clipSaved = true;
+        }
+    }
+
+    Rect desktopBounds = qd.screenBits.bounds;
+    desktopBounds.top = 20; /* Keep menu bar clear */
+    ClipRect(&desktopBounds);
+
     if (!gVolumeIconVisible) {
         FINDER_LOG_DEBUG("DrawVolumeIcon: not visible, returning\n");
         gInVolumeIconPaint = false;
+        if (clipSaved) {
+            SetClip(savedClip);
+            DisposeRgn(savedClip);
+        }
+        SetPort(savePort);
         return;
     }
 
@@ -1498,6 +1521,14 @@ void DrawVolumeIcon(void)
     }
     FINDER_LOG_DEBUG("DrawVolumeIcon: about to return\n");
     gInVolumeIconPaint = false;
+
+    if (clipSaved) {
+        SetClip(savedClip);
+        DisposeRgn(savedClip);
+    } else {
+        ClipRect(&qd.screenBits.bounds);
+    }
+    SetPort(savePort);
     return;  /* Explicit return for debugging */
 }
 /* DrawVolumeIcon function ends here */
