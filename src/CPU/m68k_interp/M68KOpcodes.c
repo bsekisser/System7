@@ -9,6 +9,7 @@
 #include "CPU/M68KInterp.h"
 #include "CPU/M68KOpcodes.h"
 #include "System71StdLib.h"
+#include "CPU/CPULogging.h"
 #include <string.h>
 
 /*
@@ -50,7 +51,7 @@ static void M68K_RaiseException(M68KAddressSpace* as, UInt16 vector, const char*
         default:                      vecName = "UNKNOWN"; break;
     }
 
-    serial_printf("[M68K] EXCEPTION vec=%d (%s) at PC=0x%08X: %s\n",
+    M68K_LOG_ERROR("EXCEPTION vec=%d (%s) at PC=0x%08X: %s\n",
                  vector, vecName, as->regs.pc, reason);
 
     as->lastException = vector;
@@ -66,15 +67,15 @@ static void M68K_RaiseException(M68KAddressSpace* as, UInt16 vector, const char*
 
         /* If handler is NULL or invalid, halt */
         if (handlerPC == 0 || handlerPC >= M68K_MAX_ADDR) {
-            serial_printf("[M68K] Exception handler NULL or invalid (0x%08X), halting\n", handlerPC);
+            M68K_LOG_ERROR("Exception handler NULL or invalid (0x%08X), halting\n", handlerPC);
             as->halted = true;
         } else {
             /* For now, just log and halt (RTE stub not yet implemented) */
-            serial_printf("[M68K] Exception handler at 0x%08X (not invoking yet, halting)\n", handlerPC);
+            M68K_LOG_WARN("Exception handler at 0x%08X (not invoking yet, halting)\n", handlerPC);
             as->halted = true;
         }
     } else {
-        serial_printf("[M68K] Exception vector table not initialized, halting\n");
+        M68K_LOG_ERROR("Exception vector table not initialized, halting\n");
         as->halted = true;
     }
 }

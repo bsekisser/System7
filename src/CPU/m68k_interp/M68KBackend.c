@@ -11,6 +11,7 @@
 #include "SegmentLoader/SegmentLoader.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
+#include "CPU/CPULogging.h"
 #include <string.h>
 
 /* Forward declarations of ICPUBackend methods */
@@ -76,11 +77,11 @@ static OSErr M68K_CreateAddressSpace(void* processHandle, CPUAddressSpace* out)
 
     (void)processHandle; /* Unused for now */
 
-    serial_printf("[M68K] CreateAddressSpace: allocating M68KAddressSpace struct size=%u\n",
+    M68K_LOG_INFO("CreateAddressSpace: allocating M68KAddressSpace struct size=%u\n",
                   (unsigned)sizeof(M68KAddressSpace));
     as = (M68KAddressSpace*)NewPtr(sizeof(M68KAddressSpace));
     if (!as) {
-        serial_printf("[M68K] FAIL: struct allocation memFullErr, MemError=%d\n", MemError());
+        M68K_LOG_ERROR("FAIL: struct allocation memFullErr, MemError=%d\n", MemError());
         return memFullErr;
     }
 
@@ -91,13 +92,13 @@ static OSErr M68K_CreateAddressSpace(void* processHandle, CPUAddressSpace* out)
     memset(as->pageTable, 0, sizeof(as->pageTable));
 
     /* Pre-allocate low memory pages (0x0000-0xFFFF = first 16 pages) */
-    serial_printf("[M68K] CreateAddressSpace: pre-allocating %d low memory pages (%u KB)\n",
+    M68K_LOG_INFO("CreateAddressSpace: pre-allocating %d low memory pages (%u KB)\n",
                   M68K_LOW_MEM_PAGES, M68K_LOW_MEM_SIZE / 1024);
 
     for (int i = 0; i < M68K_LOW_MEM_PAGES; i++) {
         as->pageTable[i] = NewPtr(M68K_PAGE_SIZE);
         if (!as->pageTable[i]) {
-            serial_printf("[M68K] FAIL: low memory page %d allocation failed, MemError=%d\n",
+            M68K_LOG_ERROR("FAIL: low memory page %d allocation failed, MemError=%d\n",
                          i, MemError());
             /* Free already allocated pages */
             for (int j = 0; j < i; j++) {
@@ -111,7 +112,7 @@ static OSErr M68K_CreateAddressSpace(void* processHandle, CPUAddressSpace* out)
         memset(as->pageTable[i], 0, M68K_PAGE_SIZE);
     }
 
-    serial_printf("[M68K] CreateAddressSpace: low memory allocated, sparse 16MB virtual space ready\n");
+    M68K_LOG_INFO("CreateAddressSpace: low memory allocated, sparse 16MB virtual space ready\n");
 
     /* Initialize registers */
     memset(&as->regs, 0, sizeof(M68KRegs));
@@ -193,7 +194,7 @@ void* M68K_GetPage(M68KAddressSpace* as, UInt32 addr, Boolean allocate)
         if (page) {
             memset(page, 0, M68K_PAGE_SIZE);
             as->pageTable[pageNum] = page;
-            serial_printf("[M68K] Allocated page %u for addr 0x%08X\n", pageNum, addr);
+            M68K_LOG_DEBUG("Allocated page %u for addr 0x%08X\n", pageNum, addr);
         } else {
             serial_printf("[M68K] FAIL: page %u allocation failed, MemError=%d\n",
                          pageNum, MemError());
@@ -421,7 +422,7 @@ static OSErr M68K_EnterAt(CPUAddressSpace as, CPUAddr entry, CPUEnterFlags flags
         return paramErr;
     }
 
-    serial_printf("[M68K] EnterAt: entry=0x%08X flags=0x%04X\n", entry, flags);
+    M68K_LOG_DEBUG("EnterAt: entry=0x%08X flags=0x%04X\n", entry, flags);
 
     /* Clear halted flag */
     mas->halted = false;
@@ -430,9 +431,9 @@ static OSErr M68K_EnterAt(CPUAddressSpace as, CPUAddr entry, CPUEnterFlags flags
     M68K_Execute(mas, entry, max_instructions);
 
     if (mas->halted) {
-        serial_printf("[M68K] Execution halted at PC=0x%08X\n", mas->regs.pc);
+        M68K_LOG_INFO("Execution halted at PC=0x%08X\n", mas->regs.pc);
     } else {
-        serial_printf("[M68K] Execution completed after %u instructions\n", max_instructions);
+        M68K_LOG_INFO("Execution completed after %u instructions\n", max_instructions);
     }
 
     return noErr;

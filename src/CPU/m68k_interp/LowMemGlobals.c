@@ -10,6 +10,7 @@
 #include "CPU/M68KInterp.h"
 #include "CPU/CPUBackend.h"
 #include "System71StdLib.h"
+#include "CPU/CPULogging.h"
 
 /* Forward declarations */
 extern UInt8 M68K_Read8(M68KAddressSpace* as, UInt32 addr);
@@ -28,7 +29,7 @@ static M68KAddressSpace* g_currentAS = NULL;
 void LMInit(M68KAddressSpace* as)
 {
     g_currentAS = as;
-    serial_printf("[LM] Low memory globals system initialized (AS=%p)\n", as);
+    M68K_LOG_INFO("Low memory globals system initialized (AS=%p)\n", as);
 }
 
 /*
@@ -37,7 +38,7 @@ void LMInit(M68KAddressSpace* as)
 static M68KAddressSpace* LMGetCurrentAS(void)
 {
     if (!g_currentAS) {
-        serial_printf("[LM] WARNING: No current address space set!\n");
+        M68K_LOG_WARN("WARNING: No current address space set!\n");
     }
     return g_currentAS;
 }
@@ -52,7 +53,7 @@ UInt32 LMGetLong(UInt32 addr)
     if (!as) return 0;
 
     if (addr >= M68K_LOW_MEM_SIZE) {
-        serial_printf("[LM] WARNING: LMGetLong(0x%04X) beyond low memory\n", addr);
+        M68K_LOG_WARN("WARNING: LMGetLong(0x%04X) beyond low memory\n", addr);
         return 0;
     }
 
@@ -65,7 +66,7 @@ void LMSetLong(UInt32 addr, UInt32 value)
     if (!as) return;
 
     if (addr >= M68K_LOW_MEM_SIZE) {
-        serial_printf("[LM] WARNING: LMSetLong(0x%04X) beyond low memory\n", addr);
+        M68K_LOG_WARN("WARNING: LMSetLong(0x%04X) beyond low memory\n", addr);
         return;
     }
 
@@ -78,7 +79,7 @@ UInt16 LMGetWord(UInt32 addr)
     if (!as) return 0;
 
     if (addr >= M68K_LOW_MEM_SIZE) {
-        serial_printf("[LM] WARNING: LMGetWord(0x%04X) beyond low memory\n", addr);
+        M68K_LOG_WARN("WARNING: LMGetWord(0x%04X) beyond low memory\n", addr);
         return 0;
     }
 
@@ -91,7 +92,7 @@ void LMSetWord(UInt32 addr, UInt16 value)
     if (!as) return;
 
     if (addr >= M68K_LOW_MEM_SIZE) {
-        serial_printf("[LM] WARNING: LMSetWord(0x%04X) beyond low memory\n", addr);
+        M68K_LOG_WARN("WARNING: LMSetWord(0x%04X) beyond low memory\n", addr);
         return;
     }
 
@@ -104,7 +105,7 @@ UInt8 LMGetByte(UInt32 addr)
     if (!as) return 0;
 
     if (addr >= M68K_LOW_MEM_SIZE) {
-        serial_printf("[LM] WARNING: LMGetByte(0x%04X) beyond low memory\n", addr);
+        M68K_LOG_WARN("WARNING: LMGetByte(0x%04X) beyond low memory\n", addr);
         return 0;
     }
 
@@ -117,7 +118,7 @@ void LMSetByte(UInt32 addr, UInt8 value)
     if (!as) return;
 
     if (addr >= M68K_LOW_MEM_SIZE) {
-        serial_printf("[LM] WARNING: LMSetByte(0x%04X) beyond low memory\n", addr);
+        M68K_LOG_WARN("WARNING: LMSetByte(0x%04X) beyond low memory\n", addr);
         return;
     }
 
@@ -136,7 +137,7 @@ UInt32 LMGetCurrentA5(void)
 void LMSetCurrentA5(UInt32 a5)
 {
     LMSetLong(LMG_CurrentA5, a5);
-    serial_printf("[LM] CurrentA5 set to 0x%08X\n", a5);
+    M68K_LOG_DEBUG("CurrentA5 set to 0x%08X\n", a5);
 }
 
 UInt32 LMGetExpandMem(void)
@@ -147,7 +148,7 @@ UInt32 LMGetExpandMem(void)
 void LMSetExpandMem(UInt32 expandMem)
 {
     LMSetLong(LMG_ExpandMem, expandMem);
-    serial_printf("[LM] ExpandMem set to 0x%08X\n", expandMem);
+    M68K_LOG_DEBUG("ExpandMem set to 0x%08X\n", expandMem);
 }
 
 UInt32 LMGetTicks(void)

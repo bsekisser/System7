@@ -300,7 +300,8 @@ static SystemLogLevel g_moduleLevels[kLogModuleCount] = {
     [kLogModuleScrap] = kLogLevelDebug,
     [kLogModuleMemory] = kLogLevelInfo,
     [kLogModuleProcess] = kLogLevelInfo,
-    [kLogModuleSegmentLoader] = kLogLevelDebug
+    [kLogModuleSegmentLoader] = kLogLevelDebug,
+    [kLogModuleCPU] = kLogLevelInfo
 };
 
 static const SysLogTag kLogTagTable[] = {
@@ -319,7 +320,8 @@ static const SysLogTag kLogTagTable[] = {
     { "HILITE", kLogModuleWindow, kLogLevelTrace },
     { "PaintBehind", kLogModuleWindow, kLogLevelTrace },
     { "MEM", kLogModuleMemory, kLogLevelInfo },
-    { "FM", kLogModuleFont, kLogLevelDebug }
+    { "FM", kLogModuleFont, kLogLevelDebug },
+    { "M68K", kLogModuleCPU, kLogLevelDebug }
 };
 
 

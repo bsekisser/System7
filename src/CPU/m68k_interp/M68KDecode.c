@@ -41,7 +41,7 @@ static Boolean g_pcRelLogged = false;
 static void M68K_LogOnce(Boolean* flag, const char* message)
 {
     if (!*flag) {
-        serial_puts("[M68K] ");
+        /* Prefix for M68K disassembly output if needed */
         serial_puts(message);
         serial_puts("\n");
         *flag = true;
