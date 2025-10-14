@@ -295,27 +295,23 @@ void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
             Ptr baseAddr = g_currentPort->portBits.baseAddr;
             if (!baseAddr) return;
 
-            /* Convert global coords back to local using portBits bounds */
+            SInt16 rowBytes = g_currentPort->portBits.rowBytes & 0x3FFF;
+            if (rowBytes <= 0) return;
+
             SInt16 boundsLeft = g_currentPort->portBits.bounds.left;
             SInt16 boundsTop = g_currentPort->portBits.bounds.top;
             SInt16 localX = (SInt16)(x - boundsLeft);
             SInt16 localY = (SInt16)(y - boundsTop);
 
-            /* Clamp to portRect to avoid writing outside offscreen buffer */
             SInt16 portWidth = g_currentPort->portRect.right - g_currentPort->portRect.left;
             SInt16 portHeight = g_currentPort->portRect.bottom - g_currentPort->portRect.top;
             if (localX < 0 || localY < 0 || localX >= portWidth || localY >= portHeight) {
                 return;
             }
 
-            SInt16 rowBytes = g_currentPort->portBits.rowBytes & 0x3FFF;
-            if (rowBytes <= 0) return;
-
-            /* Assume 32bpp offscreen PixMap (NewGWorld creates 32-bit ARGB) */
-            if ((SInt32)localX * 4 >= rowBytes) return;
-
             uint32_t* pixel = (uint32_t*)((uint8_t*)baseAddr + localY * rowBytes + localX * 4);
             *pixel = color;
+            return;
         }
     }
 }
@@ -1095,22 +1091,8 @@ SInt16 QDPlatform_DrawGlyph(struct FontStrike *strike, UInt8 ch, SInt16 x, SInt1
             pixelX = x;
             pixelY = y;
         }
-    } else if (port && port->portBits.baseAddr && port->portBits.baseAddr != (Ptr)framebuffer) {
-        /* Drawing to offscreen basic GrafPort (e.g., window GWorld backing) */
-        renderBuffer = port->portBits.baseAddr;
-        renderPitch = port->portBits.rowBytes & 0x3FFF;
-
-        if (renderPitch <= 0) {
-            return charWidth;
-        }
-
-        renderWidth = port->portRect.right - port->portRect.left;
-        renderHeight = port->portRect.bottom - port->portRect.top;
-
-        pixelX = x - port->portRect.left;
-        pixelY = y - port->portRect.top;
     } else {
-        /* Drawing to framebuffer (fallback) */
+        /* Drawing to basic GrafPort (screen framebuffer) */
         if (!framebuffer) return charWidth;
 
         renderBuffer = (Ptr)framebuffer;
