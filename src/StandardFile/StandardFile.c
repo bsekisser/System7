@@ -207,7 +207,7 @@ void StandardGetFile(FileFilterProcPtr fileFilter,
                     ConstSFTypeListPtr typeList,
                     StandardFileReply *reply) {
 
-    CustomGetFile(fileFilter, numTypes, typeList, reply, 0, (Point){-1, -1},
+    CustomGetFile((FileFilterYDProcPtr)fileFilter, numTypes, typeList, reply, 0, (Point){-1, -1},
                  NULL, NULL, NULL, NULL, NULL);
 }
 
@@ -359,7 +359,7 @@ handle_item:
                     if (StandardFile_HAL_GetNewFolderName(folderName)) {
                         long newDirID;
                         err = DirCreate(gSFState.vRefNum, gSFState.dirID,
-                                      folderName, &newDirID);
+                                      folderName, (SInt32 *)&newDirID);
                         if (err == noErr) {
                             SF_PopulateFileList();
                         }
@@ -641,7 +641,7 @@ static void SF_PopulateFileList(void) {
             /* It's a file */
             if (gSFState.fileFilter) {
                 /* Use custom filter - returns non-zero to exclude */
-                include = (gSFState.fileFilter((ParmBlkPtr)&cpb) == 0);
+                include = (gSFState.fileFilter((StringPtr)&cpb) == 0);
             } else if (gSFState.numTypes > 0) {
                 /* Check against type list */
                 OSType fileType = cpb.u.hFileInfo.ioFlFndrInfo.fdType;
