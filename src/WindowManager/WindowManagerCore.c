@@ -31,6 +31,7 @@
 #include "QuickDraw/ColorQuickDraw.h"
 #include "DialogManager/DialogManager.h"
 #include "WindowManager/WMLogging.h"
+#include "MemoryMgr/MemoryManager.h"
 
 /* ============================================================================
  * Global Window Manager State
@@ -43,17 +44,17 @@ static WindowManagerState g_wmState = {
     NULL,       /* windowList */
     NULL,       /* activeWindow */
     NULL,       /* auxWinHead */
-    {{0}},      /* desktopPattern */
+    {0},        /* desktopPattern */
     NULL,       /* desktopPixPat */
     1000,       /* nextWindowID */
     false,      /* colorQDAvailable */
     false,      /* initialized */
     NULL,       /* platformData */
-    {{0}},      /* port */
+    {0},        /* port */
     NULL,       /* ghostWindow */
     20,         /* menuBarHeight */
     NULL,       /* grayRgn */
-    {{0}},      /* deskPattern */
+    {0},        /* deskPattern */
     false,      /* isDragging */
     {0, 0},     /* dragOffset */
     false       /* isGrowing */
@@ -580,7 +581,7 @@ long GetWRefCon(WindowPtr theWindow) {
 void SetWindowPic(WindowPtr theWindow, PicHandle pic) {
     if (theWindow == NULL) return;
 
-    theWindow->windowPic = pic;
+    theWindow->windowPic = (Handle)pic;
 
     /* If window is visible, redraw content */
     if (theWindow->visible) {
@@ -595,7 +596,7 @@ void SetWindowPic(WindowPtr theWindow, PicHandle pic) {
 PicHandle GetWindowPic(WindowPtr theWindow) {
     if (theWindow == NULL) return NULL;
 
-    return theWindow->windowPic;
+    return (PicHandle)theWindow->windowPic;
 }
 
 /* ============================================================================
@@ -637,7 +638,7 @@ void SetWinColor(WindowPtr theWindow, WCTabHandle newColorTable) {
             }
 
             /* Set new color table */
-            (**auxWin).awCTable = newColorTable;
+            (**auxWin).awCTable = (CTabHandle)newColorTable;
 
             /* Update window appearance */
             if (theWindow->visible) {
@@ -1000,6 +1001,9 @@ static void DisposeAuxiliaryWindowRecord(AuxWinHandle auxWin) {
     printf("DisposeAuxiliaryWindowRecord: Disposed auxiliary record\n");
     #endif
 }
+
+/* Forward prototype to satisfy -Wmissing-prototypes for this TU */
+void CopyPascalString(const unsigned char* source, unsigned char* dest);
 
 void CopyPascalString(const unsigned char* source, unsigned char* dest) {
     if (source == NULL || dest == NULL) return;
