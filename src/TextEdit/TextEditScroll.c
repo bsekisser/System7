@@ -91,7 +91,38 @@ void TEScroll(SInt16 dh, SInt16 dv, TEHandle hTE) {
     if (pTE->viewDH < 0) {
         pTE->viewDH = 0;
     }
-    /* TODO: Calculate max horizontal scroll based on longest line */
+    {
+        /* Calculate max horizontal scroll based on longest line */
+        SInt16 viewWidth = (SInt16)(pTE->base.viewRect.right - pTE->base.viewRect.left);
+        /* Local helper computes maximum line width */
+        SInt16 maxWidth = 0;
+        if (pTE->base.hText && pTE->hLines && pTE->nLines > 0) {
+            char* text;
+            SInt32* lines;
+            TextFont(pTE->base.txFont);
+            TextSize(pTE->base.txSize);
+            TextFace(pTE->base.txFace);
+            HLock(pTE->base.hText);
+            text = *pTE->base.hText;
+            HLock(pTE->hLines);
+            lines = (SInt32*)*pTE->hLines;
+            for (SInt16 i = 0; i < pTE->nLines; i++) {
+                SInt32 start = lines[i];
+                SInt32 end = (i + 1 < pTE->nLines) ? lines[i + 1] : pTE->base.teLength;
+                SInt16 lineWidth = 0;
+                for (SInt32 pos = start; pos < end; pos++) {
+                    if (text[pos] == '\r') break;
+                    lineWidth += CharWidth(text[pos]);
+                }
+                if (lineWidth > maxWidth) maxWidth = lineWidth;
+            }
+            HUnlock(pTE->hLines);
+            HUnlock(pTE->base.hText);
+        }
+        SInt16 maxHScroll = maxWidth - viewWidth;
+        if (maxHScroll < 0) maxHScroll = 0;
+        if (pTE->viewDH > maxHScroll) pTE->viewDH = maxHScroll;
+    }
 
     /* Clamp vertical scroll */
     if (pTE->viewDV < 0) {
