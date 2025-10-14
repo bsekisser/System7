@@ -638,7 +638,7 @@ void SetWinColor(WindowPtr theWindow, WCTabHandle newColorTable) {
             }
 
             /* Set new color table */
-            (**auxWin).awCTable = newColorTable;
+            (**auxWin).awCTable = (CTabHandle)newColorTable;
 
             /* Update window appearance */
             if (theWindow->visible) {
