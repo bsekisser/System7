@@ -637,7 +637,7 @@ void DisposePtr(void* p) {
 
     /* Validate the block being freed */
     if (!validate_block(z, b)) {
-        serial_puts("[DISPOSE] ERROR: Invalid block being freed\n");
+        serial_printf("[DISPOSE] ERROR: Invalid block being freed (ptr=%p)\n", p);
         return;
     }
 

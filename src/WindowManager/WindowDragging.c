@@ -409,7 +409,6 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     /* Invalidate cursor state after drag to force fresh redraw */
     InvalidateCursor();
 
-    /* Move window to final position if it changed */
     if (moved) {
         WM_LOG_DEBUG("DragWindow: Final MoveWindow to (%d,%d)\n", dragOutline.left, dragOutline.top);
 
@@ -505,7 +504,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
 
         /* WORKAROUND: Directly redraw window content since update events aren't flowing through */
         WM_LOG_TRACE("DragWindow: Checking refCon=0x%08lx (DISK=0x%08x, TRSH=0x%08x)\n",
-                     theWindow->refCon, 'DISK', 'TRSH');
+                     (unsigned long)theWindow->refCon, 'DISK', 'TRSH');
         if (theWindow->refCon == 'DISK' || theWindow->refCon == 'TRSH') {
             extern void FolderWindow_Draw(WindowPtr w);
             WM_LOG_TRACE("DragWindow: Calling FolderWindow_Draw\n");
@@ -527,6 +526,23 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         /* Force screen update */
         extern void QDPlatform_FlushScreen(void);
         QDPlatform_FlushScreen();
+
+        if (wasVisible) {
+            theWindow->visible = true;
+        }
+    }
+    else if (wasVisible) {
+        /* Restore window visibility even if it never moved */
+        theWindow->visible = true;
+        PaintOne(theWindow, NULL);
+        if (theWindow->contRgn) {
+            extern void InvalRgn(RgnHandle badRgn);
+            GrafPtr oldPort;
+            GetPort(&oldPort);
+            SetPort((GrafPtr)theWindow);
+            InvalRgn(theWindow->contRgn);
+            SetPort(oldPort);
+        }
     }
 
     WM_LOG_TRACE("DragWindow EXIT: moved=%d\n", moved);

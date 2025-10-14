@@ -127,9 +127,8 @@ void SetRectRgn(RgnHandle rgn, SInt16 left, SInt16 top, SInt16 right, SInt16 bot
 
     /* Don't resize - realloc() is broken in bare-metal kernel
      * Just use existing allocation */
-    Region *newRegion = region;  /* No realloc, use existing */
     #if 0  /* DISABLED - realloc causes freeze */
-    newRegion = (Region *)realloc(region, kMinRegionSize);
+    Region *newRegion = (Region *)realloc(region, kMinRegionSize);
     if (newRegion) {
         *rgn = newRegion;
         region = newRegion;
@@ -156,14 +155,17 @@ void CopyRgn(RgnHandle srcRgn, RgnHandle dstRgn) {
 
     /* Reallocate destination if needed without using realloc() */
     if (src->rgnSize > dst->rgnSize) {
-        DisposePtr((Ptr)dst);
-        dst = (Region *)NewPtr(src->rgnSize);
-        if (!dst) {
-            *dstRgn = NULL;
+        Region *newDst = (Region *)NewPtr(src->rgnSize);
+        if (!newDst) {
             g_lastRegionError = rgnOverflowErr;
             return;
         }
-        *dstRgn = dst;
+
+        memcpy(newDst, src, src->rgnSize);
+        DisposePtr((Ptr)dst);
+        *dstRgn = newDst;
+        g_lastRegionError = 0;
+        return;
     }
 
     /* Copy the region data */
