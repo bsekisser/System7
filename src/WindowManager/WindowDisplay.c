@@ -1115,7 +1115,7 @@ void BringToFront(WindowPtr window) {
 
     WM_DEBUG("BringToFront: Moving window to front");
     DumpWindowList("BringToFront - START");
-    serial_printf("[MEM] BringToFront start window=%p\n", window);
+    serial_puts("[MEM] BringToFront start\n");
     MemoryManager_CheckSuspectBlock("BringToFront_start");
 
     /* CRITICAL: Save the current front window BEFORE modifying the list */

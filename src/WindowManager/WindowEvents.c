@@ -32,7 +32,7 @@ extern void serial_logf(SystemLogModule module, SystemLogLevel level, const char
 /* Forward declarations for internal helpers */
 static Boolean WM_IsMouseDown(void);
 static GrafPtr WM_GetCurrentPort(void);
-static GrafPtr WM_GetUpdatePort(WindowPtr window);
+/* static GrafPtr WM_GetUpdatePort(WindowPtr window); */
 static Boolean WM_EmptyRgn(RgnHandle rgn);
 
 /* ============================================================================
@@ -306,21 +306,22 @@ void InvalRgn(RgnHandle badRgn) {
     /* Assume current port is a window */
     WindowPtr window = (WindowPtr)currentPort;
 
-    Region* badRgnData = *badRgn;
+    /* Debug: badRgnData, updateBefore/After retained for instrumentation if needed */
+    /* Region* badRgnData = *badRgn; */
     WM_LOG_TRACE("WindowManager: InvalRgn window=0x%08x, badRgn bbox=(%d,%d,%d,%d)\n",
                  (unsigned int)window, badRgnData->rgnBBox.left, badRgnData->rgnBBox.top,
                  badRgnData->rgnBBox.right, badRgnData->rgnBBox.bottom);
 
     /* Add region to window's update region */
     if (window->updateRgn) {
-        Region* updateBefore = *(window->updateRgn);
+        /* Region* updateBefore = *(window->updateRgn); */
         WM_LOG_TRACE("WindowManager: InvalRgn - BEFORE union, updateRgn bbox=(%d,%d,%d,%d)\n",
                      updateBefore->rgnBBox.left, updateBefore->rgnBBox.top,
                      updateBefore->rgnBBox.right, updateBefore->rgnBBox.bottom);
 
         Platform_UnionRgn(window->updateRgn, badRgn, window->updateRgn);
 
-        Region* updateAfter = *(window->updateRgn);
+        /* Region* updateAfter = *(window->updateRgn); */
         WM_LOG_TRACE("WindowManager: InvalRgn - AFTER union, updateRgn bbox=(%d,%d,%d,%d)\n",
                      updateAfter->rgnBBox.left, updateAfter->rgnBBox.top,
                      updateAfter->rgnBBox.right, updateAfter->rgnBBox.bottom);
@@ -394,7 +395,7 @@ void BeginUpdate(WindowPtr theWindow) {
     if (theWindow == NULL) return;
 
     WM_DEBUG("BeginUpdate: Beginning window update");
-    serial_printf("[MEM] BeginUpdate before processing window=%p\n", theWindow);
+    serial_puts("[MEM] BeginUpdate before processing window\n");
     MemoryManager_CheckSuspectBlock("pre_BeginUpdate");
 
     /* Save current port */
@@ -479,13 +480,13 @@ void BeginUpdate(WindowPtr theWindow) {
     }
 
     WM_DEBUG("BeginUpdate: Update session started");
-    serial_printf("[MEM] BeginUpdate after setup window=%p\n", theWindow);
+    serial_puts("[MEM] BeginUpdate after setup window\n");
     MemoryManager_CheckSuspectBlock("after_BeginUpdate");
 }
 
 void EndUpdate(WindowPtr theWindow) {
     serial_puts("[EndUpdate] ENTRY\n");
-    serial_printf("[MEM] EndUpdate enter window=%p\n", theWindow);
+    serial_puts("[MEM] EndUpdate enter\n");
     MemoryManager_CheckSuspectBlock("enter_EndUpdate");
     if (theWindow == NULL) {
         serial_puts("[EndUpdate] NULL window, returning\n");
@@ -602,7 +603,7 @@ void EndUpdate(WindowPtr theWindow) {
     serial_puts("[EndUpdate] About to final WM_DEBUG\n");
     WM_DEBUG("EndUpdate: Update session ended");
     serial_puts("[EndUpdate] EXIT\n");
-    serial_printf("[MEM] EndUpdate exit window=%p\n", theWindow);
+    serial_puts("[MEM] EndUpdate exit\n");
     MemoryManager_CheckSuspectBlock("exit_EndUpdate");
 }
 
@@ -823,10 +824,10 @@ static GrafPtr WM_GetCurrentPort(void) {
 
 /* [WM-050] Platform port functions removed - stubs only */
 
-static GrafPtr WM_GetUpdatePort(WindowPtr window) {
-    /* TODO: Implement platform-specific update port retrieval */
+/* static GrafPtr WM_GetUpdatePort(WindowPtr window) {
+    // TODO: Implement platform-specific update port retrieval
     return NULL;
-}
+} */
 
 /* [WM-050] Platform_SetClipRgn removed - stub only */
 

@@ -32,21 +32,21 @@
 /* Forward declarations */
 Boolean WM_ValidateWindowPosition(WindowPtr window, const Rect* bounds);
 #if 0  /* UNUSED forward declarations */
-static Point Local_ApplySnapToEdges(Point windowPos);
+/* static Point Local_ApplySnapToEdges(Point windowPos); */
 #endif
 void WM_ConstrainWindowPosition(WindowPtr window, Rect* bounds);
 void WM_UpdateWindowVisibility(WindowPtr window);
 void WM_OffsetRect(Rect* rect, short deltaH, short deltaV);
 #if 0  /* UNUSED forward declarations - orphaned helper functions */
-static Point Local_ConstrainToRect(Point windowPos, const Rect* constraintRect);
-static Point Local_ConstrainToScreen(Point windowPos);
+/* static Point Local_ConstrainToRect(Point windowPos, const Rect* constraintRect);
+static Point Local_ConstrainToScreen(Point windowPos); */
 #endif
 #if 0  /* UNUSED forward declarations for commented-out functions */
-static Point Local_CalculateConstrainedWindowPosition(Point mousePt);
+/* static Point Local_CalculateConstrainedWindowPosition(Point mousePt);
 static void Local_EndDragFeedback(void);
 static void Local_UpdateDragFeedback(Point currentPt);
 static void Local_StartDragFeedback(void);
-static void Local_CleanupDragState(void);
+static void Local_CleanupDragState(void); */
 #endif
 
 
