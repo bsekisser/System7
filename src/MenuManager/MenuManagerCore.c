@@ -1014,7 +1014,7 @@ void SetMCInfo(MCTableHandle menuCTbl)
 
     gMCTable = menuCTbl;
     if (gMenuMgrState != NULL) {
-        gMenuMgrState->menuColorTable = menuCTbl;
+        gMenuMgrState->menuColorTable = (Handle)menuCTbl;
     }
 
     /* Redraw menu bar with new colors */
