@@ -31,6 +31,7 @@
 #include "QuickDraw/ColorQuickDraw.h"
 #include "DialogManager/DialogManager.h"
 #include "WindowManager/WMLogging.h"
+#include "MemoryMgr/MemoryManager.h"
 
 /* ============================================================================
  * Global Window Manager State
