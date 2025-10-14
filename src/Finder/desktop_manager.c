@@ -31,6 +31,7 @@
 #include "Finder/Icon/icon_types.h"
 #include "Finder/Icon/icon_label.h"
 #include "Finder/Icon/icon_system.h"
+#include "QuickDraw/QuickDraw.h"
 #include "QuickDrawConstants.h"
 #include "System71StdLib.h"
 #include "Finder/FinderLogging.h"
@@ -1463,10 +1464,13 @@ void DrawVolumeIcon(void)
             iconHandle.fam = IconSys_DefaultVolume();
             iconHandle.selected = (gSelectedIcon == i);
 
+            Point localPos = gDesktopIcons[i].position;
+            GlobalToLocal(&localPos);
+
             Icon_DrawWithLabelOffset(&iconHandle, gDesktopIcons[i].name,
-                                    gDesktopIcons[i].position.h + 16,  /* Center X */
-                                    gDesktopIcons[i].position.v,        /* Top Y */
-                                    34,                                 /* Label offset */
+                                    localPos.h + 16,  /* Center X (local) */
+                                    localPos.v,       /* Top Y (local) */
+                                    34,               /* Label offset */
                                     iconHandle.selected);
         } else if (gDesktopIcons[i].type == kDesktopItemTrash) {
             /* Draw trash icon */
@@ -1481,10 +1485,13 @@ void DrawVolumeIcon(void)
             FINDER_LOG_DEBUG("DrawVolumeIcon: Drawing trash at (%d,%d)\n",
                          gDesktopIcons[i].position.h, gDesktopIcons[i].position.v);
 
+            Point localPos = gDesktopIcons[i].position;
+            GlobalToLocal(&localPos);
+
             Icon_DrawWithLabelOffset(&trashHandle, gDesktopIcons[i].name,
-                                    gDesktopIcons[i].position.h + 16,  /* Center X */
-                                    gDesktopIcons[i].position.v,        /* Top Y */
-                                    48,                                 /* Label offset */
+                                    localPos.h + 16,  /* Center X (local) */
+                                    localPos.v,       /* Top Y (local) */
+                                    48,               /* Label offset */
                                     trashHandle.selected);
         }
         /* Future: handle kDesktopItemFile, kDesktopItemFolder, etc. */

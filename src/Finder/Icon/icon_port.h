@@ -16,6 +16,8 @@ extern GrafPtr g_currentPort;
 static inline void IconPort_WritePixel(int x, int y, uint32_t color) {
     if (g_currentPort && g_currentPort->portBits.baseAddr) {
         Rect portRect = g_currentPort->portRect;
+        SInt16 localLeft = portRect.left;
+        SInt16 localTop = portRect.top;
 
         if (x < portRect.left || x >= portRect.right ||
             y < portRect.top || y >= portRect.bottom) {
@@ -23,7 +25,7 @@ static inline void IconPort_WritePixel(int x, int y, uint32_t color) {
         }
 
         if (g_currentPort->clipRgn && *g_currentPort->clipRgn) {
-            Point localPt = {(short)x, (short)y};
+            Point localPt = {(short)(x - localLeft), (short)(y - localTop)};
             if (!PtInRgn(localPt, g_currentPort->clipRgn)) {
                 return;
             }
@@ -32,8 +34,6 @@ static inline void IconPort_WritePixel(int x, int y, uint32_t color) {
         uint8_t* baseAddr = (uint8_t*)g_currentPort->portBits.baseAddr;
         SInt16 rowBytes = g_currentPort->portBits.rowBytes & 0x3FFF;
 
-        SInt16 localLeft = g_currentPort->portRect.left;
-        SInt16 localTop = g_currentPort->portRect.top;
         SInt16 relX = x - localLeft;
         SInt16 relY = y - localTop;
 
@@ -76,4 +76,3 @@ static inline void IconPort_WritePixel(int x, int y, uint32_t color) {
     size_t offset = (size_t)y * (size_t)fb_pitch + (size_t)x * sizeof(uint32_t);
     *(uint32_t*)(fbBase + offset) = color;
 }
-
