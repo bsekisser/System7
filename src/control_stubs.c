@@ -47,7 +47,7 @@ Handle NewHandleClear(Size byteCount) {
 
 /* StillDown() moved to MouseEvents.c - reads gCurrentButtons */
 
-/* Window Manager stubs */
+/* Window Manager minimal helpers needed by Control Manager */
 ControlHandle _GetFirstControl(WindowPtr window) {
     if (!window) return NULL;
     return window->controlList;
@@ -69,7 +69,7 @@ void _SetFirstControl(WindowPtr window, ControlHandle control) {
 }
 
 /* Internal: attach control to the head of a window's control list */
-void _AttachControlToWindow(WindowPtr w, ControlHandle c) {
+void _AttachControlToWindow(ControlHandle c, WindowPtr w) {
     if (!w || !c) return;
     /* Ensure owner is set */
     (*c)->contrlOwner = w;
@@ -80,9 +80,10 @@ void _AttachControlToWindow(WindowPtr w, ControlHandle c) {
 
 /* RegisterStandardControlTypes now implemented in StandardControls.c */
 
-ControlHandle LoadControlFromResource(SInt16 controlID, WindowPtr owner) {
-    /* Would load a control from resources */
-    (void)controlID;
+/* Note: LoadControlFromResource is provided by ControlResources.c */
+/* Minimal placeholder for builds without ResourceMgr: returns NULL */
+ControlHandle LoadControlFromResource(Handle cntlResource, WindowPtr owner) {
+    (void)cntlResource;
     (void)owner;
     return NULL;
 }
