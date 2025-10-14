@@ -872,7 +872,7 @@ void DisposePtr(void* p) {
 
     /* Validate the block being freed */
     if (!validate_block(z, b)) {
-        serial_printf("[DISPOSE] ERROR: Invalid block being freed (ptr=%p)\n", p);
+        serial_puts("[DISPOSE] ERROR: Invalid block being freed\n");
         return;
     }
 
@@ -1410,10 +1410,20 @@ OSErr MemoryManager_MapToM68K(struct M68KAddressSpace* as)
     gAppZone.m68kBase = kAppBase;
     gAppZone.m68kLimit = kAppBase + (UInt32)appSize;
 
-    serial_printf("[MM] System zone mapped: 0x%08X-0x%08X (%zu bytes)\n",
-                  gSystemZone.m68kBase, gSystemZone.m68kLimit - 1, sysSize);
-    serial_printf("[MM] Application zone mapped: 0x%08X-0x%08X (%zu bytes)\n",
-                  gAppZone.m68kBase, gAppZone.m68kLimit - 1, appSize);
+    serial_puts("[MM] System zone mapped: 0x");
+    mm_print_hex(gSystemZone.m68kBase);
+    serial_puts("-0x");
+    mm_print_hex(gSystemZone.m68kLimit - 1);
+    serial_puts(" bytes=0x");
+    mm_print_hex((u32)sysSize);
+    serial_puts("\n");
+    serial_puts("[MM] Application zone mapped: 0x");
+    mm_print_hex(gAppZone.m68kBase);
+    serial_puts("-0x");
+    mm_print_hex(gAppZone.m68kLimit - 1);
+    serial_puts(" bytes=0x");
+    mm_print_hex((u32)appSize);
+    serial_puts("\n");
 
     MemoryManager_SyncLowMemGlobals();
     return noErr;
@@ -1430,8 +1440,13 @@ void MemoryManager_SyncLowMemGlobals(void)
     LMSetSysZone(gSystemZone.m68kBase);
     LMSetApplZone(gAppZone.m68kBase);
 
-    serial_printf("[MM] Low memory globals synced: MemTop=0x%08X SysZone=0x%08X ApplZone=0x%08X\n",
-                  LMGetMemTop(), LMGetSysZone(), LMGetApplZone());
+    serial_puts("[MM] Low memory globals synced: MemTop=0x");
+    mm_print_hex(LMGetMemTop());
+    serial_puts(" SysZone=0x");
+    mm_print_hex(LMGetSysZone());
+    serial_puts(" ApplZone=0x");
+    mm_print_hex(LMGetApplZone());
+    serial_puts("\n");
 }
 
 bool MemoryManager_IsHeapPointer(const void* p)

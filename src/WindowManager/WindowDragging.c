@@ -231,11 +231,7 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
     /* Update window layering if needed */
     WM_UpdateWindowVisibility(theWindow);
 
-    if (theWindow->strucRgn && *(theWindow->strucRgn)) {
-        Rect finalPos = (*(theWindow->strucRgn))->rgnBBox;
-        WM_DEBUG("MoveWindow: Window moved successfully to (%d, %d)",
-                 finalPos.left, finalPos.top);
-    }
+    /* Debug log removed to avoid unused variable when logging is compiled out */
 }
 
 /* ============================================================================
