@@ -17,6 +17,10 @@
 #ifdef SYS71_PROVIDE_FINDER_TOOLBOX
 #define SYS71_STUBS_DISABLED 1
 #endif
+/* Disable quarantined stubs by default now that real modules exist */
+#ifndef SYS71_STUBS_DISABLED
+#define SYS71_STUBS_DISABLED 1
+#endif
 
 #include "../include/MacTypes.h"
 #include "../include/SystemInternal.h"
