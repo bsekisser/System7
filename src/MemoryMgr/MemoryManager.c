@@ -934,7 +934,7 @@ bool SetHandleSize_MemMgr(Handle h, u32 newSize) {
     freelist_insert(z, b);
 
     /* Free the temporary master pointer from NewHandle */
-    MP_Free(z, newHandle);
+    MP_Free(z, (void **)newHandle);
 
     return true;
 }
