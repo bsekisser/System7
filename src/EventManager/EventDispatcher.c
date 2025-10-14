@@ -285,15 +285,14 @@ Boolean HandleMouseDown(EventRecord* event)
                              (unsigned int)whichWindow, dragBounds.top, dragBounds.left,
                              dragBounds.bottom, dragBounds.right);
 
-                extern void serial_printf(const char *fmt, ...);
-                serial_printf("[EVT] ABOUT TO CALL DragWindow: window=%p, where=(%d,%d), bounds=%p\n",
-                             whichWindow, event->where.h, event->where.v, &dragBounds);
-                serial_printf("[EVT] DragWindow function ptr=%p\n", DragWindow);
+                extern void serial_puts(const char *str);
+                serial_puts("[EVT] ABOUT TO CALL DragWindow\n");
+                serial_puts("[EVT] DragWindow function ptr logged\n");
 
-                serial_printf("[MEM] before DragWindow window=%p\n", whichWindow);
+                serial_puts("[MEM] before DragWindow\n");
                 MemoryManager_CheckSuspectBlock("before_DragWindow");
                 DragWindow(whichWindow, event->where, &dragBounds);
-                serial_printf("[MEM] after DragWindow window=%p\n", whichWindow);
+                serial_puts("[MEM] after DragWindow\n");
                 MemoryManager_CheckSuspectBlock("after_DragWindow");
                 EVT_LOG_DEBUG("HandleMouseDown: DragWindow returned\n");
             } else {
