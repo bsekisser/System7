@@ -6,6 +6,7 @@
 #include "SystemTheme.h"
 #include "WindowManager/WMLogging.h"
 #include "EventManager/EventManager.h"
+#include "MemoryMgr/MemoryManager.h"
 
 /* Color constants */
 #define blackColor 33
@@ -1065,8 +1066,12 @@ void HiliteWindow(WindowPtr window, Boolean fHilite) {
 
     /* Redraw the window frame to show highlight state */
     /* NOTE: DrawWindowFrame and DrawWindowControls set their own ports to WMgrPort */
+    MemoryManager_CheckSuspectBlock("HiliteWindow_pre_DrawWindowFrame");
     DrawWindowFrame(window);
+    MemoryManager_CheckSuspectBlock("HiliteWindow_post_DrawWindowFrame");
+    MemoryManager_CheckSuspectBlock("HiliteWindow_pre_DrawWindowControls");
     DrawWindowControls(window);
+    MemoryManager_CheckSuspectBlock("HiliteWindow_post_DrawWindowControls");
 
     WM_LOG_TRACE("[HILITE] Window %p: frame redrawn with hilite=%d\n", window, fHilite);
 }
@@ -1110,6 +1115,8 @@ void BringToFront(WindowPtr window) {
 
     WM_DEBUG("BringToFront: Moving window to front");
     DumpWindowList("BringToFront - START");
+    serial_printf("[MEM] BringToFront start window=%p\n", window);
+    MemoryManager_CheckSuspectBlock("BringToFront_start");
 
     /* CRITICAL: Save the current front window BEFORE modifying the list */
     WindowPtr prevFront = wmState->windowList;
@@ -1147,17 +1154,23 @@ void BringToFront(WindowPtr window) {
     /* Unhighlight the window that will be demoted (if any) */
     if (prevFront) {
         WM_LOG_TRACE("[HILITE] Unhiliting previous front window %p\n", prevFront);
+        MemoryManager_CheckSuspectBlock("BringToFront_pre_unhilite");
         HiliteWindow(prevFront, false);
+        MemoryManager_CheckSuspectBlock("BringToFront_post_unhilite");
     }
 
     /* Now hilite and paint the new front window */
+    MemoryManager_CheckSuspectBlock("BringToFront_pre_hilite_new");
     HiliteWindow(window, true);
+    MemoryManager_CheckSuspectBlock("BringToFront_post_hilite_new");
 
     /* Recalculate visible regions */
     CalcVisBehind(window, NULL);
+    MemoryManager_CheckSuspectBlock("BringToFront_post_CalcVisBehind");
 
     /* CRITICAL: Repaint entire window stack from back to front to ensure proper z-order */
     PaintBehind(NULL, NULL);
+    MemoryManager_CheckSuspectBlock("BringToFront_post_PaintBehind");
 
     DumpWindowList("BringToFront - END");
 }

@@ -17,6 +17,7 @@
 #include "WindowManager/WindowManager.h"
 #include "MenuManager/MenuManager.h"
 #include "QuickDraw/QuickDraw.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "Finder/AboutThisMac.h"  /* About This Macintosh window */
 #include <stdlib.h>  /* For abs() */
 #include "EventManager/EventLogging.h"
@@ -289,7 +290,11 @@ Boolean HandleMouseDown(EventRecord* event)
                              whichWindow, event->where.h, event->where.v, &dragBounds);
                 serial_printf("[EVT] DragWindow function ptr=%p\n", DragWindow);
 
+                serial_printf("[MEM] before DragWindow window=%p\n", whichWindow);
+                MemoryManager_CheckSuspectBlock("before_DragWindow");
                 DragWindow(whichWindow, event->where, &dragBounds);
+                serial_printf("[MEM] after DragWindow window=%p\n", whichWindow);
+                MemoryManager_CheckSuspectBlock("after_DragWindow");
                 EVT_LOG_DEBUG("HandleMouseDown: DragWindow returned\n");
             } else {
                 EVT_LOG_DEBUG("HandleMouseDown: inDrag but whichWindow is NULL!\n");

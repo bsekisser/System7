@@ -2495,6 +2495,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
             SYSTEM_LOG_DEBUG("MAIN: About to call DispatchEvent(&evt) where evt.what=%d\n", evt.what);
             DispatchEvent(&evt);
             SYSTEM_LOG_DEBUG("MAIN: DispatchEvent returned\n");
+            MemoryManager_CheckSuspectBlock("after_dispatch(coop)");
         } else {
             /* No events - yield to other processes */
             Proc_Yield();
@@ -2660,6 +2661,7 @@ skip_cursor_drawing:
                          event.what, event.where.h, event.where.v);
             /* Let DispatchEvent handle all events */
             DispatchEvent(&event);
+            MemoryManager_CheckSuspectBlock("after_dispatch(main)");
         }
 #endif
 

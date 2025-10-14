@@ -318,6 +318,7 @@ static const SysLogTag kLogTagTable[] = {
     { "NEWWIN", kLogModuleWindow, kLogLevelDebug },
     { "HILITE", kLogModuleWindow, kLogLevelTrace },
     { "PaintBehind", kLogModuleWindow, kLogLevelTrace },
+    { "MEM", kLogModuleMemory, kLogLevelInfo },
     { "FM", kLogModuleFont, kLogLevelDebug }
 };
 

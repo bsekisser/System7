@@ -23,9 +23,15 @@
 #include "QuickDraw/QuickDraw.h"
 #include <assert.h>
 #include <math.h>
+#include <stdint.h>
 
 /* Platform abstraction layer */
 #include "QuickDraw/QuickDrawPlatform.h"
+#include "MemoryMgr/MemoryManager.h"
+
+/* Serial logging for defensive diagnostics */
+extern void serial_puts(const char* str);
+extern void serial_putchar(char ch);
 
 
 /* Region constants */
@@ -58,6 +64,57 @@ static Boolean DifferenceScanLines(SInt16 *line1, SInt16 count1, SInt16 *line2, 
 static Boolean XorScanLines(SInt16 *line1, SInt16 count1, SInt16 *line2, SInt16 count2,
                         SInt16 *result, SInt16 *resultCount);
 
+static void region_log_hex(uint32_t value, int digits) {
+    static const char hex[] = "0123456789ABCDEF";
+    for (int i = digits - 1; i >= 0; --i) {
+        serial_putchar(hex[(value >> (i * 4)) & 0xF]);
+    }
+}
+
+static void region_log_message(const char* context,
+                               RgnHandle handle,
+                               Region* region,
+                               BlockHeader* header) {
+    serial_puts("[REGION] ");
+    serial_puts(context);
+    serial_puts(" handle=0x");
+    region_log_hex((uint32_t)(uintptr_t)handle, 8);
+    serial_puts(" region=0x");
+    region_log_hex((uint32_t)(uintptr_t)region, 8);
+    serial_puts(" size=0x");
+    region_log_hex(region ? (uint32_t)(uint16_t)region->rgnSize : 0, 4);
+    serial_puts(" hdrSize=0x");
+    region_log_hex(header ? header->size : 0, 8);
+    serial_puts(" flags=0x");
+    region_log_hex(header ? header->flags : 0, 4);
+    serial_puts(" prev=0x");
+    region_log_hex(header ? header->prevSize : 0, 8);
+    serial_putchar('\n');
+}
+
+static SInt16 sanitize_region_size(Region* region, const char* label) {
+    if (!region) {
+        return kMinRegionSize;
+    }
+
+    SInt32 size = (SInt32)region->rgnSize;
+    if (size >= kMinRegionSize && size <= kMaxRegionSize) {
+        return (SInt16)size;
+    }
+
+    serial_puts("[REGION] ");
+    serial_puts(label);
+    serial_puts(": invalid rgnSize=0x");
+    region_log_hex((uint32_t)size, 8);
+    serial_puts(" at 0x");
+    region_log_hex((uint32_t)(uintptr_t)region, 8);
+    serial_puts(", clamping to 0x");
+    region_log_hex((uint32_t)kMinRegionSize, 4);
+    serial_putchar('\n');
+    region->rgnSize = kMinRegionSize;
+    return kMinRegionSize;
+}
+
 /* ================================================================
  * BASIC REGION OPERATIONS
  * ================================================================ */
@@ -81,6 +138,9 @@ RgnHandle NewRgn(void) {
     region->rgnSize = kMinRegionSize;
     SetRect(&region->rgnBBox, 0, 0, 0, 0);
 
+    BlockHeader* header = (BlockHeader*)((UInt8*)region - sizeof(BlockHeader));
+    region_log_message("NewRgn", rgn, region, header);
+
     g_lastRegionError = 0;
     return rgn;
 }
@@ -88,8 +148,14 @@ RgnHandle NewRgn(void) {
 void DisposeRgn(RgnHandle rgn) {
     if (!rgn || !*rgn) return;
 
+    Region* region = *rgn;
+    BlockHeader* regionHeader = (BlockHeader*)((UInt8*)region - sizeof(BlockHeader));
+    BlockHeader* handleHeader = (BlockHeader*)((UInt8*)rgn - sizeof(BlockHeader));
+    region_log_message("DisposeRgn", rgn, region, regionHeader);
+
     /* Use DisposePtr instead of free - free is broken in bare-metal kernel */
     DisposePtr((Ptr)*rgn);
+    region_log_message("DisposeRgn handle block", rgn, NULL, handleHeader);
     DisposePtr((Ptr)rgn);
 }
 
@@ -153,15 +219,18 @@ void CopyRgn(RgnHandle srcRgn, RgnHandle dstRgn) {
     Region *src = *srcRgn;
     Region *dst = *dstRgn;
 
+    SInt16 srcSize = sanitize_region_size(src, "CopyRgn(src)");
+    SInt16 dstSize = sanitize_region_size(dst, "CopyRgn(dst)");
+
     /* Reallocate destination if needed without using realloc() */
-    if (src->rgnSize > dst->rgnSize) {
-        Region *newDst = (Region *)NewPtr(src->rgnSize);
+    if (srcSize > dstSize) {
+        Region *newDst = (Region *)NewPtr((u32)srcSize);
         if (!newDst) {
             g_lastRegionError = rgnOverflowErr;
             return;
         }
 
-        memcpy(newDst, src, src->rgnSize);
+        memcpy(newDst, src, (size_t)srcSize);
         DisposePtr((Ptr)dst);
         *dstRgn = newDst;
         g_lastRegionError = 0;
@@ -169,7 +238,7 @@ void CopyRgn(RgnHandle srcRgn, RgnHandle dstRgn) {
     }
 
     /* Copy the region data */
-    memcpy(dst, src, src->rgnSize);
+    memcpy(dst, src, (size_t)srcSize);
     g_lastRegionError = 0;
 }
 
@@ -416,11 +485,14 @@ Boolean EqualRgn(RgnHandle rgnA, RgnHandle rgnB) {
     Region *regionA = *rgnA;
     Region *regionB = *rgnB;
 
+    SInt16 sizeA = sanitize_region_size(regionA, "EqualRgn(A)");
+    SInt16 sizeB = sanitize_region_size(regionB, "EqualRgn(B)");
+
     /* First check sizes */
-    if (regionA->rgnSize != regionB->rgnSize) return false;
+    if (sizeA != sizeB) return false;
 
     /* Then compare the data */
-    return memcmp(regionA, regionB, regionA->rgnSize) == 0;
+    return memcmp(regionA, regionB, (size_t)sizeA) == 0;
 }
 
 Boolean RectInRgn(const Rect *r, RgnHandle rgn) {

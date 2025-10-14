@@ -24,6 +24,7 @@
 #include "WindowManager/WindowManagerInternal.h"
 #include "WindowManager/WMLogging.h"
 #include "EventManager/EventManager.h"
+#include "MemoryMgr/MemoryManager.h"
 
 /* External logging function */
 extern void serial_logf(SystemLogModule module, SystemLogLevel level, const char* fmt, ...);
@@ -393,6 +394,8 @@ void BeginUpdate(WindowPtr theWindow) {
     if (theWindow == NULL) return;
 
     WM_DEBUG("BeginUpdate: Beginning window update");
+    serial_printf("[MEM] BeginUpdate before processing window=%p\n", theWindow);
+    MemoryManager_CheckSuspectBlock("pre_BeginUpdate");
 
     /* Save current port */
     GrafPtr savePort = Platform_GetCurrentPort();
@@ -476,10 +479,14 @@ void BeginUpdate(WindowPtr theWindow) {
     }
 
     WM_DEBUG("BeginUpdate: Update session started");
+    serial_printf("[MEM] BeginUpdate after setup window=%p\n", theWindow);
+    MemoryManager_CheckSuspectBlock("after_BeginUpdate");
 }
 
 void EndUpdate(WindowPtr theWindow) {
     serial_puts("[EndUpdate] ENTRY\n");
+    serial_printf("[MEM] EndUpdate enter window=%p\n", theWindow);
+    MemoryManager_CheckSuspectBlock("enter_EndUpdate");
     if (theWindow == NULL) {
         serial_puts("[EndUpdate] NULL window, returning\n");
         return;
@@ -488,6 +495,7 @@ void EndUpdate(WindowPtr theWindow) {
     serial_puts("[EndUpdate] About to log debug message\n");
     WM_DEBUG("EndUpdate: Ending window update");
     serial_puts("[EndUpdate] After WM_DEBUG\n");
+    MemoryManager_CheckSuspectBlock("post_debug_EndUpdate");
 
     /* If double-buffering with GWorld, copy offscreen buffer to screen */
     serial_puts("[EndUpdate] Checking offscreenGWorld\n");
@@ -561,12 +569,14 @@ void EndUpdate(WindowPtr theWindow) {
         serial_puts("[EndUpdate] Calling Platform_SetEmptyRgn...\n");
         Platform_SetEmptyRgn(theWindow->updateRgn);
         serial_puts("[EndUpdate] Platform_SetEmptyRgn returned\n");
+        MemoryManager_CheckSuspectBlock("after_SetEmptyRgn");
     }
 
     /* End platform drawing session */
     serial_puts("[EndUpdate] Calling Platform_EndWindowDraw...\n");
     Platform_EndWindowDraw(theWindow);
     serial_puts("[EndUpdate] Platform_EndWindowDraw returned\n");
+    MemoryManager_CheckSuspectBlock("after_EndWindowDraw");
 
     /* CRITICAL: Restore clipping to content region (not visRgn!)
      * to prevent content from overdrawing chrome */
@@ -575,6 +585,7 @@ void EndUpdate(WindowPtr theWindow) {
         serial_puts("[EndUpdate] Calling Platform_SetClipRgn...\n");
         Platform_SetClipRgn(&theWindow->port, theWindow->contRgn);
         serial_puts("[EndUpdate] Platform_SetClipRgn returned\n");
+        MemoryManager_CheckSuspectBlock("after_SetClipRgn");
     }
 
     /* Restore previous port */
@@ -585,11 +596,14 @@ void EndUpdate(WindowPtr theWindow) {
         serial_puts("[EndUpdate] Calling Platform_SetCurrentPort...\n");
         Platform_SetCurrentPort(savedPort);
         serial_puts("[EndUpdate] Platform_SetCurrentPort returned\n");
+        MemoryManager_CheckSuspectBlock("after_SetCurrentPort");
     }
 
     serial_puts("[EndUpdate] About to final WM_DEBUG\n");
     WM_DEBUG("EndUpdate: Update session ended");
     serial_puts("[EndUpdate] EXIT\n");
+    serial_printf("[MEM] EndUpdate exit window=%p\n", theWindow);
+    MemoryManager_CheckSuspectBlock("exit_EndUpdate");
 }
 
 Boolean CheckUpdate(EventRecord* theEvent) {
