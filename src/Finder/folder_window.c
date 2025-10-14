@@ -927,11 +927,6 @@ void FolderWindow_Draw(WindowPtr w) {
     }
     /* If we have state, draw icons with selection highlighting */
     else if (state && state->items) {
-        /* Convert window port coordinates to global screen coordinates for icon drawing */
-        Point globalOrigin;
-        globalOrigin.h = w->port.portBits.bounds.left;
-        globalOrigin.v = w->port.portBits.bounds.top;
-
         for (short i = 0; i < state->itemCount; i++) {
             Boolean selected = (i == state->selectedIndex);
             IconHandle iconHandle;
@@ -943,18 +938,13 @@ void FolderWindow_Draw(WindowPtr w) {
             }
             iconHandle.selected = selected;
 
-            /* Convert local position to global screen position
-             * position.v is already in port-local coordinates (measured from port top)
-             * globalOrigin.v is the global screen Y of the port top
-             * So simple addition gives us the global coordinate
-             */
-            int globalX = state->items[i].position.h + globalOrigin.h;
-            int globalY = state->items[i].position.v + globalOrigin.v;
+            int localX = state->items[i].position.h;
+            int localY = state->items[i].position.v;
 
-            /* Draw icon with label - Icon_DrawWithLabel draws to framebuffer in global coords */
+            /* Draw icon with label using window-local coordinates */
             Icon_DrawWithLabel(&iconHandle, state->items[i].name,
-                              globalX + 16,  /* center X (global) */
-                              globalY,       /* top Y (global) */
+                              localX + 16,   /* center X (local) */
+                              localY,        /* top Y (local) */
                               selected);
         }
     }

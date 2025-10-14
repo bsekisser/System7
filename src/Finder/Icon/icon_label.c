@@ -7,6 +7,8 @@
 #include <string.h>
 #include <stdint.h>
 #include "System71StdLib.h"
+#include "QuickDraw/QuickDraw.h"
+#include "Finder/Icon/icon_port.h"
 
 #define FINDER_ICON_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelDebug, fmt, ##__VA_ARGS__)
 
@@ -120,21 +122,11 @@ static const ChicagoCharInfo chicago_ascii[] = {
     {  543,  6,   1,   8 },  /* '~' */
 };
 
-/* Import framebuffer - using proper names */
-extern void* framebuffer;
-extern uint32_t fb_width;
-extern uint32_t fb_height;
-extern uint32_t fb_pitch;
-extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
-
 /* Draw rectangle */
-static void FillRect(int left, int top, int right, int bottom, uint32_t color) {
-    uint32_t* fb = (uint32_t*)framebuffer;
-    for (int y = top; y < bottom && y < fb_height; y++) {
-        for (int x = left; x < right && x < fb_width; x++) {
-            if (x >= 0 && y >= 0) {
-                fb[y * (fb_pitch/4) + x] = color;
-            }
+static void FillRectLocal(int left, int top, int right, int bottom, uint32_t color) {
+    for (int y = top; y < bottom; y++) {
+        for (int x = left; x < right; x++) {
+            IconPort_WritePixel(x, y, color);
         }
     }
 }
@@ -143,7 +135,6 @@ static void FillRect(int left, int top, int right, int bottom, uint32_t color) {
 static void DrawChar(char ch, int x, int y, uint32_t color) {
     if (ch < 32 || ch > 126) return;
 
-    uint32_t* fb = (uint32_t*)framebuffer;
     ChicagoCharInfo info = chicago_ascii[ch - 32];
 
     for (int row = 0; row < 15; row++) {  /* Chicago font actual height is 15 */
@@ -155,9 +146,7 @@ static void DrawChar(char ch, int x, int y, uint32_t color) {
             int bit_offset = 7 - (bit_position & 7);
 
             if (strike_row[byte_index] & (1 << bit_offset)) {
-                if (x + col < fb_width && y + row < fb_height) {
-                    fb[(y + row) * (fb_pitch/4) + (x + col)] = color;
-                }
+                IconPort_WritePixel(x + col, y + row, color);
             }
         }
     }
@@ -194,8 +183,8 @@ void IconLabel_Draw(const char* name, int cx, int topY, bool selected) {
     uint32_t fgColor = selected ? 0xFFFFFFFF : 0xFF000000;  /* White text if selected, black otherwise */
 
     /* Adjusted background rectangle (perfected from HD icon) */
-    FillRect(textX - padding, topY - textHeight + 3,
-             textX + textWidth + 1, topY + 2, bgColor);  /* Reduced height by 2px */
+    FillRectLocal(textX - padding, topY - textHeight + 3,
+                  textX + textWidth + 1, topY + 2, bgColor);  /* Reduced height by 2px */
 
     /* Draw text using direct bitmap rendering */
     int currentX = textX;

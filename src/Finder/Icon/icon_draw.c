@@ -7,53 +7,13 @@
 #include <stddef.h>
 #include "System71StdLib.h"
 #include "QuickDraw/QuickDraw.h"
+#include "Finder/Icon/icon_port.h"
 
 #define FINDER_ICON_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelDebug, fmt, ##__VA_ARGS__)
-
-/* Import framebuffer access */
-extern void* framebuffer;
-extern uint32_t fb_width;
-extern uint32_t fb_height;
-extern uint32_t fb_pitch;
-extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
-extern GrafPtr g_currentPort;
 
 /* Helper: Get bit from bitmap */
 static inline uint8_t GetBit(const uint8_t* row, int x) {
     return (row[x >> 3] >> (7 - (x & 7))) & 1;
-}
-
-/* Draw pixel to the active QuickDraw port (defaults to framebuffer) */
-static void SetPixel(int x, int y, uint32_t color) {
-    if (g_currentPort && g_currentPort->portBits.baseAddr) {
-        /* portBits.bounds store GLOBAL coordinates; convert to buffer offset */
-        SInt16 boundsLeft = g_currentPort->portBits.bounds.left;
-        SInt16 boundsTop = g_currentPort->portBits.bounds.top;
-        SInt16 boundsRight = g_currentPort->portBits.bounds.right;
-        SInt16 boundsBottom = g_currentPort->portBits.bounds.bottom;
-
-        if (x < boundsLeft || x >= boundsRight || y < boundsTop || y >= boundsBottom) {
-            return;
-        }
-
-        SInt16 rowBytes = g_currentPort->portBits.rowBytes & 0x3FFF;
-        uint8_t* baseAddr = (uint8_t*)g_currentPort->portBits.baseAddr;
-        size_t offset = (size_t)(y - boundsTop) * (size_t)rowBytes +
-                        (size_t)(x - boundsLeft) * sizeof(uint32_t);
-        *(uint32_t*)(baseAddr + offset) = color;
-        return;
-    }
-
-    /* Fallback: draw directly to global framebuffer */
-    if (!framebuffer) {
-        return;
-    }
-
-    if (x >= 0 && x < (int)fb_width && y >= 0 && y < (int)fb_height) {
-        uint8_t* base = (uint8_t*)framebuffer;
-        size_t offset = (size_t)y * (size_t)fb_pitch + (size_t)x * sizeof(uint32_t);
-        *(uint32_t*)(base + offset) = color;
-    }
 }
 
 /* Draw 1-bit ICN# icon
@@ -107,7 +67,7 @@ static void DrawICN32(const IconBitmap* ib, int dx, int dy, bool selected) {
                     color = 0xFF000000 | (r << 16) | (g << 8) | b;
                 }
 
-                SetPixel(dx + x, dy + y, color);
+                IconPort_WritePixel(dx + x, dy + y, color);
             }
         }
     }
@@ -134,7 +94,7 @@ static void DrawCICN32(const IconBitmap* ib, int dx, int dy, bool selected) {
                     b = (b + 0x80) / 2;
                     pixel = (alpha << 24) | (r << 16) | (g << 8) | b;
                 }
-                SetPixel(dx + x, dy + y, pixel);
+                IconPort_WritePixel(dx + x, dy + y, pixel);
             }
         }
     }
