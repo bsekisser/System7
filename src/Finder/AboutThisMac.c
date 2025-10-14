@@ -10,6 +10,9 @@
 #include "System71StdLib.h"
 #include "Finder/FinderLogging.h"
 #include "Finder/finder.h"
+#include "QuickDraw/QuickDraw.h"
+
+extern void DisposeGWorld(GWorldPtr offscreenGWorld);
 
 /* External QuickDraw & Window Manager APIs */
 extern void GetPort(GrafPtr* port);
@@ -337,6 +340,12 @@ static void AboutWindow_CreateIfNeeded(void)
     if (!sAboutWin) {
         FINDER_LOG_DEBUG("AboutThisMac: FAILED to create window!\n");
         return;
+    }
+
+    /* Disable offscreen GWorld so text draws directly to framebuffer */
+    if (sAboutWin->offscreenGWorld) {
+        DisposeGWorld((GWorldPtr)sAboutWin->offscreenGWorld);
+        sAboutWin->offscreenGWorld = NULL;
     }
 
     FINDER_LOG_DEBUG("AboutThisMac: Created window at 0x%08x, refCon=0x%08X\n",

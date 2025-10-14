@@ -311,6 +311,7 @@ void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
 
             uint32_t* pixel = (uint32_t*)((uint8_t*)baseAddr + localY * rowBytes + localX * 4);
             *pixel = color;
+            /* Do not fall back to framebuffer when drawing to offscreen port */
             return;
         }
     }
