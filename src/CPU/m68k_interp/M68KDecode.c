@@ -8,6 +8,7 @@
 #include "CPU/M68KInterp.h"
 #include "CPU/M68KOpcodes.h"
 #include "System71StdLib.h"
+#include "CPU/CPULogging.h"
 #include <string.h>
 
 /*
@@ -109,8 +110,7 @@ UInt16 M68K_Read16(M68KAddressSpace* as, UInt32 addr)
 
     /* Check word alignment */
     if (addr & 1) {
-        serial_printf("[M68K] ADDRESS ERROR: Read16 PC=0x%08X EA=0x%08X (odd address)\n",
-                     as->regs.pc, addr);
+        M68K_LOG_ERROR("ADDRESS ERROR: Read16 PC=0x%08X EA=0x%08X (odd address)\\n", as->regs.pc, addr);
         M68K_Fault(as, "Address error: Read16 odd address");
         return 0;
     }
@@ -129,8 +129,7 @@ UInt32 M68K_Read32(M68KAddressSpace* as, UInt32 addr)
 
     /* Check word alignment */
     if (addr & 1) {
-        serial_printf("[M68K] ADDRESS ERROR: Read32 PC=0x%08X EA=0x%08X (odd address)\n",
-                     as->regs.pc, addr);
+        M68K_LOG_ERROR("ADDRESS ERROR: Read32 PC=0x%08X EA=0x%08X (odd address)\\n", as->regs.pc, addr);
         M68K_Fault(as, "Address error: Read32 odd address");
         return 0;
     }
@@ -165,8 +164,7 @@ void M68K_Write16(M68KAddressSpace* as, UInt32 addr, UInt16 value)
 {
     /* Check word alignment */
     if (addr & 1) {
-        serial_printf("[M68K] ADDRESS ERROR: Write16 PC=0x%08X EA=0x%08X (odd address)\n",
-                     as->regs.pc, addr);
+        M68K_LOG_ERROR("ADDRESS ERROR: Write16 PC=0x%08X EA=0x%08X (odd address)\\n", as->regs.pc, addr);
         M68K_Fault(as, "Address error: Write16 odd address");
         return;
     }
@@ -182,8 +180,7 @@ void M68K_Write32(M68KAddressSpace* as, UInt32 addr, UInt32 value)
 {
     /* Check word alignment */
     if (addr & 1) {
-        serial_printf("[M68K] ADDRESS ERROR: Write32 PC=0x%08X EA=0x%08X (odd address)\n",
-                     as->regs.pc, addr);
+        M68K_LOG_ERROR("ADDRESS ERROR: Write32 PC=0x%08X EA=0x%08X (odd address)\\n", as->regs.pc, addr);
         M68K_Fault(as, "Address error: Write32 odd address");
         return;
     }
