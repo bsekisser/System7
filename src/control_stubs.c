@@ -7,6 +7,10 @@
 #ifdef SYS71_PROVIDE_FINDER_TOOLBOX
 #define SYS71_STUBS_DISABLED 1
 #endif
+/* Disable quarantined control stubs by default to avoid shadowing real implementations */
+#ifndef SYS71_STUBS_DISABLED
+#define SYS71_STUBS_DISABLED 1
+#endif
 
 #include "SystemTypes.h"
 #include "ControlManager/ControlManager.h"
