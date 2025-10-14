@@ -243,11 +243,11 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
  * ============================================================================ */
 
 void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
-    extern void serial_printf(const char *fmt, ...);
-    serial_printf("[WM_DRAG] DragWindow ENTRY: window=%p from (%d,%d)\n", theWindow, startPt.h, startPt.v);
+    extern void serial_puts(const char *str);
+    serial_puts("[WM_DRAG] DragWindow ENTRY\n");
 
     if (theWindow == NULL) {
-        serial_printf("[WM_DRAG] DragWindow: NULL window, returning\n");
+        serial_puts("[WM_DRAG] DragWindow: NULL window, returning\n");
         return;
     }
 
@@ -438,7 +438,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         extern void CalcVis(WindowPtr window);
 
         WM_LOG_DEBUG("DragWindow: About to call NewRgn()\n");
-        serial_printf("[MEM] DragWindow before NewRgn(oldRgn)\n");
+        serial_puts("[MEM] DragWindow before NewRgn(oldRgn)\n");
         MemoryManager_CheckSuspectBlock("pre_NewRgn_old");
         RgnHandle oldRgn = NewRgn();
         MemoryManager_CheckSuspectBlock("post_NewRgn_old");

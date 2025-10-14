@@ -1126,7 +1126,7 @@ bool SetHandleSize_MemMgr(Handle h, u32 newSize) {
     freelist_insert(z, b);
 
     /* Free the temporary master pointer from NewHandle */
-    MP_Free(z, newHandle);
+    MP_Free(z, (void**)newHandle);
 
     return true;
 }
@@ -1182,7 +1182,7 @@ u32 CompactMem(u32 cbNeeded) {
             if (scan != dest) {
                 /* Move the block */
                 BlockHeader* d = (BlockHeader*)dest;
-                u32 dataSize = b->size - BLKHDR_SZ;
+                /* dataSize not needed; full header+data copied above */
 
                 /* Copy block header and data */
                 memcpy(d, b, b->size);
