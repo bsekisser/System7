@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <limits.h>
 
 /* Debug flag for serial menu commands - set to 1 to enable, 0 to disable */
 #define DEBUG_SERIAL_MENU_COMMANDS 0
@@ -2135,12 +2136,18 @@ void InvalidateCursor(void) {
 void UpdateCursorDisplay(void) {
     extern void* framebuffer;
     extern uint32_t fb_width, fb_height, fb_pitch;
-    extern const uint8_t arrow_cursor[];
-    extern const uint8_t arrow_cursor_mask[];
-    extern int IsCursorVisible(void);  /* From sys71_stubs.c */
+    extern int IsCursorVisible(void);
+    extern const Cursor* CursorManager_GetCurrentCursorImage(void);
+    extern Point CursorManager_GetCursorHotspot(void);
+    extern void CursorManager_HandleMouseMotion(Point newPos);
 
-    static int16_t last_mouse_x = -1;
-    static int16_t last_mouse_y = -1;
+    const Cursor* cursorImage = CursorManager_GetCurrentCursorImage();
+    if (!cursorImage) {
+        return;
+    }
+
+    Point mousePoint = {g_mouseState.x, g_mouseState.y};
+    CursorManager_HandleMouseMotion(mousePoint);
 
     /* Check if cursor is hidden */
     if (!IsCursorVisible()) {
@@ -2165,20 +2172,15 @@ void UpdateCursorDisplay(void) {
         return;  /* Don't draw cursor */
     }
 
-    /* Only redraw if mouse moved or cursor was invalidated */
-    if (g_mouseState.x == last_mouse_x && g_mouseState.y == last_mouse_y && cursor_saved) {
+    static Point lastMouse = {SHRT_MIN, SHRT_MIN};
+
+    if (cursor_saved &&
+        mousePoint.h == lastMouse.h &&
+        mousePoint.v == lastMouse.v) {
         return;
     }
 
-    /* Clamp mouse position to screen bounds */
-    int16_t x = g_mouseState.x;
-    int16_t y = g_mouseState.y;
-
-    if (x < 0) x = 0;
-    if (x >= fb_width) x = fb_width - 1;
-    if (y < 0) y = 0;
-    if (y >= fb_height) y = fb_height - 1;
-
+    /* Only redraw if mouse moved or cursor was invalidated */
     /* Simple direct cursor drawing */
     uint32_t* fb = (uint32_t*)framebuffer;
     int pitch_dwords = fb_pitch / 4;
@@ -2199,14 +2201,18 @@ void UpdateCursorDisplay(void) {
     }
 
     /* Save and draw new cursor */
-    for (int row = 0; row < 16; row++) {
-        uint16_t cursor_row = (arrow_cursor[row*2] << 8) | arrow_cursor[row*2 + 1];
-        uint16_t mask_row = (arrow_cursor_mask[row*2] << 8) | arrow_cursor_mask[row*2 + 1];
+    Point hotSpot = CursorManager_GetCursorHotspot();
+    int drawX = mousePoint.h - hotSpot.h;
+    int drawY = mousePoint.v - hotSpot.v;
 
-        int py = y + row;
+    for (int row = 0; row < 16; row++) {
+        uint16_t cursor_row = cursorImage->data[row];
+        uint16_t mask_row = cursorImage->mask[row];
+
+        int py = drawY + row;
         if (py >= 0 && py < fb_height) {
             for (int col = 0; col < 16; col++) {
-                int px = x + col;
+                int px = drawX + col;
                 if (px >= 0 && px < fb_width) {
                     int idx = py * pitch_dwords + px;
 
@@ -2226,12 +2232,11 @@ void UpdateCursorDisplay(void) {
         }
     }
 
-    cursor_old_x = x;
-    cursor_old_y = y;
+    cursor_old_x = drawX;
+    cursor_old_y = drawY;
     cursor_saved = true;
 
-    last_mouse_x = g_mouseState.x;
-    last_mouse_y = g_mouseState.y;
+    lastMouse = mousePoint;
 }
 
 /* Kernel main entry point */

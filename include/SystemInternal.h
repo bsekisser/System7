@@ -11,6 +11,9 @@ void boot_main(uint32_t magic, uint32_t* mb2_info);
 void InvalidateCursor(void);
 void UpdateCursorDisplay(void);
 int IsCursorVisible(void);
+const Cursor* CursorManager_GetCurrentCursorImage(void);
+Point CursorManager_GetCursorHotspot(void);
+void CursorManager_HandleMouseMotion(Point globalPt);
 
 /* List Manager */
 void InitListManager(void);

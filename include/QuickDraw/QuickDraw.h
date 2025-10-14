@@ -240,6 +240,7 @@ void SetCursor(const Cursor *crsr);
 void HideCursor(void);
 void ShowCursor(void);
 void ObscureCursor(void);
+void SpinCursor(short increment);
 
 /* QuickDraw Global Access */
 QDGlobalsPtr GetQDGlobals(void);

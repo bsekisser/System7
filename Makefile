@@ -95,6 +95,7 @@ C_SOURCES = src/main.c \
             src/QuickDraw/QuickDrawCore.c \
             src/QuickDraw/Bitmaps.c \
             src/QuickDraw/QuickDrawPlatform.c \
+            src/QuickDraw/CursorManager.c \
             src/QuickDraw/Coordinates.c \
             src/QuickDraw/Regions.c \
             src/QuickDraw/Pictures.c \

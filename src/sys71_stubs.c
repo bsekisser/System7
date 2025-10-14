@@ -61,6 +61,8 @@ void InitResourceManager(void) {
 
 /* QuickDraw - InitGraf is now provided by QuickDrawCore.c */
 
+#if !defined(SYS71_STUBS_DISABLED)
+
 void InitCursor(void) {
     /* Stub implementation */
 }
@@ -95,6 +97,8 @@ void ShowCursor(void) {
 int IsCursorVisible(void) {
     return (g_cursorHideCount == 0);
 }
+
+#endif /* !SYS71_STUBS_DISABLED */
 
 /* Font Manager */
 /* Moved to FontManagerCore.c
@@ -1365,4 +1369,3 @@ void Delay(UInt32 numTicks, UInt32* finalTicks) {
         *finalTicks = TickCount();
     }
 }
-
