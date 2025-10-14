@@ -118,6 +118,10 @@ Boolean Platform_IsSnapToEdgesEnabled(void);
 #endif
 static void Local_InvalidateScreenRegion(RgnHandle region);
 static Boolean Local_RectsIntersect(const Rect* rect1, const Rect* rect2);
+
+/* Finder About box helpers (avoid direct Finder dependencies elsewhere) */
+extern Boolean AboutWindow_IsOurs(WindowPtr w);
+extern Boolean AboutWindow_HandleUpdate(WindowPtr w);
 #if 0  /* UNUSED forward declarations */
 static Point Local_CalculateFinalWindowPosition(Point mousePt);
 static void Local_InitializeDragState(WindowPtr theWindow, Point startPt, const Rect* bounds);
@@ -528,6 +532,10 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
             WM_LOG_TRACE("DragWindow: Calling FolderWindow_Draw\n");
             FolderWindow_Draw(theWindow);
             WM_LOG_TRACE("DragWindow: Direct content redraw complete\n");
+        } else if (AboutWindow_IsOurs(theWindow)) {
+            WM_LOG_TRACE("DragWindow: About window detected, forcing redraw\n");
+            AboutWindow_HandleUpdate(theWindow);
+            WM_LOG_TRACE("DragWindow: About window redraw complete\n");
         } else {
             WM_LOG_TRACE("DragWindow: refCon doesn't match, skipping content redraw\n");
         }

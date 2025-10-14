@@ -58,24 +58,59 @@ static inline uint8_t get_bit(const uint8_t *row, int bitOff) {
  * This is the core drawing function used by all Font Manager rendering
  */
 void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color) {
-    if (!framebuffer) return;
     if (ch < 32 || ch > 126) return;
 
     ChicagoCharInfo info = chicago_ascii[ch - 32];
     x += info.left_offset;
 
-    uint32_t *fb = (uint32_t*)framebuffer;
+    Ptr destBase = NULL;
+    SInt16 destRowBytes = 0;
+    SInt32 destWidth = fb_width;
+    SInt32 destHeight = fb_height;
+    SInt32 destXOrigin = 0;
+    SInt32 destYOrigin = 0;
+
+    if (g_currentPort && g_currentPort->portBits.baseAddr) {
+        destBase = g_currentPort->portBits.baseAddr;
+        destRowBytes = g_currentPort->portBits.rowBytes & 0x3FFF;
+
+        if (destBase != (Ptr)framebuffer) {
+            /* Drawing into offscreen buffer (e.g., window GWorld) */
+            destWidth = g_currentPort->portRect.right - g_currentPort->portRect.left;
+            destHeight = g_currentPort->portRect.bottom - g_currentPort->portRect.top;
+            destXOrigin = g_currentPort->portBits.bounds.left;
+            destYOrigin = g_currentPort->portBits.bounds.top;
+        } else {
+            /* Drawing directly to framebuffer */
+            destRowBytes = fb_pitch;
+        }
+    } else if (framebuffer) {
+        destBase = (Ptr)framebuffer;
+        destRowBytes = fb_pitch;
+    }
+
+    if (!destBase || destRowBytes <= 0 || destWidth <= 0 || destHeight <= 0) {
+        return;
+    }
 
     for (int row = 0; row < CHICAGO_HEIGHT; row++) {
-        if (y + row >= fb_height) break;
+        int destY = y + row - destYOrigin;
+        if (destY < 0 || destY >= destHeight) {
+            continue;
+        }
+
         const uint8_t *strike_row = chicago_bitmap + (row * CHICAGO_ROW_BYTES);
 
         for (int col = 0; col < info.bit_width; col++) {
-            if (x + col >= fb_width) break;
+            int destX = x + col - destXOrigin;
+            if (destX < 0 || destX >= destWidth) {
+                continue;
+            }
             int bit_position = info.bit_start + col;
             if (get_bit(strike_row, bit_position)) {
-                int fb_offset = (y + row) * (fb_pitch / 4) + (x + col);
-                fb[fb_offset] = color;
+                uint8_t* dstRow = (uint8_t*)destBase + destY * destRowBytes;
+                uint32_t* dstPixels = (uint32_t*)dstRow;
+                dstPixels[destX] = color;
             }
         }
     }
