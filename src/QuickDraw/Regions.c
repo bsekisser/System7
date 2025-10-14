@@ -3,6 +3,7 @@
 #include "QuickDrawConstants.h"
 #include <stdlib.h>
 #include <string.h>
+#include "MemoryMgr/MemoryManager.h"
 /*
  * Regions.c - QuickDraw Region Implementation
  *
@@ -153,15 +154,16 @@ void CopyRgn(RgnHandle srcRgn, RgnHandle dstRgn) {
     Region *src = *srcRgn;
     Region *dst = *dstRgn;
 
-    /* Reallocate destination if needed */
+    /* Reallocate destination if needed without using realloc() */
     if (src->rgnSize > dst->rgnSize) {
-        Region *newDst = (Region *)realloc(dst, src->rgnSize);
-        if (!newDst) {
+        DisposePtr((Ptr)dst);
+        dst = (Region *)NewPtr(src->rgnSize);
+        if (!dst) {
+            *dstRgn = NULL;
             g_lastRegionError = rgnOverflowErr;
             return;
         }
-        *dstRgn = newDst;
-        dst = newDst;
+        *dstRgn = dst;
     }
 
     /* Copy the region data */
