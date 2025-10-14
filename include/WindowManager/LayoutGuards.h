@@ -19,8 +19,12 @@
 #include "QuickDraw/QuickDraw.h"
 #include "SystemTypes.h"
 
-/* Tiny static-assert macro that works in C99 */
+/* Static assertion helper: prefer C11+ _Static_assert, fallback for pre-C11 */
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+#define STATIC_ASSERT(COND, NAME) _Static_assert((COND), #NAME)
+#else
 #define STATIC_ASSERT(COND, NAME) typedef char static_assert_##NAME[(COND) ? 1 : -1]
+#endif
 
 /* [WM-055a] IM:Windows p.2-13 — WindowRecord first field is GrafPort */
 STATIC_ASSERT(offsetof(WindowRecord, port) == 0, windowrecord_port_at_0);

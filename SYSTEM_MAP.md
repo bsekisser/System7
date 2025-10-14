@@ -17,4 +17,4 @@ This document tracks component ownership and architectural boundaries to maintai
 ## Next Steps
 - Add missing function prototypes to appropriate headers
 - Fix remaining misc warnings (unused variables, incompatible pointers, etc.)
-- Target: ZERO warnings for C11+ transition
+- Target: ZERO warnings for C23 standard
