@@ -587,7 +587,7 @@ void EndUpdate(WindowPtr theWindow) {
                     uint8_t* fbBase = (uint8_t*)framebuffer + (size_t)dstTop * fb_pitch + (size_t)dstLeft * 4u;
                     fbPixMap.baseAddr = (Ptr)fbBase;
                     fbPixMap.rowBytes = (SInt16)(fb_pitch | 0x8000);  /* Set PixMap flag, preserve actual pitch */
-                    fbPixMap.bounds = theWindow->port.portBits.bounds;
+                    fbPixMap.bounds = dstRect;
                     fbPixMap.pmVersion = 0;
                     fbPixMap.packType = 0;
                     fbPixMap.packSize = 0;

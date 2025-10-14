@@ -193,11 +193,26 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
     SetPort(qd.thePort);  /* Draw to screen port - FIX: qd.thePort is already a GrafPtr */
 
     /* Clip to the invalid region */
-    SetClip(invalidRgn);
+    RgnHandle desktopClip = NewRgn();
+    if (desktopClip) {
+        Rect desktopRect = qd.screenBits.bounds;
+        desktopRect.top = 20;  /* Exclude menu bar */
+        RectRgn(desktopClip, &desktopRect);
+        if (invalidRgn) {
+            SectRgn(invalidRgn, desktopClip, desktopClip);
+        }
+        SetClip(desktopClip);
+    } else if (invalidRgn) {
+        SetClip(invalidRgn);
+    }
 
     /* Draw desktop pattern using current background pattern */
     /* EraseRgn will use the BackPat/BackColor set by Pattern Manager */
-    EraseRgn(invalidRgn);
+    if (invalidRgn) {
+        EraseRgn(invalidRgn);
+    } else if (desktopClip) {
+        EraseRgn(desktopClip);
+    }
 
     /* Draw desktop icons in invalid region */
     for (int i = 0; i < gDesktopIconCount; i++) {
@@ -225,6 +240,9 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
     }
 
     SetPort(savePort);
+    if (desktopClip) {
+        DisposeRgn(desktopClip);
+    }
 }
 
 /* ArrangeDesktopIcons - Arrange desktop icons in a grid */
