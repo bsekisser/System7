@@ -270,7 +270,7 @@ static void process_mouse_packet(void) {
 
     /* Enable to see actual PS/2 packets */
     PLATFORM_LOG_DEBUG("MOUSE PACKET: [0x%02x, 0x%02x, 0x%02x]\n",
-                  g_mouseState.packet[0], g_mouseState.packet[1], g_mouseState.packet[2]);
+                       g_mouseState.packet[0], g_mouseState.packet[1], g_mouseState.packet[2]);
 
     /* Check sync bit (bit 3 must be 1) for proper packet alignment */
     if (!(status & 0x08)) {
@@ -283,7 +283,8 @@ static void process_mouse_packet(void) {
     int16_t dx = (int8_t)g_mouseState.packet[1];
     int16_t dy = (int8_t)g_mouseState.packet[2];
 
-    PLATFORM_LOG_DEBUG("MOUSE DELTA: dx=%d, dy=%d\n", dx, dy);
+    PLATFORM_LOG_DEBUG("MOUSE PACKET: [0x%02X, 0x%02X, 0x%02X] -> Δ(%d,%d)\n",
+                       status, g_mouseState.packet[1], g_mouseState.packet[2], dx, dy);
 
     /* Check for overflow */
     if (status & 0x40 || status & 0x80) {
@@ -305,7 +306,8 @@ static void process_mouse_packet(void) {
     if (g_mouseState.y < 0) g_mouseState.y = 0;
     if (g_mouseState.y >= (int16_t)fb_height) g_mouseState.y = fb_height - 1;
 
-    /* PLATFORM_LOG_DEBUG("MOUSE POS: old=(%d,%d) new=(%d,%d)\n", old_x, old_y, g_mouseState.x, g_mouseState.y); */
+    PLATFORM_LOG_DEBUG("MOUSE POS: old=(%d,%d) new=(%d,%d) buttons=0x%02x\n",
+                       old_x, old_y, g_mouseState.x, g_mouseState.y, g_mouseState.buttons);
 
     /* Check button state changes */
     uint8_t new_buttons = status & 0x07;

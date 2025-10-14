@@ -225,7 +225,7 @@ static void process_serial_command(void) {
                 serial_puts("\nSimulating menu click...\n");
 
                 /* Simulate a click on the File menu (at x=50, y=10) */
-                Point pt = {50, 10};
+                Point pt = { .v = 50, .h = 10 };
                 long menuChoice = MenuSelect(pt);
                 short menuID = (short)(menuChoice >> 16);
                 short item = (short)(menuChoice & 0xFFFF);
@@ -242,7 +242,7 @@ static void process_serial_command(void) {
         case 'A':
             {
                 serial_puts("\nSimulating Apple menu click...\n");
-                Point pt = {20, 10};
+                Point pt = { .v = 20, .h = 10 };
                 long menuChoice = MenuSelect(pt);
                 short menuID = (short)(menuChoice >> 16);
                 short item = (short)(menuChoice & 0xFFFF);
@@ -290,7 +290,7 @@ static void process_serial_command(void) {
         case 'F':
             {
                 serial_puts("\nSimulating File menu click...\n");
-                Point pt = {50, 10};
+                Point pt = { .v = 50, .h = 10 };
                 long menuChoice = MenuSelect(pt);
                 short menuID = (short)(menuChoice >> 16);
                 short item = (short)(menuChoice & 0xFFFF);
@@ -2144,7 +2144,7 @@ void UpdateCursorDisplay(void) {
         return;
     }
 
-    Point mousePoint = {g_mouseState.x, g_mouseState.y};
+    Point mousePoint = { .v = g_mouseState.y, .h = g_mouseState.x };
     CursorManager_HandleMouseMotion(mousePoint);
 
     /* Check if cursor is hidden */
@@ -2677,7 +2677,7 @@ skip_cursor_drawing:
             switch (event.what) {
                 case mouseDown:
                     {
-                        Point pt = {event.where.h, event.where.v};
+                        Point pt = { .v = event.where.v, .h = event.where.h };
 
                         /* Check if click is in menu bar (top 20 pixels) */
                         if (pt.v >= 0 && pt.v < 20) {

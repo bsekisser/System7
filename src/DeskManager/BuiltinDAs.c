@@ -366,7 +366,7 @@ static int KeyCaps_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event)
     switch (event->what) {
         case 1: /* mouseDown */
             {
-                Point point = {(event)->h, (event)->v};
+                Point point = { .v = event->v, .h = event->h };
                 return KeyCaps_HandleClick(keyCaps, point, event->modifiers);
             }
 
@@ -545,7 +545,7 @@ static int Chooser_DAProcessEvent(DeskAccessory *da, const DAEventInfo *event)
     switch (event->what) {
         case 1: /* mouseDown */
             {
-                Point point = {(event)->h, (event)->v};
+                Point point = { .v = event->v, .h = event->h };
                 return Chooser_HandleClick(chooser, point, event->modifiers);
             }
 

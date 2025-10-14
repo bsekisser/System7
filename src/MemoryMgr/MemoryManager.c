@@ -37,6 +37,13 @@ static inline u32 get_size_class(u32 size) {
     return 7;  /* 4KB+ */
 }
 
+static void mm_print_hex(u32 value) {
+    static const char hex[] = "0123456789ABCDEF";
+    for (int i = 7; i >= 0; --i) {
+        serial_putchar(hex[(value >> (i * 4)) & 0xF]);
+    }
+}
+
 /* Global zones */
 static ZoneInfo gSystemZone;       /* System heap */
 static ZoneInfo gAppZone;          /* Application heap */
@@ -80,7 +87,13 @@ static inline bool validate_block(ZoneInfo* z, BlockHeader* b) {
     /* Block must be within zone */
     u8* bptr = (u8*)b;
     if (bptr < z->base || bptr >= z->limit) {
-        serial_puts("[HEAP] validate_block: Block outside zone bounds\n");
+        serial_puts("[HEAP] validate_block: Block outside zone bounds ptr=0x");
+        mm_print_hex((u32)(uintptr_t)bptr);
+        serial_puts(" zone=[0x");
+        mm_print_hex((u32)(uintptr_t)z->base);
+        serial_puts(",0x");
+        mm_print_hex((u32)(uintptr_t)z->limit);
+        serial_puts(")\n");
         return false;
     }
 
@@ -90,25 +103,43 @@ static inline bool validate_block(ZoneInfo* z, BlockHeader* b) {
         return false;
     }
     if ((b->size & (ALIGN - 1)) != 0) {
-        serial_puts("[HEAP] validate_block: Block size not aligned\n");
+        serial_puts("[HEAP] validate_block: Block size not aligned size=0x");
+        mm_print_hex(b->size);
+        serial_puts(" ptr=0x");
+        mm_print_hex((u32)(uintptr_t)bptr);
+        serial_puts("\n");
         return false;
     }
 
     /* Size must not exceed remaining zone space */
     if (b->size > (u32)(z->limit - bptr)) {
-        serial_puts("[HEAP] validate_block: Block size exceeds zone\n");
+        serial_puts("[HEAP] validate_block: Block size exceeds zone size=0x");
+        mm_print_hex(b->size);
+        serial_puts(" ptr=0x");
+        mm_print_hex((u32)(uintptr_t)bptr);
+        serial_puts(" zoneLimit=0x");
+        mm_print_hex((u32)(uintptr_t)z->limit);
+        serial_puts("\n");
         return false;
     }
 
     /* For free blocks, size must be at least MIN_BLOCK_SIZE */
     if ((b->flags & BF_FREE) && b->size < MIN_BLOCK_SIZE) {
-        serial_puts("[HEAP] validate_block: Free block too small\n");
+        serial_puts("[HEAP] validate_block: Free block too small size=0x");
+        mm_print_hex(b->size);
+        serial_puts(" ptr=0x");
+        mm_print_hex((u32)(uintptr_t)bptr);
+        serial_puts("\n");
         return false;
     }
 
     /* prevSize must be reasonable */
     if (b->prevSize > (u32)(bptr - z->base)) {
-        serial_puts("[HEAP] validate_block: Invalid prevSize\n");
+        serial_puts("[HEAP] validate_block: Invalid prevSize prev=0x");
+        mm_print_hex(b->prevSize);
+        serial_puts(" ptr=0x");
+        mm_print_hex((u32)(uintptr_t)bptr);
+        serial_puts("\n");
         return false;
     }
 
@@ -595,6 +626,18 @@ void* NewPtr(u32 byteCount) {
     z->bytesFree -= b->size;
 
     void* result = (u8*)b + BLKHDR_SZ;
+
+#if 1
+    uintptr_t addr = (uintptr_t)result;
+    if (addr >= 0x007A4000 && addr <= 0x007B6000) {
+        serial_puts("[HEAP] NewPtr near suspect range addr=0x");
+        mm_print_hex((u32)addr);
+        serial_puts(" size=0x");
+        mm_print_hex(byteCount);
+        serial_puts("\n");
+    }
+#endif
+
     return result;
 }
 
