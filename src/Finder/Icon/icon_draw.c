@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "System71StdLib.h"
+#include "QuickDraw/QuickDraw.h"
 
 #define FINDER_ICON_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleFinder, kLogLevelDebug, fmt, ##__VA_ARGS__)
 
@@ -15,17 +16,43 @@ extern uint32_t fb_width;
 extern uint32_t fb_height;
 extern uint32_t fb_pitch;
 extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
+extern GrafPtr g_currentPort;
 
 /* Helper: Get bit from bitmap */
 static inline uint8_t GetBit(const uint8_t* row, int x) {
     return (row[x >> 3] >> (7 - (x & 7))) & 1;
 }
 
-/* Draw pixel to framebuffer */
+/* Draw pixel to the active QuickDraw port (defaults to framebuffer) */
 static void SetPixel(int x, int y, uint32_t color) {
-    uint32_t* fb = (uint32_t*)framebuffer;
-    if (x >= 0 && x < fb_width && y >= 0 && y < fb_height) {
-        fb[y * (fb_pitch/4) + x] = color;
+    if (g_currentPort && g_currentPort->portBits.baseAddr) {
+        /* portBits.bounds store GLOBAL coordinates; convert to buffer offset */
+        SInt16 boundsLeft = g_currentPort->portBits.bounds.left;
+        SInt16 boundsTop = g_currentPort->portBits.bounds.top;
+        SInt16 boundsRight = g_currentPort->portBits.bounds.right;
+        SInt16 boundsBottom = g_currentPort->portBits.bounds.bottom;
+
+        if (x < boundsLeft || x >= boundsRight || y < boundsTop || y >= boundsBottom) {
+            return;
+        }
+
+        SInt16 rowBytes = g_currentPort->portBits.rowBytes & 0x3FFF;
+        uint8_t* baseAddr = (uint8_t*)g_currentPort->portBits.baseAddr;
+        size_t offset = (size_t)(y - boundsTop) * (size_t)rowBytes +
+                        (size_t)(x - boundsLeft) * sizeof(uint32_t);
+        *(uint32_t*)(baseAddr + offset) = color;
+        return;
+    }
+
+    /* Fallback: draw directly to global framebuffer */
+    if (!framebuffer) {
+        return;
+    }
+
+    if (x >= 0 && x < (int)fb_width && y >= 0 && y < (int)fb_height) {
+        uint8_t* base = (uint8_t*)framebuffer;
+        size_t offset = (size_t)y * (size_t)fb_pitch + (size_t)x * sizeof(uint32_t);
+        *(uint32_t*)(base + offset) = color;
     }
 }
 
@@ -45,7 +72,6 @@ static void SetPixel(int x, int y, uint32_t color) {
 static void DrawICN32(const IconBitmap* ib, int dx, int dy, bool selected) {
     uint32_t black = 0xFF000000;
     uint32_t white = 0xFFFFFFFF;
-    uint32_t darkBlue = 0xFF000080;  /* Dark blue for selection highlight */
 
     FINDER_ICON_LOG_DEBUG("[ICON_DRAW] DrawICN32 at (%d,%d) selected=%d\n", dx, dy, selected);
 
@@ -55,12 +81,10 @@ static void DrawICN32(const IconBitmap* ib, int dx, int dy, bool selected) {
      * - If selected, blend with dark blue to create highlight effect
      */
     for (int y = 0; y < 32; ++y) {
-        if (dy + y >= 600) break;
         const uint8_t* mrow = ib->mask1b + y * 4;  /* 32px = 4 bytes */
         const uint8_t* irow = ib->img1b + y * 4;
 
         for (int x = 0; x < 32; ++x) {
-            if (dx + x >= 800) break;
             /* Only draw where mask bit is set (opaque area) */
             if (GetBit(mrow, x)) {
                 uint32_t color;
@@ -92,11 +116,9 @@ static void DrawICN32(const IconBitmap* ib, int dx, int dy, bool selected) {
 /* Draw color cicn icon */
 static void DrawCICN32(const IconBitmap* ib, int dx, int dy, bool selected) {
     for (int y = 0; y < 32; ++y) {
-        if (dy + y >= 600) break;
         const uint32_t* src = ib->argb32 + y * 32;
 
         for (int x = 0; x < 32; ++x) {
-            if (dx + x >= 800) break;
             uint32_t pixel = src[x];
             uint8_t alpha = (pixel >> 24) & 0xFF;
 
