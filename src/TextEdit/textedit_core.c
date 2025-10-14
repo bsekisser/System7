@@ -182,14 +182,47 @@ CharsHandle TEGetText(TEHandle hTE)
 void TEClick(Point pt, SInt16 extend, TEHandle hTE)
 {
     TEPtr pTE;
-    SInt32 charPos;
+    SInt32 charPos = 0;
 
     if (!hTE || !*hTE) return;
     pTE = *hTE;
 
-    /*
-    /* Convert point to character position - simplified implementation */
-    charPos = 0; /* TODO: Implement point-to-character conversion */
+    /* Convert point to character position - simplified single-line mapping */
+    {
+        /* Compute x within the view rect */
+        SInt16 avgCharWidth;
+        SInt32 lineStart = 0;
+        SInt32 lineEnd = pTE->teLength;
+        SInt16 x = pt.h - pTE->viewRect.left;
+        SInt16 y = pt.v - pTE->viewRect.top;
+
+        /* If we have multiple lines recorded, use them to narrow the range */
+        if (pTE->nLines > 0 && pTE->lineStarts[0] == 0) {
+            SInt16 line = y / (pTE->lineHeight > 0 ? pTE->lineHeight : 1);
+            if (line < 0) line = 0;
+            if (line >= pTE->nLines) line = pTE->nLines - 1;
+            lineStart = pTE->lineStarts[line];
+            lineEnd = (line + 1 < pTE->nLines) ? pTE->lineStarts[line + 1] : pTE->teLength;
+        }
+
+        /* Estimate average character width from font size (approx 2/3 em) */
+        avgCharWidth = (SInt16)((pTE->txSize * 2) / 3);
+        if (avgCharWidth <= 0) avgCharWidth = 8; /* reasonable default */
+
+        if (x <= 0) {
+            charPos = lineStart;
+        } else {
+            SInt32 charsFromLeft = x / avgCharWidth;
+            if (charsFromLeft < 0) charsFromLeft = 0;
+            if (lineStart + charsFromLeft > lineEnd) {
+                charPos = lineEnd;
+            } else {
+                charPos = lineStart + charsFromLeft;
+            }
+        }
+        if (charPos < 0) charPos = 0;
+        if (charPos > pTE->teLength) charPos = pTE->teLength;
+    }
 
     if (extend) {
         /* Extend selection */
@@ -200,9 +233,13 @@ void TEClick(Point pt, SInt16 extend, TEHandle hTE)
         pTE->selEnd = charPos;
     }
 
-    /* Update click time for double-click detection */
-    pTE->clickTime = 0; /* TODO: Get current time */
-    pTE->clickLoc = 0;  /* TODO: Store click location */
+    /* Update click time/location for double-click detection */
+    {
+        extern UInt32 TickCount(void);
+        pTE->clickTime = (SInt32)TickCount();
+        /* Store horizontal position within view as clickLoc */
+        pTE->clickLoc = pt.h;
+    }
 }
 
 /* TEKey - Handle keyboard input
@@ -771,4 +808,3 @@ static void TEUpdateCaret(TEHandle hTE)
         InvertRect(&caretRect);
     }
 }
-
