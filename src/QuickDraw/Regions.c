@@ -115,6 +115,23 @@ static SInt16 sanitize_region_size(Region* region, const char* label) {
     return kMinRegionSize;
 }
 
+static void region_dump_bytes(const char* context, Region* region, SInt16 byteCount) {
+    serial_puts("[REGION] ");
+    serial_puts(context);
+    serial_puts(" bytes:");
+    if (!region) {
+        serial_puts(" <null>\n");
+        return;
+    }
+
+    UInt8* data = (UInt8*)region;
+    for (SInt16 i = 0; i < byteCount; i++) {
+        serial_putchar(' ');
+        region_log_hex(data[i], 2);
+    }
+    serial_putchar('\n');
+}
+
 /* ================================================================
  * BASIC REGION OPERATIONS
  * ================================================================ */
@@ -140,6 +157,7 @@ RgnHandle NewRgn(void) {
 
     BlockHeader* header = (BlockHeader*)((UInt8*)region - sizeof(BlockHeader));
     region_log_message("NewRgn", rgn, region, header);
+    region_dump_bytes("NewRgn init", region, kMinRegionSize + 28);
 
     g_lastRegionError = 0;
     return rgn;
@@ -152,6 +170,7 @@ void DisposeRgn(RgnHandle rgn) {
     BlockHeader* regionHeader = (BlockHeader*)((UInt8*)region - sizeof(BlockHeader));
     BlockHeader* handleHeader = (BlockHeader*)((UInt8*)rgn - sizeof(BlockHeader));
     region_log_message("DisposeRgn", rgn, region, regionHeader);
+    region_dump_bytes("DisposeRgn pre", region, kMinRegionSize + 28);
 
     /* Use DisposePtr instead of free - free is broken in bare-metal kernel */
     DisposePtr((Ptr)*rgn);

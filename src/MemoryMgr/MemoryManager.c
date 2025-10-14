@@ -154,9 +154,6 @@ static void freelist_unlink_node_sc(ZoneInfo* z, u32 sc, FreeNode* n) {
 static inline bool validate_block(ZoneInfo* z, BlockHeader* b) {
     extern void serial_puts(const char* str);
     /* Local helpers for on-demand hex dumping without printf */
-    auto void dump_u32_hex(u32 v) {
-        mm_print_hex(v);
-    }
     auto void dump_bytes(const u8* p, u32 len) {
         for (u32 i = 0; i < len; i++) {
             u8 byte = p[i];
@@ -855,8 +852,16 @@ void* NewPtr(u32 byteCount) {
     b->reserved = (u16)CANARY_SIZE;
     if (CANARY_SIZE) {
         u8* user = (u8*)result;
-        for (u32 i = 0; i < CANARY_SIZE; i++) {
-            user[byteCount + i] = (u8)CANARY_BYTE;
+        u32 total = b->size - BLKHDR_SZ;
+        if (total >= CANARY_SIZE) {
+            u32 userSize = total - (u32)CANARY_SIZE;
+            for (u32 i = 0; i < CANARY_SIZE; i++) {
+                user[userSize + i] = (u8)CANARY_BYTE;
+            }
+            /* Optionally poison the padding between requested size and userSize for easier debugging */
+            if (userSize > byteCount) {
+                memset(user + byteCount, 0xCD, userSize - byteCount);
+            }
         }
     }
 #endif
