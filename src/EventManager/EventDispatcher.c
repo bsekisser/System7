@@ -613,7 +613,7 @@ Boolean HandleDisk(EventRecord* event)
 {
     /* Disk insertion/ejection events */
     /* Would be handled by File Manager */
-    EVT_LOG_DEBUG("HandleDisk: message=0x%08lx\n", event->message);
+    EVT_LOG_DEBUG("HandleDisk: message=0x%08x\n", (unsigned int)event->message);
     return true;
 }
 
