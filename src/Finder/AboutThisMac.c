@@ -644,7 +644,27 @@ Boolean AboutWindow_HandleMouseDown(WindowPtr w, short part, Point localPt)
             SelectWindow(w);
             /* Allow window to be dragged */
             dragBounds = qd.screenBits.bounds;
-            InsetRect(&dragBounds, 4, 4);
+
+            /* Expand horizontal bounds so the window can slide partially off-screen */
+            if (w->strucRgn && *w->strucRgn) {
+                Rect frame = (*w->strucRgn)->rgnBBox;
+                short windowWidth = frame.right - frame.left;
+                short windowHeight = frame.bottom - frame.top;
+
+                /* Allow roughly half the window to leave each edge */
+                short horizontalSlack = windowWidth / 2;
+                short verticalSlack = windowHeight / 2;
+
+                dragBounds.left -= horizontalSlack;
+                dragBounds.right += horizontalSlack;
+                dragBounds.bottom += verticalSlack;
+            }
+
+            /* Never allow the title bar to cross the menu bar */
+            if (dragBounds.top < 20) {
+                dragBounds.top = 20;
+            }
+
             DragWindow(w, localPt, &dragBounds);
             return 1;  /* true */
 
