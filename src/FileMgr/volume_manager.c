@@ -120,7 +120,7 @@ OSErr MountVol(void* param_block) {
     }
 
     /* Add VCB to mounted volume queue - Evidence: ROM HFS volume code queue insertion */
-    vcb->vcbMAdr = g_mounted_volumes;
+    vcb->vcbMAdr = (Ptr)g_mounted_volumes;
     g_mounted_volumes = vcb;
 
     /* Clean up MDB - no longer needed after VCB creation */

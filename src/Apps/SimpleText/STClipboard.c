@@ -105,7 +105,7 @@ void STClip_Paste(STDocument* doc)
     }
 
     /* Check if there's text in the scrap */
-    err = GetScrap(NULL, 'TEXT', &scrapLen);
+    err = GetScrap(NULL, 'TEXT', (long int *)&scrapLen);
     if (err != noErr || scrapLen <= 0) {
         ST_Log("No text in clipboard");
         return;
@@ -169,7 +169,7 @@ Boolean STClip_HasText(void)
     OSErr err;
 
     /* Check for TEXT in scrap */
-    err = GetScrap(NULL, 'TEXT', &scrapLen);
+    err = GetScrap(NULL, 'TEXT', (long int *)&scrapLen);
 
     return (err == noErr && scrapLen > 0);
 }
