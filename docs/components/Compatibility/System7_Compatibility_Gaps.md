@@ -3,7 +3,7 @@
 This checklist captures the most significant differences between the current toolbox reimplementation and the classic System 7.1 APIs. Each bullet calls out the incomplete behaviour, the file/line where the gap is documented in code, and the work expected to regain parity.
 
 ## QuickDraw & Graphics Pipeline
-- `src/QuickDraw/Bitmaps.c:134` – `CopyBits` still needs full mask handling, colour depth conversion, and transfer-mode coverage to match the System 7 trap.
+- ~~`src/QuickDraw/Bitmaps.c:134` – `CopyBits` still needs full mask handling, colour depth conversion, and transfer-mode coverage to match the System 7 trap.~~ **FIXED** (2025-10-07): CopyBits now clips and aligns rectangles, supports scaling, region masking, and pattern modes, and performs depth conversion for 1/8/16/32-bit sources and destinations.
 - ~~`src/QuickDraw/Text.c:84` – `DrawChar` was a placeholder that only advanced the pen without rendering glyphs; `DrawString` and `DrawText` depend on it for actual text rendering.~~ **FIXED** (2025-10-06): DrawChar now extracts glyph bitmaps from Chicago font strike and renders them via QDPlatform_DrawGlyphBitmap()
 - ~~`src/QuickDraw/PatternManager.c:177`–`257` – All patterned fill variants (`FillRect`, `FillOval`, `FillRgn`, etc.) are stubs that set patterns but never rasterize geometry.~~ **VERIFIED** (2025-10-06): Patterned fills are fully implemented in QuickDrawCore.c via DrawPrimitive(); PatternManager.c is not in build
 - `src/QuickDraw/quickdraw_pictures.c:44`–`96` – `DrawPicture` frames the destination rect instead of executing PICT opcodes; full QuickDraw opcode parsing, scaling, and region copying remain to be implemented.

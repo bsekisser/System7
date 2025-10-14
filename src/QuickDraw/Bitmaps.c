@@ -1,6 +1,8 @@
 /* #include "SystemTypes.h" */
 #include "QuickDraw/QuickDrawInternal.h"
 #include <string.h>
+#include <stdint.h>
+#include <limits.h>
 /*
  * Bitmaps.c - QuickDraw Bitmap and CopyBits Implementation
  *
@@ -26,7 +28,18 @@
 
 /* Current QuickDraw port from QuickDrawCore.c */
 extern GrafPtr g_currentPort;
+extern CGrafPtr g_currentCPort;
+extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 
+
+static const UInt32 kColorMask = 0x00FFFFFF;
+
+typedef struct {
+    Boolean isPixMap;
+    SInt16 pixelSize;
+    const PixMap* pixMap;
+    const ColorTable* colorTable;
+} BitmapDescriptor;
 
 /* Transfer mode operation structures */
 typedef struct {
@@ -60,47 +73,106 @@ static void CopyBitsUnscaled(const BitMap *srcBits, const BitMap *dstBits,
                             SInt16 mode, RgnHandle maskRgn);
 static UInt32 ApplyTransferMode(UInt32 src, UInt32 dst, UInt32 pattern, SInt16 mode);
 static void CalculateScaling(const Rect *srcRect, const Rect *dstRect, ScaleInfo *scaleInfo);
-static void CopyPixelRow(const BitMap *srcBits, const BitMap *dstBits,
-                        SInt16 srcY, SInt16 dstY, SInt16 srcLeft, SInt16 srcRight,
-                        SInt16 dstLeft, SInt16 dstRight, SInt16 mode,
-                        RgnHandle maskRgn);
 static UInt32 GetPixelValue(const BitMap *bitmap, SInt16 x, SInt16 y);
 static void SetPixelValue(const BitMap *bitmap, SInt16 x, SInt16 y, UInt32 value);
-/* IsPixMap is now defined in ColorQuickDraw.h */
-/* static Boolean IsPixMap(const BitMap *bitmap); */
-static void ClipRectToBitmap(const BitMap *bitmap, Rect *rect);
+static Boolean ClipAndAlignRects(const BitMap *srcBits, const BitMap *dstBits,
+                                 Rect *srcRect, Rect *dstRect);
+static void InitBitmapDescriptor(const BitMap *bitmap, BitmapDescriptor *desc);
+static UInt32 ReadPixelColor(const BitMap *bitmap, const BitmapDescriptor *desc,
+                             SInt16 x, SInt16 y, UInt32 fgColor, UInt32 bgColor);
+static void WritePixelColor(const BitMap *bitmap, const BitmapDescriptor *desc,
+                            SInt16 x, SInt16 y, UInt32 color, UInt32 fgColor, UInt32 bgColor);
+static UInt32 SamplePatternColor(const Pattern *pat, SInt16 x, SInt16 y,
+                                 UInt32 fgColor, UInt32 bgColor);
+static void GetPortColors(UInt32 *fgColor, UInt32 *bgColor);
 
 /* Transfer mode operations */
+static inline UInt32 MaskColor(UInt32 color) {
+    return color & kColorMask;
+}
+
 static UInt32 TransferSrcCopy(UInt32 src, UInt32 dst, UInt32 pattern) {
-    return src;
+    (void)dst;
+    (void)pattern;
+    return MaskColor(src);
 }
 
 static UInt32 TransferSrcOr(UInt32 src, UInt32 dst, UInt32 pattern) {
-    return src | dst;
+    (void)pattern;
+    return MaskColor(src | dst);
 }
 
 static UInt32 TransferSrcXor(UInt32 src, UInt32 dst, UInt32 pattern) {
-    return src ^ dst;
+    (void)pattern;
+    return MaskColor(src ^ dst);
 }
 
 static UInt32 TransferSrcBic(UInt32 src, UInt32 dst, UInt32 pattern) {
-    return src & (~dst);
+    (void)pattern;
+    return MaskColor(dst & (~src));
 }
 
 static UInt32 TransferNotSrcCopy(UInt32 src, UInt32 dst, UInt32 pattern) {
-    return ~src;
+    (void)dst;
+    (void)pattern;
+    return MaskColor(~src);
+}
+
+static UInt32 TransferNotSrcOr(UInt32 src, UInt32 dst, UInt32 pattern) {
+    (void)pattern;
+    return MaskColor(~(src | dst));
+}
+
+static UInt32 TransferNotSrcXor(UInt32 src, UInt32 dst, UInt32 pattern) {
+    (void)pattern;
+    return MaskColor(~(src ^ dst));
+}
+
+static UInt32 TransferNotSrcBic(UInt32 src, UInt32 dst, UInt32 pattern) {
+    (void)pattern;
+    return MaskColor(~(dst & (~src)));
 }
 
 static UInt32 TransferPatCopy(UInt32 src, UInt32 dst, UInt32 pattern) {
-    return pattern;
+    (void)src;
+    (void)dst;
+    return MaskColor(pattern);
 }
 
 static UInt32 TransferPatOr(UInt32 src, UInt32 dst, UInt32 pattern) {
-    return pattern | dst;
+    (void)src;
+    return MaskColor(pattern | dst);
 }
 
 static UInt32 TransferPatXor(UInt32 src, UInt32 dst, UInt32 pattern) {
-    return pattern ^ dst;
+    (void)src;
+    return MaskColor(pattern ^ dst);
+}
+
+static UInt32 TransferPatBic(UInt32 src, UInt32 dst, UInt32 pattern) {
+    (void)src;
+    return MaskColor(dst & (~pattern));
+}
+
+static UInt32 TransferNotPatCopy(UInt32 src, UInt32 dst, UInt32 pattern) {
+    (void)src;
+    (void)dst;
+    return MaskColor(~pattern);
+}
+
+static UInt32 TransferNotPatOr(UInt32 src, UInt32 dst, UInt32 pattern) {
+    (void)src;
+    return MaskColor(~(pattern | dst));
+}
+
+static UInt32 TransferNotPatXor(UInt32 src, UInt32 dst, UInt32 pattern) {
+    (void)src;
+    return MaskColor(~(pattern ^ dst));
+}
+
+static UInt32 TransferNotPatBic(UInt32 src, UInt32 dst, UInt32 pattern) {
+    (void)src;
+    return MaskColor(~(dst & (~pattern)));
 }
 
 static const TransferModeInfo g_transferModes[] = {
@@ -109,18 +181,294 @@ static const TransferModeInfo g_transferModes[] = {
     {TransferSrcXor,     false, true},  /* srcXor */
     {TransferSrcBic,     false, true},  /* srcBic */
     {TransferNotSrcCopy, false, true},  /* notSrcCopy */
-    {TransferSrcOr,      false, true},  /* notSrcOr */
-    {TransferSrcXor,     false, true},  /* notSrcXor */
-    {TransferSrcBic,     false, true},  /* notSrcBic */
+    {TransferNotSrcOr,   false, true},  /* notSrcOr */
+    {TransferNotSrcXor,  false, true},  /* notSrcXor */
+    {TransferNotSrcBic,  false, true},  /* notSrcBic */
     {TransferPatCopy,    true,  true},  /* patCopy */
     {TransferPatOr,      true,  true},  /* patOr */
     {TransferPatXor,     true,  true},  /* patXor */
-    {TransferSrcBic,     true,  true},  /* patBic */
-    {TransferPatCopy,    true,  true},  /* notPatCopy */
-    {TransferPatOr,      true,  true},  /* notPatOr */
-    {TransferPatXor,     true,  true},  /* notPatXor */
-    {TransferSrcBic,     true,  true}   /* notPatBic */
+    {TransferPatBic,     true,  true},  /* patBic */
+    {TransferNotPatCopy, true,  true},  /* notPatCopy */
+    {TransferNotPatOr,   true,  true},  /* notPatOr */
+    {TransferNotPatXor,  true,  true},  /* notPatXor */
+    {TransferNotPatBic,  true,  true}   /* notPatBic */
 };
+
+static inline UInt8 Expand5To8(UInt16 value) {
+    value &= 0x1F;
+    return (UInt8)((value << 3) | (value >> 2));
+}
+
+static inline UInt16 Compress8To5(UInt8 value) {
+    return (UInt16)((value * 31 + 127) / 255);
+}
+
+static UInt32 ColorTableLookup(const ColorTable *table, UInt16 index) {
+    if (!table) {
+        UInt8 gray = (UInt8)(index & 0xFF);
+        return pack_color(gray, gray, gray) & kColorMask;
+    }
+
+    SInt16 entryCount = table->ctSize + 1;
+    for (SInt16 i = 0; i < entryCount; i++) {
+        if (table->ctTable[i].value == (SInt16)index) {
+            const RGBColor *rgb = &table->ctTable[i].rgb;
+            return QDPlatform_RGBToNative(rgb->red, rgb->green, rgb->blue) & kColorMask;
+        }
+    }
+
+    if (index < (UInt16)entryCount) {
+        const RGBColor *rgb = &table->ctTable[index].rgb;
+        return QDPlatform_RGBToNative(rgb->red, rgb->green, rgb->blue) & kColorMask;
+    }
+
+    const RGBColor *fallback = &table->ctTable[0].rgb;
+    return QDPlatform_RGBToNative(fallback->red, fallback->green, fallback->blue) & kColorMask;
+}
+
+static void GetPortColors(UInt32 *fgColor, UInt32 *bgColor) {
+    if (fgColor) *fgColor = pack_color(0, 0, 0);
+    if (bgColor) *bgColor = pack_color(255, 255, 255);
+
+    if (g_currentCPort && (GrafPtr)g_currentCPort == g_currentPort) {
+        if (fgColor) {
+            const RGBColor *rgb = &g_currentCPort->rgbFgColor;
+            *fgColor = QDPlatform_RGBToNative(rgb->red, rgb->green, rgb->blue) & kColorMask;
+        }
+        if (bgColor) {
+            const RGBColor *rgb = &g_currentCPort->rgbBkColor;
+            *bgColor = QDPlatform_RGBToNative(rgb->red, rgb->green, rgb->blue) & kColorMask;
+        }
+        return;
+    }
+
+    if (g_currentPort) {
+        if (fgColor) {
+            *fgColor = QDPlatform_MapQDColor(g_currentPort->fgColor) & kColorMask;
+        }
+        if (bgColor) {
+            *bgColor = QDPlatform_MapQDColor(g_currentPort->bkColor) & kColorMask;
+        }
+    }
+}
+
+static UInt32 SamplePatternColor(const Pattern *pat, SInt16 x, SInt16 y,
+                                 UInt32 fgColor, UInt32 bgColor) {
+    if (!pat) {
+        return fgColor;
+    }
+
+    SInt16 patY = y & 7;
+    SInt16 patX = x & 7;
+    UInt8 patByte = pat->pat[patY];
+    Boolean bit = (patByte >> (7 - patX)) & 1;
+    return bit ? fgColor : bgColor;
+}
+
+static Boolean ClipAndAlignRects(const BitMap *srcBits, const BitMap *dstBits,
+                                 Rect *srcRect, Rect *dstRect) {
+    SInt16 delta;
+
+    if (srcRect->left < srcBits->bounds.left) {
+        delta = srcBits->bounds.left - srcRect->left;
+        srcRect->left += delta;
+        dstRect->left += delta;
+    }
+    if (dstRect->left < dstBits->bounds.left) {
+        delta = dstBits->bounds.left - dstRect->left;
+        srcRect->left += delta;
+        dstRect->left += delta;
+    }
+
+    if (srcRect->top < srcBits->bounds.top) {
+        delta = srcBits->bounds.top - srcRect->top;
+        srcRect->top += delta;
+        dstRect->top += delta;
+    }
+    if (dstRect->top < dstBits->bounds.top) {
+        delta = dstBits->bounds.top - dstRect->top;
+        srcRect->top += delta;
+        dstRect->top += delta;
+    }
+
+    if (srcRect->right > srcBits->bounds.right) {
+        delta = srcRect->right - srcBits->bounds.right;
+        srcRect->right -= delta;
+        dstRect->right -= delta;
+    }
+    if (dstRect->right > dstBits->bounds.right) {
+        delta = dstRect->right - dstBits->bounds.right;
+        srcRect->right -= delta;
+        dstRect->right -= delta;
+    }
+
+    if (srcRect->bottom > srcBits->bounds.bottom) {
+        delta = srcRect->bottom - srcBits->bounds.bottom;
+        srcRect->bottom -= delta;
+        dstRect->bottom -= delta;
+    }
+    if (dstRect->bottom > dstBits->bounds.bottom) {
+        delta = dstRect->bottom - dstBits->bounds.bottom;
+        srcRect->bottom -= delta;
+        dstRect->bottom -= delta;
+    }
+
+    SInt16 widthSrc = srcRect->right - srcRect->left;
+    SInt16 widthDst = dstRect->right - dstRect->left;
+    SInt16 heightSrc = srcRect->bottom - srcRect->top;
+    SInt16 heightDst = dstRect->bottom - dstRect->top;
+
+    SInt16 finalWidth = (widthSrc < widthDst) ? widthSrc : widthDst;
+    SInt16 finalHeight = (heightSrc < heightDst) ? heightSrc : heightDst;
+
+    srcRect->right = srcRect->left + finalWidth;
+    dstRect->right = dstRect->left + finalWidth;
+    srcRect->bottom = srcRect->top + finalHeight;
+    dstRect->bottom = dstRect->top + finalHeight;
+
+    return (finalWidth > 0 && finalHeight > 0);
+}
+
+static void InitBitmapDescriptor(const BitMap *bitmap, BitmapDescriptor *desc) {
+    memset(desc, 0, sizeof(*desc));
+
+    desc->isPixMap = IsPixMap(bitmap);
+    if (desc->isPixMap) {
+        const PixMap *pm = (const PixMap *)bitmap;
+        desc->pixMap = pm;
+        desc->pixelSize = pm->pixelSize;
+        if (pm->pmTable) {
+            desc->colorTable = (ColorTable *)*((Handle)pm->pmTable);
+        }
+        return;
+    }
+
+    /* Attempt to derive PixMap information from current color port */
+    if (g_currentCPort && (GrafPtr)g_currentCPort == g_currentPort &&
+        g_currentCPort->portPixMap && *g_currentCPort->portPixMap &&
+        bitmap->baseAddr == (*g_currentCPort->portPixMap)->baseAddr) {
+        const PixMap *pm = *g_currentCPort->portPixMap;
+        desc->isPixMap = true;
+        desc->pixMap = pm;
+        desc->pixelSize = pm->pixelSize;
+        if (pm->pmTable) {
+            desc->colorTable = (ColorTable *)*((Handle)pm->pmTable);
+        }
+        return;
+    }
+
+    desc->pixelSize = 1;
+}
+
+static UInt32 ReadPixelColor(const BitMap *bitmap, const BitmapDescriptor *desc,
+                             SInt16 x, SInt16 y, UInt32 fgColor, UInt32 bgColor) {
+    UInt32 raw = GetPixelValue(bitmap, x, y);
+
+    if (!desc->isPixMap) {
+        return raw ? fgColor : bgColor;
+    }
+
+    switch (desc->pixelSize) {
+        case 1:
+            if (desc->colorTable) {
+                return ColorTableLookup(desc->colorTable, (UInt16)raw);
+            }
+            return raw ? fgColor : bgColor;
+        case 2:
+        case 4:
+        case 8:
+            if (desc->colorTable) {
+                return ColorTableLookup(desc->colorTable, (UInt16)raw);
+            } else {
+                UInt8 gray = (UInt8)raw;
+                return pack_color(gray, gray, gray) & kColorMask;
+            }
+        case 16: {
+            UInt16 value = (UInt16)raw;
+            UInt8 r = Expand5To8((value >> 10) & 0x1F);
+            UInt8 g = Expand5To8((value >> 5) & 0x1F);
+            UInt8 b = Expand5To8(value & 0x1F);
+            return pack_color(r, g, b) & kColorMask;
+        }
+        case 24:
+        case 32:
+        default:
+            return raw & kColorMask;
+    }
+}
+
+static UInt32 ColorDistanceSquaredNative(UInt32 a, UInt32 b) {
+    UInt16 ar, ag, ab;
+    UInt16 br, bg, bb;
+    QDPlatform_NativeToRGB(a, &ar, &ag, &ab);
+    QDPlatform_NativeToRGB(b, &br, &bg, &bb);
+    SInt32 dr = (SInt32)ar - (SInt32)br;
+    SInt32 dg = (SInt32)ag - (SInt32)bg;
+    SInt32 db = (SInt32)ab - (SInt32)bb;
+    return (UInt32)(dr * dr + dg * dg + db * db);
+}
+
+static void WritePixelColor(const BitMap *bitmap, const BitmapDescriptor *desc,
+                            SInt16 x, SInt16 y, UInt32 color, UInt32 fgColor, UInt32 bgColor) {
+    if (!desc->isPixMap) {
+        /* Choose nearest between foreground/background */
+        UInt32 distFg = ColorDistanceSquaredNative(color, fgColor);
+        UInt32 distBg = ColorDistanceSquaredNative(color, bgColor);
+        UInt32 bit = (distFg <= distBg) ? 1 : 0;
+        SetPixelValue(bitmap, x, y, bit);
+        return;
+    }
+
+    switch (desc->pixelSize) {
+        case 1: {
+            UInt32 bit = (ColorDistanceSquaredNative(color, fgColor) <=
+                          ColorDistanceSquaredNative(color, bgColor)) ? 1 : 0;
+            SetPixelValue(bitmap, x, y, bit);
+            break;
+        }
+        case 2:
+        case 4:
+        case 8: {
+            if (desc->colorTable) {
+                const ColorTable *table = desc->colorTable;
+                SInt16 entryCount = table->ctSize + 1;
+                UInt32 bestIndex = 0;
+                UInt32 bestDistance = UINT32_MAX;
+                for (SInt16 i = 0; i < entryCount; i++) {
+                    UInt32 entryColor = QDPlatform_RGBToNative(table->ctTable[i].rgb.red,
+                                                               table->ctTable[i].rgb.green,
+                                                               table->ctTable[i].rgb.blue) & kColorMask;
+                    UInt32 distance = ColorDistanceSquaredNative(color, entryColor);
+                    if (distance < bestDistance) {
+                        bestDistance = distance;
+                        bestIndex = (UInt16)table->ctTable[i].value;
+                    }
+                }
+                SetPixelValue(bitmap, x, y, bestIndex);
+            } else {
+                UInt16 r, g, b;
+                QDPlatform_NativeToRGB(color, &r, &g, &b);
+                UInt8 gray = (UInt8)(((r + g + b) / 3) >> 8);
+                SetPixelValue(bitmap, x, y, gray);
+            }
+            break;
+        }
+        case 16: {
+            UInt16 r, g, b;
+            QDPlatform_NativeToRGB(color, &r, &g, &b);
+            UInt16 value = (Compress8To5((UInt8)(r >> 8)) << 10) |
+                           (Compress8To5((UInt8)(g >> 8)) << 5) |
+                           Compress8To5((UInt8)(b >> 8));
+            SetPixelValue(bitmap, x, y, value);
+            break;
+        }
+        case 24:
+        case 32:
+        default:
+            SetPixelValue(bitmap, x, y, color & kColorMask);
+            break;
+    }
+}
 
 /* ================================================================
  * COPYBITS IMPLEMENTATION
@@ -143,23 +491,21 @@ void CopyBits(const BitMap *srcBits, const BitMap *dstBits,
 static void CopyBitsImplementation(const BitMap *srcBits, const BitMap *dstBits,
                                   const Rect *srcRect, const Rect *dstRect,
                                   SInt16 mode, RgnHandle maskRgn) {
-    /* Clip source and destination rectangles */
-    Rect clippedSrcRect = *srcRect;
-    Rect clippedDstRect = *dstRect;
+    Rect alignedSrcRect = *srcRect;
+    Rect alignedDstRect = *dstRect;
 
-    ClipRectToBitmap(srcBits, &clippedSrcRect);
-    ClipRectToBitmap(dstBits, &clippedDstRect);
+    if (!ClipAndAlignRects(srcBits, dstBits, &alignedSrcRect, &alignedDstRect)) {
+        return;
+    }
 
-    /* Calculate scaling information */
     ScaleInfo scaleInfo;
-    CalculateScaling(&clippedSrcRect, &clippedDstRect, &scaleInfo);
+    CalculateScaling(&alignedSrcRect, &alignedDstRect, &scaleInfo);
 
-    /* Choose appropriate copy method */
     if (scaleInfo.needsScaling) {
-        CopyBitsScaled(srcBits, dstBits, &clippedSrcRect, &clippedDstRect,
+        CopyBitsScaled(srcBits, dstBits, &alignedSrcRect, &alignedDstRect,
                        mode, &scaleInfo, maskRgn);
     } else {
-        CopyBitsUnscaled(srcBits, dstBits, &clippedSrcRect, &clippedDstRect, mode, maskRgn);
+        CopyBitsUnscaled(srcBits, dstBits, &alignedSrcRect, &alignedDstRect, mode, maskRgn);
     }
 }
 
@@ -170,37 +516,49 @@ static void CopyBitsScaled(const BitMap *srcBits, const BitMap *dstBits,
     SInt16 dstWidth = dstRect->right - dstRect->left;
     SInt16 dstHeight = dstRect->bottom - dstRect->top;
 
-    /* Scale each destination pixel */
-    for (SInt16 dstY = 0; dstY < dstHeight; dstY++) {
-        for (SInt16 dstX = 0; dstX < dstWidth; dstX++) {
-            /* Calculate corresponding source pixel */
-            SInt16 srcX = (SInt16)(dstX * scaleInfo->hScale / FIXED_POINT_SCALE);
-            SInt16 srcY = (SInt16)(dstY * scaleInfo->vScale / FIXED_POINT_SCALE);
+    BitmapDescriptor srcDesc;
+    BitmapDescriptor dstDesc;
+    InitBitmapDescriptor(srcBits, &srcDesc);
+    InitBitmapDescriptor(dstBits, &dstDesc);
 
-            /* Get source pixel */
-            UInt32 srcPixel = GetPixelValue(srcBits,
-                                            srcRect->left + srcX,
-                                            srcRect->top + srcY);
+    UInt32 fgColor, bgColor;
+    GetPortColors(&fgColor, &bgColor);
 
-            /* Get destination pixel */
-            UInt32 dstPixel = GetPixelValue(dstBits,
-                                            dstRect->left + dstX,
-                                            dstRect->top + dstY);
+    Boolean usePattern = (mode >= patCopy && mode <= notPatBic);
+    Boolean useMask = (maskRgn && *maskRgn);
 
-            /* Apply transfer mode */
-            UInt32 resultPixel = ApplyTransferMode(srcPixel, dstPixel, 0, mode);
+    for (SInt16 dy = 0; dy < dstHeight; dy++) {
+        SInt16 dstY = dstRect->top + dy;
+        SInt16 srcY = srcRect->top + (SInt16)(((SInt32)dy * scaleInfo->vScale) >> 16);
+        if (srcY >= srcRect->bottom) {
+            srcY = srcRect->bottom - 1;
+        }
 
-            if (maskRgn && *maskRgn) {
-                Point dstPt;
-                dstPt.v = dstRect->top + dstY;
-                dstPt.h = dstRect->left + dstX;
-                if (!PtInRgn(dstPt, maskRgn)) {
+        for (SInt16 dx = 0; dx < dstWidth; dx++) {
+            SInt16 dstX = dstRect->left + dx;
+            if (useMask) {
+                Point pt;
+                pt.v = dstY;
+                pt.h = dstX;
+                if (!PtInRgn(pt, maskRgn)) {
                     continue;
                 }
             }
 
-            /* Set destination pixel */
-            SetPixelValue(dstBits, dstRect->left + dstX, dstRect->top + dstY, resultPixel);
+            SInt16 srcX = srcRect->left + (SInt16)(((SInt32)dx * scaleInfo->hScale) >> 16);
+            if (srcX >= srcRect->right) {
+                srcX = srcRect->right - 1;
+            }
+
+            UInt32 patternColor = 0;
+            if (usePattern) {
+                patternColor = SamplePatternColor(&g_currentPort->pnPat, dstX, dstY, fgColor, bgColor);
+            }
+
+            UInt32 srcColor = ReadPixelColor(srcBits, &srcDesc, srcX, srcY, fgColor, bgColor);
+            UInt32 dstColor = ReadPixelColor(dstBits, &dstDesc, dstX, dstY, fgColor, bgColor);
+            UInt32 result = ApplyTransferMode(srcColor, dstColor, patternColor, mode);
+            WritePixelColor(dstBits, &dstDesc, dstX, dstY, result, fgColor, bgColor);
         }
     }
 }
@@ -208,83 +566,78 @@ static void CopyBitsScaled(const BitMap *srcBits, const BitMap *dstBits,
 static void CopyBitsUnscaled(const BitMap *srcBits, const BitMap *dstBits,
                             const Rect *srcRect, const Rect *dstRect,
                             SInt16 mode, RgnHandle maskRgn) {
-    /* Validate pointers */
     if (!srcBits || !dstBits || !srcRect || !dstRect) {
-        serial_logf(3, 0, "[CB] ERROR: NULL pointer - srcBits=%p dstBits=%p srcRect=%p dstRect=%p\n",
-                    srcBits, dstBits, srcRect, dstRect);
         return;
     }
-
-    serial_logf(3, 2, "[CB] srcRect=(%d,%d,%d,%d) dstRect=(%d,%d,%d,%d)\n",
-                srcRect->top, srcRect->left, srcRect->bottom, srcRect->right,
-                dstRect->top, dstRect->left, dstRect->bottom, dstRect->right);
 
     SInt16 width = srcRect->right - srcRect->left;
     SInt16 height = srcRect->bottom - srcRect->top;
-
-    serial_logf(3, 2, "[CB] Calculated width=%d height=%d\n", width, height);
-
     if (width <= 0 || height <= 0) {
-        serial_logf(3, 1, "[CB] Invalid dimensions: width=%d height=%d\n", width, height);
         return;
     }
 
-    /* OPTIMIZED: Fast path for 32-bit to 32-bit srcCopy without masking */
-    Boolean srcIs32 = IsPixMap(srcBits) && ((const PixMap*)srcBits)->pixelSize == 32;
-    Boolean dstIs32 = IsPixMap(dstBits) && ((const PixMap*)dstBits)->pixelSize == 32;
+    BitmapDescriptor srcDesc;
+    BitmapDescriptor dstDesc;
+    InitBitmapDescriptor(srcBits, &srcDesc);
+    InitBitmapDescriptor(dstBits, &dstDesc);
 
-    if (srcIs32 && dstIs32 && mode == srcCopy && (!maskRgn || !*maskRgn)) {
-        /* Use fast memcpy for each row */
-        SInt16 srcRowBytes = srcBits->rowBytes & 0x3FFF;
-        SInt16 dstRowBytes = dstBits->rowBytes & 0x3FFF;
-        UInt32* srcBase = (UInt32*)srcBits->baseAddr;
-        UInt32* dstBase = (UInt32*)dstBits->baseAddr;
+    UInt32 fgColor, bgColor;
+    GetPortColors(&fgColor, &bgColor);
 
-        for (SInt16 y = 0; y < height; y++) {
-            SInt16 srcY = srcRect->top + y - srcBits->bounds.top;
-            SInt16 dstY = dstRect->top + y - dstBits->bounds.top;
-            SInt16 srcX = srcRect->left - srcBits->bounds.left;
-            SInt16 dstX = dstRect->left - dstBits->bounds.left;
+    Boolean useMask = (maskRgn && *maskRgn);
+    Boolean usePattern = (mode >= patCopy && mode <= notPatBic);
 
-            UInt32* srcRow = srcBase + (srcY * (srcRowBytes / 4)) + srcX;
-            UInt32* dstRow = dstBase + (dstY * (dstRowBytes / 4)) + dstX;
+    if (srcDesc.isPixMap && dstDesc.isPixMap &&
+        srcDesc.pixelSize == 32 && dstDesc.pixelSize == 32 &&
+        mode == srcCopy && !useMask) {
+        const PixMap *srcPm = srcDesc.pixMap;
+        const PixMap *dstPm = dstDesc.pixMap;
+        if (srcPm && dstPm && srcBits->baseAddr && dstBits->baseAddr) {
+            SInt16 srcRowBytes = GetPixMapRowBytes(srcPm);
+            SInt16 dstRowBytes = GetPixMapRowBytes(dstPm);
+            UInt8 *srcBase = (UInt8 *)srcBits->baseAddr;
+            UInt8 *dstBase = (UInt8 *)dstBits->baseAddr;
 
-            memcpy(dstRow, srcRow, width * 4);
-        }
-        serial_logf(3, 2, "[CB_FAST] Done\n");
-        return;
-    }
-
-    /* Fallback: Copy row by row using pixel operations */
-    for (SInt16 y = 0; y < height; y++) {
-        CopyPixelRow(srcBits, dstBits,
-                    srcRect->top + y, dstRect->top + y,
-                    srcRect->left, srcRect->right,
-                    dstRect->left, dstRect->right,
-                    mode, maskRgn);
-    }
-}
-
-static void CopyPixelRow(const BitMap *srcBits, const BitMap *dstBits,
-                        SInt16 srcY, SInt16 dstY, SInt16 srcLeft, SInt16 srcRight,
-                        SInt16 dstLeft, SInt16 dstRight, SInt16 mode,
-                        RgnHandle maskRgn) {
-    SInt16 width = srcRight - srcLeft;
-
-    for (SInt16 x = 0; x < width; x++) {
-        if (maskRgn && *maskRgn) {
-            Point dstPt;
-            dstPt.v = dstY;
-            dstPt.h = dstLeft + x;
-            if (!PtInRgn(dstPt, maskRgn)) {
-                continue;
+            for (SInt16 line = 0; line < height; line++) {
+                SInt16 srcOffsetY = (srcRect->top + line - srcBits->bounds.top);
+                SInt16 dstOffsetY = (dstRect->top + line - dstBits->bounds.top);
+                UInt8 *srcRow = srcBase + srcOffsetY * srcRowBytes +
+                                (srcRect->left - srcBits->bounds.left) * 4;
+                UInt8 *dstRow = dstBase + dstOffsetY * dstRowBytes +
+                                (dstRect->left - dstBits->bounds.left) * 4;
+                memcpy(dstRow, srcRow, width * 4);
             }
+            return;
         }
+    }
 
-        UInt32 srcPixel = GetPixelValue(srcBits, srcLeft + x, srcY);
-        UInt32 dstPixel = GetPixelValue(dstBits, dstLeft + x, dstY);
-        UInt32 resultPixel = ApplyTransferMode(srcPixel, dstPixel, 0, mode);
-        SetPixelValue(dstBits, dstLeft + x, dstY, resultPixel);
+    for (SInt16 line = 0; line < height; line++) {
+        SInt16 srcY = srcRect->top + line;
+        SInt16 dstY = dstRect->top + line;
+
+        for (SInt16 column = 0; column < width; column++) {
+            SInt16 srcX = srcRect->left + column;
+            SInt16 dstX = dstRect->left + column;
+
+            if (useMask) {
+                Point pt;
+                pt.v = dstY;
+                pt.h = dstX;
+                if (!PtInRgn(pt, maskRgn)) {
+                    continue;
+                }
+            }
+
+            UInt32 patternColor = 0;
+            if (usePattern) {
+                patternColor = SamplePatternColor(&g_currentPort->pnPat, dstX, dstY, fgColor, bgColor);
+            }
+
+            UInt32 srcColor = ReadPixelColor(srcBits, &srcDesc, srcX, srcY, fgColor, bgColor);
+            UInt32 dstColor = ReadPixelColor(dstBits, &dstDesc, dstX, dstY, fgColor, bgColor);
+            UInt32 result = ApplyTransferMode(srcColor, dstColor, patternColor, mode);
+            WritePixelColor(dstBits, &dstDesc, dstX, dstY, result, fgColor, bgColor);
+        }
     }
 }
 
@@ -308,7 +661,14 @@ void CopyMask(const BitMap *srcBits, const BitMap *maskBits,
     SInt16 width = srcRect->right - srcRect->left;
     SInt16 height = srcRect->bottom - srcRect->top;
 
-    /* Copy pixels where mask is non-zero */
+    BitmapDescriptor srcDesc;
+    BitmapDescriptor dstDesc;
+    InitBitmapDescriptor(srcBits, &srcDesc);
+    InitBitmapDescriptor(dstBits, &dstDesc);
+
+    UInt32 fgColor, bgColor;
+    GetPortColors(&fgColor, &bgColor);
+
     for (SInt16 y = 0; y < height; y++) {
         for (SInt16 x = 0; x < width; x++) {
             UInt32 maskPixel = GetPixelValue(maskBits,
@@ -316,13 +676,14 @@ void CopyMask(const BitMap *srcBits, const BitMap *maskBits,
                                              maskRect->top + y);
 
             if (maskPixel != 0) {
-                UInt32 srcPixel = GetPixelValue(srcBits,
-                                                srcRect->left + x,
-                                                srcRect->top + y);
-                SetPixelValue(dstBits,
-                            dstRect->left + x,
-                            dstRect->top + y,
-                            srcPixel);
+                UInt32 srcColor = ReadPixelColor(srcBits, &srcDesc,
+                                                 srcRect->left + x,
+                                                 srcRect->top + y,
+                                                 fgColor, bgColor);
+                WritePixelColor(dstBits, &dstDesc,
+                                dstRect->left + x,
+                                dstRect->top + y,
+                                srcColor, fgColor, bgColor);
             }
         }
     }
@@ -345,7 +706,14 @@ void CopyDeepMask(const BitMap *srcBits, const BitMap *maskBits,
     SInt16 width = srcRect->right - srcRect->left;
     SInt16 height = srcRect->bottom - srcRect->top;
 
-    /* Copy pixels using mask and transfer mode */
+    BitmapDescriptor srcDesc;
+    BitmapDescriptor dstDesc;
+    InitBitmapDescriptor(srcBits, &srcDesc);
+    InitBitmapDescriptor(dstBits, &dstDesc);
+
+    UInt32 fgColor, bgColor;
+    GetPortColors(&fgColor, &bgColor);
+
     for (SInt16 y = 0; y < height; y++) {
         for (SInt16 x = 0; x < width; x++) {
             UInt32 maskPixel = GetPixelValue(maskBits,
@@ -353,18 +721,19 @@ void CopyDeepMask(const BitMap *srcBits, const BitMap *maskBits,
                                              maskRect->top + y);
 
             if (maskPixel != 0) {
-                UInt32 srcPixel = GetPixelValue(srcBits,
-                                                srcRect->left + x,
-                                                srcRect->top + y);
-                UInt32 dstPixel = GetPixelValue(dstBits,
-                                                dstRect->left + x,
-                                                dstRect->top + y);
-
-                UInt32 resultPixel = ApplyTransferMode(srcPixel, dstPixel, 0, mode);
-                SetPixelValue(dstBits,
-                            dstRect->left + x,
-                            dstRect->top + y,
-                            resultPixel);
+                UInt32 srcColor = ReadPixelColor(srcBits, &srcDesc,
+                                                 srcRect->left + x,
+                                                 srcRect->top + y,
+                                                 fgColor, bgColor);
+                UInt32 dstColor = ReadPixelColor(dstBits, &dstDesc,
+                                                 dstRect->left + x,
+                                                 dstRect->top + y,
+                                                 fgColor, bgColor);
+                UInt32 resultColor = ApplyTransferMode(srcColor, dstColor, 0, mode);
+                WritePixelColor(dstBits, &dstDesc,
+                                dstRect->left + x,
+                                dstRect->top + y,
+                                resultColor, fgColor, bgColor);
             }
         }
     }
@@ -521,12 +890,12 @@ void CalcMask(const void *srcPtr, void *dstPtr, SInt16 srcRow, SInt16 dstRow,
 
 static UInt32 ApplyTransferMode(UInt32 src, UInt32 dst, UInt32 pattern, SInt16 mode) {
     /* Clamp mode to valid range */
-    if (mode < 0 || mode >= sizeof(g_transferModes) / sizeof(g_transferModes[0])) {
+    if (mode < 0 || mode >= (SInt16)(sizeof(g_transferModes) / sizeof(g_transferModes[0]))) {
         mode = srcCopy;
     }
 
     const TransferModeInfo *modeInfo = &g_transferModes[mode];
-    return modeInfo->operation(src, dst, pattern);
+    return modeInfo->operation(MaskColor(src), MaskColor(dst), MaskColor(pattern));
 }
 
 static void CalculateScaling(const Rect *srcRect, const Rect *dstRect, ScaleInfo *scaleInfo) {
@@ -650,15 +1019,6 @@ static void SetPixelValue(const BitMap *bitmap, SInt16 x, SInt16 y, UInt32 value
         } else {
             pixel[byteIndex] &= ~(1 << (7 - bitIndex));
         }
-    }
-}
-
-static void ClipRectToBitmap(const BitMap *bitmap, Rect *rect) {
-    Rect clippedRect;
-    if (SectRect(rect, &bitmap->bounds, &clippedRect)) {
-        *rect = clippedRect;
-    } else {
-        SetRect(rect, 0, 0, 0, 0);
     }
 }
 
