@@ -15,9 +15,17 @@ Boolean GetCheckboxMixed(ControlHandle ctrl);
 void SetRadioGroup(ControlHandle ctrl, SInt16 groupID);
 SInt16 GetRadioGroup(ControlHandle ctrl);
 
-/* Control stubs */
+/* Control list helpers (WM interop) */
+ControlHandle _GetFirstControl(WindowPtr window);
+void _SetFirstControl(WindowPtr window, ControlHandle control);
+
+/* Basic window bounds helper used during control drag */
 void GetWindowBounds(WindowPtr window, Rect* bounds);
+
+/* Attach control to window list head */
 void _AttachControlToWindow(ControlHandle ctrl, WindowPtr window);
-ControlHandle LoadControlFromResource(SInt16 resID);
+
+/* Resource-based control loader (from ControlResources.c) */
+ControlHandle LoadControlFromResource(Handle cntlResource, WindowPtr owner);
 
 #endif /* CONTROL_INTERNAL_H */
