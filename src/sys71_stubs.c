@@ -764,38 +764,7 @@ void DoBackgroundTasks(void) {
 
 /* WaitNextEvent now implemented in EventManager/event_manager.c */
 
-#if 0  /* DISABLED - EventAvail now provided by EventManager/event_manager.c */
-/* EventAvail - check if an event is available without removing it */
-Boolean EventAvail_DISABLED(short eventMask, EventRecord* theEvent) {
-
-    /* Check if queue has matching events without removing them */
-    if (g_eventQueue.count == 0) {
-        return false;
-    }
-
-    /* Find the next event matching the mask */
-    int index = g_eventQueue.head;
-    int checked = 0;
-
-    while (checked < g_eventQueue.count) {
-        EventRecord* evt = &g_eventQueue.events[index];
-
-        /* Check if event matches mask */
-        if ((1 << evt->what) & eventMask) {
-            /* Copy event to caller without removing it */
-            if (theEvent) {
-                *theEvent = *evt;
-            }
-            return true;
-        }
-
-        index = (index + 1) % MAX_EVENTS;
-        checked++;
-    }
-
-    return false;
-}
-#endif /* DISABLED EventAvail */
+/* Removed DISABLED EventAvail stub (real implementation lives in EventManager) */
 
 /* Menu and Window functions provided by their respective managers:
  * MenuSelect - MenuSelection.c

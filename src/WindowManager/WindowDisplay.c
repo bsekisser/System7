@@ -41,6 +41,7 @@ extern void SetOrigin(SInt16 h, SInt16 v);
 
 /* Forward declarations */
 static void DumpWindowList(const char* context);
+void CheckWindowsNeedingUpdate(void);
 
 /*-----------------------------------------------------------------------*/
 /* Window Display Functions                                             */

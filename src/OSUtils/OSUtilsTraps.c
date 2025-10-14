@@ -5,6 +5,7 @@
 #include "CPU/LowMemGlobals.h"
 #include "TimeManager/TimeManager.h"
 #include "System71StdLib.h"
+#include "System/SystemLogging.h"
 
 #define TICK_PERIOD_US 16667U  /* Roughly 60 Hz */
 
@@ -52,7 +53,7 @@ OSErr OSUtils_InstallTraps(SegmentLoaderContext* ctx)
 
     err = ctx->cpuBackend->InstallTrap(ctx->cpuAS, 0xA975, TickCount_Trap, NULL);
     if (err != noErr) {
-        serial_printf("[OSUtils] InstallTrap(_TickCount) failed: %d\n", err);
+        SYSTEM_LOG_ERROR("InstallTrap(_TickCount) failed: %d\n", err);
         return err;
     }
 
@@ -63,13 +64,13 @@ OSErr OSUtils_InstallTraps(SegmentLoaderContext* ctx)
 
         err = InsTime(&gTickTask);
         if (err != noErr) {
-            serial_printf("[OSUtils] InsTime failed for tick task: %d\n", err);
+            SYSTEM_LOG_ERROR("InsTime failed for tick task: %d\n", err);
             return err;
         }
 
         err = PrimeTime(&gTickTask, TICK_PERIOD_US);
         if (err != noErr) {
-            serial_printf("[OSUtils] PrimeTime failed for tick task: %d\n", err);
+            SYSTEM_LOG_ERROR("PrimeTime failed for tick task: %d\n", err);
             RmvTime(&gTickTask);
             memset(&gTickTask, 0, sizeof(gTickTask));
             return err;
