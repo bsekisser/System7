@@ -108,6 +108,38 @@ static inline bool is_valid_freenode(ZoneInfo* z, FreeNode* n) {
     return (ptr >= z->base + BLKHDR_SZ) && (ptr + sizeof(FreeNode) <= z->limit);
 }
 
+/* Safely unlink a node from a specific freelist size class circular list.
+ * If the node or its neighbors are invalid, nuke the entire class to avoid corruption. */
+static void freelist_unlink_node_sc(ZoneInfo* z, u32 sc, FreeNode* n) {
+    if (!z) return;
+    FreeNode** headp = &z->freelists[sc];
+    if (!*headp) return;
+
+    /* Validate node and neighbors */
+    if (!is_valid_freenode(z, n) || !is_valid_freenode(z, n->next) || !is_valid_freenode(z, n->prev)) {
+        /* Corrupted ring; drop this class */
+        *headp = NULL;
+        return;
+    }
+
+    if (n->next == n) {
+        /* Single-node ring */
+        *headp = NULL;
+        n->next = n->prev = NULL;
+        return;
+    }
+
+    /* Unlink */
+    FreeNode* next = n->next;
+    FreeNode* prev = n->prev;
+    prev->next = next;
+    next->prev = prev;
+    if (*headp == n) {
+        *headp = next;
+    }
+    n->next = n->prev = NULL;
+}
+
 /* Validate block header integrity */
 static inline bool validate_block(ZoneInfo* z, BlockHeader* b) {
     extern void serial_puts(const char* str);
@@ -601,8 +633,8 @@ static BlockHeader* find_fit(ZoneInfo* z, u32 need) {
                 BlockHeader* b = freenode_to_block(it);
                 /* Validate candidate block header before using */
                 if (!validate_block(z, b)) {
-                    /* Excise bad node and restart scan from current head */
-                    freelist_remove(z, b);
+                    /* Excise bad node from this class ring and restart */
+                    freelist_unlink_node_sc(z, start_class, it);
                     it = z->freelists[start_class];
                     start = it;
                     if (!it) break;
@@ -644,7 +676,7 @@ static BlockHeader* find_fit(ZoneInfo* z, u32 need) {
             BlockHeader* b = freenode_to_block(it);
             if (!validate_block(z, b)) {
                 /* Remove bad node and restart scanning this class */
-                freelist_remove(z, b);
+                freelist_unlink_node_sc(z, sc, it);
                 it = z->freelists[sc];
                 start = it;
                 if (!it) break;
@@ -666,16 +698,17 @@ static BlockHeader* find_fit(ZoneInfo* z, u32 need) {
 }
 
 static void split_block(ZoneInfo* z, BlockHeader* b, u32 need) {
+    /* Validate header before touching freelists or splitting */
+    if (!validate_block(z, b)) {
+        return;
+    }
+
+    /* Now safe to remove from its freelist */
     freelist_remove(z, b);
 
     bool suspect = is_suspect_block(b);
     if (suspect) {
         log_suspect_block("split_enter", b, need, UINT32_MAX);
-    }
-
-    /* Validate header before splitting to avoid operating on corrupted blocks */
-    if (!validate_block(z, b)) {
-        return;
     }
 
     u32 remain = 0;
