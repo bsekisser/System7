@@ -24,6 +24,7 @@
 #include "System71StdLib.h"
 #include "WindowManager/WMLogging.h"
 #include "QuickDraw/QuickDraw.h"
+#include "MemoryMgr/MemoryManager.h"
 
 #include "WindowManager/WindowManagerInternal.h"
 #include <math.h>
@@ -267,6 +268,9 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     offset.h = startPt.h - frameG.left;
     offset.v = startPt.v - frameG.top;
 
+    const short windowWidth = frameG.right - frameG.left;
+    const short windowHeight = frameG.bottom - frameG.top;
+
     /* Use provided bounds or default to screen minus menubar */
     Rect dragBounds;
     if (boundsRect) {
@@ -276,6 +280,25 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         dragBounds.left = 0;
         dragBounds.bottom = 768;
         dragBounds.right = 1024;
+    }
+
+    /* Ensure callers cannot allow windows to overlap the menu bar */
+    if (dragBounds.top < TITLE_BAR_HEIGHT) {
+        dragBounds.top = TITLE_BAR_HEIGHT;
+    }
+
+    /* Guard against degenerate rectangles that would reject movement */
+    if (dragBounds.bottom <= dragBounds.top) {
+        dragBounds.bottom = dragBounds.top + windowHeight;
+    }
+    if (dragBounds.right <= dragBounds.left) {
+        dragBounds.right = dragBounds.left + windowWidth;
+    }
+    if (dragBounds.bottom - dragBounds.top < windowHeight) {
+        dragBounds.bottom = dragBounds.top + windowHeight;
+    }
+    if (dragBounds.right - dragBounds.left < windowWidth) {
+        dragBounds.right = dragBounds.left + windowWidth;
     }
 
     /* System 7 modal drag loop using StillDown/GetMouse */
@@ -309,14 +332,11 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     extern void ShowWindow(WindowPtr window);
     extern void InvalidateCursor(void);  /* Force cursor redraw */
     Boolean wasVisible = theWindow->visible;
-    if (wasVisible) {
-        /* Temporarily hide window to erase it from old position */
-        HideWindow(theWindow);
-        /* Repaint desktop/windows behind where window was */
-        extern void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn);
-        PaintBehind(NULL, theWindow->strucRgn);  /* NULL = paint all windows */
-        QDPlatform_FlushScreen();
-    }
+    (void)wasVisible; /* Avoid unused warning; keep window visible during drag */
+    /* NOTE: Do not HideWindow/PaintBehind here. Using XOR outline without
+     * erasing the window avoids a heap overwrite we are chasing in the
+     * hide/paint path. This matches classic XOR-drag behavior visually,
+     * and prevents the freeze observed at drag start. */
 
     /* Invalidate cursor state before drag to prevent stale background artifacts */
     InvalidateCursor();
@@ -346,17 +366,14 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
             short newTop = ptG.v - offset.v;
 
             /* Constrain to drag bounds */
-            short winWidth = frameG.right - frameG.left;
-            short winHeight = frameG.bottom - frameG.top;
-
             if (newLeft < dragBounds.left)
                 newLeft = dragBounds.left;
             if (newTop < dragBounds.top)
                 newTop = dragBounds.top;
-            if (newLeft + winWidth > dragBounds.right)
-                newLeft = dragBounds.right - winWidth;
-            if (newTop + winHeight > dragBounds.bottom)
-                newTop = dragBounds.bottom - winHeight;
+            if (newLeft + windowWidth > dragBounds.right)
+                newLeft = dragBounds.right - windowWidth;
+            if (newTop + windowHeight > dragBounds.bottom)
+                newTop = dragBounds.bottom - windowHeight;
 
             /* XOR outline feedback (authentic Mac OS behavior) */
             if (newLeft != dragOutline.left || newTop != dragOutline.top) {
@@ -372,8 +389,8 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
                 /* Calculate new outline position */
                 dragOutline.left = newLeft;
                 dragOutline.top = newTop;
-                dragOutline.right = newLeft + winWidth;
-                dragOutline.bottom = newTop + winHeight;
+                dragOutline.right = newLeft + windowWidth;
+                dragOutline.bottom = newTop + windowHeight;
 
                 /* Draw new outline */
                 extern void InvertRect(const Rect* rect);
@@ -421,7 +438,10 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         extern void CalcVis(WindowPtr window);
 
         WM_LOG_DEBUG("DragWindow: About to call NewRgn()\n");
+        serial_printf("[MEM] DragWindow before NewRgn(oldRgn)\n");
+        MemoryManager_CheckSuspectBlock("pre_NewRgn_old");
         RgnHandle oldRgn = NewRgn();
+        MemoryManager_CheckSuspectBlock("post_NewRgn_old");
         WM_LOG_DEBUG("DragWindow: NewRgn() returned %p\n", oldRgn);
         RectRgn(oldRgn, &oldBounds);
 
@@ -437,7 +457,9 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         /* Calculate the uncovered desktop region: old position minus new position */
         extern void DiffRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn);
         RgnHandle uncoveredRgn = NewRgn();
+        MemoryManager_CheckSuspectBlock("post_NewRgn_uncovered");
         RgnHandle newRgn = NewRgn();
+        MemoryManager_CheckSuspectBlock("post_NewRgn_new");
         if (theWindow->strucRgn && *theWindow->strucRgn) {
             CopyRgn(theWindow->strucRgn, newRgn);
         }

@@ -1,6 +1,7 @@
 /* Classic Mac Memory Manager Implementation */
 #include "../../include/MemoryMgr/MemoryManager.h"
 #include <string.h>
+#include <stdint.h>
 #include "MemoryMgr/MemoryLogging.h"
 #include "CPU/M68KInterp.h"
 #include "CPU/LowMemGlobals.h"
@@ -44,6 +45,34 @@ static void mm_print_hex(u32 value) {
     }
 }
 
+static inline bool is_suspect_block(BlockHeader* b) {
+    uintptr_t addr = (uintptr_t)b;
+    return (addr >= 0x007B2000 && addr <= 0x007B4000);
+}
+
+static void log_suspect_block(const char* tag, BlockHeader* b, u32 need, u32 remain) {
+    extern void serial_puts(const char* str);
+    serial_puts("[HEAP][SUSPECT] ");
+    serial_puts(tag);
+    serial_puts(" block=0x");
+    mm_print_hex((u32)(uintptr_t)b);
+    serial_puts(" size=0x");
+    mm_print_hex(b ? b->size : 0);
+    if (need != UINT32_MAX) {
+        serial_puts(" need=0x");
+        mm_print_hex(need);
+    }
+    if (remain != UINT32_MAX) {
+        serial_puts(" remain=0x");
+        mm_print_hex(remain);
+    }
+    serial_puts(" prev=0x");
+    mm_print_hex(b ? b->prevSize : 0);
+    serial_puts(" flags=0x");
+    mm_print_hex(b ? b->flags : 0);
+    serial_putchar('\n');
+}
+
 /* Global zones */
 static ZoneInfo gSystemZone;       /* System heap */
 static ZoneInfo gAppZone;          /* Application heap */
@@ -56,6 +85,10 @@ static u8 gAppHeap[6 * 1024 * 1024];       /* 6MB app heap */
 /* Master pointer tables */
 static void* gSystemMasters[1024];         /* 1024 system handles */
 static void* gAppMasters[4096];            /* 4096 app handles */
+
+/* Debug tracking for problematic blocks */
+static BlockHeader* g_debug_suspect_block = NULL;
+static u32 g_debug_suspect_size = 0;
 
 /* ======================== Free List Management ======================== */
 
@@ -307,6 +340,11 @@ static BlockHeader* coalesce_forward(ZoneInfo* z, BlockHeader* b) {
     /* Validate block is within zone bounds */
     if ((u8*)b < z->base || (u8*)b >= z->limit) return b;
 
+    bool suspect = is_suspect_block(b);
+    if (suspect) {
+        log_suspect_block("coalesce_fwd_enter", b, UINT32_MAX, UINT32_MAX);
+    }
+
     u8* end = (u8*)b + b->size;
 
     /* Bounds check: end must be within zone */
@@ -316,6 +354,11 @@ static BlockHeader* coalesce_forward(ZoneInfo* z, BlockHeader* b) {
 
     /* Validate next block is fully within bounds */
     if ((u8*)next + BLKHDR_SZ > z->limit) return b;
+
+    bool suspect_next = is_suspect_block(next);
+    if (suspect_next) {
+        log_suspect_block("coalesce_fwd_next", next, UINT32_MAX, UINT32_MAX);
+    }
 
     /* Only coalesce if next block is free */
     if (next->flags & BF_FREE) {
@@ -340,6 +383,12 @@ static BlockHeader* coalesce_forward(ZoneInfo* z, BlockHeader* b) {
             BlockHeader* nxt = (BlockHeader*)after;
             nxt->prevSize = b->size;
         }
+
+        if (suspect) {
+        log_suspect_block("coalesce_fwd_merged", b, UINT32_MAX, UINT32_MAX);
+        g_debug_suspect_block = b;
+        g_debug_suspect_size = b->size;
+        }
     }
     return b;
 }
@@ -349,6 +398,11 @@ static BlockHeader* coalesce_backward(ZoneInfo* z, BlockHeader* b) {
 
     /* Validate block is within zone bounds */
     if ((u8*)b < z->base || (u8*)b >= z->limit) return b;
+
+    bool suspect = is_suspect_block(b);
+    if (suspect) {
+        log_suspect_block("coalesce_back_enter", b, UINT32_MAX, UINT32_MAX);
+    }
 
     /* Only try if there's a previous block */
     if (b->prevSize == 0) return b;
@@ -362,6 +416,11 @@ static BlockHeader* coalesce_backward(ZoneInfo* z, BlockHeader* b) {
 
     /* Validate prev is within bounds */
     if ((u8*)prev < z->base) return b;
+
+    bool suspect_prev = is_suspect_block(prev);
+    if (suspect_prev) {
+        log_suspect_block("coalesce_back_prev", prev, UINT32_MAX, UINT32_MAX);
+    }
 
     /* Only coalesce if prev block is free */
     if (prev->flags & BF_FREE) {
@@ -387,9 +446,32 @@ static BlockHeader* coalesce_backward(ZoneInfo* z, BlockHeader* b) {
             nxt->prevSize = prev->size;
         }
 
+        if (is_suspect_block(prev)) {
+            log_suspect_block("coalesce_back_merged", prev, UINT32_MAX, UINT32_MAX);
+            g_debug_suspect_block = prev;
+            g_debug_suspect_size = prev->size;
+        } else {
+            g_debug_suspect_block = NULL;
+            g_debug_suspect_size = 0;
+        }
+
         b = prev;
     }
     return b;
+}
+
+void MemoryManager_CheckSuspectBlock(const char* tag) {
+    if (!g_debug_suspect_block) return;
+    BlockHeader* b = g_debug_suspect_block;
+    if (!is_suspect_block(b)) {
+        g_debug_suspect_block = NULL;
+        return;
+    }
+
+    if (b->size != g_debug_suspect_size) {
+        log_suspect_block(tag ? tag : "check", b, UINT32_MAX, UINT32_MAX);
+        g_debug_suspect_block = NULL;
+    }
 }
 
 /* ======================== Zone Management ======================== */
@@ -510,13 +592,23 @@ static BlockHeader* find_fit(ZoneInfo* z, u32 need) {
             u32 loop_safety = 0;
 
             do {
-                /* Defensive: validate pointer before dereferencing */
+                /* Defensive: validate node pointers */
                 if (!is_valid_freenode(z, it) || !is_valid_freenode(z, it->next)) {
                     z->freelists[start_class] = NULL;
                     break;
                 }
 
                 BlockHeader* b = freenode_to_block(it);
+                /* Validate candidate block header before using */
+                if (!validate_block(z, b)) {
+                    /* Excise bad node and restart scan from current head */
+                    freelist_remove(z, b);
+                    it = z->freelists[start_class];
+                    start = it;
+                    if (!it) break;
+                    continue;
+                }
+
                 if (b->size >= need) return b;
 
                 it = it->next;
@@ -534,22 +626,76 @@ static BlockHeader* find_fit(ZoneInfo* z, u32 need) {
         head = z->freelists[sc];
         if (!head) continue;
 
-        /* Validate and return first block from larger class */
+        /* Validate and return first valid block from larger class */
         if (!is_valid_freenode(z, head)) {
             z->freelists[sc] = NULL;
             continue;
         }
 
-        BlockHeader* b = freenode_to_block(head);
-        if (b->size >= need) return b;
+        FreeNode* it = head;
+        FreeNode* start = it;
+        u32 loop_safety = 0;
+        do {
+            if (!is_valid_freenode(z, it) || !is_valid_freenode(z, it->next)) {
+                z->freelists[sc] = NULL;
+                break;
+            }
+
+            BlockHeader* b = freenode_to_block(it);
+            if (!validate_block(z, b)) {
+                /* Remove bad node and restart scanning this class */
+                freelist_remove(z, b);
+                it = z->freelists[sc];
+                start = it;
+                if (!it) break;
+                continue;
+            }
+
+            if (b->size >= need) return b;
+
+            it = it->next;
+            loop_safety++;
+            if (loop_safety > 10000) {
+                z->freelists[sc] = NULL;
+                break;
+            }
+        } while (it != start);
     }
 
     return NULL;  /* No fit found */
 }
 
 static void split_block(ZoneInfo* z, BlockHeader* b, u32 need) {
-    u32 remain = b->size - need;
     freelist_remove(z, b);
+
+    bool suspect = is_suspect_block(b);
+    if (suspect) {
+        log_suspect_block("split_enter", b, need, UINT32_MAX);
+    }
+
+    /* Validate header before splitting to avoid operating on corrupted blocks */
+    if (!validate_block(z, b)) {
+        return;
+    }
+
+    u32 remain = 0;
+    if (b->size < need) {
+        extern void serial_puts(const char* str);
+        serial_puts("[SPLIT] ERROR: block smaller than requested size, taking whole block\n");
+        serial_puts("         block size=0x");
+        mm_print_hex(b->size);
+        serial_puts(" need=0x");
+        mm_print_hex(need);
+        serial_puts("\n");
+
+        need = b->size;
+    } else {
+        remain = b->size - need;
+    }
+
+    if (suspect) {
+        log_suspect_block("split_post_sub", b, need, remain);
+    }
 
     /* CRITICAL FIX: Use MIN_BLOCK_SIZE instead of BLKHDR_SZ + ALIGN */
     if (remain >= MIN_BLOCK_SIZE) {
@@ -572,6 +718,10 @@ static void split_block(ZoneInfo* z, BlockHeader* b, u32 need) {
         tail->prevSize = need;
         tail->masterPtr = NULL;
 
+        if (is_suspect_block(tail)) {
+            log_suspect_block("split_tail", tail, need, remain);
+        }
+
         /* Fix next block's prevSize */
         u8* after = (u8*)tail + tail->size;
         if (after < z->limit) {
@@ -584,8 +734,17 @@ static void split_block(ZoneInfo* z, BlockHeader* b, u32 need) {
         b->flags = 0;
 
         freelist_insert(z, tail);
+
+        if (suspect) {
+            log_suspect_block("split_after_tail", b, need, remain);
+        }
     } else {
         b->flags = 0;
+        if (suspect) {
+            log_suspect_block("split_no_tail", b, need, remain);
+            g_debug_suspect_block = NULL;
+            g_debug_suspect_size = 0;
+        }
     }
 }
 

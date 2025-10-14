@@ -139,5 +139,6 @@ bool    MemoryManager_IsHeapPointer(const void* p);
 /* Debugging */
 void    CheckHeap(ZoneInfo* zone);
 void    DumpHeap(ZoneInfo* zone);
+void    MemoryManager_CheckSuspectBlock(const char* tag);
 
 #endif /* MEMORY_MANAGER_H */
