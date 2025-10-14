@@ -167,49 +167,6 @@ static const uint8_t font5x7[][5] __attribute__((unused)) = {
 
 /* Serial functions are declared in System71StdLib.h */
 
-/* Commented out - moved to System71StdLib.c
-void serial_init(void) {
-    outb(COM1 + 1, 0x00);    // Disable all interrupts
-    outb(COM1 + 3, 0x80);    // Enable DLAB (set baud rate divisor)
-    outb(COM1 + 0, 0x03);    // Set divisor to 3 (lo byte) 38400 baud
-    outb(COM1 + 1, 0x00);    //                  (hi byte)
-    outb(COM1 + 3, 0x03);    // 8 bits, no parity, one stop bit
-    outb(COM1 + 2, 0xC7);    // Enable FIFO, clear them, with 14-byte threshold
-    outb(COM1 + 4, 0x0B);    // IRQs enabled, RTS/DSR set
-}
-*/
-
-/* serial_putchar moved to System71StdLib.c
-void serial_putchar(char c) {
-    while ((inb(COM1 + 5) & 0x20) == 0);
-    outb(COM1, c);
-}
-*/
-
-/* serial_puts moved to System71StdLib.c
-void serial_puts(const char* str) {
-    while (*str) {
-        if (*str == '\n') {
-            serial_putchar('\r');
-        }
-        serial_putchar(*str++);
-    }
-}
-*/
-
-/* serial_data_ready moved to System71StdLib.c
-int serial_data_ready(void) {
-    return (inb(COM1 + 5) & 0x01) != 0;
-}
-*/
-
-/* serial_getchar moved to System71StdLib.c
-char serial_getchar(void) {
-    while (!serial_data_ready());
-    return inb(COM1);
-}
-*/
-
 /* Process serial commands for menu testing */
 static void process_serial_command(void) __attribute__((unused));
 static void process_serial_command(void) {
@@ -462,16 +419,6 @@ static void print_hex(uint32_t value) {
     }
 }
 
-/* serial_print_hex moved to System71StdLib.c
-void serial_print_hex(uint32_t value) {
-    const char* hex = "0123456789ABCDEF";
-    serial_puts("0x");
-    for (int i = 7; i >= 0; i--) {
-        serial_putchar(hex[(value >> (i * 4)) & 0xF]);
-    }
-}
-*/
-
 /* Parse Multiboot2 info */
 static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info) {
     if (magic != MULTIBOOT2_BOOTLOADER_MAGIC) {
@@ -692,7 +639,6 @@ static void tm_hello(struct TMTask *t) {
 
 /* Initialize System 7.1 subsystems */
 static void init_system71(void) {
-    /* console_puts("Initializing System 7.1 subsystems...\n"); - disabled in graphics mode */
     serial_puts("Initializing System 7.1 subsystems...\n");
 
     /* Initialize in proper System 7.1 order per Inside Macintosh */
@@ -986,7 +932,6 @@ static void init_system71(void) {
         serial_puts("  Finder initialization failed\n");
     }
 
-    /* console_puts("System 7.1 initialization complete\n"); - disabled in graphics mode */
 }
 
 #if 1  /* Performance tests always available */
@@ -1113,8 +1058,6 @@ static void run_performance_tests(void) {
 static void create_system71_windows(void) {
     MenuHandle appleMenu, fileMenu, editMenu;
 
-    /* serial_puts("Creating System 7.1 windows...\n"); */
-
     /* Create Apple menu */
     static unsigned char appleTitle[] = {1, 0x14};  /* Pascal string: length 1, Apple symbol */
     appleMenu = NewMenu(128, appleTitle);
@@ -1122,7 +1065,6 @@ static void create_system71_windows(void) {
         static unsigned char aboutItem[] = {20, 'A','b','o','u','t',' ','S','y','s','t','e','m',' ','7','.','1','.','.','.'}; /* Pascal string */
         AppendMenu(appleMenu, aboutItem);
         InsertMenu(appleMenu, 0);
-        /* serial_puts("  Apple menu created\n"); */
     }
 
     /* Create File menu */
@@ -1132,7 +1074,6 @@ static void create_system71_windows(void) {
         static unsigned char fileItems[] = {56, 'N','e','w','/','N',';','O','p','e','n','.','.','.','/','O',';','-',';','C','l','o','s','e','/','W',';','S','a','v','e','/','S',';','S','a','v','e',' ','A','s','.','.','.',';','-',';','Q','u','i','t','/','Q'}; /* Pascal string */
         AppendMenu(fileMenu, fileItems);
         InsertMenu(fileMenu, 0);
-        /* serial_puts("  File menu created\n"); */
     }
 
     /* Create Edit menu */
@@ -1142,7 +1083,6 @@ static void create_system71_windows(void) {
         static unsigned char editItems[] = {36, 'U','n','d','o','/','Z',';','-',';','C','u','t','/','X',';','C','o','p','y','/','C',';','P','a','s','t','e','/','V',';','C','l','e','a','r'}; /* Pascal string */
         AppendMenu(editMenu, editItems);
         InsertMenu(editMenu, 0);
-        /* serial_puts("  Edit menu created\n"); */
     }
 
     /* Draw the menu bar */
@@ -1290,39 +1230,28 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 
     /* Clear screen and show startup message */
     console_clear();
-    /* console_puts("System 7.1 Portable - Iteration2\n");
-    console_puts("================================\n\n"); - disabled in graphics mode */
-
-    /* serial_puts("System 7.1 Portable - Iteration2\n");
-    serial_puts("================================\n\n"); */
 
     /* Parse Multiboot2 information */
     parse_multiboot2(magic, mb2_info);
 
     /* Framebuffer will be used by Finder if available */
     if (framebuffer) {
-        /* serial_puts("Framebuffer available for Finder desktop\n"); */
+        SYSTEM_LOG_DEBUG("Framebuffer available for Finder desktop\n");
     } else {
-        /* console_puts("No framebuffer available, continuing in text mode\n"); */
-        /* serial_puts("No framebuffer available, continuing in text mode\n"); */
+        console_puts("No framebuffer available, continuing in text mode\n");
+        serial_puts("No framebuffer available, continuing in text mode\n");
     }
 
     /* Initialize System 7.1 */
-    /* serial_puts("Initializing System 7.1...\n"); */
     init_system71();
 
     /* Remove early test - let DrawDesktop do all the drawing */
     if (framebuffer) {
-
-        /* serial_puts("Setting up desktop port...\n"); */
-
         /* Create and open the desktop port */
         static GrafPort desktopPort;
         OpenPort(&desktopPort);
 
-        /* serial_puts("Calling DrawDesktop...\n"); */
         DrawDesktop();
-        /* serial_puts("DrawDesktop returned\n"); */
     }
 
     /* Create windows and menus using real System 7.1 APIs */
@@ -1430,19 +1359,11 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     run_performance_tests();
     #endif
 
-    /* Main event loop using real Event Manager */
-    /* Don't use console_puts after graphics mode - it overwrites framebuffer! */
-    /* console_puts("\nSystem ready. Processing events...\n"); */
-    /* serial_puts("\nSystem ready. Entering event loop.\n"); */
-
+    /* Main event loop using real Event Manager (console_puts would corrupt framebuffer) */
     EventRecord event __attribute__((unused));
 
-    /* Initial desktop draw */
-    /* WM_Update was a bootstrap function, now quarantined. TODO: Use real Toolbox APIs */
+    /* Initial desktop draw now handled by Finder/Desktop Manager */
     serial_puts("MAIN: Desktop init complete\n");
-    /* serial_puts("MAIN: About to call WM_Update\n"); */
-    /* WM_Update(); */    /* Draw the desktop directly */
-    /* serial_puts("MAIN: WM_Update returned\n"); */
 
     /* Draw the volume and trash icons */
     extern void DrawVolumeIcon(void);
@@ -1515,11 +1436,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     int16_t last_mouse_y = g_mouseState.y;
     volatile uint32_t debug_counter __attribute__((unused)) = 0;
 
-    /* serial_puts("Entering main event loop...\n"); */
-
-    /* Simple immediate test */
-    /* serial_puts("TEST: About to enter loop\n"); */
-
     /* Add cursor update counter to throttle cursor redraws */
     static uint32_t cursor_update_counter = 0;
 
@@ -1561,30 +1477,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         /* Process modern input events (PS/2 keyboard and mouse) */
         extern void ProcessModernInput(void);
         ProcessModernInput();
-
-        /* DISABLED: Duplicate event processing - handled below at line 2008 */
-        #if 0
-        /* Check for events and dispatch them - MUST happen on every iteration */
-        extern Boolean GetNextEvent(short eventMask, EventRecord* theEvent);
-        extern Boolean DispatchEvent(EventRecord* event);
-
-        EventRecord evt;
-        /* Debug: before GetNextEvent */
-        static int call_count = 0;
-        if ((call_count++ % 10000) == 0) {
-            SYSTEM_LOG_DEBUG("MAIN: Calling GetNextEvent (call #%d)\n", call_count);
-        }
-
-        if (GetNextEvent(everyEvent, &evt)) {
-            /* Debug: show what events we're getting */
-            SYSTEM_LOG_DEBUG("MAIN: Got event type=%d at (%d,%d)\n",
-                         evt.what, evt.where.h, evt.where.v);
-            if (evt.what == mouseDown) {
-                SYSTEM_LOG_DEBUG("MAIN: Got mouseDown at (%d,%d)\n", evt.where.h, evt.where.v);
-            }
-            DispatchEvent(&evt);
-        }
-        #endif
 
         /* Throttle ONLY cursor drawing, not event processing */
         cursor_update_counter++;
@@ -1673,13 +1565,11 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
             movement_count++;
             if (movement_count > 10000) {  /* Redraw desktop every 10000 movements (basically never during normal use) */
                 SYSTEM_LOG_DEBUG("MAIN: Full redraw after %d movements\n", movement_count);
-                /* WM_Update();  */ /* Full redraw - WM_Update quarantined, TODO: Use real Toolbox APIs */
-                /* Cursor will be redrawn on next movement */
+                /* TODO: Hook real desktop invalidation once available */
                 movement_count = 0;
-                /* cursor_saved = false; */ /* Force redraw after WM_Update */
             }
         }
-#endif /* End of disabled cursor drawing */
+#endif /* Cursor redraw */
 
         /* Mouse button tracking moved to EventManager - events are properly dispatched now */
 
@@ -1717,122 +1607,6 @@ skip_cursor_drawing:
         TimeManager_DrainDeferred(16, 1000); /* up to 16 callbacks or 1ms of work */
         TimeManager_TimerISR(); /* Poll timer (simulated ISR) - must be called each loop */
 #endif /* #if 1 */
-
-#if 0
-        /* Get ALL event types including updateEvt */
-        if (GetNextEvent(everyEvent, &event)) {
-            switch (event.what) {
-                case mouseDown:
-                    {
-                        Point pt = { .v = event.where.v, .h = event.where.h };
-
-                        /* Check if click is in menu bar (top 20 pixels) */
-                        if (pt.v >= 0 && pt.v < 20) {
-                            SYSTEM_LOG_DEBUG("MAIN: mouseDown at (%d,%d) in menu bar - calling MenuSelect\n", pt.h, pt.v);
-                            long menuChoice = MenuSelect(pt);
-                            short menuID = (short)(menuChoice >> 16);
-                            short item = (short)(menuChoice & 0xFFFF);
-
-                            if (menuID && item) {
-                                SYSTEM_LOG_DEBUG("Menu selection: menu %d, item %d\n", menuID, item);
-                                DoMenuCommand(menuID, item);
-                            }
-
-                            /* Redraw menu bar after selection */
-                            DrawMenuBar();
-                        } else {
-                            /* Handle clicks outside menu bar - window dragging, etc */
-                            WindowPtr window;
-                            short part = FindWindow(event.where, &window);
-
-                            SYSTEM_LOG_DEBUG("MAIN: mouseDown part=%d, window=%p at (%d,%d)\n",
-                                         part, window, event.where.h, event.where.v);
-
-                            switch (part) {
-                                case inDrag:
-                                    if (window) {
-                                        Rect dragBounds = {20, 0, 768, 1024};
-                                        SYSTEM_LOG_DEBUG("MAIN: Calling DragWindow\n");
-                                        DragWindow(window, event.where, &dragBounds);
-                                    }
-                                    break;
-
-                                case inContent:
-                                    if (window != FrontWindow()) {
-                                        SelectWindow(window);
-                                    }
-                                    /* Let application handle content clicks */
-                                    break;
-
-                                case inGoAway:
-                                    if (TrackGoAway(window, event.where)) {
-                                        /* Close window */
-                                    }
-                                    break;
-
-                                default:
-                                    SYSTEM_LOG_DEBUG("Mouse down outside windows (part=%d)\n", part);
-                                    break;
-                            }
-                        }
-                    }
-                    break;
-                case keyDown:
-                case autoKey:
-                    {
-                        char key = event.message & 0xFF;
-                        Boolean cmdDown = (event.modifiers & cmdKey) != 0;
-
-                        SYSTEM_LOG_DEBUG("Key event: key='%c' (0x%02X), cmd=%s\n",
-                                     key, key, cmdDown ? "Yes" : "No");
-
-                        /* Check for menu keyboard shortcuts */
-                        if (cmdDown) {
-                            long menuChoice = MenuKey(key);
-                            short menuID = (short)(menuChoice >> 16);
-                            short item = (short)(menuChoice & 0xFFFF);
-
-                            if (menuID && item) {
-                                SYSTEM_LOG_DEBUG("Menu key shortcut: menu %d, item %d\n", menuID, item);
-                                DoMenuCommand(menuID, item);
-
-                                /* Flash menu title briefly */
-                                HiliteMenu(menuID);
-                                /* Small delay for visual feedback */
-                                for (volatile int i = 0; i < 1000000; i++);
-                                HiliteMenu(0);
-                            }
-                        }
-                    }
-                    break;
-                case updateEvt:
-                    {
-                        serial_puts("Update event\n");
-                        WindowPtr w = (WindowPtr)event.message;
-                        BeginUpdate(w);
-
-                        /* Window Manager draws chrome first */
-                        extern void DrawWindow(WindowPtr window);
-                        DrawWindow(w);
-
-                        /* Then application draws content */
-                        /* Check if this is a Finder window and call its proc */
-                        if (w->refCon == 'DISK' || w->refCon == 'TRSH') {
-                            extern void FolderWindowProc(WindowPtr window, short message, long param);
-                            FolderWindowProc(w, 0, 0);  /* wDraw = 0 */
-                        }
-
-                        EndUpdate(w);
-                    }
-                    break;
-                case activateEvt:
-                    serial_puts("Activate event\n");
-                    break;
-                default:
-                    break;
-            }
-        }
-#endif /* Disabled SystemTask and GetNextEvent */
 
         /* Yield CPU when no events - but don't halt, it blocks PS/2 polling! */
         /* __asm__ volatile ("hlt"); */
