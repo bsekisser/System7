@@ -581,7 +581,7 @@ long GetWRefCon(WindowPtr theWindow) {
 void SetWindowPic(WindowPtr theWindow, PicHandle pic) {
     if (theWindow == NULL) return;
 
-    theWindow->windowPic = pic;
+    theWindow->windowPic = (Handle)pic;
 
     /* If window is visible, redraw content */
     if (theWindow->visible) {
@@ -596,7 +596,7 @@ void SetWindowPic(WindowPtr theWindow, PicHandle pic) {
 PicHandle GetWindowPic(WindowPtr theWindow) {
     if (theWindow == NULL) return NULL;
 
-    return theWindow->windowPic;
+    return (PicHandle)theWindow->windowPic;
 }
 
 /* ============================================================================
