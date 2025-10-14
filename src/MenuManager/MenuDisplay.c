@@ -15,6 +15,9 @@
 // #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/ColorQuickDraw.h"
+#include "QuickDrawConstants.h"
 
 #include "MenuManager/MenuManager.h"
 #include "MenuManager/MenuTypes.h"
@@ -23,8 +26,10 @@
 #include "FontManager/FontManager.h"
 #include "MenuManager/MenuLogging.h"
 #include "FontManager/FontTypes.h"
+#include "FontManager/FontInternal.h"
 
 #include <math.h>
+
 
 /* Serial output */
 
@@ -52,6 +57,7 @@ static Boolean gAntiAlias = true;
 static Handle gCurrentSavedBits = NULL;
 static MenuHandle gCurrentlyShownMenu = NULL;
 static Rect gCurrentMenuRect;
+extern QDGlobals qd;
 
 /* Platform function prototypes declared in menu_private.h */
 
@@ -122,7 +128,7 @@ void EraseMenuBar(const Rect* menuBarRect)
     /* MENU_LOG_TRACE("Erasing menu bar rect (%d,%d,%d,%d)\n",
            eraseRect.left, eraseRect.top, eraseRect.right, eraseRect.bottom); */
 
-    /* TODO: Implement actual background fill */
+    FillRect(&eraseRect, &qd.white);
 }
 
 /*
@@ -154,7 +160,6 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
 {
     MenuHandle theMenu;
     unsigned char titleText[256];
-    short textWidth, textHeight;
     Rect textRect;
 
     if (titleRect == NULL) {
@@ -182,13 +187,11 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
     /* Set drawing colors based on hilite state */
     if (hilited) {
         /* Highlighted state - invert the title rect */
-        extern void InvertRect(const Rect* rect);
         InvertRect(titleRect);
 
         MENU_LOG_TRACE("Drew highlighted menu title: %.*s\n", titleLen, &titleText[1]);
     } else {
         /* Normal state - erase with white background first to unhighlight */
-        extern void EraseRect(const Rect* rect);
         EraseRect(titleRect);
 
         /* Then draw the text normally */
@@ -296,9 +299,7 @@ void HideMenu(void)
 
     /* MENU_LOG_TRACE("Hiding menu ID %d\n", (*(MenuInfo**)gCurrentlyShownMenu)->menuID); */
 
-    /* TODO: Show cursor again after menu is hidden */
-    /* extern void ShowCursor(void); */
-    /* ShowCursor(); */
+    ShowCursor();
 
     gCurrentlyShownMenu = NULL;
 }
@@ -309,27 +310,18 @@ void HideMenu(void)
 void DrawMenu(MenuHandle theMenu, const Rect* menuRect, short hiliteItem)
 {
     MENU_LOG_TRACE("DEBUG: DrawMenu (new) called with menuRect=%p, hiliteItem=%d\n", menuRect, hiliteItem);
-    MenuDrawInfo drawInfo;
+    Boolean cursorHidden = false;
 
     if (theMenu == NULL || menuRect == NULL) {
         return;
     }
 
-    /* Set up drawing info */
-    drawInfo.menu = theMenu;
-    drawInfo.menuRect = *menuRect;
-    drawInfo.drawFlags = kMenuDrawNormal;
-    drawInfo.hiliteItem = hiliteItem;
-    drawInfo.context = &gDrawingContext;
-    drawInfo.useColor = gColorMode;
-    drawInfo.antiAlias = gAntiAlias;
-
     /* Initialize drawing context */
     InitializeDrawingContext(&gDrawingContext);
 
-    /* TODO: Hide cursor while drawing menu to prevent Z-ordering issues */
-    /* extern void HideCursor(void); */
-    /* HideCursor(); */
+    /* Hide cursor while drawing menu to prevent Z-ordering issues */
+    HideCursor();
+    cursorHidden = true;
 
     /* Draw menu frame */
     DrawMenuFrame(menuRect, false);
@@ -368,6 +360,10 @@ void DrawMenu(MenuHandle theMenu, const Rect* menuRect, short hiliteItem)
 
     /* MENU_LOG_TRACE("Drew menu ID %d with %d items (hilite: %d)\n",
            (*(MenuInfo**)theMenu)->menuID, itemCount, hiliteItem); */
+
+    if (cursorHidden) {
+        ShowCursor();
+    }
 }
 
 /*
@@ -405,8 +401,15 @@ void DrawMenuItem(const MenuItemDrawInfo* drawInfo)
 {
     Rect textRect, iconRect, markRect, cmdRect;
     Boolean enabled, selected;
+    MenuHandle theMenu;
+    short menuID;
 
     if (drawInfo == NULL) {
+        return;
+    }
+
+    theMenu = drawInfo->menu;
+    if (theMenu == NULL) {
         return;
     }
 
@@ -414,8 +417,11 @@ void DrawMenuItem(const MenuItemDrawInfo* drawInfo)
     selected = (drawInfo->itemFlags & kMenuItemSelected) != 0;
 
     /* Calculate item component rectangles */
-    CalcMenuItemRects(drawInfo->menu, drawInfo->itemNum, &drawInfo->itemRect,
+    CalcMenuItemRects(theMenu, drawInfo->itemNum, &drawInfo->itemRect,
                      &textRect, &iconRect, &markRect, &cmdRect);
+
+    menuID = (*(MenuInfo**)theMenu)->menuID;
+    SetupMenuDrawingColors(menuID, drawInfo->itemNum);
 
     /* Check for separator */
     if (drawInfo->itemFlags & kMenuItemIsSeparator) {
@@ -425,8 +431,8 @@ void DrawMenuItem(const MenuItemDrawInfo* drawInfo)
 
     /* Draw selection background if selected */
     if (selected) {
-        /* TODO: Draw highlight background */
         /* MENU_LOG_TRACE("Drawing selected background for item %d\n", drawInfo->itemNum); */
+        FillRect(&drawInfo->itemRect, &qd.ltGray);
     }
 
     /* Draw item components */
@@ -518,13 +524,12 @@ void DrawMenuSeparator(const Rect* itemRect, short menuID)
 
     /* MENU_LOG_TRACE("Drawing separator line in menu %d\n", menuID); */
 
-    /* Draw separator line using gray color */
-    extern void ForeColor(long);
-    extern void FillRect(const Rect*);
+    (void)menuID;
 
-    ForeColor(8);  /* Gray color */
-    FillRect(&lineRect);
-    ForeColor(33);  /* Back to black */
+    PenNormal();
+    PenPat(&qd.gray);
+    PaintRect(&lineRect);
+    PenNormal();
 }
 
 /*
@@ -608,16 +613,47 @@ void CalcMenuItemRect(MenuHandle theMenu, short item, const Rect* menuRect,
 void MeasureMenuText(ConstStr255Param text, Style textStyle, short textSize,
                     short* width, short* height)
 {
+    GrafPtr savedPort = NULL;
+    short savedFont = 0;
+    short savedSize = 0;
+    UInt8 savedFace = 0;
+    short effectiveSize;
+
     if (text == NULL) {
         if (width) *width = 0;
         if (height) *height = 0;
         return;
     }
 
-    /* Simple text measurement - TODO: Implement proper text metrics */
-    short textLen = text[0];
-    if (width) *width = textLen * 6; /* Approximate character width */
-    if (height) *height = textSize > 0 ? textSize : 12; /* Default to 12pt */
+    effectiveSize = (textSize > 0) ? textSize : 12;
+
+    GetPort(&savedPort);
+    if (savedPort != NULL) {
+        savedFont = savedPort->txFont;
+        savedSize = savedPort->txSize;
+        savedFace = savedPort->txFace;
+    }
+
+    TextFont(chicagoFont);
+    TextSize(effectiveSize);
+    TextFace(textStyle);
+
+    if (width != NULL) {
+        *width = StringWidth(text);
+    }
+
+    if (height != NULL) {
+        FMetricRec metrics = {0};
+        GetFontMetrics(&metrics);
+        short computedHeight = (short)(metrics.ascent + metrics.descent + metrics.leading);
+        *height = computedHeight > 0 ? computedHeight : effectiveSize;
+    }
+
+    if (savedPort != NULL) {
+        TextFont(savedFont);
+        TextSize(savedSize);
+        TextFace(savedFace);
+    }
 }
 
 /*
@@ -638,13 +674,12 @@ short GetMenuItemHeight(MenuHandle theMenu, short item)
  */
 short GetMenuTitleWidth(MenuHandle theMenu)
 {
-    short titleLen, titleWidth;
+    short titleWidth;
 
     if (theMenu == NULL) {
         return 0;
     }
 
-    titleLen = (*(MenuInfo**)theMenu)->menuData[0];
     titleWidth = GetMenuItemTextWidth(&(*(MenuInfo**)theMenu)->menuData[0], normal);
 
     return titleWidth + 16; /* Add margins */
@@ -812,7 +847,15 @@ static void SetupMenuDrawingColors(short menuID, short itemID)
 
     GetMenuColors(menuID, itemID, 0, &foreColor, &backColor);
 
-    /* TODO: Set actual drawing colors */
+    (void)itemID;
+
+    if (gColorMode) {
+        RGBForeColor(&foreColor);
+        RGBBackColor(&backColor);
+    } else {
+        ForeColor(blackColor);
+        BackColor(whiteColor);
+    }
 }
 
 /*
@@ -824,7 +867,11 @@ static void DrawMenuFrameInternal(const Rect* menuRect, Boolean selected)
            menuRect->left, menuRect->top, menuRect->right, menuRect->bottom,
            selected ? "Yes" : "No"); */
 
-    /* TODO: Draw actual frame */
+    (void)selected;
+
+    PenNormal();
+    PenSize(1, 1);
+    FrameRect(menuRect);
 }
 
 /*
@@ -834,7 +881,9 @@ static void DrawMenuBackgroundInternal(const Rect* menuRect, short menuID)
 {
     /* MENU_LOG_TRACE("Drawing menu background for menu %d\n", menuID); */
 
-    /* TODO: Fill background */
+    (void)menuID;
+
+    FillRect(menuRect, &qd.white);
 }
 
 /*
@@ -843,24 +892,8 @@ static void DrawMenuBackgroundInternal(const Rect* menuRect, short menuID)
 static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param itemText,
                                    short textStyle, Boolean enabled, Boolean selected)
 {
-    short textLen = itemText[0];
-        extern void TextFont(short);
-    extern void TextSize(short);
-    extern void TextFace(Style);
-    extern short StringWidth(ConstStr255Param);
-    extern void DrawString(ConstStr255Param);
-    extern void MoveTo(short, short);
-    extern void InvertRect(const Rect* rect);
-
     /* MENU_LOG_TRACE("Drawing item text: %.*s (enabled=%s, selected=%s)\n",
-           textLen, &itemText[1], enabled ? "Yes" : "No", selected ? "Yes" : "No"); */
-
-    /* Draw menu title with highlighting if selected */
-    if (selected) {
-        /* Draw inverse video background for selected menu title */
-        InvertRect(itemRect);
-        MENU_LOG_TRACE("Highlighted menu title: %.*s\n", textLen, &itemText[1]);
-    }
+           itemText[0], &itemText[1], enabled ? "Yes" : "No", selected ? "Yes" : "No"); */
 
     /* Set font for menu items (Chicago 12pt) */
     TextFont(chicagoFont);
@@ -869,7 +902,6 @@ static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param item
 
     /* Set text color based on enabled state */
     if (!enabled) {
-        extern void ForeColor(long);
         ForeColor(8);  /* Gray color for disabled items */
     }
 
@@ -885,9 +917,10 @@ static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param item
 
     /* Restore black color if we changed it */
     if (!enabled) {
-        extern void ForeColor(long);
-        ForeColor(33);  /* Black */
+        ForeColor(blackColor);  /* Restore to black */
     }
+
+    (void)selected;
 }
 
 /*
@@ -900,6 +933,11 @@ static void DrawMenuItemIconInternal(const Rect* iconRect, short iconID,
            iconID, enabled ? "Yes" : "No", selected ? "Yes" : "No"); */
 
     /* TODO: Draw actual icon */
+
+    (void)iconRect;
+    (void)iconID;
+    (void)enabled;
+    (void)selected;
 }
 
 /*
@@ -908,10 +946,6 @@ static void DrawMenuItemIconInternal(const Rect* iconRect, short iconID,
 static void DrawMenuItemMarkInternal(const Rect* markRect, unsigned char markChar,
                                    Boolean enabled, Boolean selected)
 {
-    extern void MoveTo(short, short);
-    extern void TextFont(short);
-    extern void TextSize(short);
-    extern void ForeColor(long);
     Str255 markStr;
 
     /* MENU_LOG_TRACE("Drawing item mark '%c' (enabled=%s, selected=%s)\n",
@@ -938,13 +972,14 @@ static void DrawMenuItemMarkInternal(const Rect* markRect, unsigned char markCha
     /* Draw mark character (typically checkMark = 18) */
     markStr[0] = 1;
     markStr[1] = markChar;
-    extern void DrawString(ConstStr255Param);
     DrawString(markStr);
 
     /* Restore color */
     if (!enabled) {
-        ForeColor(33);  /* Black */
+        ForeColor(blackColor);  /* Restore to black */
     }
+
+    (void)selected;
 }
 
 /*
@@ -953,12 +988,6 @@ static void DrawMenuItemMarkInternal(const Rect* markRect, unsigned char markCha
 static void DrawMenuItemCmdKeyInternal(const Rect* cmdRect, unsigned char cmdChar,
                                      Boolean enabled, Boolean selected)
 {
-    extern void MoveTo(short, short);
-    extern void TextFont(short);
-    extern void TextSize(short);
-    extern void ForeColor(long);
-    extern void DrawString(ConstStr255Param);
-    extern short StringWidth(ConstStr255Param);
     Str255 cmdStr;
     short cmdWidth;
     char upperChar;
@@ -1014,8 +1043,10 @@ static void DrawMenuItemCmdKeyInternal(const Rect* cmdRect, unsigned char cmdCha
 
     /* Restore color */
     if (!enabled) {
-        ForeColor(33);  /* Black */
+        ForeColor(blackColor);  /* Restore to black */
     }
+
+    (void)selected;
 }
 
 /*
@@ -1087,12 +1118,36 @@ static short MeasureMenuItemWidth(MenuHandle theMenu, short item)
  */
 static short GetMenuItemTextWidth(ConstStr255Param text, Style textStyle)
 {
+    GrafPtr savedPort = NULL;
+    short savedFont = 0;
+    short savedSize = 0;
+    UInt8 savedFace = 0;
+    short width = 0;
+
     if (text == NULL) {
         return 0;
     }
 
-    /* Simple width calculation - TODO: Use proper text metrics */
-    return text[0] * 6; /* Approximate 6 pixels per character */
+    GetPort(&savedPort);
+    if (savedPort != NULL) {
+        savedFont = savedPort->txFont;
+        savedSize = savedPort->txSize;
+        savedFace = savedPort->txFace;
+    }
+
+    TextFont(chicagoFont);
+    TextSize(12);
+    TextFace(textStyle);
+
+    width = StringWidth(text);
+
+    if (savedPort != NULL) {
+        TextFont(savedFont);
+        TextSize(savedSize);
+        TextFace(savedFace);
+    }
+
+    return width;
 }
 
 /* ============================================================================
