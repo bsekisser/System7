@@ -546,37 +546,71 @@ void EndUpdate(WindowPtr theWindow) {
                 extern void* framebuffer;
                 extern uint32_t fb_width;
                 extern uint32_t fb_pitch;
+                extern uint32_t fb_height;
 
-                PixMap fbPixMap;
-                /* Offset framebuffer pointer to the window's top-left */
-                SInt16 dstTop = theWindow->port.portBits.bounds.top;
-                SInt16 dstLeft = theWindow->port.portBits.bounds.left;
-                uint8_t* fbBase = (uint8_t*)framebuffer + (size_t)dstTop * fb_pitch + (size_t)dstLeft * 4u;
-                fbPixMap.baseAddr = (Ptr)fbBase;
-                fbPixMap.rowBytes = (SInt16)(fb_pitch | 0x8000);  /* Set PixMap flag, preserve actual pitch */
-                fbPixMap.bounds = theWindow->port.portBits.bounds;
-                fbPixMap.pmVersion = 0;
-                fbPixMap.packType = 0;
-                fbPixMap.packSize = 0;
-                fbPixMap.hRes = 72 << 16;  /* 72 DPI in Fixed */
-                fbPixMap.vRes = 72 << 16;
-                fbPixMap.pixelType = 16;  /* Direct color */
-                fbPixMap.pixelSize = 32;  /* 32-bit ARGB */
-                fbPixMap.cmpCount = 3;    /* R, G, B */
-                fbPixMap.cmpSize = 8;     /* 8 bits per component */
-                fbPixMap.planeBytes = 0;
-                fbPixMap.pmTable = NULL;
-                fbPixMap.pmReserved = 0;
+                /* Clamp destination rectangle to visible framebuffer region and adjust source accordingly */
+                Rect clippedDst = dstRect;
+                if (clippedDst.left < 0) clippedDst.left = 0;
+                if (clippedDst.top < 0) clippedDst.top = 0;
+                if (clippedDst.right > (SInt16)fb_width) clippedDst.right = (SInt16)fb_width;
+                if (clippedDst.bottom > (SInt16)fb_height) clippedDst.bottom = (SInt16)fb_height;
 
-                serial_logf(kLogModuleWindow, kLogLevelDebug,
-                           "[COPYBITS] src=(%d,%d,%d,%d) dst=(%d,%d,%d,%d)\n",
-                           srcRect.left, srcRect.top, srcRect.right, srcRect.bottom,
-                           dstRect.left, dstRect.top, dstRect.right, dstRect.bottom);
+                /* Calculate adjustments between original and clipped rectangles */
+                SInt16 deltaLeft = clippedDst.left - dstRect.left;
+                SInt16 deltaTop = clippedDst.top - dstRect.top;
+                SInt16 deltaRight = dstRect.right - clippedDst.right;
+                SInt16 deltaBottom = dstRect.bottom - clippedDst.bottom;
 
-                CopyBits((BitMap*)(*gwPixMap), (BitMap*)&fbPixMap,
-                        &srcRect, &dstRect, srcCopy, NULL);
+                /* Apply adjustments to source rectangle to keep content aligned */
+                srcRect.left += deltaLeft;
+                srcRect.top += deltaTop;
+                srcRect.right -= deltaRight;
+                srcRect.bottom -= deltaBottom;
 
-                serial_logf(kLogModuleWindow, kLogLevelDebug, "[COPYBITS] Done\n");
+                Boolean canBlit = true;
+                if (clippedDst.left >= clippedDst.right || clippedDst.top >= clippedDst.bottom ||
+                    srcRect.left >= srcRect.right || srcRect.top >= srcRect.bottom) {
+                    serial_logf(kLogModuleWindow, kLogLevelDebug,
+                                "[COPYBITS] Skipped blit: clipped dst=(%d,%d,%d,%d) src=(%d,%d,%d,%d)\n",
+                                clippedDst.left, clippedDst.top, clippedDst.right, clippedDst.bottom,
+                                srcRect.left, srcRect.top, srcRect.right, srcRect.bottom);
+                    canBlit = false;
+                }
+
+                if (canBlit) {
+                    dstRect = clippedDst;
+
+                    PixMap fbPixMap;
+                    /* Offset framebuffer pointer to the window's top-left */
+                    SInt16 dstTop = dstRect.top;
+                    SInt16 dstLeft = dstRect.left;
+                    uint8_t* fbBase = (uint8_t*)framebuffer + (size_t)dstTop * fb_pitch + (size_t)dstLeft * 4u;
+                    fbPixMap.baseAddr = (Ptr)fbBase;
+                    fbPixMap.rowBytes = (SInt16)(fb_pitch | 0x8000);  /* Set PixMap flag, preserve actual pitch */
+                    fbPixMap.bounds = theWindow->port.portBits.bounds;
+                    fbPixMap.pmVersion = 0;
+                    fbPixMap.packType = 0;
+                    fbPixMap.packSize = 0;
+                    fbPixMap.hRes = 72 << 16;  /* 72 DPI in Fixed */
+                    fbPixMap.vRes = 72 << 16;
+                    fbPixMap.pixelType = 16;  /* Direct color */
+                    fbPixMap.pixelSize = 32;  /* 32-bit ARGB */
+                    fbPixMap.cmpCount = 3;    /* R, G, B */
+                    fbPixMap.cmpSize = 8;     /* 8 bits per component */
+                    fbPixMap.planeBytes = 0;
+                    fbPixMap.pmTable = NULL;
+                    fbPixMap.pmReserved = 0;
+
+                    serial_logf(kLogModuleWindow, kLogLevelDebug,
+                               "[COPYBITS] src=(%d,%d,%d,%d) dst=(%d,%d,%d,%d)\n",
+                               srcRect.left, srcRect.top, srcRect.right, srcRect.bottom,
+                               dstRect.left, dstRect.top, dstRect.right, dstRect.bottom);
+
+                    CopyBits((BitMap*)(*gwPixMap), (BitMap*)&fbPixMap,
+                            &srcRect, &dstRect, srcCopy, NULL);
+
+                    serial_logf(kLogModuleWindow, kLogLevelDebug, "[COPYBITS] Done\n");
+                }
 
                 UnlockPixels(gwPixMap);
 
@@ -585,7 +619,9 @@ void EndUpdate(WindowPtr theWindow) {
                 /* CRITICAL: Set PixMap flag (bit 15) to indicate this is a 32-bit PixMap, not 1-bit BitMap */
                 theWindow->port.portBits.rowBytes = (fb_width * 4) | 0x8000;
 
-                WM_DEBUG("EndUpdate: Offscreen buffer copied to screen");
+                if (canBlit) {
+                    WM_DEBUG("EndUpdate: Offscreen buffer copied to screen");
+                }
             }
         }
     }
