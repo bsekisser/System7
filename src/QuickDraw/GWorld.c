@@ -127,6 +127,7 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
         memset(pixelBuffer, 0, bufferSize);
     }
     pm->baseAddr = pixelBuffer;
+    pm->pmReserved = bufferSize;  /* Track allocated buffer size in bytes */
 
     /* Attach PixMap to port */
     gworld->portPixMap = pmHandle;

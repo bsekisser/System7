@@ -22,6 +22,16 @@
 #define BLOCK_MAGIC_FREE       0xFEEEFEEE  /* "FREE" */
 #define FREENODE_MAGIC         0xF4EE1157  /* "FREELIST" */
 
+/* Optional debug canary to detect Ptr buffer overruns */
+#define MEM_DEBUG_CANARY 1
+#if MEM_DEBUG_CANARY
+#define CANARY_SIZE 8u
+#define CANARY_BYTE 0xABu
+#else
+#define CANARY_SIZE 0u
+#define CANARY_BYTE 0u
+#endif
+
 static inline u32 align_up(u32 n) {
     return (n + (ALIGN-1)) & ~(ALIGN-1);
 }
@@ -143,6 +153,20 @@ static void freelist_unlink_node_sc(ZoneInfo* z, u32 sc, FreeNode* n) {
 /* Validate block header integrity */
 static inline bool validate_block(ZoneInfo* z, BlockHeader* b) {
     extern void serial_puts(const char* str);
+    /* Local helpers for on-demand hex dumping without printf */
+    auto void dump_u32_hex(u32 v) {
+        mm_print_hex(v);
+    }
+    auto void dump_bytes(const u8* p, u32 len) {
+        for (u32 i = 0; i < len; i++) {
+            u8 byte = p[i];
+            const char hex[] = "0123456789ABCDEF";
+            serial_putchar(hex[(byte >> 4) & 0xF]);
+            serial_putchar(hex[byte & 0xF]);
+            if ((i & 0xF) == 0xF) serial_putchar(' ');
+        }
+        serial_putchar('\n');
+    }
 
     if (!b || !z) {
         serial_puts("[HEAP] validate_block: NULL block or zone\n");
@@ -172,7 +196,8 @@ static inline bool validate_block(ZoneInfo* z, BlockHeader* b) {
         mm_print_hex(b->size);
         serial_puts(" ptr=0x");
         mm_print_hex((u32)(uintptr_t)bptr);
-        serial_puts("\n");
+        serial_puts(" hdr= ");
+        dump_bytes((const u8*)b, 32);
         return false;
     }
 
@@ -184,7 +209,8 @@ static inline bool validate_block(ZoneInfo* z, BlockHeader* b) {
         mm_print_hex((u32)(uintptr_t)bptr);
         serial_puts(" zoneLimit=0x");
         mm_print_hex((u32)(uintptr_t)z->limit);
-        serial_puts("\n");
+        serial_puts(" hdr= ");
+        dump_bytes((const u8*)b, 32);
         return false;
     }
 
@@ -194,7 +220,8 @@ static inline bool validate_block(ZoneInfo* z, BlockHeader* b) {
         mm_print_hex(b->size);
         serial_puts(" ptr=0x");
         mm_print_hex((u32)(uintptr_t)bptr);
-        serial_puts("\n");
+        serial_puts(" hdr= ");
+        dump_bytes((const u8*)b, 32);
         return false;
     }
 
@@ -204,7 +231,8 @@ static inline bool validate_block(ZoneInfo* z, BlockHeader* b) {
         mm_print_hex(b->prevSize);
         serial_puts(" ptr=0x");
         mm_print_hex((u32)(uintptr_t)bptr);
-        serial_puts("\n");
+        serial_puts(" hdr= ");
+        dump_bytes((const u8*)b, 32);
         return false;
     }
 
@@ -520,7 +548,9 @@ void InitZone(ZoneInfo* zone, void* memory, u32 size, void** masterTable, u32 ma
 
     /* Create one big free block spanning the zone */
     BlockHeader* b = (BlockHeader*)zone->base;
-    b->size = align_up(size);
+    /* Align DOWN to ensure the block fits within the zone */
+    u32 total = size & ~(ALIGN - 1);
+    b->size = total;
     b->flags = BF_FREE;
     b->prevSize = 0;
     b->masterPtr = NULL;
@@ -531,8 +561,9 @@ void InitZone(ZoneInfo* zone, void* memory, u32 size, void** masterTable, u32 ma
     n->next = n->prev = n;
     zone->freelists[sc] = n;
 
-    zone->bytesFree = size - BLKHDR_SZ;
-    zone->bytesUsed = BLKHDR_SZ;
+    /* Track metrics: nothing allocated yet */
+    zone->bytesFree = total;
+    zone->bytesUsed = 0;
 
     /* Master pointer table */
     zone->mpBase = masterTable;
@@ -791,7 +822,7 @@ void* NewPtr(u32 byteCount) {
         return NULL;
     }
 
-    u32 need = align_up(byteCount + BLKHDR_SZ);
+    u32 need = align_up(byteCount + BLKHDR_SZ + CANARY_SIZE);
 
     /* Enforce minimum block size to ensure blocks can be freed */
     if (need < MIN_BLOCK_SIZE) {
@@ -818,6 +849,17 @@ void* NewPtr(u32 byteCount) {
     z->bytesFree -= b->size;
 
     void* result = (u8*)b + BLKHDR_SZ;
+
+#if MEM_DEBUG_CANARY
+    /* Stash canary size in reserved field and write tail canary pattern */
+    b->reserved = (u16)CANARY_SIZE;
+    if (CANARY_SIZE) {
+        u8* user = (u8*)result;
+        for (u32 i = 0; i < CANARY_SIZE; i++) {
+            user[byteCount + i] = (u8)CANARY_BYTE;
+        }
+    }
+#endif
 
 #if 1
     uintptr_t addr = (uintptr_t)result;
@@ -876,6 +918,28 @@ void DisposePtr(void* p) {
         return;
     }
 
+#if MEM_DEBUG_CANARY
+    /* Verify tail canary if present */
+    if (b->reserved) {
+        u32 total = b->size - BLKHDR_SZ;
+        if (b->reserved <= total) {
+            u32 userSize = total - (u32)b->reserved;
+            u8* user = (u8*)p;
+            bool ok = true;
+            for (u32 i = 0; i < (u32)b->reserved; i++) {
+                if (user[userSize + i] != (u8)CANARY_BYTE) { ok = false; break; }
+            }
+            if (!ok) {
+                serial_puts("[DISPOSE] ERROR: Tail canary corrupted for block at 0x");
+                mm_print_hex((u32)(uintptr_t)b);
+                serial_puts(" size=0x");
+                mm_print_hex(b->size);
+                serial_putchar('\n');
+            }
+        }
+    }
+#endif
+
     b->flags &= ~(BF_PTR);
     z->bytesUsed -= b->size;
     z->bytesFree += b->size;
@@ -913,7 +977,13 @@ void DisposePtr(void* p) {
 u32 GetPtrSize(void* p) {
     if (!p) return 0;
     BlockHeader* b = (BlockHeader*)((u8*)p - BLKHDR_SZ);
-    return b->size - BLKHDR_SZ;
+    u32 total = b->size - BLKHDR_SZ;
+#if MEM_DEBUG_CANARY
+    if (b->reserved && b->reserved <= total) {
+        total -= (u32)b->reserved;
+    }
+#endif
+    return total;
 }
 
 /* ======================== Handle Operations ======================== */
@@ -1153,6 +1223,8 @@ u32 CompactMem(u32 cbNeeded) {
     /* Then compact: move unlocked handles together */
     u8* scan = z->base;
     u8* dest = z->base;
+    /* Track size of the last block that ends at 'dest' to maintain prevSize */
+    u32 last_block_size = 0;
 
     // MEMORY_LOG_DEBUG("[CompactMem] Starting heap walk from %p to %p\n", scan, z->limit);
     int block_count = 0;
@@ -1200,6 +1272,7 @@ u32 CompactMem(u32 cbNeeded) {
                 }
 
                 dest += d->size;
+                last_block_size = d->size;
                 scan += b->size;
                 continue;
             }
@@ -1216,14 +1289,21 @@ u32 CompactMem(u32 cbNeeded) {
                 BlockHeader* fb = (BlockHeader*)dest;
                 fb->size = aligned_gap;
                 fb->flags = BF_FREE;
-                fb->prevSize = (dest > z->base) ?
-                    ((BlockHeader*)(dest - ((BlockHeader*)(scan))->prevSize))->size : 0;
+                /* Set prevSize to size of block that ends at 'dest' */
+                fb->prevSize = (dest > z->base) ? last_block_size : 0;
                 fb->masterPtr = NULL;
                 freelist_insert(z, fb);
+
+                /* The next block at 'scan' now follows 'fb'; fix its prevSize */
+                BlockHeader* next_block = (BlockHeader*)scan;
+                next_block->prevSize = fb->size;
+
+                /* Note: do not advance 'dest' here; we leave a gap and keep 'scan' at b */
             }
         }
 
         dest = scan + b->size;
+        last_block_size = b->size;
         scan = dest;
     }
 
@@ -1236,8 +1316,8 @@ u32 CompactMem(u32 cbNeeded) {
             BlockHeader* tail = (BlockHeader*)dest;
             tail->flags = BF_FREE;
             tail->size = aligned_remaining;
-            tail->prevSize = dest > z->base ?
-                ((BlockHeader*)(dest - BLKHDR_SZ))->size : 0;
+            /* Set prevSize based on the last committed block size */
+            tail->prevSize = (dest > z->base) ? last_block_size : 0;
             tail->masterPtr = NULL;
             freelist_insert(z, tail);
         }

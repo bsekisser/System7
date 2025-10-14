@@ -618,11 +618,31 @@ static void CopyBitsUnscaled(const BitMap *srcBits, const BitMap *dstBits,
             for (SInt16 line = 0; line < height; line++) {
                 SInt16 srcOffsetY = (srcRect->top + line - srcBits->bounds.top);
                 SInt16 dstOffsetY = (dstRect->top + line - dstBits->bounds.top);
-                UInt8 *srcRow = srcBase + srcOffsetY * srcRowBytes +
-                                (srcRect->left - srcBits->bounds.left) * 4;
-                UInt8 *dstRow = dstBase + dstOffsetY * dstRowBytes +
-                                (dstRect->left - dstBits->bounds.left) * 4;
-                memcpy(dstRow, srcRow, width * 4);
+                UInt32 srcStart = (UInt32)srcOffsetY * (UInt32)srcRowBytes +
+                                  (UInt32)(srcRect->left - srcBits->bounds.left) * 4u;
+                UInt32 dstStart = (UInt32)dstOffsetY * (UInt32)dstRowBytes +
+                                  (UInt32)(dstRect->left - dstBits->bounds.left) * 4u;
+                UInt32 copyBytes = (UInt32)width * 4u;
+
+                /* Bounds safety: if pmReserved holds buffer size, clamp copy */
+                UInt32 srcLimit = srcPm->pmReserved ? (UInt32)srcPm->pmReserved
+                                 : (UInt32)(GetPixMapRowBytes(srcPm)) * (UInt32)(srcBits->bounds.bottom - srcBits->bounds.top);
+                UInt32 dstLimit = dstPm->pmReserved ? (UInt32)dstPm->pmReserved
+                                 : (UInt32)(GetPixMapRowBytes(dstPm)) * (UInt32)(dstBits->bounds.bottom - dstBits->bounds.top);
+                if (srcStart + copyBytes > srcLimit) {
+                    if (srcStart >= srcLimit) continue; /* skip line if entirely out */
+                    copyBytes = srcLimit - srcStart;
+                }
+                if (dstStart + copyBytes > dstLimit) {
+                    if (dstStart >= dstLimit) continue; /* skip line if entirely out */
+                    copyBytes = dstLimit - dstStart;
+                }
+
+                UInt8 *srcRow = srcBase + srcStart;
+                UInt8 *dstRow = dstBase + dstStart;
+                if (copyBytes > 0) {
+                    memcpy(dstRow, srcRow, copyBytes);
+                }
             }
             return;
         }
