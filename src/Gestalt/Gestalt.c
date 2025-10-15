@@ -21,11 +21,18 @@ static void gestalt_print_hex(uint32_t value) {
     }
 }
 
-/* Static table for Gestalt entries - no dynamic allocation */
+/* Static table for Gestalt entries.
+ * ---------------------------------
+ * Mirrors the ROM’s global selector table: once a selector is installed it
+ * stays resident for the life of the system.  We deliberately keep this
+ * fixed-size and heap-free, because the ROM never freed entries either. */
 static GestaltEntry gTable[GESTALT_MAX_ENTRIES];
 static Boolean gInitialized = false;
 
-/* Helper: Find index of selector in table */
+/* Helper: Find index of selector in table.
+ * ---------------------------------------
+ * Linear scan is fine – the real System 7 typically registered fewer than 40
+ * selectors. */
 static SInt32 find_index(OSType selector) {
     SInt32 i;
 
@@ -38,7 +45,8 @@ static SInt32 find_index(OSType selector) {
     return -1;  /* Not found */
 }
 
-/* Helper: Find free slot in table */
+/* Helper: First-fit free slot search.  The ROM’s GestaltGlue code behaved the
+ * same way, so we inherit the behaviour (keeping the table densely packed). */
 static SInt32 find_free_slot(void) {
     SInt32 i;
 

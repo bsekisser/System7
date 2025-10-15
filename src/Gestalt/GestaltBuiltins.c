@@ -8,7 +8,9 @@
 #include "Gestalt/Gestalt.h"
 #include "Gestalt/GestaltPriv.h"
 
-/* Define selector constants using canonical FOURCC */
+/* Define selector constants using canonical FOURCC. The ROM stored these as
+ * four-byte ASCII codes; keeping the character spelling here aids cross-
+ * referencing with Inside Macintosh docs. */
 static const OSType kSel_sysv = FOURCC('s','y','s','v');
 static const OSType kSel_qtim = FOURCC('q','t','i','m');
 static const OSType kSel_rsrc = FOURCC('r','s','r','c');
@@ -29,7 +31,11 @@ void Gestalt_SetInitBit(int bit) {
     }
 }
 
-/* Architecture-agnostic FPU detection */
+/* Architecture-agnostic FPU detection
+ * -------------------------------
+ * Classic System 7 would poke 68k coprocessor state; on modern hardware we
+ * have to probe per CPU family.  We avoid libc and only touch registers that
+ * are architecturally safe in freestanding mode. */
 static int probe_fpu_present(void) {
 #if defined(__x86_64__) || defined(__i386__)
     /* CPUID leaf 1, EDX bit 0 (x87 FPU) */
@@ -123,12 +129,8 @@ static OSErr gestalt_rsrc(long *response) {
 static OSErr gestalt_mach(long *response) {
     if (!response) return paramErr;
 
-    /* Machine family codes:
-     * 0x0086 = x86/x64
-     * 0x00AA = ARM/AArch64
-     * 0x00B5 = RISC-V
-     * 0x0050 = PowerPC (P=0x50)
-     */
+    /* Machine family codes (mirrors gestaltMachineType examples documented in
+     * Inside Macintosh, extended for our additional ports). */
 #if defined(__x86_64__) || defined(__i386__)
     *response = 0x0086;  /* x86 family */
 #elif defined(__aarch64__) || defined(__arm__)
@@ -148,7 +150,8 @@ static OSErr gestalt_mach(long *response) {
 static OSErr gestalt_proc(long *response) {
     if (!response) return paramErr;
 
-    /* Processor subtype codes:
+    /* Processor subtype codes mirror the values the Finder expects (cf. TN
+     * Gestalt Manager).
      * x86: 0x0300 (i386), 0x0600 (i686), 0x8664 (x86_64)
      * ARM: 0x0700 (ARMv7)
      * AArch64: 0x0A64
