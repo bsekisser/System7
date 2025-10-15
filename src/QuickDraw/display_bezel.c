@@ -50,6 +50,11 @@ void QD_DrawCRTBezel(void) {
     const double radiusY = centerY;
     const uint32_t black = 0xFF000000;
 
+    int rimThickness = (fb_height >= 90) ? (int)(fb_height / 90) : 4;
+    if (rimThickness < 4) {
+        rimThickness = 4;
+    }
+
     for (uint32_t y = 0; y < fb_height; ++y) {
         double normY = (y - centerY) / radiusY;
         double maxNormX = superellipse_limit(normY);
@@ -58,23 +63,67 @@ void QD_DrawCRTBezel(void) {
         int rightBound = (int)(centerX + interiorHalfWidth);
 
         if (interiorHalfWidth <= 0) {
-            /* Entire row outside superellipse, paint whole row black */
+            uint32_t* row = fb + y * pitchPixels;
+            int edgeDistanceY = (y < (uint32_t)rimThickness)
+                                  ? (int)y
+                                  : (int)(fb_height - 1 - y);
+            if (edgeDistanceY >= rimThickness) {
+                continue;
+            }
             for (uint32_t x = 0; x < fb_width; ++x) {
-                fb[y * pitchPixels + x] = black;
+                row[x] = black;
             }
             continue;
         }
 
-        if (leftBound < 0) leftBound = 0;
-        if (rightBound >= (int)fb_width) rightBound = fb_width - 1;
+        if (leftBound < 0) {
+            leftBound = 0;
+        }
+        if (rightBound >= (int)fb_width) {
+            rightBound = (int)fb_width - 1;
+        }
 
         uint32_t* row = fb + y * pitchPixels;
 
         for (int x = 0; x < leftBound; ++x) {
-            row[x] = black;
+            int distLeft = x;
+            int distRight = (int)fb_width - 1 - x;
+            int distTop = (int)y;
+            int distBottom = (int)fb_height - 1 - (int)y;
+            int edgeDist = distLeft;
+            if (distRight < edgeDist) edgeDist = distRight;
+            if (distTop < edgeDist) edgeDist = distTop;
+            if (distBottom < edgeDist) edgeDist = distBottom;
+            if (edgeDist < rimThickness) {
+                row[x] = black;
+            }
         }
         for (int x = rightBound + 1; x < (int)fb_width; ++x) {
-            row[x] = black;
+            int distLeft = x;
+            int distRight = (int)fb_width - 1 - x;
+            int distTop = (int)y;
+            int distBottom = (int)fb_height - 1 - (int)y;
+            int edgeDist = distLeft;
+            if (distRight < edgeDist) edgeDist = distRight;
+            if (distTop < edgeDist) edgeDist = distTop;
+            if (distBottom < edgeDist) edgeDist = distBottom;
+            if (edgeDist < rimThickness) {
+                row[x] = black;
+            }
+        }
+
+        if ((int)y < rimThickness || (int)(fb_height - 1 - y) < rimThickness) {
+            for (int x = leftBound; x <= rightBound; ++x) {
+                if (x < 0 || x >= (int)fb_width) {
+                    continue;
+                }
+                int distTop = (int)y;
+                int distBottom = (int)fb_height - 1 - (int)y;
+                int edgeDist = (distTop < distBottom) ? distTop : distBottom;
+                if (edgeDist < rimThickness) {
+                    row[x] = black;
+                }
+            }
         }
     }
 }
