@@ -185,6 +185,12 @@ extern SInt32 TE_FindWordBoundary(TEHandle hTE, SInt32 offset, Boolean forward);
 extern SInt32 TE_FindLineStart(TEHandle hTE, SInt32 offset);
 extern SInt32 TE_FindLineEnd(TEHandle hTE, SInt32 offset);
 
+/* Application helper entry points (SimpleText shell) */
+void TextEdit_InitApp(void);
+Boolean TextEdit_IsRunning(void);
+void TextEdit_HandleEvent(EventRecord* event);
+void TextEdit_LoadFile(const char* path);
+
 #ifdef __cplusplus
 }
 #endif

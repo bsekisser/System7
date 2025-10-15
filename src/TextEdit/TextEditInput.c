@@ -33,6 +33,7 @@ typedef struct TEExtRec {
     SInt16      clickCount;     /* Click count */
     SInt16      viewDH;         /* Horizontal scroll */
     SInt16      viewDV;         /* Vertical scroll */
+    Boolean     autoViewEnabled;/* Auto-scroll flag */
 } TEExtRec;
 
 typedef TEExtRec *TEExtPtr, **TEExtHandle;
@@ -272,7 +273,6 @@ static void TE_TrackMouse(TEHandle hTE, Point startPt) {
     TEExtPtr pTE;
     Point pt;
     SInt32 offset;
-    EventRecord event;
 
     if (!hTE) return;
 
@@ -324,7 +324,6 @@ static void TE_HandleArrowKey(TEHandle hTE, CharParameter key, Boolean shift,
                               Boolean option, Boolean command) {
     TEExtPtr pTE;
     SInt32 newPos;
-    char *pText;
 
     HLock((Handle)hTE);
     pTE = (TEExtPtr)*hTE;

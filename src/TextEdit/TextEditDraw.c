@@ -34,6 +34,7 @@ typedef struct TEExtRec {
     SInt16      clickCount;     /* Click count */
     SInt16      viewDH;         /* Horizontal scroll */
     SInt16      viewDV;         /* Vertical scroll */
+    Boolean     autoViewEnabled;/* Auto-scroll flag */
 } TEExtRec;
 
 typedef TEExtRec *TEExtPtr, **TEExtHandle;
@@ -62,7 +63,6 @@ extern void DrawText(const void *text, SInt16 firstByte, SInt16 byteCount);
 /* Forward declarations */
 static void TE_DrawLineSegment(TEHandle hTE, SInt32 start, SInt32 end,
                                SInt16 x, SInt16 y, Boolean selected);
-static void TE_GetLineRect(TEHandle hTE, SInt32 lineNum, Rect *lineRect);
 static SInt16 TE_MeasureText(TEHandle hTE, SInt32 start, SInt32 length);
 
 /* ============================================================================
@@ -74,7 +74,7 @@ static SInt16 TE_MeasureText(TEHandle hTE, SInt32 start, SInt32 length);
  */
 void TEUpdate(const Rect *updateRect, TEHandle hTE) {
     TEExtPtr pTE;
-    Rect clipRect, lineRect;
+    Rect clipRect;
     SInt32 lineNum;
     SInt16 y;
     GrafPtr savedPort;
@@ -595,16 +595,4 @@ static SInt16 TE_MeasureText(TEHandle hTE, SInt32 start, SInt32 length) {
     HUnlock((Handle)hTE);
 
     return width;
-}
-
-/*
- * TE_GetLineRect - Get rectangle for a line
- */
-static void TE_GetLineRect(TEHandle hTE, SInt32 lineNum, Rect *lineRect) {
-    TEExtPtr pTE = (TEExtPtr)*hTE;
-
-    lineRect->left = pTE->base.viewRect.left;
-    lineRect->right = pTE->base.viewRect.right;
-    lineRect->top = pTE->base.viewRect.top + lineNum * pTE->base.lineHeight - pTE->viewDV;
-    lineRect->bottom = lineRect->top + pTE->base.lineHeight;
 }

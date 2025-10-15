@@ -40,7 +40,6 @@ static void UpdateStyleMenu(void);
  * Menus are installed when the app's window becomes active, and removed when inactive.
  */
 void STMenu_Init(void) {
-    Handle menuBar;
     extern void serial_puts(const char*);
 
     serial_puts("[ST] STMenu_Init: Creating menus (not yet installing)\n");

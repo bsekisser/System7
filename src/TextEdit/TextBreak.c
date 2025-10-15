@@ -33,6 +33,7 @@ typedef struct TEExtRec {
     SInt16      clickCount;     /* Click count */
     SInt16      viewDH;         /* Horizontal scroll */
     SInt16      viewDV;         /* Vertical scroll */
+    Boolean     autoViewEnabled;/* Auto-scroll flag */
 } TEExtRec;
 
 typedef TEExtRec *TEExtPtr, **TEExtHandle;
@@ -52,7 +53,6 @@ typedef TEExtRec *TEExtPtr, **TEExtHandle;
 
 /* Forward declarations */
 static SInt32 TE_FindBreakPoint(TEHandle hTE, SInt32 start, SInt32 end, SInt16 maxWidth);
-static SInt16 TE_MeasureTextSegment(TEHandle hTE, SInt32 start, SInt32 length);
 static Boolean TE_IsBreakChar(char ch);
 static SInt16 TE_GetTabStop(TEHandle hTE, SInt16 currentX);
 
@@ -234,48 +234,6 @@ static SInt32 TE_FindBreakPoint(TEHandle hTE, SInt32 start, SInt32 end, SInt16 m
  * ============================================================================ */
 
 /*
- * TE_MeasureTextSegment - Measure width of text segment
- */
-static SInt16 TE_MeasureTextSegment(TEHandle hTE, SInt32 start, SInt32 length) {
-    TEExtPtr pTE;
-    char *pText;
-    SInt16 width;
-    SInt32 pos;
-
-    if (length <= 0) return 0;
-
-    HLock((Handle)hTE);
-    pTE = (TEExtPtr)*hTE;
-
-    /* Set font for measurement */
-    TextFont(pTE->base.txFont);
-    TextSize(pTE->base.txSize);
-    TextFace(pTE->base.txFace);
-
-    HLock(pTE->base.hText);
-    pText = *pTE->base.hText;
-
-    /* Handle tabs specially */
-    width = 0;
-    for (pos = start; pos < start + length; pos++) {
-        if (pText[pos] == '\t') {
-            width = TE_GetTabStop(hTE, width);
-        } else {
-            width += CharWidth(pText[pos]);
-        }
-    }
-
-    HUnlock(pTE->base.hText);
-    HUnlock((Handle)hTE);
-
-    return width;
-}
-
-/* ============================================================================
- * Tab Handling
- * ============================================================================ */
-
-/*
  * TE_GetTabStop - Get next tab stop position
  */
 static SInt16 TE_GetTabStop(TEHandle hTE, SInt16 currentX) {
@@ -286,9 +244,15 @@ static SInt16 TE_GetTabStop(TEHandle hTE, SInt16 currentX) {
     HLock((Handle)hTE);
     pTE = (TEExtPtr)*hTE;
 
-    /* Calculate tab width in pixels */
-    /* Assume average char width for Chicago 12 is about 7 pixels */
-    tabWidth = TAB_WIDTH * 7;
+    /* Calculate tab width based on current font metrics */
+    TextFont(pTE->base.txFont);
+    TextSize(pTE->base.txSize);
+    TextFace(pTE->base.txFace);
+
+    tabWidth = CharWidth(' ') * TAB_WIDTH;
+    if (tabWidth <= 0) {
+        tabWidth = TAB_WIDTH * 7;  /* Fallback spacing */
+    }
 
     /* Find next tab stop */
     nextStop = ((currentX / tabWidth) + 1) * tabWidth;

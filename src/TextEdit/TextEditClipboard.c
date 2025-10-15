@@ -34,6 +34,7 @@ typedef struct TEExtRec {
     SInt16      clickCount;     /* Click count */
     SInt16      viewDH;         /* Horizontal scroll */
     SInt16      viewDV;         /* Vertical scroll */
+    Boolean     autoViewEnabled;/* Auto-scroll flag */
 } TEExtRec;
 
 typedef TEExtRec *TEExtPtr, **TEExtHandle;
@@ -130,7 +131,6 @@ void TECopy(TEHandle hTE) {
  */
 void TEPaste(TEHandle hTE) {
     TEExtPtr pTE;
-    Handle scrapHandle;
     SInt32 scrapSize;
     char *scrapData;
 
@@ -146,6 +146,9 @@ void TEPaste(TEHandle hTE) {
     }
 
     TEC_LOG("TEPaste: pasting at %d\n", pTE->base.selStart);
+
+    /* Ensure scrap is populated from system clipboard if needed */
+    TE_GetFromScrap(hTE);
 
     /* Get text from scrap */
     if (g_TEScrap) {
@@ -197,7 +200,6 @@ void TEStylePaste(TEHandle hTE) {
  * TEFromScrap - Load TextEdit scrap from system scrap
  */
 OSErr TEFromScrap(void) {
-    Handle textHandle;
     long scrapSize;
     long bytesRead;
     OSErr err;
@@ -208,6 +210,10 @@ OSErr TEFromScrap(void) {
     if (g_TEScrap) {
         DisposeHandle(g_TEScrap);
         g_TEScrap = NULL;
+    }
+    if (g_TEStyleScrap) {
+        DisposeHandle(g_TEStyleScrap);
+        g_TEStyleScrap = NULL;
     }
 
     /* Get TEXT from scrap */
@@ -328,6 +334,10 @@ static OSErr TE_CopyToScrap(TEHandle hTE) {
     /* TODO: Copy style information if styled */
     if (pTE->hStyles) {
         /* Create style scrap */
+        if (g_TEStyleScrap) {
+            DisposeHandle(g_TEStyleScrap);
+            g_TEStyleScrap = NULL;
+        }
     }
 
     HUnlock((Handle)hTE);

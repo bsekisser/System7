@@ -110,9 +110,6 @@ void SimpleText_Run(void) {
  * SimpleText_HandleEvent - Main event dispatcher
  */
 void SimpleText_HandleEvent(EventRecord* event) {
-    WindowPtr window;
-    short part;
-
     /* Check if this is a dialog event first */
     if (IsDialogEvent(event)) {
         /* Let Dialog Manager handle it */

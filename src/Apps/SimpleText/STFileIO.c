@@ -15,7 +15,6 @@ Boolean STIO_ReadFile(STDocument* doc, const char* path)
 {
     Handle textHandle = NULL;
     SInt32 fileSize;
-    char* buffer = NULL;
     Boolean result = false;
 
     ST_Log("STIO_ReadFile: %s", path);

@@ -325,7 +325,6 @@ void STView_UpdateCaret(STDocument* doc) {
  * ApplyStyleToSelection - Apply text style to current selection
  */
 static void ApplyStyleToSelection(STDocument* doc, SInt16 font, SInt16 size, Style style) {
-    TextStyle theStyle;
     SInt16 selStart, selEnd;
 
     if (!doc || !doc->hTE) return;

@@ -7,6 +7,7 @@
 #include "TextEdit/TextEdit.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "QuickDraw/QuickDraw.h"
+#include "FontManager/FontManager.h"
 
 /* Forward declarations */
 extern void InvalRect(const Rect* r);
@@ -34,6 +35,7 @@ typedef struct TEExtRec {
     SInt16      clickCount;     /* Click count */
     SInt16      viewDH;         /* Horizontal scroll */
     SInt16      viewDV;         /* Vertical scroll */
+    Boolean     autoViewEnabled;/* Auto-scroll flag */
 } TEExtRec;
 
 typedef TEExtRec *TEExtPtr, **TEExtHandle;
@@ -235,6 +237,7 @@ void TEPinScroll(SInt16 dh, SInt16 dv, TEHandle hTE) {
  */
 void TEAutoView(Boolean autoView, TEHandle hTE) {
     TEExtPtr pTE;
+    SInt16 selEnd;
 
     if (!hTE) return;
 
@@ -243,11 +246,22 @@ void TEAutoView(Boolean autoView, TEHandle hTE) {
 
     TES_LOG("TEAutoView: autoView=%d\n", autoView);
 
-    /* Set auto-scroll flag */
-    /* Note: This is handled in TEIdle and TEClick */
-    /* For now, just log it */
+    if (!pTE) {
+        HUnlock((Handle)hTE);
+        return;
+    }
+
+    /* Update auto-view flag for downstream logic */
+    pTE->autoViewEnabled = autoView;
+    selEnd = pTE->base.selEnd;
 
     HUnlock((Handle)hTE);
+
+    if (autoView) {
+        /* Ensure current selection is visible immediately */
+        TE_ScrollToOffset(hTE, selEnd);
+        TESelView(hTE);
+    }
 }
 
 /* ============================================================================

@@ -55,6 +55,7 @@ typedef struct TEExtRec {
     SInt16      clickCount;     /* Click count */
     SInt16      viewDH;         /* Horizontal scroll */
     SInt16      viewDV;         /* Vertical scroll */
+    Boolean     autoViewEnabled;/* Auto-scroll flag */
 } TEExtRec;
 
 typedef TEExtRec *TEExtPtr, **TEExtHandle;
@@ -622,6 +623,7 @@ static void TE_InitRecord(TEHandle hTE, const Rect *destRect, const Rect *viewRe
     pTE->base.clickLoc = 0;
     pTE->dragAnchor = 0;
     pTE->inDragSel = FALSE;
+    pTE->autoViewEnabled = TRUE;
 
     /* Port */
     pTE->base.inPort = g_currentPort;
@@ -724,8 +726,7 @@ Boolean TextEdit_IsRunning(void) {
 /*
  * TextEdit_HandleEvent - Handle events for TextEdit app
  */
-void TextEdit_HandleEvent(void* event) {
-    EventRecord* evt = (EventRecord*)event;
+void TextEdit_HandleEvent(EventRecord* evt) {
 
     if (!g_appTE || !g_textEditWindow) return;
 

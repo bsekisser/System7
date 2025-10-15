@@ -61,6 +61,10 @@ OSErr ResolveAlias(FSSpec *alias, FSSpec *target, Boolean *wasChanged)
     if (alias == nil || target == nil) {
         return paramErr;
     }
+    err = LoadAliasTypeTable();
+    if (err != noErr) {
+        return err;
+    }
 
     /* Validate that this is actually an alias file */
     err = ValidateAliasFile(alias);
@@ -271,6 +275,16 @@ static OSErr ValidateAliasFile(FSSpec *aliasFile)
 
     /* Validate alias resource size */
     if (GetHandleSize(aliasResource) < kAliasMinimumSize) {
+        ReleaseResource(aliasResource);
+        CloseResFile(aliasRefNum);
+        return paramErr;
+    }
+
+    /* Validate alias record structure */
+    HLock(aliasResource);
+    Boolean valid = IsValidAliasRecord((AliasRecord*)*aliasResource);
+    HUnlock(aliasResource);
+    if (!valid) {
         ReleaseResource(aliasResource);
         CloseResFile(aliasRefNum);
         return paramErr;

@@ -32,12 +32,19 @@ typedef struct TEExtRec {
     SInt16      clickCount;     /* Click count */
     SInt16      viewDH;         /* Horizontal scroll */
     SInt16      viewDV;         /* Vertical scroll */
+    Boolean     autoViewEnabled;/* Auto-scroll flag */
 } TEExtRec;
 
 typedef TEExtRec *TEExtPtr, **TEExtHandle;
 #include "MemoryMgr/MemoryManager.h"
 #include <string.h>
 #include "TextEdit/TELogging.h"
+
+/* Public test harness entry points */
+void TETestInit(void);
+void TETestHandleEvent(EventRecord *event);
+void TETestRun(void);
+void TETestCleanup(void);
 
 /* Debug logging */
 #define TEST_LOG(...) TE_LOG_DEBUG("TETest: " __VA_ARGS__)
@@ -52,7 +59,6 @@ static TEHandle g_testTE = NULL;
 
 /* Forward declarations */
 static void CreateTestWindow(void);
-static void HandleTestEvent(EventRecord *event);
 static void DrawTestWindow(void);
 
 /* ============================================================================
