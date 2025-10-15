@@ -15,6 +15,7 @@
 
 #include "../include/MacTypes.h"
 #include "../include/QuickDraw/QuickDraw.h"
+#include "../include/QuickDraw/DisplayBezel.h"
 #include "../include/QuickDrawConstants.h"
 
 #include "../include/MenuManager/MenuManager.h"
@@ -513,6 +514,8 @@ void DrawMenuBar(void)
         /* Draw default Apple menu if no menus installed */
         (void)MenuAppleIcon_Draw(qd.thePort, x, 0, false);
     }
+
+    QD_DrawCRTBezel();
 
     SetPort(savePort);
     gMenuMgrState->menuBarInvalid = false;
