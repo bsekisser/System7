@@ -39,6 +39,7 @@ extern QDGlobals qd;
 
 /* Global state for the control panel */
 static WindowPtr gDesktopCdevWin = NULL;
+static GrafPtr gDesktopPrevPort = NULL;
 static ControlHandle gOKButton = NULL;
 static ControlHandle gCancelButton = NULL;
 static int16_t gSelectedPatID = 16;
@@ -76,6 +77,7 @@ void OpenDesktopCdev(void) {
                                  true, documentProc, (WindowPtr)-1L, true, 0);
     if (!gDesktopCdevWin) return;
 
+    GetPort(&gDesktopPrevPort);
     SetPort((GrafPtr)gDesktopCdevWin);
 
     /* Ensure consistent black/white rendering for 1-bit patterns */
@@ -125,6 +127,10 @@ void OpenDesktopCdev(void) {
  */
 void CloseDesktopCdev(void) {
     if (gDesktopCdevWin) {
+        if (gDesktopPrevPort) {
+            SetPort(gDesktopPrevPort);
+            gDesktopPrevPort = NULL;
+        }
         DisposeWindow(gDesktopCdevWin);
         gDesktopCdevWin = NULL;
         gOKButton = NULL;
