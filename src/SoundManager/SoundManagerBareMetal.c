@@ -94,7 +94,6 @@ OSErr SoundManagerShutdown(void) {
     }
     g_soundBackendOps = NULL;
     g_soundBackendType = kSoundBackendNone;
-    gStartupChimePlayed = false;
     PCSpkr_Shutdown();
     g_soundManagerInitialized = false;
     return noErr;
