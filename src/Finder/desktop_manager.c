@@ -304,16 +304,26 @@ void DrawDesktop(void)
     desktopRect.top = 20;  /* Start below menu bar */
     RectRgn(desktopRgn, &desktopRect);
 
+    WindowPtr frontWindow = FrontWindow();
+    if (frontWindow && frontWindow->visRgn) {
+        RgnHandle frontVisible = NewRgn();
+        if (frontVisible) {
+            CopyRgn(frontWindow->visRgn, frontVisible);
+            DiffRgn(desktopRgn, frontVisible, desktopRgn);
+            DisposeRgn(frontVisible);
+        }
+    }
+
     /* Directly call our DeskHook to paint the desktop with the proper pattern */
     Finder_DeskHook(desktopRgn);  /* Pass the desktop region to paint */
 
+    FINDER_LOG_DEBUG("DrawDesktop: frontWindow=%p next=%p\n",
+                     frontWindow,
+                     frontWindow ? frontWindow->nextWindow : NULL);
     /* Immediately repaint background windows so the pattern stays behind them. */
-    WindowPtr frontWindow = FrontWindow();
-    WindowPtr startWindow = NULL;
-    if (frontWindow) {
-        startWindow = frontWindow->nextWindow;
+    if (frontWindow && frontWindow->nextWindow) {
+        PaintBehind(frontWindow->nextWindow, desktopRgn);
     }
-    PaintBehind(startWindow, desktopRgn);
 
     /* NOTE: Do NOT call InvalRect here - that would cause infinite recursion!
      * The caller (PostEvent(updateEvt, 0) sites) already requested the update. */

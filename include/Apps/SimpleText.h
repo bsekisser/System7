@@ -161,6 +161,7 @@ extern void STDoc_Deactivate(STDocument* doc);
 extern void STView_Create(STDocument* doc);
 extern void STView_Dispose(STDocument* doc);
 extern void STView_Draw(STDocument* doc);
+extern void STView_ForceDraw(STDocument* doc);
 extern void STView_Click(STDocument* doc, EventRecord* event);
 extern void STView_Key(STDocument* doc, EventRecord* event);
 extern void STView_Resize(STDocument* doc);

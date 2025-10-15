@@ -5,10 +5,13 @@
  */
 
 #include <string.h>
+#include <stdio.h>
 #include "Apps/SimpleText.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "FontManager/FontManager.h"
 #include "QuickDraw/QuickDrawPlatform.h"
+
+extern void serial_puts(const char* str);
 
 /* Helper functions */
 static void ApplyStyleToSelection(STDocument* doc, SInt16 font, SInt16 size, Style style);
@@ -109,6 +112,29 @@ void STView_Draw(STDocument* doc) {
     if (doc->vScroll) {
         /* TODO: Draw scrollbar */
     }
+}
+
+void STView_ForceDraw(STDocument* doc) {
+    if (!doc || !doc->window || !doc->hTE) return;
+
+    GrafPtr oldPort;
+    GetPort(&oldPort);
+    SetPort((GrafPtr)doc->window);
+
+    Rect dirty = (*doc->hTE)->viewRect;
+    InvalRect(&dirty);
+
+    {
+        char logBuf[128];
+        snprintf(logBuf, sizeof(logBuf), "[STView] ForceDraw window=%p\n", doc->window);
+        serial_puts(logBuf);
+    }
+
+    BeginUpdate(doc->window);
+    STView_Draw(doc);
+    EndUpdate(doc->window);
+
+    SetPort(oldPort);
 }
 
 /*

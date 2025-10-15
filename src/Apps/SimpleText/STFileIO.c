@@ -60,6 +60,9 @@ static Boolean STIO_GetBootVolumeInfo(VolumeControlBlock* vcbOut) {
 
 static SInt32 STIO_SetText(STDocument* doc, const char* text, SInt32 length) {
     if (!doc || !doc->hTE) return 0;
+    GrafPtr oldPort;
+    GetPort(&oldPort);
+    SetPort((GrafPtr)doc->window);
 
     TESetSelect(0, 32767, doc->hTE);
     TEDelete(doc->hTE);
@@ -86,13 +89,14 @@ static SInt32 STIO_SetText(STDocument* doc, const char* text, SInt32 length) {
     }
     TESetSelect(0, 0, doc->hTE);
     TECalText(doc->hTE);
-    InvalRect(&(*doc->hTE)->viewRect);
     char logBuf[128];
     snprintf(logBuf, sizeof(logBuf), "[STIO] SetText in=%d out=%d\n",
              (int)length, (int)((*doc->hTE)->teLength));
     serial_puts(logBuf);
     /* Force immediate redraw */
-    STView_Draw(doc);
+    STView_ForceDraw(doc);
+
+    SetPort(oldPort);
     return length > 0 ? length : 0;
 }
 

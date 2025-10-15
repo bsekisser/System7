@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include "SystemTypes.h"
 #include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowManagerInternal.h"
@@ -38,6 +40,7 @@ extern void GetClip(RgnHandle rgn);
 extern RgnHandle NewRgn(void);
 extern void DisposeRgn(RgnHandle rgn);
 extern void SetOrigin(SInt16 h, SInt16 v);
+extern void serial_puts(const char* str);
 
 /* Forward declarations */
 static void DumpWindowList(const char* context);
@@ -199,6 +202,12 @@ paint_windows:
 
         /* Phase 1: Paint chrome */
         WM_LOG_TRACE("[PaintBehind] Painting chrome for window %p (index %d of %d)\n", w, i, count);
+        {
+            char logBuf[160];
+            snprintf(logBuf, sizeof(logBuf), "[PaintBehind] Painting window=%p refCon=%p index=%d\n",
+                     w, (void*)(intptr_t)w->refCon, i);
+            serial_puts(logBuf);
+        }
         PaintOne(w, clobberedRgn);
 
         /* Phase 2: Paint content with proper clipping */
