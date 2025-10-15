@@ -190,6 +190,9 @@ static OSErr SetupMenus(void)
     AppendMenu(gAppleMenu, "\002(-");
     AppendMenu(gAppleMenu, "\023Desktop Patterns...");
     AppendMenu(gAppleMenu, "\015Date & Time...");
+    AppendMenu(gAppleMenu, "\007Sound...");
+    AppendMenu(gAppleMenu, "\007Mouse...");
+    AppendMenu(gAppleMenu, "\013Keyboard...");
     AppendMenu(gAppleMenu, "\002(-");
     AddResMenu(gAppleMenu, 'DRVR');
     AppendMenu(gAppleMenu, "\002(-");

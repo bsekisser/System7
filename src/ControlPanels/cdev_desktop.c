@@ -40,7 +40,7 @@ extern QDGlobals qd;
 static WindowPtr gDesktopCdevWin = NULL;
 static ControlHandle gOKButton = NULL;
 static ControlHandle gCancelButton = NULL;
-static int16_t gSelectedPatID = 0;
+static int16_t gSelectedPatID = 16;
 static Pattern gOriginalPattern;
 static RGBColor gOriginalColor;
 static DesktopPref gOriginalPref;

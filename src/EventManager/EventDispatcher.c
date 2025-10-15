@@ -17,6 +17,9 @@
 #include "WindowManager/WindowManager.h"
 #include "MenuManager/MenuManager.h"
 #include "ControlPanels/DesktopPatterns.h"
+#include "ControlPanels/Sound.h"
+#include "ControlPanels/Mouse.h"
+#include "ControlPanels/Keyboard.h"
 #include "Datetime/datetime_cdev.h"
 #include "QuickDraw/QuickDraw.h"
 #include "MemoryMgr/MemoryManager.h"
@@ -107,6 +110,18 @@ Boolean DispatchEvent(EventRecord* event)
 
     /* Entry log for all events */
     EVT_LOG_DEBUG("[DISP] DispatchEvent: event->what=%d\n", event->what);
+
+    if (SoundPanel_HandleEvent(event)) {
+        return true;
+    }
+
+    if (MousePanel_HandleEvent(event)) {
+        return true;
+    }
+
+    if (KeyboardPanel_HandleEvent(event)) {
+        return true;
+    }
 
     if (DesktopPatterns_HandleEvent(event)) {
         return true;

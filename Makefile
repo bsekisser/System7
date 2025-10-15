@@ -172,6 +172,9 @@ C_SOURCES = src/main.c \
             src/ControlManager/ControlResources.c \
             src/ControlManager/ControlSmoke.c \
             src/control_stubs.c \
+            src/ControlPanels/sound_cdev.c \
+            src/ControlPanels/mouse_cdev.c \
+            src/ControlPanels/keyboard_cdev.c \
             src/Datetime/datetime_cdev.c \
             src/patterns_rsrc.c \
             src/FS/hfs_diskio.c \

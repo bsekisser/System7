@@ -10,6 +10,9 @@
 #include "MenuManager/MenuManager.h"
 #include "Finder/AboutThisMac.h"
 #include "ControlPanels/DesktopPatterns.h"
+#include "ControlPanels/Sound.h"
+#include "ControlPanels/Mouse.h"
+#include "ControlPanels/Keyboard.h"
 #include "Datetime/datetime_cdev.h"
 
 #include <string.h>
@@ -176,6 +179,24 @@ static void HandleAppleMenu(short item)
     if (strcmp(itemName, "Date & Time...") == 0) {
         MENU_LOG_DEBUG("Apple Menu > Date & Time...\n");
         DateTimePanel_Open();
+        return;
+    }
+
+    if (strcmp(itemName, "Sound...") == 0) {
+        MENU_LOG_DEBUG("Apple Menu > Sound...\n");
+        SoundPanel_Open();
+        return;
+    }
+
+    if (strcmp(itemName, "Mouse...") == 0) {
+        MENU_LOG_DEBUG("Apple Menu > Mouse...\n");
+        MousePanel_Open();
+        return;
+    }
+
+    if (strcmp(itemName, "Keyboard...") == 0) {
+        MENU_LOG_DEBUG("Apple Menu > Keyboard...\n");
+        KeyboardPanel_Open();
         return;
     }
 
