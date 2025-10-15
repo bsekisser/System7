@@ -16,7 +16,7 @@ void QD_DrawCRTBezel(void) {
     int pitchPixels = fb_pitch / 4;
     const uint32_t black = 0xFF000000;
 
-    int cornerRadius = (int)(fb_height / 64);
+    int cornerRadius = (int)(fb_height / 55);
     if (cornerRadius < 4) {
         cornerRadius = 4;
     }
