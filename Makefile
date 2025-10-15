@@ -119,6 +119,7 @@ C_SOURCES = src/main.c \
             src/MenuManager/MenuTitleTracking.c \
             src/MenuManager/MenuTrack.c \
             src/MenuManager/MenuAppleIcon.c \
+            src/MenuManager/MenuAppIcon.c \
             src/MenuManager/MenuItems.c \
             src/MenuManager/platform_stubs.c \
             src/MenuCommands.c \

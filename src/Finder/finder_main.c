@@ -268,6 +268,13 @@ static OSErr SetupMenus(void)
     InsertMenu(gLabelMenu, 0);     /* Label at position 4 */
     InsertMenu(gSpecialMenu, 0);   /* Special at position 5 */
 
+    /* Application (top-right) menu - icon only */
+    /* Use system-defined Application menu ID (negative). If not available,
+       fall back to a high ID unlikely to collide. */
+    const short appMenuID = (short)0xBF97; /* kApplicationMenuID */
+    MenuHandle appMenu = NewMenu(appMenuID, (ConstStr255Param)"\000");
+    InsertMenu(appMenu, 0);
+
     extern void serial_puts(const char* str);
     serial_puts("Finder: About to call DrawMenuBar\n");
     DrawMenuBar();

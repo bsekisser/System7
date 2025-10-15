@@ -21,6 +21,7 @@
 #include "../include/MenuManager/MenuTypes.h"
 #include "../include/MenuManager/MenuLogging.h"
 #include "MenuManager/MenuAppleIcon.h"
+#include "MenuManager/MenuAppIcon.h"
 
 /* QuickDraw globals */
 extern QDGlobals qd;
@@ -389,7 +390,7 @@ void DrawMenuBar(void)
     InitMenuTitleTracking();
 
     /* Draw menu titles */
-    short x = 0;  /* Start at left edge for Apple menu */
+    short x = 0;
     serial_puts("DrawMenuBar: Checking menu state...\n");
     if (gMenuMgrState) {
         serial_puts("DrawMenuBar: gMenuMgrState exists\n");
@@ -435,6 +436,8 @@ void DrawMenuBar(void)
                     /* unsigned char alt_len = (**menu).menuData[1]; */
                     /* MENU_LOG_TRACE("  Alt titleLen at [1]: %d\n", alt_len); */
                     if (titleLen > 0 && titleLen <= 20) { /* More restrictive sanity check */
+                        /* Use precomputed left from layout for consistent placement */
+                        x = menuBar->menus[i].menuLeft;
                         short menuWidth = 0;
                         char titleText[256] = {0};
 
@@ -444,6 +447,11 @@ void DrawMenuBar(void)
                             /* Draw Apple icon instead of text */
                             menuWidth = MenuAppleIcon_Draw(qd.thePort, x, 0, false);
                             AddMenuTitle(mptr->menuID, x, menuWidth, "Apple");
+                            x += menuWidth;
+                        } else if (mptr->menuID == (short)kApplicationMenuID) {
+                            /* Draw Application icon on right side */
+                            menuWidth = MenuAppIcon_Draw(qd.thePort, x, 0, false);
+                            AddMenuTitle(mptr->menuID, x, menuWidth, "Application");
                             x += menuWidth;
                         } else if (mptr->menuID == 1) {
                             /* Skip menu ID 1 - it's a duplicate Apple menu */
@@ -960,6 +968,7 @@ static void UpdateMenuBarLayout(void)
 {
     MenuBarList* menuBar;
     short currentLeft = 0;
+    short systemRight;
 
     if (gMenuList == NULL) {
         return;
@@ -967,18 +976,30 @@ static void UpdateMenuBarLayout(void)
 
     menuBar = (MenuBarList*)gMenuList;
 
-    /* Calculate positions for all menus */
-    for (int i = 0; i < menuBar->numMenus; i++) {
-        /* TODO: Calculate actual menu width based on title */
-        short menuWidth = 80; /* Default width */
+    /* Position application (non-system) menus from left, system menus from right */
+    short screenWidth = qd.screenBits.bounds.right;
+    systemRight = screenWidth;
 
-        menuBar->menus[i].menuLeft = currentLeft;
-        menuBar->menus[i].menuWidth = menuWidth;
-        currentLeft += menuWidth;
+    for (int i = 0; i < menuBar->numMenus; i++) {
+        short id = menuBar->menus[i].menuID;
+        short menuWidth;
+        /* Use tighter width for icon-only menus (Apple, Application) */
+        if (id == 128 || id == (short)kApplicationMenuID) menuWidth = 20; else menuWidth = 80;
+
+        /* Treat classic system menu IDs and Application menu as right-aligned */
+        if ((id >= (short)0xB000 && id <= (short)0xBFFF) || id == (short)0xBF97) {
+            systemRight -= menuWidth;
+            menuBar->menus[i].menuLeft = systemRight;
+            menuBar->menus[i].menuWidth = menuWidth;
+        } else {
+            menuBar->menus[i].menuLeft = currentLeft;
+            menuBar->menus[i].menuWidth = menuWidth;
+            currentLeft += menuWidth;
+        }
     }
 
-    menuBar->totalWidth = currentLeft;
-    menuBar->lastRight = currentLeft;
+    menuBar->totalWidth = screenWidth;
+    menuBar->lastRight = screenWidth;
 }
 
 /*
