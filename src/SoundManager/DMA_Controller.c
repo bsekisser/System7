@@ -160,11 +160,11 @@ static int DMA_Setup16Bit(const void* buffer, uint32_t size) {
 int SB16_PlayDMA(const uint8_t* data, uint32_t size,
                  uint32_t sample_rate, uint8_t channels, uint8_t bits_per_sample) {
 
-    /* DSP commands */
-    #define DSP_CMD_DMA_16BIT_STEREO   0xB6
-    #define DSP_CMD_DMA_16BIT_MONO     0xB4
-    #define DSP_CMD_DMA_8BIT_STEREO    0xC6
-    #define DSP_CMD_DMA_8BIT_MONO      0xC4
+    /* DSP commands (single-cycle) */
+    #define DSP_CMD_DMA16_MONO_SINGLE      0xB0
+    #define DSP_CMD_DMA16_STEREO_SINGLE    0xB2
+    #define DSP_CMD_DMA8_MONO_SINGLE       0xC0
+    #define DSP_CMD_DMA8_STEREO_SINGLE     0xC2
 
     SND_LOG_DEBUG("DMA: Starting playback\n");
 
@@ -196,9 +196,9 @@ int SB16_PlayDMA(const uint8_t* data, uint32_t size,
     /* Select DSP command based on bit depth and channels */
     uint8_t dsp_cmd;
     if (bits_per_sample == 16) {
-        dsp_cmd = (channels == 2) ? DSP_CMD_DMA_16BIT_STEREO : DSP_CMD_DMA_16BIT_MONO;
+        dsp_cmd = (channels == 2) ? DSP_CMD_DMA16_STEREO_SINGLE : DSP_CMD_DMA16_MONO_SINGLE;
     } else {
-        dsp_cmd = (channels == 2) ? DSP_CMD_DMA_8BIT_STEREO : DSP_CMD_DMA_8BIT_MONO;
+        dsp_cmd = (channels == 2) ? DSP_CMD_DMA8_STEREO_SINGLE : DSP_CMD_DMA8_MONO_SINGLE;
     }
 
     /* Send DMA playback command */
