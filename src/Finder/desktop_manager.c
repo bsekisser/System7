@@ -1258,6 +1258,19 @@ static OSErr LoadDesktopDatabase(short vRefNum)
         err = FSRead(databaseRefNum, &dataSize, gDesktopIcons);
     }
 
+    /* Ensure at least the trash icon exists so the desktop is never empty */
+    if (gDesktopIconCount <= 0 || gDesktopIcons[0].type != kDesktopItemTrash) {
+        gDesktopIconCount = 1;
+        gDesktopIcons[0].type = kDesktopItemTrash;
+        gDesktopIcons[0].iconID = 0xFFFFFFFF;
+        gDesktopIcons[0].position.h = fb_width - 100;
+        gDesktopIcons[0].position.v = fb_height - 80;
+        strcpy(gDesktopIcons[0].name, "Trash");
+        gDesktopIcons[0].movable = false;
+    }
+
+    gVolumeIconVisible = true;  /* Allow DrawVolumeIcon to render icons */
+
     FSClose(databaseRefNum);
     return err;
 }
