@@ -14,6 +14,7 @@
 
 #include "SystemTypes.h"
 #include "ControlManager/ControlManager.h"
+#include "ControlManager/ControlInternal.h"
 #include "WindowManager/WindowManager.h"
 #include "EventManager/EventManager.h"
 #include "PatternMgr/pattern_manager.h"
@@ -79,14 +80,6 @@ void _AttachControlToWindow(ControlHandle c, WindowPtr w) {
 }
 
 /* RegisterStandardControlTypes now implemented in StandardControls.c */
-
-/* Note: LoadControlFromResource is provided by ControlResources.c */
-/* Minimal placeholder for builds without ResourceMgr: returns NULL */
-ControlHandle LoadControlFromResource(Handle cntlResource, WindowPtr owner) {
-    (void)cntlResource;
-    (void)owner;
-    return NULL;
-}
 
 /* [WM-053] QuickDraw region functions - real implementations in QuickDraw/Regions.c */
 #if !defined(SYS71_STUBS_DISABLED)

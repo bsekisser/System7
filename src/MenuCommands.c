@@ -9,6 +9,7 @@
 #include "System71StdLib.h"
 #include "MenuManager/MenuManager.h"
 #include "Finder/AboutThisMac.h"
+#include "ControlPanels/DesktopPatterns.h"
 
 #define MENU_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleMenu, kLogLevelDebug, "[MENU] " fmt, ##__VA_ARGS__)
 #define MENU_LOG_WARN(fmt, ...)  serial_logf(kLogModuleMenu, kLogLevelWarn,  "[MENU] " fmt, ##__VA_ARGS__)
@@ -365,7 +366,12 @@ static void HandleSpecialMenu(short item)
             MENU_LOG_DEBUG("Desktop cleaned up\n");
             break;
 
-        case 2: {
+        case 2:
+            MENU_LOG_DEBUG("Special > Desktop Patterns...\n");
+            OpenDesktopCdev();
+            break;
+
+        case 3: {
             MENU_LOG_DEBUG("Special > Empty Trash\n");
             /* Empty trash */
             extern OSErr EmptyTrash(void);
@@ -378,21 +384,21 @@ static void HandleSpecialMenu(short item)
             break;
         }
 
-        case 3:
+        case 5:
             MENU_LOG_DEBUG("Special > Eject\n");
             /* Eject selected disk */
             /* Would unmount and eject the selected volume */
             MENU_LOG_DEBUG("Ejecting disk (not implemented in kernel)\n");
             break;
 
-        case 4:
+        case 6:
             MENU_LOG_DEBUG("Special > Erase Disk...\n");
             /* Show erase disk dialog */
             /* Would show dialog to format selected disk */
             MENU_LOG_DEBUG("Erase Disk dialog would appear here\n");
             break;
 
-        case 5:
+        case 8:
             MENU_LOG_INFO("Special > Restart\n");
             /* System restart */
             MENU_LOG_INFO("System restart initiated...\n");
@@ -405,34 +411,6 @@ static void HandleSpecialMenu(short item)
                 "int3\n"
                 : : : "memory"
             );
-            break;
-
-        case 6:
-            MENU_LOG_INFO("Special > Shut Down\n");
-            /* System shutdown */
-            MENU_LOG_INFO("System shutdown initiated...\n");
-            MENU_LOG_INFO("It is now safe to turn off your computer.\n");
-
-            /* Try QEMU shutdown via ACPI port first */
-            /* QEMU shutdown: write 0x2000 to port 0x604 */
-            __asm__ volatile(
-                "movw $0x2000, %%ax\n"
-                "movw $0x604, %%dx\n"
-                "outw %%ax, %%dx\n"
-                : : : "ax", "dx"
-            );
-
-            /* If that doesn't work, try legacy APM shutdown */
-            /* APM shutdown: write 0x53 to port 0xB004 */
-            __asm__ volatile(
-                "movb $0x53, %%al\n"
-                "movw $0xB004, %%dx\n"
-                "outb %%al, %%dx\n"
-                : : : "al", "dx"
-            );
-
-            /* Final fallback: halt the CPU */
-            __asm__ volatile("cli; hlt");
             break;
 
         default:

@@ -252,6 +252,7 @@ static OSErr SetupMenus(void)
     static unsigned char specialTitle[] = {7, 'S', 'p', 'e', 'c', 'i', 'a', 'l'};  /* Pascal string: "Special" */
     gSpecialMenu = NewMenu(133, specialTitle);
     AppendMenu(gSpecialMenu, "\020Clean Up Desktop");
+    AppendMenu(gSpecialMenu, "\023Desktop Patterns...");
     AppendMenu(gSpecialMenu, "\013Empty Trash");
     AppendMenu(gSpecialMenu, "\002(-");
     AppendMenu(gSpecialMenu, "\010Eject/E");
@@ -411,7 +412,9 @@ WindowPtr Finder_OpenDesktopItem(Boolean isTrash, ConstStr255Param title)
 
 /*
  * DoActivate - Handle window activation events
+ * (Currently unused in the integrated build.)
  */
+#if 0
 static void DoActivate(WindowPtr w, Boolean becomingActive)
 {
     if (!w) return;
@@ -423,6 +426,7 @@ static void DoActivate(WindowPtr w, Boolean becomingActive)
         /* Deactivate - unhighlight */
     }
 }
+#endif
 
 #if 0  /* Disabled - Background task functions only used in standalone mode */
 /*

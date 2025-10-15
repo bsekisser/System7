@@ -8,12 +8,14 @@
  * Changes are applied immediately and saved to PRAM.
  */
 
+#include "ControlPanels/DesktopPatterns.h"
 #include "PatternMgr/pattern_manager.h"
 #include "PatternMgr/pattern_resources.h"
 #include "ControlManager/ControlManager.h"
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/ColorQuickDraw.h"
+#include "ColorManager.h"
 #include "FontManager/FontManager.h"
 #include "FontManager/FontInternal.h"
 #include "DialogManager/DialogManager.h"
@@ -96,6 +98,12 @@ void OpenDesktopCdev(void) {
     gOriginalPref = PM_GetSavedDesktopPref();
     PM_GetBackPat(&gOriginalPattern);
     PM_GetBackColor(&gOriginalColor);
+
+    /* Align Color Manager state with the current desktop colors */
+    if (ColorManager_Init() == noErr) {
+        ColorManager_SetBackground(&gOriginalColor);
+        ColorManager_CommitQuickDraw();
+    }
     gSelectedPatID = gOriginalPref.patID;
 
     /* Draw the window contents */
@@ -111,6 +119,13 @@ void CloseDesktopCdev(void) {
         gDesktopCdevWin = NULL;
         gOKButton = NULL;
         gCancelButton = NULL;
+
+        /* The control panel is closing, clear out any dirty Color Manager state */
+        if (ColorManager_IsAvailable()) {
+            ColorManager_SetBackground(&gOriginalColor);
+            ColorManager_CommitQuickDraw();
+            ColorManager_Shutdown();
+        }
     }
 }
 

@@ -114,3 +114,6 @@ hang:
 #ifndef _WIN32
 .size _start, . - _start
 #endif
+
+/* Mark stack usage as non-executable to satisfy modern linkers */
+.section .note.GNU-stack,"",@progbits

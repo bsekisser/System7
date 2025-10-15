@@ -118,6 +118,7 @@ C_SOURCES = src/main.c \
             src/QuickDraw/GWorld.c \
             src/QuickDraw/Patterns.c \
             src/QuickDraw/display_bezel.c \
+            src/ColorManager/ColorManager.c \
             src/OSUtils/OSUtilsTraps.c \
             src/Platform/WindowPlatform.c \
             src/Platform/x86/io.c \
@@ -168,6 +169,7 @@ C_SOURCES = src/main.c \
             src/ControlManager/ControlTracking.c \
             src/ControlManager/ScrollbarControls.c \
             src/ControlManager/StandardControls.c \
+            src/ControlManager/ControlResources.c \
             src/ControlManager/ControlSmoke.c \
             src/control_stubs.c \
             src/patterns_rsrc.c \

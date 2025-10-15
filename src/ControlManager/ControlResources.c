@@ -16,28 +16,49 @@
 #include "System71StdLib.h"
 /* ControlResources.h local */
 #include "ControlManager/ControlManager.h"
+#include "ControlManager/ControlInternal.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "ResourceMgr/resource_types.h"
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 
 
-/* CNTL resource structure */
-typedef struct CNTLResource {
+/* Internal CNTL template representation */
+typedef struct CNTLTemplate {
     Rect    boundsRect;
-    SInt16 value;
-    SInt16 visible;
-    SInt16 max;
-    SInt16 min;
-    SInt16 procID;
-    SInt32 refCon;
+    SInt16  value;
+    Boolean visible;
+    SInt16  max;
+    SInt16  min;
+    SInt16  procID;
+    SInt32  refCon;
     Str255  title;
-} CNTLResource;
+} CNTLTemplate;
+
+/* --- Local helpers ------------------------------------------------------ */
+
+static OSErr ParseCNTLResource(Handle resource, CNTLTemplate *cntlData);
+
+static inline SInt16 read_s16_be(const UInt8 **data) {
+    SInt16 value = (SInt16)((((*data)[0]) << 8) | (*data)[1]);
+    *data += 2;
+    return value;
+}
+
+static inline SInt32 read_s32_be(const UInt8 **data) {
+    SInt32 value =  ((SInt32)(*data)[0] << 24) |
+                    ((SInt32)(*data)[1] << 16) |
+                    ((SInt32)(*data)[2] << 8)  |
+                    (SInt32)(*data)[3];
+    *data += 4;
+    return value;
+}
 
 /**
  * Load a control from a CNTL resource
  */
 ControlHandle LoadControlFromResource(Handle cntlResource, WindowPtr owner) {
-    CNTLResource cntlData;
+    CNTLTemplate cntlData;
     ControlHandle control;
     OSErr err;
 
@@ -53,7 +74,7 @@ ControlHandle LoadControlFromResource(Handle cntlResource, WindowPtr owner) {
 
     /* Create control from resource data */
     control = NewControl(owner, &cntlData.boundsRect, cntlData.title,
-                         cntlData.visible != 0, cntlData.value,
+                         cntlData.visible, cntlData.value,
                          cntlData.min, cntlData.max, cntlData.procID,
                          cntlData.refCon);
 
@@ -63,8 +84,8 @@ ControlHandle LoadControlFromResource(Handle cntlResource, WindowPtr owner) {
 /**
  * Parse a CNTL resource
  */
-OSErr ParseCNTLResource(Handle resource, CNTLResource *cntlData) {
-    UInt8 *data;
+static OSErr ParseCNTLResource(Handle resource, CNTLTemplate *cntlData) {
+    const UInt8 *cursor;
     SInt16 titleLen;
 
     if (!resource || !cntlData) {
@@ -72,74 +93,29 @@ OSErr ParseCNTLResource(Handle resource, CNTLResource *cntlData) {
     }
 
     HLock(resource);
-    data = (UInt8 *)*resource;
+    cursor = (const UInt8 *)*resource;
 
     /* Read rectangle bounds */
-    (cntlData)->top = *(SInt16 *)data; data += 2;
-    (cntlData)->left = *(SInt16 *)data; data += 2;
-    (cntlData)->bottom = *(SInt16 *)data; data += 2;
-    (cntlData)->right = *(SInt16 *)data; data += 2;
+    cntlData->boundsRect.top = read_s16_be(&cursor);
+    cntlData->boundsRect.left = read_s16_be(&cursor);
+    cntlData->boundsRect.bottom = read_s16_be(&cursor);
+    cntlData->boundsRect.right = read_s16_be(&cursor);
 
     /* Read control properties */
-    cntlData->value = *(SInt16 *)data; data += 2;
-    cntlData->visible = *(SInt16 *)data; data += 2;
-    cntlData->max = *(SInt16 *)data; data += 2;
-    cntlData->min = *(SInt16 *)data; data += 2;
-    cntlData->procID = *(SInt16 *)data; data += 2;
-    cntlData->refCon = *(SInt32 *)data; data += 4;
+    cntlData->value = read_s16_be(&cursor);
+    cntlData->visible = read_s16_be(&cursor) != 0;
+    cntlData->max = read_s16_be(&cursor);
+    cntlData->min = read_s16_be(&cursor);
+    cntlData->procID = read_s16_be(&cursor);
+    cntlData->refCon = read_s32_be(&cursor);
 
     /* Read title (Pascal string) */
-    titleLen = *data;
-    if (titleLen > 255) titleLen = 255;
-    memcpy(cntlData->title, data, titleLen + 1);
+    titleLen = *cursor;
+    if (titleLen > 255) {
+        titleLen = 255;
+    }
+    memcpy(cntlData->title, cursor, (size_t)titleLen + 1);
 
     HUnlock(resource);
     return noErr;
-}
-
-/**
- * Create a CNTL resource from control data
- */
-Handle CreateCNTLResource(const CNTLResource *cntlData) {
-    Handle resource;
-    UInt8 *data;
-    SInt32 dataSize;
-    SInt16 titleLen;
-
-    if (!cntlData) {
-        return NULL;
-    }
-
-    /* Calculate resource size */
-    titleLen = cntlData->title[0];
-    dataSize = 8 + 10 + 4 + titleLen + 1; /* rect + 5 shorts + long + string */
-
-    /* Allocate resource */
-    resource = NewHandle(dataSize);
-    if (!resource) {
-        return NULL;
-    }
-
-    HLock(resource);
-    data = (UInt8 *)*resource;
-
-    /* Write bounds rectangle */
-    *(SInt16 *)data = (cntlData)->top; data += 2;
-    *(SInt16 *)data = (cntlData)->left; data += 2;
-    *(SInt16 *)data = (cntlData)->bottom; data += 2;
-    *(SInt16 *)data = (cntlData)->right; data += 2;
-
-    /* Write control properties */
-    *(SInt16 *)data = cntlData->value; data += 2;
-    *(SInt16 *)data = cntlData->visible; data += 2;
-    *(SInt16 *)data = cntlData->max; data += 2;
-    *(SInt16 *)data = cntlData->min; data += 2;
-    *(SInt16 *)data = cntlData->procID; data += 2;
-    *(SInt32 *)data = cntlData->refCon; data += 4;
-
-    /* Write title */
-    memcpy(data, cntlData->title, titleLen + 1);
-
-    HUnlock(resource);
-    return resource;
 }
