@@ -13,6 +13,33 @@
 
 extern void serial_puts(const char* str);
 
+/* Internal TextEdit record extension (mirrors TextEdit modules) */
+typedef struct TEExtRec {
+    TERec       base;           /* Standard TERec */
+    Handle      hLines;         /* Line starts array */
+    SInt16      nLines;         /* Number of lines */
+    Handle      hStyles;        /* Style record handle */
+    Boolean     dirty;          /* Needs recalc */
+    Boolean     readOnly;       /* Read-only flag */
+    Boolean     wordWrap;       /* Word wrap flag */
+    SInt16      dragAnchor;     /* Drag selection anchor */
+    Boolean     inDragSel;      /* In drag selection */
+    UInt32      lastClickTime;  /* For double/triple click */
+    SInt16      clickCount;     /* Click count */
+    SInt16      viewDH;         /* Horizontal scroll */
+    SInt16      viewDV;         /* Vertical scroll */
+    Boolean     autoViewEnabled;/* Auto-scroll flag */
+} TEExtRec;
+
+typedef TEExtRec *TEExtPtr;
+
+/* Layout helpers */
+static void STView_ComputeLayout(STDocument* doc, Rect* textRect, Rect* scrollRect);
+static void STView_RepositionScrollBar(STDocument* doc);
+static void STView_UpdateScrollMetrics(STDocument* doc);
+static void STView_ClearScrollArea(STDocument* doc, const Rect* textRect, const Rect* scrollRect);
+static void STView_RedrawScrollBar(STDocument* doc, const Rect* scrollRect);
+
 /* Helper functions */
 static void ApplyStyleToSelection(STDocument* doc, SInt16 font, SInt16 size, Style style);
 static void GetSelectionStyle(STDocument* doc, SInt16* font, SInt16* size, Style* style);
@@ -21,7 +48,7 @@ static void GetSelectionStyle(STDocument* doc, SInt16* font, SInt16* size, Style
  * STView_Create - Create TextEdit view for document
  */
 void STView_Create(STDocument* doc) {
-    Rect destRect, viewRect;
+    Rect destRect, viewRect, scrollRect;
 
     if (!doc || !doc->window) return;
 
@@ -31,12 +58,7 @@ void STView_Create(STDocument* doc) {
     SetPort((GrafPtr)doc->window);
 
     /* Calculate text rectangles */
-    destRect = ((GrafPtr)doc->window)->portRect;
-    destRect.top += 4;
-    destRect.left += 4;
-    destRect.bottom -= 4;
-    destRect.right -= kScrollBarWidth + 4;  /* Leave room for scrollbar */
-
+    STView_ComputeLayout(doc, &destRect, &scrollRect);
     viewRect = destRect;
 
     /* Create TextEdit record */
@@ -55,8 +77,12 @@ void STView_Create(STDocument* doc) {
     (*doc->hTE)->crOnly = -1;  /* Word wrap mode */
 
     /* Create vertical scrollbar (optional for v1) */
-    /* TODO: Implement scrollbar if ControlManager available */
-    doc->vScroll = NULL;
+    doc->vScroll = NewVScrollBar(doc->window, &scrollRect, 0, 0, 0);
+    if (doc->vScroll) {
+        STView_RepositionScrollBar(doc);
+        STView_UpdateScrollMetrics(doc);
+        DrawControls(doc->window);
+    }
 
     /* Initialize style runs */
     doc->styles.numRuns = 0;
@@ -73,17 +99,17 @@ void STView_Dispose(STDocument* doc) {
 
     ST_Log("Disposing TextEdit view\n");
 
+    if (doc->vScroll) {
+        DisposeControl(doc->vScroll);
+        doc->vScroll = NULL;
+    }
+
     /* Dispose TextEdit record */
     if (doc->hTE) {
         TEDispose(doc->hTE);
         doc->hTE = NULL;
     }
 
-    /* Dispose scrollbar */
-    if (doc->vScroll) {
-        /* TODO: DisposeControl(doc->vScroll); */
-        doc->vScroll = NULL;
-    }
 }
 
 /*
@@ -91,27 +117,29 @@ void STView_Dispose(STDocument* doc) {
  */
 void STView_Draw(STDocument* doc) {
     Rect updateRect;
+    Rect textRect;
+    Rect scrollRect;
 
     if (!doc || !doc->hTE || !doc->window) return;
 
     SetPort((GrafPtr)doc->window);
 
-    /* Clear background before leting TE draw */
-    EraseRect(&((GrafPtr)doc->window)->portRect);
+    STView_ComputeLayout(doc, &textRect, &scrollRect);
 
-    /* Get update rectangle */
-    updateRect = ((GrafPtr)doc->window)->portRect;
+    /* Clear text region */
+    EraseRect(&textRect);
 
     /* Draw TextEdit content */
+    updateRect = textRect;
     TEUpdate(&updateRect, doc->hTE);
+
+    /* Prepare scrollbar gutter and redraw control */
+    STView_ClearScrollArea(doc, &textRect, &scrollRect);
+    STView_UpdateScrollMetrics(doc);
+    STView_RedrawScrollBar(doc, &scrollRect);
 
     /* Ensure platform framebuffer reflects latest content */
     QDPlatform_FlushScreen();
-
-    /* Draw scrollbar if present */
-    if (doc->vScroll) {
-        /* TODO: Draw scrollbar */
-    }
 }
 
 void STView_ForceDraw(STDocument* doc) {
@@ -123,6 +151,9 @@ void STView_ForceDraw(STDocument* doc) {
 
     Rect dirty = (*doc->hTE)->viewRect;
     InvalRect(&dirty);
+    if (doc->vScroll) {
+        InvalRect(&(*doc->vScroll)->contrlRect);
+    }
 
     {
         char logBuf[128];
@@ -135,6 +166,181 @@ void STView_ForceDraw(STDocument* doc) {
     EndUpdate(doc->window);
 
     SetPort(oldPort);
+}
+
+/* Layout helpers ========================================================= */
+
+static void STView_ComputeLayout(STDocument* doc, Rect* textRect, Rect* scrollRect) {
+    if (!doc || !doc->window) return;
+
+    Rect bounds = ((GrafPtr)doc->window)->portRect;
+    Rect content = bounds;
+
+    content.top += 4;
+    content.left += 4;
+    content.bottom -= 4;
+    content.right -= kScrollBarWidth + 4;
+
+    if (content.right < content.left + 16) {
+        content.right = content.left + 16;
+    }
+    if (content.bottom < content.top + 16) {
+        content.bottom = content.top + 16;
+    }
+
+    if (textRect) {
+        *textRect = content;
+    }
+
+    if (scrollRect) {
+        Rect sb;
+        sb.top = content.top;
+        sb.bottom = content.bottom;
+        sb.right = bounds.right - 2;
+        sb.left = sb.right - kScrollBarWidth;
+
+        if (sb.left < content.right + 2) {
+            sb.left = content.right + 2;
+            sb.right = sb.left + kScrollBarWidth;
+        }
+
+        if (sb.left < bounds.left + 4) {
+            sb.left = bounds.left + 4;
+            sb.right = sb.left + kScrollBarWidth;
+        }
+
+        if (sb.bottom <= sb.top) {
+            sb.bottom = sb.top + 1;
+        }
+
+        *scrollRect = sb;
+    }
+}
+
+static void STView_RepositionScrollBar(STDocument* doc) {
+    if (!doc || !doc->window || !doc->vScroll) return;
+
+    Rect textRect;
+    Rect scrollRect;
+
+    STView_ComputeLayout(doc, &textRect, &scrollRect);
+
+    SInt16 width = (SInt16)(scrollRect.right - scrollRect.left);
+    SInt16 height = (SInt16)(scrollRect.bottom - scrollRect.top);
+    if (width < 1) width = 1;
+    if (height < 1) height = 1;
+
+    MoveControl(doc->vScroll, scrollRect.left, scrollRect.top);
+    SizeControl(doc->vScroll, width, height);
+}
+
+static void STView_UpdateScrollMetrics(STDocument* doc) {
+    if (!doc || !doc->hTE || !doc->vScroll) return;
+
+    SInt16 viewHeight;
+    SInt32 totalHeight;
+    SInt32 maxScroll32;
+    SInt16 scrollValue;
+
+    HLock((Handle)doc->hTE);
+    TEExtPtr pTE = (TEExtPtr)*doc->hTE;
+    if (!pTE) {
+        HUnlock((Handle)doc->hTE);
+        return;
+    }
+
+    viewHeight = pTE->base.viewRect.bottom - pTE->base.viewRect.top;
+    if (viewHeight < 1) viewHeight = 1;
+
+    totalHeight = (SInt32)pTE->nLines * pTE->base.lineHeight;
+    if (totalHeight < viewHeight) {
+        totalHeight = viewHeight;
+    }
+    if (totalHeight > 32767) {
+        totalHeight = 32767;
+    }
+
+    scrollValue = pTE->viewDV;
+    HUnlock((Handle)doc->hTE);
+
+    if (scrollValue < 0) scrollValue = 0;
+    maxScroll32 = totalHeight - viewHeight;
+    if (maxScroll32 < 0) maxScroll32 = 0;
+    if (maxScroll32 > 32767) maxScroll32 = 32767;
+
+    SInt16 maxScroll = (SInt16)maxScroll32;
+    if (scrollValue > maxScroll) {
+        scrollValue = maxScroll;
+    }
+
+    SetControlMinimum(doc->vScroll, 0);
+    SetControlMaximum(doc->vScroll, maxScroll);
+    SetScrollBarPageSize(doc->vScroll, viewHeight);
+
+    if (GetControlValue(doc->vScroll) != scrollValue) {
+        SetControlValue(doc->vScroll, scrollValue);
+    }
+
+}
+
+static void STView_ClearScrollArea(STDocument* doc, const Rect* textRect, const Rect* scrollRect) {
+    if (!doc || !doc->window || !scrollRect) return;
+
+    GrafPtr oldPort;
+    GetPort(&oldPort);
+    SetPort((GrafPtr)doc->window);
+
+    Pattern whitePat = {{0}};
+    Pattern savedFill = ((GrafPtr)doc->window)->fillPat;
+    Pattern savedPen = ((GrafPtr)doc->window)->pnPat;
+    Pattern savedBack = ((GrafPtr)doc->window)->bkPat;
+    BackPat(&whitePat);
+    PenPat(&whitePat);
+
+    if (textRect) {
+        Rect gapRect = *textRect;
+        gapRect.left = textRect->right;
+        gapRect.right = scrollRect->left;
+        if (gapRect.right > gapRect.left) {
+            FillRect(&gapRect, &whitePat);
+        }
+    }
+
+    Rect scrollFill = *scrollRect;
+    FillRect(&scrollFill, &whitePat);
+
+    PenPat(&savedPen);
+    ((GrafPtr)doc->window)->fillPat = savedFill;
+    BackPat(&savedBack);
+
+    SetPort(oldPort);
+}
+
+static void STView_RedrawScrollBar(STDocument* doc, const Rect* scrollRect) {
+    if (!doc || !doc->vScroll) return;
+
+    Rect controlRect = (*doc->vScroll)->contrlRect;
+    Rect targetRect;
+
+    if (scrollRect) {
+        targetRect = *scrollRect;
+    } else {
+        targetRect = controlRect;
+    }
+
+    RgnHandle clipRgn = NULL;
+    if (EqualRect(&targetRect, &controlRect)) {
+        Draw1Control(doc->vScroll);
+    } else {
+        clipRgn = NewRgn();
+        if (clipRgn) {
+            RectRgn(clipRgn, &targetRect);
+            UpdateControls(doc->window, clipRgn);
+            DisposeRgn(clipRgn);
+        } else {
+            Draw1Control(doc->vScroll);
+        }
+    }
 }
 
 /*
@@ -290,12 +496,7 @@ void STView_Resize(STDocument* doc) {
 
     SetPort((GrafPtr)doc->window);
 
-    /* Calculate new text rectangles */
-    destRect = ((GrafPtr)doc->window)->portRect;
-    destRect.top += 4;
-    destRect.left += 4;
-    destRect.bottom -= 4;
-    destRect.right -= kScrollBarWidth + 4;
+    STView_ComputeLayout(doc, &destRect, NULL);
 
     viewRect = destRect;
 
@@ -308,6 +509,9 @@ void STView_Resize(STDocument* doc) {
 
     /* Invalidate window */
     InvalRect(&((GrafPtr)doc->window)->portRect);
+
+    STView_RepositionScrollBar(doc);
+    STView_UpdateScrollMetrics(doc);
 }
 
 /*
@@ -318,6 +522,7 @@ void STView_Scroll(STDocument* doc, SInt16 dv, SInt16 dh) {
 
     /* Use TEScroll to scroll content */
     TEScroll(dh, dv, doc->hTE);
+    STView_UpdateScrollMetrics(doc);
 }
 
 /*

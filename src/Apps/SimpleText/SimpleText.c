@@ -151,7 +151,7 @@ static void HandleMouseDown(EventRecord* event) {
     WindowPtr window;
     short part;
     long menuResult;
-    STDocument* doc;
+    STDocument* doc = NULL;
 
     part = FindWindow(event->where, &window);
 
@@ -167,6 +167,44 @@ static void HandleMouseDown(EventRecord* event) {
             if (window != FrontWindow()) {
                 SelectWindow(window);
             } else {
+                GrafPtr oldPort;
+                Point localPt;
+                ControlHandle control = NULL;
+                SInt16 controlPart;
+
+                GetPort(&oldPort);
+                SetPort((GrafPtr)window);
+
+                localPt = event->where;
+                GlobalToLocal(&localPt);
+                controlPart = FindControl(localPt, window, &control);
+
+                if (controlPart && control) {
+                    if (doc == NULL) {
+                        doc = STDoc_FindByWindow(window);
+                    }
+
+                    if (doc && doc->vScroll && control == doc->vScroll) {
+                        SInt16 startValue = GetControlValue(control);
+                        SInt16 delta = 0;
+                        TrackScrollbar(control, localPt, controlPart, event->modifiers, &delta);
+                        SInt16 endValue = GetControlValue(control);
+                        if (delta == 0) {
+                            delta = endValue - startValue;
+                        }
+                        if (delta != 0) {
+                            STView_Scroll(doc, delta, 0);
+                        }
+                    } else {
+                        TrackControl(control, localPt, NULL);
+                    }
+
+                    SetPort(oldPort);
+                    break;
+                }
+
+                SetPort(oldPort);
+
                 doc = STDoc_FindByWindow(window);
                 if (doc) {
                     STView_Click(doc, event);

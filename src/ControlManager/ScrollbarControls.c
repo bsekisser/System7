@@ -596,10 +596,23 @@ static void DrawScrollbarArrow(const Rect* r, short direction, Boolean hilite)
     }
 
     /* Paint triangle */
-    MoveTo(x1, y1);
-    LineTo(x2, y2);
-    LineTo(x3, y3);
-    LineTo(x1, y1);
+    {
+        PolyHandle arrowPoly = OpenPoly();
+        if (arrowPoly) {
+            MoveTo(x1, y1);
+            LineTo(x2, y2);
+            LineTo(x3, y3);
+            LineTo(x1, y1);
+            ClosePoly();
+            PaintPoly(arrowPoly);
+            KillPoly(arrowPoly);
+        } else {
+            MoveTo(x1, y1);
+            LineTo(x2, y2);
+            LineTo(x3, y3);
+            LineTo(x1, y1);
+        }
+    }
 }
 
 /**
