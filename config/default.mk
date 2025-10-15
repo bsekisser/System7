@@ -9,6 +9,8 @@ ENABLE_GESTALT ?= 1
 ENABLE_SCRAP ?= 1
 ENABLE_LIST ?= 1
 MODERN_INPUT_ONLY ?= 1
+GESTALT_MACHINE_TYPE ?= 406
+BEZEL_STYLE ?= auto
 
 # Test/smoke test flags (disabled by default)
 CTRL_SMOKE_TEST ?= 0

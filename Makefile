@@ -57,6 +57,20 @@ CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 -DTM_SMOKE_TEST \
          -fno-common -fno-delete-null-pointer-checks \
          -MMD -MP
 
+ifeq ($(strip $(GESTALT_MACHINE_TYPE)),)
+  GESTALT_MACHINE_TYPE := 0
+endif
+CFLAGS += -DDEFAULT_GESTALT_MACHINE_TYPE=$(GESTALT_MACHINE_TYPE)
+
+BEZEL_STYLE ?= auto
+ifeq ($(strip $(BEZEL_STYLE)),rounded)
+  CFLAGS += -DDEFAULT_BEZEL_STYLE=1
+else ifeq ($(strip $(BEZEL_STYLE)),flat)
+  CFLAGS += -DDEFAULT_BEZEL_STYLE=2
+else
+  CFLAGS += -DDEFAULT_BEZEL_STYLE=0
+endif
+
 # Add feature flags based on configuration
 ifeq ($(ENABLE_RESOURCES),1)
   CFLAGS += -DENABLE_RESOURCES=1

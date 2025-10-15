@@ -11,6 +11,13 @@
 /* Define selector constants using canonical FOURCC. The ROM stored these as
  * four-byte ASCII codes; keeping the character spelling here aids cross-
  * referencing with Inside Macintosh docs. */
+#ifndef DEFAULT_GESTALT_MACHINE_TYPE
+#define DEFAULT_GESTALT_MACHINE_TYPE 0
+#endif
+#ifndef DEFAULT_BEZEL_STYLE
+#define DEFAULT_BEZEL_STYLE 0
+#endif
+
 static const OSType kSel_sysv = FOURCC('s','y','s','v');
 static const OSType kSel_qtim = FOURCC('q','t','i','m');
 static const OSType kSel_rsrc = FOURCC('r','s','r','c');
@@ -23,12 +30,21 @@ static const OSType kSel_pcop = FOURCC('p','c','o','p');  /* Process coop */
 
 /* Global init bits for tracking subsystem initialization */
 static UInt32 gGestaltInitBits = 0;
+static UInt16 gGestaltMachineType = (UInt16)DEFAULT_GESTALT_MACHINE_TYPE;
 
 /* Set an init bit when a subsystem comes up */
 void Gestalt_SetInitBit(int bit) {
     if (bit >= 0 && bit < 32) {
         gGestaltInitBits |= (1UL << bit);
     }
+}
+
+void Gestalt_SetMachineType(UInt16 machineType) {
+    gGestaltMachineType = machineType;
+}
+
+UInt16 Gestalt_GetMachineType(void) {
+    return gGestaltMachineType;
 }
 
 /* Architecture-agnostic FPU detection
@@ -128,6 +144,11 @@ static OSErr gestalt_rsrc(long *response) {
 /* Built-in selector: Machine type */
 static OSErr gestalt_mach(long *response) {
     if (!response) return paramErr;
+
+    if (gGestaltMachineType != 0) {
+        *response = gGestaltMachineType;
+        return noErr;
+    }
 
     /* Machine family codes (mirrors gestaltMachineType examples documented in
      * Inside Macintosh, extended for our additional ports).

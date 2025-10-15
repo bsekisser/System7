@@ -56,6 +56,10 @@ OSErr ReplaceGestalt(OSType selector, GestaltProc proc);
 /* Convenience */
 Boolean Gestalt_Has(OSType selector);  /* true if selector exists */
 
+/* Model helpers */
+void   Gestalt_SetMachineType(UInt16 machineType);  /* Override reported machine type */
+UInt16 Gestalt_GetMachineType(void);                /* Returns 0 if none configured */
+
 /* System Environment (minimal) */
 typedef struct {
     UInt16 machineType;   /* e.g., 6 = Mac II (placeholder) */

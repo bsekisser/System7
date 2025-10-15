@@ -1,13 +1,60 @@
 #include <stdint.h>
 
 #include "QuickDraw/DisplayBezel.h"
+#include "Gestalt/Gestalt.h"
 
 extern void* framebuffer;
 extern uint32_t fb_width;
 extern uint32_t fb_height;
 extern uint32_t fb_pitch;
 
+#ifndef DEFAULT_BEZEL_STYLE
+#define DEFAULT_BEZEL_STYLE 0
+#endif
+
+static QDBezelMode gConfiguredBezelMode =
+#if DEFAULT_BEZEL_STYLE == 1
+    kQDBezelRounded;
+#elif DEFAULT_BEZEL_STYLE == 2
+    kQDBezelFlat;
+#else
+    kQDBezelAuto;
+#endif
+
+void QD_SetBezelMode(QDBezelMode mode) {
+    gConfiguredBezelMode = mode;
+}
+
+QDBezelMode QD_GetBezelMode(void) {
+    return gConfiguredBezelMode;
+}
+
+static int compute_corner_radius(void) {
+    int radius = (int)(fb_height / 55);
+    if (radius < 4) {
+        radius = 4;
+    }
+    if (radius > 12) {
+        radius = 12;
+    }
+    return radius;
+}
+
 void QD_DrawCRTBezel(void) {
+    QDBezelMode effectiveMode = gConfiguredBezelMode;
+    if (effectiveMode == kQDBezelAuto) {
+        UInt16 machine = Gestalt_GetMachineType();
+        if (machine == 0x0196) { /* NewWorld default */
+            effectiveMode = kQDBezelFlat;
+        } else {
+            effectiveMode = kQDBezelRounded;
+        }
+    }
+
+    if (effectiveMode == kQDBezelFlat) {
+        return;
+    }
+
     if (!framebuffer || fb_width == 0 || fb_height == 0 || fb_pitch == 0) {
         return;
     }
@@ -16,14 +63,7 @@ void QD_DrawCRTBezel(void) {
     int pitchPixels = fb_pitch / 4;
     const uint32_t black = 0xFF000000;
 
-    int cornerRadius = (int)(fb_height / 55);
-    if (cornerRadius < 4) {
-        cornerRadius = 4;
-    }
-    if (cornerRadius > 12) {
-        cornerRadius = 12;
-    }
-
+    int cornerRadius = compute_corner_radius();
     int radiusSquared = cornerRadius * cornerRadius;
     int topCenterY = cornerRadius - 1;
     int bottomCenterY = (int)fb_height - cornerRadius;

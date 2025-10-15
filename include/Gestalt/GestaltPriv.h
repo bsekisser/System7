@@ -23,7 +23,6 @@ typedef struct {
 /* Internal functions */
 extern void Gestalt_Register_Builtins(void);
 extern void Gestalt_SetInitBit(int bit);
-
 /* Init bits for tracking subsystem initialization */
 enum {
     kGestaltInitBit_MemoryMgr  = 0,
