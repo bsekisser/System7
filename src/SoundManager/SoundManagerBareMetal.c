@@ -57,26 +57,17 @@ OSErr SoundManagerInit(void) {
     }
 
     /* Attempt to initialize configured sound backend */
-    SoundBackendType candidates[2] = { DEFAULT_SOUND_BACKEND, kSoundBackendSB16 };
-    size_t candidateCount = (DEFAULT_SOUND_BACKEND == kSoundBackendSB16) ? 1 : 2;
-
-    for (size_t i = 0; i < candidateCount; ++i) {
-        SoundBackendType type = candidates[i];
-        const SoundBackendOps* ops = SoundBackend_GetOps(type);
-        if (!ops || !ops->init) {
-            continue;
-        }
-
-        OSErr initErr = ops->init();
+    const SoundBackendOps* candidate = SoundBackend_GetOps(DEFAULT_SOUND_BACKEND);
+    if (candidate && candidate->init) {
+        OSErr initErr = candidate->init();
         if (initErr == noErr) {
-            g_soundBackendOps = ops;
-            g_soundBackendType = type;
-            SND_LOG_INFO("SoundManagerInit: Selected %s backend\n", ops->name);
-            break;
+            g_soundBackendOps = candidate;
+            g_soundBackendType = DEFAULT_SOUND_BACKEND;
+            SND_LOG_INFO("SoundManagerInit: Selected %s backend\n", candidate->name);
+        } else {
+            SND_LOG_WARN("SoundManagerInit: Backend %s init failed (err=%d), falling back to speaker\n",
+                         candidate->name, initErr);
         }
-
-        SND_LOG_WARN("SoundManagerInit: Backend %s init failed (err=%d)\n",
-                     ops->name, initErr);
     }
 
     if (!g_soundBackendOps) {

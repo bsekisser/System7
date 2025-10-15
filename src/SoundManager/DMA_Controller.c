@@ -230,9 +230,5 @@ int SB16_PlayDMA(const uint8_t* data, uint32_t size,
 
     SND_LOG_DEBUG("DMA: Playback started\n");
 
-    /* Don't wait - let DMA play in background while system continues */
-    /* In a real implementation, we'd use an interrupt handler to know when done */
-    SND_LOG_DEBUG("DMA: Playback running in background\n");
-
     return 0;
 }

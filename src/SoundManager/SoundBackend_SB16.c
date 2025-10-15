@@ -44,14 +44,7 @@ static uint64_t sb16_div_u64_32(uint64_t num, uint32_t den)
 
 static OSErr SoundBackendSB16_Init(void)
 {
-    if (SB16_Init() == 0) {
-        g_sb16Ready = true;
-        SND_LOG_INFO("SoundBackend(SB16): Initialized\n");
-        return noErr;
-    }
-    g_sb16Ready = false;
-    SND_LOG_WARN("SoundBackend(SB16): Initialization failed\n");
-    return unimpErr;
+    return noErr;
 }
 
 static void SoundBackendSB16_Shutdown(void)
@@ -67,12 +60,17 @@ static OSErr SoundBackendSB16_PlayPCM(const uint8_t* data,
                                       uint8_t channels,
                                       uint8_t bitsPerSample)
 {
-    if (!g_sb16Ready) {
-        return notOpenErr;
-    }
-
     if (!data || sizeBytes == 0) {
         return paramErr;
+    }
+
+    if (!g_sb16Ready) {
+        if (SB16_Init() != 0) {
+            SND_LOG_WARN("SoundBackend(SB16): SB16 init failed\n");
+            return notOpenErr;
+        }
+        g_sb16Ready = true;
+        SND_LOG_INFO("SoundBackend(SB16): SB16 hardware initialized\n");
     }
 
     const uint8_t* src = data;
