@@ -94,6 +94,7 @@ OSErr SoundManagerShutdown(void) {
     }
     g_soundBackendOps = NULL;
     g_soundBackendType = kSoundBackendNone;
+    gStartupChimePlayed = false;
     PCSpkr_Shutdown();
     g_soundManagerInitialized = false;
     return noErr;
@@ -167,9 +168,8 @@ void StartupChime(void) {
 
         SND_LOG_WARN("StartupChime: Backend %s failed (err=%d), falling back to PC speaker\n",
                      g_soundBackendOps->name, backendErr);
-        if (g_soundBackendType != kSoundBackendNone) {
-            return;
-        }
+        g_soundBackendOps = NULL;
+        g_soundBackendType = kSoundBackendNone;
     }
 
     /* Fallback: PC speaker arpeggio */
