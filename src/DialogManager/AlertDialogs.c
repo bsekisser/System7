@@ -13,6 +13,7 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "DialogManager/AlertDialogs.h"
+#include "SoundManager/SoundEffects.h"
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/DialogTypes.h"
 #include "DialogManager/ModalDialogs.h"
@@ -748,22 +749,23 @@ static DialogPtr CreateAlertDialogFromTemplate(const AlertTemplate* alertTemplat
 
 static void PlayAlertSoundForStage(SInt16 alertType, SInt16 stage)
 {
-    /* In System 7, different stages can have different sounds */
-    /* For now, just play system beep */
-    SInt16 soundID = 0;
+    SoundEffectId effect = kSoundEffectBeep;
 
     if (alertType >= 0 && alertType <= 3) {
-        soundID = gAlertState.alertSounds[alertType];
+        SInt16 soundID = gAlertState.alertSounds[alertType];
+        if (soundID == 0) {
+            switch (alertType) {
+                case 0: effect = kSoundEffectAlertStop; break;
+                case 1: effect = kSoundEffectAlertNote; break;
+                case 2: effect = kSoundEffectAlertCaution; break;
+                default: effect = kSoundEffectBeep; break;
+            }
+        } else {
+            /* Future: map custom sound IDs */
+        }
     }
 
-    if (soundID == 0) {
-        /* Play system beep */
-        SysBeep(30);
-    } else {
-        /* Would play custom sound from resource */
-        printf("Playing alert sound ID %d for stage %d\n", soundID, stage);
-        SysBeep(30);
-    }
+    SoundEffects_Play(effect);
 }
 
 static void PositionAlertDialog(DialogPtr alertDialog)

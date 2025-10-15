@@ -26,9 +26,8 @@
 #include "MemoryMgr/memory_manager_types.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "EventManager/EventManager.h"
+#include "SoundManager/SoundEffects.h"
 
-/* Forward declarations for functions not yet in headers */
-extern void SysBeep(short duration);
 extern void PlatformDrawRGBABitmap(const UInt8* rgba_data, int width, int height, int dest_x, int dest_y);
 
 
@@ -516,8 +515,7 @@ OSErr SetStartupPhase(StartupPhase phase) {
  * Play startup sound
  */
 OSErr PlayStartupSound(void) {
-    /* Play system beep as startup sound */
-    SysBeep(1);
+    SoundEffects_Play(kSoundEffectBeep);
     return noErr;
 }
 

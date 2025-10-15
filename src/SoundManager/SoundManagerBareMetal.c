@@ -12,6 +12,7 @@
 
 #include "SoundManager/SoundManager.h"
 #include "SoundManager/SoundLogging.h"
+#include "SoundManager/SoundEffects.h"
 #include "SoundManager/SoundBackend.h"
 #include "SoundManager/boot_chime_data.h"
 #include "config/sound_config.h"
@@ -19,6 +20,9 @@
 
 /* Error codes */
 #define unimpErr -4  /* Unimplemented trap */
+#ifndef notOpenErr
+#define notOpenErr (-28)
+#endif
 
 /* PC Speaker hardware functions */
 extern int PCSpkr_Init(void);
@@ -31,6 +35,23 @@ static const SoundBackendOps* g_soundBackendOps = NULL;
 static SoundBackendType g_soundBackendType = kSoundBackendNone;
 static bool gStartupChimeAttempted = false;
 static bool gStartupChimePlayed = false;
+
+OSErr SoundManager_PlayPCM(const uint8_t* data,
+                           uint32_t sizeBytes,
+                           uint32_t sampleRate,
+                           uint8_t channels,
+                           uint8_t bitsPerSample)
+{
+    if (!data || sizeBytes == 0) {
+        return paramErr;
+    }
+
+    if (!g_soundManagerInitialized || !g_soundBackendOps || !g_soundBackendOps->play_pcm) {
+        return notOpenErr;
+    }
+
+    return g_soundBackendOps->play_pcm(data, sizeBytes, sampleRate, channels, bitsPerSample);
+}
 
 /*
  * SoundManagerInit - Initialize Sound Manager
@@ -76,6 +97,9 @@ OSErr SoundManagerInit(void) {
         SND_LOG_WARN("SoundManagerInit: No advanced sound backend available, using PC speaker only\n");
     }
 
+    gStartupChimeAttempted = false;
+    gStartupChimePlayed = false;
+
     g_soundManagerInitialized = true;
     SND_LOG_INFO("SoundManagerInit: Sound Manager initialized successfully (flag=%d)\n", g_soundManagerInitialized);
 
@@ -110,24 +134,8 @@ OSErr SoundManagerShutdown(void) {
  * Classic Mac OS standard beep sound (1000 Hz tone).
  */
 void SysBeep(short duration) {
-
-    if (!g_soundManagerInitialized) {
-        SND_LOG_WARN("SysBeep: Sound Manager not initialized\n");
-        return;
-    }
-
-    /* Convert duration from ticks (1/60 sec) to milliseconds */
-    uint32_t duration_ms = (duration * 1000) / 60;
-
-    /* Default to 200ms if duration is 0 or very short */
-    if (duration_ms < 50) {
-        duration_ms = 200;
-    }
-
-    SND_LOG_TRACE("SysBeep: duration=%d ticks (%u ms)\n", duration, duration_ms);
-
-    /* Generate 1000 Hz beep (classic Mac beep frequency) */
-    PCSpkr_Beep(1000, duration_ms);
+    (void)duration;
+    (void)SoundEffects_Play(kSoundEffectBeep);
 }
 
 /*
@@ -138,11 +146,6 @@ void SysBeep(short duration) {
  */
 void StartupChime(void) {
 
-    if (!g_soundManagerInitialized) {
-        SND_LOG_WARN("StartupChime: Sound Manager not initialized\n");
-        return;
-    }
-
     if (gStartupChimeAttempted) {
         SND_LOG_DEBUG("StartupChime: Already attempted, skipping\n");
         return;
@@ -150,60 +153,10 @@ void StartupChime(void) {
 
     gStartupChimeAttempted = true;
 
-    if (g_soundBackendOps && g_soundBackendOps->play_pcm) {
-        SND_LOG_INFO("StartupChime: Trying %s backend (%u bytes)\n",
-                     g_soundBackendOps->name, BOOT_CHIME_DATA_SIZE);
-
-        OSErr backendErr = g_soundBackendOps->play_pcm(gBootChimePCM,
-                                                       BOOT_CHIME_DATA_SIZE,
-                                                       BOOT_CHIME_SAMPLE_RATE,
-                                                       BOOT_CHIME_CHANNELS,
-                                                       BOOT_CHIME_BITS_PER_SAMPLE);
-        if (g_soundBackendOps->stop) {
-            g_soundBackendOps->stop();
-        }
-
-        if (backendErr == noErr) {
-            SND_LOG_INFO("StartupChime: Playback complete via %s backend\n",
-                         g_soundBackendOps->name);
-            gStartupChimePlayed = true;
-            return;
-        }
-
-        SND_LOG_WARN("StartupChime: Backend %s failed (err=%d), falling back to PC speaker\n",
-                     g_soundBackendOps->name, backendErr);
-        g_soundBackendOps = NULL;
-        g_soundBackendType = kSoundBackendNone;
+    OSErr err = SoundEffects_Play(kSoundEffectStartupChime);
+    if (err == noErr) {
+        gStartupChimePlayed = true;
     }
-
-    /* Fallback: PC speaker arpeggio */
-    SND_LOG_INFO("StartupChime: Playing System 7 startup chime\n");
-
-    /* Classic Mac startup chime - C major chord arpeggio
-     * Played as a quick succession of notes to create the iconic sound
-     *
-     * Musical notes (in Hz):
-     * C4 = 261.63 Hz (middle C)
-     * E4 = 329.63 Hz (major third)
-     * G4 = 392.00 Hz (perfect fifth)
-     * C5 = 523.25 Hz (octave)
-     */
-
-    /* Play the chord as an arpeggio with longer sustain for audibility */
-    SND_LOG_TRACE("StartupChime: Playing C4 (262 Hz)\n");
-    PCSpkr_Beep(262, 300);  /* C4 - 300ms */
-
-    SND_LOG_TRACE("StartupChime: Playing E4 (330 Hz)\n");
-    PCSpkr_Beep(330, 300);  /* E4 - 300ms */
-
-    SND_LOG_TRACE("StartupChime: Playing G4 (392 Hz)\n");
-    PCSpkr_Beep(392, 300);  /* G4 - 300ms */
-
-    SND_LOG_TRACE("StartupChime: Playing C5 (523 Hz)\n");
-    PCSpkr_Beep(523, 600);  /* C5 - 600ms (longer sustain on final note) */
-
-    SND_LOG_INFO("StartupChime: Complete\n");
-    gStartupChimePlayed = true;
 }
 
 /*

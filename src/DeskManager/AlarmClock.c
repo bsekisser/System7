@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <ctype.h>
 /*
  * AlarmClock.c - Alarm Clock Desk Accessory Implementation
  *
@@ -16,6 +17,45 @@
 
 #include "DeskManager/AlarmClock.h"
 #include "DeskManager/DeskManager.h"
+#include "SoundManager/SoundEffects.h"
+
+static int AlarmClock_StrEqualsIgnoreCase(const char* a, const char* b)
+{
+    if (!a || !b) return 0;
+    while (*a && *b) {
+        unsigned char ca = (unsigned char)*a++;
+        unsigned char cb = (unsigned char)*b++;
+        if (tolower(ca) != tolower(cb)) {
+            return 0;
+        }
+    }
+    return *a == '\0' && *b == '\0';
+}
+
+static SoundEffectId AlarmClock_EffectForName(const char* soundName)
+{
+    if (!soundName || *soundName == '\0') {
+        return kSoundEffectBeep;
+    }
+
+    if (AlarmClock_StrEqualsIgnoreCase(soundName, "wild eep")) {
+        return kSoundEffectWildEep;
+    }
+    if (AlarmClock_StrEqualsIgnoreCase(soundName, "droplet")) {
+        return kSoundEffectDroplet;
+    }
+    if (AlarmClock_StrEqualsIgnoreCase(soundName, "quack")) {
+        return kSoundEffectQuack;
+    }
+    if (AlarmClock_StrEqualsIgnoreCase(soundName, "indigo")) {
+        return kSoundEffectIndigo;
+    }
+    if (AlarmClock_StrEqualsIgnoreCase(soundName, "sosumi")) {
+        return kSoundEffectBeep;
+    }
+
+    return kSoundEffectBeep;
+}
 
 
 /*
@@ -360,10 +400,8 @@ int AlarmClock_TriggerNotification(AlarmClock *clock, Alarm *alarm)
  */
 int AlarmClock_PlaySound(const char *soundName, SInt16 volume)
 {
-    /* In a real implementation, this would play the specified sound */
-    /* For now, just a placeholder */
-    (void)soundName;
     (void)volume;
+    (void)SoundEffects_Play(AlarmClock_EffectForName(soundName));
     return ALARM_ERR_NONE;
 }
 

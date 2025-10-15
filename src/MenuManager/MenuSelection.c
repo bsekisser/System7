@@ -25,6 +25,7 @@
 #include "MenuManager/MenuTypes.h"
 #include "MenuManager/MenuInternalTypes.h"
 #include "MenuManager/MenuSelection.h"
+#include "SoundManager/SoundEffects.h"
 #include "MenuManager/MenuDisplay.h"
 
 /* Serial output functions */
@@ -772,9 +773,8 @@ void AnimateMenuSelection(const MenuSelection* selection, short animation)
  */
 void PlayMenuSound(short soundType)
 {
-    /* MENU_LOG_TRACE("Playing menu sound type %d\n", soundType); */
-
-    /* TODO: Implement sound playback */
+    (void)soundType;
+    (void)SoundEffects_Play(kSoundEffectMenuSelect);
 }
 
 /* ============================================================================
