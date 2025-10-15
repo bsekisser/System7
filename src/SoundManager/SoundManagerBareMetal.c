@@ -8,14 +8,13 @@
 #include "SystemTypes.h"
 #include <stdint.h>
 #include <stdbool.h>
-#include <limits.h>
 #include <string.h>
 
 #include "SoundManager/SoundManager.h"
 #include "SoundManager/SoundLogging.h"
-#include "SoundManager/SoundBlaster16.h"
+#include "SoundManager/SoundBackend.h"
 #include "SoundManager/boot_chime_data.h"
-#include "TimeManager/MicrosecondTimer.h"
+#include "config/sound_config.h"
 #include "SystemInternal.h"
 
 /* Error codes */
@@ -28,29 +27,8 @@ extern void PCSpkr_Beep(uint32_t frequency, uint32_t duration_ms);
 
 /* Sound Manager state */
 static bool g_soundManagerInitialized = false;
-static bool g_sb16Available = false;
-
-/* DMA playback scratch buffer (<= 120 KB per transfer, 32-byte aligned) */
-#define SB16_DMA_CHUNK_BYTES 120000U
-static uint8_t g_sb16DMABuffer[SB16_DMA_CHUNK_BYTES] __attribute__((aligned(32)));
-
-static uint64_t smb_divu64_32(uint64_t num, uint32_t den) {
-    if (den == 0) {
-        return 0;
-    }
-
-    uint64_t quotient = 0;
-    uint64_t remainder = 0;
-
-    for (int i = 63; i >= 0; --i) {
-        remainder = (remainder << 1) | ((num >> i) & 1ULL);
-        if (remainder >= den) {
-            remainder -= den;
-            quotient |= (1ULL << i);
-        }
-    }
-    return quotient;
-}
+static const SoundBackendOps* g_soundBackendOps = NULL;
+static SoundBackendType g_soundBackendType = kSoundBackendNone;
 
 /*
  * SoundManagerInit - Initialize Sound Manager
@@ -78,14 +56,31 @@ OSErr SoundManagerInit(void) {
         return -1;
     }
 
-    /* Attempt to initialize Sound Blaster 16 for PCM playback */
-    int sb16_result = SB16_Init();
-    if (sb16_result == 0) {
-        g_sb16Available = true;
-        SND_LOG_INFO("SoundManagerInit: SB16 available for PCM playback\n");
-    } else {
-        SND_LOG_WARN("SoundManagerInit: SB16 unavailable (code=%d), falling back to PC speaker only\n",
-                     sb16_result);
+    /* Attempt to initialize configured sound backend */
+    SoundBackendType candidates[2] = { DEFAULT_SOUND_BACKEND, kSoundBackendSB16 };
+    size_t candidateCount = (DEFAULT_SOUND_BACKEND == kSoundBackendSB16) ? 1 : 2;
+
+    for (size_t i = 0; i < candidateCount; ++i) {
+        SoundBackendType type = candidates[i];
+        const SoundBackendOps* ops = SoundBackend_GetOps(type);
+        if (!ops || !ops->init) {
+            continue;
+        }
+
+        OSErr initErr = ops->init();
+        if (initErr == noErr) {
+            g_soundBackendOps = ops;
+            g_soundBackendType = type;
+            SND_LOG_INFO("SoundManagerInit: Selected %s backend\n", ops->name);
+            break;
+        }
+
+        SND_LOG_WARN("SoundManagerInit: Backend %s init failed (err=%d)\n",
+                     ops->name, initErr);
+    }
+
+    if (!g_soundBackendOps) {
+        SND_LOG_WARN("SoundManagerInit: No advanced sound backend available, using PC speaker only\n");
     }
 
     g_soundManagerInitialized = true;
@@ -102,11 +97,12 @@ OSErr SoundManagerShutdown(void) {
         return noErr;
     }
 
-    PCSpkr_Shutdown();
-    if (g_sb16Available) {
-        SB16_Shutdown();
-        g_sb16Available = false;
+    if (g_soundBackendOps && g_soundBackendOps->shutdown) {
+        g_soundBackendOps->shutdown();
     }
+    g_soundBackendOps = NULL;
+    g_soundBackendType = kSoundBackendNone;
+    PCSpkr_Shutdown();
     g_soundManagerInitialized = false;
     return noErr;
 }
@@ -152,54 +148,27 @@ void StartupChime(void) {
         return;
     }
 
-    /* Attempt high-fidelity playback first */
-    if (g_sb16Available) {
-        const uint8_t* src = gBootChimePCM;
-        uint32_t remaining = BOOT_CHIME_DATA_SIZE;
-        const uint32_t bytesPerFrame = (BOOT_CHIME_BITS_PER_SAMPLE / 8) * BOOT_CHIME_CHANNELS;
-        int sbErr = 0;
+    if (g_soundBackendOps && g_soundBackendOps->play_pcm) {
+        SND_LOG_INFO("StartupChime: Trying %s backend (%u bytes)\n",
+                     g_soundBackendOps->name, BOOT_CHIME_DATA_SIZE);
 
-        SND_LOG_INFO("StartupChime: Playing PCM boot chime via SB16 (%u bytes)\n",
-                     BOOT_CHIME_DATA_SIZE);
-
-        while (remaining > 0) {
-            uint32_t chunk = (remaining > SB16_DMA_CHUNK_BYTES) ? SB16_DMA_CHUNK_BYTES : remaining;
-            chunk -= chunk % bytesPerFrame;
-            if (chunk == 0) {
-                break;
-            }
-
-            memcpy(g_sb16DMABuffer, src, chunk);
-            sbErr = SB16_PlayWAV(g_sb16DMABuffer,
-                                 chunk,
-                                 BOOT_CHIME_SAMPLE_RATE,
-                                 BOOT_CHIME_CHANNELS,
-                                 BOOT_CHIME_BITS_PER_SAMPLE);
-            if (sbErr != 0) {
-                SND_LOG_WARN("StartupChime: SB16 playback chunk failed (err=%d)\n", sbErr);
-                break;
-            }
-
-            /* Wait for chunk duration so DMA can finish before queueing next block */
-            uint64_t frames = chunk / bytesPerFrame;
-            uint64_t chunkUs64 = smb_divu64_32(frames * 1000000ULL, BOOT_CHIME_SAMPLE_RATE);
-            UInt32 chunkUs = (chunkUs64 > UINT32_MAX) ? UINT32_MAX : (UInt32)chunkUs64;
-            if (chunkUs > 0) {
-                MicrosecondDelay(chunkUs);
-            }
-
-            src += chunk;
-            remaining -= chunk;
+        OSErr backendErr = g_soundBackendOps->play_pcm(gBootChimePCM,
+                                                       BOOT_CHIME_DATA_SIZE,
+                                                       BOOT_CHIME_SAMPLE_RATE,
+                                                       BOOT_CHIME_CHANNELS,
+                                                       BOOT_CHIME_BITS_PER_SAMPLE);
+        if (g_soundBackendOps->stop) {
+            g_soundBackendOps->stop();
         }
 
-        SB16_StopPlayback();
-
-        if (sbErr == 0) {
-            SND_LOG_INFO("StartupChime: SB16 playback complete\n");
+        if (backendErr == noErr) {
+            SND_LOG_INFO("StartupChime: Playback complete via %s backend\n",
+                         g_soundBackendOps->name);
             return;
         }
 
-        SND_LOG_WARN("StartupChime: Falling back to PC speaker chime\n");
+        SND_LOG_WARN("StartupChime: Backend %s failed (err=%d), falling back to PC speaker\n",
+                     g_soundBackendOps->name, backendErr);
     }
 
     /* Fallback: PC speaker arpeggio */

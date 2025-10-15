@@ -127,6 +127,9 @@ C_SOURCES = src/main.c \
             src/Platform/x86/hal_input.c \
             src/SoundManager/SoundManagerBareMetal.c \
             src/SoundManager/SoundHardwarePC.c \
+            src/SoundManager/SoundBackend.c \
+            src/SoundManager/SoundBackend_HDA.c \
+            src/SoundManager/SoundBackend_SB16.c \
             src/SoundManager/SoundBlaster16.c \
             src/SoundManager/DMA_Controller.c \
             src/MenuManager/MenuManagerCore.c \
