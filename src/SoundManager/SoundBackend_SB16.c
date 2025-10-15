@@ -77,6 +77,7 @@ static OSErr SoundBackendSB16_PlayPCM(const uint8_t* data,
     uint32_t remaining = sizeBytes;
     const uint32_t frameBytes = (bitsPerSample / 8) * channels;
 
+    uint32_t chunkIndex = 0;
     while (remaining > 0) {
         uint32_t chunk = (remaining > SB16_DMA_CHUNK_BYTES) ? SB16_DMA_CHUNK_BYTES : remaining;
         if (frameBytes > 0) {
@@ -86,7 +87,8 @@ static OSErr SoundBackendSB16_PlayPCM(const uint8_t* data,
             }
         }
 
-        SND_LOG_DEBUG("SoundBackend(SB16): Playing chunk size=%u remaining=%u\n", chunk, remaining);
+        SND_LOG_DEBUG("SoundBackend(SB16): Chunk %u size=%u remaining=%u\n",
+                      chunkIndex, chunk, remaining);
         memcpy(g_sb16ChunkBuffer, src, chunk);
 
         int err = SB16_PlayWAV(g_sb16ChunkBuffer,
@@ -112,6 +114,7 @@ static OSErr SoundBackendSB16_PlayPCM(const uint8_t* data,
 
         src += chunk;
         remaining -= chunk;
+        ++chunkIndex;
     }
 
     SB16_StopPlayback();

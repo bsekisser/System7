@@ -29,6 +29,7 @@ extern void PCSpkr_Beep(uint32_t frequency, uint32_t duration_ms);
 static bool g_soundManagerInitialized = false;
 static const SoundBackendOps* g_soundBackendOps = NULL;
 static SoundBackendType g_soundBackendType = kSoundBackendNone;
+static bool gStartupChimeAttempted = false;
 static bool gStartupChimePlayed = false;
 
 /*
@@ -94,6 +95,7 @@ OSErr SoundManagerShutdown(void) {
     }
     g_soundBackendOps = NULL;
     g_soundBackendType = kSoundBackendNone;
+    gStartupChimeAttempted = false;
     gStartupChimePlayed = false;
     PCSpkr_Shutdown();
     g_soundManagerInitialized = false;
@@ -141,10 +143,12 @@ void StartupChime(void) {
         return;
     }
 
-    if (gStartupChimePlayed) {
-        SND_LOG_DEBUG("StartupChime: Already played, skipping\n");
+    if (gStartupChimeAttempted) {
+        SND_LOG_DEBUG("StartupChime: Already attempted, skipping\n");
         return;
     }
+
+    gStartupChimeAttempted = true;
 
     if (g_soundBackendOps && g_soundBackendOps->play_pcm) {
         SND_LOG_INFO("StartupChime: Trying %s backend (%u bytes)\n",
