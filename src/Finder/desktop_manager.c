@@ -49,6 +49,7 @@ extern void serial_puts(const char* str);
 /* External function declarations */
 extern int sprintf(char* str, const char* format, ...);
 extern int snprintf(char* str, size_t size, const char* format, ...);
+extern bool Trash_IsEmptyAll(void);
 extern Ptr NewPtr(Size byteCount);
 extern void InvalRect(const Rect* badRect);
 extern void SetDeskHook(void (*hookProc)(RgnHandle));
@@ -92,6 +93,8 @@ static short gDesktopIconCount = 0;         /* Number of icons on desktop */
 static Boolean gDesktopNeedsCleanup = false; /* Desktop needs reorganization */
 static VRefNum gBootVolumeRef = 0;          /* Boot volume reference */
 static Boolean gVolumeIconVisible = false;   /* Is volume icon shown on desktop */
+static DesktopItem gDesktopIconStatic[kMaxDesktopIcons]; /* Static fallback storage */
+static Boolean gDesktopIconStaticInUse = false;
 
 /* Icon selection and dragging state */
 static short gSelectedIcon = -1;             /* Index of selected icon (-1 = none) */
@@ -222,6 +225,143 @@ static void Finder_EraseRegionExcludingRect(RgnHandle baseRgn, const Rect* exclu
     }
 }
 
+static bool EnsureIconSystemInitialized(void)
+{
+    static bool sIconInitAttempted = false;
+    static bool sIconInitResult = false;
+
+    if (!sIconInitAttempted) {
+        sIconInitResult = Icon_Init();
+        sIconInitAttempted = true;
+    }
+    return sIconInitResult;
+}
+
+static void Desktop_BuildFileKind(const DesktopItem* item, FileKind* outKind)
+{
+    if (!item || !outKind) {
+        return;
+    }
+
+    FileKind fk = {0};
+    fk.path = NULL;
+    fk.hasCustomIcon = false;
+
+    switch (item->type) {
+        case kDesktopItemTrash:
+            fk.isTrash = true;
+            fk.isTrashFull = !Trash_IsEmptyAll();
+            fk.isFolder = true;
+            break;
+        case kDesktopItemVolume:
+            fk.isVolume = true;
+            break;
+        case kDesktopItemFolder:
+            fk.isFolder = true;
+            break;
+        case kDesktopItemApplication:
+            fk.type = item->data.file.fileType ? item->data.file.fileType : 'APPL';
+            fk.creator = item->data.file.creator;
+            break;
+        case kDesktopItemFile:
+            fk.type = item->data.file.fileType;
+            fk.creator = item->data.file.creator;
+            break;
+        case kDesktopItemAlias:
+            fk.type = 'alis';
+            break;
+        default:
+            break;
+    }
+
+    *outKind = fk;
+}
+
+static int Desktop_LabelOffsetForItem(const DesktopItem* item)
+{
+    if (!item) {
+        return kIconH;
+    }
+
+    switch (item->type) {
+        case kDesktopItemTrash:
+            return 48;
+        case kDesktopItemVolume:
+            return 34;
+        default:
+            return kIconH;
+    }
+}
+
+static void Desktop_DrawIconsCommon(RgnHandle clip)
+{
+    if (!EnsureIconSystemInitialized()) {
+        return;
+    }
+
+    (void)clip;  /* Clipping handled by QuickDraw port */
+
+    for (int i = 0; i < gDesktopIconCount; i++) {
+        if (i == gDraggingIconIndex) {
+            continue;
+        }
+
+        if (gDesktopIcons[i].type == kDesktopItemVolume && !gVolumeIconVisible) {
+            continue;
+        }
+
+        FileKind fk = {0};
+        Desktop_BuildFileKind(&gDesktopIcons[i], &fk);
+
+        IconHandle handle = {0};
+        bool resolved = Icon_ResolveForNode(&fk, &handle);
+
+        if (!resolved || !handle.fam) {
+            switch (gDesktopIcons[i].type) {
+                case kDesktopItemFolder:
+                    handle.fam = IconSys_DefaultFolder();
+                    break;
+                case kDesktopItemVolume:
+                    handle.fam = IconSys_DefaultVolume();
+                    break;
+                case kDesktopItemTrash:
+                    handle.fam = fk.isTrashFull ? IconSys_TrashFull() : IconSys_TrashEmpty();
+                    break;
+                default:
+                    handle.fam = IconSys_DefaultDoc();
+                    break;
+            }
+        }
+
+        bool selected = (gSelectedIcon == i);
+        handle.selected = selected;
+
+        Point localPos = gDesktopIcons[i].position;
+        GlobalToLocal(&localPos);
+
+        int centerX = localPos.h + (kIconW / 2);
+        int topY = localPos.v;
+        int labelOffset = Desktop_LabelOffsetForItem(&gDesktopIcons[i]);
+
+        Icon_DrawWithLabelOffset(&handle,
+                                 gDesktopIcons[i].name,
+                                 centerX,
+                                 topY,
+                                 labelOffset,
+                                 selected);
+
+#ifdef DESKTOP_DEBUG_OUTLINES
+        Rect outline = {
+            .top = localPos.v,
+            .left = localPos.h,
+            .bottom = localPos.v + kIconH,
+            .right = localPos.h + kIconW
+        };
+        FrameRect(&outline);
+#endif
+    }
+}
+
 /* Public function to draw the desktop */
 void DrawDesktop(void);
 void DrawVolumeIcon(void);
@@ -335,65 +475,8 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
     /* Draw desktop icons in invalid region */
     RgnHandle paintClip = invalidRgn ? invalidRgn : desktopClip;
 
-    for (int i = 0; i < gDesktopIconCount; i++) {
-        if (i == gDraggingIconIndex) continue;
-
-        Rect iconRect;
-        SetRect(&iconRect,
-                gDesktopIcons[i].position.h,
-                gDesktopIcons[i].position.v,
-                gDesktopIcons[i].position.h + 32,
-                gDesktopIcons[i].position.v + 32);
-
-        if (paintClip && !RectInRgn(&iconRect, paintClip)) {
-            continue;
-        }
-
-        IconHandle handle = {0};
-        int labelOffset = kIconH;  /* default */
-
-        switch (gDesktopIcons[i].type) {
-            case kDesktopItemVolume:
-                handle.fam = IconSys_DefaultVolume();
-                labelOffset = 34;
-                break;
-            case kDesktopItemTrash:
-            {
-                extern bool Trash_IsEmptyAll(void);
-                handle.fam = Trash_IsEmptyAll() ? IconSys_TrashEmpty() : IconSys_TrashFull();
-                labelOffset = 48;
-                break;
-            }
-            case kDesktopItemFolder:
-                handle.fam = IconSys_DefaultFolder();
-                break;
-            case kDesktopItemFile:
-            case kDesktopItemAlias:
-            case kDesktopItemApplication:
-            default:
-                handle.fam = IconSys_DefaultDoc();
-                break;
-        }
-
-        if (!handle.fam) {
-            continue;
-        }
-
-        handle.selected = (gSelectedIcon == i);
-
-        int centerX = gDesktopIcons[i].position.h + (kIconW / 2);
-        int topY = gDesktopIcons[i].position.v;
-
-        Icon_DrawWithLabelOffset(&handle,
-                                 gDesktopIcons[i].name,
-                                 centerX,
-                                 topY,
-                                 labelOffset,
-                                 handle.selected);
-    }
-
-    /* Legacy helper still handles trash/volume label offsets and selection updates */
-    DrawVolumeIcon();
+    FINDER_LOG_DEBUG("DeskHook: drawing %d desktop icons\n", gDesktopIconCount);
+    Desktop_DrawIconsCommon(paintClip);
 
     SetPort(savePort);
     if (desktopClip) {
@@ -698,12 +781,23 @@ OSErr InitializeDesktopDB(void)
 static OSErr AllocateDesktopIcons(void)
 {
     if (gDesktopIcons != NULL) {
+        serial_puts("Desktop: AllocateDesktopIcons skipped (already allocated)\n");
         return noErr; /* Already allocated */
     }
 
+    serial_puts("Desktop: AllocateDesktopIcons allocating with NewPtr\n");
     gDesktopIcons = (DesktopItem*)NewPtr(sizeof(DesktopItem) * kMaxDesktopIcons);
     if (gDesktopIcons == NULL) {
-        return memFullErr;
+        serial_puts("Desktop: NewPtr failed, falling back to calloc\n");
+        gDesktopIcons = (DesktopItem*)calloc(kMaxDesktopIcons, sizeof(DesktopItem));
+        if (gDesktopIcons == NULL) {
+            serial_puts("Desktop: calloc failed, using static storage\n");
+            gDesktopIcons = gDesktopIconStatic;
+            memset(gDesktopIcons, 0, sizeof(gDesktopIconStatic));
+            gDesktopIconStaticInUse = true;
+        }
+    } else {
+        gDesktopIconStaticInUse = false;
     }
 
     /* Initialize trash as the first desktop item */
@@ -715,6 +809,12 @@ static OSErr AllocateDesktopIcons(void)
     gDesktopIcons[0].movable = false;  /* Trash stays in place */
     gDesktopIconCount = 1;  /* Start with trash */
     gVolumeIconVisible = true;  /* Ensure trash renders even if volume add fails */
+
+    {
+        char msg[96];
+        sprintf(msg, "Desktop: AllocateDesktopIcons success, count=%d\n", gDesktopIconCount);
+        serial_puts(msg);
+    }
 
     return noErr;
 }
@@ -1638,7 +1738,6 @@ Boolean Desktop_IsOverTrash(Point where) {
 void DrawVolumeIcon(void)
 {
     static Boolean gInVolumeIconPaint = false;
-    IconHandle iconHandle;
     GrafPtr savePort;
     RgnHandle savedClip = NULL;
     Boolean clipSaved = false;
@@ -1681,50 +1780,8 @@ void DrawVolumeIcon(void)
         return;
     }
 
-    FINDER_LOG_DEBUG("DrawVolumeIcon: Drawing all desktop items\n");
-
-    /* Draw all desktop items */
-    for (int i = 0; i < gDesktopIconCount; i++) {
-        if (gDesktopIcons[i].type == kDesktopItemVolume) {
-            /* Draw volume icon */
-            FINDER_LOG_DEBUG("DrawVolumeIcon: Drawing volume at index %d, pos=(%d,%d)\n",
-                         i, gDesktopIcons[i].position.h, gDesktopIcons[i].position.v);
-
-            iconHandle.fam = IconSys_DefaultVolume();
-            iconHandle.selected = (gSelectedIcon == i);
-
-            Point localPos = gDesktopIcons[i].position;
-            GlobalToLocal(&localPos);
-
-            Icon_DrawWithLabelOffset(&iconHandle, gDesktopIcons[i].name,
-                                    localPos.h + 16,  /* Center X (local) */
-                                    localPos.v,       /* Top Y (local) */
-                                    34,               /* Label offset */
-                                    iconHandle.selected);
-        } else if (gDesktopIcons[i].type == kDesktopItemTrash) {
-            /* Draw trash icon */
-            extern const IconFamily* IconSys_TrashEmpty(void);
-            extern const IconFamily* IconSys_TrashFull(void);
-            extern bool Trash_IsEmptyAll(void);
-
-            IconHandle trashHandle;
-            trashHandle.fam = Trash_IsEmptyAll() ? IconSys_TrashEmpty() : IconSys_TrashFull();
-            trashHandle.selected = (gSelectedIcon == i);
-
-            FINDER_LOG_DEBUG("DrawVolumeIcon: Drawing trash at (%d,%d)\n",
-                         gDesktopIcons[i].position.h, gDesktopIcons[i].position.v);
-
-            Point localPos = gDesktopIcons[i].position;
-            GlobalToLocal(&localPos);
-
-            Icon_DrawWithLabelOffset(&trashHandle, gDesktopIcons[i].name,
-                                    localPos.h + 16,  /* Center X (local) */
-                                    localPos.v,       /* Top Y (local) */
-                                    48,               /* Label offset */
-                                    trashHandle.selected);
-        }
-        /* Future: handle kDesktopItemFile, kDesktopItemFolder, etc. */
-    }
+    FINDER_LOG_DEBUG("DrawVolumeIcon: Drawing desktop icon set\n");
+    Desktop_DrawIconsCommon(NULL);
     FINDER_LOG_DEBUG("DrawVolumeIcon: about to return\n");
     gInVolumeIconPaint = false;
 

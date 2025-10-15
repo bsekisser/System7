@@ -890,6 +890,17 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
 /* Safe folder window drawing with ghost integration
  * Called from EventDispatcher HandleUpdate when window is a folder window
  */
+static bool FolderWindow_EnsureIconSystemInitialized(void) {
+    static bool sIconInitAttempted = false;
+    static bool sIconInitResult = false;
+
+    if (!sIconInitAttempted) {
+        sIconInitResult = Icon_Init();
+        sIconInitAttempted = true;
+    }
+    return sIconInitResult;
+}
+
 void FolderWindow_Draw(WindowPtr w) {
     static Boolean gInFolderPaint = false;
 
@@ -927,15 +938,35 @@ void FolderWindow_Draw(WindowPtr w) {
     }
     /* If we have state, draw icons with selection highlighting */
     else if (state && state->items) {
+        bool iconSystemReady = FolderWindow_EnsureIconSystemInitialized();
+
         for (short i = 0; i < state->itemCount; i++) {
             Boolean selected = (i == state->selectedIndex);
-            IconHandle iconHandle;
+            IconHandle iconHandle = {0};
+            bool resolved = false;
 
-            if (state->items[i].isFolder) {
-                iconHandle.fam = IconSys_DefaultFolder();
-            } else {
-                iconHandle.fam = IconSys_DefaultDoc();
+            if (iconSystemReady) {
+                FileKind fk = {0};
+                fk.type = state->items[i].type;
+                fk.creator = state->items[i].creator;
+                fk.isFolder = state->items[i].isFolder;
+                fk.isVolume = false;
+                fk.isTrash = false;
+                fk.isTrashFull = false;
+                fk.hasCustomIcon = false;
+                fk.path = NULL;
+
+                resolved = Icon_ResolveForNode(&fk, &iconHandle);
             }
+
+            if (!resolved || !iconHandle.fam) {
+                if (state->items[i].isFolder) {
+                    iconHandle.fam = IconSys_DefaultFolder();
+                } else {
+                    iconHandle.fam = IconSys_DefaultDoc();
+                }
+            }
+
             iconHandle.selected = selected;
 
             int localX = state->items[i].position.h;

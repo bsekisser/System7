@@ -42,6 +42,7 @@ typedef struct {
     bool     isFolder;
     bool     isVolume;
     bool     isTrash;
+    bool     isTrashFull;
     bool     hasCustomIcon;
     const char* path;   /* for custom icon lookup */
 } FileKind;

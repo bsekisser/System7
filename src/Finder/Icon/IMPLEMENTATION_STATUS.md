@@ -10,14 +10,12 @@
 7. ✅ `src/Finder/Icon/icon_resolver.c` - Icon resolution logic
 
 ## Still Need:
-1. `src/Finder/Icon/icon_draw.c` - Drawing implementation
-2. `src/Finder/Icon/icon_label.c` - Label renderer
-3. Makefile updates
-4. Desktop manager integration
+1. Hook `IconRes_LoadFamilyByID` into resource forks for ICN#/cicn data
+2. Add caching/custom icon lookup for `Icon_ResolveForNode`
+3. Wire 16×16/SICN support for list views and outlines
 
 ## Next Steps:
-1. Implement icon_draw.c with QuickDraw compositing
-2. Port the perfected label rendering from desktop_manager.c to icon_label.c
-3. Update Makefile to compile new files
-4. Replace DrawVolumeIcon with Icon_ResolveForNode + Icon_DrawWithLabel
-5. Test the complete system
+1. Flesh out the resource-backed loader for default and application icons
+2. Cache resolved families to avoid repeated temp allocations
+3. Extend Finder windows/list view to use small icons and verify rendering
+4. Test the complete system in QEMU and capture screenshots/logs

@@ -39,6 +39,12 @@ bool Icon_ResolveForNode(const FileKind* fk, IconHandle* out) {
     }
 
     /* 3) System defaults */
+    if (fk->isTrash) {
+        out->fam = fk->isTrashFull ? IconSys_TrashFull() : IconSys_TrashEmpty();
+        out->selected = false;
+        return true;
+    }
+
     if (fk->isVolume) {
         out->fam = IconSys_DefaultVolume();
         out->selected = false;
