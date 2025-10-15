@@ -86,6 +86,7 @@ static OSErr SoundBackendSB16_PlayPCM(const uint8_t* data,
             }
         }
 
+        SND_LOG_DEBUG("SoundBackend(SB16): Playing chunk size=%u remaining=%u\n", chunk, remaining);
         memcpy(g_sb16ChunkBuffer, src, chunk);
 
         int err = SB16_PlayWAV(g_sb16ChunkBuffer,
@@ -104,6 +105,7 @@ static OSErr SoundBackendSB16_PlayPCM(const uint8_t* data,
             uint64_t usec64 = sb16_div_u64_32(frames * 1000000ULL, sampleRate);
             if (usec64 > 0) {
                 UInt32 clamped = (usec64 > UINT32_MAX) ? UINT32_MAX : (UInt32)usec64;
+                SND_LOG_DEBUG("SoundBackend(SB16): Waiting %u us for chunk\n", clamped);
                 MicrosecondDelay(clamped);
             }
         }
@@ -113,6 +115,7 @@ static OSErr SoundBackendSB16_PlayPCM(const uint8_t* data,
     }
 
     SB16_StopPlayback();
+    SND_LOG_DEBUG("SoundBackend(SB16): Playback complete, speaker stopped\n");
     return noErr;
 }
 
@@ -120,6 +123,7 @@ static void SoundBackendSB16_Stop(void)
 {
     if (!g_sb16Ready) return;
     SB16_StopPlayback();
+    SND_LOG_DEBUG("SoundBackend(SB16): Stop request\n");
 }
 
 const SoundBackendOps kSoundBackendOps_SB16 = {
