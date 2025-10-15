@@ -103,6 +103,7 @@ C_SOURCES = src/main.c \
             src/QuickDraw/ColorQuickDraw.c \
             src/QuickDraw/GWorld.c \
             src/QuickDraw/Patterns.c \
+            src/QuickDraw/display_bezel.c \
             src/OSUtils/OSUtilsTraps.c \
             src/Platform/WindowPlatform.c \
             src/Platform/x86/io.c \
