@@ -25,6 +25,8 @@
 #include "System71StdLib.h"
 #include "Finder/FinderLogging.h"
 #include "EventManager/EventManager.h"
+#include "ControlPanels/DesktopPatterns.h"
+#include "Datetime/datetime_cdev.h"
 extern void DrawString(const unsigned char* str);
 extern void MoveTo(short h, short v);
 extern void LineTo(short h, short v);
@@ -46,6 +48,10 @@ extern bool VFS_Delete(VRefNum vref, FileID id);
 
 /* Drag threshold for distinguishing clicks from drags */
 #define kDragThreshold 4
+
+#define kControlPanelsDirID   (-100)
+#define kControlPanelDesktopID (-101)
+#define kControlPanelTimeID    (-102)
 
 /* Folder item representation with file system integration */
 typedef struct FolderItem {
@@ -305,18 +311,69 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
     }
 
     state->vref = vref;
+    state->currentDir = dirID;
+
+    if (state->items) {
+        free(state->items);
+        state->items = NULL;
+        state->itemCount = 0;
+    }
 
     if (isTrash) {
         /* Trash folder - for now, keep empty
          * TODO: Get trash directory ID and enumerate it */
-        state->currentDir = 0;  /* Special trash ID (to be defined) */
         state->itemCount = 0;
         state->items = NULL;
         FINDER_LOG_DEBUG("InitializeFolderContentsEx: trash folder empty\n");
+        return;
+    }
+
+    if (dirID == kControlPanelsDirID) {
+        state->itemCount = 2;
+        state->items = (FolderItem*)malloc(sizeof(FolderItem) * state->itemCount);
+        if (!state->items) {
+            state->itemCount = 0;
+            return;
+        }
+
+        /* Desktop Patterns */
+        FolderItem *desktop = &state->items[0];
+        memset(desktop, 0, sizeof(FolderItem));
+        strncpy(desktop->name, "Desktop Patterns", sizeof(desktop->name) - 1);
+        desktop->isFolder = false;
+        desktop->fileID = kControlPanelDesktopID;
+        desktop->parentID = dirID;
+        desktop->type = 'APPL';
+        desktop->creator = 'cdev';
+
+        /* Date & Time */
+        FolderItem *dateTime = &state->items[1];
+        memset(dateTime, 0, sizeof(FolderItem));
+        strncpy(dateTime->name, "Date & Time", sizeof(dateTime->name) - 1);
+        dateTime->isFolder = false;
+        dateTime->fileID = kControlPanelTimeID;
+        dateTime->parentID = dirID;
+        dateTime->type = 'APPL';
+        dateTime->creator = 'cdev';
+
+        const int startX = 80;
+        const int startY = 30;
+        const int colSpacing = 100;
+        const int rowHeight = 90;
+        const int maxCols = 3;
+
+        for (int i = 0; i < state->itemCount; i++) {
+            int col = i % maxCols;
+            int row = i / maxCols;
+            state->items[i].position.h = startX + (col * colSpacing);
+            state->items[i].position.v = startY + (row * rowHeight);
+        }
+
+        FINDER_LOG_DEBUG("InitializeFolderContentsEx: populated Control Panels folder with %d items\n",
+                         state->itemCount);
+        return;
     } else {
         /* Use provided directory ID */
-        state->currentDir = dirID;
-
         /* Enumerate directory contents using VFS */
         #define MAX_ITEMS 128
         CatEntry entries[MAX_ITEMS];
@@ -333,31 +390,27 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
 
         FINDER_LOG_DEBUG("InitializeFolderContents: VFS_Enumerate OK, count=%d\n", count);
 
-        if (count == 0) {
+        int extraItems = (dirID == 2) ? 1 : 0;
+        int totalItems = count + extraItems;
+        if (totalItems == 0) {
             state->itemCount = 0;
             state->items = NULL;
             return;
         }
 
         /* Allocate item array */
-        state->items = (FolderItem*)malloc(sizeof(FolderItem) * count);
+        state->items = (FolderItem*)malloc(sizeof(FolderItem) * totalItems);
         if (!state->items) {
             FINDER_LOG_WARN("FW: malloc failed for %d items\n", count);
             state->itemCount = 0;
             return;
         }
 
-        state->itemCount = count;
+        state->itemCount = totalItems;
 
         /* Convert CatEntry to FolderItem and lay out in grid
          * Grid: 3 columns, spacing 100px horizontal, 90px vertical
          * Start at (80, 30) for margins */
-        const int startX = 80;
-        const int startY = 30;
-        const int colSpacing = 100;
-        const int rowHeight = 90;
-        const int maxCols = 3;
-
         for (int i = 0; i < count; i++) {
             /* Copy name (ensure null termination) */
             size_t nameLen = strlen(entries[i].name);
@@ -371,13 +424,31 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
             state->items[i].parentID = entries[i].parent;
             state->items[i].type = entries[i].type;
             state->items[i].creator = entries[i].creator;
+        }
 
-            /* Calculate grid position */
+        if (extraItems) {
+            FolderItem *cpFolder = &state->items[count];
+            memset(cpFolder, 0, sizeof(FolderItem));
+            strncpy(cpFolder->name, "Control Panels", sizeof(cpFolder->name) - 1);
+            cpFolder->isFolder = true;
+            cpFolder->fileID = kControlPanelsDirID;
+            cpFolder->parentID = state->currentDir;
+            cpFolder->type = 'CPLF';
+            cpFolder->creator = 'cdev';
+            FINDER_LOG_DEBUG("FW: Added virtual 'Control Panels' folder entry\n");
+        }
+
+        const int startX = 80;
+        const int startY = 30;
+        const int colSpacing = 100;
+        const int rowHeight = 90;
+        const int maxCols = 3;
+
+        for (int i = 0; i < state->itemCount; i++) {
             int col = i % maxCols;
             int row = i / maxCols;
             state->items[i].position.h = startX + (col * colSpacing);
             state->items[i].position.v = startY + (row * rowHeight);
-
             FINDER_LOG_DEBUG("FW: Item %d: '%s' %s id=%d pos=(%d,%d)\n",
                          i, state->items[i].name,
                          state->items[i].isFolder ? "DIR" : "FILE",
@@ -834,6 +905,12 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                     FINDER_LOG_DEBUG("FW: Launching SimpleText application\n");
                     extern void SimpleText_Launch(void);
                     SimpleText_Launch();
+                } else if (strcmp(name, "Desktop Patterns") == 0) {
+                    FINDER_LOG_DEBUG("FW: Opening Desktop Patterns control panel\n");
+                    OpenDesktopCdev();
+                } else if (strcmp(name, "Date & Time") == 0) {
+                    FINDER_LOG_DEBUG("FW: Opening Date & Time control panel\n");
+                    DateTimePanel_Open();
                 } else {
                     FINDER_LOG_DEBUG("FW: OPEN app \"%s\" not implemented\n", name);
                 }

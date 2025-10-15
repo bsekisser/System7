@@ -12,6 +12,8 @@
 #include "ControlPanels/DesktopPatterns.h"
 #include "Datetime/datetime_cdev.h"
 
+#include <string.h>
+
 #define MENU_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleMenu, kLogLevelDebug, "[MENU] " fmt, ##__VA_ARGS__)
 #define MENU_LOG_WARN(fmt, ...)  serial_logf(kLogModuleMenu, kLogLevelWarn,  "[MENU] " fmt, ##__VA_ARGS__)
 #define MENU_LOG_INFO(fmt, ...)  serial_logf(kLogModuleMenu, kLogLevelInfo, fmt, ##__VA_ARGS__)
@@ -126,55 +128,86 @@ static void ShowAboutBox(void)
 }
 
 /* Apple Menu Handler */
+static Boolean GetMenuItemCString(short menuID, short item, char *out, size_t outSize)
+{
+    if (!out || outSize == 0) {
+        return false;
+    }
+
+    MenuHandle menu = GetMenuHandle(menuID);
+    if (!menu) {
+        return false;
+    }
+
+    Str255 itemText;
+    GetMenuItemText(menu, item, itemText);
+
+    size_t len = itemText[0];
+    if (len >= outSize) {
+        len = outSize - 1;
+    }
+
+    memcpy(out, &itemText[1], len);
+    out[len] = '\0';
+    return true;
+}
+
 static void HandleAppleMenu(short item)
 {
-    switch (item) {
-        case 1:  /* About This Macintosh */
-            MENU_LOG_DEBUG("About This Macintosh...\n");
-            /* Show the About window */
-            extern void AboutWindow_ShowOrToggle(void);
-            AboutWindow_ShowOrToggle();
-            break;
-
-        case 2:  /* Separator */
-            break;
-
-        case 3:  /* Calculator (sample desk accessory) */
-            MENU_LOG_DEBUG("Launch Calculator DA\n");
-            break;
-
-        case 4:  /* Separator OR Shut Down (if no DAs installed) */
-        case 5:  /* Shut Down */
-            MENU_LOG_INFO("Apple Menu > Shut Down\n");
-            MENU_LOG_INFO("System shutdown initiated...\n");
-            MENU_LOG_INFO("It is now safe to turn off your computer.\n");
-
-            /* Try QEMU shutdown via ACPI port first */
-            /* QEMU shutdown: write 0x2000 to port 0x604 */
-            __asm__ volatile(
-                "movw $0x2000, %%ax\n"
-                "movw $0x604, %%dx\n"
-                "outw %%ax, %%dx\n"
-                : : : "ax", "dx"
-            );
-
-            /* If that doesn't work, try legacy APM shutdown */
-            /* APM shutdown: write 0x53 to port 0xB004 */
-            __asm__ volatile(
-                "movb $0x53, %%al\n"
-                "movw $0xB004, %%dx\n"
-                "outb %%al, %%dx\n"
-                : : : "al", "dx"
-            );
-
-            /* Final fallback: halt the CPU */
-            __asm__ volatile("cli; hlt");
-            break;
-
-        default:
-            MENU_LOG_WARN("Unknown Apple menu item: %d\n", item);
-            break;
+    char itemName[256];
+    if (!GetMenuItemCString(kAppleMenuID, item, itemName, sizeof(itemName))) {
+        MENU_LOG_WARN("Apple Menu: unable to resolve item %d\n", item);
+        return;
     }
+
+    if (strcmp(itemName, "About This Macintosh") == 0) {
+        MENU_LOG_DEBUG("About This Macintosh...\n");
+        extern void AboutWindow_ShowOrToggle(void);
+        AboutWindow_ShowOrToggle();
+        return;
+    }
+
+    if (strcmp(itemName, "Desktop Patterns...") == 0) {
+        MENU_LOG_DEBUG("Apple Menu > Desktop Patterns...\n");
+        OpenDesktopCdev();
+        return;
+    }
+
+    if (strcmp(itemName, "Date & Time...") == 0) {
+        MENU_LOG_DEBUG("Apple Menu > Date & Time...\n");
+        DateTimePanel_Open();
+        return;
+    }
+
+    if (strcmp(itemName, "-") == 0) {
+        /* Separator */
+        return;
+    }
+
+    if (strcmp(itemName, "Shut Down") == 0) {
+        MENU_LOG_INFO("Apple Menu > Shut Down\n");
+        MENU_LOG_INFO("System shutdown initiated...\n");
+        MENU_LOG_INFO("It is now safe to turn off your computer.\n");
+
+        __asm__ volatile(
+            "movw $0x2000, %%ax\n"
+            "movw $0x604, %%dx\n"
+            "outw %%ax, %%dx\n"
+            : : : "ax", "dx"
+        );
+
+        __asm__ volatile(
+            "movb $0x53, %%al\n"
+            "movw $0xB004, %%dx\n"
+            "outb %%al, %%dx\n"
+            : : : "al", "dx"
+        );
+
+        __asm__ volatile("cli; hlt");
+        return;
+    }
+
+    MENU_LOG_WARN("Unknown Apple menu item: '%s' (index %d)\n", itemName, item);
 }
 
 /* File Menu Handler */
@@ -358,69 +391,61 @@ static void HandleLabelMenu(short item)
 /* Special Menu Handler */
 static void HandleSpecialMenu(short item)
 {
-    switch (item) {
-        case 1:
-            MENU_LOG_DEBUG("Special > Clean Up\n");
-            /* Clean up desktop/window - arrange icons in grid */
-            extern void ArrangeDesktopIcons(void);
-            ArrangeDesktopIcons();
-            MENU_LOG_DEBUG("Desktop cleaned up\n");
-            break;
-
-        case 2:
-            MENU_LOG_DEBUG("Special > Desktop Patterns...\n");
-            OpenDesktopCdev();
-            break;
-
-        case 3:
-            MENU_LOG_DEBUG("Special > Date & Time...\n");
-            DateTimePanel_Open();
-            break;
-
-        case 4: {
-            MENU_LOG_DEBUG("Special > Empty Trash\n");
-            /* Empty trash */
-            extern OSErr EmptyTrash(void);
-            OSErr err = EmptyTrash();
-            if (err == noErr) {
-                MENU_LOG_DEBUG("Trash emptied successfully\n");
-            } else {
-                MENU_LOG_WARN("Failed to empty trash (error %d)\n", err);
-            }
-            break;
-        }
-
-        case 6:
-            MENU_LOG_DEBUG("Special > Eject\n");
-            /* Eject selected disk */
-            /* Would unmount and eject the selected volume */
-            MENU_LOG_DEBUG("Ejecting disk (not implemented in kernel)\n");
-            break;
-
-        case 7:
-            MENU_LOG_DEBUG("Special > Erase Disk...\n");
-            /* Show erase disk dialog */
-            /* Would show dialog to format selected disk */
-            MENU_LOG_DEBUG("Erase Disk dialog would appear here\n");
-            break;
-
-        case 9:
-            MENU_LOG_INFO("Special > Restart\n");
-            /* System restart */
-            MENU_LOG_INFO("System restart initiated...\n");
-            /* Triple fault to restart in x86 */
-            __asm__ volatile(
-                "movl $0, %%esp\n"
-                "push $0\n"
-                "push $0\n"
-                "lidt (%%esp)\n"
-                "int3\n"
-                : : : "memory"
-            );
-            break;
-
-        default:
-            MENU_LOG_WARN("Unknown Special menu item: %d\n", item);
-            break;
+    char itemName[256];
+    if (!GetMenuItemCString(kSpecialMenuID, item, itemName, sizeof(itemName))) {
+        MENU_LOG_WARN("Special Menu: unable to resolve item %d\n", item);
+        return;
     }
+
+    if (strcmp(itemName, "-") == 0) {
+        return;
+    }
+
+    if (strcmp(itemName, "Clean Up Desktop") == 0) {
+        MENU_LOG_DEBUG("Special > Clean Up Desktop\n");
+        extern void ArrangeDesktopIcons(void);
+        ArrangeDesktopIcons();
+        MENU_LOG_DEBUG("Desktop cleaned up\n");
+        return;
+    }
+
+    if (strcmp(itemName, "Empty Trash") == 0) {
+        MENU_LOG_DEBUG("Special > Empty Trash\n");
+        extern OSErr EmptyTrash(void);
+        OSErr err = EmptyTrash();
+        if (err == noErr) {
+            MENU_LOG_DEBUG("Trash emptied successfully\n");
+        } else {
+            MENU_LOG_WARN("Failed to empty trash (error %d)\n", err);
+        }
+        return;
+    }
+
+    if (strncmp(itemName, "Eject", 5) == 0) {
+        MENU_LOG_DEBUG("Special > Eject\n");
+        MENU_LOG_DEBUG("Ejecting disk (not implemented in kernel)\n");
+        return;
+    }
+
+    if (strcmp(itemName, "Erase Disk") == 0) {
+        MENU_LOG_DEBUG("Special > Erase Disk...\n");
+        MENU_LOG_DEBUG("Erase Disk dialog would appear here\n");
+        return;
+    }
+
+    if (strcmp(itemName, "Restart") == 0) {
+        MENU_LOG_INFO("Special > Restart\n");
+        MENU_LOG_INFO("System restart initiated...\n");
+        __asm__ volatile(
+            "movl $0, %%esp\n"
+            "push $0\n"
+            "push $0\n"
+            "lidt (%%esp)\n"
+            "int3\n"
+            : : : "memory"
+        );
+        return;
+    }
+
+    MENU_LOG_WARN("Unknown Special menu item: '%s' (index %d)\n", itemName, item);
 }

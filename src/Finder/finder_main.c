@@ -188,6 +188,9 @@ static OSErr SetupMenus(void)
     gAppleMenu = NewMenu(128, appleTitle);
     AppendMenu(gAppleMenu, "\025About This Macintosh");
     AppendMenu(gAppleMenu, "\002(-");
+    AppendMenu(gAppleMenu, "\023Desktop Patterns...");
+    AppendMenu(gAppleMenu, "\015Date & Time...");
+    AppendMenu(gAppleMenu, "\002(-");
     AddResMenu(gAppleMenu, 'DRVR');
     AppendMenu(gAppleMenu, "\002(-");
     AppendMenu(gAppleMenu, "\011Shut Down");
@@ -252,8 +255,6 @@ static OSErr SetupMenus(void)
     static unsigned char specialTitle[] = {7, 'S', 'p', 'e', 'c', 'i', 'a', 'l'};  /* Pascal string: "Special" */
     gSpecialMenu = NewMenu(133, specialTitle);
     AppendMenu(gSpecialMenu, "\020Clean Up Desktop");
-    AppendMenu(gSpecialMenu, "\023Desktop Patterns...");
-    AppendMenu(gSpecialMenu, "\015Date & Time...");
     AppendMenu(gSpecialMenu, "\013Empty Trash");
     AppendMenu(gSpecialMenu, "\002(-");
     AppendMenu(gSpecialMenu, "\010Eject/E");

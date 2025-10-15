@@ -13,12 +13,15 @@
 #include "MenuManager/MenuManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "WindowManager/WindowManager.h"
+#include "FontManager/FontInternal.h"
 
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+extern QDGlobals qd;
 
 /* ----------------------------------------------------------------------------
  * Helpers
@@ -50,6 +53,41 @@ static DateTimePanelState gPanel = {
     .textRect = { 40, 20, 100, PANEL_WIDTH - 20 }
 };
 
+typedef struct DateTimeParts {
+    int year;
+    int month;
+    int day;
+    int hour;
+    int minute;
+    int second;
+    int dayOfWeek; /* 1=Sunday .. 7=Saturday */
+} DateTimeParts;
+
+static const char *kWeekdayNames[7] = {
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday"
+};
+
+static const char *kMonthNames[12] = {
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+};
+
 /* Convert a C string to a Pascal Str255. */
 static void cstr_to_pstr(const char *src, Str255 dst)
 {
@@ -66,14 +104,6 @@ static void cstr_to_pstr(const char *src, Str255 dst)
     memcpy(&dst[1], src, len);
 }
 
-static time_t mac_to_unix(UInt32 macTime)
-{
-    if (macTime < MAC_EPOCH_OFFSET) {
-        return 0;
-    }
-    return (time_t)(macTime - MAC_EPOCH_OFFSET);
-}
-
 static UInt32 current_mac_time(void)
 {
     time_t now = time(NULL);
@@ -83,6 +113,120 @@ static UInt32 current_mac_time(void)
 static UInt32 compute_display_key(UInt32 macTime)
 {
     return gPanel.showSeconds ? macTime : (macTime / 60U);
+}
+
+static Boolean is_leap_year(int year)
+{
+    if ((year % 4) != 0) {
+        return false;
+    }
+    if ((year % 100) != 0) {
+        return true;
+    }
+    return (year % 400) == 0;
+}
+
+static int days_in_month(int year, int month)
+{
+    static const int baseDays[12] = {31,28,31,30,31,30,31,31,30,31,30,31};
+    int days = baseDays[month - 1];
+    if (month == 2 && is_leap_year(year)) {
+        days = 29;
+    }
+    return days;
+}
+
+static void mac_time_to_parts(UInt32 macTime, DateTimeParts *parts)
+{
+    if (!parts) {
+        return;
+    }
+
+    const UInt32 secondsPerDay = 24U * 60U * 60U;
+    UInt32 days = macTime / secondsPerDay;
+    UInt32 seconds = macTime % secondsPerDay;
+
+    parts->hour = (int)(seconds / 3600U);
+    seconds %= 3600U;
+    parts->minute = (int)(seconds / 60U);
+    parts->second = (int)(seconds % 60U);
+
+    int year = 1904;
+    while (true) {
+        UInt32 yearDays = is_leap_year(year) ? 366U : 365U;
+        if (days < yearDays) {
+            break;
+        }
+        days -= yearDays;
+        year++;
+    }
+    parts->year = year;
+
+    int month = 1;
+    while (month <= 12) {
+        int dim = days_in_month(year, month);
+        if (days < (UInt32)dim) {
+            break;
+        }
+        days -= (UInt32)dim;
+        month++;
+    }
+    parts->month = month;
+    parts->day = (int)days + 1;
+
+    /* Day of week: Mac epoch 1904-01-01 was Friday (6) */
+    parts->dayOfWeek = (int)(((macTime / secondsPerDay) + 5) % 7) + 1;
+}
+
+static void format_date_string(const DateTimeParts *parts, char *buffer, size_t bufferSize)
+{
+    if (!buffer || bufferSize == 0) {
+        return;
+    }
+
+    const char *weekday = (parts->dayOfWeek >= 1 && parts->dayOfWeek <= 7)
+        ? kWeekdayNames[parts->dayOfWeek - 1] : "";
+    const char *month = (parts->month >= 1 && parts->month <= 12)
+        ? kMonthNames[parts->month - 1] : "";
+
+    snprintf(buffer, bufferSize, "%s, %s %d, %d",
+             weekday, month, parts->day, parts->year);
+}
+
+static void format_time_string(const DateTimeParts *parts, char *buffer, size_t bufferSize)
+{
+    if (!buffer || bufferSize == 0) {
+        return;
+    }
+
+    int hour = parts->hour;
+    const char *suffix = "";
+
+    if (!gPanel.use24Hour) {
+        suffix = (hour >= 12) ? " PM" : " AM";
+        hour = hour % 12;
+        if (hour == 0) {
+            hour = 12;
+        }
+    }
+
+    if (gPanel.showSeconds) {
+        if (gPanel.use24Hour) {
+            snprintf(buffer, bufferSize, "%02d:%02d:%02d",
+                     parts->hour, parts->minute, parts->second);
+        } else {
+            snprintf(buffer, bufferSize, "%02d:%02d:%02d%s",
+                     hour, parts->minute, parts->second, suffix);
+        }
+    } else {
+        if (gPanel.use24Hour) {
+            snprintf(buffer, bufferSize, "%02d:%02d",
+                     parts->hour, parts->minute);
+        } else {
+            snprintf(buffer, bufferSize, "%02d:%02d%s",
+                     hour, parts->minute, suffix);
+        }
+    }
 }
 
 static void draw_panel_contents(void)
@@ -102,44 +246,22 @@ static void draw_panel_contents(void)
     UInt32 macTime = current_mac_time();
     gPanel.lastDisplayKey = compute_display_key(macTime);
 
-    time_t unixTime = mac_to_unix(macTime);
-    struct tm localTm;
-#if defined(_POSIX_THREAD_SAFE_FUNCTIONS)
-    localtime_r(&unixTime, &localTm);
-#else
-    struct tm *tmp = localtime(&unixTime);
-    if (tmp) {
-        localTm = *tmp;
-    } else {
-        memset(&localTm, 0, sizeof(localTm));
-    }
-#endif
+    DateTimeParts parts = {0};
+    mac_time_to_parts(macTime, &parts);
 
     char dateBuf[64];
-    if (strftime(dateBuf, sizeof(dateBuf), "%A, %B %e, %Y", &localTm) == 0) {
-        strcpy(dateBuf, "--");
-    }
-
-    char timeFormat[16];
-    if (gPanel.use24Hour) {
-        strcpy(timeFormat, gPanel.showSeconds ? "%H:%M:%S" : "%H:%M");
-    } else {
-        strcpy(timeFormat, gPanel.showSeconds ? "%I:%M:%S %p" : "%I:%M %p");
-    }
-
     char timeBuf[32];
-    if (strftime(timeBuf, sizeof(timeBuf), timeFormat, &localTm) == 0) {
-        strcpy(timeBuf, "--");
-    }
+    format_date_string(&parts, dateBuf, sizeof(dateBuf));
+    format_time_string(&parts, timeBuf, sizeof(timeBuf));
 
-    Str255 pascal;
+    Str255 pascalStr;
     MoveTo(gPanel.textRect.left, gPanel.textRect.top + 20);
-    cstr_to_pstr(dateBuf, pascal);
-    DrawString(pascal);
+    cstr_to_pstr(dateBuf, pascalStr);
+    DrawString(pascalStr);
 
     MoveTo(gPanel.textRect.left, gPanel.textRect.top + 44);
-    cstr_to_pstr(timeBuf, pascal);
-    DrawString(pascal);
+    cstr_to_pstr(timeBuf, pascalStr);
+    DrawString(pascalStr);
 
     SetPort(previousPort);
 }
