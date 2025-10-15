@@ -14,7 +14,9 @@ extern "C" {
 
 void OpenDesktopCdev(void);
 void CloseDesktopCdev(void);
-void HandleDesktopCdevEvent(EventRecord *event);
+Boolean DesktopPatterns_HandleEvent(EventRecord *event);
+Boolean DesktopPatterns_IsWindow(WindowPtr window);
+WindowPtr DesktopPatterns_GetWindow(void);
 
 #ifdef __cplusplus
 }

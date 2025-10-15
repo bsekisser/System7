@@ -16,6 +16,7 @@
 #include "EventManager/EventManager.h"
 #include "WindowManager/WindowManager.h"
 #include "MenuManager/MenuManager.h"
+#include "ControlPanels/DesktopPatterns.h"
 #include "QuickDraw/QuickDraw.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "Finder/AboutThisMac.h"  /* About This Macintosh window */
@@ -105,6 +106,10 @@ Boolean DispatchEvent(EventRecord* event)
 
     /* Entry log for all events */
     EVT_LOG_DEBUG("[DISP] DispatchEvent: event->what=%d\n", event->what);
+
+    if (DesktopPatterns_HandleEvent(event)) {
+        return true;
+    }
 
     switch (event->what) {
         case nullEvent:

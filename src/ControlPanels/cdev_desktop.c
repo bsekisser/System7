@@ -108,6 +108,8 @@ void OpenDesktopCdev(void) {
 
     /* Draw the window contents */
     DrawPatternGrid();
+    DrawControls(gDesktopCdevWin);
+    ShowWindow(gDesktopCdevWin);
 }
 
 /*
@@ -132,8 +134,10 @@ void CloseDesktopCdev(void) {
 /*
  * HandleDesktopCdevEvent - Handle events for the Desktop Patterns control panel
  */
-void HandleDesktopCdevEvent(EventRecord *event) {
-    if (!gDesktopCdevWin) return;
+Boolean DesktopPatterns_HandleEvent(EventRecord *event) {
+    if (!event || !gDesktopCdevWin) {
+        return false;
+    }
 
     WindowPtr whichWindow;
     Point where;
@@ -142,14 +146,15 @@ void HandleDesktopCdevEvent(EventRecord *event) {
 
     switch (event->what) {
         case updateEvt:
-            if ((WindowPtr)event->message == gDesktopCdevWin) {
-                BeginUpdate(gDesktopCdevWin);
-                SetPort((GrafPtr)gDesktopCdevWin);
-                DrawPatternGrid();
-                DrawControls(gDesktopCdevWin);
-                EndUpdate(gDesktopCdevWin);
+            if ((WindowPtr)event->message != gDesktopCdevWin) {
+                return false;
             }
-            break;
+            BeginUpdate(gDesktopCdevWin);
+            SetPort((GrafPtr)gDesktopCdevWin);
+            DrawPatternGrid();
+            DrawControls(gDesktopCdevWin);
+            EndUpdate(gDesktopCdevWin);
+            return true;
 
         case mouseDown:
             part = FindWindow(event->where, &whichWindow);
@@ -189,6 +194,7 @@ void HandleDesktopCdevEvent(EventRecord *event) {
 
                                 /* Redraw the grid to show new selection */
                                 DrawPatternGrid();
+                                DrawControls(gDesktopCdevWin);
                             }
                         }
                         break;
@@ -205,8 +211,20 @@ void HandleDesktopCdevEvent(EventRecord *event) {
                         break;
                 }
             }
+            return true;
+
+        case activateEvt:
+            if ((WindowPtr)event->message == gDesktopCdevWin) {
+                /* Future: highlight controls if needed */
+                return true;
+            }
+            return false;
+
+        default:
             break;
     }
+
+    return false;
 }
 
 /*
@@ -247,10 +265,7 @@ static void DrawPatternGrid(void) {
 
     /* Clear the window */
     Rect winRect;
-    winRect.top = 0;
-    winRect.left = 0;
-    winRect.right = 400;  /* Window width */
-    winRect.bottom = 300; /* Window height */
+    winRect = gDesktopCdevWin->port.portRect;
     EraseRect(&winRect);
 
     /* Draw title */
@@ -315,6 +330,9 @@ static void ApplySelectedPattern(void) {
     if (PM_LoadPAT(gSelectedPatID, &pat)) {
         PM_SetBackPat(&pat);
     }
+    if (ColorManager_IsAvailable()) {
+        ColorManager_CommitQuickDraw();
+    }
 }
 
 /*
@@ -323,4 +341,16 @@ static void ApplySelectedPattern(void) {
 static void RestoreOriginalPattern(void) {
     PM_SetBackPat(&gOriginalPattern);
     PM_SetBackColor(&gOriginalColor);
+    if (ColorManager_IsAvailable()) {
+        ColorManager_SetBackground(&gOriginalColor);
+        ColorManager_CommitQuickDraw();
+    }
+}
+
+Boolean DesktopPatterns_IsWindow(WindowPtr window) {
+    return window != NULL && window == gDesktopCdevWin;
+}
+
+WindowPtr DesktopPatterns_GetWindow(void) {
+    return gDesktopCdevWin;
 }
