@@ -87,7 +87,7 @@ static OSErr SoundBackendSB16_PlayPCM(const uint8_t* data,
             }
         }
 
-        SND_LOG_DEBUG("SoundBackend(SB16): Chunk %u size=%u remaining=%u\n",
+        SND_LOG_INFO("SoundBackend(SB16): Chunk %u size=%u remaining=%u\n",
                       chunkIndex, chunk, remaining);
         memcpy(g_sb16ChunkBuffer, src, chunk);
 
@@ -107,7 +107,7 @@ static OSErr SoundBackendSB16_PlayPCM(const uint8_t* data,
             uint64_t usec64 = sb16_div_u64_32(frames * 1000000ULL, sampleRate);
             if (usec64 > 0) {
                 UInt32 clamped = (usec64 > UINT32_MAX) ? UINT32_MAX : (UInt32)usec64;
-                SND_LOG_DEBUG("SoundBackend(SB16): Waiting %u us for chunk\n", clamped);
+                SND_LOG_INFO("SoundBackend(SB16): Waiting %u us for chunk\n", clamped);
                 MicrosecondDelay(clamped);
             }
         }
