@@ -17,6 +17,7 @@
 #include "StartupScreen/StartupScreen.h"
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/ColorQuickDraw.h"
 #include "FontManager/FontManager.h"
 #include "FontManager/FontInternal.h"
 #include "FontManager/FontTypes.h"
@@ -77,6 +78,7 @@ static void DrawWelcomeScreen(void);
 static void DrawHappyMac(const Rect* bounds);
 static void DrawExtensionIcon(const ExtensionInfo* extension, Point position);
 static Point GetNextExtensionPosition(void);
+static void DrawScreenBezel(void);
 
 /*
  * Initialize startup screen system
@@ -227,9 +229,9 @@ static void DrawWelcomeScreen(void) {
     GetPort(&savePort);
     SetPort((GrafPtr)gStartupScreen.window);
 
-    /* Clear screen */
+    /* Prepare background */
     RGBBackColor(&gConfig.backgroundColor);
-    EraseRect(&gStartupScreen.screenBounds);
+    DrawScreenBezel();
 
     /* Draw Happy Mac icon */
     DrawHappyMac(&gStartupScreen.logoRect);
@@ -247,6 +249,41 @@ static void DrawWelcomeScreen(void) {
     DrawString(welcomeText);
 
     SetPort(savePort);
+}
+
+/*
+ * Recreate classic squircle-style bezel around the startup screen
+ */
+static void DrawScreenBezel(void) {
+    RGBColor previousFore;
+
+    GetForeColor(&previousFore);
+
+    Rect screenRect = gStartupScreen.screenBounds;
+    RGBColor black = {0x0000, 0x0000, 0x0000};
+
+    /* Fill entire screen black first */
+    RGBForeColor(&black);
+    PaintRect(&screenRect);
+
+    /* Draw the rounded rectangle cut-out using the system background colour */
+    short screenWidth = screenRect.right - screenRect.left;
+    short screenHeight = screenRect.bottom - screenRect.top;
+    short ovalWidth = (short)((screenWidth * 3) / 4);
+    short ovalHeight = (short)((screenHeight * 3) / 4);
+
+    if (ovalWidth < 32) {
+        ovalWidth = 32;
+    }
+    if (ovalHeight < 32) {
+        ovalHeight = 32;
+    }
+
+    RGBForeColor(&gConfig.backgroundColor);
+    PaintRoundRect(&screenRect, ovalWidth, ovalHeight);
+
+    /* Restore drawing colour */
+    RGBForeColor(&previousFore);
 }
 
 /*
