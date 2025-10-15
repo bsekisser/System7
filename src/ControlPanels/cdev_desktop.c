@@ -14,6 +14,7 @@
 #include "ControlManager/ControlManager.h"
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDrawConstants.h"
 #include "QuickDraw/ColorQuickDraw.h"
 #include "ColorManager.h"
 #include "FontManager/FontManager.h"
@@ -77,6 +78,10 @@ void OpenDesktopCdev(void) {
 
     SetPort((GrafPtr)gDesktopCdevWin);
 
+    /* Ensure consistent black/white rendering for 1-bit patterns */
+    ForeColor(blackColor);
+    BackColor(whiteColor);
+
     /* Create OK and Cancel buttons */
     Rect buttonRect;
     buttonRect.bottom = winRect.bottom - winRect.top - 20;
@@ -105,6 +110,9 @@ void OpenDesktopCdev(void) {
         ColorManager_CommitQuickDraw();
     }
     gSelectedPatID = gOriginalPref.patID;
+    if (gSelectedPatID < 16 || gSelectedPatID > 47) {
+        gSelectedPatID = 16;
+    }
 
     /* Draw the window contents */
     DrawPatternGrid();
@@ -252,6 +260,11 @@ static void DrawPatternCell(int col, int row, int16_t patID, bool selected) {
     if (LoadPATResource(patID, &pat)) {
         InsetRect(&cellRect, 1, 1);
         FillRect(&cellRect, &pat);
+    } else {
+        /* Fallback: lightly shade missing pattern */
+        InsetRect(&cellRect, 1, 1);
+        Pattern fallback = qd.ltGray;
+        FillRect(&cellRect, &fallback);
     }
 }
 
@@ -324,6 +337,7 @@ static void ApplySelectedPattern(void) {
 
     /* Save to PRAM */
     PM_SaveDesktopPref(&pref);
+    gOriginalPref = pref;
 
     /* Apply the pattern */
     Pattern pat;
