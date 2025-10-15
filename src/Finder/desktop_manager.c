@@ -32,6 +32,7 @@
 #include "Finder/Icon/icon_label.h"
 #include "Finder/Icon/icon_system.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/DisplayBezel.h"
 #include "QuickDrawConstants.h"
 #include "System71StdLib.h"
 #include "Finder/FinderLogging.h"
@@ -355,6 +356,8 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
     if (gVolumeIconVisible) {
         DrawVolumeIcon();
     }
+
+    QD_DrawCRTBezel();
 
     SetPort(savePort);
     if (desktopClip) {
