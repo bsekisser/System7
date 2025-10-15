@@ -678,6 +678,7 @@ static OSErr AllocateDesktopIcons(void)
     strcpy(gDesktopIcons[0].name, "Trash");
     gDesktopIcons[0].movable = false;  /* Trash stays in place */
     gDesktopIconCount = 1;  /* Start with trash */
+    gVolumeIconVisible = true;  /* Ensure trash renders even if volume add fails */
 
     return noErr;
 }
