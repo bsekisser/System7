@@ -74,7 +74,7 @@ static int DMA_Setup8Bit(const void* buffer, uint32_t size) {
     outb(DMA1_CLEAR_FF, 0xFF);
 
     /* Set DMA mode (single cycle, write) - no auto-repeat */
-    outb(DMA1_MODE, DMA_MODE_WRITE | channel);
+    outb(DMA1_MODE, DMA_MODE_WRITE | DMA_MODE_AUTO | channel);
 
     /* Set address (low byte, high byte) */
     outb(dma1_addr_ports[channel], addr & 0xFF);
@@ -134,7 +134,7 @@ static int DMA_Setup16Bit(const void* buffer, uint32_t size) {
     outb(DMA2_CLEAR_FF, 0xFF);
 
     /* Set DMA mode (single cycle, write) - no auto-repeat */
-    outb(DMA2_MODE, DMA_MODE_WRITE | channel_offset);
+    outb(DMA2_MODE, DMA_MODE_WRITE | DMA_MODE_AUTO | channel_offset);
 
     /* Set address (low byte, high byte) - in WORDS */
     outb(dma2_addr_ports[channel_offset], word_addr & 0xFF);
@@ -183,10 +183,15 @@ int SB16_PlayDMA(const uint8_t* data, uint32_t size,
 
     /* Calculate transfer size (in samples) */
     uint32_t sample_size = (bits_per_sample / 8) * channels;
-    uint32_t sample_count = size / sample_size;
-    uint32_t dma_count = sample_count - 1;
+    uint32_t dma_count;
 
-    SND_LOG_DEBUG("DMA: %u samples (%u bytes per sample)\n", sample_count, sample_size);
+    if (bits_per_sample == 16) {
+        dma_count = (size / 2) - 1;  /* Length in 16-bit words */
+    } else {
+        dma_count = size - 1;        /* Length in bytes */
+    }
+
+    SND_LOG_DEBUG("DMA: size=%u bytes (%u bytes per frame)\n", size, sample_size);
 
     /* Select DSP command based on bit depth and channels */
     uint8_t dsp_cmd;
@@ -204,6 +209,9 @@ int SB16_PlayDMA(const uint8_t* data, uint32_t size,
 
     /* Send mode (unsigned PCM, stereo/mono) */
     uint8_t mode = (channels == 2) ? 0x20 : 0x00;  /* Bit 5 = stereo */
+    if (bits_per_sample == 16) {
+        mode |= 0x10;  /* Signed data */
+    }
     if (!sb16_dsp_write(mode)) {
         SND_LOG_DEBUG("DMA: Failed to send mode\n");
         return -1;

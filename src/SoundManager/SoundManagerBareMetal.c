@@ -34,24 +34,22 @@ static bool g_sb16Available = false;
 #define SB16_DMA_CHUNK_BYTES 120000U
 static uint8_t g_sb16DMABuffer[SB16_DMA_CHUNK_BYTES] __attribute__((aligned(32)));
 
-static uint64_t smb_udiv64(uint64_t num, uint64_t den) {
+static uint64_t smb_divu64_32(uint64_t num, uint32_t den) {
     if (den == 0) {
         return 0;
     }
-    uint64_t quot = 0;
-    uint64_t bit = 1ULL << 63;
-    while (bit && !(den & bit)) {
-        bit >>= 1;
-    }
-    while (bit) {
-        if (num >= den) {
-            num -= den;
-            quot |= bit;
+
+    uint64_t quotient = 0;
+    uint64_t remainder = 0;
+
+    for (int i = 63; i >= 0; --i) {
+        remainder = (remainder << 1) | ((num >> i) & 1ULL);
+        if (remainder >= den) {
+            remainder -= den;
+            quotient |= (1ULL << i);
         }
-        den >>= 1;
-        bit >>= 1;
     }
-    return quot;
+    return quotient;
 }
 
 /*
@@ -184,19 +182,10 @@ void StartupChime(void) {
 
             /* Wait for chunk duration so DMA can finish before queueing next block */
             uint64_t frames = chunk / bytesPerFrame;
-            uint64_t chunkUs = smb_udiv64(frames * 1000000ULL, BOOT_CHIME_SAMPLE_RATE);
+            uint64_t chunkUs64 = smb_divu64_32(frames * 1000000ULL, BOOT_CHIME_SAMPLE_RATE);
+            UInt32 chunkUs = (chunkUs64 > UINT32_MAX) ? UINT32_MAX : (UInt32)chunkUs64;
             if (chunkUs > 0) {
-                if (chunkUs > UINT32_MAX) {
-                    /* Break into multiple microsecond delays if necessary */
-                    uint64_t remainingUs = chunkUs;
-                    while (remainingUs > 0) {
-                        UInt32 stepUs = (remainingUs > UINT32_MAX) ? UINT32_MAX : (UInt32)remainingUs;
-                        MicrosecondDelay(stepUs);
-                        remainingUs -= stepUs;
-                    }
-                } else {
-                    MicrosecondDelay((UInt32)chunkUs);
-                }
+                MicrosecondDelay(chunkUs);
             }
 
             src += chunk;
