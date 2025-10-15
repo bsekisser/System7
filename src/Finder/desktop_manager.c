@@ -330,6 +330,8 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
         EraseRgn(desktopClip);
     }
 
+    QD_DrawCRTBezel();
+
     /* Draw desktop icons in invalid region */
     RgnHandle paintClip = invalidRgn ? invalidRgn : desktopClip;
 
@@ -356,8 +358,6 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
     if (gVolumeIconVisible) {
         DrawVolumeIcon();
     }
-
-    QD_DrawCRTBezel();
 
     SetPort(savePort);
     if (desktopClip) {
