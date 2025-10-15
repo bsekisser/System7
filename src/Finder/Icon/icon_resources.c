@@ -5,11 +5,15 @@
 #include "Finder/Icon/icon_resources.h"
 #include <string.h>
 #include <stddef.h>
+#include "Resources/icons_generated.h"
 
 /* Stub: Load icon family by resource ID */
 bool IconRes_LoadFamilyByID(int16_t rsrcID, IconFamily* out) {
-    /* TODO: Implement ICN# and cicn loading from resources */
-    /* For now, return false to fall back to defaults */
+    /* First check generated icon table (imported resources) */
+    if (IconGen_FindByID(rsrcID, out)) {
+        return true;
+    }
+    /* TODO: Implement ICN#/cicn from resource fork files */
     return false;
 }
 

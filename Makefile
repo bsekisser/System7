@@ -140,6 +140,7 @@ C_SOURCES = src/main.c \
             src/PatternMgr/pram_prefs.c \
             src/Resources/pattern_data.c \
             src/Resources/happy_mac_icon.c \
+            src/Resources/generated/icons_generated.c \
             src/ControlPanels/cdev_desktop.c \
             src/simple_resource_manager.c \
             src/ControlManager/ControlManagerCore.c \
@@ -403,6 +404,7 @@ info:
 	@echo "C Sources: $(words $(C_SOURCES)) files"
 	@echo "Source Files: $(words $(ASM_SOURCES)) files"
 	@echo "Total Objects: $(words $(OBJECTS)) files"
+	@echo "Use: make import-icons ICON_DIR=/path/to/pngs"
 
 # Check exported symbols against allowlist
 check-exports: kernel.elf
@@ -419,6 +421,14 @@ help: ## Show this help message
 	@echo "  make [target] [CONFIG=<config>] [options]"
 	@echo ""
 	@echo "MAIN TARGETS:"
+	@echo "  import-icons ICON_DIR=...   Generate C icon resources from PNGs"
+
+.PHONY: import-icons
+import-icons:
+	@if [ -z "$(ICON_DIR)" ]; then echo "ERROR: ICON_DIR not set"; exit 1; fi
+	@echo "Generating icons from $(ICON_DIR) ..."
+	@python3 tools/gen_icons.py "$(ICON_DIR)" .
+	@echo "✓ Generated icons: include/Resources/icons_generated.h, src/Resources/generated/icons_generated.c"
 	@echo "  all              Build kernel (default target)"
 	@echo "  iso              Create bootable ISO image"
 	@echo "  run              Run kernel in QEMU with serial logging"
