@@ -130,7 +130,13 @@ static OSErr gestalt_mach(long *response) {
     if (!response) return paramErr;
 
     /* Machine family codes (mirrors gestaltMachineType examples documented in
-     * Inside Macintosh, extended for our additional ports). */
+     * Inside Macintosh, extended for our additional ports).
+     *
+     * NOTE: Many NewWorld ROMs report gestaltMachineType = 0x0196 (decimal 406)
+     *       for Power Macintosh systems that dynamically adjust CRT rounding
+     *       depending on ADC/DVI vs. VGA output. We currently return coarse
+     *       architecture families; when we implement per-model behaviour the
+     *       selector can key off that documented 0x0196 value. */
 #if defined(__x86_64__) || defined(__i386__)
     *response = 0x0086;  /* x86 family */
 #elif defined(__aarch64__) || defined(__arm__)
