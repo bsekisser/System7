@@ -354,10 +354,8 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
         }
     }
 
-    /* Draw volume icon if visible (DrawVolumeIcon also draws trash) */
-    if (gVolumeIconVisible) {
-        DrawVolumeIcon();
-    }
+    /* Draw volume/trash icons (DrawVolumeIcon checks visibility flags internally) */
+    DrawVolumeIcon();
 
     SetPort(savePort);
     if (desktopClip) {
