@@ -253,6 +253,7 @@ static OSErr SetupMenus(void)
     gSpecialMenu = NewMenu(133, specialTitle);
     AppendMenu(gSpecialMenu, "\020Clean Up Desktop");
     AppendMenu(gSpecialMenu, "\023Desktop Patterns...");
+    AppendMenu(gSpecialMenu, "\015Date & Time...");
     AppendMenu(gSpecialMenu, "\013Empty Trash");
     AppendMenu(gSpecialMenu, "\002(-");
     AppendMenu(gSpecialMenu, "\010Eject/E");

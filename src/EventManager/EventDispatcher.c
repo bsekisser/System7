@@ -17,6 +17,7 @@
 #include "WindowManager/WindowManager.h"
 #include "MenuManager/MenuManager.h"
 #include "ControlPanels/DesktopPatterns.h"
+#include "Datetime/datetime_cdev.h"
 #include "QuickDraw/QuickDraw.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "Finder/AboutThisMac.h"  /* About This Macintosh window */
@@ -111,6 +112,10 @@ Boolean DispatchEvent(EventRecord* event)
         return true;
     }
 
+    if (DateTimePanel_HandleEvent(event)) {
+        return true;
+    }
+
     switch (event->what) {
         case nullEvent:
             return HandleNullEvent(event);
@@ -153,6 +158,8 @@ Boolean HandleNullEvent(EventRecord* event)
 {
     /* Null events are used for idle processing */
     /* Could be used for cursor animation, background tasks, etc. */
+
+    DateTimePanel_Tick();
 
     /* Check if we're tracking desktop drag */
     if (g_dispatcher.trackingDesktop) {

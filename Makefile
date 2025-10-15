@@ -172,6 +172,7 @@ C_SOURCES = src/main.c \
             src/ControlManager/ControlResources.c \
             src/ControlManager/ControlSmoke.c \
             src/control_stubs.c \
+            src/Datetime/datetime_cdev.c \
             src/patterns_rsrc.c \
             src/FS/hfs_diskio.c \
             src/FS/hfs_volume.c \

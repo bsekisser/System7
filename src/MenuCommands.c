@@ -10,6 +10,7 @@
 #include "MenuManager/MenuManager.h"
 #include "Finder/AboutThisMac.h"
 #include "ControlPanels/DesktopPatterns.h"
+#include "Datetime/datetime_cdev.h"
 
 #define MENU_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleMenu, kLogLevelDebug, "[MENU] " fmt, ##__VA_ARGS__)
 #define MENU_LOG_WARN(fmt, ...)  serial_logf(kLogModuleMenu, kLogLevelWarn,  "[MENU] " fmt, ##__VA_ARGS__)
@@ -371,7 +372,12 @@ static void HandleSpecialMenu(short item)
             OpenDesktopCdev();
             break;
 
-        case 3: {
+        case 3:
+            MENU_LOG_DEBUG("Special > Date & Time...\n");
+            DateTimePanel_Open();
+            break;
+
+        case 4: {
             MENU_LOG_DEBUG("Special > Empty Trash\n");
             /* Empty trash */
             extern OSErr EmptyTrash(void);
@@ -384,21 +390,21 @@ static void HandleSpecialMenu(short item)
             break;
         }
 
-        case 5:
+        case 6:
             MENU_LOG_DEBUG("Special > Eject\n");
             /* Eject selected disk */
             /* Would unmount and eject the selected volume */
             MENU_LOG_DEBUG("Ejecting disk (not implemented in kernel)\n");
             break;
 
-        case 6:
+        case 7:
             MENU_LOG_DEBUG("Special > Erase Disk...\n");
             /* Show erase disk dialog */
             /* Would show dialog to format selected disk */
             MENU_LOG_DEBUG("Erase Disk dialog would appear here\n");
             break;
 
-        case 8:
+        case 9:
             MENU_LOG_INFO("Special > Restart\n");
             /* System restart */
             MENU_LOG_INFO("System restart initiated...\n");
