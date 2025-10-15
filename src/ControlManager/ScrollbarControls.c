@@ -17,6 +17,7 @@
 #include "ControlManager/ControlTypes.h"
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDrawConstants.h"
+#include "QuickDraw/QuickDrawPlatform.h"
 #include "EventManager/EventManager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
@@ -78,9 +79,9 @@ typedef struct ScrollBarData {
 /* Forward declarations */
 static void CalcScrollbarRegions(ControlHandle c);
 static void CalcThumbRect(ControlHandle c);
-static void DrawScrollbarArrow(const Rect* r, short direction, Boolean hilite);
-static void DrawScrollbarThumb(ControlHandle c, Boolean hilite);
-static void DrawScrollbarTrack(const Rect* r);
+static void DrawScrollbarArrow(GrafPtr port, const Rect* r, short direction, Boolean hilite);
+static void DrawScrollbarThumb(GrafPtr port, ControlHandle c, Boolean hilite);
+static void DrawScrollbarTrack(GrafPtr port, const Rect* r);
 static short HitTestScrollbar(ControlHandle c, Point pt);
 static short CalcThumbValue(ControlHandle c, Point pt);
 
@@ -89,6 +90,20 @@ static short CalcThumbValue(ControlHandle c, Point pt);
     if (saveClip) { SetClip(saveClip); DisposeRgn(saveClip); } \
     SetPort(savePort); \
 } while(0)
+
+static inline UInt32 ScrollGray(UInt8 level) {
+    return QDPlatform_RGBToPixel(level, level, level);
+}
+
+static inline void FillSolidRectInPort(GrafPtr port, const Rect* r, UInt32 color) {
+    if (!port || !r) return;
+    Rect global = *r;
+    global.left   += port->portBits.bounds.left;
+    global.right  += port->portBits.bounds.left;
+    global.top    += port->portBits.bounds.top;
+    global.bottom += port->portBits.bounds.top;
+    QDPlatform_FillRectAccelerated(global.left, global.top, global.right, global.bottom, color);
+}
 
 /**
  * NewVScrollBar - Create vertical scrollbar control
@@ -242,11 +257,18 @@ void DrawScrollBar(ControlHandle scrollBar)
     /* Save QD state */
     GetPort(&savePort);
     SetPort((GrafPtr)(*scrollBar)->contrlOwner);
+    GrafPtr ownerPort = (GrafPtr)(*scrollBar)->contrlOwner;
     saveClip = NewRgn();
     if (saveClip) {
         GetClip(saveClip);
         ClipRect(&(*scrollBar)->contrlRect);
     }
+
+    SInt32 savedFG = ((GrafPtr)(*scrollBar)->contrlOwner)->fgColor;
+    SInt32 savedBG = ((GrafPtr)(*scrollBar)->contrlOwner)->bkColor;
+
+    ForeColor(blackColor);
+    BackColor(whiteColor);
 
     /* Check if disabled */
     disabled = ((*scrollBar)->contrlMax <= (*scrollBar)->contrlMin) ||
@@ -258,16 +280,14 @@ void DrawScrollBar(ControlHandle scrollBar)
     hiliteThumb = (data->pressedPart == inThumb);
 
     /* Draw track */
-    DrawScrollbarTrack(&data->trackRect);
+    DrawScrollbarTrack(ownerPort, &data->trackRect);
 
     /* Draw arrows */
-    DrawScrollbarArrow(&data->upArrow, data->vertical ? 0 : 3, hiliteUp);
-    DrawScrollbarArrow(&data->downArrow, data->vertical ? 1 : 2, hiliteDown);
+    DrawScrollbarArrow(ownerPort, &data->upArrow, data->vertical ? 0 : 3, hiliteUp);
+    DrawScrollbarArrow(ownerPort, &data->downArrow, data->vertical ? 1 : 2, hiliteDown);
 
-    /* Draw thumb */
-    if (!disabled) {
-        DrawScrollbarThumb(scrollBar, hiliteThumb);
-    }
+    /* Draw thumb even when disabled so control remains visible */
+    DrawScrollbarThumb(ownerPort, scrollBar, hiliteThumb && !disabled);
 
     /* Gray out if inactive */
     if ((*scrollBar)->contrlHilite == (UInt8)inactiveHilite) {
@@ -277,6 +297,9 @@ void DrawScrollBar(ControlHandle scrollBar)
         PenMode(patCopy);
         PenPat(&qd.black);
     }
+
+    ForeColor(savedFG);
+    BackColor(savedBG);
 
     RESTORE_QD(savePort, saveClip);
 }
@@ -539,32 +562,27 @@ static void CalcThumbRect(ControlHandle c)
  * DrawScrollbarArrow - Draw arrow button
  * direction: 0=up, 1=down, 2=right, 3=left
  */
-static void DrawScrollbarArrow(const Rect* r, short direction, Boolean hilite)
+static void DrawScrollbarArrow(GrafPtr port, const Rect* r, short direction, Boolean hilite)
 {
     Rect arrowFrame;
-    short cx, cy;
+    short cx = 0, cy = 0;
     short x1, y1, x2, y2, x3, y3;
 
     arrowFrame = *r;
 
-    /* Draw button background */
-    if (hilite) {
-        PenPat(&qd.gray);
-        PaintRect(&arrowFrame);
-        PenPat(&qd.black);
-        FrameRect(&arrowFrame);
-    } else {
-        PenPat(&qd.ltGray);
-        PaintRect(&arrowFrame);
-        /* 3D highlight */
-        PenPat(&qd.white);
-        MoveTo(arrowFrame.left, arrowFrame.bottom - 1);
-        LineTo(arrowFrame.left, arrowFrame.top);
-        LineTo(arrowFrame.right - 1, arrowFrame.top);
-        PenPat(&qd.black);
-        LineTo(arrowFrame.right - 1, arrowFrame.bottom - 1);
-        LineTo(arrowFrame.left, arrowFrame.bottom - 1);
-    }
+    UInt32 baseColor = hilite ? ScrollGray(0xB8) : ScrollGray(0xD0);
+    FillSolidRectInPort(port, &arrowFrame, baseColor);
+
+    /* 3D highlight */
+    PenPat(&qd.white);
+    MoveTo(arrowFrame.left, arrowFrame.bottom - 1);
+    LineTo(arrowFrame.left, arrowFrame.top);
+    LineTo(arrowFrame.right - 1, arrowFrame.top);
+    PenPat(&qd.dkGray);
+    LineTo(arrowFrame.right - 1, arrowFrame.bottom - 1);
+    LineTo(arrowFrame.left, arrowFrame.bottom - 1);
+    PenPat(&qd.black);
+    FrameRect(&arrowFrame);
 
     /* Draw arrow triangle */
     cx = (arrowFrame.left + arrowFrame.right) / 2;
@@ -618,11 +636,12 @@ static void DrawScrollbarArrow(const Rect* r, short direction, Boolean hilite)
 /**
  * DrawScrollbarThumb - Draw thumb indicator
  */
-static void DrawScrollbarThumb(ControlHandle c, Boolean hilite)
+static void DrawScrollbarThumb(GrafPtr port, ControlHandle c, Boolean hilite)
 {
     ScrollBarData* data;
     Rect thumb;
-    short cx, cy;
+    short cx = 0;
+    short cy = 0;
 
     if (!c || !(*c)->contrlData) return;
 
@@ -634,15 +653,10 @@ static void DrawScrollbarThumb(ControlHandle c, Boolean hilite)
         return;
     }
 
-    if (hilite) {
-        /* Inverted thumb when dragging */
-        PenPat(&qd.black);
-        PaintRect(&thumb);
-    } else {
-        /* Normal 3D thumb */
-        PenPat(&qd.ltGray);
-        PaintRect(&thumb);
+    UInt32 baseColor = hilite ? ScrollGray(0x90) : ScrollGray(0xBC);
+    FillSolidRectInPort(port, &thumb, baseColor);
 
+    if (!hilite) {
         PenPat(&qd.white);
         MoveTo(thumb.left, thumb.bottom - 1);
         LineTo(thumb.left, thumb.top);
@@ -668,18 +682,32 @@ static void DrawScrollbarThumb(ControlHandle c, Boolean hilite)
             MoveTo(cx + 1, cy - 3);
             LineTo(cx + 1, cy + 4);
         }
+    } else {
+        cx = (thumb.left + thumb.right) / 2;
+        cy = (thumb.top + thumb.bottom) / 2;
     }
 
     PenPat(&qd.black);
+    FrameRect(&thumb);
 }
 
 /**
  * DrawScrollbarTrack - Draw track background
  */
-static void DrawScrollbarTrack(const Rect* r)
+static void DrawScrollbarTrack(GrafPtr port, const Rect* r)
 {
+    FillSolidRectInPort(port, r, ScrollGray(0xE0));
+
+    /* Draw simple bevel */
     PenPat(&qd.white);
-    PaintRect(r);
+    MoveTo(r->left, r->bottom - 1);
+    LineTo(r->left, r->top);
+    LineTo(r->right - 1, r->top);
+
+    PenPat(&qd.dkGray);
+    LineTo(r->right - 1, r->bottom - 1);
+    LineTo(r->left, r->bottom - 1);
+
     PenPat(&qd.black);
     FrameRect(r);
 }

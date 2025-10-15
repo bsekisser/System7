@@ -28,6 +28,7 @@
 #include "WindowManager/WindowManagerInternal.h"
 #include "WindowManager/WindowKinds.h"
 #include "WindowManager/LayoutGuards.h"
+#include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/ColorQuickDraw.h"
 #include "DialogManager/DialogManager.h"
 #include "WindowManager/WMLogging.h"
@@ -754,6 +755,9 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
                                  ConstStr255Param title, short procID,
                                  Boolean visible, Boolean goAwayFlag) {
     if (window == NULL || bounds == NULL) return;
+
+    /* Initialize embedded GrafPort so pattern/color state matches classic defaults */
+    InitPort(&window->port);
 
     /* Set basic window properties */
     window->windowKind = userKind;

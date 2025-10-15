@@ -231,7 +231,7 @@ static void STView_RepositionScrollBar(STDocument* doc) {
     if (height < 1) height = 1;
 
     MoveControl(doc->vScroll, scrollRect.left, scrollRect.top);
-    SizeControl(doc->vScroll, width, height);
+   SizeControl(doc->vScroll, width, height);
 }
 
 static void STView_UpdateScrollMetrics(STDocument* doc) {
