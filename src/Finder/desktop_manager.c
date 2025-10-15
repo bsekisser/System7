@@ -36,6 +36,7 @@
 #include "System71StdLib.h"
 #include "Finder/FinderLogging.h"
 #include "EventManager/EventManager.h"
+#include "WindowManager/WindowManager.h"
 
 /* HD Icon data - still needed by icon_system.c */
 extern const uint8_t g_HDIcon[128];
@@ -50,10 +51,6 @@ extern int snprintf(char* str, size_t size, const char* format, ...);
 extern Ptr NewPtr(Size byteCount);
 extern void InvalRect(const Rect* badRect);
 extern void SetDeskHook(void (*hookProc)(RgnHandle));
-extern WindowPtr NewWindow(void *wStorage, const Rect *boundsRect, const unsigned char *title,
-                           Boolean visible, short procID, WindowPtr behind, Boolean goAwayFlag, long refCon);
-extern void ShowWindow(WindowPtr theWindow);
-extern void SelectWindow(WindowPtr theWindow);
 
 /* Chicago font data */
 extern const uint8_t chicago_bitmap[];
@@ -309,6 +306,10 @@ void DrawDesktop(void)
 
     /* Directly call our DeskHook to paint the desktop with the proper pattern */
     Finder_DeskHook(desktopRgn);  /* Pass the desktop region to paint */
+
+    /* Immediately repaint windows that overlap the desktop region so the pattern
+     * never persists over existing chrome/content. */
+    PaintBehind(NULL, desktopRgn);
 
     /* NOTE: Do NOT call InvalRect here - that would cause infinite recursion!
      * The caller (PostEvent(updateEvt, 0) sites) already requested the update. */
