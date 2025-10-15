@@ -233,13 +233,8 @@ static void HandleKeyDown(EventRecord* event) {
  */
 static void HandleUpdate(EventRecord* event) {
     WindowPtr window = (WindowPtr)event->message;
-    STDocument* doc = STDoc_FindByWindow(window);
 
-    if (doc) {
-        BeginUpdate(window);
-        STView_Draw(doc);
-        EndUpdate(window);
-    }
+    SimpleText_HandleWindowUpdate(window);
 }
 
 /*
@@ -322,6 +317,22 @@ void SimpleText_Idle(void) {
     if (g_ST.activeDoc && g_ST.activeDoc->hTE) {
         TEIdle(g_ST.activeDoc->hTE);
     }
+}
+
+Boolean SimpleText_HandleWindowUpdate(WindowPtr window) {
+    if (!SimpleText_IsRunning() || window == NULL) {
+        return false;
+    }
+
+    STDocument* doc = STDoc_FindByWindow(window);
+    if (!doc) {
+        return false;
+    }
+
+    BeginUpdate(window);
+    STView_Draw(doc);
+    EndUpdate(window);
+    return true;
 }
 
 /*

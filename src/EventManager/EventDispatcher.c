@@ -19,6 +19,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "Finder/AboutThisMac.h"  /* About This Macintosh window */
+#include "Apps/SimpleText.h"
 #include <stdlib.h>  /* For abs() */
 #include "EventManager/EventLogging.h"
 
@@ -500,6 +501,10 @@ Boolean HandleUpdate(EventRecord* event)
     EVT_LOG_DEBUG("HandleUpdate: window=0x%08x\n", (unsigned int)updateWindow);
 
     if (updateWindow) {
+        if (SimpleText_HandleWindowUpdate(updateWindow)) {
+            EVT_LOG_DEBUG("HandleUpdate: SimpleText handled update\n");
+            return true;
+        }
         /* Check if this is the About This Macintosh window */
         EVT_LOG_DEBUG("HandleUpdate: checking if About window...\n");
         if (AboutWindow_IsOurs(updateWindow)) {

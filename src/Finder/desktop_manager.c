@@ -124,6 +124,103 @@ static void GhostShowAt(const Rect* r);
 static void DesktopYield(void);
 static void TrackIconDragSync(short iconIndex, Point startPt);
 
+/* Helper forward declarations */
+static WindowPtr Finder_GetFrontVisibleWindow(void);
+static Boolean Finder_GetWindowBounds(WindowPtr window, Rect* outBounds);
+static void Finder_EraseRegionExcludingRect(RgnHandle baseRgn, const Rect* excludeRect);
+
+static WindowPtr Finder_GetFrontVisibleWindow(void)
+{
+    WindowPtr front = FrontWindow();
+    while (front && !front->visible) {
+        front = front->nextWindow;
+    }
+    return front;
+}
+
+static Boolean Finder_GetWindowBounds(WindowPtr window, Rect* outBounds)
+{
+    if (!window || !outBounds) {
+        return false;
+    }
+
+    if (window->visRgn && *window->visRgn) {
+        *outBounds = (*window->visRgn)->rgnBBox;
+    } else if (window->strucRgn && *window->strucRgn) {
+        *outBounds = (*window->strucRgn)->rgnBBox;
+    } else {
+        *outBounds = window->port.portBits.bounds;
+    }
+
+    return (outBounds->left < outBounds->right) && (outBounds->top < outBounds->bottom);
+}
+
+static void Finder_EraseRectSection(const Rect* rect)
+{
+    if (!rect || rect->left >= rect->right || rect->top >= rect->bottom) {
+        return;
+    }
+
+    RgnHandle temp = NewRgn();
+    if (temp) {
+        RectRgn(temp, rect);
+        EraseRgn(temp);
+        DisposeRgn(temp);
+    } else {
+        EraseRect(rect);
+    }
+}
+
+static void Finder_EraseRegionExcludingRect(RgnHandle baseRgn, const Rect* excludeRect)
+{
+    if (!baseRgn || !*baseRgn) {
+        return;
+    }
+
+    if (!excludeRect) {
+        EraseRgn(baseRgn);
+        return;
+    }
+
+    Rect baseBounds = (*baseRgn)->rgnBBox;
+    Rect overlap;
+    if (!SectRect(&baseBounds, excludeRect, &overlap)) {
+        EraseRgn(baseRgn);
+        return;
+    }
+
+    /* Top strip */
+    if (baseBounds.top < overlap.top) {
+        Rect topRect = baseBounds;
+        topRect.bottom = overlap.top;
+        Finder_EraseRectSection(&topRect);
+    }
+
+    /* Bottom strip */
+    if (overlap.bottom < baseBounds.bottom) {
+        Rect bottomRect = baseBounds;
+        bottomRect.top = overlap.bottom;
+        Finder_EraseRectSection(&bottomRect);
+    }
+
+    /* Middle strips (left/right) */
+    Rect middleRect = baseBounds;
+    middleRect.top = (baseBounds.top > overlap.top) ? baseBounds.top : overlap.top;
+    middleRect.bottom = (baseBounds.bottom < overlap.bottom) ? baseBounds.bottom : overlap.bottom;
+    if (middleRect.top < middleRect.bottom) {
+        if (baseBounds.left < overlap.left) {
+            Rect leftRect = middleRect;
+            leftRect.right = overlap.left;
+            Finder_EraseRectSection(&leftRect);
+        }
+        if (overlap.right < baseBounds.right) {
+            Rect rightRect = middleRect;
+            rightRect.left = overlap.right;
+            Finder_EraseRectSection(&rightRect);
+        }
+    }
+}
+
 /* Public function to draw the desktop */
 void DrawDesktop(void);
 void DrawVolumeIcon(void);
@@ -204,14 +301,37 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
     }
 
     /* Draw desktop pattern using current background pattern */
-    /* EraseRgn will use the BackPat/BackColor set by Pattern Manager */
-    if (invalidRgn) {
+    /* Build a paint region that excludes the frontmost window so we don't wipe its content */
+    RgnHandle paintRgn = NewRgn();
+    if (paintRgn) {
+        if (invalidRgn) {
+            CopyRgn(invalidRgn, paintRgn);
+        } else if (desktopClip) {
+            CopyRgn(desktopClip, paintRgn);
+        } else {
+            Rect screenRect = qd.screenBits.bounds;
+            RectRgn(paintRgn, &screenRect);
+        }
+
+        if (!EmptyRgn(paintRgn)) {
+            Rect excludeBounds;
+            WindowPtr front = Finder_GetFrontVisibleWindow();
+            if (Finder_GetWindowBounds(front, &excludeBounds)) {
+                Finder_EraseRegionExcludingRect(paintRgn, &excludeBounds);
+            } else {
+                EraseRgn(paintRgn);
+            }
+        }
+        DisposeRgn(paintRgn);
+    } else if (invalidRgn) {
         EraseRgn(invalidRgn);
     } else if (desktopClip) {
         EraseRgn(desktopClip);
     }
 
     /* Draw desktop icons in invalid region */
+    RgnHandle paintClip = invalidRgn ? invalidRgn : desktopClip;
+
     for (int i = 0; i < gDesktopIconCount; i++) {
         if (i == gDraggingIconIndex) continue;
 
@@ -222,7 +342,7 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
                 gDesktopIcons[i].position.h + 32,
                 gDesktopIcons[i].position.v + 32);
 
-        if (RectInRgn(&iconRect, invalidRgn)) {
+        if (!paintClip || RectInRgn(&iconRect, paintClip)) {
             /* Draw icon using QuickDraw */
             /* PlotIcon(&iconRect, gDesktopIcons[i].icon); */
 

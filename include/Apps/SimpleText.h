@@ -144,6 +144,7 @@ extern void SimpleText_Idle(void);
 extern Boolean SimpleText_IsRunning(void);
 extern void SimpleText_Launch(void);
 extern void SimpleText_OpenFile(const char* path);
+extern Boolean SimpleText_HandleWindowUpdate(WindowPtr window);
 
 /* STDocument.c - Document management */
 extern STDocument* STDoc_New(void);
