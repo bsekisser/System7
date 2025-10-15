@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "SoundManager/SoundLogging.h"
+#include "SoundManager/SoundBlaster16.h"
 
 /* I/O port access */
 #include "Platform/include/io.h"
@@ -244,9 +245,6 @@ static bool sb16_set_sample_rate(uint32_t sample_rate) {
  * Play audio using DMA
  * This is declared but implemented separately with DMA support
  */
-extern int SB16_PlayDMA(const uint8_t* data, uint32_t size,
-                        uint32_t sample_rate, uint8_t channels, uint8_t bits_per_sample);
-
 /*
  * Play WAV data
  */

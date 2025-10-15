@@ -127,6 +127,8 @@ C_SOURCES = src/main.c \
             src/Platform/x86/hal_input.c \
             src/SoundManager/SoundManagerBareMetal.c \
             src/SoundManager/SoundHardwarePC.c \
+            src/SoundManager/SoundBlaster16.c \
+            src/SoundManager/DMA_Controller.c \
             src/MenuManager/MenuManagerCore.c \
             src/MenuManager/MenuSelection.c \
             src/MenuManager/MenuDisplay.c \
@@ -404,7 +406,7 @@ $(ISO): $(KERNEL) grub.cfg | $(ISO_DIR)/boot/grub
 # Resolution: Detected automatically from GRUB/multiboot framebuffer
 run: $(ISO)
 	qemu-system-i386 -cdrom $(ISO) -drive file=test_disk.img,format=raw,if=ide -m 1024 -vga std -serial file:/tmp/serial.log \
-		-audiodev pa,id=snd0,server=/run/user/$(shell id -u)/pulse/native -machine pcspk-audiodev=snd0
+		-audiodev pa,id=snd0,server=/run/user/$(shell id -u)/pulse/native -machine pcspk-audiodev=snd0 -device sb16,audiodev=snd0
 
 # Debug with QEMU
 debug: $(ISO)

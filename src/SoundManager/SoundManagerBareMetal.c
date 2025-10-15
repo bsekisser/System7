@@ -8,8 +8,15 @@
 #include "SystemTypes.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include <limits.h>
+#include <string.h>
+
 #include "SoundManager/SoundManager.h"
 #include "SoundManager/SoundLogging.h"
+#include "SoundManager/SoundBlaster16.h"
+#include "SoundManager/boot_chime_data.h"
+#include "TimeManager/MicrosecondTimer.h"
+#include "SystemInternal.h"
 
 /* Error codes */
 #define unimpErr -4  /* Unimplemented trap */
@@ -21,6 +28,31 @@ extern void PCSpkr_Beep(uint32_t frequency, uint32_t duration_ms);
 
 /* Sound Manager state */
 static bool g_soundManagerInitialized = false;
+static bool g_sb16Available = false;
+
+/* DMA playback scratch buffer (<= 120 KB per transfer, 32-byte aligned) */
+#define SB16_DMA_CHUNK_BYTES 120000U
+static uint8_t g_sb16DMABuffer[SB16_DMA_CHUNK_BYTES] __attribute__((aligned(32)));
+
+static uint64_t smb_udiv64(uint64_t num, uint64_t den) {
+    if (den == 0) {
+        return 0;
+    }
+    uint64_t quot = 0;
+    uint64_t bit = 1ULL << 63;
+    while (bit && !(den & bit)) {
+        bit >>= 1;
+    }
+    while (bit) {
+        if (num >= den) {
+            num -= den;
+            quot |= bit;
+        }
+        den >>= 1;
+        bit >>= 1;
+    }
+    return quot;
+}
 
 /*
  * SoundManagerInit - Initialize Sound Manager
@@ -48,6 +80,16 @@ OSErr SoundManagerInit(void) {
         return -1;
     }
 
+    /* Attempt to initialize Sound Blaster 16 for PCM playback */
+    int sb16_result = SB16_Init();
+    if (sb16_result == 0) {
+        g_sb16Available = true;
+        SND_LOG_INFO("SoundManagerInit: SB16 available for PCM playback\n");
+    } else {
+        SND_LOG_WARN("SoundManagerInit: SB16 unavailable (code=%d), falling back to PC speaker only\n",
+                     sb16_result);
+    }
+
     g_soundManagerInitialized = true;
     SND_LOG_INFO("SoundManagerInit: Sound Manager initialized successfully (flag=%d)\n", g_soundManagerInitialized);
 
@@ -63,6 +105,10 @@ OSErr SoundManagerShutdown(void) {
     }
 
     PCSpkr_Shutdown();
+    if (g_sb16Available) {
+        SB16_Shutdown();
+        g_sb16Available = false;
+    }
     g_soundManagerInitialized = false;
     return noErr;
 }
@@ -108,6 +154,64 @@ void StartupChime(void) {
         return;
     }
 
+    /* Attempt high-fidelity playback first */
+    if (g_sb16Available) {
+        const uint8_t* src = gBootChimePCM;
+        uint32_t remaining = BOOT_CHIME_DATA_SIZE;
+        const uint32_t bytesPerFrame = (BOOT_CHIME_BITS_PER_SAMPLE / 8) * BOOT_CHIME_CHANNELS;
+        int sbErr = 0;
+
+        SND_LOG_INFO("StartupChime: Playing PCM boot chime via SB16 (%u bytes)\n",
+                     BOOT_CHIME_DATA_SIZE);
+
+        while (remaining > 0) {
+            uint32_t chunk = (remaining > SB16_DMA_CHUNK_BYTES) ? SB16_DMA_CHUNK_BYTES : remaining;
+            chunk -= chunk % bytesPerFrame;
+            if (chunk == 0) {
+                break;
+            }
+
+            memcpy(g_sb16DMABuffer, src, chunk);
+            sbErr = SB16_PlayWAV(g_sb16DMABuffer,
+                                 chunk,
+                                 BOOT_CHIME_SAMPLE_RATE,
+                                 BOOT_CHIME_CHANNELS,
+                                 BOOT_CHIME_BITS_PER_SAMPLE);
+            if (sbErr != 0) {
+                SND_LOG_WARN("StartupChime: SB16 playback chunk failed (err=%d)\n", sbErr);
+                break;
+            }
+
+            /* Wait for chunk duration so DMA can finish before queueing next block */
+            uint64_t frames = chunk / bytesPerFrame;
+            uint64_t chunkUs = smb_udiv64(frames * 1000000ULL, BOOT_CHIME_SAMPLE_RATE);
+            if (chunkUs > 0) {
+                if (chunkUs > UINT32_MAX) {
+                    /* Break into multiple microsecond delays if necessary */
+                    uint64_t remainingUs = chunkUs;
+                    while (remainingUs > 0) {
+                        UInt32 stepUs = (remainingUs > UINT32_MAX) ? UINT32_MAX : (UInt32)remainingUs;
+                        MicrosecondDelay(stepUs);
+                        remainingUs -= stepUs;
+                    }
+                } else {
+                    MicrosecondDelay((UInt32)chunkUs);
+                }
+            }
+
+            src += chunk;
+            remaining -= chunk;
+        }
+
+        if (sbErr == 0) {
+            SND_LOG_INFO("StartupChime: SB16 playback complete\n");
+            return;
+        }
+
+        SND_LOG_WARN("StartupChime: Falling back to PC speaker chime\n");
+    }
+
+    /* Fallback: PC speaker arpeggio */
     SND_LOG_INFO("StartupChime: Playing System 7 startup chime\n");
 
     /* Classic Mac startup chime - C major chord arpeggio

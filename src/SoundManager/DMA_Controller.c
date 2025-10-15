@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "SoundManager/SoundLogging.h"
+#include "SoundManager/SoundBlaster16.h"
 
 /* I/O port access */
 #include "Platform/include/io.h"
@@ -52,7 +53,7 @@ static const uint16_t dma2_page_ports[] = { 0x8F, 0x8B, 0x89, 0x8A };
 /*
  * Set up DMA for audio playback (8-bit, channel 1)
  */
-int DMA_Setup8Bit(const void* buffer, uint32_t size) {
+static int DMA_Setup8Bit(const void* buffer, uint32_t size) {
 
     const uint8_t channel = 1;  /* SB16 uses DMA channel 1 for 8-bit */
     uint32_t addr = (uint32_t)buffer;
@@ -97,7 +98,7 @@ int DMA_Setup8Bit(const void* buffer, uint32_t size) {
 /*
  * Set up DMA for audio playback (16-bit, channel 5)
  */
-int DMA_Setup16Bit(const void* buffer, uint32_t size) {
+static int DMA_Setup16Bit(const void* buffer, uint32_t size) {
 
     const uint8_t channel = 5;  /* SB16 uses DMA channel 5 for 16-bit */
     const uint8_t channel_offset = channel - 4;  /* DMA2 uses channels 4-7 */
@@ -152,9 +153,6 @@ int DMA_Setup16Bit(const void* buffer, uint32_t size) {
     SND_LOG_DEBUG("DMA: 16-bit DMA setup complete\n");
     return 0;
 }
-
-/* Forward declaration from SB16 driver */
-extern bool sb16_dsp_write(uint8_t value);
 
 /*
  * Play audio via DMA (called from SB16 driver)
