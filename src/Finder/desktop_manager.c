@@ -345,16 +345,54 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
                 gDesktopIcons[i].position.h + 32,
                 gDesktopIcons[i].position.v + 32);
 
-        if (!paintClip || RectInRgn(&iconRect, paintClip)) {
-            /* Draw icon using QuickDraw */
-            /* PlotIcon(&iconRect, gDesktopIcons[i].icon); */
-
-            /* Never draw a border during regular paints. Ghost outline is handled
-               exclusively by InvertIconOutline() inside TrackIconDragSync(). */
+        if (paintClip && !RectInRgn(&iconRect, paintClip)) {
+            continue;
         }
+
+        IconHandle handle = {0};
+        int labelOffset = kIconH;  /* default */
+
+        switch (gDesktopIcons[i].type) {
+            case kDesktopItemVolume:
+                handle.fam = IconSys_DefaultVolume();
+                labelOffset = 34;
+                break;
+            case kDesktopItemTrash:
+            {
+                extern bool Trash_IsEmptyAll(void);
+                handle.fam = Trash_IsEmptyAll() ? IconSys_TrashEmpty() : IconSys_TrashFull();
+                labelOffset = 48;
+                break;
+            }
+            case kDesktopItemFolder:
+                handle.fam = IconSys_DefaultFolder();
+                break;
+            case kDesktopItemFile:
+            case kDesktopItemAlias:
+            case kDesktopItemApplication:
+            default:
+                handle.fam = IconSys_DefaultDoc();
+                break;
+        }
+
+        if (!handle.fam) {
+            continue;
+        }
+
+        handle.selected = (gSelectedIcon == i);
+
+        int centerX = gDesktopIcons[i].position.h + (kIconW / 2);
+        int topY = gDesktopIcons[i].position.v;
+
+        Icon_DrawWithLabelOffset(&handle,
+                                 gDesktopIcons[i].name,
+                                 centerX,
+                                 topY,
+                                 labelOffset,
+                                 handle.selected);
     }
 
-    /* Draw volume/trash icons (DrawVolumeIcon checks visibility flags internally) */
+    /* Legacy helper still handles trash/volume label offsets and selection updates */
     DrawVolumeIcon();
 
     SetPort(savePort);
