@@ -8,6 +8,7 @@
 #include "Apps/SimpleText.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "FontManager/FontManager.h"
+#include "QuickDraw/QuickDrawPlatform.h"
 
 /* Helper functions */
 static void ApplyStyleToSelection(STDocument* doc, SInt16 font, SInt16 size, Style style);
@@ -92,11 +93,17 @@ void STView_Draw(STDocument* doc) {
 
     SetPort((GrafPtr)doc->window);
 
+    /* Clear background before leting TE draw */
+    EraseRect(&((GrafPtr)doc->window)->portRect);
+
     /* Get update rectangle */
     updateRect = ((GrafPtr)doc->window)->portRect;
 
     /* Draw TextEdit content */
     TEUpdate(&updateRect, doc->hTE);
+
+    /* Ensure platform framebuffer reflects latest content */
+    QDPlatform_FlushScreen();
 
     /* Draw scrollbar if present */
     if (doc->vScroll) {

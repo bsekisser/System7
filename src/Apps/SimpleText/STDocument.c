@@ -165,6 +165,7 @@ STDocument* STDoc_Open(const char* path) {
 
     /* Make it active */
     STDoc_Activate(doc);
+    STView_Draw(doc);
 
     ST_Log("Opened document successfully\n");
     return doc;

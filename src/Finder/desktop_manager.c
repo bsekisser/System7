@@ -307,9 +307,13 @@ void DrawDesktop(void)
     /* Directly call our DeskHook to paint the desktop with the proper pattern */
     Finder_DeskHook(desktopRgn);  /* Pass the desktop region to paint */
 
-    /* Immediately repaint windows that overlap the desktop region so the pattern
-     * never persists over existing chrome/content. */
-    PaintBehind(NULL, desktopRgn);
+    /* Immediately repaint background windows so the pattern stays behind them. */
+    WindowPtr frontWindow = FrontWindow();
+    WindowPtr startWindow = NULL;
+    if (frontWindow) {
+        startWindow = frontWindow->nextWindow;
+    }
+    PaintBehind(startWindow, desktopRgn);
 
     /* NOTE: Do NOT call InvalRect here - that would cause infinite recursion!
      * The caller (PostEvent(updateEvt, 0) sites) already requested the update. */
