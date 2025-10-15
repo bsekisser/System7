@@ -192,6 +192,8 @@ void StartupChime(void) {
             remaining -= chunk;
         }
 
+        SB16_StopPlayback();
+
         if (sbErr == 0) {
             SND_LOG_INFO("StartupChime: SB16 playback complete\n");
             return;

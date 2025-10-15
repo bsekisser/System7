@@ -204,13 +204,19 @@ int SB16_Init(void) {
 /*
  * Shutdown Sound Blaster 16
  */
+void SB16_StopPlayback(void) {
+    if (!g_sb16_initialized) {
+        return;
+    }
+    sb16_dsp_write(DSP_CMD_TURN_OFF_SPEAKER);
+}
+
 void SB16_Shutdown(void) {
     if (!g_sb16_initialized) {
         return;
     }
 
-    /* Turn off speaker */
-    sb16_dsp_write(DSP_CMD_TURN_OFF_SPEAKER);
+    SB16_StopPlayback();
 
     /* Reset DSP */
     sb16_dsp_reset();

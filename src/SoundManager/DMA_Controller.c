@@ -74,7 +74,7 @@ static int DMA_Setup8Bit(const void* buffer, uint32_t size) {
     outb(DMA1_CLEAR_FF, 0xFF);
 
     /* Set DMA mode (single cycle, write) - no auto-repeat */
-    outb(DMA1_MODE, DMA_MODE_WRITE | DMA_MODE_AUTO | channel);
+    outb(DMA1_MODE, DMA_MODE_WRITE | channel);
 
     /* Set address (low byte, high byte) */
     outb(dma1_addr_ports[channel], addr & 0xFF);
@@ -134,7 +134,7 @@ static int DMA_Setup16Bit(const void* buffer, uint32_t size) {
     outb(DMA2_CLEAR_FF, 0xFF);
 
     /* Set DMA mode (single cycle, write) - no auto-repeat */
-    outb(DMA2_MODE, DMA_MODE_WRITE | DMA_MODE_AUTO | channel_offset);
+    outb(DMA2_MODE, DMA_MODE_WRITE | channel_offset);
 
     /* Set address (low byte, high byte) - in WORDS */
     outb(dma2_addr_ports[channel_offset], word_addr & 0xFF);
