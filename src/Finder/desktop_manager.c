@@ -1655,12 +1655,11 @@ void DrawVolumeIcon(void)
             iconHandle.fam = IconSys_DefaultVolume();
             iconHandle.selected = (gSelectedIcon == i);
 
-            Point localPos = gDesktopIcons[i].position;
-            GlobalToLocal(&localPos);
+            Point globalPos = gDesktopIcons[i].position;
 
             Icon_DrawWithLabelOffset(&iconHandle, gDesktopIcons[i].name,
-                                    localPos.h + 16,  /* Center X (local) */
-                                    localPos.v,       /* Top Y (local) */
+                                    globalPos.h + 16,  /* Center X */
+                                    globalPos.v,       /* Top Y */
                                     34,               /* Label offset */
                                     iconHandle.selected);
         } else if (gDesktopIcons[i].type == kDesktopItemTrash) {
@@ -1676,12 +1675,11 @@ void DrawVolumeIcon(void)
             FINDER_LOG_DEBUG("DrawVolumeIcon: Drawing trash at (%d,%d)\n",
                          gDesktopIcons[i].position.h, gDesktopIcons[i].position.v);
 
-            Point localPos = gDesktopIcons[i].position;
-            GlobalToLocal(&localPos);
+            Point globalPos = gDesktopIcons[i].position;
 
             Icon_DrawWithLabelOffset(&trashHandle, gDesktopIcons[i].name,
-                                    localPos.h + 16,  /* Center X (local) */
-                                    localPos.v,       /* Top Y (local) */
+                                    globalPos.h + 16,  /* Center X */
+                                    globalPos.v,       /* Top Y */
                                     48,               /* Label offset */
                                     trashHandle.selected);
         }
