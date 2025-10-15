@@ -5,6 +5,7 @@
  */
 
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDraw/QuickDrawPlatform.h"
 #include "QuickDraw/quickdraw_types.h"
 #include "SystemTypes.h"
 #include "QuickDraw/QDLogging.h"
@@ -160,6 +161,10 @@ void PaintRoundRect(const Rect* r, short ovalWidth, short ovalHeight)
     if (radius > (right - left) / 2) radius = (right - left) / 2;
     if (radius > (bottom - top) / 2) radius = (bottom - top) / 2;
 
+    extern UInt32 QDPlatform_MapQDColor(SInt32 qdColor);
+    UInt32 fgColor = QDPlatform_MapQDColor(thePort->fgColor);
+    UInt32 bgColor = QDPlatform_MapQDColor(thePort->bkColor);
+
     /* Fill the rounded rectangle with pattern */
     for (int y = top; y < bottom; y++) {
         for (int x = left; x < right; x++) {
@@ -194,13 +199,8 @@ void PaintRoundRect(const Rect* r, short ovalWidth, short ovalHeight)
                 int patY = y & 7;
                 int patX = x & 7;
                 unsigned char patByte = pat->pat[patY];
-
-                /* Check if pattern bit is set */
-                if (patByte & (0x80 >> patX)) {
-                    fb[y * pitch + x] = 0xFF000000;  /* Black */
-                } else {
-                    fb[y * pitch + x] = 0xFFFFFFFF;  /* White */
-                }
+                Boolean bitOn = (patByte & (0x80 >> patX)) != 0;
+                fb[y * pitch + x] = bitOn ? fgColor : bgColor;
             }
         }
     }

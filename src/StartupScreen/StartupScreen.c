@@ -80,6 +80,9 @@ static void DrawExtensionIcon(const ExtensionInfo* extension, Point position);
 static Point GetNextExtensionPosition(void);
 static void DrawScreenBezel(void);
 
+extern uint32_t fb_width;
+extern uint32_t fb_height;
+
 /*
  * Initialize startup screen system
  */
@@ -95,17 +98,30 @@ OSErr InitStartupScreen(const StartupScreenConfig* config) {
         gConfig = *config;
     }
 
-    /* Get screen bounds */
+    /* Determine screen bounds */
+    short screenWidth = 0;
+    short screenHeight = 0;
     GDHandle mainDevice = GetMainDevice();
-    if (mainDevice) {
+
+    if (fb_width > 0 && fb_height > 0) {
+        screenWidth = (fb_width > 32767U) ? 32767 : (short)fb_width;
+        screenHeight = (fb_height > 32767U) ? 32767 : (short)fb_height;
+        SetRect(&gStartupScreen.screenBounds, 0, 0, screenWidth, screenHeight);
+    } else if (mainDevice) {
         gStartupScreen.screenBounds = (**mainDevice).gdRect;
+        screenWidth = gStartupScreen.screenBounds.right - gStartupScreen.screenBounds.left;
+        screenHeight = gStartupScreen.screenBounds.bottom - gStartupScreen.screenBounds.top;
     } else {
-        SetRect(&gStartupScreen.screenBounds, 0, 0, 640, 480);
+        screenWidth = 640;
+        screenHeight = 480;
+        SetRect(&gStartupScreen.screenBounds, 0, 0, screenWidth, screenHeight);
     }
 
-    /* Calculate layout rectangles */
-    short screenWidth = gStartupScreen.screenBounds.right - gStartupScreen.screenBounds.left;
-    short screenHeight = gStartupScreen.screenBounds.bottom - gStartupScreen.screenBounds.top;
+    if (screenWidth <= 0 || screenHeight <= 0) {
+        screenWidth = 640;
+        screenHeight = 480;
+        SetRect(&gStartupScreen.screenBounds, 0, 0, screenWidth, screenHeight);
+    }
 
     /* Logo rect (left side, centered vertically in upper portion) */
     SetRect(&gStartupScreen.logoRect,
