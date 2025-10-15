@@ -7,7 +7,7 @@
 #include "SoundManager/SoundBackend.h"
 
 #ifndef DEFAULT_SOUND_BACKEND
-#define DEFAULT_SOUND_BACKEND kSoundBackendHDA
+#define DEFAULT_SOUND_BACKEND kSoundBackendSB16
 #endif
 
 /*

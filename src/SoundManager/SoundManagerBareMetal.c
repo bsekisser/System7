@@ -160,6 +160,9 @@ void StartupChime(void) {
 
         SND_LOG_WARN("StartupChime: Backend %s failed (err=%d), falling back to PC speaker\n",
                      g_soundBackendOps->name, backendErr);
+        if (g_soundBackendType != kSoundBackendNone) {
+            return;
+        }
     }
 
     /* Fallback: PC speaker arpeggio */
