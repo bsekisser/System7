@@ -218,3 +218,94 @@ void MacPaint_CheckMemory(void)
  *
  * For questions about specific conversions, see the comments in MacPaint_Core.c
  */
+
+/*
+ * FINDER LAUNCHER WRAPPER FUNCTIONS
+ *
+ * These functions provide the interface that the Finder expects to launch
+ * and manage MacPaint. They follow the same pattern as SimpleText and other
+ * System 7.1 applications.
+ */
+
+/* Global state tracking */
+static int gMacPaintIsRunning = 0;
+static char gMacPaintOpenFilePath[256] = {0};
+
+/**
+ * MacPaint_Launch - Launch MacPaint application
+ *
+ * Called by Finder when user opens MacPaint from Applications folder.
+ * Sets up global state and calls MacPaintMain with no arguments.
+ */
+void MacPaint_Launch(void)
+{
+    int argc = 1;
+    char *argv[2] = { "MacPaint", NULL };
+
+    gMacPaintIsRunning = 1;
+    MacPaintMain(argc, argv);
+    gMacPaintIsRunning = 0;
+}
+
+/**
+ * MacPaint_Init - Initialize MacPaint
+ *
+ * Separate initialization function for cases where Finder needs to
+ * initialize MacPaint before other operations.
+ */
+void MacPaint_Init(void)
+{
+    gMacPaintIsRunning = 1;
+}
+
+/**
+ * MacPaint_Quit - Quit MacPaint gracefully
+ *
+ * Called by Finder to shut down MacPaint. Sets flag to allow
+ * event loop to exit cleanly.
+ */
+void MacPaint_Quit(void)
+{
+    gMacPaintIsRunning = 0;
+    MacPaint_RequestQuit();
+}
+
+/**
+ * MacPaint_IsRunning - Check if MacPaint is currently running
+ *
+ * Returns: Boolean value (non-zero = running, 0 = not running)
+ */
+Boolean MacPaint_IsRunning(void)
+{
+    return (Boolean)gMacPaintIsRunning;
+}
+
+/**
+ * MacPaint_OpenFile - Open a file in MacPaint
+ *
+ * Called by Finder when user drops a file on MacPaint or
+ * opens a document associated with MacPaint.
+ *
+ * Parameters:
+ * - path: C string path to the file to open
+ */
+void MacPaint_OpenFile(const char* path)
+{
+    if (path && path[0]) {
+        strncpy(gMacPaintOpenFilePath, path, sizeof(gMacPaintOpenFilePath) - 1);
+        gMacPaintOpenFilePath[sizeof(gMacPaintOpenFilePath) - 1] = '\0';
+
+        /* If MacPaint is already running, open the file in the existing window */
+        if (gMacPaintIsRunning) {
+            MacPaint_OpenDocument(path);
+            MacPaint_SetDocumentName(path);
+        } else {
+            /* MacPaint will open this file when launched */
+            int argc = 2;
+            char *argv[3] = { "MacPaint", (char*)path, NULL };
+            gMacPaintIsRunning = 1;
+            MacPaintMain(argc, argv);
+            gMacPaintIsRunning = 0;
+        }
+    }
+}

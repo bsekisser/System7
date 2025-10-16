@@ -371,6 +371,17 @@ void MacPaint_SetDocumentName(const char *name);
 const char* MacPaint_GetDocumentName(void);
 
 /*
+ * Application Launcher Wrapper Functions (for Finder integration)
+ * These functions provide a consistent interface for the Finder to launch
+ * and manage MacPaint, similar to SimpleText and other applications
+ */
+extern void MacPaint_Launch(void);           /* Launch MacPaint application */
+extern void MacPaint_Init(void);             /* Initialize MacPaint */
+extern void MacPaint_Quit(void);             /* Quit MacPaint */
+extern Boolean MacPaint_IsRunning(void);     /* Check if MacPaint is running */
+extern void MacPaint_OpenFile(const char* path); /* Open file in MacPaint */
+
+/*
  * Global State Access (from MacPaint_Core.c)
  */
 extern BitMap gPaintBuffer;

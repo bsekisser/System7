@@ -336,6 +336,63 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         return;
     }
 
+    /* Handle Applications folder with virtual apps */
+    if (dirID == 18) {
+        state->itemCount = 3;  /* SimpleText, TextEdit, MacPaint */
+        state->items = (FolderItem*)malloc(sizeof(FolderItem) * state->itemCount);
+        if (!state->items) {
+            state->itemCount = 0;
+            return;
+        }
+
+        /* SimpleText */
+        FolderItem *simpleText = &state->items[0];
+        memset(simpleText, 0, sizeof(FolderItem));
+        strncpy(simpleText->name, "SimpleText", sizeof(simpleText->name) - 1);
+        simpleText->isFolder = false;
+        simpleText->fileID = 200;  /* Virtual ID */
+        simpleText->parentID = dirID;
+        simpleText->type = 'APPL';
+        simpleText->creator = 'ttxt';
+
+        /* TextEdit */
+        FolderItem *textEdit = &state->items[1];
+        memset(textEdit, 0, sizeof(FolderItem));
+        strncpy(textEdit->name, "TextEdit", sizeof(textEdit->name) - 1);
+        textEdit->isFolder = false;
+        textEdit->fileID = 201;  /* Virtual ID */
+        textEdit->parentID = dirID;
+        textEdit->type = 'APPL';
+        textEdit->creator = 'tedt';
+
+        /* MacPaint */
+        FolderItem *macPaint = &state->items[2];
+        memset(macPaint, 0, sizeof(FolderItem));
+        strncpy(macPaint->name, "MacPaint", sizeof(macPaint->name) - 1);
+        macPaint->isFolder = false;
+        macPaint->fileID = 202;  /* Virtual ID */
+        macPaint->parentID = dirID;
+        macPaint->type = 'APPL';
+        macPaint->creator = 'MAPP';
+
+        const int startX = 80;
+        const int startY = 30;
+        const int colSpacing = 100;
+        const int rowHeight = 90;
+        const int maxCols = 3;
+
+        for (int i = 0; i < state->itemCount; i++) {
+            int col = i % maxCols;
+            int row = i / maxCols;
+            state->items[i].position.h = startX + (col * colSpacing);
+            state->items[i].position.v = startY + (row * rowHeight);
+        }
+
+        FINDER_LOG_DEBUG("InitializeFolderContentsEx: populated Applications folder with %d items\n",
+                         state->itemCount);
+        return;
+    }
+
     if (dirID == kControlPanelsDirID) {
         state->itemCount = 6;
         state->items = (FolderItem*)malloc(sizeof(FolderItem) * state->itemCount);
@@ -952,6 +1009,10 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                     FINDER_LOG_DEBUG("FW: Launching SimpleText application\n");
                     extern void SimpleText_Launch(void);
                     SimpleText_Launch();
+                } else if (strcmp(name, "MacPaint") == 0) {
+                    FINDER_LOG_DEBUG("FW: Launching MacPaint application\n");
+                    extern void MacPaint_Launch(void);
+                    MacPaint_Launch();
                 } else if (strcmp(name, "Desktop Patterns") == 0) {
                     FINDER_LOG_DEBUG("FW: Opening Desktop Patterns control panel\n");
                     OpenDesktopCdev();
