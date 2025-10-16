@@ -15,6 +15,16 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Recent Updates
 
+- ✅ **PS/2 Keyboard Translation Overhaul**: Full set 1 mapping feeds the Toolbox key codes that Classic Mac software expects.
+  - Hardware translation re-enabled in the controller config (set 1) for reliable scancode delivery.
+  - New lookup tables cover left/right modifiers, keypad, arrows, and function keys (see `src/Platform/x86/ps2.c`).
+  - Modern input bridge recomputes modifiers, latches caps lock, and always generates a fallback `keyDown/keyUp` so apps never miss characters.
+  - SimpleText now shows the caret immediately and types the correct glyphs without forcing a manual redraw.
+- ✅ **ARM / Raspberry Pi Build Path**: HAL stubs and build rules unblock early testing on Pi-class hardware.
+  - Shared `Platform/Halt.h` provides a portable `platform_halt()` instead of inlining `cli; hlt`.
+  - ARM boot path now passes the device tree pointer to `hal_boot_init(void *boot_arg)` and exposes lightweight USB/HID stubs until the full stack lands.
+  - `Makefile` can link the kernel with GCC when `PLATFORM=arm`, and the HFS layer now gates ATA usage on x86 only.
+
 - ✅ **Memory Manager & OSUtils Integration**: Shared host/68K heap mapping with classic low-memory sync
   - `MemoryManager_MapToM68K()` maps the System/App zones directly into the interpreter page table
   - Low-memory globals (`MemTop`, `SysZone`, `ApplZone`) now track real heap limits
@@ -475,6 +485,7 @@ make
 
 # Build for specific platform
 make PLATFORM=x86
+make PLATFORM=arm        # requires an ARM bare‑metal GCC toolchain
 
 # Create bootable ISO
 make iso
@@ -522,6 +533,15 @@ qemu-system-i386 -cdrom system71.iso \
 ### Real Hardware
 
 **⚠️ WARNING**: Running on real hardware is experimental and may not work. Use at your own risk.
+
+#### Raspberry Pi (experimental)
+
+```bash
+make PLATFORM=arm CC=arm-none-eabi-gcc LD=arm-none-eabi-ld
+# Copy build/system71.img or integrate into your Pi boot chain
+```
+
+You will need an ARM bare‑metal toolchain (`arm-none-eabi-gcc` and friends). Input currently falls back to USB/HID stubs; expect limited interactivity until the full HID stack lands.
 
 1. Write ISO to USB drive: `dd if=system71.iso of=/dev/sdX bs=4M`
 2. Boot from USB with legacy BIOS (not UEFI)
