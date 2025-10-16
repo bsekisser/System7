@@ -133,18 +133,94 @@ static MenuBarState gMenuBar = {0};
  */
 OSErr MacPaint_InitializeMenuBar(void)
 {
-    /* TODO: Use MenuManager to load menus from resources
-     * GetMenu(129) -> gMenuBar.fileMenu
-     * GetMenu(130) -> gMenuBar.editMenu
-     * GetMenu(131) -> gMenuBar.fontMenu
-     * GetMenu(132) -> gMenuBar.styleMenu
-     * GetMenu(133) -> gMenuBar.aidsMenu
-     * InsertMenu(menu, 0) for each
-     * DrawMenuBar()
-     */
+    MenuHandle menu;
 
-    /* Initialize menus locally if no resources */
+    /* Initialize MenuManager */
+    InitMenus();
+
+    /* Create Apple menu (128) - will contain desk accessories */
+    menu = NewMenu(128, "\p\024");  /* Special Apple character */
+    if (menu) {
+        AppendMenu(menu, "\pAbout MacPaint");
+        gMenuBar.fileMenu = menu;  /* Reuse for now */
+        InsertMenu(menu, 0);
+    }
+
+    /* Create File menu (129) */
+    menu = NewMenu(129, "\pFile");
+    if (menu) {
+        AppendMenu(menu, "\pNew");
+        AppendMenu(menu, "\pOpen");
+        AppendMenu(menu, "\pClose");
+        AppendMenu(menu, "\p-");
+        AppendMenu(menu, "\pSave");
+        AppendMenu(menu, "\pSave As...");
+        AppendMenu(menu, "\p-");
+        AppendMenu(menu, "\pPrint");
+        AppendMenu(menu, "\p-");
+        AppendMenu(menu, "\pQuit");
+        gMenuBar.fileMenu = menu;
+        InsertMenu(menu, 0);
+    }
+
+    /* Create Edit menu (130) */
+    menu = NewMenu(130, "\pEdit");
+    if (menu) {
+        AppendMenu(menu, "\pUndo");
+        AppendMenu(menu, "\p-");
+        AppendMenu(menu, "\pCut");
+        AppendMenu(menu, "\pCopy");
+        AppendMenu(menu, "\pPaste");
+        AppendMenu(menu, "\pClear");
+        AppendMenu(menu, "\p-");
+        AppendMenu(menu, "\pSelect All");
+        AppendMenu(menu, "\pInvert");
+        gMenuBar.editMenu = menu;
+        InsertMenu(menu, 0);
+    }
+
+    /* Create Font menu (131) */
+    menu = NewMenu(131, "\pFont");
+    if (menu) {
+        AppendMenu(menu, "\pChicago");
+        AppendMenu(menu, "\pGeneva");
+        AppendMenu(menu, "\pNew York");
+        gMenuBar.fontMenu = menu;
+        InsertMenu(menu, 0);
+    }
+
+    /* Create Style menu (132) */
+    menu = NewMenu(132, "\pStyle");
+    if (menu) {
+        AppendMenu(menu, "\pBold");
+        AppendMenu(menu, "\pItalic");
+        AppendMenu(menu, "\pUnderline");
+        AppendMenu(menu, "\p-");
+        AppendMenu(menu, "\pPlain");
+        gMenuBar.styleMenu = menu;
+        InsertMenu(menu, 0);
+    }
+
+    /* Create Aids menu (133) - Tools and options */
+    menu = NewMenu(133, "\pAids");
+    if (menu) {
+        AppendMenu(menu, "\pGrid");
+        AppendMenu(menu, "\pFat Bits");
+        AppendMenu(menu, "\p-");
+        AppendMenu(menu, "\pPattern Editor");
+        AppendMenu(menu, "\pBrush Editor");
+        AppendMenu(menu, "\p-");
+        AppendMenu(menu, "\pAbout");
+        gMenuBar.aidsMenu = menu;
+        InsertMenu(menu, 0);
+    }
+
+    /* Initialize MacPaint menu state tracking */
     MacPaint_InitializeMenus();
+
+    /* Draw the menu bar */
+    DrawMenuBar();
+
     gMenuBar.menuBarInitialized = 1;
 
     return noErr;
@@ -166,12 +242,53 @@ void MacPaint_AdjustMenus(void)
 {
     MacPaint_UpdateMenus();
 
-    /* TODO: Update MenuManager menu items
-     * For each menu item:
-     * - Enable/disable based on MacPaint_IsMenuItemAvailable
-     * - Set/clear checkmarks for toggles
-     * - Update item text for dynamic items
-     */
+    /* Update Edit menu items based on state */
+    if (gMenuBar.editMenu) {
+        if (MacPaint_IsMenuItemAvailable(130, 1)) {
+            EnableItem(gMenuBar.editMenu, 1);  /* Undo */
+        } else {
+            DisableItem(gMenuBar.editMenu, 1);
+        }
+
+        /* Cut/Copy/Clear enabled only with selection */
+        if (MacPaint_IsMenuItemAvailable(130, 3)) {
+            EnableItem(gMenuBar.editMenu, 3);  /* Cut */
+            EnableItem(gMenuBar.editMenu, 4);  /* Copy */
+        } else {
+            DisableItem(gMenuBar.editMenu, 3);
+            DisableItem(gMenuBar.editMenu, 4);
+        }
+
+        if (MacPaint_IsMenuItemAvailable(130, 5)) {
+            EnableItem(gMenuBar.editMenu, 5);  /* Paste */
+        } else {
+            DisableItem(gMenuBar.editMenu, 5);
+        }
+
+        if (MacPaint_IsMenuItemAvailable(130, 6)) {
+            EnableItem(gMenuBar.editMenu, 6);  /* Clear */
+        } else {
+            DisableItem(gMenuBar.editMenu, 6);
+        }
+    }
+
+    /* Update Aids menu for toggles */
+    if (gMenuBar.aidsMenu) {
+        int gridShown = 0, fatBitsActive = 0;
+        MacPaint_GetMenuState(&gridShown, &fatBitsActive, NULL, NULL);
+
+        if (gridShown) {
+            CheckItem(gMenuBar.aidsMenu, 1, 1);  /* Grid */
+        } else {
+            CheckItem(gMenuBar.aidsMenu, 1, 0);
+        }
+
+        if (fatBitsActive) {
+            CheckItem(gMenuBar.aidsMenu, 2, 1);  /* Fat Bits */
+        } else {
+            CheckItem(gMenuBar.aidsMenu, 2, 0);
+        }
+    }
 }
 
 /*
