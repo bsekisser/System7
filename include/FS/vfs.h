@@ -21,6 +21,12 @@ bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref);
 /* Format an ATA device with HFS filesystem - REQUIRES EXPLICIT CALL */
 bool VFS_FormatATA(int ata_device_index, const char* volName);
 
+/* Mount a volume from an SDHCI SD card (ARM/Raspberry Pi) */
+bool VFS_MountSDHCI(int drive_index, const char* volName, VRefNum* vref);
+
+/* Format an SDHCI SD card with HFS filesystem - REQUIRES EXPLICIT CALL */
+bool VFS_FormatSDHCI(int drive_index, const char* volName);
+
 /* Unmount a volume */
 bool VFS_Unmount(VRefNum vref);
 

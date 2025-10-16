@@ -378,6 +378,20 @@ void DrawMenuBar(void)
 
     /* Make sure we have a valid port to draw to */
     if (qd.thePort) {
+        char debugBuf[160];
+        snprintf(debugBuf, sizeof(debugBuf),
+                 "DrawMenuBar: using port base=%p rowBytes=%d bounds=(%d,%d)-(%d,%d) portRect=(%d,%d)-(%d,%d)\n",
+                 qd.thePort->portBits.baseAddr,
+                 qd.thePort->portBits.rowBytes,
+                 qd.thePort->portBits.bounds.left,
+                 qd.thePort->portBits.bounds.top,
+                 qd.thePort->portBits.bounds.right,
+                 qd.thePort->portBits.bounds.bottom,
+                 qd.thePort->portRect.left,
+                 qd.thePort->portRect.top,
+                 qd.thePort->portRect.right,
+                 qd.thePort->portRect.bottom);
+        serial_puts(debugBuf);
         SetPort(qd.thePort);  /* Draw to screen port */
     } else {
         /* serial_puts("DrawMenuBar: qd.thePort is NULL!\n"); */
@@ -1050,6 +1064,11 @@ static void UpdateMenuBarLayout(void)
             menuBar->menus[i].menuWidth = menuWidth;
             currentLeft += menuWidth + kMenuSpacing;
         }
+        char layoutBuf[128];
+        snprintf(layoutBuf, sizeof(layoutBuf),
+                 "UpdateMenuBarLayout: ID=%d left=%d width=%d systemRight=%d currentLeft=%d\n",
+                 id, menuBar->menus[i].menuLeft, menuBar->menus[i].menuWidth, systemRight, currentLeft);
+        serial_puts(layoutBuf);
     }
 
     if (currentLeft > 0 && currentLeft >= kMenuSpacing) {

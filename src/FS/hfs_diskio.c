@@ -16,7 +16,7 @@ bool HFS_BD_InitMemory(HFS_BlockDev* bd, void* buffer, uint64_t size) {
 
     bd->type = HFS_BD_TYPE_MEMORY;
     bd->data = buffer;
-    bd->ata_device = -1;
+    bd->device_index = -1;
     FS_LOG_DEBUG("HFS: BD_InitMemory: stored bd->data=%08x\n", (unsigned int)bd->data);
     bd->size = size;
     bd->sectorSize = 512;
@@ -33,7 +33,7 @@ bool HFS_BD_InitFile(HFS_BlockDev* bd, const char* path, bool readonly) {
     bd->type = HFS_BD_TYPE_FILE;
     bd->size = 4 * 1024 * 1024;
     bd->data = malloc(bd->size);
-    bd->ata_device = -1;
+    bd->device_index = -1;
     if (!bd->data) return false;
 
     memset(bd->data, 0, bd->size);
@@ -65,7 +65,7 @@ bool HFS_BD_InitATA(HFS_BlockDev* bd, int device_index, bool readonly) {
 
     bd->type = HFS_BD_TYPE_ATA;
     bd->data = NULL;
-    bd->ata_device = device_index;
+    bd->device_index = device_index;
     bd->size = (uint64_t)ata_dev->sectors * 512;
     bd->sectorSize = 512;
     bd->readonly = readonly;
@@ -76,13 +76,51 @@ bool HFS_BD_InitATA(HFS_BlockDev* bd, int device_index, bool readonly) {
     return true;
 }
 
+bool HFS_BD_InitSDHCI(HFS_BlockDev* bd, int drive_index, bool readonly) {
+    /* Initialize block device for SDHCI SD card (ARM/Raspberry Pi)
+     * Uses HAL storage interface for cross-platform compatibility
+     */
+    #ifdef __ARM__
+    extern OSErr hal_storage_get_drive_info(int drive_index, hal_storage_info_t* info);
+    extern void* hal_storage_info;  /* For storing drive info */
+
+    if (!bd) return false;
+
+    /* Query drive info via HAL */
+    hal_storage_info_t info = {0};
+    OSErr err = hal_storage_get_drive_info(drive_index, &info);
+    if (err != 0) {  /* noErr should be 0 */
+        FS_LOG_DEBUG("HFS: SDHCI drive %d not found (err=%d)\n", drive_index, err);
+        return false;
+    }
+
+    FS_LOG_DEBUG("HFS: Initializing SDHCI block device for drive %d\n", drive_index);
+
+    bd->type = HFS_BD_TYPE_SDHCI;
+    bd->data = NULL;
+    bd->device_index = drive_index;
+    bd->size = info.block_count * info.block_size;
+    bd->sectorSize = info.block_size;
+    bd->readonly = readonly;
+
+    FS_LOG_DEBUG("HFS: SDHCI block device initialized (size=%u MB)\n",
+                 (uint32_t)(bd->size / (1024 * 1024)));
+
+    return true;
+    #else
+    /* SDHCI not supported on non-ARM platforms */
+    FS_LOG_DEBUG("HFS: SDHCI not supported on this platform\n");
+    return false;
+    #endif
+}
+
 bool HFS_BD_Read(HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t length) {
     if (!bd || !buffer) return false;
     if (offset + length > bd->size) return false;
 
     if (bd->type == HFS_BD_TYPE_ATA) {
         /* ATA device - read sectors */
-        ATADevice* ata_dev = ATA_GetDevice(bd->ata_device);
+        ATADevice* ata_dev = ATA_GetDevice(bd->device_index);
         if (!ata_dev) return false;
 
         /* Calculate sector alignment (cast to avoid 64-bit division) */
@@ -107,6 +145,36 @@ bool HFS_BD_Read(HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t lengt
 
         free(temp_buffer);
         return true;
+    } else if (bd->type == HFS_BD_TYPE_SDHCI) {
+        /* SDHCI SD card - read blocks via HAL */
+        #ifdef __ARM__
+        extern OSErr hal_storage_read_blocks(int drive_index, uint64_t start_block, uint32_t block_count, void* buffer);
+
+        /* Calculate block alignment */
+        uint32_t start_block = (uint32_t)offset / bd->sectorSize;
+        uint32_t end_block = ((uint32_t)offset + length + bd->sectorSize - 1) / bd->sectorSize;
+        uint32_t block_count = end_block - start_block;
+
+        /* Allocate temporary buffer for block-aligned read */
+        uint8_t* temp_buffer = malloc(block_count * bd->sectorSize);
+        if (!temp_buffer) return false;
+
+        /* Read blocks via HAL storage interface */
+        OSErr err = hal_storage_read_blocks(bd->device_index, start_block, block_count, temp_buffer);
+        if (err != 0) {  /* noErr should be 0 */
+            free(temp_buffer);
+            return false;
+        }
+
+        /* Copy requested data from temp buffer */
+        uint32_t offset_in_block = (uint32_t)offset % bd->sectorSize;
+        memcpy(buffer, temp_buffer + offset_in_block, length);
+
+        free(temp_buffer);
+        return true;
+        #else
+        return false;
+        #endif
     } else {
         /* Memory or file-based device */
         if (!bd->data) return false;
@@ -122,7 +190,7 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
 
     if (bd->type == HFS_BD_TYPE_ATA) {
         /* ATA device - write sectors */
-        ATADevice* ata_dev = ATA_GetDevice(bd->ata_device);
+        ATADevice* ata_dev = ATA_GetDevice(bd->device_index);
         if (!ata_dev) return false;
 
         /* Calculate sector alignment (cast to avoid 64-bit division) */
@@ -153,6 +221,42 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
         free(temp_buffer);
 
         return (err == noErr);
+    } else if (bd->type == HFS_BD_TYPE_SDHCI) {
+        /* SDHCI SD card - write blocks via HAL */
+        #ifdef __ARM__
+        extern OSErr hal_storage_write_blocks(int drive_index, uint64_t start_block, uint32_t block_count, const void* buffer);
+
+        /* Calculate block alignment */
+        uint32_t start_block = (uint32_t)offset / bd->sectorSize;
+        uint32_t end_block = ((uint32_t)offset + length + bd->sectorSize - 1) / bd->sectorSize;
+        uint32_t block_count = end_block - start_block;
+        uint32_t offset_in_block = (uint32_t)offset % bd->sectorSize;
+
+        /* Allocate temporary buffer for block-aligned write */
+        uint8_t* temp_buffer = malloc(block_count * bd->sectorSize);
+        if (!temp_buffer) return false;
+
+        /* If write doesn't start/end on block boundary, need to read-modify-write */
+        if (offset_in_block != 0 || ((uint32_t)offset + length) % bd->sectorSize != 0) {
+            /* Read existing blocks first */
+            OSErr err = hal_storage_read_blocks(bd->device_index, start_block, block_count, temp_buffer);
+            if (err != 0) {  /* noErr should be 0 */
+                free(temp_buffer);
+                return false;
+            }
+        }
+
+        /* Copy new data into temp buffer */
+        memcpy(temp_buffer + offset_in_block, buffer, length);
+
+        /* Write blocks via HAL storage interface */
+        OSErr err = hal_storage_write_blocks(bd->device_index, start_block, block_count, temp_buffer);
+        free(temp_buffer);
+
+        return (err == 0);  /* noErr should be 0 */
+        #else
+        return false;
+        #endif
     } else {
         /* Memory or file-based device */
         if (!bd->data) return false;
@@ -166,11 +270,14 @@ void HFS_BD_Close(HFS_BlockDev* bd) {
 
     if (bd->type == HFS_BD_TYPE_ATA) {
         /* Flush ATA device cache before closing */
-        ATADevice* ata_dev = ATA_GetDevice(bd->ata_device);
+        ATADevice* ata_dev = ATA_GetDevice(bd->device_index);
         if (ata_dev && ata_dev->present) {
             ATA_FlushCache(ata_dev);
         }
-        bd->ata_device = -1;
+        bd->device_index = -1;
+    } else if (bd->type == HFS_BD_TYPE_SDHCI) {
+        /* SDHCI devices don't need explicit flushing (SD protocol handles this) */
+        bd->device_index = -1;
     } else if (bd->type == HFS_BD_TYPE_MEMORY || bd->type == HFS_BD_TYPE_FILE) {
         /* If we allocated memory, free it */
         if (bd->data) {
@@ -201,12 +308,15 @@ bool HFS_BD_Flush(HFS_BlockDev* bd) {
 
     if (bd->type == HFS_BD_TYPE_ATA) {
         /* Flush ATA device cache */
-        ATADevice* ata_dev = ATA_GetDevice(bd->ata_device);
+        ATADevice* ata_dev = ATA_GetDevice(bd->device_index);
         if (ata_dev && ata_dev->present) {
             OSErr err = ATA_FlushCache(ata_dev);
             return (err == noErr);
         }
         return false;
+    } else if (bd->type == HFS_BD_TYPE_SDHCI) {
+        /* SDHCI devices handle flushing internally */
+        return true;
     }
 
     /* Memory/file devices don't need explicit flushing */

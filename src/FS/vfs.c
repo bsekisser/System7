@@ -305,6 +305,168 @@ bool VFS_MountATA(int ata_device_index, const char* volName, VRefNum* vref) {
     return true;
 }
 
+/* Format an SDHCI SD card with HFS filesystem - REQUIRES EXPLICIT CALL */
+bool VFS_FormatSDHCI(int drive_index, const char* volName) {
+    extern bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName);
+
+    if (!g_vfs.initialized) {
+        FS_LOG_DEBUG("VFS: Not initialized\n");
+        return false;
+    }
+
+    #ifdef __ARM__
+    /* Initialize temporary block device */
+    HFS_BlockDev bd;
+    if (!HFS_BD_InitSDHCI(&bd, drive_index, false)) {
+        FS_LOG_DEBUG("VFS: Failed to initialize SDHCI block device for formatting\n");
+        return false;
+    }
+
+    /* Format the volume */
+    FS_LOG_DEBUG("VFS: Formatting SDHCI drive %d as '%s'...\n", drive_index, volName);
+    bool result = HFS_FormatVolume(&bd, volName);
+
+    /* Close block device */
+    HFS_BD_Close(&bd);
+
+    if (result) {
+        FS_LOG_DEBUG("VFS: SDHCI drive %d formatted successfully\n", drive_index);
+    } else {
+        FS_LOG_DEBUG("VFS: Failed to format SDHCI drive %d\n", drive_index);
+    }
+
+    return result;
+    #else
+    FS_LOG_DEBUG("VFS: SDHCI not supported on this platform\n");
+    return false;
+    #endif
+}
+
+bool VFS_MountSDHCI(int drive_index, const char* volName, VRefNum* vref) {
+    if (!g_vfs.initialized) {
+        FS_LOG_DEBUG("VFS: Not initialized\n");
+        return false;
+    }
+
+    #ifdef __ARM__
+    /* Allocate volume slot */
+    VFSVolume* vol = VFS_AllocVolume();
+    if (!vol) {
+        FS_LOG_DEBUG("VFS: No free volume slots\n");
+        return false;
+    }
+
+    /* Assign vref */
+    vol->vref = g_vfs.nextVRef++;
+
+    /* Initialize block device from SDHCI */
+    if (!HFS_BD_InitSDHCI(&vol->volume.bd, drive_index, false)) {
+        FS_LOG_DEBUG("VFS: Failed to initialize SDHCI block device\n");
+        return false;
+    }
+
+    /* Check if disk is formatted by reading MDB */
+    uint8_t mdbSector[512];
+
+    if (!HFS_BD_ReadSector(&vol->volume.bd, HFS_MDB_SECTOR, mdbSector)) {
+        FS_LOG_DEBUG("VFS: Failed to read MDB sector from SDHCI\n");
+        HFS_BD_Close(&vol->volume.bd);
+        return false;
+    }
+
+    /* Check HFS signature */
+    uint16_t sig = be16_read(&mdbSector[0]);
+
+    if (sig != HFS_SIGNATURE) {
+        FS_LOG_DEBUG("VFS: ERROR - SD card is not formatted with HFS (signature: 0x%04x)\n", sig);
+        FS_LOG_DEBUG("VFS: Use VFS_FormatSDHCI() to format this SD card first\n");
+        HFS_BD_Close(&vol->volume.bd);
+        return false;
+    }
+
+    /* Disk is formatted, proceed with mounting */
+    FS_LOG_DEBUG("VFS: Found valid HFS signature on SDHCI, mounting...\n");
+
+    /* Parse MDB into volume structure */
+    HFS_MDB* mdb = &vol->volume.mdb;
+
+    mdb->drSigWord    = be16_read(&mdbSector[0]);
+    mdb->drCrDate     = be32_read(&mdbSector[4]);
+    mdb->drLsMod      = be32_read(&mdbSector[8]);
+    mdb->drAtrb       = be16_read(&mdbSector[12]);
+    mdb->drNmFls      = be16_read(&mdbSector[14]);
+    mdb->drVBMSt      = be16_read(&mdbSector[16]);
+    mdb->drAllocPtr   = be16_read(&mdbSector[18]);
+    mdb->drNmAlBlks   = be16_read(&mdbSector[20]);
+    mdb->drAlBlkSiz   = be32_read(&mdbSector[22]);
+    mdb->drClpSiz     = be32_read(&mdbSector[26]);
+    mdb->drAlBlSt     = be16_read(&mdbSector[30]);
+    mdb->drNxtCNID    = be32_read(&mdbSector[32]);
+    mdb->drFreeBks    = be16_read(&mdbSector[36]);
+
+    /* Volume name */
+    memcpy(mdb->drVN, &mdbSector[38], 28);
+
+    /* Catalog file */
+    mdb->drCTFlSize = be32_read(&mdbSector[142]);
+    for (int i = 0; i < 3; i++) {
+        mdb->drCTExtRec[i].startBlock = be16_read(&mdbSector[146 + i * 4]);
+        mdb->drCTExtRec[i].blockCount = be16_read(&mdbSector[148 + i * 4]);
+    }
+
+    /* Extents file */
+    mdb->drXTFlSize = be32_read(&mdbSector[126]);
+    for (int i = 0; i < 3; i++) {
+        mdb->drXTExtRec[i].startBlock = be16_read(&mdbSector[130 + i * 4]);
+        mdb->drXTExtRec[i].blockCount = be16_read(&mdbSector[132 + i * 4]);
+    }
+
+    /* Cache volume parameters */
+    vol->volume.alBlkSize = mdb->drAlBlkSiz;
+    vol->volume.alBlSt = mdb->drAlBlSt;
+    vol->volume.numAlBlks = mdb->drNmAlBlks;
+    vol->volume.vbmStart = mdb->drVBMSt;
+    vol->volume.catFileSize = mdb->drCTFlSize;
+    memcpy(vol->volume.catExtents, mdb->drCTExtRec, sizeof(vol->volume.catExtents));
+    vol->volume.extFileSize = mdb->drXTFlSize;
+    memcpy(vol->volume.extExtents, mdb->drXTExtRec, sizeof(vol->volume.extExtents));
+    vol->volume.nextCNID = mdb->drNxtCNID;
+    vol->volume.rootDirID = 2;  /* HFS root is always 2 */
+
+    /* Mark volume as mounted */
+    vol->volume.vRefNum = vol->vref;
+    vol->volume.mounted = true;
+
+    /* Try to initialize catalog */
+    if (!HFS_CatalogInit(&vol->catalog, &vol->volume)) {
+        FS_LOG_DEBUG("VFS: Warning - Failed to initialize catalog for SDHCI volume\n");
+        /* Continue anyway for empty formatted volumes */
+    }
+
+    /* Mark as mounted */
+    vol->mounted = true;
+    strncpy(vol->name, volName, sizeof(vol->name) - 1);
+    vol->name[sizeof(vol->name) - 1] = '\0';
+
+    FS_LOG_DEBUG("VFS: Mounted SDHCI volume '%s' as vRef %d\n", volName, vol->vref);
+
+    /* Return vref */
+    if (vref) {
+        *vref = vol->vref;
+    }
+
+    /* Notify mount callback */
+    if (g_vfs.mountCallback) {
+        g_vfs.mountCallback(vol->vref, volName);
+    }
+
+    return true;
+    #else
+    FS_LOG_DEBUG("VFS: SDHCI not supported on this platform\n");
+    return false;
+    #endif
+}
+
 bool VFS_Unmount(VRefNum vref) {
     VFSVolume* vol = VFS_FindVolume(vref);
     if (!vol) {
