@@ -127,6 +127,21 @@ void MacPaint_HandleWindowClose(WindowPtr window)
     }
 }
 
+/**
+ * MacPaint_HandleWindowResize - Handle window resize or bounds change
+ * Called when the window is resized to recalculate invalidation regions
+ */
+void MacPaint_HandleWindowResize(WindowPtr window)
+{
+    if (window == gEventState.paintWindow) {
+        /* Invalidate entire window to force complete redraw at new size
+         * This call automatically recalculates invalidation region bounds
+         * based on the new window dimensions
+         */
+        MacPaint_InvalidateWindowArea();
+    }
+}
+
 /*
  * MOUSE EVENT HANDLING
  */

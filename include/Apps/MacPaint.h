@@ -303,6 +303,7 @@ OSErr MacPaint_CreateMainWindow(void);
 void MacPaint_DrawPaintWindow(void);
 void MacPaint_HandleWindowUpdate(WindowPtr window);
 void MacPaint_HandleWindowClose(WindowPtr window);
+void MacPaint_HandleWindowResize(WindowPtr window);
 
 /* Mouse Event Handling */
 void MacPaint_HandleMouseDownEvent(int x, int y, int modifiers);
