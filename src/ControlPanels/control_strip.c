@@ -122,10 +122,17 @@ void ControlStrip_Show(void)
         return;
     }
 
+    short screenLeft = qd.screenBits.bounds.left;
+    short screenRight = qd.screenBits.bounds.right;
+    short screenTop = qd.screenBits.bounds.top;
+    if (screenRight <= screenLeft) {
+        screenRight = screenLeft + 640;
+    }
+
     Rect bounds;
-    bounds.left = qd.screenBits.bounds.right - 220;
-    bounds.right = qd.screenBits.bounds.right - 20;
-    bounds.top = 60;
+    bounds.left = screenRight - 220;
+    bounds.right = screenRight - 20;
+    bounds.top = screenTop + 60;
     bounds.bottom = bounds.top + 220;
 
     static unsigned char title[] = {13, 'C','o','n','t','r','o','l',' ','S','t','r','i','p'};
