@@ -378,20 +378,7 @@ void DrawMenuBar(void)
 
     /* Make sure we have a valid port to draw to */
     if (qd.thePort) {
-        char debugBuf[128];
-        snprintf(debugBuf, sizeof(debugBuf),
-                 "DrawMenuBar: qd.thePort base=%p rowBytes=%d bounds=(%d,%d)-(%d,%d)\n",
-                 qd.thePort->portBits.baseAddr,
-                 qd.thePort->portBits.rowBytes,
-                 qd.thePort->portBits.bounds.left,
-                 qd.thePort->portBits.bounds.top,
-                 qd.thePort->portBits.bounds.right,
-                 qd.thePort->portBits.bounds.bottom);
-        serial_puts(debugBuf);
         SetPort(qd.thePort);  /* Draw to screen port */
-        snprintf(debugBuf, sizeof(debugBuf), "DrawMenuBar: SetPort -> current port base=%p\n",
-                 qd.thePort->portBits.baseAddr);
-        serial_puts(debugBuf);
     } else {
         /* serial_puts("DrawMenuBar: qd.thePort is NULL!\n"); */
     }
@@ -713,7 +700,6 @@ void InsertMenu(MenuHandle theMenu, short beforeID)
     int insertIndex;
 
     if (!gMenuMgrInitialized || theMenu == NULL) {
-        MENU_LOG_DEBUG("InsertMenu: invalid state or menu handle NULL\n");
         return;
     }
 
@@ -762,6 +748,9 @@ void InsertMenu(MenuHandle theMenu, short beforeID)
         return;
     }
     menuBar = (MenuBarList*)gMenuList;
+    if (gMenuMgrState) {
+        gMenuMgrState->menuBar = gMenuList;
+    }
 
     /* Shift existing menus if inserting in middle */
     if (insertIndex < menuBar->numMenus) {
@@ -771,12 +760,6 @@ void InsertMenu(MenuHandle theMenu, short beforeID)
 
     /* Insert new menu */
     menuBar->menus[insertIndex].menuID = (*theMenu)->menuID;
-    {
-        char debugBuf[80];
-        snprintf(debugBuf, sizeof(debugBuf), "InsertMenu: adding ID %d at index %d (beforeID=%d)\n",
-                 menuBar->menus[insertIndex].menuID, insertIndex, beforeID);
-        serial_puts(debugBuf);
-    }
     menuBar->menus[insertIndex].menuLeft = 0; /* Will be calculated */
     menuBar->menus[insertIndex].menuWidth = 0; /* Will be calculated */
     menuBar->numMenus++;

@@ -161,6 +161,7 @@ C_SOURCES = src/main.c \
               src/Platform/arm/framebuffer.c \
               src/Platform/arm/timer_arm.c \
               src/Platform/arm/sdhci.c \
+              src/Platform/arm/sdhci_commands.c \
               src/Platform/arm/xhci.c \
               src/Platform/arm/dwcotg.c \
               src/Platform/arm/usb_controller.c \
