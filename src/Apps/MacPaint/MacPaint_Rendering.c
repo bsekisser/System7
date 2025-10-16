@@ -43,6 +43,54 @@ extern WindowPtr gPaintWindow;
 extern int gCurrentTool;
 
 /*
+ * UPDATE REGION TRACKING
+ */
+
+typedef struct {
+    Rect paintRect;         /* Canvas area bounds */
+    Rect toolboxRect;       /* Toolbox area bounds */
+    Rect statusRect;        /* Status bar area bounds */
+    int paintDirty;         /* Canvas needs redraw */
+    int toolboxDirty;       /* Toolbox needs redraw */
+    int statusDirty;        /* Status bar needs redraw */
+} InvalidationState;
+
+static InvalidationState gInvalidState = {{0}};
+
+/**
+ * MacPaint_UpdateInvalidationRects - Update cached rectangle positions
+ */
+static void MacPaint_UpdateInvalidationRects(void)
+{
+    if (!gPaintWindow) {
+        return;
+    }
+
+    GrafPtr port = GetWindowPort(gPaintWindow);
+    if (!port) {
+        return;
+    }
+
+    /* Paint canvas area (left side, minus right toolbox and bottom status) */
+    gInvalidState.paintRect.left = port->portRect.left;
+    gInvalidState.paintRect.top = port->portRect.top;
+    gInvalidState.paintRect.right = port->portRect.right - 74;  /* 74 pixels for toolbox */
+    gInvalidState.paintRect.bottom = port->portRect.bottom - 20; /* 20 pixels for status */
+
+    /* Toolbox area (right side) */
+    gInvalidState.toolboxRect.left = port->portRect.right - 74;
+    gInvalidState.toolboxRect.top = port->portRect.top;
+    gInvalidState.toolboxRect.right = port->portRect.right;
+    gInvalidState.toolboxRect.bottom = port->portRect.bottom - 20;
+
+    /* Status bar area (bottom) */
+    gInvalidState.statusRect.left = port->portRect.left;
+    gInvalidState.statusRect.top = port->portRect.bottom - 20;
+    gInvalidState.statusRect.right = port->portRect.right;
+    gInvalidState.statusRect.bottom = port->portRect.bottom;
+}
+
+/*
  * PAINT WINDOW RENDERING
  */
 
@@ -655,9 +703,15 @@ void MacPaint_UpdateCursorPosition(int x, int y)
  */
 void MacPaint_InvalidateToolArea(void)
 {
-    /* TODO: Invalidate toolbox rectangle
-     * Typically on left or right side of window
-     */
+    if (!gPaintWindow) {
+        return;
+    }
+
+    MacPaint_UpdateInvalidationRects();
+    gInvalidState.toolboxDirty = 1;
+
+    /* Mark toolbox rectangle for update */
+    InvalRect(&gInvalidState.toolboxRect);
 }
 
 /**
@@ -665,9 +719,76 @@ void MacPaint_InvalidateToolArea(void)
  */
 void MacPaint_InvalidateStatusArea(void)
 {
-    /* TODO: Invalidate status bar rectangle
-     * Typically at bottom of window
-     */
+    if (!gPaintWindow) {
+        return;
+    }
+
+    MacPaint_UpdateInvalidationRects();
+    gInvalidState.statusDirty = 1;
+
+    /* Mark status bar rectangle for update */
+    InvalRect(&gInvalidState.statusRect);
+}
+
+/**
+ * MacPaint_InvalidateWindowArea - Mark entire window for redraw
+ */
+void MacPaint_InvalidateWindowArea(void)
+{
+    if (!gPaintWindow) {
+        return;
+    }
+
+    GrafPtr port = GetWindowPort(gPaintWindow);
+    if (!port) {
+        return;
+    }
+
+    MacPaint_UpdateInvalidationRects();
+    gInvalidState.paintDirty = 1;
+    gInvalidState.toolboxDirty = 1;
+    gInvalidState.statusDirty = 1;
+
+    /* Mark entire window for update */
+    InvalRect(&port->portRect);
+}
+
+/**
+ * MacPaint_InvalidatePaintArea - Mark canvas area for redraw
+ */
+void MacPaint_InvalidatePaintArea(void)
+{
+    if (!gPaintWindow) {
+        return;
+    }
+
+    MacPaint_UpdateInvalidationRects();
+    gInvalidState.paintDirty = 1;
+
+    /* Mark paint canvas rectangle for update */
+    InvalRect(&gInvalidState.paintRect);
+}
+
+/**
+ * MacPaint_GetInvalidState - Check if areas need redrawing
+ */
+int MacPaint_GetInvalidState(int *paintDirty, int *toolboxDirty, int *statusDirty)
+{
+    if (paintDirty) *paintDirty = gInvalidState.paintDirty;
+    if (toolboxDirty) *toolboxDirty = gInvalidState.toolboxDirty;
+    if (statusDirty) *statusDirty = gInvalidState.statusDirty;
+
+    return (gInvalidState.paintDirty || gInvalidState.toolboxDirty || gInvalidState.statusDirty);
+}
+
+/**
+ * MacPaint_ClearInvalidState - Clear dirty flags after redraw
+ */
+void MacPaint_ClearInvalidState(void)
+{
+    gInvalidState.paintDirty = 0;
+    gInvalidState.toolboxDirty = 0;
+    gInvalidState.statusDirty = 0;
 }
 
 /*

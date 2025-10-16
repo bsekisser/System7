@@ -318,9 +318,14 @@ void MacPaint_HandleMenuClickEvent(int menuID, int itemID);
 /* Event Window Checking */
 int MacPaint_IsEventInPaintWindow(int x, int y);
 
-/* Window Invalidation */
+/* Window Invalidation and Update Management */
 void MacPaint_InvalidateWindowArea(void);
+void MacPaint_InvalidatePaintArea(void);
+void MacPaint_InvalidateToolArea(void);
+void MacPaint_InvalidateStatusArea(void);
 void MacPaint_InvalidateRectArea(const Rect *rect);
+int MacPaint_GetInvalidState(int *paintDirty, int *toolboxDirty, int *statusDirty);
+void MacPaint_ClearInvalidState(void);
 
 /* Event Loop State */
 int MacPaint_IsMouseDown(void);

@@ -352,7 +352,7 @@ void MacPaint_RunEventLoop(void)
         /* TODO: Actual WaitNextEvent loop implementation */
 
         /* Simulate one event cycle for now */
-        MacPaint_InvalidateWindow();
+        MacPaint_InvalidateWindowArea();
 
         /* Exit after one iteration for safety during development */
         break;
@@ -364,35 +364,16 @@ void MacPaint_RunEventLoop(void)
  */
 
 /**
- * MacPaint_InvalidateWindowArea - Mark window area for redraw
- */
-void MacPaint_InvalidateWindowArea(void)
-{
-    gEventState.windowNeedsRedraw = 1;
-
-    if (gEventState.paintWindow) {
-        /* TODO: Use WindowManager to invalidate window
-         * Rect windowBounds;
-         * GetWindowBounds(gEventState.paintWindow, kWindowContentRgn, &windowBounds);
-         * InvalWindowRect(gEventState.paintWindow, &windowBounds);
-         */
-    }
-}
-
-/**
  * MacPaint_InvalidateRectArea - Mark specific rectangle for redraw
  */
 void MacPaint_InvalidateRectArea(const Rect *rect)
 {
-    if (!gEventState.paintWindow || !rect) {
+    if (!gPaintWindow || !rect) {
         return;
     }
 
-    /* TODO: Use WindowManager to invalidate specific rect
-     * InvalWindowRect(gEventState.paintWindow, rect);
-     */
-
-    gEventState.windowNeedsRedraw = 1;
+    /* Delegate to rendering module's invalidation system */
+    InvalRect(rect);
 }
 
 /*
@@ -480,7 +461,7 @@ int MacPaint_PromptSaveChanges(void)
 void MacPaint_SetActiveTool(int toolID)
 {
     MacPaint_SelectTool(toolID);
-    MacPaint_InvalidateWindow();
+    MacPaint_InvalidateToolArea();
 }
 
 /**
