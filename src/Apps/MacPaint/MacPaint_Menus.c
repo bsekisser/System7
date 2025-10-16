@@ -280,10 +280,10 @@ void MacPaint_EditUndo(void)
 void MacPaint_EditCut(void)
 {
     if (gMenuState.selectionActive) {
-        /* TODO: Implement cut operation
-         * Copy selection to scrap
-         * Clear selection from document
-         */
+        MacPaint_SaveUndoState("Cut");
+        MacPaint_CutSelection();
+        gMenuState.clipboardHasContent = 1;
+        MacPaint_InvalidatePaintArea();
     }
 }
 
@@ -293,10 +293,8 @@ void MacPaint_EditCut(void)
 void MacPaint_EditCopy(void)
 {
     if (gMenuState.selectionActive) {
-        /* TODO: Implement copy operation
-         * Copy selection to scrap
-         * Keep selection visible
-         */
+        MacPaint_CopySelectionToClipboard();
+        gMenuState.clipboardHasContent = 1;
     }
 }
 
@@ -306,11 +304,13 @@ void MacPaint_EditCopy(void)
 void MacPaint_EditPaste(void)
 {
     if (gMenuState.clipboardHasContent) {
-        /* TODO: Implement paste operation
-         * Load from scrap
-         * Create selection rectangle
-         * Allow drag to position
-         */
+        MacPaint_SaveUndoState("Paste");
+        /* Paste at center of canvas (convenient default position) */
+        int centerX = (MACPAINT_DOC_WIDTH / 2) - (72 / 2);  /* Approximate center */
+        int centerY = (MACPAINT_DOC_HEIGHT / 2) - (72 / 2);
+        MacPaint_PasteFromClipboard(centerX, centerY);
+        gMenuState.selectionActive = 1;
+        MacPaint_InvalidatePaintArea();
     }
 }
 
@@ -320,9 +320,32 @@ void MacPaint_EditPaste(void)
 void MacPaint_EditClear(void)
 {
     if (gMenuState.selectionActive) {
-        /* TODO: Implement clear operation
-         * Erase pixels in selection rectangle
-         */
+        MacPaint_SaveUndoState("Clear");
+
+        /* Clear selection area by erasing all pixels (setting to white/0) */
+        unsigned char *bits = (unsigned char *)gPaintBuffer.baseAddr;
+        int rowBytes = gPaintBuffer.rowBytes;
+
+        Rect bounds;
+        if (MacPaint_GetSelection(&bounds)) {
+            int width = bounds.right - bounds.left;
+            int height = bounds.bottom - bounds.top;
+
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    int srcX = bounds.left + x;
+                    int srcY = bounds.top + y;
+
+                    /* Clear this pixel (set to white) */
+                    int byteOffset = srcY * rowBytes + (srcX / 8);
+                    int bitOffset = 7 - (srcX % 8);
+                    bits[byteOffset] &= ~(1 << bitOffset);
+                }
+            }
+
+            gDocDirty = 1;
+            MacPaint_InvalidatePaintArea();
+        }
     }
 }
 
@@ -354,8 +377,10 @@ void MacPaint_EditFill(void)
  */
 void MacPaint_EditSelectAll(void)
 {
-    /* TODO: Create selection rectangle covering entire canvas */
+    /* Create selection rectangle covering entire canvas */
+    MacPaint_CreateSelection(0, 0, MACPAINT_DOC_WIDTH, MACPAINT_DOC_HEIGHT);
     gMenuState.selectionActive = 1;
+    MacPaint_InvalidatePaintArea();
 }
 
 /*

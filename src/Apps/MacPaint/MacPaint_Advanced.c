@@ -320,9 +320,38 @@ OSErr MacPaint_CopySelectionToClipboard(void)
         gSelection.clipboardSize = bitmapSize + 1024;
     }
 
-    /* TODO: Copy selected pixels to clipboard buffer
-     * Account for bit packing and offset within bytes
+    /* Copy selected pixels from paint buffer to clipboard
+     * Iterate through each pixel in the selection rectangle
+     * Convert from source coordinates to clipboard coordinates
      */
+    unsigned char *srcBits = (unsigned char *)gPaintBuffer.baseAddr;
+    unsigned char *dstBits = (unsigned char *)gSelection.clipboardData;
+    int srcRowBytes = gPaintBuffer.rowBytes;
+
+    /* Zero the clipboard buffer first */
+    memset(dstBits, 0, bitmapSize);
+
+    /* Copy pixel data from selection */
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            /* Source pixel in paint buffer */
+            int srcX = gSelection.bounds.left + x;
+            int srcY = gSelection.bounds.top + y;
+
+            /* Get source pixel */
+            int srcByteOffset = srcY * srcRowBytes + (srcX / 8);
+            int srcBitOffset = 7 - (srcX % 8);
+            int srcPixel = (srcBits[srcByteOffset] >> srcBitOffset) & 1;
+
+            /* Destination pixel in clipboard */
+            int dstByteOffset = y * bytesPerRow + (x / 8);
+            int dstBitOffset = 7 - (x % 8);
+
+            if (srcPixel) {
+                dstBits[dstByteOffset] |= (1 << dstBitOffset);
+            }
+        }
+    }
 
     gSelection.clipboardWidth = width;
     gSelection.clipboardHeight = height;
@@ -340,9 +369,58 @@ OSErr MacPaint_PasteFromClipboard(int x, int y)
         return paramErr;
     }
 
-    /* TODO: Paste clipboard bitmap at (x, y)
-     * Handle transparency/masking
+    /* Paste clipboard bitmap at (x, y)
+     * Copy from clipboard buffer back to paint buffer
      */
+    unsigned char *dstBits = (unsigned char *)gPaintBuffer.baseAddr;
+    unsigned char *srcBits = (unsigned char *)gSelection.clipboardData;
+    int dstRowBytes = gPaintBuffer.rowBytes;
+
+    int width = gSelection.clipboardWidth;
+    int height = gSelection.clipboardHeight;
+    int srcBytesPerRow = (width + 7) / 8;
+
+    /* Paste pixels from clipboard to paint buffer at (x, y)
+     * Bounds check to prevent writing outside canvas
+     */
+    for (int py = 0; py < height; py++) {
+        int dstY = y + py;
+
+        /* Skip rows that are outside the canvas */
+        if (dstY < 0 || dstY >= gPaintBuffer.bounds.bottom - gPaintBuffer.bounds.top) {
+            continue;
+        }
+
+        for (int px = 0; px < width; px++) {
+            int dstX = x + px;
+
+            /* Skip pixels that are outside the canvas */
+            if (dstX < 0 || dstX >= gPaintBuffer.bounds.right - gPaintBuffer.bounds.left) {
+                continue;
+            }
+
+            /* Source pixel in clipboard */
+            int srcByteOffset = py * srcBytesPerRow + (px / 8);
+            int srcBitOffset = 7 - (px % 8);
+            int srcPixel = (srcBits[srcByteOffset] >> srcBitOffset) & 1;
+
+            /* Destination pixel in paint buffer */
+            int dstByteOffset = dstY * dstRowBytes + (dstX / 8);
+            int dstBitOffset = 7 - (dstX % 8);
+
+            if (srcPixel) {
+                /* Paint black pixel (set bit) */
+                dstBits[dstByteOffset] |= (1 << dstBitOffset);
+            } else {
+                /* Erase white pixel (clear bit) */
+                dstBits[dstByteOffset] &= ~(1 << dstBitOffset);
+            }
+        }
+    }
+
+    /* Mark document as dirty and create new selection at paste location */
+    gDocDirty = 1;
+    MacPaint_CreateSelection(x, y, x + width, y + height);
 
     return noErr;
 }
@@ -357,7 +435,25 @@ OSErr MacPaint_CutSelection(void)
         return err;
     }
 
-    /* TODO: Clear selection area */
+    /* Clear selection area by erasing all pixels (setting to white/0) */
+    unsigned char *bits = (unsigned char *)gPaintBuffer.baseAddr;
+    int rowBytes = gPaintBuffer.rowBytes;
+    int width = gSelection.bounds.right - gSelection.bounds.left;
+    int height = gSelection.bounds.bottom - gSelection.bounds.top;
+
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int srcX = gSelection.bounds.left + x;
+            int srcY = gSelection.bounds.top + y;
+
+            /* Clear this pixel (set to white) */
+            int byteOffset = srcY * rowBytes + (srcX / 8);
+            int bitOffset = 7 - (srcX % 8);
+            bits[byteOffset] &= ~(1 << bitOffset);
+        }
+    }
+
+    gDocDirty = 1;
     return noErr;
 }
 
