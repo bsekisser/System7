@@ -102,7 +102,25 @@ void MacPaint_ToolRectSelect(int x, int y, int down);
  */
 OSErr MacPaint_NewDocument(void);
 OSErr MacPaint_SaveDocument(const char *filename);
+OSErr MacPaint_SaveDocumentAs(const char *filename);
 OSErr MacPaint_OpenDocument(const char *filename);
+OSErr MacPaint_RevertDocument(void);
+
+/*
+ * File I/O and Compression (from MacPaint_FileIO.c)
+ */
+UInt32 MacPaint_PackBits(const unsigned char *src, int srcLen,
+                         unsigned char *dst, int dstLen);
+UInt32 MacPaint_UnpackBits(const unsigned char *src, int srcLen,
+                           unsigned char *dst, int dstLen);
+int MacPaint_IsDocumentDirty(void);
+void MacPaint_GetDocumentInfo(char *filename, int *isDirty, int *modCount);
+int MacPaint_PromptSaveChanges(void);
+OSErr MacPaint_CreateBackup(void);
+OSErr MacPaint_RestoreBackup(void);
+int MacPaint_ValidateFile(const unsigned char *data, int dataLen);
+OSErr MacPaint_ExportAsPICT(const char *filename);
+OSErr MacPaint_ImportFromPICT(const char *filename);
 
 /*
  * Low-level Bit Operations (ported from 68k assembly)
@@ -119,6 +137,13 @@ void MacPaint_ExpandPattern(Pattern pat, UInt32 *expanded);
  */
 void MacPaint_Render(void);
 void MacPaint_InvalidateRect(Rect *rect);
+
+/*
+ * Global State Access (from MacPaint_Core.c)
+ */
+extern BitMap gPaintBuffer;
+extern char gDocName[64];
+extern int gDocDirty;
 
 #ifdef __cplusplus
 }

@@ -363,6 +363,7 @@ C_SOURCES = src/main.c \
             src/Apps/SimpleText/STClipboard.c \
             src/Apps/MacPaint/MacPaint_Core.c \
             src/Apps/MacPaint/MacPaint_Tools.c \
+            src/Apps/MacPaint/MacPaint_FileIO.c \
             src/Apps/MacPaint/MacPaint_Main.c \
             src/StartupScreen/StartupScreen.c
 
@@ -482,7 +483,7 @@ vpath %.c src:src/System:src/QuickDraw:src/WindowManager:src/MenuManager:src/Con
           src/ScrapManager:src/ProcessMgr:src/TimeManager:src/SoundManager:src/FontManager \
           src/Gestalt:src/MemoryMgr:src/ResourceMgr:src/FileMgr:src/FS:src/Finder \
           src/Finder/Icon:src/DeskManager:src/ControlPanels:src/PatternMgr:src/Resources \
-          src/Resources/Icons:src/Apps/SimpleText:src/Platform:src/Platform/x86:src/Platform/arm:src/PrintManager \
+          src/Resources/Icons:src/Apps/SimpleText:src/Apps/MacPaint:src/Platform:src/Platform/x86:src/Platform/arm:src/PrintManager \
           src/HelpManager:src/ComponentManager:src/EditionManager:src/NotificationManager \
           src/PackageManager:src/NetworkExtension:src/ColorManager:src/CommunicationToolbox \
           src/GestaltManager:src/SpeechManager:src/BootLoader \

@@ -41,9 +41,9 @@ static GrafPtr gPaintPort = NULL;
 static Rect gPaintRect;
 
 /* Document State */
-static char gDocName[64];
+char gDocName[64];              /* Exposed for file I/O */
 static int gDocDrive = 0;
-static int gDocDirty = 0;
+int gDocDirty = 0;             /* Exposed for file I/O */
 static UInt32 gWorkSize = 0;
 
 /* Tool State */
@@ -247,7 +247,7 @@ void MacPaint_DrawRect(Rect *rect)
 }
 
 /*
- * DOCUMENT OPERATIONS
+ * DOCUMENT OPERATIONS - Implemented in MacPaint_FileIO.c
  */
 
 /**
@@ -264,41 +264,6 @@ OSErr MacPaint_NewDocument(void)
     gSelectionActive = 0;
 
     /* TODO: Create and display window */
-
-    return noErr;
-}
-
-/**
- * MacPaint_SaveDocument - Save document to file
- */
-OSErr MacPaint_SaveDocument(const char *filename)
-{
-    /* TODO: Implement file saving
-     * Format:
-     * - Header (magic, version, width, height)
-     * - Compressed bitmap data (PackBits format)
-     * - Resource fork with patterns/metadata
-     */
-
-    if (filename) {
-        strcpy(gDocName, filename);
-        gDocDirty = 0;
-    }
-
-    return noErr;
-}
-
-/**
- * MacPaint_OpenDocument - Open document from file
- */
-OSErr MacPaint_OpenDocument(const char *filename)
-{
-    /* TODO: Implement file loading
-     * Read header, validate format, decompress bitmap
-     */
-
-    strcpy(gDocName, filename);
-    gDocDirty = 0;
 
     return noErr;
 }
