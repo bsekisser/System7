@@ -85,6 +85,20 @@ extern uint32_t videocore_mbox_base;
 /* Get board serial number */
 #define MBOX_TAG_GET_BOARD_SERIAL   0x00010004
 
+/* ===== Audio Tags (HDMI/Analog) ===== */
+
+/* Enable/Disable audio output */
+#define MBOX_TAG_SET_AUDIO_POWER    0x00028042
+#define MBOX_TAG_GET_AUDIO_POWER    0x00020042
+
+/* HDMI audio status */
+#define MBOX_TAG_GET_HDMI_AUDIO     0x00020008
+#define MBOX_TAG_SET_HDMI_AUDIO     0x00028008
+
+/* Audio buffer */
+#define MBOX_TAG_GET_AUDIO_BUFFER   0x00040009
+#define MBOX_TAG_SET_AUDIO_BUFFER   0x00048009
+
 /* ===== Framebuffer info structure ===== */
 typedef struct {
     uint32_t width;             /* Physical width in pixels */

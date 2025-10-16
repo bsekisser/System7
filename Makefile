@@ -163,6 +163,7 @@ C_SOURCES = src/main.c \
               src/Platform/arm/sdhci.c \
               src/Platform/arm/sdhci_commands.c \
               src/Platform/arm/storage.c \
+              src/Platform/arm/audio_hdmi.c \
               src/Platform/arm/xhci.c \
               src/Platform/arm/dwcotg.c \
               src/Platform/arm/usb_controller.c \
