@@ -362,6 +362,7 @@ C_SOURCES = src/main.c \
             src/Apps/SimpleText/STFileIO.c \
             src/Apps/SimpleText/STClipboard.c \
             src/Apps/MacPaint/MacPaint_Core.c \
+            src/Apps/MacPaint/MacPaint_Tools.c \
             src/Apps/MacPaint/MacPaint_Main.c \
             src/StartupScreen/StartupScreen.c
 

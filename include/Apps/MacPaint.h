@@ -29,8 +29,23 @@ typedef enum {
     MacPaintTool_Pencil = 7,
     MacPaintTool_Line = 8,
     MacPaintTool_Erase = 9,
+    MacPaintTool_Oval = 10,
     MacPaintTool_Rect = 11
 } MacPaintTool;
+
+/* Tool ID Constants (matching enum values above) */
+#define TOOL_LASSO 0
+#define TOOL_SELECT 1
+#define TOOL_GRABBER 2
+#define TOOL_TEXT 3
+#define TOOL_FILL 4
+#define TOOL_SPRAY 5
+#define TOOL_BRUSH 6
+#define TOOL_PENCIL 7
+#define TOOL_LINE 8
+#define TOOL_ERASE 9
+#define TOOL_OVAL 10
+#define TOOL_RECT 11
 
 /*
  * Constants
@@ -48,17 +63,39 @@ void MacPaint_Shutdown(void);
 /*
  * Tool Operations
  */
-void MacPaint_SelectTool(MacPaintTool toolID);
+void MacPaint_SelectTool(int toolID);
 void MacPaint_SetLineSize(int size);
 void MacPaint_SetPattern(int patternIndex);
 
 /*
- * Drawing Operations
+ * Drawing Operations (from MacPaint_Core.c)
  */
 void MacPaint_DrawLine(int x1, int y1, int x2, int y2);
 void MacPaint_FillRect(Rect *rect);
 void MacPaint_DrawOval(Rect *rect);
 void MacPaint_DrawRect(Rect *rect);
+
+/*
+ * Drawing Algorithms (from MacPaint_Tools.c)
+ */
+void MacPaint_DrawLineAlgo(int x0, int y0, int x1, int y1, int mode);
+void MacPaint_DrawOvalAlgo(int cx, int cy, int rx, int ry, int filled, int mode);
+void MacPaint_DrawRectAlgo(int x0, int y0, int x1, int y1, int filled, int mode);
+void MacPaint_DrawPatternedLine(int x0, int y0, int x1, int y1, Pattern *pat);
+void MacPaint_FloodFill(int x, int y);
+
+/*
+ * Tool Handlers (from MacPaint_Tools.c)
+ */
+void MacPaint_HandleToolMouseEvent(int toolID, int x, int y, int down);
+void MacPaint_ToolPencil(int x, int y, int down);
+void MacPaint_ToolEraser(int x, int y, int down);
+void MacPaint_ToolLine(int x, int y, int down);
+void MacPaint_ToolRectangle(int x, int y, int down);
+void MacPaint_ToolOval(int x, int y, int down);
+void MacPaint_ToolFill(int x, int y, int down);
+void MacPaint_ToolSpray(int x, int y, int down);
+void MacPaint_ToolRectSelect(int x, int y, int down);
 
 /*
  * Document Operations

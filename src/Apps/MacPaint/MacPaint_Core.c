@@ -24,6 +24,7 @@
  */
 
 #include "SystemTypes.h"
+#include "Apps/MacPaint.h"
 #include "QuickDraw/QuickDraw.h"
 #include "Finder/finder.h"
 #include "System71StdLib.h"
@@ -46,21 +47,7 @@ static int gDocDirty = 0;
 static UInt32 gWorkSize = 0;
 
 /* Tool State */
-typedef enum {
-    TOOL_LASSO = 0,
-    TOOL_SELECT = 1,
-    TOOL_GRABBER = 2,
-    TOOL_TEXT = 3,
-    TOOL_FILL = 4,
-    TOOL_SPRAY = 5,
-    TOOL_BRUSH = 6,
-    TOOL_PENCIL = 7,
-    TOOL_LINE = 8,
-    TOOL_ERASE = 9,
-    TOOL_RECT = 11
-} MacPaintTool;
-
-static MacPaintTool gCurrentTool = TOOL_PENCIL;
+static int gCurrentTool = TOOL_PENCIL;  /* Using TOOL_* constants from MacPaint.h */
 static int gLineSize = 1;
 static Pattern gCurrentPattern;
 static Rect gSelectionRect;
@@ -73,7 +60,7 @@ static Pattern gPatterns[MACPAINT_PATTERN_COUNT];
 /* Canvas/Drawing Buffer */
 #define MACPAINT_DOC_WIDTH 576
 #define MACPAINT_DOC_HEIGHT 720
-static BitMap gPaintBuffer;
+BitMap gPaintBuffer;  /* Exposed for tools module */
 static Ptr gPaintBufferData = NULL;
 
 /*
@@ -150,7 +137,7 @@ void MacPaint_Shutdown(void)
  * MacPaint_SelectTool - Select active drawing tool
  * toolID: 0-11 (lasso, select, grabber, text, fill, spray, brush, pencil, line, erase, rect)
  */
-void MacPaint_SelectTool(MacPaintTool toolID)
+void MacPaint_SelectTool(int toolID)
 {
     gCurrentTool = toolID;
     /* TODO: Update cursor and UI */
