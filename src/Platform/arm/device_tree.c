@@ -10,7 +10,9 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdbool.h>
 #include "System71StdLib.h"
+#include "device_tree.h"
 
 /* FDT (Flattened Device Tree) Format Tokens */
 #define FDT_BEGIN_NODE      0x00000001
@@ -240,6 +242,121 @@ uint32_t device_tree_get_property_u32(const char *node, const char *prop, uint32
     }
 
     return default_val;
+}
+
+/*
+ * Find nodes with matching compatible string and return their reg ranges
+ */
+size_t device_tree_find_compatible(const char *compatible,
+                                   device_tree_reg_t *regs,
+                                   size_t max_entries) {
+    if (!device_tree || !compatible || !regs || max_entries == 0) {
+        return 0;
+    }
+
+    const uint8_t *struct_base = (uint8_t *)device_tree + device_tree->off_dt_struct;
+    const uint8_t *strings_base = (uint8_t *)device_tree + device_tree->off_dt_strings;
+    const uint8_t *ptr = struct_base;
+    const uint8_t *end = struct_base + device_tree->size_dt_struct;
+
+    typedef struct {
+        bool compat_match;
+        bool has_reg;
+        uint64_t base;
+        uint64_t size;
+    } node_state_t;
+
+    enum { kMaxDepth = 32 };
+    node_state_t stack[kMaxDepth];
+    int depth = 0;
+    size_t count = 0;
+
+    while (ptr < end) {
+        uint32_t token = be32(ptr);
+        ptr += 4;
+
+        if (token == FDT_BEGIN_NODE) {
+            if (depth >= kMaxDepth) {
+                Serial_WriteString("[DTB] Node depth exceeded parser stack\n");
+                return count;
+            }
+
+            node_state_t *state = &stack[depth++];
+            state->compat_match = false;
+            state->has_reg = false;
+            state->base = 0;
+            state->size = 0;
+
+            while (ptr < end && *ptr != 0) ptr++;
+            ptr++;
+            while ((uintptr_t)ptr & 3) ptr++;
+
+        } else if (token == FDT_PROP) {
+            uint32_t len = be32(ptr);
+            uint32_t nameoff = be32(ptr + 4);
+            ptr += 8;
+
+            const char *name = (const char *)(strings_base + nameoff);
+            const uint8_t *value = ptr;
+            ptr += len;
+            while ((uintptr_t)ptr & 3) ptr++;
+
+            if (depth == 0) {
+                continue;
+            }
+
+            node_state_t *state = &stack[depth - 1];
+
+            if (strcmp(name, "compatible") == 0) {
+                size_t offset = 0;
+                while (offset < len) {
+                    const char *cmp = (const char *)(value + offset);
+                    size_t cmp_len = strlen(cmp);
+                    if (cmp_len == 0) {
+                        offset++;
+                        continue;
+                    }
+                    if (strcmp(cmp, compatible) == 0) {
+                        state->compat_match = true;
+                        break;
+                    }
+                    offset += cmp_len + 1;
+                }
+            } else if (strcmp(name, "reg") == 0) {
+                if (len >= 16) {
+                    uint64_t upper_addr = (uint64_t)be32(value);
+                    uint64_t lower_addr = (uint64_t)be32(value + 4);
+                    uint64_t upper_size = (uint64_t)be32(value + 8);
+                    uint64_t lower_size = (uint64_t)be32(value + 12);
+                    state->base = (upper_addr << 32) | lower_addr;
+                    state->size = (upper_size << 32) | lower_size;
+                    state->has_reg = true;
+                } else if (len >= 8) {
+                    state->base = be32(value);
+                    state->size = be32(value + 4);
+                    state->has_reg = true;
+                }
+            }
+
+        } else if (token == FDT_END_NODE) {
+            if (depth == 0) {
+                continue;
+            }
+
+            node_state_t *state = &stack[depth - 1];
+            if (state->compat_match && state->has_reg && count < max_entries) {
+                regs[count].base = state->base;
+                regs[count].size = state->size;
+                count++;
+            }
+            depth--;
+
+        } else if (token == FDT_END) {
+            break;
+        }
+    }
+
+    return count;
 }
 
 /*

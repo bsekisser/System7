@@ -17,3 +17,23 @@ void hal_boot_init(void *boot_arg) {
     /* No early x86-specific initialization needed yet */
     /* Serial port and other hardware init happens in kernel_main */
 }
+
+int hal_get_framebuffer_info(hal_framebuffer_info_t *info) {
+    (void)info;
+    return -1;
+}
+
+uint32_t hal_get_memory_size(void) {
+    return 0;
+}
+
+int hal_platform_init(void) {
+    return 0;
+}
+
+void hal_platform_shutdown(void) {
+}
+
+int hal_framebuffer_present(void) {
+    return 0;
+}

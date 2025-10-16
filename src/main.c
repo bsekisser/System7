@@ -31,6 +31,7 @@ extern void DoMenuCommand(short menuID, short item);
 #include "../include/PS2Controller.h"
 #include "../include/FS/vfs.h"
 #include "../include/MemoryMgr/MemoryManager.h"
+#include "Platform/include/boot.h"
 
 #ifdef ENABLE_GESTALT
 #include "../include/Gestalt/Gestalt.h"
@@ -1229,6 +1230,23 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     /* Parse Multiboot2 information */
     parse_multiboot2(magic, mb2_info);
 
+    if (!framebuffer) {
+        hal_framebuffer_info_t fb_info;
+        if (hal_get_framebuffer_info(&fb_info) == 0) {
+            framebuffer = fb_info.framebuffer;
+            fb_width = fb_info.width;
+            fb_height = fb_info.height;
+            fb_pitch = fb_info.pitch;
+            fb_bpp = (uint8_t)fb_info.depth;
+            fb_red_pos = fb_info.red_offset;
+            fb_red_size = fb_info.red_size;
+            fb_green_pos = fb_info.green_offset;
+            fb_green_size = fb_info.green_size;
+            fb_blue_pos = fb_info.blue_offset;
+            fb_blue_size = fb_info.blue_size;
+        }
+    }
+
     /* Framebuffer will be used by Finder if available */
     if (framebuffer) {
         SYSTEM_LOG_DEBUG("Framebuffer available for Finder desktop\n");
@@ -1247,6 +1265,7 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
         OpenPort(&desktopPort);
 
         DrawDesktop();
+        hal_framebuffer_present();
     }
 
     /* Create windows and menus using real System 7.1 APIs */
@@ -1567,6 +1586,10 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
 skip_cursor_drawing:
         /* Re-enable SystemTask and GetNextEvent for event processing */
 #if 1
+        if (framebuffer) {
+            hal_framebuffer_present();
+        }
+
         /* System 7.1 cooperative multitasking */
         SystemTask();
 

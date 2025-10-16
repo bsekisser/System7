@@ -9,6 +9,7 @@
 #include "Platform/include/boot.h"
 #include "hardware_detect.h"
 #include "mmio.h"
+#include "device_tree.h"
 
 /* Forward declarations of platform-specific initialization */
 extern void device_tree_init(void *dtb_ptr);
@@ -16,6 +17,8 @@ extern void device_tree_dump(void);
 extern uint32_t device_tree_get_memory_size(void);
 extern void hardware_report_info(void);
 extern int arm_framebuffer_init(void);
+extern int arm_framebuffer_get_info(hal_framebuffer_info_t *info);
+extern int arm_framebuffer_present(void);
 extern int arm_platform_timer_init(void);
 extern int usb_controller_init(void);
 extern int usb_controller_enumerate(void);
@@ -87,11 +90,12 @@ uint32_t hal_get_memory_size(void) {
  * Get system framebuffer information
  * Required by QuickDraw for display output
  */
-int hal_get_framebuffer_info(void *fb_info_ptr) {
-    /* TODO: Query VideoCore GPU via mailbox interface for framebuffer
-     * For now, return error indicating framebuffer not yet initialized
-     */
-    return -1;
+int hal_get_framebuffer_info(hal_framebuffer_info_t *info) {
+    if (!info) {
+        return -1;
+    }
+
+    return arm_framebuffer_get_info(info);
 }
 
 /*
@@ -149,4 +153,8 @@ void hal_platform_shutdown(void) {
      * - Flush caches
      * - Reset to bootloader
      */
+}
+
+int hal_framebuffer_present(void) {
+    return arm_framebuffer_present();
 }

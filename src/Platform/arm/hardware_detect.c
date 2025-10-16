@@ -14,6 +14,7 @@
 #include "System71StdLib.h"
 #include "hardware_detect.h"
 #include "mmio.h"
+#include "device_tree.h"
 
 /* Hardware revision register address (Pi 3/4/5 compatible) */
 #define HW_REVISION_REG     0x3F00001C
@@ -22,9 +23,6 @@
 static rpi_model_t detected_model = PI_MODEL_UNKNOWN;
 static char detected_model_string[256] = {0};
 static int detection_done = 0;
-
-/* Forward declaration from device_tree.c */
-extern const char* device_tree_get_model(void);
 
 /*
  * Parse hardware model from revision register
