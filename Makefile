@@ -94,7 +94,7 @@ ifeq ($(DEBUG_SYMBOLS),1)
 endif
 
 # Platform-independent base flags
-COMMON_CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 -DTM_SMOKE_TEST \
+COMMON_CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 \
          -ffreestanding -fno-builtin -fno-stack-protector -nostdlib \
          -fno-pic -fno-pie \
          -Wall -Wextra -Wformat=2 -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wcast-qual \
