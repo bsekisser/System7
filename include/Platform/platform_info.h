@@ -15,6 +15,7 @@ typedef enum {
     PLATFORM_ARM_PI3,
     PLATFORM_ARM_PI4,
     PLATFORM_ARM_PI5,
+    PLATFORM_PPC_GENERIC,
 } platform_type_t;
 
 /* Platform information structure */

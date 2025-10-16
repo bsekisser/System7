@@ -6,6 +6,10 @@
 
 #include <stdbool.h>
 
+#if defined(__powerpc__) || defined(__powerpc64__)
+#include "Platform/PowerPC/OpenFirmware.h"
+#endif
+
 /* Global memory error variable */
 static OSErr gMemError = noErr;
 
@@ -262,6 +266,9 @@ void serial_init(void) {
     *imsc = 0;           /* disable interrupts */
     *cr = PL011_UARTEN | PL011_TXE | PL011_RXE;
     return;
+#elif defined(__powerpc__) || defined(__powerpc64__)
+    /* TODO: Wire up Open Firmware or UART console. */
+    return;
 #else
     outb(COM1 + 1, 0x00);    // Disable all interrupts
     outb(COM1 + 3, 0x80);    // Enable DLAB (set baud rate divisor)
@@ -287,6 +294,16 @@ void serial_putchar(char c) {
     }
     *dr = (uint32_t)c;
     return;
+#elif defined(__powerpc__) || defined(__powerpc64__)
+    if (!ofw_console_available()) {
+        return;
+    }
+    if (c == '\n') {
+        const char cr = '\r';
+        ofw_console_write(&cr, 1);
+    }
+    ofw_console_write(&c, 1);
+    return;
 #else
     while ((inb(COM1 + 5) & 0x20) == 0);
     outb(COM1, c);
@@ -300,6 +317,19 @@ void serial_puts(const char* str) {
     if (!str) return;
 #if defined(__arm__) || defined(__aarch64__)
     (void)str;
+#elif defined(__powerpc__) || defined(__powerpc64__)
+    if (!ofw_console_available()) {
+        return;
+    }
+    while (*str) {
+        char ch = *str++;
+        if (ch == '\n') {
+            const char cr = '\r';
+            ofw_console_write(&cr, 1);
+        }
+        ofw_console_write(&ch, 1);
+    }
+    return;
 #else
     while (*str) {
         if (*str == '\n') {
@@ -317,6 +347,16 @@ int serial_data_ready(void) {
 #if defined(__arm__) || defined(__aarch64__)
     volatile uint32_t* fr = pl011_reg(PL011_FR);
     return ((*fr) & PL011_RXFE) == 0;
+#elif defined(__powerpc__) || defined(__powerpc64__)
+    if (!ofw_console_input_available()) {
+        return 0;
+    }
+    char ch = 0;
+    int rc = ofw_console_poll_char(&ch);
+    if (rc == 1) {
+        return 1;
+    }
+    return 0;
 #else
     return (inb(COM1 + 5) & 0x01) != 0;
 #endif
@@ -330,6 +370,12 @@ char serial_getchar(void) {
         /* wait for data */
     }
     return (char)(*dr & 0xFF);
+#elif defined(__powerpc__) || defined(__powerpc64__)
+    char ch = 0;
+    if (ofw_console_read_char(&ch) == 1) {
+        return ch;
+    }
+    return 0;
 #else
     while (!serial_data_ready());
     return inb(COM1);

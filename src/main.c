@@ -60,6 +60,9 @@ static void init_system71(void);
 static void run_performance_tests(void);
 static void create_system71_windows(void);
 void kernel_main(uint32_t magic, uint32_t* mb2_info);
+#if defined(__powerpc__) || defined(__powerpc64__)
+static void log_ppc_memory_map(void);
+#endif
 
 /* Simple 5x7 font for basic ASCII characters */
 static const uint8_t font5x7[][5] __attribute__((unused)) = {
@@ -306,13 +309,15 @@ static void process_serial_command(void) {
 #endif /* DEBUG_SERIAL_MENU_COMMANDS */
 }
 
-/* VGA text mode for early output */
+#if defined(__i386__) || defined(__x86_64__)
+/* VGA text mode for early output (x86 only) */
 static uint16_t* vga_buffer = (uint16_t*)0xB8000;
 static size_t vga_row = 0;
 static size_t vga_col = 0;
 static const size_t VGA_WIDTH = 80;
 static const size_t VGA_HEIGHT = 25;
 static const uint8_t VGA_COLOR = 0x0F; /* White on black */
+#endif
 
 /* Framebuffer for graphics mode */
 /* Framebuffer globals - accessible by Finder and other subsystems */
@@ -367,6 +372,7 @@ void draw_icon(uint32_t x, uint32_t y, int icon_type);
 
 /* Early console output */
 static void console_putchar(char c) {
+#if defined(__i386__) || defined(__x86_64__)
     /* Disable console output when in graphics mode to prevent corruption */
     if (framebuffer != NULL) {
         return;
@@ -392,15 +398,24 @@ static void console_putchar(char c) {
             vga_row = 0;
         }
     }
+#else
+    (void)framebuffer;
+    serial_putchar(c);
+#endif
 }
 
 static void console_puts(const char* str) {
+#if defined(__i386__) || defined(__x86_64__)
     while (*str) {
         console_putchar(*str++);
     }
+#else
+    serial_puts(str);
+#endif
 }
 
 static void console_clear(void) {
+#if defined(__i386__) || defined(__x86_64__)
     for (size_t y = 0; y < VGA_HEIGHT; y++) {
         for (size_t x = 0; x < VGA_WIDTH; x++) {
             size_t index = y * VGA_WIDTH + x;
@@ -409,7 +424,35 @@ static void console_clear(void) {
     }
     vga_row = 0;
     vga_col = 0;
+#else
+    serial_puts("\n");
+#endif
 }
+
+#if defined(__powerpc__) || defined(__powerpc64__)
+static void log_ppc_memory_map(void) {
+    ofw_memory_range_t ranges[OFW_MAX_MEMORY_RANGES];
+    size_t count = hal_ppc_get_memory_ranges(ranges, OFW_MAX_MEMORY_RANGES);
+    if (count == 0) {
+        serial_puts("[SYS] Firmware reported no memory ranges\n");
+        return;
+    }
+
+    serial_printf("[SYS] Firmware memory map has %u range(s)\n", (unsigned)count);
+    for (size_t i = 0; i < count; ++i) {
+        uint64_t base = ranges[i].base;
+        uint64_t size = ranges[i].size;
+        uint32_t base_hi = (uint32_t)(base >> 32);
+        uint32_t base_lo = (uint32_t)(base & 0xFFFFFFFFu);
+        uint32_t size_hi = (uint32_t)(size >> 32);
+        uint32_t size_lo = (uint32_t)(size & 0xFFFFFFFFu);
+        serial_printf("[SYS]   range %u: base=0x%08x%08x size=0x%08x%08x\n",
+                      (unsigned)i,
+                      base_hi, base_lo,
+                      size_hi, size_lo);
+    }
+}
+#endif
 
 /* Helper to print hex values */
 static void print_hex(uint32_t value) {
@@ -1227,8 +1270,35 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     /* Clear screen and show startup message */
     console_clear();
 
+#if defined(__i386__) || defined(__x86_64__)
     /* Parse Multiboot2 information */
     parse_multiboot2(magic, mb2_info);
+#else
+    (void)magic;
+    (void)mb2_info;
+    uint32_t mem_bytes = hal_get_memory_size();
+    if (mem_bytes != 0) {
+        g_total_memory_kb = mem_bytes / 1024;
+        serial_printf("[SYS] HAL memory probe (bytes): %u\n", mem_bytes);
+    }
+#if defined(__powerpc__) || defined(__powerpc64__)
+    log_ppc_memory_map();
+    {
+        hal_framebuffer_info_t fw_fb;
+        if (hal_get_framebuffer_info(&fw_fb) == 0) {
+            uintptr_t fb_base = (uintptr_t)fw_fb.framebuffer;
+            uint32_t fb_hi = (sizeof(uintptr_t) > 4) ? (uint32_t)(fb_base >> 32) : 0;
+            uint32_t fb_lo = (uint32_t)(fb_base & 0xFFFFFFFFu);
+            serial_printf("[SYS] Firmware framebuffer: base=0x%08x%08x %ux%u depth=%u pitch=%u\n",
+                          fb_hi, fb_lo,
+                          fw_fb.width, fw_fb.height,
+                          fw_fb.depth, fw_fb.pitch);
+        } else {
+            serial_puts("[SYS] Firmware framebuffer info unavailable\n");
+        }
+    }
+#endif
+#endif
 
     if (!framebuffer) {
         hal_framebuffer_info_t fb_info;

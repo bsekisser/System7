@@ -26,7 +26,7 @@ src/
 │   │   │   └── ...
 │   │   └── apple_silicon/
 │   │       ├── ...
-│   └── powerpc/
+│   └── ppc/
 │       ├── ...
 └── ...
 ```
@@ -87,11 +87,19 @@ Porting to PowerPC will be similar to porting to ARM, but with different hardwar
 *   **Hardware Abstraction Layer (HAL):**
     *   Write a new HAL for the PowerPC platform. This will involve writing drivers for the specific hardware found in PowerPC-based Macs.
 *   **Compiler Toolchain:**
-    *   Use the `powerpc-eabi-gcc` cross-compiler to compile the kernel.
+    *   Use a `powerpc-linux-gnu` cross-compiler toolchain (current makefile default) to build ELF32 PPC binaries.
 *   **Linker Script:**
-    *   Create a new linker script for the PowerPC architecture.
+    *   Maintain a PPC-specific linker script (initial skeleton lives in `src/Platform/ppc/linker.ld`).
 *   **Build System:**
-    *   Update the `Makefile` to support the PowerPC architecture.
+    *   Update the `Makefile` to support the PowerPC architecture. (Completed: `PLATFORM=ppc` selects the new HAL, toolchain, and flags.)
+*   **Boot Strap:**
+    *   Ensure the PPC entry stub clears `.bss`, aligns the stack, and forwards Open Firmware arguments into `boot_main` for later HAL consumption. (Completed in the scaffold.)
+*   **Firmware Console:**
+    *   Use the Open Firmware client interface (`Platform/ppc/open_firmware.c`) to discover `stdout` and plumb early serial logging through the firmware console. (Initial implementation landed.)
+*   **Firmware Memory Map:**
+    *   Read `/memory` `reg` data from Open Firmware to seed the HAL’s reported RAM size instead of relying on a placeholder. (Initial support implemented; HAL now caches multiple ranges for inspection.)
+*   **Framebuffer Discovery:**
+    *   Attempt to read display node properties (`address`, `width`, `height`, `linebytes`) from the firmware console path to pre-populate framebuffer info. (Primitive probe added; falls back gracefully when console is serial-only.)
 
 **6. Timeline and Milestones**
 

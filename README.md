@@ -24,6 +24,15 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
   - Shared `Platform/Halt.h` provides a portable `platform_halt()` instead of inlining `cli; hlt`.
   - ARM boot path now passes the device tree pointer to `hal_boot_init(void *boot_arg)` and exposes lightweight USB/HID stubs until the full stack lands.
   - `Makefile` can link the kernel with GCC when `PLATFORM=arm`, and the HFS layer now gates ATA usage on x86 only.
+- ✅ **PowerPC HAL Scaffolding**: Experimental bring-up path for the PowerPC port.
+  - New `src/Platform/ppc/` directory with boot stub, linker script, and HAL adapters for boot, I/O, input, storage, and platform metadata.
+  - Build system understands `PLATFORM=ppc` via cross-toolchain hooks and updated help output.
+  - Documentation and README call out the optional PowerPC toolchain and build commands.
+  - Bootstrap now clears `.bss`, preserves firmware arguments, and relies on serial logging instead of legacy VGA text memory.
+  - Serial logging routes through Open Firmware’s console handle when available, so early diagnostics appear on the host firmware console.
+  - Memory size seeds from `/memory` → `reg`, letting the HAL report the firmware-advertised RAM instead of a hardcoded default.
+  - HAL exposes firmware memory ranges so higher layers can inspect per-bank layout during bring-up.
+  - Framebuffer metadata is queried via Open Firmware when available, readying the HAL for native display bring-up.
 
 - ✅ **Memory Manager & OSUtils Integration**: Shared host/68K heap mapping with classic low-memory sync
   - `MemoryManager_MapToM68K()` maps the System/App zones directly into the interpreter page table
@@ -470,6 +479,7 @@ iteration2/
 - **QEMU** for testing (`qemu-system-i386`)
 - **Python 3** for resource processing
 - **xxd** for binary conversion
+- *(Optional)* **powerpc-linux-gnu** cross toolchain for experimental PowerPC builds
 
 ### Ubuntu/Debian Installation
 
@@ -486,6 +496,7 @@ make
 # Build for specific platform
 make PLATFORM=x86
 make PLATFORM=arm        # requires an ARM bare‑metal GCC toolchain
+make PLATFORM=ppc        # experimental; requires a PowerPC ELF toolchain
 
 # Create bootable ISO
 make iso

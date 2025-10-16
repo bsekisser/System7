@@ -79,6 +79,13 @@ ifeq ($(PLATFORM),arm)
     ifeq ($(PI_MODEL),virt)
         LINKER_SCRIPT := $(HAL_DIR)/linker_virt.ld
     endif
+else ifeq ($(PLATFORM),ppc)
+    # PowerPC cross-compiler configuration (override CROSS_COMPILE to suit your setup)
+    CROSS_COMPILE ?= powerpc-linux-gnu-
+    CC = $(CROSS_COMPILE)gcc
+    AS = $(CROSS_COMPILE)as
+    LD = $(CROSS_COMPILE)ld
+    OBJCOPY = $(CROSS_COMPILE)objcopy
 else
     # x86 native compiler
     CC = gcc
@@ -141,6 +148,14 @@ ifeq ($(PLATFORM),arm)
         ifeq ($(strip $(GESTALT_MACHINE_TYPE)),)
           GESTALT_MACHINE_TYPE := arm_pi3
         endif
+    endif
+else ifeq ($(PLATFORM),ppc)
+    # PowerPC 32-bit big-endian
+    CFLAGS = $(COMMON_CFLAGS) -mbig-endian -mno-toc -mno-sdata
+    ASFLAGS := -mregnames -mbig-endian
+    LDFLAGS = -nostdlib -no-pie -melf32ppc
+    ifeq ($(strip $(GESTALT_MACHINE_TYPE)),)
+      GESTALT_MACHINE_TYPE := 0x0050
     endif
 else
     # x86 32-bit
@@ -236,12 +251,19 @@ C_SOURCES = src/main.c \
               src/Platform/arm/usb_controller.c \
               src/Platform/arm/hid_input.c \
               src/Platform/arm/input_stubs.c, \
-              src/Platform/x86/io.c \
-              src/Platform/x86/ata.c \
-              src/Platform/x86/ps2.c \
-              src/Platform/x86/platform_info.c \
-              src/Platform/x86/hal_boot.c \
-              src/Platform/x86/hal_input.c) \
+              $(if $(filter ppc,$(PLATFORM)), \
+                src/Platform/ppc/hal_boot.c \
+                src/Platform/ppc/io.c \
+                src/Platform/ppc/platform_info.c \
+                src/Platform/ppc/hal_input.c \
+                src/Platform/ppc/storage.c \
+                src/Platform/ppc/open_firmware.c, \
+                src/Platform/x86/io.c \
+                src/Platform/x86/ata.c \
+                src/Platform/x86/ps2.c \
+                src/Platform/x86/platform_info.c \
+                src/Platform/x86/hal_boot.c \
+                src/Platform/x86/hal_input.c)) \
             src/SoundManager/SoundManagerBareMetal.c \
             src/SoundManager/SoundHardwarePC.c \
             src/SoundManager/SoundBackend.c \
@@ -629,6 +651,7 @@ help: ## Show this help message
 	@echo "PLATFORM OPTIONS:"
 	@echo "  PLATFORM=x86     Build for x86 (default)"
 	@echo "  PLATFORM=arm     Build for ARM (Raspberry Pi)"
+	@echo "  PLATFORM=ppc     Build for PowerPC (experimental)"
 	@echo ""
 	@echo "RASPBERRY PI MODEL OPTIONS (ARM only):"
 	@echo "  PI_MODEL=pi3     Build for Raspberry Pi 3 (ARMv6z, Cortex-A53)"
@@ -658,6 +681,7 @@ build-configurations:
 	@echo "PLATFORM AND MODEL OPTIONS:"
 	@echo "  PLATFORM=x86             Build for x86 PC (default)"
 	@echo "  PLATFORM=arm             Build for ARM (Raspberry Pi)"
+	@echo "  PLATFORM=ppc             Build for PowerPC (experimental)"
 	@echo "  PI_MODEL=pi3             Raspberry Pi 3 (ARMv6z, 1.2 GHz Cortex-A53)"
 	@echo "  PI_MODEL=pi4             Raspberry Pi 4 (ARMv7-A, 1.5 GHz Cortex-A72)"
 	@echo "  PI_MODEL=pi5             Raspberry Pi 5 (ARMv7-A, 2.4 GHz Cortex-A76)"
@@ -685,6 +709,7 @@ build-configurations:
 	@echo "  make PLATFORM=arm PI_MODEL=pi3 Build for Raspberry Pi 3"
 	@echo "  make PLATFORM=arm PI_MODEL=pi5 Build for Raspberry Pi 5"
 	@echo "  make PLATFORM=arm              Build with runtime Pi detection"
+	@echo "  make PLATFORM=ppc             Build experimental PowerPC image"
 	@echo "  make clean all                 Clean rebuild"
 	@echo "  make CTRL_SMOKE_TEST=1         Build with control tests"
 	@echo ""
@@ -698,6 +723,7 @@ build-configurations:
 	@echo "CROSS-COMPILATION:"
 	@echo "  ARM builds require arm-linux-gnueabihf cross-compiler"
 	@echo "  Install with: sudo apt-get install gcc-arm-linux-gnueabihf"
+	@echo "  PowerPC builds use powerpc-linux-gnu toolchains (override CROSS_COMPILE as needed)"
 	@echo ""
 	@echo "For more information, see docs/BUILD_SYSTEM_IMPROVEMENTS.md"
 	@echo "════════════════════════════════════════════════════════════════"

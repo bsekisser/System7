@@ -24,4 +24,10 @@ int hal_platform_init(void);
 void hal_platform_shutdown(void);
 int hal_framebuffer_present(void);
 
+#if defined(__powerpc__) || defined(__powerpc64__)
+#include "Platform/PowerPC/OpenFirmware.h"
+size_t hal_ppc_get_memory_ranges(ofw_memory_range_t *out_ranges, size_t max_ranges);
+size_t hal_ppc_memory_range_count(void);
+#endif
+
 #endif /* HAL_BOOT_H */

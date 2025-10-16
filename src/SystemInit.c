@@ -241,6 +241,10 @@ static SystemError DetectHardwareCapabilities(void) {
     caps->cpu_type = 0x8664;   /* x86-64 */
 #elif defined(__i386__)
     caps->cpu_type = 0x0386;   /* x86 */
+#elif defined(__powerpc64__)
+    caps->cpu_type = 0x5064;   /* PowerPC 64-bit */
+#elif defined(__powerpc__)
+    caps->cpu_type = 0x5032;   /* PowerPC 32-bit */
 #else
     caps->cpu_type = 0x0000;   /* Unknown */
 #endif

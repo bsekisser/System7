@@ -130,9 +130,8 @@ src/Platform/
 │   ├── ps2.c             # PS/2 input driver
 │   ├── hal_input.c       # Input HAL wrapper
 │   └── linker.ld         # x86 linker script
-├── arm/                  # ARM platform (future)
-│   └── rpi/              # Raspberry Pi specific
-└── powerpc/              # PowerPC platform (future)
+├── arm/                  # ARM platform implementation (Raspberry Pi, QEMU virt)
+└── ppc/                  # PowerPC platform (experimental scaffolding)
 ```
 
 ## Build System Integration
@@ -298,6 +297,10 @@ make PLATFORM=newplatform
 - **Storage**: ATA or SCSI
 - **Input**: ADB or USB
 - **Graphics**: ATI/NVIDIA framebuffer
+- **Console**: Open Firmware `stdout` (initial logging support via `open_firmware.c`)
+- **Memory Discovery**: Query `/memory` `reg` property to size RAM for the HAL
+- **HAL API**: `hal_ppc_get_memory_ranges()` returns cached OF memory map entries for platform diagnostics
+- **Framebuffer**: `ofw_get_framebuffer_info()` attempts to pull base/stride/geometry from the firmware display node
 
 ## Performance Considerations
 
