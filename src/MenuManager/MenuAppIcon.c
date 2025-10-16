@@ -5,6 +5,7 @@
 #include "MenuManager/MenuAppIcon.h"
 #include "QuickDraw/QuickDraw.h"
 #include "Resources/system7_resources.h"
+#include "System71StdLib.h"
 #include "Finder/Icon/icon_types.h"
 #include "Finder/Icon/icon_port.h"
 #include "Resources/icons_generated.h"
@@ -54,6 +55,11 @@ short MenuAppIcon_Draw(GrafPtr port, short left, short top, Boolean highlighted)
 
     if (!sFinderLoaded) {
         sFinderAvailable = IconGen_FindByID(12500, &sFinderIcon);
+        if (sFinderAvailable) {
+            serial_puts("MenuAppIcon: loaded Finder icon\n");
+        } else {
+            serial_puts("MenuAppIcon: failed to load Finder icon\n");
+        }
         sFinderLoaded = true;
     }
 
