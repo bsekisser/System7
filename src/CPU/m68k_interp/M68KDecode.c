@@ -3,6 +3,24 @@
  *
  * Provides fetch helpers, EA computation, and EA read/write operations
  * for the Phase-1 MVP 68K interpreter.
+ *
+ * CROSS-PLATFORM DESIGN:
+ * This module uses EXPLICIT BIG-ENDIAN byte ordering for all multi-byte values.
+ * This ensures the interpreter works identically on little-endian (x86, ARM, etc)
+ * and big-endian (PowerPC, SPARC, etc) host architectures.
+ *
+ * Key Design Decisions:
+ * - Fetch16/Fetch32: Reconstructed from individual bytes in big-endian order
+ *   Example: (b0 << 8) | b1  --  NOT *(uint16_t*)&b0
+ * - Read16/Read32/Write16/Write32: Always use explicit byte extraction/insertion
+ * - No host byte order assumptions anywhere in the code
+ * - Alignment checks enforce 68K requirements (2-byte words), not host CPU needs
+ *
+ * This design enables the 68K interpreter to run on:
+ * - x86 (little-endian): Full compatibility
+ * - ARM (little-endian): Full compatibility, Raspberry Pi support
+ * - PowerPC (big-endian): Should work unchanged
+ * - Any other ISA: Should work as long as basic C types work correctly
  */
 
 #include "CPU/M68KInterp.h"

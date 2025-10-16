@@ -173,6 +173,11 @@ RSRC_JSON = patterns.json
 RSRC_BIN = Patterns.rsrc
 PATTERN_RESOURCE ?= resources/patterns_authentic_color.json
 
+# 68K Interpreter for ARM Raspberry Pi Support
+# The 68K interpreter is platform-independent and included unconditionally in all builds.
+# It enables System 7.1 classic Mac applications to run on both x86 and ARM (Raspberry Pi 3/4/5).
+# The interpreter uses explicit big-endian byte ordering for cross-platform compatibility.
+
 # Source files
 C_SOURCES = src/main.c \
             src/boot.c \

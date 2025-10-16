@@ -1,8 +1,20 @@
 /*
  * M68KInterp.h - 68K Interpreter CPU Backend
  *
- * Implements ICPUBackend for 68K code execution on x86 (or any) host.
- * Uses software interpretation of 68K instructions.
+ * Implements ICPUBackend for 68K code execution on any host ISA (x86, ARM, etc).
+ * Uses software interpretation of 68K instructions with explicit big-endian
+ * byte ordering to ensure cross-platform compatibility.
+ *
+ * Platform Independence:
+ * - All multi-byte values use explicit big-endian construction (not host byte order)
+ * - Memory access is abstracted through paged system (architecture-agnostic)
+ * - Alignment checks follow 68K rules (2-byte alignment), not host requirements
+ * - Register file is generic (no host CPU registers used)
+ *
+ * Supported Host Architectures:
+ * - x86/x86-64: Full support via direct interpretation
+ * - ARM (all variants): Full support via direct interpretation
+ * - PowerPC, MIPS, etc.: Should work with no modifications
  */
 
 #ifndef M68K_INTERP_H
