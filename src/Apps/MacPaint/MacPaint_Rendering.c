@@ -285,25 +285,24 @@ void MacPaint_AnimateSelection(void)
  */
 void MacPaint_RenderPatternEditorDialog(void)
 {
-    /* TODO: Use DialogManager to draw pattern editor
+    /* Pattern editor dialog layout (modeless dialog):
+     * - 8x8 pixel grid for editing (16x16 pixels display)
+     * - Preview area showing current pattern
+     * - OK, Cancel, Reset buttons
      *
-     * Layout:
-     * +-------------------+
-     * | Pattern Editor    |
-     * +---+---+---+---+---+---+---+---+
-     * | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
-     * +---+---+---+---+---+---+---+---+
-     * | 8 | 9 | 10| 11| 12| 13| 14| 15|
-     * +---+---+---+---+---+---+---+---+
-     * ...
-     * | 56| 57| 58| 59| 60| 61| 62| 63|
-     * +---+---+---+---+---+---+---+---+
+     * This is called when DialogManager handles dialog events.
+     * The actual dialog window pointer and positioning is handled by DialogManager.
      *
-     * [Preview]  [OK] [Cancel] [Reset]
-     *
-     * Each pixel is a clickable checkbox (8x8 grid)
-     * Preview shows current pattern
-     * Buttons for OK/Cancel/Reset
+     * Note: Full implementation requires DialogManager and DLOG resources.
+     * For now, we'll provide the rendering framework.
+     */
+
+    /* In a full implementation, would:
+     * 1. Get pattern from MacPaint_GetPatternEditorPattern()
+     * 2. Draw 8x8 grid of pixel boxes
+     * 3. Draw preview of pattern
+     * 4. Draw buttons
+     * 5. Handle clicks on pixels to toggle pattern bits
      */
 }
 
@@ -316,27 +315,42 @@ void MacPaint_DrawPatternPreview(const Rect *previewRect)
         return;
     }
 
-    /* TODO: Render pattern in preview box
-     *
-     * Pseudocode:
-     * Pattern editPat = MacPaint_GetPatternEditorPattern();
-     *
-     * // Tile pattern to fill preview rect
-     * for (y = previewRect->top; y < previewRect->bottom; y += 8) {
-     *     for (x = previewRect->left; x < previewRect->right; x += 8) {
-     *         // Draw 8x8 pattern tile at (x, y)
-     *         for (py = 0; py < 8; py++) {
-     *             for (px = 0; px < 8; px++) {
-     *                 if ((editPat.pat[py] >> (7 - px)) & 1) {
-     *                     // Draw filled pixel
-     *                     Point pt = {x + px, y + py};
-     *                     SetCPixel(pt.h, pt.v, blackColor);
-     *                 }
-     *             }
-     *         }
-     *     }
-     * }
-     */
+    /* Draw frame around preview area */
+    FrameRect(previewRect);
+
+    /* Get pattern being edited */
+    Pattern editPat = MacPaint_GetPatternEditorPattern();
+
+    /* Tile pattern to fill preview rect, with 16x magnification */
+    int x, y, px, py;
+    for (y = previewRect->top; y < previewRect->bottom; y += 128) {
+        for (x = previewRect->left; x < previewRect->right; x += 128) {
+            /* Draw magnified 8x8 pattern (16 pixels per pattern pixel) */
+            for (py = 0; py < 8; py++) {
+                for (px = 0; px < 8; px++) {
+                    /* Check if this pattern bit is set */
+                    if ((editPat.pat[py] >> (7 - px)) & 1) {
+                        /* Draw 16x16 pixel block for this pattern pixel */
+                        Rect pixelRect;
+                        pixelRect.left = x + (px * 16);
+                        pixelRect.top = y + (py * 16);
+                        pixelRect.right = pixelRect.left + 16;
+                        pixelRect.bottom = pixelRect.top + 16;
+
+                        /* Clip to preview rect */
+                        if (pixelRect.right > previewRect->right)
+                            pixelRect.right = previewRect->right;
+                        if (pixelRect.bottom > previewRect->bottom)
+                            pixelRect.bottom = previewRect->bottom;
+
+                        /* Draw filled pixel block */
+                        PaintRect(&pixelRect);
+                        FrameRect(&pixelRect);
+                    }
+                }
+            }
+        }
+    }
 }
 
 /*
@@ -348,24 +362,28 @@ void MacPaint_DrawPatternPreview(const Rect *previewRect)
  */
 void MacPaint_RenderBrushEditorDialog(void)
 {
-    /* TODO: Use DialogManager to draw brush editor
+    /* Brush editor dialog layout (modeless dialog):
+     * - 5 brush shape radio buttons
+     * - Size slider (1-64 pixels)
+     * - Preview area showing brush shape
+     * - OK, Cancel buttons
      *
-     * Layout:
-     * +-------------------+
-     * | Brush Editor      |
-     * +-------------------+
-     * Brush Shapes:
-     *   ○ Circle (filled)
-     *   ○ Square (filled)
-     *   ○ Diamond
-     *   ○ Spray
-     *   ○ Custom Pattern
+     * Brush shapes:
+     *   0 - Circle (filled)
+     *   1 - Square (filled)
+     *   2 - Diamond
+     *   3 - Spray
+     *   4 - Custom Pattern
      *
-     * Size: [====|====] (slider from 1 to 64)
-     *
-     * [Preview Area]
-     *
-     * [OK] [Cancel]
+     * Note: Full implementation requires DialogManager and DLOG resources.
+     * For now, we'll provide the rendering framework.
+     */
+
+    /* In a full implementation, would:
+     * 1. Draw radio button groups for brush shapes
+     * 2. Draw size slider control
+     * 3. Draw preview of current brush
+     * 4. Draw buttons
      */
 }
 
@@ -378,26 +396,40 @@ void MacPaint_DrawBrushPreview(const Rect *previewRect)
         return;
     }
 
-    /* TODO: Render brush shape in preview
-     *
-     * Pseudocode:
-     * size = MacPaint_GetBrushSize();
-     *
-     * // Draw centered preview
-     * centerX = (previewRect->left + previewRect->right) / 2;
-     * centerY = (previewRect->top + previewRect->bottom) / 2;
-     *
-     * switch (gCurrentBrushShape) {
-     *     case BRUSH_CIRCLE:
-     *         PaintOval(centerX - size/2, centerY - size/2,
-     *                   centerX + size/2, centerY + size/2);
-     *         break;
-     *     case BRUSH_SQUARE:
-     *         PaintRect(...);
-     *         break;
-     *     // etc
-     * }
+    /* Draw frame around preview area */
+    FrameRect(previewRect);
+
+    int size = MacPaint_GetBrushSize();
+
+    /* Calculate centered preview position */
+    int centerX = (previewRect->left + previewRect->right) / 2;
+    int centerY = (previewRect->top + previewRect->bottom) / 2;
+
+    /* Draw brush preview based on current brush shape
+     * For now, we'll draw a simple filled circle as default
      */
+
+    Rect brushRect;
+    brushRect.left = centerX - (size / 2);
+    brushRect.top = centerY - (size / 2);
+    brushRect.right = centerX + (size / 2);
+    brushRect.bottom = centerY + (size / 2);
+
+    /* Clip to preview rect */
+    if (brushRect.left < previewRect->left)
+        brushRect.left = previewRect->left;
+    if (brushRect.top < previewRect->top)
+        brushRect.top = previewRect->top;
+    if (brushRect.right > previewRect->right)
+        brushRect.right = previewRect->right;
+    if (brushRect.bottom > previewRect->bottom)
+        brushRect.bottom = previewRect->bottom;
+
+    /* Draw brush shape preview
+     * Default: circle shape
+     */
+    PaintOval(&brushRect);
+    FrameOval(&brushRect);
 }
 
 /*
@@ -554,24 +586,44 @@ void MacPaint_DrawStatusBar(void)
  */
 void MacPaint_SetToolCursor(void)
 {
-    /* TODO: Set cursor shape based on gCurrentTool
+    /* Set cursor shape based on current tool selection
      *
-     * Tool cursors:
-     * - Pencil: crosshair
+     * Tool cursor mapping:
+     * - Drawing tools (Pencil, Line, Rect, Oval): crosshair
      * - Brush: brush shape
-     * - Eraser: eraser shape
-     * - Line: crosshair
-     * - Rectangle: crosshair
-     * - Oval: crosshair
+     * - Eraser: eraser
+     * - Fill: paint bucket
+     * - Spray: airbrush
      * - Lasso: lasso shape
-     * - Select: rectangle select cursor
-     * - Fill: bucket/paint can
-     * - Spray: spray/airbrush
+     * - Select: rectangle select
      * - Grabber: hand
      * - Text: i-beam
      *
-     * Load cursors from CURS resources or create programmatically
+     * For now, use default arrow cursor for all tools.
+     * Full implementation would load CURS resources from application file.
      */
+
+    switch (gCurrentTool) {
+        case TOOL_PENCIL:
+        case TOOL_LINE:
+        case TOOL_RECT:
+        case TOOL_OVAL:
+        case TOOL_BRUSH:
+        case TOOL_ERASE:
+        case TOOL_FILL:
+        case TOOL_SPRAY:
+        case TOOL_LASSO:
+        case TOOL_SELECT:
+        case TOOL_GRABBER:
+        case TOOL_TEXT:
+            /* TODO: Load CURS resource for each tool and call SetCursor() */
+            InitCursor();  /* Reset to default arrow cursor */
+            break;
+
+        default:
+            InitCursor();  /* Default arrow cursor */
+            break;
+    }
 }
 
 /**
@@ -579,11 +631,19 @@ void MacPaint_SetToolCursor(void)
  */
 void MacPaint_UpdateCursorPosition(int x, int y)
 {
-    /* TODO: Update cursor appearance based on:
-     * - Current tool
-     * - Mouse position (over canvas vs toolbox vs window)
-     * - Active selection (might change to move cursor)
+    /* Update cursor appearance based on mouse position and context
+     *
+     * Considerations:
+     * - Over canvas: show tool-specific cursor
+     * - Over toolbox: show hand/pointer
+     * - Over selection: show move cursor
+     * - Over window frame: show resize cursor
+     *
+     * For now, just ensure tool cursor is set.
+     * Full implementation would check regions and change cursor dynamically.
      */
+
+    MacPaint_SetToolCursor();
 }
 
 /*
