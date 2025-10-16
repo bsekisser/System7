@@ -36,7 +36,7 @@
  */
 
 /* UI and Window State */
-static WindowPtr gPaintWindow = NULL;
+WindowPtr gPaintWindow = NULL;             /* Exposed for window management */
 static GrafPtr gPaintPort = NULL;
 static Rect gPaintRect;
 

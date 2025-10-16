@@ -367,6 +367,7 @@ C_SOURCES = src/main.c \
             src/Apps/MacPaint/MacPaint_Menus.c \
             src/Apps/MacPaint/MacPaint_Advanced.c \
             src/Apps/MacPaint/MacPaint_Integration.c \
+            src/Apps/MacPaint/MacPaint_EventLoop.c \
             src/Apps/MacPaint/MacPaint_Main.c \
             src/StartupScreen/StartupScreen.c
 

@@ -353,20 +353,11 @@ void MacPaint_GetDocumentInfo(char *filename, int *isDirty, int *modCount)
     }
 }
 
-/**
- * MacPaint_PromptSaveChanges - Determine if we should save before operation
- * Returns: 0 = don't save (discard), 1 = save, 2 = cancel
+/*
+ * MacPaint_PromptSaveChanges - Implemented in MacPaint_EventLoop.c
+ * Shows alert dialog asking user if they want to save before closing
+ * Returns: 0 = don't save, 1 = save, 2 = cancel
  */
-int MacPaint_PromptSaveChanges(void)
-{
-    if (!MacPaint_IsDocumentDirty()) {
-        return 0;  /* No changes, don't need to save */
-    }
-
-    /* TODO: Show save dialog
-     * For now, indicate user should save */
-    return 1;
-}
 
 /*
  * BACKUP AND UNDO SUPPORT

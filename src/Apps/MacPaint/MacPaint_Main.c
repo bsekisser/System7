@@ -42,6 +42,12 @@ int MacPaintMain(int argc, char **argv)
         goto cleanup;
     }
 
+    /* Create main window */
+    err = MacPaint_CreateMainWindow();
+    if (err != noErr) {
+        goto cleanup;
+    }
+
     /* Create new document */
     err = MacPaint_NewDocument();
     if (err != noErr) {
@@ -56,10 +62,16 @@ int MacPaintMain(int argc, char **argv)
         MacPaint_SetDocumentName("Untitled");
     }
 
-    /* Enter main event loop */
+    /* Initialize menu bar */
+    MacPaint_InitializeMenuBar();
+
+    /* Enter main event loop - runs until user quits */
     MacPaint_RunEventLoop();
 
 cleanup:
+    /* Prepare for shutdown (save prompts, etc) */
+    MacPaint_PrepareForShutdown();
+
     /* Clean up system integration */
     MacPaint_ShutdownSystem();
 

@@ -272,9 +272,59 @@ OSErr MacPaint_CreateBrushEditorDialog(void);
 int MacPaint_BrushEditorEventHandler(int itemHit);
 void MacPaint_CloseBrushEditorDialog(void);
 
-/* Event Loop */
+/* Event Loop (from MacPaint_EventLoop.c) */
 void MacPaint_RunEventLoop(void);
 OSErr MacPaint_ExecuteMenuCommand(int menuID, int itemID);
+
+/* Window Management (from MacPaint_EventLoop.c) */
+OSErr MacPaint_CreateMainWindow(void);
+void MacPaint_DrawPaintWindow(void);
+void MacPaint_HandleWindowUpdate(WindowPtr window);
+void MacPaint_HandleWindowClose(WindowPtr window);
+
+/* Mouse Event Handling */
+void MacPaint_HandleMouseDownEvent(int x, int y, int modifiers);
+void MacPaint_HandleMouseDragEvent(int x, int y);
+void MacPaint_HandleMouseUpEvent(int x, int y);
+
+/* Keyboard Event Handling */
+void MacPaint_HandleKeyDownEvent(int keyCode, int modifiers);
+
+/* Menu Event Handling */
+void MacPaint_HandleMenuClickEvent(int menuID, int itemID);
+
+/* Event Window Checking */
+int MacPaint_IsEventInPaintWindow(int x, int y);
+
+/* Window Invalidation */
+void MacPaint_InvalidateWindowArea(void);
+void MacPaint_InvalidateRectArea(const Rect *rect);
+
+/* Event Loop State */
+int MacPaint_IsMouseDown(void);
+void MacPaint_GetLastMousePosition(int *x, int *y);
+int MacPaint_ShouldQuit(void);
+void MacPaint_RequestQuit(void);
+
+/* Save Prompts */
+int MacPaint_PromptSaveChanges(void);
+
+/* Tool State */
+void MacPaint_SetActiveTool(int toolID);
+int MacPaint_GetActiveTool(void);
+
+/* Idle Processing */
+void MacPaint_ProcessIdleTime(void);
+
+/* Clipboard Integration */
+int MacPaint_PasteFromSystemClipboard(void);
+int MacPaint_CopyToSystemClipboard(void);
+
+/* Error Handling */
+void MacPaint_HandleError(OSErr err, const char *context);
+
+/* Shutdown Coordination */
+void MacPaint_PrepareForShutdown(void);
 
 /* Drag and Drop */
 int MacPaint_CanAcceptDraggedFile(const char *filename);
@@ -296,6 +346,7 @@ const char* MacPaint_GetDocumentName(void);
  * Global State Access (from MacPaint_Core.c)
  */
 extern BitMap gPaintBuffer;
+extern WindowPtr gPaintWindow;
 extern char gDocName[64];
 extern int gDocDirty;
 extern int gCurrentTool;

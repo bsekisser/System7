@@ -404,38 +404,9 @@ void MacPaint_CloseBrushEditorDialog(void)
 
 /*
  * EVENT LOOP INTEGRATION
+ * MacPaint_RunEventLoop is implemented in MacPaint_EventLoop.c
+ * This provides the full WaitNextEvent-based event dispatch system
  */
-
-/**
- * MacPaint_RunEventLoop - Main application event loop
- * Should be called from MacPaintMain or system event manager
- */
-void MacPaint_RunEventLoop(void)
-{
-    /* TODO: Implement main event loop
-     * loop {
-     *   WaitNextEvent(everyEvent, &event, 30, NULL);
-     *   if event.what == mouseDown:
-     *     // Determine if click in paint window, menu bar, dialog, etc
-     *     if click in paint canvas:
-     *       MacPaint_HandleMouseDown(x, y, modifiers)
-     *   else if event.what == mouseUp:
-     *     MacPaint_HandleMouseUp(x, y)
-     *   else if event.what == mouseMoved:
-     *     MacPaint_HandleMouseDrag(x, y)
-     *   else if event.what == keyDown:
-     *     MacPaint_HandleKeyDown(keyCode, modifiers)
-     *   else if event.what == updateEvt:
-     *     MacPaint_InvalidateWindow()
-     *   else if pattern editor open:
-     *     DialogSelect(&event, &dialog, &itemHit)
-     *     MacPaint_PatternEditorEventHandler(itemHit)
-     *   else if brush editor open:
-     *     DialogSelect(&event, &dialog, &itemHit)
-     *     MacPaint_BrushEditorEventHandler(itemHit)
-     * }
-     */
-}
 
 /*
  * DRAG AND DROP SUPPORT
