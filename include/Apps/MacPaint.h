@@ -133,10 +133,32 @@ void MacPaint_ZeroBuf(BitMap *buf);
 void MacPaint_ExpandPattern(Pattern pat, UInt32 *expanded);
 
 /*
- * Rendering
+ * Rendering (from MacPaint_Rendering.c)
  */
 void MacPaint_Render(void);
 void MacPaint_InvalidateRect(Rect *rect);
+
+/* Advanced Rendering */
+void MacPaint_RenderPaintBuffer(void);
+void MacPaint_RenderFatBits(void);
+void MacPaint_DrawGridOverlay(void);
+void MacPaint_DrawSelectionRectangle(void);
+void MacPaint_RenderPatternEditorDialog(void);
+void MacPaint_RenderBrushEditorDialog(void);
+void MacPaint_DrawPatternPreview(const Rect *previewRect);
+void MacPaint_DrawBrushPreview(const Rect *previewRect);
+void MacPaint_DrawToolbox(void);
+void MacPaint_HighlightActiveTool(void);
+void MacPaint_DrawStatusBar(void);
+void MacPaint_SetToolCursor(void);
+void MacPaint_UpdateCursorPosition(int x, int y);
+void MacPaint_InvalidateToolArea(void);
+void MacPaint_InvalidateStatusArea(void);
+void MacPaint_UpdateAnimations(void);
+void MacPaint_SetFatBitsMode(int enabled, int zoomFactor);
+int MacPaint_IsFatBitsMode(void);
+void MacPaint_FullWindowUpdate(void);
+void MacPaint_GetRenderStats(int *pixelsRendered, int *updateTime);
 
 /*
  * Menu and Event System (from MacPaint_Menus.c)
