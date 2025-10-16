@@ -204,6 +204,10 @@ Boolean HandleNullEvent(EventRecord* event)
         }
     }
 
+    if (SimpleText_IsRunning()) {
+        SimpleText_Idle();
+    }
+
     return true;
 }
 
@@ -221,6 +225,10 @@ Boolean HandleMouseDown(EventRecord* event)
         /* Mouse down while tracking = potential selection */
         UpdateMenuTrackingNew(event->where);
         /* Don't end tracking yet - wait for mouse up */
+        return true;
+    }
+
+    if (SimpleText_DispatchEvent(event)) {
         return true;
     }
 
@@ -443,6 +451,10 @@ Boolean HandleKeyDownEvent(EventRecord* event)
     EVT_LOG_DEBUG("HandleKeyDownEvent: key='%c' (0x%02x), cmd=%d\n",
                  (key >= 32 && key < 127) ? key : '?', key, cmdKeyDown);
 
+    if (SimpleText_DispatchEvent(event)) {
+        return true;
+    }
+
     /* Handle special keys without command modifier */
     if (!cmdKeyDown) {
         switch (key) {
@@ -618,6 +630,10 @@ Boolean HandleActivate(EventRecord* event)
     WindowPtr window = (WindowPtr)(event->message);
     Boolean activating = (event->modifiers & activeFlag) != 0;
 
+    if (SimpleText_DispatchEvent(event)) {
+        return true;
+    }
+
     EVT_LOG_DEBUG("HandleActivate: window=0x%08x, activating=%d\n",
                  (unsigned int)window, activating);
 
@@ -667,6 +683,10 @@ Boolean HandleDisk(EventRecord* event)
 Boolean HandleOSEvent(EventRecord* event)
 {
     /* Suspend/resume, mouse moved out of region, etc. */
+    if (SimpleText_DispatchEvent(event)) {
+        return true;
+    }
+
     short osMessage = (event->message >> 24) & 0xFF;
 
     switch (osMessage) {

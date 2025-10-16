@@ -357,6 +357,61 @@ void SimpleText_Idle(void) {
     }
 }
 
+Boolean SimpleText_DispatchEvent(EventRecord* event)
+{
+    if (!SimpleText_IsRunning() || !event) {
+        return false;
+    }
+
+    switch (event->what) {
+        case mouseDown: {
+            WindowPtr window = NULL;
+            short part = FindWindow(event->where, &window);
+            if (part == inMenuBar) {
+                WindowPtr front = FrontWindow();
+                if (front && STDoc_FindByWindow(front)) {
+                    SimpleText_HandleEvent(event);
+                    return true;
+                }
+                return false;
+            }
+            if (window && STDoc_FindByWindow(window)) {
+                SimpleText_HandleEvent(event);
+                return true;
+            }
+            return false;
+        }
+
+        case keyDown:
+        case autoKey: {
+            WindowPtr front = FrontWindow();
+            if (front && STDoc_FindByWindow(front)) {
+                SimpleText_HandleEvent(event);
+                return true;
+            }
+            return false;
+        }
+
+        case activateEvt: {
+            WindowPtr window = (WindowPtr)event->message;
+            if (window && STDoc_FindByWindow(window)) {
+                SimpleText_HandleEvent(event);
+                return true;
+            }
+            return false;
+        }
+
+        case osEvt:
+            SimpleText_HandleEvent(event);
+            return true;
+
+        default:
+            break;
+    }
+
+    return false;
+}
+
 Boolean SimpleText_HandleWindowUpdate(WindowPtr window) {
     if (!SimpleText_IsRunning() || window == NULL) {
         return false;
@@ -418,6 +473,15 @@ Boolean SimpleText_IsRunning(void) {
 void SimpleText_Launch(void) {
     if (!g_ST.running) {
         SimpleText_Init();
+    }
+
+    if (!g_ST.firstDoc) {
+        STDocument* doc = STDoc_New();
+        if (!doc) {
+            ST_ErrorAlert("Not enough memory to open document");
+            return;
+        }
+        SelectWindow(doc->window);
     }
 
     /* Bring to front if already running */
