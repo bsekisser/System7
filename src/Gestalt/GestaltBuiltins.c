@@ -8,6 +8,10 @@
 #include "Gestalt/Gestalt.h"
 #include "Gestalt/GestaltPriv.h"
 
+#if defined(__powerpc__) || defined(__powerpc64__)
+#include "Platform/include/boot.h"
+#endif
+
 /* Define selector constants using canonical FOURCC. The ROM stored these as
  * four-byte ASCII codes; keeping the character spelling here aids cross-
  * referencing with Inside Macintosh docs. */
@@ -27,6 +31,7 @@ static const OSType kSel_fpu_ = FOURCC('f','p','u',' ');
 static const OSType kSel_init = FOURCC('i','n','i','t');
 static const OSType kSel_evnt = FOURCC('e','v','n','t');
 static const OSType kSel_pcop = FOURCC('p','c','o','p');  /* Process coop */
+static const OSType kSel_mmap = FOURCC('m','m','a','p');
 
 /* Global init bits for tracking subsystem initialization */
 static UInt32 gGestaltInitBits = 0;
@@ -291,6 +296,10 @@ void Gestalt_Register_Builtins(void) {
     /* Init bits - always register */
     err = NewGestalt(kSel_init, gestalt_init);
 
+#if defined(__powerpc__) || defined(__powerpc64__)
+    err = NewGestalt(kSel_mmap, gestalt_mmap);
+#endif
+
     /* Time Manager - only register if initialized */
     if (gGestaltInitBits & (1UL << kGestaltInitBit_TimeMgr)) {
         err = NewGestalt(kSel_qtim, gestalt_qtim);
@@ -310,3 +319,61 @@ void Gestalt_Register_Builtins(void) {
     /* Unused variable warning suppression */
     (void)err;
 }
+#if defined(__powerpc__) || defined(__powerpc64__)
+#define MMAP_VALUE_COUNT (1 + OFW_MAX_MEMORY_RANGES * 4)
+static long g_ppc_memory_map_cache[MMAP_VALUE_COUNT] = {0};
+static int g_ppc_memory_map_cached = 0;
+
+static void populate_ppc_memory_map_cache(void) {
+    if (g_ppc_memory_map_cached) {
+        return;
+    }
+
+    size_t count = hal_ppc_memory_range_count();
+    if (count == 0) {
+        g_ppc_memory_map_cache[0] = 0;
+        g_ppc_memory_map_cached = 1;
+        return;
+    }
+
+    ofw_memory_range_t ranges[OFW_MAX_MEMORY_RANGES];
+    size_t copied = hal_ppc_get_memory_ranges(ranges, OFW_MAX_MEMORY_RANGES);
+
+    if (copied == 0) {
+        g_ppc_memory_map_cache[0] = 0;
+        g_ppc_memory_map_cached = 1;
+        return;
+    }
+
+    uint32_t total_sizes = 0;
+    for (size_t i = 0; i < copied; ++i) {
+        uint64_t size = ranges[i].size;
+        if (size > UINT32_MAX) {
+            total_sizes += UINT32_MAX;
+        } else {
+            total_sizes += (uint32_t)size;
+        }
+    }
+
+    g_ppc_memory_map_cache[0] = (long)copied;
+    long *cursor = &g_ppc_memory_map_cache[1];
+    for (size_t i = 0; i < copied; ++i) {
+        uint64_t base = ranges[i].base;
+        uint64_t size = ranges[i].size;
+        *cursor++ = (long)(uint32_t)(base >> 32);
+        *cursor++ = (long)(uint32_t)(base & 0xFFFFFFFFu);
+        *cursor++ = (long)(uint32_t)(size >> 32);
+        *cursor++ = (long)(uint32_t)(size & 0xFFFFFFFFu);
+    }
+
+    g_ppc_memory_map_cached = 1;
+}
+
+static OSErr gestalt_mmap(long *response) {
+    if (!response) return paramErr;
+
+    populate_ppc_memory_map_cache();
+    *response = (long)(uintptr_t)g_ppc_memory_map_cache;
+    return noErr;
+}
+#endif

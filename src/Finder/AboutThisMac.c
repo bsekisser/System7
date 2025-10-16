@@ -518,29 +518,35 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     CenterPStringInRect(ver, &w->port.portRect, w->port.portRect.top + 40);
 
 #if defined(__powerpc__) || defined(__powerpc64__)
-    ofw_memory_range_t fw_ranges[OFW_MAX_MEMORY_RANGES];
-    size_t fw_range_count = hal_ppc_get_memory_ranges(fw_ranges, OFW_MAX_MEMORY_RANGES);
-    if (fw_range_count > 0) {
-        char map_buf[80];
-        uint32_t range_count = (uint32_t)fw_range_count;
-        uint32_t base_hi = (uint32_t)(fw_ranges[0].base >> 32);
-        uint32_t base_lo = (uint32_t)(fw_ranges[0].base & 0xFFFFFFFFu);
-        uint32_t size_mb = (uint32_t)(fw_ranges[0].size / (1024 * 1024));
-        if (base_hi != 0) {
-            sprintf(map_buf, "FW range0: 0x%08x%08x (%u MB)", base_hi, base_lo, size_mb);
-        } else {
-            sprintf(map_buf, "FW range0: 0x%08x (%u MB)", base_lo, size_mb);
-        }
-        Str255 extra;
-        TextSize(10);
-        TextFace(0);
-        ToPStr(map_buf, extra);
-        CenterPStringInRect(extra, &w->port.portRect, w->port.portRect.top + 60);
+    long memPtrLong = 0;
+    if (Gestalt(gestaltMemoryMap, &memPtrLong) == noErr && memPtrLong != 0) {
+        long *memInfo = (long *)(uintptr_t)memPtrLong;
+        uint32_t range_count = (uint32_t)memInfo[0];
+        if (range_count > 0) {
+            uint32_t base_hi = (uint32_t)memInfo[1];
+            uint32_t base_lo = (uint32_t)memInfo[2];
+            uint32_t size_hi = (uint32_t)memInfo[3];
+            uint32_t size_lo = (uint32_t)memInfo[4];
+            uint64_t size_bytes = ((uint64_t)size_hi << 32) | size_lo;
+            uint32_t size_mb = (uint32_t)(size_bytes / (1024 * 1024));
 
-        char count_buf[40];
-        sprintf(count_buf, "Firmware ranges: %u", range_count);
-        ToPStr(count_buf, extra);
-        CenterPStringInRect(extra, &w->port.portRect, w->port.portRect.top + 72);
+            char map_buf[80];
+            if (base_hi != 0) {
+                sprintf(map_buf, "FW range0: 0x%08x%08x (%u MB)", base_hi, base_lo, size_mb);
+            } else {
+                sprintf(map_buf, "FW range0: 0x%08x (%u MB)", base_lo, size_mb);
+            }
+            Str255 extra;
+            TextSize(10);
+            TextFace(0);
+            ToPStr(map_buf, extra);
+            CenterPStringInRect(extra, &w->port.portRect, w->port.portRect.top + 60);
+
+            char count_buf[40];
+            sprintf(count_buf, "Firmware ranges: %u", range_count);
+            ToPStr(count_buf, extra);
+            CenterPStringInRect(extra, &w->port.portRect, w->port.portRect.top + 72);
+        }
     }
 #endif
 

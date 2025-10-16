@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <ctype.h>
 #include <string.h>
 #include <stdbool.h>
 
@@ -444,8 +445,14 @@ int ofw_get_framebuffer_info(ofw_framebuffer_info_t *out) {
         return -1;
     }
 
-    /* Skip purely serial consoles */
-    if (strstr(path, "tty") || strstr(path, "serial")) {
+    char lowered[128];
+    size_t plen = strnlen(path, sizeof(path) - 1);
+    for (size_t i = 0; i < plen; ++i) {
+        lowered[i] = (char)tolower((unsigned char)path[i]);
+    }
+    lowered[plen] = '\0';
+
+    if (strstr(lowered, "tty") || strstr(lowered, "serial") || strstr(lowered, "kbd")) {
         return -1;
     }
 
@@ -487,6 +494,17 @@ int ofw_get_framebuffer_info(ofw_framebuffer_info_t *out) {
     }
     if (ofw_getprop(display, kPropLineBytes, cells, sizeof(ofw_cell_t), &len) == 0 && len >= 4) {
         stride = cells[0];
+    }
+
+    if (base == 0) {
+        ofw_cell_t addr_buf[4] = {0};
+        if (ofw_getprop(display, "AAPL,boot-display", addr_buf, sizeof(addr_buf), &len) == 0 && len >= 4) {
+            if (len >= 8) {
+                base = ((uint64_t)addr_buf[0] << 32) | addr_buf[1];
+            } else {
+                base = addr_buf[0];
+            }
+        }
     }
 
     if (stride == 0 && width != 0 && depth != 0) {

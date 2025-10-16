@@ -301,6 +301,7 @@ make PLATFORM=newplatform
 - **Memory Discovery**: Query `/memory` `reg` property to size RAM for the HAL
 - **HAL API**: `hal_ppc_get_memory_ranges()` returns cached OF memory map entries for platform diagnostics
 - **Framebuffer**: `ofw_get_framebuffer_info()` attempts to pull base/stride/geometry from the firmware display node
+- **Gestalt Integration**: `gestaltMemoryMap` selector exposes the cached ranges to classic software
 
 ## Performance Considerations
 

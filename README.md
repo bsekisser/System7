@@ -33,6 +33,7 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
   - Memory size seeds from `/memory` → `reg`, letting the HAL report the firmware-advertised RAM instead of a hardcoded default.
   - HAL exposes firmware memory ranges so higher layers can inspect per-bank layout during bring-up.
   - Framebuffer metadata is queried via Open Firmware when available, readying the HAL for native display bring-up.
+  - Gestalt selector `mmap` returns the cached firmware memory ranges for diagnostics and About box reporting.
 
 - ✅ **Memory Manager & OSUtils Integration**: Shared host/68K heap mapping with classic low-memory sync
   - `MemoryManager_MapToM68K()` maps the System/App zones directly into the interpreter page table

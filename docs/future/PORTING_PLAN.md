@@ -99,7 +99,7 @@ Porting to PowerPC will be similar to porting to ARM, but with different hardwar
 *   **Firmware Memory Map:**
     *   Read `/memory` `reg` data from Open Firmware to seed the HAL’s reported RAM size instead of relying on a placeholder. (Initial support implemented; HAL now caches multiple ranges for inspection.)
 *   **Framebuffer Discovery:**
-    *   Attempt to read display node properties (`address`, `width`, `height`, `linebytes`) from the firmware console path to pre-populate framebuffer info. (Primitive probe added; falls back gracefully when console is serial-only.)
+    *   Attempt to read display node properties (`address`, `width`, `height`, `linebytes`, `AAPL,boot-display`) from the firmware console path to pre-populate framebuffer info. (Primitive probe added; falls back gracefully when console is serial-only.)
 
 **6. Timeline and Milestones**
 

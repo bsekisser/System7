@@ -94,6 +94,7 @@ OSErr GetSysEnv(short versionRequested, SysEnvRec *answer);
 #define gestaltProcessorType    FOURCC('p','r','o','c')
 #define gestaltFPUType          FOURCC('f','p','u',' ')
 #define gestaltInitBits         FOURCC('i','n','i','t')
+#define gestaltMemoryMap        FOURCC('m','m','a','p')
 
 #ifdef __cplusplus
 }
