@@ -30,21 +30,32 @@ int MacPaintMain(int argc, char **argv)
 {
     OSErr err;
 
+    serial_logf(kLogModuleGeneral, kLogLevelInfo, "[MACPAINT] MacPaintMain: ENTRY\n");
+
     /* Initialize MacPaint core */
+    serial_logf(kLogModuleGeneral, kLogLevelInfo, "[MACPAINT] MacPaintMain: Calling MacPaint_Initialize\n");
     err = MacPaint_Initialize();
+    serial_logf(kLogModuleGeneral, kLogLevelInfo, "[MACPAINT] MacPaintMain: MacPaint_Initialize returned %d\n", err);
     if (err != noErr) {
+        serial_logf(kLogModuleGeneral, kLogLevelError, "[MACPAINT] MacPaintMain: Initialize failed, going to cleanup\n");
         goto cleanup;
     }
 
     /* Initialize System 7.1 integration */
+    serial_logf(kLogModuleGeneral, kLogLevelInfo, "[MACPAINT] MacPaintMain: Calling MacPaint_InitializeSystem\n");
     err = MacPaint_InitializeSystem();
+    serial_logf(kLogModuleGeneral, kLogLevelInfo, "[MACPAINT] MacPaintMain: MacPaint_InitializeSystem returned %d\n", err);
     if (err != noErr) {
+        serial_logf(kLogModuleGeneral, kLogLevelError, "[MACPAINT] MacPaintMain: InitializeSystem failed, going to cleanup\n");
         goto cleanup;
     }
 
     /* Create main window */
+    serial_logf(kLogModuleGeneral, kLogLevelInfo, "[MACPAINT] MacPaintMain: Calling MacPaint_CreateMainWindow\n");
     err = MacPaint_CreateMainWindow();
+    serial_logf(kLogModuleGeneral, kLogLevelInfo, "[MACPAINT] MacPaintMain: MacPaint_CreateMainWindow returned %d\n", err);
     if (err != noErr) {
+        serial_logf(kLogModuleGeneral, kLogLevelError, "[MACPAINT] MacPaintMain: CreateMainWindow failed, going to cleanup\n");
         goto cleanup;
     }
 
@@ -242,8 +253,11 @@ void MacPaint_Launch(void)
     int argc = 1;
     char *argv[2] = { "MacPaint", NULL };
 
+    serial_logf(kLogModuleGeneral, kLogLevelInfo, "[MACPAINT] MacPaint_Launch: ENTRY\n");
     gMacPaintIsRunning = 1;
+    serial_logf(kLogModuleGeneral, kLogLevelInfo, "[MACPAINT] MacPaint_Launch: Calling MacPaintMain\n");
     MacPaintMain(argc, argv);
+    serial_logf(kLogModuleGeneral, kLogLevelInfo, "[MACPAINT] MacPaint_Launch: MacPaintMain returned\n");
     gMacPaintIsRunning = 0;
 }
 

@@ -75,23 +75,37 @@ extern int gDocDirty;
  */
 OSErr MacPaint_CreateMainWindow(void)
 {
-    /* TODO: Use WindowManager to create window
-     * - Create a standard document window
-     * - Size: approximately 640×800 pixels
-     * - Title: Use MacPaint_GetWindowTitle() for title with dirty indicator
-     * - Attributes: document window with close box, zoom box
-     * - Visible: start hidden, show after setup
-     *
-     * Pseudocode:
-     * Rect bounds = {50, 50, 650, 850};
-     * CreateNewWindow(kDocumentWindowClass, windowAttrs, &bounds, &window);
-     * SetWindowTitleWithCFString(window, title);
-     * SetWindowDefaultButton(window, okButton);
-     * ShowWindow(window);
-     */
+    Rect bounds;
+    extern WindowPtr NewWindow(void *, const Rect *, ConstStr255Param, Boolean, short,
+                              WindowPtr, Boolean, long);
+    extern void ShowWindow(WindowPtr);
+
+    /* Create window bounds - centered on screen with reasonable size */
+    bounds.left = 40;
+    bounds.top = 80;
+    bounds.right = bounds.left + 640;
+    bounds.bottom = bounds.top + 480;
+
+    /* Create a document window */
+    Str255 title;
+    const char* titleStr = "MacPaint";
+    size_t len = strlen(titleStr);
+    if (len > 255) len = 255;
+    title[0] = (unsigned char)len;
+    memcpy(&title[1], titleStr, len);
+
+    gPaintWindow = NewWindow(NULL, &bounds, title, true, 0 /* documentProc */,
+                            (WindowPtr)-1, true, 'PANT');
+
+    if (!gPaintWindow) {
+        return memFullErr;
+    }
 
     gEventState.paintWindow = gPaintWindow;
     gEventState.windowNeedsRedraw = 1;
+
+    ShowWindow(gPaintWindow);
+
     return noErr;
 }
 
