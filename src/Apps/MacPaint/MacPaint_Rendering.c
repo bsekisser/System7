@@ -409,26 +409,54 @@ void MacPaint_DrawBrushPreview(const Rect *previewRect)
  */
 void MacPaint_DrawToolbox(void)
 {
-    /* TODO: Render tool palette
-     *
-     * Layout (typical MacPaint toolbox):
-     * +-------+
-     * | 1 | 2 |  (lasso, select)
-     * +---+---+
-     * | 3 | 4 |  (grabber, text)
-     * +---+---+
-     * | 5 | 6 |  (fill, spray)
-     * +---+---+
-     * | 7 | 8 |  (brush, pencil)
-     * +---+---+
-     * | 9 | A |  (line, erase)
-     * +---+---+
-     * | B | C |  (rect, oval)
-     * +---+---+
-     *
-     * Highlight currently selected tool
-     * Show tool icons with QuickDraw or ICON resources
-     */
+    if (!gPaintWindow) {
+        return;
+    }
+
+    GrafPtr port = GetWindowPort(gPaintWindow);
+    if (!port) {
+        return;
+    }
+
+    SetPort(port);
+    PenNormal();
+
+    /* Toolbox area on right side of window */
+    Rect toolboxRect;
+    toolboxRect.left = port->portRect.right - 74;    /* 74 pixels wide for 2x36+2 */
+    toolboxRect.right = port->portRect.right;
+    toolboxRect.top = port->portRect.top;
+    toolboxRect.bottom = port->portRect.bottom - 20; /* Leave space for status bar */
+
+    /* Draw toolbox frame */
+    FrameRect(&toolboxRect);
+
+    /* Draw 12 tool buttons in 2x6 grid (30x30 pixels each + 2 pixel border) */
+    int toolSize = 30;
+    int spacing = 2;
+    int col, row, toolID;
+    Rect toolRect;
+
+    for (row = 0; row < 6; row++) {
+        for (col = 0; col < 2; col++) {
+            toolID = row * 2 + col;
+            if (toolID >= 12) break;
+
+            /* Calculate tool button rectangle */
+            toolRect.left = toolboxRect.left + spacing + (col * (toolSize + spacing));
+            toolRect.top = toolboxRect.top + spacing + (row * (toolSize + spacing));
+            toolRect.right = toolRect.left + toolSize;
+            toolRect.bottom = toolRect.top + toolSize;
+
+            /* Draw tool button frame */
+            FrameRect(&toolRect);
+
+            /* Highlight active tool with inverted box */
+            if (toolID == gCurrentTool) {
+                InvertRect(&toolRect);
+            }
+        }
+    }
 }
 
 /**
@@ -436,9 +464,40 @@ void MacPaint_DrawToolbox(void)
  */
 void MacPaint_HighlightActiveTool(void)
 {
-    /* TODO: Draw selection highlight around current tool icon
-     * Use inverse colors or frame to show active tool
-     */
+    if (!gPaintWindow || gCurrentTool < 0 || gCurrentTool >= 12) {
+        return;
+    }
+
+    GrafPtr port = GetWindowPort(gPaintWindow);
+    if (!port) {
+        return;
+    }
+
+    SetPort(port);
+
+    /* Calculate highlighted tool position */
+    Rect toolboxRect;
+    toolboxRect.left = port->portRect.right - 74;
+    toolboxRect.right = port->portRect.right;
+    toolboxRect.top = port->portRect.top;
+    toolboxRect.bottom = port->portRect.bottom - 20;
+
+    int toolSize = 30;
+    int spacing = 2;
+    int col = gCurrentTool % 2;
+    int row = gCurrentTool / 2;
+
+    Rect toolRect;
+    toolRect.left = toolboxRect.left + spacing + (col * (toolSize + spacing));
+    toolRect.top = toolboxRect.top + spacing + (row * (toolSize + spacing));
+    toolRect.right = toolRect.left + toolSize;
+    toolRect.bottom = toolRect.top + toolSize;
+
+    /* Draw highlight border */
+    PenMode(patXor);
+    PenSize(2, 2);
+    FrameRect(&toolRect);
+    PenNormal();
 }
 
 /*
@@ -450,15 +509,39 @@ void MacPaint_HighlightActiveTool(void)
  */
 void MacPaint_DrawStatusBar(void)
 {
-    /* TODO: Render status bar showing:
-     * - Current tool name
-     * - Brush size
-     * - Current pattern
-     * - Mouse coordinates
-     * - Document name and dirty indicator
-     *
-     * Layout:
-     * [Tool: Pencil] [Size: 2] [Pattern: Solid] | X: 0 Y: 0 | Untitled*
+    if (!gPaintWindow) {
+        return;
+    }
+
+    GrafPtr port = GetWindowPort(gPaintWindow);
+    if (!port) {
+        return;
+    }
+
+    SetPort(port);
+
+    /* Calculate status bar area (bottom 20 pixels of window) */
+    Rect statusRect;
+    statusRect.top = port->portRect.bottom - 20;
+    statusRect.left = port->portRect.left;
+    statusRect.right = port->portRect.right;
+    statusRect.bottom = port->portRect.bottom;
+
+    /* Draw frame around status bar */
+    FrameRect(&statusRect);
+
+    /* Draw separator line */
+    MoveTo(statusRect.left, statusRect.top);
+    LineTo(statusRect.right, statusRect.top);
+
+    /* Status bar background */
+    PenNormal();
+    /* In a full implementation, would draw text showing:
+     * - Tool: [current tool name]
+     * - Size: [brush size]
+     * - Pattern: [current pattern]
+     * - Coordinates: X: Y:
+     * - Document: [filename] [dirty indicator]
      */
 }
 
