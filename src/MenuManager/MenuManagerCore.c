@@ -21,6 +21,7 @@
 #include "../include/MenuManager/MenuManager.h"
 #include "../include/MenuManager/MenuTypes.h"
 #include "../include/MenuManager/MenuLogging.h"
+#include "../include/WindowManager/WindowManager.h"
 #include "MenuManager/MenuAppleIcon.h"
 #include "MenuManager/MenuAppIcon.h"
 
@@ -376,25 +377,13 @@ void DrawMenuBar(void)
     GrafPtr savePort;
     GetPort(&savePort);
 
-    /* Make sure we have a valid port to draw to */
-    if (qd.thePort) {
-        char debugBuf[160];
-        snprintf(debugBuf, sizeof(debugBuf),
-                 "DrawMenuBar: using port base=%p rowBytes=%d bounds=(%d,%d)-(%d,%d) portRect=(%d,%d)-(%d,%d)\n",
-                 qd.thePort->portBits.baseAddr,
-                 qd.thePort->portBits.rowBytes,
-                 qd.thePort->portBits.bounds.left,
-                 qd.thePort->portBits.bounds.top,
-                 qd.thePort->portBits.bounds.right,
-                 qd.thePort->portBits.bounds.bottom,
-                 qd.thePort->portRect.left,
-                 qd.thePort->portRect.top,
-                 qd.thePort->portRect.right,
-                 qd.thePort->portRect.bottom);
-        serial_puts(debugBuf);
-        SetPort(qd.thePort);  /* Draw to screen port */
-    } else {
-        /* serial_puts("DrawMenuBar: qd.thePort is NULL!\n"); */
+    /* Make sure we draw relative to the screen's coordinate space */
+    GrafPtr menuPort = NULL;
+    GetWMgrPort(&menuPort);
+    if (menuPort && menuPort->portBits.baseAddr) {
+        SetPort(menuPort);  /* Draw into Window Manager port */
+    } else if (qd.thePort) {
+        SetPort(qd.thePort);  /* Fallback */
     }
 
     /* Menu bar rectangle */
