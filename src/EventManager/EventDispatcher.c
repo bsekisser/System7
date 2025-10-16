@@ -20,6 +20,7 @@
 #include "ControlPanels/Sound.h"
 #include "ControlPanels/Mouse.h"
 #include "ControlPanels/Keyboard.h"
+#include "ControlPanels/ControlStrip.h"
 #include "Datetime/datetime_cdev.h"
 #include "QuickDraw/QuickDraw.h"
 #include "MemoryMgr/MemoryManager.h"
@@ -110,6 +111,10 @@ Boolean DispatchEvent(EventRecord* event)
 
     /* Entry log for all events */
     EVT_LOG_DEBUG("[DISP] DispatchEvent: event->what=%d\n", event->what);
+
+    if (ControlStrip_HandleEvent(event)) {
+        return true;
+    }
 
     if (SoundPanel_HandleEvent(event)) {
         return true;

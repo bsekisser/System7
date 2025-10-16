@@ -29,6 +29,7 @@
 #include "ControlPanels/Sound.h"
 #include "ControlPanels/Mouse.h"
 #include "ControlPanels/Keyboard.h"
+#include "ControlPanels/ControlStrip.h"
 #include "Datetime/datetime_cdev.h"
 extern void DrawString(const unsigned char* str);
 extern void MoveTo(short h, short v);
@@ -58,6 +59,7 @@ extern bool VFS_Delete(VRefNum vref, FileID id);
 #define kControlPanelSoundID   (-103)
 #define kControlPanelMouseID   (-104)
 #define kControlPanelKeyboardID (-105)
+#define kControlStripID         (-106)
 
 /* Folder item representation with file system integration */
 typedef struct FolderItem {
@@ -335,7 +337,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
     }
 
     if (dirID == kControlPanelsDirID) {
-        state->itemCount = 5;
+        state->itemCount = 6;
         state->items = (FolderItem*)malloc(sizeof(FolderItem) * state->itemCount);
         if (!state->items) {
             state->itemCount = 0;
@@ -391,6 +393,15 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         keyboard->parentID = dirID;
         keyboard->type = 'APPL';
         keyboard->creator = 'cdev';
+
+        FolderItem *strip = &state->items[5];
+        memset(strip, 0, sizeof(FolderItem));
+        strncpy(strip->name, "Control Strip", sizeof(strip->name) - 1);
+        strip->isFolder = false;
+        strip->fileID = kControlStripID;
+        strip->parentID = dirID;
+        strip->type = 'APPL';
+        strip->creator = 'cdev';
 
         const int startX = 80;
         const int startY = 30;
@@ -956,6 +967,9 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                 } else if (strcmp(name, "Keyboard") == 0) {
                     FINDER_LOG_DEBUG("FW: Opening Keyboard control panel\n");
                     KeyboardPanel_Open();
+                } else if (strcmp(name, "Control Strip") == 0) {
+                    FINDER_LOG_DEBUG("FW: Toggling Control Strip palette\n");
+                    ControlStrip_Toggle();
                 } else {
                     FINDER_LOG_DEBUG("FW: OPEN app \"%s\" not implemented\n", name);
                 }

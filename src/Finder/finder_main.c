@@ -193,6 +193,7 @@ static OSErr SetupMenus(void)
     AppendMenu(gAppleMenu, "\007Sound...");
     AppendMenu(gAppleMenu, "\007Mouse...");
     AppendMenu(gAppleMenu, "\013Keyboard...");
+    AppendMenu(gAppleMenu, "\016Control Strip...");
     AppendMenu(gAppleMenu, "\002(-");
     AddResMenu(gAppleMenu, 'DRVR');
     AppendMenu(gAppleMenu, "\002(-");

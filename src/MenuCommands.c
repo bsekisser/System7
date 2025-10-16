@@ -13,6 +13,7 @@
 #include "ControlPanels/Sound.h"
 #include "ControlPanels/Mouse.h"
 #include "ControlPanels/Keyboard.h"
+#include "ControlPanels/ControlStrip.h"
 #include "Datetime/datetime_cdev.h"
 
 #include <string.h>
@@ -197,6 +198,12 @@ static void HandleAppleMenu(short item)
     if (strcmp(itemName, "Keyboard...") == 0) {
         MENU_LOG_DEBUG("Apple Menu > Keyboard...\n");
         KeyboardPanel_Open();
+        return;
+    }
+
+    if (strcmp(itemName, "Control Strip...") == 0) {
+        MENU_LOG_DEBUG("Apple Menu > Control Strip...\n");
+        ControlStrip_Toggle();
         return;
     }
 
