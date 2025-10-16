@@ -640,12 +640,29 @@ void MacPaint_HandleKeyDown(int keyCode, int modifiers)
         }
     }
 
-    /* Handle tool selection with number keys (1-9, 0) */
-    if (keyCode >= 0x12 && keyCode <= 0x1D) {  /* 1-9 keys */
-        int toolID = keyCode - 0x12;  /* Convert to tool 0-8 */
-        if (toolID <= TOOL_RECT) {
-            MacPaint_SelectTool(toolID);
-        }
+    /* Handle tool selection with number keys (1-0) and letter shortcuts */
+    switch (keyCode) {
+        /* Number keys 1-0 for quick tool access */
+        case 0x12: MacPaint_SelectTool(TOOL_LASSO);       break;    /* 1 = Lasso */
+        case 0x13: MacPaint_SelectTool(TOOL_SELECT);      break;    /* 2 = Select */
+        case 0x14: MacPaint_SelectTool(TOOL_GRABBER);     break;    /* 3 = Grabber */
+        case 0x15: MacPaint_SelectTool(TOOL_TEXT);        break;    /* 4 = Text */
+        case 0x17: MacPaint_SelectTool(TOOL_FILL);        break;    /* 5 = Fill */
+        case 0x16: MacPaint_SelectTool(TOOL_SPRAY);       break;    /* 6 = Spray */
+        case 0x1A: MacPaint_SelectTool(TOOL_BRUSH);       break;    /* 7 = Brush */
+        case 0x1C: MacPaint_SelectTool(TOOL_PENCIL);      break;    /* 8 = Pencil */
+        case 0x19: MacPaint_SelectTool(TOOL_LINE);        break;    /* 9 = Line */
+        case 0x1D: MacPaint_SelectTool(TOOL_ERASE);       break;    /* 0 = Eraser */
+
+        /* Letter shortcuts for tools */
+        case 0x0F: MacPaint_SelectTool(TOOL_PENCIL);      break;    /* P = Pencil */
+        case 0x02: MacPaint_SelectTool(TOOL_BRUSH);       break;    /* B = Brush */
+        case 0x08: MacPaint_SelectTool(TOOL_ERASE);       break;    /* E = Eraser */
+        case 0x09: MacPaint_SelectTool(TOOL_FILL);        break;    /* F = Fill */
+        case 0x28: MacPaint_SelectTool(TOOL_LINE);        break;    /* L = Line */
+        case 0x01: MacPaint_SelectTool(TOOL_SPRAY);       break;    /* S = Spray */
+        case 0x32: MacPaint_SelectTool(TOOL_RECT);        break;    /* R = Rectangle */
+        case 0x0A: MacPaint_SelectTool(TOOL_OVAL);        break;    /* G = oVal (circle) */
     }
 }
 
