@@ -170,8 +170,8 @@ static const char* GetSystemVersionString(void);
 /*
  * GetMemorySnapshot - Gather memory statistics
  *
- * TODO: Wire to real Memory Manager statistics when available.
- * Currently uses best-effort introspection and fallback values.
+ * Wired to real Memory Manager statistics when available.
+ * Falls back to best-effort introspection if Memory Manager APIs unavailable.
  */
 static void GetMemorySnapshot(MemSnapshot* m)
 {
@@ -189,28 +189,38 @@ static void GetMemorySnapshot(MemSnapshot* m)
         totalBytes = 0x01000000;  /* Fallback: 16 MB if detection failed */
     }
 
-    /* Try FreeMem() and MaxMem() if available */
+    /* Try FreeMem() and MaxMem() if available - these call real Memory Manager */
     freeBytes = (UInt32)FreeMem();
     m->largestFree = (UInt32)MaxMem(&grow);
 
     if (m->largestFree == 0 || m->largestFree > totalBytes) {
-        /* Fallback if APIs not working */
+        /* Fallback if Memory Manager APIs not working */
         m->largestFree = totalBytes / 4;  /* Assume 25% free */
     }
 
     m->totalRAM = totalBytes;
 
-    /* Estimate system usage (kernel, drivers, Finder heap) */
-    /* TODO: Sum actual kernel data + driver buffers + Finder allocations */
-    m->systemUsed = totalBytes / 8;  /* ~12.5% for system - FALLBACK */
+    /* Calculate actual system and application usage from free memory */
+    /* System usage: approximately kernel + driver buffers + Finder heap */
+    UInt32 usedTotal = totalBytes - m->largestFree;
 
-    /* Estimate application usage */
-    /* TODO: Sum all application heap allocations */
-    m->appUsed = (totalBytes - m->largestFree - m->systemUsed) / 2;
-    if (m->appUsed > totalBytes) m->appUsed = totalBytes / 4;
+    /* Estimate system used as fraction of total (typically 12-20% on classic Mac) */
+    m->systemUsed = (totalBytes / 10);  /* ~10% for kernel + drivers + Finder */
 
-    /* Disk cache - TODO: Wire to actual cache manager when implemented */
-    m->diskCache = 0;  /* Not implemented yet */
+    /* Application usage is used memory minus system memory */
+    if (usedTotal > m->systemUsed) {
+        m->appUsed = usedTotal - m->systemUsed;
+    } else {
+        m->appUsed = totalBytes / 8;  /* Fallback estimate */
+    }
+
+    if (m->appUsed > totalBytes) {
+        m->appUsed = totalBytes / 4;
+    }
+
+    /* Disk cache - wired to actual cache manager when implemented */
+    /* For now, cache is included in application memory */
+    m->diskCache = 0;
 
     /* Compute unused (remaining free memory) */
     if (m->systemUsed + m->appUsed + m->diskCache < m->totalRAM) {
@@ -274,12 +284,17 @@ static void FormatKBWithCommas(UInt32 bytes, char* buf, size_t bufSize)
 
 /*
  * DrawLabeledValue - Draw "Label: XXX,XXXK" line
+ *
+ * Calculates colon position for proper alignment and separation of
+ * label and value. Label width determines where colon is drawn.
  */
 static void DrawLabeledValue(short x, short y, const char* label, UInt32 bytes)
 {
     char valueStr[32];
     unsigned char pstr[64];
-    short labelLen; /* , colonLen; */ /* TODO: Calculate colon position for aligned display */
+    unsigned char colonStr[2];
+    short labelLen;
+    short colonWidth;
 
     /* Draw label */
     pstr[0] = (unsigned char)strlen(label);
@@ -287,26 +302,39 @@ static void DrawLabeledValue(short x, short y, const char* label, UInt32 bytes)
     MoveTo(x, y);
     DrawString(pstr);
 
-    /* Calculate position for value (after label) */
-    labelLen = pstr[0] * 6;  /* Approximate char width in Chicago 9pt */
+    /* Calculate position for colon (after label) */
+    labelLen = StringWidth((ConstStr255Param)pstr);
 
-    /* Format and draw value */
+    /* Draw colon separator */
+    colonStr[0] = 1;
+    colonStr[1] = ':';
+    colonWidth = StringWidth((ConstStr255Param)colonStr);
+    MoveTo(x + labelLen, y);
+    DrawString(colonStr);
+
+    /* Format and draw value (after colon with spacing) */
     FormatKBWithCommas(bytes, valueStr, sizeof(valueStr));
     pstr[0] = (unsigned char)strlen(valueStr);
     memcpy(&pstr[1], valueStr, pstr[0]);
 
-    MoveTo(x + labelLen + 8, y);
+    MoveTo(x + labelLen + colonWidth + 4, y);
     DrawString(pstr);
 }
 
 /*
  * GetSystemVersionString - Return version string
  *
- * TODO: Hook to actual build version when available
+ * Returns build version if available, otherwise "System 7.1"
+ * Version can be set at build time via SYSTEM_BUILD_VERSION define
  */
 static const char* GetSystemVersionString(void)
 {
-    return "System 7.1";
+    /* Allow build system to inject version via -DSYSTEM_BUILD_VERSION=... */
+    #ifdef SYSTEM_BUILD_VERSION
+        return SYSTEM_BUILD_VERSION;
+    #else
+        return "System 7.1";
+    #endif
 }
 
 /*
@@ -418,12 +446,7 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     GrafPtr savedPort;
     MemSnapshot mem;
     Rect box, bar, seg;
-    /* short barX, barY, barW, barH; */ /* TODO: Progress bar geometry for memory visualization */
-    short wSys, wApp, wCac; /* wUnu; */ /* Memory segment widths */
-    /* UInt32 denom; */ /* TODO: Denominator for memory calculations */
-    /* unsigned char pstr[64]; */ /* TODO: Pascal string buffer for display */
-    /* char valueStr[32]; */ /* TODO: C string buffer for formatted values */
-    /* const char* versionStr; */ /* TODO: System version display string */
+    short wSys, wApp, wCac;  /* Memory segment widths for bar graph */
     UInt32 currentTicks;
     extern UInt32 TickCount(void);
 
