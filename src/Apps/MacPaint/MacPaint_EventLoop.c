@@ -727,13 +727,42 @@ void MacPaint_ProcessIdleTime(void)
     /* Update animated elements (marching ants, blinking cursors, etc) */
     MacPaint_UpdateAnimations();
 
-    /* Update cursor position dynamically if mouse is over window
-     * This allows cursor to change based on hover position
-     */
-    if (!gEventState.mouseDown) {
-        int x, y;
-        MacPaint_GetLastMousePosition(&x, &y);
-        MacPaint_UpdateCursorPosition(x, y);
+    /* Handle continuous mouse tracking for drawing operations */
+    if (gEventState.mouseDown) {
+        /* Check if mouse button is still down */
+        if (StillDown()) {
+            /* Get current mouse position */
+            Point mouseLoc;
+            GetMouse(&mouseLoc);
+
+            /* Convert to local window coordinates */
+            GrafPtr port = MacPaint_GetWindowPort(gEventState.paintWindow);
+            if (port) {
+                int localX = mouseLoc.h - port->portRect.left;
+                int localY = mouseLoc.v - port->portRect.top;
+
+                /* Process continuous drawing via drag handler */
+                MacPaint_HandleMouseDragEvent(localX, localY);
+            }
+        } else {
+            /* Mouse button was released - finalize drawing */
+            gEventState.mouseDown = 0;
+            gEventState.dragInProgress = 0;
+            MacPaint_InvalidatePaintArea();
+        }
+    } else {
+        /* Mouse not down - update cursor position dynamically
+         * This allows cursor to change based on hover position
+         */
+        Point mouseLoc;
+        GetMouse(&mouseLoc);
+
+        GrafPtr port = MacPaint_GetWindowPort(gEventState.paintWindow);
+        if (port) {
+            int localX = mouseLoc.h - port->portRect.left;
+            int localY = mouseLoc.v - port->portRect.top;
+            MacPaint_UpdateCursorPosition(localX, localY);
+        }
     }
 
     /* TODO: Additional background tasks
