@@ -139,11 +139,53 @@ void MacPaint_Render(void);
 void MacPaint_InvalidateRect(Rect *rect);
 
 /*
+ * Menu and Event System (from MacPaint_Menus.c)
+ */
+void MacPaint_InitializeMenus(void);
+void MacPaint_UpdateMenus(void);
+void MacPaint_HandleMenuCommand(int menuID, int menuItem);
+void MacPaint_HandleMouseDown(int x, int y, int modifiers);
+void MacPaint_HandleMouseDrag(int x, int y);
+void MacPaint_HandleMouseUp(int x, int y);
+void MacPaint_HandleKeyDown(int keyCode, int modifiers);
+void MacPaint_GetMenuState(int *gridShown, int *fatBitsActive,
+                          int *undoAvailable, int *selectionActive);
+void MacPaint_SetMenuState(int gridShown, int fatBitsActive,
+                          int undoAvailable, int selectionActive);
+void MacPaint_SetClipboardState(int hasContent);
+const char* MacPaint_GetWindowTitle(void);
+int MacPaint_IsMenuItemAvailable(int menuID, int menuItem);
+
+/*
+ * File Menu Operations
+ */
+void MacPaint_FileNew(void);
+void MacPaint_FileOpen(void);
+void MacPaint_FileClose(void);
+void MacPaint_FileSave(void);
+void MacPaint_FileSaveAs(void);
+void MacPaint_FilePrint(void);
+void MacPaint_FileQuit(void);
+
+/*
+ * Edit Menu Operations
+ */
+void MacPaint_EditUndo(void);
+void MacPaint_EditCut(void);
+void MacPaint_EditCopy(void);
+void MacPaint_EditPaste(void);
+void MacPaint_EditClear(void);
+void MacPaint_EditInvert(void);
+void MacPaint_EditFill(void);
+void MacPaint_EditSelectAll(void);
+
+/*
  * Global State Access (from MacPaint_Core.c)
  */
 extern BitMap gPaintBuffer;
 extern char gDocName[64];
 extern int gDocDirty;
+extern int gCurrentTool;
 
 #ifdef __cplusplus
 }

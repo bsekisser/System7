@@ -47,7 +47,7 @@ int gDocDirty = 0;             /* Exposed for file I/O */
 static UInt32 gWorkSize = 0;
 
 /* Tool State */
-static int gCurrentTool = TOOL_PENCIL;  /* Using TOOL_* constants from MacPaint.h */
+int gCurrentTool = TOOL_PENCIL;  /* Exposed for menus and event handlers */
 static int gLineSize = 1;
 static Pattern gCurrentPattern;
 static Rect gSelectionRect;

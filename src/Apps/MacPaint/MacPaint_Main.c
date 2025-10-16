@@ -61,108 +61,15 @@ cleanup:
 }
 
 /*
- * EVENT HANDLING
- */
-
-/**
- * MacPaint_HandleMouseDown - Process mouse clicks
+ * EVENT HANDLING - Implemented in MacPaint_Menus.c
+ * - MacPaint_HandleMouseDown: mouse clicks and tool selection
+ * - MacPaint_HandleMouseDrag: continuous drawing during drag
+ * - MacPaint_HandleMouseUp: release and finalize drawing
+ * - MacPaint_HandleKeyDown: keyboard shortcuts and tool selection
  *
- * Routes mouse events to appropriate tool handler:
- * - Pencil/Brush: draw continuous line
- * - Eraser: erase pixels
- * - Line: draw straight line from press to release
- * - Rectangle: draw rect from press point to release
- * - Fill: flood fill from click point
- * - Select: select rectangular region
- * - Text: place text cursor and enable text entry
+ * MENU HANDLING - Implemented in MacPaint_Menus.c
+ * - MacPaint_HandleMenuCommand: File, Edit, Aids menu operations
  */
-void MacPaint_HandleMouseDown(Point pt, int modifiers)
-{
-    /* TODO: Implement based on current tool */
-}
-
-/**
- * MacPaint_HandleMouseDrag - Process mouse movement during drag
- */
-void MacPaint_HandleMouseDrag(Point pt, int modifiers)
-{
-    /* TODO: Update drawing based on current tool */
-}
-
-/**
- * MacPaint_HandleMouseUp - Process mouse button release
- */
-void MacPaint_HandleMouseUp(Point pt, int modifiers)
-{
-    /* TODO: Finalize any drawing operation in progress */
-}
-
-/**
- * MacPaint_HandleKeyDown - Process keyboard input
- *
- * Keyboard shortcuts:
- * - 1-9: Select tool 1-9
- * - +/-: Increase/decrease line size
- * - P: Pattern editor
- * - B: Brush editor
- * - Z: Undo
- * - X: Cut
- * - C: Copy
- * - V: Paste
- * - A: Select all
- * - S: Save
- * - O: Open
- * - N: New
- * - Q: Quit
- */
-void MacPaint_HandleKeyDown(char key, int modifiers)
-{
-    /* TODO: Handle keyboard shortcuts */
-}
-
-/*
- * MENU HANDLING
- */
-
-/**
- * MacPaint_HandleMenuCommand - Process menu selections
- */
-void MacPaint_HandleMenuCommand(int menuID, int itemID)
-{
-    switch (menuID) {
-        case 2: /* File Menu */
-            switch (itemID) {
-                case 1: MacPaint_NewDocument(); break;       /* New */
-                case 2: /* Open */; break;                   /* TODO: Open dialog */
-                case 3: /* Close */; break;                  /* TODO: Close document */
-                case 4: /* Save */; break;                   /* TODO: Save dialog */
-                case 5: /* Save As */; break;                /* TODO: Save As dialog */
-                case 10: /* Quit */; break;                  /* TODO: Quit with save prompts */
-            }
-            break;
-
-        case 3: /* Edit Menu */
-            switch (itemID) {
-                case 1: /* Undo */; break;                   /* TODO: Undo last operation */
-                case 3: /* Cut */; break;                    /* TODO: Cut selection */
-                case 4: /* Copy */; break;                   /* TODO: Copy selection */
-                case 5: /* Paste */; break;                  /* TODO: Paste from scrap */
-                case 6: /* Clear */; break;                  /* TODO: Clear selection */
-                case 8: /* Invert */; break;                 /* TODO: Invert colors */
-                case 9: /* Fill */; break;                   /* TODO: Fill */
-            }
-            break;
-
-        case 4: /* Aids Menu (Tools/Options) */
-            switch (itemID) {
-                case 1: /* Grid */; break;                   /* TODO: Toggle grid */
-                case 2: /* Fat bits */; break;               /* TODO: Zoom view */
-                case 4: /* Pattern Editor */; break;         /* TODO: Pattern editor dialog */
-                case 5: /* Brush Editor */; break;           /* TODO: Brush editor dialog */
-            }
-            break;
-    }
-}
 
 /*
  * RENDERING AND UPDATES
