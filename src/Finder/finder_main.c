@@ -281,13 +281,7 @@ static OSErr SetupMenus(void)
        fall back to a high ID unlikely to collide. */
     const short appMenuID = (short)0xBF97; /* kApplicationMenuID */
     MenuHandle appMenu = NewMenu(appMenuID, (ConstStr255Param)"\000");
-    if (appMenu) {
-        serial_puts("Finder: Application menu handle created\n");
-    } else {
-        serial_puts("Finder: Failed to create application menu handle\n");
-    }
     InsertMenu(appMenu, 0);
-    serial_puts("Finder: InsertMenu for application menu issued\n");
 
     extern void serial_puts(const char* str);
     serial_puts("Finder: About to call DrawMenuBar\n");

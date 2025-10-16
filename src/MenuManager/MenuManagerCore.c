@@ -388,6 +388,9 @@ void DrawMenuBar(void)
     SetRect(&menuBarRect, 0, 0, qd.screenBits.bounds.right, 20);
 
     /* Clear menu bar area with white */
+    BackColor(whiteColor);
+    ForeColor(blackColor);
+    PenNormal();
     ClipRect(&menuBarRect);
     FillRect(&menuBarRect, &qd.white);  /* White background */
 
@@ -402,6 +405,8 @@ void DrawMenuBar(void)
 
     /* Draw menu titles */
     short x = 0;
+    UpdateMenuBarLayout();
+
     serial_puts("DrawMenuBar: Checking menu state...\n");
     if (gMenuMgrState) {
         serial_puts("DrawMenuBar: gMenuMgrState exists\n");
@@ -448,12 +453,7 @@ void DrawMenuBar(void)
 
                     /* Draw Finder application icon regardless of title length */
                     if (mptr->menuID == (short)kApplicationMenuID) {
-                        char debugBuf[64];
-                        snprintf(debugBuf, sizeof(debugBuf), "MenuAppIcon_Draw at x=%d\n", x);
-                        serial_puts(debugBuf);
                         menuWidth = MenuAppIcon_Draw(qd.thePort, x, 0, false);
-                        snprintf(debugBuf, sizeof(debugBuf), "MenuAppIcon width=%d\n", menuWidth);
-                        serial_puts(debugBuf);
                         AddMenuTitle(mptr->menuID, x, menuWidth, "Application");
                         x += menuWidth;
                         continue;
@@ -977,6 +977,44 @@ static MenuHandle FindMenuInList(short menuID)
     return NULL;
 }
 
+static short MeasureMenuTitleWidth(short menuID)
+{
+    const short kIconMenuWidth = 24;
+    const short kFallbackWidth = 48;
+    const short kPadding = 12;
+
+    if (menuID == 128 || menuID == (short)kApplicationMenuID) {
+        return kIconMenuWidth;
+    }
+
+    MenuHandle menu = GetMenuHandle(menuID);
+    if (menu == NULL) {
+        return kFallbackWidth;
+    }
+
+    unsigned char titleLen = (**menu).menuData[0];
+    if (titleLen == 0) {
+        return kFallbackWidth;
+    }
+    Str255 title;
+    title[0] = titleLen;
+    memcpy(&title[1], &(**menu).menuData[1], titleLen);
+
+    GrafPtr savePort;
+    GetPort(&savePort);
+    if (qd.thePort) {
+        SetPort(qd.thePort);
+    }
+
+    short textWidth = StringWidth((ConstStr255Param)title);
+
+    if (savePort) {
+        SetPort(savePort);
+    }
+
+    return textWidth + kPadding;
+}
+
 /*
  * UpdateMenuBarLayout - Update menu bar layout
  */
@@ -996,26 +1034,35 @@ static void UpdateMenuBarLayout(void)
     short screenWidth = qd.screenBits.bounds.right;
     systemRight = screenWidth;
 
+    const short kMenuSpacing = 12;
     for (int i = 0; i < menuBar->numMenus; i++) {
         short id = menuBar->menus[i].menuID;
-        short menuWidth;
-        /* Use tighter width for icon-only menus (Apple, Application) */
-        if (id == 128 || id == (short)kApplicationMenuID) menuWidth = 20; else menuWidth = 80;
+        short menuWidth = MeasureMenuTitleWidth(id);
 
         /* Treat classic system menu IDs and Application menu as right-aligned */
         if ((id >= (short)0xB000 && id <= (short)0xBFFF) || id == (short)0xBF97) {
             systemRight -= menuWidth;
             menuBar->menus[i].menuLeft = systemRight;
             menuBar->menus[i].menuWidth = menuWidth;
+            systemRight -= kMenuSpacing;
         } else {
             menuBar->menus[i].menuLeft = currentLeft;
             menuBar->menus[i].menuWidth = menuWidth;
-            currentLeft += menuWidth;
+            currentLeft += menuWidth + kMenuSpacing;
         }
     }
 
-    menuBar->totalWidth = screenWidth;
-    menuBar->lastRight = screenWidth;
+    if (currentLeft > 0 && currentLeft >= kMenuSpacing) {
+        currentLeft -= kMenuSpacing; /* remove trailing spacing */
+    }
+
+    short usedRight = screenWidth - systemRight;
+    if (usedRight >= kMenuSpacing) {
+        usedRight -= kMenuSpacing;
+    }
+
+    menuBar->totalWidth = currentLeft + usedRight;
+    menuBar->lastRight = systemRight >= 0 ? systemRight + kMenuSpacing : screenWidth;
 }
 
 /*
