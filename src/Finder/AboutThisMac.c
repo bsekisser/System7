@@ -12,6 +12,7 @@
 #include "Finder/finder.h"
 #include "QuickDraw/QuickDraw.h"
 #include "Platform/platform_info.h"
+#include "Gestalt/Gestalt.h"
 #include "Platform/include/boot.h"
 
 extern void DisposeGWorld(GWorldPtr offscreenGWorld);

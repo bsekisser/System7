@@ -18,6 +18,11 @@
 #ifndef DEFAULT_GESTALT_MACHINE_TYPE
 #define DEFAULT_GESTALT_MACHINE_TYPE 0
 #endif
+
+#if defined(__powerpc__) || defined(__powerpc64__)
+static OSErr gestalt_mmap(long *response);
+#endif
+
 #ifndef DEFAULT_BEZEL_STYLE
 #define DEFAULT_BEZEL_STYLE 0
 #endif
@@ -343,16 +348,6 @@ static void populate_ppc_memory_map_cache(void) {
         g_ppc_memory_map_cache[0] = 0;
         g_ppc_memory_map_cached = 1;
         return;
-    }
-
-    uint32_t total_sizes = 0;
-    for (size_t i = 0; i < copied; ++i) {
-        uint64_t size = ranges[i].size;
-        if (size > UINT32_MAX) {
-            total_sizes += UINT32_MAX;
-        } else {
-            total_sizes += (uint32_t)size;
-        }
     }
 
     g_ppc_memory_map_cache[0] = (long)copied;

@@ -1,12 +1,16 @@
 /* HFS Disk I/O Implementation */
 #include "../../include/FS/hfs_diskio.h"
 #include "../../include/MemoryMgr/MemoryManager.h"
-#if !defined(__arm__) && !defined(__aarch64__)
+#if !defined(__arm__) && !defined(__aarch64__) && !defined(HFS_DISABLE_ATA) && !defined(HFS_DISABLE_ATA)
 #include "../../include/ATA_Driver.h"
 #endif
 #include "Platform/include/storage.h"
 #include <string.h>
 #include "FS/FSLogging.h"
+
+#if defined(__powerpc__) || defined(__powerpc64__)
+#define HFS_DISABLE_ATA 1
+#endif
 
 /* For now, we'll use memory-based implementation */
 /* Later this can be extended to use real file I/O */
@@ -48,7 +52,7 @@ bool HFS_BD_InitFile(HFS_BlockDev* bd, const char* path, bool readonly) {
 }
 
 bool HFS_BD_InitATA(HFS_BlockDev* bd, int device_index, bool readonly) {
-#if defined(__arm__) || defined(__aarch64__)
+#if defined(__arm__) || defined(__aarch64__) || defined(HFS_DISABLE_ATA)
     (void)bd;
     (void)device_index;
     (void)readonly;
@@ -91,7 +95,7 @@ bool HFS_BD_InitSDHCI(HFS_BlockDev* bd, int drive_index, bool readonly) {
     /* Initialize block device for SDHCI SD card (ARM/Raspberry Pi)
      * Uses HAL storage interface for cross-platform compatibility
      */
-    #if defined(__arm__) || defined(__aarch64__)
+    #if defined(__arm__) || defined(__aarch64__) || defined(HFS_DISABLE_ATA)
 
     if (!bd) return false;
 
@@ -127,7 +131,7 @@ bool HFS_BD_Read(HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t lengt
     if (!bd || !buffer) return false;
     if (offset + length > bd->size) return false;
 
-#if !defined(__arm__) && !defined(__aarch64__)
+#if !defined(__arm__) && !defined(__aarch64__) && !defined(HFS_DISABLE_ATA)
     if (bd->type == HFS_BD_TYPE_ATA) {
         /* ATA device - read sectors */
         ATADevice* ata_dev = ATA_GetDevice(bd->device_index);
@@ -159,7 +163,7 @@ bool HFS_BD_Read(HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t lengt
 #endif
     if (bd->type == HFS_BD_TYPE_SDHCI) {
         /* SDHCI SD card - read blocks via HAL */
-        #if defined(__arm__) || defined(__aarch64__)
+        #if defined(__arm__) || defined(__aarch64__) || defined(HFS_DISABLE_ATA)
 
         /* Calculate block alignment */
         uint32_t start_block = (uint32_t)offset / bd->sectorSize;
@@ -199,7 +203,7 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
     if (bd->readonly) return false;
     if (offset + length > bd->size) return false;
 
-#if !defined(__arm__) && !defined(__aarch64__)
+#if !defined(__arm__) && !defined(__aarch64__) && !defined(HFS_DISABLE_ATA)
     if (bd->type == HFS_BD_TYPE_ATA) {
         /* ATA device - write sectors */
         ATADevice* ata_dev = ATA_GetDevice(bd->device_index);
@@ -237,7 +241,7 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
 #endif
     if (bd->type == HFS_BD_TYPE_SDHCI) {
         /* SDHCI SD card - write blocks via HAL */
-        #if defined(__arm__) || defined(__aarch64__)
+        #if defined(__arm__) || defined(__aarch64__) || defined(HFS_DISABLE_ATA)
 
         /* Calculate block alignment */
         uint32_t start_block = (uint32_t)offset / bd->sectorSize;
@@ -281,7 +285,7 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
 void HFS_BD_Close(HFS_BlockDev* bd) {
     if (!bd) return;
 
-#if !defined(__arm__) && !defined(__aarch64__)
+#if !defined(__arm__) && !defined(__aarch64__) && !defined(HFS_DISABLE_ATA)
     if (bd->type == HFS_BD_TYPE_ATA) {
         /* Flush ATA device cache before closing */
         ATADevice* ata_dev = ATA_GetDevice(bd->device_index);
@@ -322,7 +326,7 @@ bool HFS_BD_WriteSector(HFS_BlockDev* bd, uint32_t sector, const void* buffer) {
 bool HFS_BD_Flush(HFS_BlockDev* bd) {
     if (!bd) return false;
 
-#if !defined(__arm__) && !defined(__aarch64__)
+#if !defined(__arm__) && !defined(__aarch64__) && !defined(HFS_DISABLE_ATA)
     if (bd->type == HFS_BD_TYPE_ATA) {
         /* Flush ATA device cache */
         ATADevice* ata_dev = ATA_GetDevice(bd->device_index);

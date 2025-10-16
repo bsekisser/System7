@@ -36,6 +36,13 @@ static ofw_memory_range_t g_memory_ranges[OFW_MAX_MEMORY_RANGES];
 static size_t g_memory_range_count = 0;
 static char g_stdout_path[128] = {0};
 
+static char ofw_ascii_tolower(char c) {
+    if (c >= 'A' && c <= 'Z') {
+        return (char)(c + ('a' - 'A'));
+    }
+    return c;
+}
+
 static const char kServiceFindDevice[] = "finddevice";
 static const char kServiceGetProp[] = "getprop";
 static const char kServiceOpen[] = "open";
@@ -446,9 +453,10 @@ int ofw_get_framebuffer_info(ofw_framebuffer_info_t *out) {
     }
 
     char lowered[128];
-    size_t plen = strnlen(path, sizeof(path) - 1);
-    for (size_t i = 0; i < plen; ++i) {
-        lowered[i] = (char)tolower((unsigned char)path[i]);
+    size_t plen = 0;
+    while (plen < sizeof(lowered) - 1 && path[plen] != '\0') {
+        lowered[plen] = ofw_ascii_tolower(path[plen]);
+        ++plen;
     }
     lowered[plen] = '\0';
 

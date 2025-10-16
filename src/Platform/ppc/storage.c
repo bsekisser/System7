@@ -6,6 +6,8 @@
  * missing functionality.
  */
 
+#include <string.h>
+
 #include "Platform/include/storage.h"
 #include "Errors/ErrorCodes.h"
 
