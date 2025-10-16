@@ -11,6 +11,10 @@
 # Platform configuration
 PLATFORM ?= x86
 
+# Raspberry Pi model selection (for ARM platform builds)
+# Valid values: pi3, pi4, pi5 (or leave empty for runtime detection)
+PI_MODEL ?=
+
 # Load build configuration (default or user-specified)
 CONFIG ?= default
 -include config/$(CONFIG).mk
@@ -26,10 +30,40 @@ HAL_DIR = src/Platform/$(PLATFORM)
 KERNEL = kernel.elf
 ISO = system71.iso
 
-# Platform-specific toolchain configuration
+# Raspberry Pi model-specific configuration
 ifeq ($(PLATFORM),arm)
+    # Validate PI_MODEL if specified
+    ifneq ($(PI_MODEL),)
+        ifeq ($(filter $(PI_MODEL),pi3 pi4 pi5),)
+            $(error Invalid PI_MODEL '$(PI_MODEL)'. Valid values: pi3, pi4, pi5)
+        endif
+    endif
+
+    # Set ARM architecture based on Pi model
+    ifeq ($(PI_MODEL),pi3)
+        ARM_ARCH = armv6z
+        PI_CPU_NAME = "ARM Cortex-A53"
+        PI_CPU_FREQ = 1200
+        CFLAGS_PI = -march=armv6z -mfpu=neon -mfloat-abi=hard -DRASPI_MODEL=3 -DRASPI_CPU_FREQ=1200
+    else ifeq ($(PI_MODEL),pi4)
+        ARM_ARCH = armv7-a
+        PI_CPU_NAME = "ARM Cortex-A72"
+        PI_CPU_FREQ = 1500
+        CFLAGS_PI = -march=armv7-a -mfpu=neon -mfloat-abi=hard -DRASPI_MODEL=4 -DRASPI_CPU_FREQ=1500
+    else ifeq ($(PI_MODEL),pi5)
+        ARM_ARCH = armv7-a
+        PI_CPU_NAME = "ARM Cortex-A76"
+        PI_CPU_FREQ = 2400
+        CFLAGS_PI = -march=armv7-a -mfpu=neon -mfloat-abi=hard -DRASPI_MODEL=5 -DRASPI_CPU_FREQ=2400
+    else
+        # Default ARM architecture (runtime detection)
+        ARM_ARCH = armv7-a
+        PI_CPU_NAME = "ARM Cortex"
+        PI_CPU_FREQ = 0
+        CFLAGS_PI = -march=armv7-a -mfpu=neon -mfloat-abi=hard
+    endif
+
     # ARM cross-compiler configuration
-    ARM_ARCH ?= armv7-l
     ARM_TARGET ?= arm-linux-gnueabihf
     CROSS_COMPILE ?= arm-linux-gnueabihf-
     CC = $(CROSS_COMPILE)gcc
@@ -75,13 +109,29 @@ COMMON_CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 -DTM_SMOKE_TEST \
 
 # Platform-specific compiler flags
 ifeq ($(PLATFORM),arm)
-    # ARM 32-bit (ARMv7-A)
-    CFLAGS = $(COMMON_CFLAGS) -march=armv7-a -mfpu=neon -mfloat-abi=hard
+    # ARM 32-bit with PI_MODEL-specific architecture
+    CFLAGS = $(COMMON_CFLAGS) $(CFLAGS_PI)
     ASFLAGS =
     LDFLAGS = -nostdlib -no-pie
-    # ARM machine type for Gestalt (will be set to 'rpi3', 'rpi4', or 'rpi5')
-    ifeq ($(strip $(GESTALT_MACHINE_TYPE)),)
-      GESTALT_MACHINE_TYPE := arm_pi3
+
+    # Set Gestalt machine type based on PI_MODEL
+    ifeq ($(PI_MODEL),pi3)
+        ifeq ($(strip $(GESTALT_MACHINE_TYPE)),)
+          GESTALT_MACHINE_TYPE := arm_pi3
+        endif
+    else ifeq ($(PI_MODEL),pi4)
+        ifeq ($(strip $(GESTALT_MACHINE_TYPE)),)
+          GESTALT_MACHINE_TYPE := arm_pi4
+        endif
+    else ifeq ($(PI_MODEL),pi5)
+        ifeq ($(strip $(GESTALT_MACHINE_TYPE)),)
+          GESTALT_MACHINE_TYPE := arm_pi5
+        endif
+    else
+        # Default for runtime detection
+        ifeq ($(strip $(GESTALT_MACHINE_TYPE)),)
+          GESTALT_MACHINE_TYPE := arm_pi3
+        endif
     endif
 else
     # x86 32-bit
@@ -502,10 +552,23 @@ clean:
 
 # Show compilation info
 info:
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "  Build Information"
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "Platform: $(PLATFORM)"
+	@if [ "$(PLATFORM)" = "arm" ]; then \
+		echo "Pi Model: $(if $(PI_MODEL),$(PI_MODEL),runtime-detected)"; \
+		echo "ARM Architecture: $(ARM_ARCH)"; \
+		echo "CPU: $(PI_CPU_NAME) @ $(PI_CPU_FREQ) MHz"; \
+	fi
 	@echo "C Sources: $(words $(C_SOURCES)) files"
-	@echo "Source Files: $(words $(ASM_SOURCES)) files"
+	@echo "ASM Sources: $(words $(ASM_SOURCES)) files"
 	@echo "Total Objects: $(words $(OBJECTS)) files"
-	@echo "Use: make import-icons ICON_DIR=/path/to/pngs"
+	@echo ""
+	@echo "Usage Examples:"
+	@echo "  make import-icons ICON_DIR=/path/to/pngs"
+	@echo "  make PLATFORM=arm PI_MODEL=pi4 clean all"
+	@echo "════════════════════════════════════════════════════════════════"
 
 # Check exported symbols against allowlist
 check-exports: kernel.elf
@@ -519,7 +582,7 @@ help: ## Show this help message
 	@echo "════════════════════════════════════════════════════════════════"
 	@echo ""
 	@echo "USAGE:"
-	@echo "  make [target] [CONFIG=<config>] [options]"
+	@echo "  make [target] [PLATFORM=...] [PI_MODEL=...] [CONFIG=...] [options]"
 	@echo ""
 	@echo "MAIN TARGETS:"
 	@echo "  all              Build kernel (default target)"
@@ -533,6 +596,16 @@ help: ## Show this help message
 	@echo "  info             Show build statistics"
 	@echo "  help             Show this help message"
 	@echo "  import-icons ICON_DIR=...   Generate C icon resources from PNGs"
+	@echo ""
+	@echo "PLATFORM OPTIONS:"
+	@echo "  PLATFORM=x86     Build for x86 (default)"
+	@echo "  PLATFORM=arm     Build for ARM (Raspberry Pi)"
+	@echo ""
+	@echo "RASPBERRY PI MODEL OPTIONS (ARM only):"
+	@echo "  PI_MODEL=pi3     Build for Raspberry Pi 3 (ARMv6z, Cortex-A53)"
+	@echo "  PI_MODEL=pi4     Build for Raspberry Pi 4 (ARMv7-A, Cortex-A72)"
+	@echo "  PI_MODEL=pi5     Build for Raspberry Pi 5 (ARMv7-A, Cortex-A76)"
+	@echo "  PI_MODEL=        Runtime detection (default)"
 
 .PHONY: import-icons
 import-icons:
@@ -544,14 +617,24 @@ import-icons:
 .PHONY: build-configurations
 
 build-configurations:
-	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
 	@echo "BUILD CONFIGURATIONS:"
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "CONFIG OPTIONS (stored in config/*.mk):"
 	@echo "  CONFIG=default   Standard development build (default)"
 	@echo "  CONFIG=debug     Debug build with smoke tests enabled"
 	@echo "  CONFIG=release   Optimized release build"
 	@echo ""
-	@echo "CONFIGURATION OPTIONS (override in config/*.mk or command line):"
-	@echo "  PLATFORM=<name>          Target platform (default: x86)"
+	@echo "PLATFORM AND MODEL OPTIONS:"
+	@echo "  PLATFORM=x86             Build for x86 PC (default)"
+	@echo "  PLATFORM=arm             Build for ARM (Raspberry Pi)"
+	@echo "  PI_MODEL=pi3             Raspberry Pi 3 (ARMv6z, 1.2 GHz Cortex-A53)"
+	@echo "  PI_MODEL=pi4             Raspberry Pi 4 (ARMv7-A, 1.5 GHz Cortex-A72)"
+	@echo "  PI_MODEL=pi5             Raspberry Pi 5 (ARMv7-A, 2.4 GHz Cortex-A76)"
+	@echo "  PI_MODEL=                Runtime detection (default)"
+	@echo ""
+	@echo "FEATURE FLAGS (override in config/*.mk or command line):"
 	@echo "  ENABLE_RESOURCES=1       Enable Resource Manager"
 	@echo "  ENABLE_FILEMGR_EXTRA=1   Enable File Manager extras"
 	@echo "  ENABLE_PROCESS_COOP=1    Enable cooperative scheduling"
@@ -565,16 +648,27 @@ build-configurations:
 	@echo "  DEBUG_SYMBOLS=0/1        Include debug symbols"
 	@echo ""
 	@echo "EXAMPLES:"
-	@echo "  make                     Build with default configuration"
-	@echo "  make -j8                 Parallel build with 8 jobs"
-	@echo "  make CONFIG=debug        Build with debug configuration"
-	@echo "  make CONFIG=release iso  Build optimized ISO"
-	@echo "  make clean all           Clean rebuild"
-	@echo "  make CTRL_SMOKE_TEST=1   Build with control tests enabled"
+	@echo "  make                           Build x86 with defaults"
+	@echo "  make -j8                       Parallel build with 8 jobs"
+	@echo "  make CONFIG=debug              Build with debug configuration"
+	@echo "  make CONFIG=release iso        Build optimized ISO"
+	@echo "  make PLATFORM=arm PI_MODEL=pi4 Build for Raspberry Pi 4 explicitly"
+	@echo "  make PLATFORM=arm PI_MODEL=pi3 Build for Raspberry Pi 3"
+	@echo "  make PLATFORM=arm PI_MODEL=pi5 Build for Raspberry Pi 5"
+	@echo "  make PLATFORM=arm              Build with runtime Pi detection"
+	@echo "  make clean all                 Clean rebuild"
+	@echo "  make CTRL_SMOKE_TEST=1         Build with control tests"
+	@echo ""
+	@echo "BUILD INFORMATION:"
+	@echo "  Run 'make info' to see current build configuration details"
 	@echo ""
 	@echo "PARALLEL BUILDS:"
 	@echo "  Use 'make -j<N>' for parallel compilation (recommended)"
-	@echo "  Example: make -j\$(nproc)  # Use all CPU cores"
+	@echo "  Example: make -j\$$(nproc)      Use all CPU cores"
+	@echo ""
+	@echo "CROSS-COMPILATION:"
+	@echo "  ARM builds require arm-linux-gnueabihf cross-compiler"
+	@echo "  Install with: sudo apt-get install gcc-arm-linux-gnueabihf"
 	@echo ""
 	@echo "For more information, see docs/BUILD_SYSTEM_IMPROVEMENTS.md"
 	@echo "════════════════════════════════════════════════════════════════"
