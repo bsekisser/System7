@@ -22,6 +22,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "WindowManager/WindowManager.h"
 #include "FontManager/FontInternal.h"
+#include "EventManager/EventManager.h"
 
 extern QDGlobals qd;
 
@@ -137,6 +138,8 @@ void ControlStrip_Show(void)
     create_buttons();
     draw_contents();
     ShowWindow(gControlStrip.window);
+    SelectWindow(gControlStrip.window);
+    PostEvent(updateEvt, (UInt32)gControlStrip.window);
 }
 
 void ControlStrip_Hide(void)
