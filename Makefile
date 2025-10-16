@@ -26,10 +26,25 @@ HAL_DIR = src/Platform/$(PLATFORM)
 KERNEL = kernel.elf
 ISO = system71.iso
 
-# Tools
-CC = gcc
-AS = as
-LD = ld
+# Platform-specific toolchain configuration
+ifeq ($(PLATFORM),arm)
+    # ARM cross-compiler configuration
+    ARM_ARCH ?= armv7-l
+    ARM_TARGET ?= arm-linux-gnueabihf
+    CROSS_COMPILE ?= arm-linux-gnueabihf-
+    CC = $(CROSS_COMPILE)gcc
+    AS = $(CROSS_COMPILE)as
+    LD = $(CROSS_COMPILE)ld
+    OBJCOPY = $(CROSS_COMPILE)objcopy
+else
+    # x86 native compiler
+    CC = gcc
+    AS = as
+    LD = ld
+    OBJCOPY = objcopy
+endif
+
+# Common tools (non-platform specific)
 GRUB = grub-mkrescue
 
 # Flags
@@ -44,22 +59,40 @@ ifeq ($(DEBUG_SYMBOLS),1)
   OPT_FLAGS += -g
 endif
 
-CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 -DTM_SMOKE_TEST \
+# Platform-independent base flags
+COMMON_CFLAGS = -DSYS71_PROVIDE_FINDER_TOOLBOX=1 -DTM_SMOKE_TEST \
          -ffreestanding -fno-builtin -fno-stack-protector -nostdlib \
          -fno-pic -fno-pie \
          -Wall -Wextra -Wformat=2 -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wcast-qual \
          -Wpointer-arith -Wstrict-prototypes -Wno-unused-parameter \
          -Wundef -Wvla -Wcast-align -Wlogical-op -Wduplicated-cond -Wduplicated-branches \
          -Wnull-dereference -Wjump-misses-init -Warray-bounds=2 -Wshift-overflow=2 \
-         $(OPT_FLAGS) -fno-inline -fno-optimize-sibling-calls -I./include -I./src -std=c2x -m32 \
+         $(OPT_FLAGS) -fno-inline -fno-optimize-sibling-calls -I./include -I./src -std=c2x \
          -Wuninitialized -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 \
          -Wno-multichar -Wno-pointer-sign -Wno-sign-compare \
          -fno-common -fno-delete-null-pointer-checks \
          -MMD -MP
 
-ifeq ($(strip $(GESTALT_MACHINE_TYPE)),)
-  GESTALT_MACHINE_TYPE := 0
+# Platform-specific compiler flags
+ifeq ($(PLATFORM),arm)
+    # ARM 32-bit (ARMv7-A)
+    CFLAGS = $(COMMON_CFLAGS) -march=armv7-a -mfpu=neon -mfloat-abi=hard
+    ASFLAGS =
+    LDFLAGS = -nostdlib -no-pie
+    # ARM machine type for Gestalt (will be set to 'rpi3', 'rpi4', or 'rpi5')
+    ifeq ($(strip $(GESTALT_MACHINE_TYPE)),)
+      GESTALT_MACHINE_TYPE := arm_pi3
+    endif
+else
+    # x86 32-bit
+    CFLAGS = $(COMMON_CFLAGS) -m32
+    ASFLAGS = --32
+    LDFLAGS = -melf_i386 -nostdlib -no-pie
+    ifeq ($(strip $(GESTALT_MACHINE_TYPE)),)
+      GESTALT_MACHINE_TYPE := 0
+    endif
 endif
+
 CFLAGS += -DDEFAULT_GESTALT_MACHINE_TYPE=$(GESTALT_MACHINE_TYPE)
 
 BEZEL_STYLE ?= auto
@@ -84,8 +117,6 @@ endif
 ifeq ($(MODERN_INPUT_ONLY),1)
   CFLAGS += -DMODERN_INPUT_ONLY=1
 endif
-ASFLAGS = --32
-LDFLAGS = -melf_i386 -nostdlib -no-pie
 
 # Resource files
 RSRC_JSON = patterns.json
@@ -121,11 +152,16 @@ C_SOURCES = src/main.c \
             src/ColorManager/ColorManager.c \
             src/OSUtils/OSUtilsTraps.c \
             src/Platform/WindowPlatform.c \
-            src/Platform/x86/io.c \
-            src/Platform/x86/ata.c \
-            src/Platform/x86/ps2.c \
-            src/Platform/x86/hal_boot.c \
-            src/Platform/x86/hal_input.c \
+            $(if $(filter arm,$(PLATFORM)), \
+              src/Platform/arm/hal_boot.c \
+              src/Platform/arm/io.c \
+              src/Platform/arm/device_tree.c \
+              src/Platform/arm/mmio.c, \
+              src/Platform/x86/io.c \
+              src/Platform/x86/ata.c \
+              src/Platform/x86/ps2.c \
+              src/Platform/x86/hal_boot.c \
+              src/Platform/x86/hal_input.c) \
             src/SoundManager/SoundManagerBareMetal.c \
             src/SoundManager/SoundHardwarePC.c \
             src/SoundManager/SoundBackend.c \
@@ -374,7 +410,7 @@ vpath %.c src:src/System:src/QuickDraw:src/WindowManager:src/MenuManager:src/Con
           src/ScrapManager:src/ProcessMgr:src/TimeManager:src/SoundManager:src/FontManager \
           src/Gestalt:src/MemoryMgr:src/ResourceMgr:src/FileMgr:src/FS:src/Finder \
           src/Finder/Icon:src/DeskManager:src/ControlPanels:src/PatternMgr:src/Resources \
-          src/Resources/Icons:src/Apps/SimpleText:src/Platform:src/Platform/x86:src/PrintManager \
+          src/Resources/Icons:src/Apps/SimpleText:src/Platform:src/Platform/x86:src/Platform/arm:src/PrintManager \
           src/HelpManager:src/ComponentManager:src/EditionManager:src/NotificationManager \
           src/PackageManager:src/NetworkExtension:src/ColorManager:src/CommunicationToolbox \
           src/GestaltManager:src/SpeechManager:src/BootLoader \
@@ -403,7 +439,26 @@ build/obj/ultimate_stubs.o: src/ultimate_stubs.c
 	@echo "CC src/ultimate_stubs.c"
 	@$(CC) $(CFLAGS) -c src/ultimate_stubs.c -o build/obj/ultimate_stubs.o
 
-# ISO target
+# Platform-specific build targets
+ifeq ($(PLATFORM),arm)
+# ARM targets - create raw SD image
+sd: $(KERNEL)
+	@echo "Creating raw SD image for Raspberry Pi..."
+	@dd if=/dev/zero of=system71.img bs=512 count=20480
+	@dd if=$(KERNEL) of=system71.img bs=512 seek=2048 conv=notrunc
+	@echo "✓ SD image created: system71.img"
+
+iso: sd
+	@echo "Note: Use 'make sd' to create bootable SD card image"
+
+run: $(KERNEL)
+	@echo "Running ARM kernel in QEMU..."
+	qemu-system-arm -M raspi3 -kernel $(KERNEL) -m 512 -serial stdio -nographic
+
+debug: $(KERNEL)
+	qemu-system-arm -M raspi3 -kernel $(KERNEL) -m 512 -serial stdio -nographic -s -S
+else
+# x86 targets - create ISO image
 iso: $(ISO)
 
 $(ISO): $(KERNEL) grub.cfg | $(ISO_DIR)/boot/grub
@@ -422,6 +477,10 @@ run: $(ISO)
 # Debug with QEMU
 debug: $(ISO)
 	qemu-system-i386 -cdrom $(ISO) -drive file=test_disk.img,format=raw,if=ide -m 1024 -vga std -s -S
+
+sd:
+	@echo "Note: Use 'make iso' to create bootable ISO image"
+endif
 
 # Clean
 clean:
@@ -449,6 +508,16 @@ help: ## Show this help message
 	@echo "  make [target] [CONFIG=<config>] [options]"
 	@echo ""
 	@echo "MAIN TARGETS:"
+	@echo "  all              Build kernel (default target)"
+	@echo "  iso              Create bootable ISO image (x86) or SD image (ARM)"
+	@echo "  sd               Create raw SD card image (ARM only)"
+	@echo "  run              Run kernel in QEMU with serial logging"
+	@echo "  debug            Launch QEMU in debug mode (waits for GDB)"
+	@echo "  clean            Remove all build artifacts"
+	@echo "  check-tools      Verify build tool versions"
+	@echo "  check-exports    Validate exported symbol surface"
+	@echo "  info             Show build statistics"
+	@echo "  help             Show this help message"
 	@echo "  import-icons ICON_DIR=...   Generate C icon resources from PNGs"
 
 .PHONY: import-icons
@@ -457,15 +526,10 @@ import-icons:
 	@echo "Generating icons from $(ICON_DIR) ..."
 	@python3 tools/gen_icons.py "$(ICON_DIR)" .
 	@echo "✓ Generated icons: include/Resources/icons_generated.h, src/Resources/generated/icons_generated.c"
-	@echo "  all              Build kernel (default target)"
-	@echo "  iso              Create bootable ISO image"
-	@echo "  run              Run kernel in QEMU with serial logging"
-	@echo "  debug            Launch QEMU in debug mode (waits for GDB)"
-	@echo "  clean            Remove all build artifacts"
-	@echo "  check-tools      Verify build tool versions"
-	@echo "  check-exports    Validate exported symbol surface"
-	@echo "  info             Show build statistics"
-	@echo "  help             Show this help message"
+
+.PHONY: build-configurations
+
+build-configurations:
 	@echo ""
 	@echo "BUILD CONFIGURATIONS:"
 	@echo "  CONFIG=default   Standard development build (default)"
@@ -504,4 +568,4 @@ import-icons:
 # Include dependency files (auto-generated by -MMD -MP)
 -include $(DEPS)
 
-.PHONY: all clean iso run debug info check-exports check-tools help
+.PHONY: all clean iso run debug info check-exports check-tools help sd import-icons build-configurations
