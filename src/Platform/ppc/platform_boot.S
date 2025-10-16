@@ -15,6 +15,8 @@ stack_top:
     .section ".text"
     .globl _start
     .extern boot_main
+.extern ofw_early_init
+.extern ofw_boot_banner
     .extern __bss_start
     .extern __bss_end
     .type _start,@function
@@ -42,6 +44,12 @@ _start:
     b       1b
 2:
 
+    mr      r3, r31
+    bl      ofw_early_init
+
+    mr      r3, r31
+    bl      ofw_boot_banner
+
     /* Prepare arguments for boot_main(magic, boot_arg) */
     li      r3, 0                     /* No Multiboot magic on PPC */
     mr      r4, r31                   /* Pass firmware argument pointer */
@@ -53,3 +61,4 @@ _start:
     b       1b
 
     .size _start, .-_start
+

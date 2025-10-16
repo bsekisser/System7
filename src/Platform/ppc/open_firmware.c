@@ -7,11 +7,13 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <ctype.h>
 #include <string.h>
 #include <stdbool.h>
 
 #include "Platform/PowerPC/OpenFirmware.h"
+
+static void ofw_locate_io_handles(void);
+static void ofw_cache_memory_ranges(void);
 
 typedef uint32_t ofw_cell_t;
 typedef ofw_cell_t (*ofw_entry_t)(void *args);
@@ -62,6 +64,40 @@ static const char kPropAddress[] = "address";
 static const char kPropWidth[] = "width";
 static const char kPropHeight[] = "height";
 static const char kPropDepth[] = "depth";
+
+void ofw_early_init(void *entry) {
+    g_ofw_entry = (ofw_entry_t)entry;
+    g_stdout_available = false;
+    g_stdout_ihandle = 0;
+    g_stdin_available = false;
+    g_stdin_ihandle = 0;
+    g_has_peek_char = false;
+    memset(g_stdout_path, 0, sizeof(g_stdout_path));
+    g_memory_range_count = 0;
+
+    if (!g_ofw_entry) {
+        return;
+    }
+
+    ofw_locate_io_handles();
+}
+
+void ofw_boot_banner(void *entry) {
+    static const char kBootForth[] = ".\" BOOT\" cr";
+    if (!entry) {
+        return;
+    }
+
+    struct ofw_args args;
+    args.service = "interpret";
+    args.nargs = 1;
+    args.nrets = 1;
+    memset(args.cells, 0, sizeof(args.cells));
+    args.cells[0] = (ofw_cell_t)(uintptr_t)kBootForth;
+
+    ofw_entry_t entry_fn = (ofw_entry_t)entry;
+    entry_fn(&args);
+}
 
 static int ofw_call(const char *service, uint32_t nargs, uint32_t nrets, ofw_cell_t *cells) {
     if (!g_ofw_entry) {
@@ -299,20 +335,11 @@ static void ofw_cache_memory_ranges(void) {
 }
 
 void ofw_client_init(void *entry) {
-    g_ofw_entry = (ofw_entry_t)entry;
-    g_stdout_available = false;
-    g_stdout_ihandle = 0;
-    g_stdin_available = false;
-    g_stdin_ihandle = 0;
-    g_has_peek_char = false;
-    memset(g_stdout_path, 0, sizeof(g_stdout_path));
-    g_memory_range_count = 0;
-
+    ofw_early_init(entry);
     if (!g_ofw_entry) {
         return;
     }
 
-    ofw_locate_io_handles();
     ofw_cache_memory_ranges();
 }
 
@@ -337,6 +364,10 @@ int ofw_console_write(const char *buffer, uint32_t length) {
     }
 
     return (int)cells[4];
+}
+
+int ofw_console_putchar(char ch) {
+    return ofw_console_write(&ch, 1);
 }
 
 int ofw_console_input_available(void) {
