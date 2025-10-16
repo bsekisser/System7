@@ -294,6 +294,146 @@ void MacPaint_HandleMenuClickEvent(int menuID, int itemID)
  */
 
 /**
+ * COORDINATE MAPPING AND HIT TESTING
+ */
+
+/**
+ * MacPaint_GetWindowPort - Helper to safely get window port
+ */
+static GrafPtr MacPaint_GetWindowPort(WindowPtr window)
+{
+    if (!window) return NULL;
+    return GetWindowPort(window);
+}
+
+/**
+ * MacPaint_IsPointInToolbox - Check if point is in toolbox region
+ * Returns 1 if in toolbox, 0 otherwise
+ */
+static int MacPaint_IsPointInToolbox(int localX, int localY)
+{
+    if (!gEventState.paintWindow) {
+        return 0;
+    }
+
+    GrafPtr port = MacPaint_GetWindowPort(gEventState.paintWindow);
+    if (!port) return 0;
+
+    int toolboxLeft = port->portRect.right - 74;   /* 74 pixels wide */
+    int toolboxTop = port->portRect.top;
+    int toolboxRight = port->portRect.right;
+    int toolboxBottom = port->portRect.bottom - 20; /* Exclude status bar */
+
+    return (localX >= toolboxLeft && localX <= toolboxRight &&
+            localY >= toolboxTop && localY <= toolboxBottom);
+}
+
+/**
+ * MacPaint_IsPointInCanvas - Check if point is in canvas (paint) region
+ * Returns 1 if in canvas, 0 otherwise
+ */
+static int MacPaint_IsPointInCanvas(int localX, int localY)
+{
+    if (!gEventState.paintWindow) {
+        return 0;
+    }
+
+    GrafPtr port = MacPaint_GetWindowPort(gEventState.paintWindow);
+    if (!port) return 0;
+
+    int canvasLeft = port->portRect.left;
+    int canvasTop = port->portRect.top;
+    int canvasRight = port->portRect.right - 74;   /* Exclude toolbox */
+    int canvasBottom = port->portRect.bottom - 20; /* Exclude status bar */
+
+    return (localX >= canvasLeft && localX <= canvasRight &&
+            localY >= canvasTop && localY <= canvasBottom);
+}
+
+/**
+ * MacPaint_GetToolboxToolID - Determine which tool was clicked in toolbox
+ * Returns tool ID (0-11) or -1 if click was not on a tool button
+ */
+static int MacPaint_GetToolboxToolID(int localX, int localY)
+{
+    if (!gEventState.paintWindow) {
+        return -1;
+    }
+
+    GrafPtr port = MacPaint_GetWindowPort(gEventState.paintWindow);
+    if (!port) return -1;
+
+    int toolboxLeft = port->portRect.right - 74;
+    int toolboxTop = port->portRect.top;
+
+    /* Tool layout: 2 columns x 6 rows, 30x30 pixels each with 2 pixel spacing */
+    int toolSize = 30;
+    int spacing = 2;
+
+    /* Calculate which row and column */
+    int relativeX = localX - toolboxLeft - spacing;
+    int relativeY = localY - toolboxTop - spacing;
+
+    /* Check if click is in the tool grid area */
+    if (relativeX < 0 || relativeY < 0) {
+        return -1;
+    }
+
+    int col = relativeX / (toolSize + spacing);
+    int row = relativeY / (toolSize + spacing);
+
+    /* Verify we're actually on a tool button, not in the spacing */
+    if ((relativeX % (toolSize + spacing)) > toolSize ||
+        (relativeY % (toolSize + spacing)) > toolSize) {
+        return -1;
+    }
+
+    int toolID = row * 2 + col;
+
+    /* Validate tool ID (0-11 are valid) */
+    if (toolID >= 0 && toolID < 12) {
+        return toolID;
+    }
+
+    return -1;
+}
+
+/**
+ * MacPaint_HandleToolboxClick - Process click in toolbox area
+ */
+static void MacPaint_HandleToolboxClick(int localX, int localY, int modifiers)
+{
+    int toolID = MacPaint_GetToolboxToolID(localX, localY);
+
+    if (toolID >= 0 && toolID < 12) {
+        /* Valid tool click - select the tool */
+        MacPaint_SetActiveTool(toolID);
+    }
+}
+
+/**
+ * MacPaint_HandleCanvasClick - Process click in canvas area
+ * Route to current tool for drawing
+ */
+static void MacPaint_HandleCanvasClick(int localX, int localY, int modifiers)
+{
+    /* Save undo state before drawing */
+    MacPaint_SaveUndoState("Drawing");
+
+    /* Update mouse state */
+    gEventState.mouseDown = 1;
+    gEventState.lastMouseX = localX;
+    gEventState.lastMouseY = localY;
+    gEventState.dragInProgress = 0;
+
+    /* Route to tool handler */
+    MacPaint_HandleToolMouseEvent(gCurrentTool, localX, localY, 1);
+
+    /* Invalidate only paint area for efficiency */
+    MacPaint_InvalidatePaintArea();
+}
+
+/**
  * MacPaint_RouteEventToWindow - Determine if event is for paint window
  */
 int MacPaint_IsEventInPaintWindow(int x, int y)
@@ -302,14 +442,11 @@ int MacPaint_IsEventInPaintWindow(int x, int y)
         return 0;
     }
 
-    /* TODO: Use WindowManager to check if point is in window
-     * Rect windowBounds;
-     * GetWindowBounds(gEventState.paintWindow, kWindowContentRgn, &windowBounds);
-     * return (x >= windowBounds.left && x <= windowBounds.right &&
-     *         y >= windowBounds.top && y <= windowBounds.bottom);
-     */
+    GrafPtr port = MacPaint_GetWindowPort(gEventState.paintWindow);
+    if (!port) return 0;
 
-    return 1;  /* Placeholder - assume click is in paint area */
+    return (x >= port->portRect.left && x <= port->portRect.right &&
+            y >= port->portRect.top && y <= port->portRect.bottom);
 }
 
 /*
@@ -359,26 +496,49 @@ void MacPaint_RunEventLoop(void)
                     }
                 } else if (eventWindow == gEventState.paintWindow) {
                     /* Convert global to local window coordinates */
-                    GrafPtr port = GetWindowPort(eventWindow);
+                    GrafPtr port = MacPaint_GetWindowPort(eventWindow);
                     if (port) {
                         SetPort(port);
                         localX = event.where.h - port->portRect.left;
                         localY = event.where.v - port->portRect.top;
-                        MacPaint_HandleMouseDownEvent(localX, localY, event.modifiers);
+
+                        /* Route click based on region */
+                        if (MacPaint_IsPointInToolbox(localX, localY)) {
+                            /* Click in toolbox - select tool */
+                            MacPaint_HandleToolboxClick(localX, localY, event.modifiers);
+                        } else if (MacPaint_IsPointInCanvas(localX, localY)) {
+                            /* Click in canvas - start drawing with current tool */
+                            MacPaint_HandleCanvasClick(localX, localY, event.modifiers);
+                        }
                     }
                 }
                 break;
 
             case kEventMouseUp:
                 /* Mouse button released */
-                eventWindow = FrontWindow();
-                if (eventWindow == gEventState.paintWindow) {
-                    GrafPtr port = GetWindowPort(eventWindow);
-                    if (port) {
-                        SetPort(port);
-                        localX = event.where.h - port->portRect.left;
-                        localY = event.where.v - port->portRect.top;
-                        MacPaint_HandleMouseUpEvent(localX, localY);
+                if (gEventState.mouseDown) {
+                    /* Only process if we were in a drawing state */
+                    eventWindow = FrontWindow();
+                    if (eventWindow == gEventState.paintWindow) {
+                        GrafPtr port = MacPaint_GetWindowPort(eventWindow);
+                        if (port) {
+                            SetPort(port);
+                            localX = event.where.h - port->portRect.left;
+                            localY = event.where.v - port->portRect.top;
+
+                            /* Release mouse button and finalize current drawing */
+                            gEventState.mouseDown = 0;
+                            gEventState.dragInProgress = 0;
+
+                            /* Update cursor for current position */
+                            MacPaint_UpdateCursorPosition(localX, localY);
+
+                            /* Route to tool handler to finalize drawing */
+                            MacPaint_HandleToolMouseEvent(gCurrentTool, localX, localY, 0);
+
+                            /* Invalidate only paint area for efficiency */
+                            MacPaint_InvalidatePaintArea();
+                        }
                     }
                 }
                 break;
