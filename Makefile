@@ -156,6 +156,7 @@ C_SOURCES = src/main.c \
               src/Platform/arm/hal_boot.c \
               src/Platform/arm/io.c \
               src/Platform/arm/device_tree.c \
+              src/Platform/arm/hardware_detect.c \
               src/Platform/arm/mmio.c \
               src/Platform/arm/videocore.c \
               src/Platform/arm/framebuffer.c \

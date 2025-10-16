@@ -10,6 +10,11 @@
 #include "mmio.h"
 
 /* Forward declarations of platform-specific initialization */
+extern void device_tree_init(void *dtb_ptr);
+extern void device_tree_dump(void);
+extern uint32_t device_tree_get_memory_size(void);
+extern rpi_model_t hardware_detect_model(char *model_string, uint32_t string_len);
+extern void hardware_report_info(void);
 extern int arm_framebuffer_init(void);
 extern int arm_platform_timer_init(void);
 extern int usb_controller_init(void);
@@ -19,6 +24,8 @@ extern int usb_controller_enumerate(void);
 typedef struct {
     uint32_t size;
     uint32_t reserved;
+    uint32_t memory_size;
+    char board_model[256];
 } arm_boot_info_t;
 
 /* Global boot information */
@@ -26,34 +33,53 @@ static arm_boot_info_t boot_info = {0};
 
 /*
  * Initialize boot parameters
- * Called early in boot sequence from platform_boot.S
+ * Called early in boot sequence from platform_boot.S with DTB address
  */
 void hal_boot_init(void *boot_ptr) {
-    /* Parse boot parameters if provided */
-    if (boot_ptr) {
-        /* TODO: Parse Device Tree or ATAGS */
-        /* For now, use reasonable defaults for Raspberry Pi */
-    }
+    Serial_WriteString("[ARM] ════════════════════════════════════════════════════════════\n");
+    Serial_WriteString("[ARM] System 7.1 Portable - ARM Boot Initialization\n");
+    Serial_WriteString("[ARM] ════════════════════════════════════════════════════════════\n");
 
     /* Initialize basic boot state */
     boot_info.size = sizeof(arm_boot_info_t);
     boot_info.reserved = 0;
 
-    /* Serial output for debugging */
+    /* Initialize Device Tree from bootloader
+     * DTB address passed in r0 by platform_boot.S
+     */
+    if (boot_ptr) {
+        Serial_WriteString("[ARM] Parsing Device Tree Blob...\n");
+        device_tree_init(boot_ptr);
+        device_tree_dump();
+    } else {
+        Serial_WriteString("[ARM] Warning: No Device Tree provided by bootloader\n");
+    }
+
+    /* Detect hardware model early
+     * Used by USB, framebuffer, and other subsystems
+     */
+    Serial_WriteString("[ARM] Detecting hardware model...\n");
+    hardware_detect_model(boot_info.board_model, sizeof(boot_info.board_model));
+    hardware_report_info();
+
+    /* Get actual memory size from DTB or estimate */
+    boot_info.memory_size = device_tree_get_memory_size();
+    Serial_Printf("[ARM] Detected memory: %u MB\n", boot_info.memory_size / (1024 * 1024));
+
     Serial_WriteString("[ARM] Boot initialization complete\n");
 }
 
 /*
  * Get memory size detected at boot
- * On ARM, this would typically come from Device Tree
+ * Returns actual detected memory from DTB or sensible default
  */
 uint32_t hal_get_memory_size(void) {
-    /* Default for Raspberry Pi 3/4/5: vary by model
-     * Pi 3: 1GB
-     * Pi 4: 1-8GB (we'll default to 4GB)
-     * Pi 5: 4-8GB
-     * For now return conservative default
-     */
+    /* Return memory size detected during boot initialization */
+    if (boot_info.memory_size > 0) {
+        return boot_info.memory_size;
+    }
+
+    /* Fallback if not yet initialized */
     return 512 * 1024 * 1024;  /* 512MB default */
 }
 
