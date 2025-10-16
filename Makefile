@@ -156,7 +156,11 @@ C_SOURCES = src/main.c \
               src/Platform/arm/hal_boot.c \
               src/Platform/arm/io.c \
               src/Platform/arm/device_tree.c \
-              src/Platform/arm/mmio.c, \
+              src/Platform/arm/mmio.c \
+              src/Platform/arm/videocore.c \
+              src/Platform/arm/framebuffer.c \
+              src/Platform/arm/timer_arm.c \
+              src/Platform/arm/sdhci.c, \
               src/Platform/x86/io.c \
               src/Platform/x86/ata.c \
               src/Platform/x86/ps2.c \

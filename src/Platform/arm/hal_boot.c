@@ -9,6 +9,10 @@
 #include "boot.h"
 #include "mmio.h"
 
+/* Forward declarations of platform-specific initialization */
+extern int arm_framebuffer_init(void);
+extern int arm_platform_timer_init(void);
+
 /* Multiboot-compatible structure for ARM (simplified) */
 typedef struct {
     uint32_t size;
@@ -64,18 +68,30 @@ int hal_get_framebuffer_info(void *fb_info_ptr) {
 
 /*
  * Platform-specific initialization
- * Called after basic kernel setup
+ * Called after basic kernel setup, before system initialization
  */
 int hal_platform_init(void) {
     Serial_WriteString("[ARM] Platform-specific initialization\n");
 
+    /* Initialize timer (critical for TimeManager) */
+    if (arm_platform_timer_init() != 0) {
+        Serial_WriteString("[ARM] Warning: Timer initialization failed\n");
+        /* Don't fail - some timing features may degrade but system continues */
+    }
+
+    /* Initialize framebuffer for graphics output */
+    if (arm_framebuffer_init() != 0) {
+        Serial_WriteString("[ARM] Warning: Framebuffer initialization failed\n");
+        Serial_WriteString("[ARM] System will continue with serial output only\n");
+    }
+
     /* TODO: Initialize platform-specific hardware:
-     * - GPIO controller
-     * - Timer hardware
+     * - GPIO controller (for input fallback)
      * - SD card controller
      * - USB host controller
      */
 
+    Serial_WriteString("[ARM] Platform initialization complete\n");
     return 0;
 }
 
