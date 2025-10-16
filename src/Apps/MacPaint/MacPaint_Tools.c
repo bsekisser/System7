@@ -237,13 +237,32 @@ void MacPaint_ToolPencil(int x, int y, int down)
 
 /**
  * MacPaint_ToolEraser - Erase pixels as mouse moves
+ * Creates continuous eraser strokes with multi-pixel width
  */
 void MacPaint_ToolEraser(int x, int y, int down)
 {
+    int eraserSize = 3; /* Eraser brush size in pixels */
+
     if (down) {
         if (gToolState.isDrawing) {
             /* Continue erasing from last position */
             MacPaint_DrawLineAlgo(gToolState.lastX, gToolState.lastY, x, y, 3);
+
+            /* Draw thicker eraser by drawing nearby lines for eraser width */
+            for (int offset = 1; offset < eraserSize; offset++) {
+                int dx = x - gToolState.lastX;
+                int dy = y - gToolState.lastY;
+                if (dx != 0 || dy != 0) {
+                    /* Draw parallel line offset by offset pixels perpendicular to stroke */
+                    int len = (dx > 0 ? dx : -dx) + (dy > 0 ? dy : -dy);
+                    if (len > 0) {
+                        int perpX = (dy != 0) ? offset : 0;
+                        int perpY = (dx != 0) ? offset : 0;
+                        MacPaint_DrawLineAlgo(gToolState.lastX + perpX, gToolState.lastY + perpY,
+                                            x + perpX, y + perpY, 3);
+                    }
+                }
+            }
         } else {
             gToolState.isDrawing = 1;
         }
@@ -260,15 +279,23 @@ void MacPaint_ToolEraser(int x, int y, int down)
 
 /**
  * MacPaint_ToolLine - Draw straight line from press to release
+ * Supports live preview during dragging
  */
 void MacPaint_ToolLine(int x, int y, int down)
 {
     if (down) {
-        gToolState.isDrawing = 1;
-        gToolState.startX = x;
-        gToolState.startY = y;
+        if (!gToolState.isDrawing) {
+            /* Starting a new line */
+            gToolState.isDrawing = 1;
+            gToolState.startX = x;
+            gToolState.startY = y;
+        }
+        /* Update current position for preview */
+        gToolState.currentX = x;
+        gToolState.currentY = y;
     } else {
         if (gToolState.isDrawing) {
+            /* Draw the final line */
             MacPaint_DrawLineAlgo(gToolState.startX, gToolState.startY, x, y, 1);
             gToolState.isDrawing = 0;
         }
@@ -281,15 +308,23 @@ void MacPaint_ToolLine(int x, int y, int down)
 
 /**
  * MacPaint_ToolRectangle - Draw rectangle from press to release
+ * Supports live preview during dragging
  */
 void MacPaint_ToolRectangle(int x, int y, int down)
 {
     if (down) {
-        gToolState.isDrawing = 1;
-        gToolState.startX = x;
-        gToolState.startY = y;
+        if (!gToolState.isDrawing) {
+            /* Starting a new rectangle */
+            gToolState.isDrawing = 1;
+            gToolState.startX = x;
+            gToolState.startY = y;
+        }
+        /* Update current position for preview */
+        gToolState.currentX = x;
+        gToolState.currentY = y;
     } else {
         if (gToolState.isDrawing) {
+            /* Draw the final rectangle (outline) */
             MacPaint_DrawRectAlgo(gToolState.startX, gToolState.startY, x, y, 0, 1);
             gToolState.isDrawing = 0;
         }
@@ -302,15 +337,23 @@ void MacPaint_ToolRectangle(int x, int y, int down)
 
 /**
  * MacPaint_ToolOval - Draw oval from press to release
+ * Supports live preview during dragging
  */
 void MacPaint_ToolOval(int x, int y, int down)
 {
     if (down) {
-        gToolState.isDrawing = 1;
-        gToolState.startX = x;
-        gToolState.startY = y;
+        if (!gToolState.isDrawing) {
+            /* Starting a new oval */
+            gToolState.isDrawing = 1;
+            gToolState.startX = x;
+            gToolState.startY = y;
+        }
+        /* Update current position for preview */
+        gToolState.currentX = x;
+        gToolState.currentY = y;
     } else {
         if (gToolState.isDrawing) {
+            /* Draw the final oval */
             int cx = (gToolState.startX + x) / 2;
             int cy = (gToolState.startY + y) / 2;
             int rx = (x - gToolState.startX) / 2;
