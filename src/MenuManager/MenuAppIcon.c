@@ -13,27 +13,74 @@
 #define MENU_APP_ICON_WIDTH  20
 #define MENU_APP_ICON_HEIGHT 18
 
-/* 16x16 1-bit Finder-like menu glyph (mono), two bytes per row MSB first */
-static const unsigned char gFinderMenuIcon16[32] = {
-    0x00, 0x00, /* row 0 */
-    0x3F, 0xFC, /* row 1: outer top */
-    0x20, 0x04, /* row 2: outer sides */
-    0x2F, 0xF4, /* row 3: inner screen top */
-    0x2D, 0x54, /* row 4: dots pattern A */
-    0x2A, 0xB4, /* row 5: dots pattern B */
-    0x2D, 0x54, /* row 6 */
-    0x2A, 0xB4, /* row 7 */
-    0x2D, 0x54, /* row 8 */
-    0x2F, 0xF4, /* row 9: inner screen bottom */
-    0x20, 0x04, /* row10: outer sides */
-    0x20, 0x04, /* row11: outer sides */
-    0x3F, 0xFC, /* row12: outer bottom */
-    0x00, 0x00, /* row13 */
-    0x03, 0xC0, /* row14: base */
-    0x00, 0x00  /* row15 */
+/* 16x16 Finder face glyph mask & image */
+static const unsigned char gFinderMenuMask16[32] = {
+    0xFF, 0xFF,
+    0xFF, 0xFF,
+    0xFF, 0xFF,
+    0xFF, 0xFF,
+    0xFF, 0xFF,
+    0xFF, 0xFF,
+    0xFF, 0xFF,
+    0xFF, 0xFF,
+    0xFF, 0xFF,
+    0xFF, 0xFF,
+    0xFF, 0xFF,
+    0xFF, 0xFF,
+    0xFF, 0xFF,
+    0xFF, 0xFF,
+    0xFF, 0xFF,
+    0xFF, 0xFF
+};
+
+static const unsigned char gFinderMenuImage16[32] = {
+    0xFF, 0xFF,
+    0x80, 0x01,
+    0x98, 0x19,
+    0x98, 0x19,
+    0x80, 0x01,
+    0x86, 0x31,
+    0x8F, 0xF1,
+    0x8F, 0xF1,
+    0x86, 0x31,
+    0x80, 0x01,
+    0x84, 0x89,
+    0x88, 0x05,
+    0x90, 0x03,
+    0xA0, 0x01,
+    0xC0, 0x03,
+    0xFF, 0xFF
 };
 
 extern UInt32 pack_color(uint8_t r, uint8_t g, uint8_t b);
+
+static void DrawFinderGlyph16(int left, int top, Boolean highlighted) {
+    const uint32_t black = pack_color(0, 0, 0);
+    const uint32_t white = pack_color(255, 255, 255);
+
+    for (int y = 0; y < 16; y++) {
+        unsigned short maskRow = (unsigned short)((gFinderMenuMask16[y * 2] << 8) |
+                                                 gFinderMenuMask16[y * 2 + 1]);
+        unsigned short imgRow = (unsigned short)((gFinderMenuImage16[y * 2] << 8) |
+                                                gFinderMenuImage16[y * 2 + 1]);
+
+        for (int x = 0; x < 16; x++) {
+            if (maskRow & (1u << (15 - x))) {
+                uint32_t color = (imgRow & (1u << (15 - x))) ? black : white;
+                if (highlighted) {
+                    uint8_t r = (color >> 16) & 0xFF;
+                    uint8_t g = (color >> 8) & 0xFF;
+                    uint8_t b = color & 0xFF;
+                    r = (r + 0x00) / 2;
+                    g = (g + 0x00) / 2;
+                    b = (b + 0x80) / 2;
+                    color = 0xFF000000 | (r << 16) | (g << 8) | b;
+                }
+                IconPort_WritePixel(left + x, top + y, color);
+            }
+        }
+    }
+}
 
 /* application_icon_16 is 16x16, 1-bit, 2 bytes per row */
 short MenuAppIcon_Draw(GrafPtr port, short left, short top, Boolean highlighted)
@@ -120,30 +167,33 @@ short MenuAppIcon_Draw(GrafPtr port, short left, short top, Boolean highlighted)
             }
         }
 
+        DrawFinderGlyph16(iconLeft, iconTop, highlighted);
+
         SetPort(prev);
         return MENU_APP_ICON_WIDTH;
     }
 
     UInt32* pixels = (UInt32*)port->portBits.baseAddr;
     const int stride = rowBytes / 4; /* 32-bit pixels */
-
-    const UInt32 onColor  = highlighted ? pack_color(255, 255, 255) : pack_color(0, 0, 0);
+    const UInt32 fgColor = highlighted ? pack_color(255, 255, 255) : pack_color(0, 0, 0);
+    const UInt32 bgColor = highlighted ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
 
     for (int y = 0; y < 16; y++) {
         int dstY = iconTop + y;
         if (dstY < port->portBits.bounds.top || dstY >= port->portBits.bounds.bottom) continue;
 
-        /* two bytes per row, MSB first */
-        unsigned char b0 = gFinderMenuIcon16[y * 2 + 0];
-        unsigned char b1 = gFinderMenuIcon16[y * 2 + 1];
-        unsigned short rowBits = (unsigned short)((b0 << 8) | b1);
+        unsigned short maskRow = (unsigned short)((gFinderMenuMask16[y * 2] << 8) |
+                                                 gFinderMenuMask16[y * 2 + 1]);
+        unsigned short imgRow = (unsigned short)((gFinderMenuImage16[y * 2] << 8) |
+                                                gFinderMenuImage16[y * 2 + 1]);
 
         for (int x = 0; x < 16; x++) {
-            if (rowBits & (1u << (15 - x))) {
+            if (maskRow & (1u << (15 - x))) {
                 int dstX = iconLeft + x;
                 if (dstX < port->portBits.bounds.left || dstX >= port->portBits.bounds.right) continue;
+                uint32_t color = (imgRow & (1u << (15 - x))) ? fgColor : bgColor;
                 pixels[(dstY - port->portBits.bounds.top) * stride +
-                       (dstX - port->portBits.bounds.left)] = onColor;
+                       (dstX - port->portBits.bounds.left)] = color;
             }
         }
     }
