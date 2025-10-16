@@ -95,11 +95,13 @@ void MacPaint_DrawPaintWindow(void)
 void MacPaint_HandleWindowUpdate(WindowPtr window)
 {
     if (window == gEventState.paintWindow) {
-        /* TODO: Update the paint window
-         * BeginUpdate(window);
-         * MacPaint_DrawPaintWindow();
-         * EndUpdate(window);
+        /* Use the rendering system's full window update
+         * This handles all invalidation regions properly
          */
+        MacPaint_FullWindowUpdate();
+
+        /* Clear invalidation state after redraw */
+        MacPaint_ClearInvalidState();
     }
 }
 
@@ -139,13 +141,17 @@ void MacPaint_HandleMouseDownEvent(int x, int y, int modifiers)
     gEventState.lastMouseY = y;
     gEventState.dragInProgress = 0;
 
-    /* Route to tool handler */
-    MacPaint_HandleToolMouseEvent(gCurrentTool, x, y, 1);
+    /* Update cursor for current position */
+    MacPaint_UpdateCursorPosition(x, y);
 
     /* Save undo state before drawing */
     MacPaint_SaveUndoState("Drawing");
 
-    MacPaint_InvalidateWindowArea();
+    /* Route to tool handler */
+    MacPaint_HandleToolMouseEvent(gCurrentTool, x, y, 1);
+
+    /* Invalidate only paint area for efficiency */
+    MacPaint_InvalidatePaintArea();
 }
 
 /**
@@ -156,6 +162,9 @@ void MacPaint_HandleMouseDragEvent(int x, int y)
     if (!gEventState.mouseDown) {
         return;
     }
+
+    /* Update cursor position for any position changes */
+    MacPaint_UpdateCursorPosition(x, y);
 
     /* Detect if movement is significant (drag threshold) */
     int dx = (x > gEventState.lastMouseX) ?
@@ -174,7 +183,7 @@ void MacPaint_HandleMouseDragEvent(int x, int y)
         /* Route to tool handler for continuous drawing */
         MacPaint_HandleToolMouseEvent(gCurrentTool, x, y, 1);
 
-        MacPaint_InvalidateWindowArea();
+        MacPaint_InvalidatePaintArea();
     }
 }
 
@@ -188,12 +197,16 @@ void MacPaint_HandleMouseUpEvent(int x, int y)
     }
 
     gEventState.mouseDown = 0;
+    gEventState.dragInProgress = 0;
+
+    /* Update cursor for current position */
+    MacPaint_UpdateCursorPosition(x, y);
 
     /* Route to tool handler to finalize drawing */
     MacPaint_HandleToolMouseEvent(gCurrentTool, x, y, 0);
 
-    gEventState.dragInProgress = 0;
-    MacPaint_InvalidateWindowArea();
+    /* Invalidate only paint area for efficiency */
+    MacPaint_InvalidatePaintArea();
 }
 
 /*
@@ -208,7 +221,10 @@ void MacPaint_HandleKeyDownEvent(int keyCode, int modifiers)
     /* Route to menu/tool keyboard handlers from MacPaint_Menus.c */
     MacPaint_HandleKeyDown(keyCode, modifiers);
 
-    MacPaint_InvalidateWindowArea();
+    /* Keyboard events may affect tool selection or other UI state
+     * Invalidate appropriate regions based on what changed
+     */
+    MacPaint_InvalidatePaintArea();
 }
 
 /*
@@ -224,15 +240,12 @@ void MacPaint_HandleMenuClickEvent(int menuID, int itemID)
         return;  /* Menu was closed without selection */
     }
 
-    /* TODO: Use MenuManager to get menu title if needed
-     * MenuHandle menu = GetMenuHandle(menuID);
-     * Str255 itemName;
-     * GetMenuItemText(menu, itemID, itemName);
-     */
-
     /* Execute the menu command */
     MacPaint_ExecuteMenuCommand(menuID, itemID);
 
+    /* Menu commands may affect entire UI
+     * Invalidate all regions to ensure consistency
+     */
     MacPaint_InvalidateWindowArea();
 }
 
@@ -482,11 +495,22 @@ int MacPaint_GetActiveTool(void)
  */
 void MacPaint_ProcessIdleTime(void)
 {
-    /* TODO: Background tasks
-     * - Update tool cursor based on position
-     * - Animate tooltips or help text
+    /* Update animated elements (marching ants, blinking cursors, etc) */
+    MacPaint_UpdateAnimations();
+
+    /* Update cursor position dynamically if mouse is over window
+     * This allows cursor to change based on hover position
+     */
+    if (!gEventState.mouseDown) {
+        int x, y;
+        MacPaint_GetLastMousePosition(&x, &y);
+        MacPaint_UpdateCursorPosition(x, y);
+    }
+
+    /* TODO: Additional background tasks
      * - Check for file system changes
      * - Perform memory cleanup
+     * - Update status information
      */
 }
 
