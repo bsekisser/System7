@@ -93,7 +93,11 @@ rpi_model_t hardware_detect_model(char *model_string, uint32_t string_len) {
         strncpy(detected_model_string, dtb_model, sizeof(detected_model_string) - 1);
 
         /* Parse model string to determine type */
-        if (strstr(dtb_model, "Pi 3") || strstr(dtb_model, "3B") || strstr(dtb_model, "3A")) {
+        if (strstr(dtb_model, "virt")) {
+            detected_model = PI_MODEL_UNKNOWN;
+            Serial_Printf("[HW] Detected QEMU virt platform via DTB: %s\n", dtb_model);
+            goto detection_complete;
+        } else if (strstr(dtb_model, "Pi 3") || strstr(dtb_model, "3B") || strstr(dtb_model, "3A")) {
             detected_model = PI_MODEL_3;
             Serial_Printf("[HW] Detected via DTB: %s (Pi 3)\n", dtb_model);
             goto detection_complete;
@@ -109,7 +113,7 @@ rpi_model_t hardware_detect_model(char *model_string, uint32_t string_len) {
     }
 
     /* Method 2: Try Hardware Revision Register */
-    {
+    if (detected_model == PI_MODEL_UNKNOWN) {
         uint32_t hw_revision = 0;
 
         /* Read hardware revision register
@@ -138,7 +142,7 @@ rpi_model_t hardware_detect_model(char *model_string, uint32_t string_len) {
     }
 
     /* Method 3: Heuristic - Check for USB controller presence */
-    {
+    if (detected_model == PI_MODEL_UNKNOWN) {
         /* Try reading DWCOTG registers (Pi 3) */
         volatile uint32_t *dwcotg_hwcfg = (volatile uint32_t *)0x20980000;
         uint32_t dwcotg_val = *dwcotg_hwcfg;

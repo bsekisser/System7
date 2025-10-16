@@ -25,6 +25,7 @@ OBJ_DIR = $(BUILD_DIR)/obj
 BIN_DIR = $(BUILD_DIR)/bin
 ISO_DIR = iso
 HAL_DIR = src/Platform/$(PLATFORM)
+LINKER_SCRIPT := $(HAL_DIR)/linker.ld
 
 # Output files
 KERNEL = kernel.elf
@@ -34,8 +35,8 @@ ISO = system71.iso
 ifeq ($(PLATFORM),arm)
     # Validate PI_MODEL if specified
     ifneq ($(PI_MODEL),)
-        ifeq ($(filter $(PI_MODEL),pi3 pi4 pi5),)
-            $(error Invalid PI_MODEL '$(PI_MODEL)'. Valid values: pi3, pi4, pi5)
+        ifeq ($(filter $(PI_MODEL),pi3 pi4 pi5 virt),)
+            $(error Invalid PI_MODEL '$(PI_MODEL)'. Valid values: pi3, pi4, pi5, virt)
         endif
     endif
 
@@ -55,6 +56,11 @@ ifeq ($(PLATFORM),arm)
         PI_CPU_NAME = "ARM Cortex-A76"
         PI_CPU_FREQ = 2400
         CFLAGS_PI = -march=armv7-a -mfpu=neon -mfloat-abi=hard -DRASPI_MODEL=5 -DRASPI_CPU_FREQ=2400
+    else ifeq ($(PI_MODEL),virt)
+        ARM_ARCH = armv7-a
+        PI_CPU_NAME = "QEMU virt"
+        PI_CPU_FREQ = 1000
+        CFLAGS_PI = -march=armv7-a -mfpu=neon -mfloat-abi=hard -DQEMU_VIRT
     else
         # Default ARM architecture (runtime detection)
         ARM_ARCH = armv7-a
@@ -70,6 +76,9 @@ ifeq ($(PLATFORM),arm)
     AS = $(CROSS_COMPILE)as
     LD = $(CROSS_COMPILE)ld
     OBJCOPY = $(CROSS_COMPILE)objcopy
+    ifeq ($(PI_MODEL),virt)
+        LINKER_SCRIPT := $(HAL_DIR)/linker_virt.ld
+    endif
 else
     # x86 native compiler
     CC = gcc
@@ -481,9 +490,9 @@ src/patterns_rsrc.c: $(RSRC_BIN)
 $(KERNEL): $(OBJECTS) | $(BUILD_DIR)
 	@echo "LD $(KERNEL)"
 	@if [ "$(PLATFORM)" = "arm" ]; then \
-		$(CC) $(LDFLAGS) -Wl,-T,$(HAL_DIR)/linker.ld -nostdlib -o $(KERNEL) $(OBJECTS) -lgcc; \
-	else \
-		$(LD) $(LDFLAGS) -T $(HAL_DIR)/linker.ld -o $(KERNEL) $(OBJECTS); \
+        $(CC) $(LDFLAGS) -Wl,-T,$(LINKER_SCRIPT) -nostdlib -o $(KERNEL) $(OBJECTS) -lgcc; \
+    else \
+        $(LD) $(LDFLAGS) -T $(LINKER_SCRIPT) -o $(KERNEL) $(OBJECTS); \
 	fi
 	@readelf -h $(KERNEL) >/dev/null 2>&1 || { echo "ERROR: Invalid ELF file"; exit 1; }
 	@echo "✓ Kernel linked successfully ($(shell stat -c%s $(KERNEL) 2>/dev/null || stat -f%z $(KERNEL) 2>/dev/null) bytes)"

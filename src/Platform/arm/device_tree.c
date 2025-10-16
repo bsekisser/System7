@@ -141,6 +141,24 @@ void device_tree_init(void *dtb_ptr) {
         Serial_Printf("[DTB] Model: %s\n", device_info.model);
     }
 
+    /* Update peripheral base addresses from compatibility list */
+    uint32_t compat_len = 0;
+    const char *compat = (const char *)device_tree_get_node_property("compatible", &compat_len);
+    if (compat && compat_len > 0) {
+        const char *p = compat;
+        const char *end = compat + compat_len;
+        while (p < end && *p) {
+            if (strstr(p, "raspberrypi")) {
+                serial_set_pl011_base(0x3F201000u);
+                break;
+            } else if (strstr(p, "arm,virt")) {
+                serial_set_pl011_base(0x09000000u);
+                break;
+            }
+            p += strlen(p) + 1;
+        }
+    }
+
     device_info_cached = 1;
 }
 
@@ -175,7 +193,9 @@ uint32_t device_tree_get_memory_size(void) {
     const char *model = device_tree_get_model();
     if (model) {
         /* Try to guess from model string */
-        if (strstr(model, "Pi 3") || strstr(model, "3B")) {
+        if (strstr(model, "virt")) {
+            return 1 * 1024 * 1024 * 1024;
+        } else if (strstr(model, "Pi 3") || strstr(model, "3B")) {
             return 1 * 1024 * 1024 * 1024;  /* Pi 3: 1GB */
         } else if (strstr(model, "Pi 4") || strstr(model, "4B")) {
             uint64_t mem = 4ULL * 1024 * 1024 * 1024;

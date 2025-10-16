@@ -82,6 +82,9 @@ char serial_getchar(void);
 void serial_print_hex(uint32_t value);
 void serial_printf(const char* fmt, ...)
     __attribute__((format(printf, 1, 2)));
+#if defined(__arm__) || defined(__aarch64__)
+void serial_set_pl011_base(uintptr_t base);
+#endif
 
 /* Compatibility aliases used by some platform ports */
 #define Serial_WriteString(...) serial_printf(__VA_ARGS__)

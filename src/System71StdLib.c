@@ -218,19 +218,49 @@ long labs(long n) {
 #define outb(port, value) hal_outb(port, value)
 
 #if defined(__arm__) || defined(__aarch64__)
-#define PL011_UART_BASE 0x3F201000u
+#include <stdint.h>
+static uintptr_t g_pl011_uart_base = 0x09000000u;
 static inline volatile uint32_t* pl011_reg(uint32_t offset) {
-    return (volatile uint32_t*)(PL011_UART_BASE + offset);
+    return (volatile uint32_t*)(g_pl011_uart_base + offset);
 }
 #define PL011_DR   0x00
 #define PL011_FR   0x18
+#define PL011_IBRD 0x24
+#define PL011_FBRD 0x28
+#define PL011_LCRH 0x2C
+#define PL011_CR   0x30
+#define PL011_IMSC 0x38
+#define PL011_ICR  0x44
 #define PL011_RXFE (1u << 4)
 #define PL011_TXFF (1u << 5)
+#define PL011_UARTEN (1u << 0)
+#define PL011_TXE (1u << 8)
+#define PL011_RXE (1u << 9)
+
+void serial_set_pl011_base(uintptr_t base) {
+    if (base != 0) {
+        g_pl011_uart_base = base;
+    }
+}
 #endif
 
 void serial_init(void) {
 #if defined(__arm__) || defined(__aarch64__)
-    /* UART assumed to be initialized by firmware/QEMU */
+    /* Initialize PL011 UART (115200 baud, 8N1) */
+    volatile uint32_t* cr = pl011_reg(PL011_CR);
+    volatile uint32_t* icr = pl011_reg(PL011_ICR);
+    volatile uint32_t* ibrd = pl011_reg(PL011_IBRD);
+    volatile uint32_t* fbrd = pl011_reg(PL011_FBRD);
+    volatile uint32_t* lcrh = pl011_reg(PL011_LCRH);
+    volatile uint32_t* imsc = pl011_reg(PL011_IMSC);
+
+    *cr = 0;             /* disable UART */
+    *icr = 0x7FF;        /* clear interrupts */
+    *ibrd = 13;          /* assuming 24 MHz clock */
+    *fbrd = 2;           /* fractional divider */
+    *lcrh = (1u << 4) | (1u << 5) | (1u << 6); /* FIFO enable, 8-bit */
+    *imsc = 0;           /* disable interrupts */
+    *cr = PL011_UARTEN | PL011_TXE | PL011_RXE;
     return;
 #else
     outb(COM1 + 1, 0x00);    // Disable all interrupts
@@ -249,8 +279,7 @@ void serial_putchar(char c) {
     volatile uint32_t* fr = pl011_reg(PL011_FR);
     volatile uint32_t* dr = pl011_reg(PL011_DR);
     if (c == '\n') {
-        while ((*fr) & PL011_TXFF) {
-        }
+        while ((*fr) & PL011_TXFF) { }
         *dr = '\r';
     }
     while ((*fr) & PL011_TXFF) {
