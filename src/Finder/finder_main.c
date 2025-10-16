@@ -33,7 +33,6 @@
 #include "System71StdLib.h"
 #include "Finder/AboutThisMac.h"
 #include "Finder/FinderLogging.h"
-#include "ControlPanels/ControlStrip.h"
 
 /* External globals */
 extern QDGlobals qd;  /* QuickDraw globals from main.c */
@@ -173,8 +172,6 @@ OSErr InitializeFinder(void)
     extern void StartupChime(void);
     serial_puts("Finder: Playing System 7 startup chime\n");
     StartupChime();
-
-    ControlStrip_Show();
 
     gFinderInitialized = true;
     return noErr;

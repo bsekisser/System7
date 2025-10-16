@@ -76,6 +76,8 @@ static struct {
     false
 };
 
+static Boolean gControlStripBootstrap = true;
+
 /**
  * Initialize the event dispatcher
  */
@@ -178,6 +180,11 @@ Boolean HandleNullEvent(EventRecord* event)
 {
     /* Null events are used for idle processing */
     /* Could be used for cursor animation, background tasks, etc. */
+
+    if (gControlStripBootstrap) {
+        ControlStrip_Show();
+        gControlStripBootstrap = false;
+    }
 
     DateTimePanel_Tick();
 
