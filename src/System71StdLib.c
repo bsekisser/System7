@@ -217,7 +217,22 @@ long labs(long n) {
 #define inb(port) hal_inb(port)
 #define outb(port, value) hal_outb(port, value)
 
+#if defined(__arm__) || defined(__aarch64__)
+#define PL011_UART_BASE 0x3F201000u
+static inline volatile uint32_t* pl011_reg(uint32_t offset) {
+    return (volatile uint32_t*)(PL011_UART_BASE + offset);
+}
+#define PL011_DR   0x00
+#define PL011_FR   0x18
+#define PL011_RXFE (1u << 4)
+#define PL011_TXFF (1u << 5)
+#endif
+
 void serial_init(void) {
+#if defined(__arm__) || defined(__aarch64__)
+    /* UART assumed to be initialized by firmware/QEMU */
+    return;
+#else
     outb(COM1 + 1, 0x00);    // Disable all interrupts
     outb(COM1 + 3, 0x80);    // Enable DLAB (set baud rate divisor)
     outb(COM1 + 0, 0x03);    // Set divisor to 3 (lo byte) 38400 baud
@@ -225,11 +240,28 @@ void serial_init(void) {
     outb(COM1 + 3, 0x03);    // 8 bits, no parity, one stop bit
     outb(COM1 + 2, 0xC7);    // Enable FIFO, clear them, with 14-byte threshold
     outb(COM1 + 4, 0x0B);    // IRQs enabled, RTS/DSR set
+#endif
 }
 
 void serial_putchar(char c) {
+#if defined(__arm__) || defined(__aarch64__)
+    /* Basic PL011 transmit */
+    volatile uint32_t* fr = pl011_reg(PL011_FR);
+    volatile uint32_t* dr = pl011_reg(PL011_DR);
+    if (c == '\n') {
+        while ((*fr) & PL011_TXFF) {
+        }
+        *dr = '\r';
+    }
+    while ((*fr) & PL011_TXFF) {
+        /* wait for space */
+    }
+    *dr = (uint32_t)c;
+    return;
+#else
     while ((inb(COM1 + 5) & 0x20) == 0);
     outb(COM1, c);
+#endif
 }
 
 void serial_puts(const char* str) {
@@ -237,6 +269,9 @@ void serial_puts(const char* str) {
 
     /* Direct serial output only - no framebuffer interaction */
     if (!str) return;
+#if defined(__arm__) || defined(__aarch64__)
+    (void)str;
+#else
     while (*str) {
         if (*str == '\n') {
             while ((inb(COM1 + 5) & 0x20) == 0);
@@ -246,15 +281,30 @@ void serial_puts(const char* str) {
         outb(COM1, *str);
         str++;
     }
+#endif
 }
 
 int serial_data_ready(void) {
+#if defined(__arm__) || defined(__aarch64__)
+    volatile uint32_t* fr = pl011_reg(PL011_FR);
+    return ((*fr) & PL011_RXFE) == 0;
+#else
     return (inb(COM1 + 5) & 0x01) != 0;
+#endif
 }
 
 char serial_getchar(void) {
+#if defined(__arm__) || defined(__aarch64__)
+    volatile uint32_t* fr = pl011_reg(PL011_FR);
+    volatile uint32_t* dr = pl011_reg(PL011_DR);
+    while ((*fr) & PL011_RXFE) {
+        /* wait for data */
+    }
+    return (char)(*dr & 0xFF);
+#else
     while (!serial_data_ready());
     return inb(COM1);
+#endif
 }
 
 void serial_print_hex(uint32_t value) {

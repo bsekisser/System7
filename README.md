@@ -534,6 +534,19 @@ qemu-system-i386 -cdrom system71.iso \
 
 **⚠️ WARNING**: Running on real hardware is experimental and may not work. Use at your own risk.
 
+
+### QEMU ARM (experimental)
+
+```bash
+make PLATFORM=arm
+qemu-system-arm -M raspi2b -kernel kernel.elf -dtb qemu-rpi3.dtb -m 1024 -serial stdio -display none
+```
+
+Notes:
+- Uses a minimal device tree (`qemu-rpi3.dtb`) that advertises a Pi 3 for the firmware detectors.
+- Serial I/O is mapped to the PL011 UART exposed by QEMU, so all logs appear on stdout.
+- Framebuffer output is not wired yet; expect a text-only console.
+
 #### Raspberry Pi (experimental)
 
 ```bash
