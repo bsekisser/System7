@@ -283,6 +283,7 @@ static void TE_TrackMouse(TEHandle hTE, Point startPt) {
 
     /* Track until mouse up */
     while (StillDown()) {
+        ProcessModernInput();  /* Update gCurrentButtons/g_mousePos */
         GetMouse(&pt);
 
         /* Get offset at current position */
