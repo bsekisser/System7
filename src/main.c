@@ -815,13 +815,6 @@ static void init_system71(void) {
 
     /* ATA volumes will be mounted after Finder initializes */
 
-    /* Create minimal Apple menu for compatibility - Finder will add its own */
-    static unsigned char appleMenuTitle[] = {1, 0x14};  /* Pascal string: Apple symbol */
-    MenuHandle appleMenu = NewMenu(1, appleMenuTitle);
-    InsertMenu(appleMenu, 0);
-
-    /* Additional menus will be created by Finder after initialization */
-
     /* TextEdit */
     TEInit();
     serial_puts("  TextEdit initialized\n");
@@ -930,6 +923,8 @@ static void init_system71(void) {
         }
     } else {
         serial_puts("  Finder initialization failed\n");
+        serial_puts("  Activating fallback desktop menus\n");
+        create_system71_windows();
     }
 
 }
@@ -1255,10 +1250,6 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     }
 
     /* Create windows and menus using real System 7.1 APIs */
-    serial_puts("MAIN: About to call create_system71_windows\n");
-    create_system71_windows();
-    serial_puts("MAIN: create_system71_windows returned\n");
-
 #ifdef ENABLE_GESTALT
     /* Gestalt smoke test */
     {

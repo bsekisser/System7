@@ -12,6 +12,8 @@
 /* Forward declarations of platform-specific initialization */
 extern int arm_framebuffer_init(void);
 extern int arm_platform_timer_init(void);
+extern int xhci_init(void);
+extern int xhci_enumerate_devices(void);
 
 /* Multiboot-compatible structure for ARM (simplified) */
 typedef struct {
@@ -85,10 +87,22 @@ int hal_platform_init(void) {
         Serial_WriteString("[ARM] System will continue with serial output only\n");
     }
 
+    /* Initialize USB host controller (for keyboard/mouse input) */
+    if (xhci_init() != 0) {
+        Serial_WriteString("[ARM] Warning: USB controller initialization failed\n");
+        Serial_WriteString("[ARM] Keyboard/mouse input will not be available\n");
+    } else {
+        /* Enumerate connected USB devices */
+        if (xhci_enumerate_devices() != 0) {
+            Serial_WriteString("[ARM] Warning: USB device enumeration failed\n");
+        }
+    }
+
     /* TODO: Initialize platform-specific hardware:
      * - GPIO controller (for input fallback)
-     * - SD card controller
-     * - USB host controller
+     * - SD card controller improvements
+     * - Interrupt controller
+     * - Power management
      */
 
     Serial_WriteString("[ARM] Platform initialization complete\n");

@@ -160,7 +160,9 @@ C_SOURCES = src/main.c \
               src/Platform/arm/videocore.c \
               src/Platform/arm/framebuffer.c \
               src/Platform/arm/timer_arm.c \
-              src/Platform/arm/sdhci.c, \
+              src/Platform/arm/sdhci.c \
+              src/Platform/arm/xhci.c \
+              src/Platform/arm/hid_input.c, \
               src/Platform/x86/io.c \
               src/Platform/x86/ata.c \
               src/Platform/x86/ps2.c \

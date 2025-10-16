@@ -24,6 +24,7 @@
 #include "ResourceManager.h"
 #include "EventManager/EventTypes.h"
 #include "MenuManager/MenuTypes.h"
+#include "MenuManager/MenuManager.h"
 #include "DialogManager/DialogTypes.h"
 #include "WindowManager/WindowTypes.h"
 #include "FS/vfs.h"
@@ -287,11 +288,16 @@ static OSErr SetupMenus(void)
     DrawMenuBar();
     serial_puts("Finder: DrawMenuBar returned\n");
 
-    /* Temporary workaround: manually setup default menus */
+    /* Temporary fallback: only run if the application menu didn't stick */
     extern void SetupDefaultMenus(void);
-    serial_puts("Finder: Calling SetupDefaultMenus\n");
-    SetupDefaultMenus();
-    serial_puts("Finder: SetupDefaultMenus returned\n");
+    MenuHandle existingAppMenu = GetMenuHandle(appMenuID);
+    if (existingAppMenu == NULL) {
+        serial_puts("Finder: App menu handle missing, invoking SetupDefaultMenus\n");
+        SetupDefaultMenus();
+        serial_puts("Finder: SetupDefaultMenus returned\n");
+    } else {
+        serial_puts("Finder: App menu handle present, skipping SetupDefaultMenus\n");
+    }
 
     return noErr;
 }

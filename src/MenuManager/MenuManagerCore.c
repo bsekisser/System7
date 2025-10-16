@@ -303,8 +303,15 @@ void SetupDefaultMenus(void)
 
     menuBar = (MenuBarList*)gMenuList;
 
-    /* Manually populate the 6 standard menus */
-    menuBar->numMenus = 6;
+    /* If menus already exist (Finder populated them), leave them intact */
+    if (menuBar->numMenus > 0) {
+        MENU_LOG_INFO("SetupDefaultMenus: existing menu list detected (numMenus=%d), skipping fallback\n",
+                      menuBar->numMenus);
+        return;
+    }
+
+    /* Manually populate the 7 standard menus (Apple, File, Edit, View, Label, Special, Application) */
+    menuBar->numMenus = 7;
     menuBar->totalWidth = 0;
     menuBar->lastRight = 10; /* Start after left margin */
 
@@ -338,10 +345,14 @@ void SetupDefaultMenus(void)
     menuBar->menus[5].menuLeft = 215;
     menuBar->menus[5].menuWidth = 65;  /* Width for "Special" */
 
-    menuBar->lastRight = 280;
-    menuBar->totalWidth = 270;
+    /* Application Menu (Finder icon) */
+    menuBar->menus[6].menuID = (short)kApplicationMenuID;
+    menuBar->menus[6].menuLeft = 280;
+    menuBar->menus[6].menuWidth = 20;  /* Icon-only */
 
-    /* Also update the menu bar in state */
+    menuBar->lastRight = 300;
+    menuBar->totalWidth = 290;
+
     if (gMenuMgrState) {
         gMenuMgrState->menuBar = (Handle)menuBar;
     }
@@ -367,8 +378,20 @@ void DrawMenuBar(void)
 
     /* Make sure we have a valid port to draw to */
     if (qd.thePort) {
+        char debugBuf[128];
+        snprintf(debugBuf, sizeof(debugBuf),
+                 "DrawMenuBar: qd.thePort base=%p rowBytes=%d bounds=(%d,%d)-(%d,%d)\n",
+                 qd.thePort->portBits.baseAddr,
+                 qd.thePort->portBits.rowBytes,
+                 qd.thePort->portBits.bounds.left,
+                 qd.thePort->portBits.bounds.top,
+                 qd.thePort->portBits.bounds.right,
+                 qd.thePort->portBits.bounds.bottom);
+        serial_puts(debugBuf);
         SetPort(qd.thePort);  /* Draw to screen port */
-        /* serial_puts("DrawMenuBar: SetPort called with qd.thePort\n"); */
+        snprintf(debugBuf, sizeof(debugBuf), "DrawMenuBar: SetPort -> current port base=%p\n",
+                 qd.thePort->portBits.baseAddr);
+        serial_puts(debugBuf);
     } else {
         /* serial_puts("DrawMenuBar: qd.thePort is NULL!\n"); */
     }
@@ -403,8 +426,9 @@ void DrawMenuBar(void)
             MENU_LOG_DEBUG("DrawMenuBar: numMenus = %d\n", menuBar->numMenus);
 
             for (int i = 0; i < menuBar->numMenus; i++) {
-                MENU_LOG_DEBUG("DrawMenuBar: Processing menu %d\n", i);
-                MenuHandle menu = GetMenuHandle(menuBar->menus[i].menuID);
+                MENU_LOG_DEBUG("DrawMenuBar: Processing menu %d (ID=%d)\n", i, menuBar->menus[i].menuID);
+                short currentMenuID = menuBar->menus[i].menuID;
+                MenuHandle menu = GetMenuHandle(currentMenuID);
                 if (menu) {
                     /* serial_puts("DrawMenuBar: Menu handle found\n"); */
 
@@ -417,51 +441,47 @@ void DrawMenuBar(void)
                     /* Get menu title */
                     unsigned char titleLen = (**menu).menuData[0];
 
+                    /* Use precomputed left from layout for consistent placement */
+                    x = menuBar->menus[i].menuLeft;
+                    short menuWidth = 0;
+                    char titleText[256] = {0};
+
+                    /* Skip duplicated placeholder menu */
+                    if (mptr->menuID == 1) {
+                        continue;
+                    }
+
+                    /* Draw Apple glyph even when the menu title is blank */
+                    if (mptr->menuID == 128) {
+                        menuWidth = MenuAppleIcon_Draw(qd.thePort, x, 0, false);
+                        AddMenuTitle(mptr->menuID, x, menuWidth, "Apple");
+                        x += menuWidth;
+                        continue;
+                    }
+
+                    /* Draw Finder application icon regardless of title length */
+                    if (mptr->menuID == (short)kApplicationMenuID) {
+                        char debugBuf[64];
+                        snprintf(debugBuf, sizeof(debugBuf), "MenuAppIcon_Draw at x=%d\n", x);
+                        serial_puts(debugBuf);
+                        menuWidth = MenuAppIcon_Draw(qd.thePort, x, 0, false);
+                        snprintf(debugBuf, sizeof(debugBuf), "MenuAppIcon width=%d\n", menuWidth);
+                        serial_puts(debugBuf);
+                        AddMenuTitle(mptr->menuID, x, menuWidth, "Application");
+                        x += menuWidth;
+                        continue;
+                    }
+
                     /* CRITICAL FIX: Ensure titleLen is reasonable */
                     if (titleLen > 20) {
                         titleLen = 4; /* Default to 4 for "File", "Edit", etc */
                     }
 
-                    /* MENU_LOG_TRACE("DrawMenuBar: Got title length: %d (0x%02x)\n", titleLen, titleLen); */
-
-                    /* Also show first few bytes of menuData for debugging */
-                    /* Commented out debug output
-                    MENU_LOG_TRACE("  menuData[0-7]: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-                                  (**menu).menuData[0], (**menu).menuData[1],
-                                  (**menu).menuData[2], (**menu).menuData[3],
-                                  (**menu).menuData[4], (**menu).menuData[5],
-                                  (**menu).menuData[6], (**menu).menuData[7]);
-                    */
-
                     /* Check if title is at wrong offset */
-                    /* unsigned char alt_len = (**menu).menuData[1]; */
-                    /* MENU_LOG_TRACE("  Alt titleLen at [1]: %d\n", alt_len); */
                     if (titleLen > 0 && titleLen <= 20) { /* More restrictive sanity check */
-                        /* Use precomputed left from layout for consistent placement */
-                        x = menuBar->menus[i].menuLeft;
-                        short menuWidth = 0;
-                        char titleText[256] = {0};
-
-                        /* Check if this is the Apple menu - only draw icon for ID 128 */
-                        /* ID 1 appears to be a duplicate that should be ignored */
-                        if (mptr->menuID == 128) {
-                            /* Draw Apple icon instead of text */
-                            menuWidth = MenuAppleIcon_Draw(qd.thePort, x, 0, false);
-                            AddMenuTitle(mptr->menuID, x, menuWidth, "Apple");
-                            x += menuWidth;
-                        } else if (mptr->menuID == (short)kApplicationMenuID) {
-                            /* Draw Application icon on right side */
-                            menuWidth = MenuAppIcon_Draw(qd.thePort, x, 0, false);
-                            AddMenuTitle(mptr->menuID, x, menuWidth, "Application");
-                            x += menuWidth;
-                        } else if (mptr->menuID == 1) {
-                            /* Skip menu ID 1 - it's a duplicate Apple menu */
-                            /* MENU_LOG_TRACE("Skipping duplicate Apple menu (ID 1)\n"); */
-                            continue;
-                        } else {
-                            /* Draw normal text title - moved 4px right and 1px down */
-                            ForeColor(blackColor);  /* Ensure black text */
-                            MoveTo(x + 4, 14);  /* Shifted right 4px and down 1px */
+                        /* Draw normal text title - moved 4px right and 1px down */
+                        ForeColor(blackColor);  /* Ensure black text */
+                        MoveTo(x + 4, 14);  /* Shifted right 4px and down 1px */
 
                         /* TEMPORARY FIX: Use hardcoded menu titles based on menu ID */
                         const char* hardcodedTitle = NULL;
@@ -471,39 +491,41 @@ void DrawMenuBar(void)
                             titleLen = 4;
                         } else if (mptr->menuID == 130) {
                             hardcodedTitle = "Edit";
-                                titleLen = 4;
-                            } else if (mptr->menuID == 131) {
-                                hardcodedTitle = "View";
-                                titleLen = 4;
-                            } else if (mptr->menuID == 132) {
-                                hardcodedTitle = "Label";
-                                titleLen = 5;
-                            } else if (mptr->menuID == 133) {
-                                hardcodedTitle = "Special";
-                                titleLen = 7;
-                            }
-
-                            if (hardcodedTitle) {
-                                MENU_LOG_DEBUG("DrawMenuBar: Drawing hardcoded title '%s' len=%d\n", hardcodedTitle, titleLen);
-                                titlePascal[0] = (unsigned char)titleLen;
-                                memcpy(&titlePascal[1], hardcodedTitle, titleLen);
-                                DrawText(&titlePascal[1], 0, titleLen);
-                                menuWidth = StringWidth(titlePascal) + 20;
-                                memcpy(titleText, &titlePascal[1], titleLen);
-                                titleText[titleLen] = '\0';
-                            } else {
-                                /* Fall back to menu data if not a known menu */
-                                serial_puts("DrawMenuBar: Drawing from menu data\n");
-                                DrawText((char*)&(**menu).menuData[1], 0, titleLen);
-                                menuWidth = StringWidth((ConstStr255Param)(**menu).menuData) + 20;
-                                memcpy(titleText, &(**menu).menuData[1], titleLen);
-                                titleText[titleLen] = '\0';
-                            }
-                            serial_puts("DrawMenuBar: DrawText returned\n");
-                            AddMenuTitle(mptr->menuID, x, menuWidth, titleText);
-                            x += menuWidth;
+                            titleLen = 4;
+                        } else if (mptr->menuID == 131) {
+                            hardcodedTitle = "View";
+                            titleLen = 4;
+                        } else if (mptr->menuID == 132) {
+                            hardcodedTitle = "Label";
+                            titleLen = 5;
+                        } else if (mptr->menuID == 133) {
+                            hardcodedTitle = "Special";
+                            titleLen = 7;
                         }
+
+                        if (hardcodedTitle) {
+                            MENU_LOG_DEBUG("DrawMenuBar: Drawing hardcoded title '%s' len=%d\n", hardcodedTitle, titleLen);
+                            titlePascal[0] = (unsigned char)titleLen;
+                            memcpy(&titlePascal[1], hardcodedTitle, titleLen);
+                            DrawText(&titlePascal[1], 0, titleLen);
+                            menuWidth = StringWidth(titlePascal) + 20;
+                            memcpy(titleText, &titlePascal[1], titleLen);
+                            titleText[titleLen] = '\0';
+                        } else {
+                            /* Fall back to menu data if not a known menu */
+                            serial_puts("DrawMenuBar: Drawing from menu data\n");
+                            DrawText((char*)&(**menu).menuData[1], 0, titleLen);
+                            menuWidth = StringWidth((ConstStr255Param)(**menu).menuData) + 20;
+                            memcpy(titleText, &(**menu).menuData[1], titleLen);
+                            titleText[titleLen] = '\0';
+                        }
+
+                        serial_puts("DrawMenuBar: DrawText returned\n");
+                        AddMenuTitle(mptr->menuID, x, menuWidth, titleText);
+                        x += menuWidth;
                     }
+                } else {
+                    MENU_LOG_DEBUG("DrawMenuBar: GetMenuHandle returned NULL for ID %d\n", currentMenuID);
                 }
             }
         } else {
