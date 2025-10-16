@@ -361,6 +361,8 @@ C_SOURCES = src/main.c \
             src/Apps/SimpleText/STMenus.c \
             src/Apps/SimpleText/STFileIO.c \
             src/Apps/SimpleText/STClipboard.c \
+            src/Apps/MacPaint/MacPaint_Core.c \
+            src/Apps/MacPaint/MacPaint_Main.c \
             src/StartupScreen/StartupScreen.c
 
 # Add ResourceMgr sources if enabled
