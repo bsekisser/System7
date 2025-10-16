@@ -713,10 +713,12 @@ void InsertMenu(MenuHandle theMenu, short beforeID)
     int insertIndex;
 
     if (!gMenuMgrInitialized || theMenu == NULL) {
+        MENU_LOG_DEBUG("InsertMenu: invalid state or menu handle NULL\n");
         return;
     }
 
     if (ValidateMenuHandle(theMenu) != 0) {
+        MENU_LOG_ERROR("InsertMenu: ValidateMenuHandle failed for ID %d\n", (*theMenu)->menuID);
         return;
     }
 
@@ -769,6 +771,12 @@ void InsertMenu(MenuHandle theMenu, short beforeID)
 
     /* Insert new menu */
     menuBar->menus[insertIndex].menuID = (*theMenu)->menuID;
+    {
+        char debugBuf[80];
+        snprintf(debugBuf, sizeof(debugBuf), "InsertMenu: adding ID %d at index %d (beforeID=%d)\n",
+                 menuBar->menus[insertIndex].menuID, insertIndex, beforeID);
+        serial_puts(debugBuf);
+    }
     menuBar->menus[insertIndex].menuLeft = 0; /* Will be calculated */
     menuBar->menus[insertIndex].menuWidth = 0; /* Will be calculated */
     menuBar->numMenus++;
