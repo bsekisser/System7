@@ -180,6 +180,64 @@ void MacPaint_EditFill(void);
 void MacPaint_EditSelectAll(void);
 
 /*
+ * Advanced Features (from MacPaint_Advanced.c)
+ */
+
+/* Undo/Redo System */
+OSErr MacPaint_InitializeUndo(void);
+void MacPaint_ShutdownUndo(void);
+OSErr MacPaint_SaveUndoState(const char *description);
+int MacPaint_CanUndo(void);
+int MacPaint_CanRedo(void);
+OSErr MacPaint_Undo(void);
+OSErr MacPaint_Redo(void);
+
+/* Selection and Clipboard */
+OSErr MacPaint_CreateSelection(int left, int top, int right, int bottom);
+int MacPaint_GetSelection(Rect *bounds);
+void MacPaint_ClearSelection(void);
+OSErr MacPaint_CopySelectionToClipboard(void);
+OSErr MacPaint_PasteFromClipboard(int x, int y);
+OSErr MacPaint_CutSelection(void);
+
+/* Pattern Editor */
+OSErr MacPaint_OpenPatternEditor(void);
+void MacPaint_ClosePatternEditor(void);
+void MacPaint_SetPatternEditorPattern(int patternIndex);
+Pattern MacPaint_GetPatternEditorPattern(void);
+void MacPaint_PatternEditorPixelClick(int x, int y);
+
+/* Brush Editor */
+OSErr MacPaint_OpenBrushEditor(void);
+void MacPaint_CloseBrushEditor(void);
+void MacPaint_SetBrushSize(int diameter);
+int MacPaint_GetBrushSize(void);
+
+/* Advanced Drawing Modes */
+void MacPaint_SetDrawingMode(int mode);
+int MacPaint_GetDrawingMode(void);
+
+/* Selection Transformations */
+OSErr MacPaint_FlipSelectionHorizontal(void);
+OSErr MacPaint_FlipSelectionVertical(void);
+OSErr MacPaint_RotateSelectionCW(void);
+OSErr MacPaint_RotateSelectionCCW(void);
+OSErr MacPaint_ScaleSelection(int newWidth, int newHeight);
+
+/* Advanced Fill Modes */
+OSErr MacPaint_FillSelectionWithPattern(void);
+OSErr MacPaint_GradientFill(void);
+OSErr MacPaint_SmoothSelection(void);
+
+/* State Queries */
+int MacPaint_IsPatternEditorOpen(void);
+int MacPaint_IsBrushEditorOpen(void);
+int MacPaint_IsSelectionActive(void);
+int MacPaint_HasClipboard(void);
+const char* MacPaint_GetUndoDescription(void);
+const char* MacPaint_GetRedoDescription(void);
+
+/*
  * Global State Access (from MacPaint_Core.c)
  */
 extern BitMap gPaintBuffer;

@@ -82,6 +82,7 @@ OSErr MacPaint_Initialize(void)
 {
     int i;
     Size bufferSize;
+    OSErr err;
 
     /* Initialize global state */
     gCurrentTool = TOOL_PENCIL;
@@ -110,6 +111,12 @@ OSErr MacPaint_Initialize(void)
     gPaintBuffer.bounds.bottom = MACPAINT_DOC_HEIGHT;
     gPaintBuffer.bounds.right = MACPAINT_DOC_WIDTH;
 
+    /* Initialize undo/redo system */
+    err = MacPaint_InitializeUndo();
+    if (err != noErr) {
+        return err;
+    }
+
     return noErr;
 }
 
@@ -118,6 +125,9 @@ OSErr MacPaint_Initialize(void)
  */
 void MacPaint_Shutdown(void)
 {
+    /* Clean up undo/redo system */
+    MacPaint_ShutdownUndo();
+
     if (gPaintBufferData) {
         DisposePtr(gPaintBufferData);
         gPaintBufferData = NULL;

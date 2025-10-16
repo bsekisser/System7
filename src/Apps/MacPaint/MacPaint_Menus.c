@@ -254,10 +254,8 @@ void MacPaint_FileQuit(void)
  */
 void MacPaint_EditUndo(void)
 {
-    if (gMenuState.undoAvailable) {
-        MacPaint_RestoreBackup();
-        gMenuState.undoAvailable = 0;
-    }
+    MacPaint_Undo();
+    MacPaint_UpdateMenus();
 }
 
 /**
