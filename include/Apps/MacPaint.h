@@ -238,6 +238,61 @@ const char* MacPaint_GetUndoDescription(void);
 const char* MacPaint_GetRedoDescription(void);
 
 /*
+ * System Integration (from MacPaint_Integration.c)
+ */
+
+/* Window Management */
+OSErr MacPaint_CreateWindow(void);
+WindowPtr MacPaint_GetWindowPtr(void);
+void MacPaint_GetPaintRect(Rect *rect);
+void MacPaint_InvalidateWindow(void);
+void MacPaint_CloseWindow(void);
+void MacPaint_UpdateWindowTitle(void);
+int MacPaint_IsWindowOpen(void);
+
+/* Menu Manager */
+OSErr MacPaint_InitializeMenuBar(void);
+void MacPaint_HandleMenuSelection(int menuID, int itemID);
+void MacPaint_AdjustMenus(void);
+int MacPaint_GetMenuBarState(void);
+
+/* Standard File Dialogs */
+int MacPaint_DoOpenDialog(char *path, int pathLen);
+int MacPaint_DoSaveDialog(char *path, int pathLen);
+
+/* Print Manager */
+int MacPaint_DoPrintDialog(void);
+OSErr MacPaint_PrintDocument(void);
+
+/* Dialog Editors */
+OSErr MacPaint_CreatePatternEditorDialog(void);
+int MacPaint_PatternEditorEventHandler(int itemHit);
+void MacPaint_ClosePatternEditorDialog(void);
+OSErr MacPaint_CreateBrushEditorDialog(void);
+int MacPaint_BrushEditorEventHandler(int itemHit);
+void MacPaint_CloseBrushEditorDialog(void);
+
+/* Event Loop */
+void MacPaint_RunEventLoop(void);
+OSErr MacPaint_ExecuteMenuCommand(int menuID, int itemID);
+
+/* Drag and Drop */
+int MacPaint_CanAcceptDraggedFile(const char *filename);
+OSErr MacPaint_HandleDroppedFile(const char *filename);
+
+/* Resource Management */
+OSErr MacPaint_LoadApplicationResources(void);
+void MacPaint_ReleaseApplicationResources(void);
+
+/* System Integration */
+OSErr MacPaint_InitializeSystem(void);
+void MacPaint_ShutdownSystem(void);
+
+/* Document Management */
+void MacPaint_SetDocumentName(const char *name);
+const char* MacPaint_GetDocumentName(void);
+
+/*
  * Global State Access (from MacPaint_Core.c)
  */
 extern BitMap gPaintBuffer;

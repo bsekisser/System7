@@ -36,6 +36,12 @@ int MacPaintMain(int argc, char **argv)
         goto cleanup;
     }
 
+    /* Initialize System 7.1 integration */
+    err = MacPaint_InitializeSystem();
+    if (err != noErr) {
+        goto cleanup;
+    }
+
     /* Create new document */
     err = MacPaint_NewDocument();
     if (err != noErr) {
@@ -45,17 +51,19 @@ int MacPaintMain(int argc, char **argv)
     /* If a file was passed, try to open it */
     if (argc > 1 && argv[1]) {
         MacPaint_OpenDocument(argv[1]);
+        MacPaint_SetDocumentName(argv[1]);
+    } else {
+        MacPaint_SetDocumentName("Untitled");
     }
 
-    /* TODO: Enter main event loop
-     * - GetNextEvent()
-     * - Handle mouse clicks in paint canvas
-     * - Handle menu selections
-     * - Handle keyboard input (tool shortcuts, etc)
-     * - Render and update display
-     */
+    /* Enter main event loop */
+    MacPaint_RunEventLoop();
 
 cleanup:
+    /* Clean up system integration */
+    MacPaint_ShutdownSystem();
+
+    /* Clean up core */
     MacPaint_Shutdown();
     return err;
 }
