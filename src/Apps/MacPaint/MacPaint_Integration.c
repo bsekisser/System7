@@ -16,6 +16,7 @@
 #include "Apps/MacPaint.h"
 #include "MenuManager/MenuManager.h"
 #include "WindowManager/WindowManager.h"
+#include "StandardFile/StandardFile.h"
 #include "System71StdLib.h"
 #include "MemoryMgr/MemoryManager.h"
 #include <string.h>
@@ -301,18 +302,30 @@ void MacPaint_AdjustMenus(void)
  */
 int MacPaint_DoOpenDialog(char *path, int pathLen)
 {
+    StandardFileReply reply;
+
     if (!path || pathLen <= 0) {
         return 0;
     }
 
-    /* TODO: Use StandardFile package to show open dialog
-     * StandardGetFile(&filterProc, -1, NULL, &reply);
-     * if (!reply.good) return 0;  // Cancelled
-     * Convert FSSpec to pathname
-     * Return 1 on success, 0 on cancel
-     */
+    /* Show Standard File open dialog */
+    StandardGetFile(NULL, -1, NULL, &reply);
 
-    return 0;  /* Placeholder */
+    /* Check if user selected a file (not cancelled) */
+    if (!reply.sfGood) {
+        return 0;  /* User cancelled */
+    }
+
+    /* Copy filename to path buffer
+     * sfFile.name is a Pascal string (length byte + ASCII data)
+     */
+    if (reply.sfFile.name[0] > 0 && reply.sfFile.name[0] < pathLen) {
+        strncpy(path, (const char *)&reply.sfFile.name[1], reply.sfFile.name[0]);
+        path[reply.sfFile.name[0]] = '\0';
+        return 1;  /* Success */
+    }
+
+    return 0;
 }
 
 /**
@@ -321,18 +334,45 @@ int MacPaint_DoOpenDialog(char *path, int pathLen)
  */
 int MacPaint_DoSaveDialog(char *path, int pathLen)
 {
+    StandardFileReply reply;
+    unsigned char promptStr[256];
+    unsigned char defaultName[256];
+
     if (!path || pathLen <= 0) {
         return 0;
     }
 
-    /* TODO: Use StandardFile package to show save dialog
-     * StandardPutFile("Save Picture As:", filename, &reply);
-     * if (!reply.good) return 0;  // Cancelled
-     * Convert FSSpec to pathname
-     * Return 1 on success, 0 on cancel
+    /* Convert C string to Pascal string for prompt
+     * Format: length byte followed by ASCII string
      */
+    const char *promptCStr = "Save Picture As:";
+    int promptLen = strlen(promptCStr);
+    if (promptLen > 255) promptLen = 255;
+    promptStr[0] = promptLen;
+    strncpy((char *)&promptStr[1], promptCStr, promptLen);
 
-    return 0;  /* Placeholder */
+    /* Convert current path to Pascal string for default name */
+    int pathLen2 = strlen(path);
+    if (pathLen2 > 255) pathLen2 = 255;
+    defaultName[0] = pathLen2;
+    strncpy((char *)&defaultName[1], path, pathLen2);
+
+    /* Show Standard File save dialog */
+    StandardPutFile(promptStr, defaultName, &reply);
+
+    /* Check if user selected a file (not cancelled) */
+    if (!reply.sfGood) {
+        return 0;  /* User cancelled */
+    }
+
+    /* Copy filename from sfFile.name (Pascal string) to path buffer */
+    if (reply.sfFile.name[0] > 0 && reply.sfFile.name[0] < pathLen) {
+        strncpy(path, (const char *)&reply.sfFile.name[1], reply.sfFile.name[0]);
+        path[reply.sfFile.name[0]] = '\0';
+        return 1;  /* Success */
+    }
+
+    return 0;
 }
 
 /*

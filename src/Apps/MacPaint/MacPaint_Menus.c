@@ -169,9 +169,17 @@ void MacPaint_FileOpen(void)
         MacPaint_SaveDocument(gDocName);
     }
 
-    /* TODO: Show Standard File dialog to select file
-     * Call MacPaint_OpenDocument(filename) on selection
-     */
+    /* Show Standard File dialog to select file */
+    char filePath[256];
+    filePath[0] = '\0';
+
+    if (MacPaint_DoOpenDialog(filePath, sizeof(filePath))) {
+        /* User selected a file - open it */
+        MacPaint_OpenDocument(filePath);
+        MacPaint_SetDocumentName(filePath);
+        gDocDirty = 0;  /* Document is no longer dirty after loading */
+    }
+    /* If cancelled, just return without doing anything */
 }
 
 /**
@@ -211,9 +219,17 @@ void MacPaint_FileSave(void)
  */
 void MacPaint_FileSaveAs(void)
 {
-    /* TODO: Show Standard File dialog for filename
-     * Call MacPaint_SaveDocumentAs(filename) on selection
-     */
+    /* Show Standard File dialog for filename */
+    char filePath[256];
+    strcpy(filePath, gDocName);
+
+    if (MacPaint_DoSaveDialog(filePath, sizeof(filePath))) {
+        /* User selected a filename - save with new name */
+        MacPaint_SaveDocument(filePath);
+        MacPaint_SetDocumentName(filePath);
+        gDocDirty = 0;  /* Document is no longer dirty after saving */
+    }
+    /* If cancelled, just return without doing anything */
 }
 
 /**
