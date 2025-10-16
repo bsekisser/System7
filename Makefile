@@ -157,6 +157,7 @@ C_SOURCES = src/main.c \
               src/Platform/arm/io.c \
               src/Platform/arm/device_tree.c \
               src/Platform/arm/hardware_detect.c \
+              src/Platform/arm/platform_info.c \
               src/Platform/arm/mmio.c \
               src/Platform/arm/videocore.c \
               src/Platform/arm/framebuffer.c \
@@ -172,6 +173,7 @@ C_SOURCES = src/main.c \
               src/Platform/x86/io.c \
               src/Platform/x86/ata.c \
               src/Platform/x86/ps2.c \
+              src/Platform/x86/platform_info.c \
               src/Platform/x86/hal_boot.c \
               src/Platform/x86/hal_input.c) \
             src/SoundManager/SoundManagerBareMetal.c \

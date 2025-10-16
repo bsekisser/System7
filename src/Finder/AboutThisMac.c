@@ -11,6 +11,7 @@
 #include "Finder/FinderLogging.h"
 #include "Finder/finder.h"
 #include "QuickDraw/QuickDraw.h"
+#include "Platform/platform_info.h"
 
 extern void DisposeGWorld(GWorldPtr offscreenGWorld);
 extern void* framebuffer;
@@ -466,24 +467,39 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     /* Clear */
     EraseRect(&contentRect);
 
-    /* Title: "Macintosh x86" - Chicago (System), 12pt, centered */
+    /* Get platform info for display */
+    const char *platform_name = platform_get_display_name();
+    const char *model_string = platform_get_model_string();
+    const char *memory_gb = platform_format_memory_gb();
+
+    /* Title: Platform name (detected at boot) - Chicago (System), 12pt, centered */
     Str255 title;
     TextFont(0);            /* System (Chicago) */
     TextSize(12);           /* Use 12pt to avoid scaling */
     TextFace(0);            /* normal */
-    FINDER_LOG_DEBUG("AboutThisMac: About to call ToPStr\n");
-    ToPStr("Macintosh x86", title);
+    FINDER_LOG_DEBUG("AboutThisMac: About to call ToPStr with platform: %s\n", platform_name);
+    ToPStr(platform_name, title);
     FINDER_LOG_DEBUG("AboutThisMac: ToPStr returned, title[0]=%d, about to center\n", title[0]);
     FINDER_LOG_DEBUG("AboutThisMac: About to call CenterPStringInRect\n");
     CenterPStringInRect(title, &contentRect, contentRect.top + 20);
     FINDER_LOG_DEBUG("AboutThisMac: Title centered\n");
 
-    /* Version: "System 7" - Chicago 12, normal */
+    /* Version and Memory: "System 7 - X GB" - Chicago 11, normal */
     Str255 ver;
-    TextSize(12);
+    char ver_buf[64];
+    sprintf(ver_buf, "System 7.1 - %s", memory_gb);
+    TextSize(11);
     TextFace(0);            /* normal */
-    ToPStr("System 7", ver);
-    CenterPStringInRect(ver, &w->port.portRect, w->port.portRect.top + 44);
+    ToPStr(ver_buf, ver);
+    CenterPStringInRect(ver, &w->port.portRect, w->port.portRect.top + 40);
+
+    /* Model info: model string - Chicago 10, normal */
+    if (model_string && model_string[0] != '\0') {
+        Str255 model_pstr;
+        TextSize(10);
+        ToPStr(model_string, model_pstr);
+        CenterPStringInRect(model_pstr, &w->port.portRect, w->port.portRect.top + 53);
+    }
 
     /* Get current memory statistics */
     GetMemorySnapshot(&mem);
