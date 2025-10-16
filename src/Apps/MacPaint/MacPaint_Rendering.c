@@ -15,6 +15,7 @@
 #include "SystemTypes.h"
 #include "Apps/MacPaint.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDrawConstants.h"
 #include "WindowManager/WindowManager.h"
 #include "System71StdLib.h"
 #include <string.h>
@@ -55,33 +56,37 @@ void MacPaint_RenderPaintBuffer(void)
         return;
     }
 
-    /* TODO: Use QuickDraw to render bitmap
-     *
-     * Pseudocode:
-     * GrafPtr port = GetWindowPort(gPaintWindow);
-     * SetPort(port);
-     * PenNormal();
-     *
-     * if (gRenderState.fatBitsMode) {
-     *     MacPaint_RenderFatBits();
-     * } else {
-     *     // Normal 1:1 rendering
-     *     CopyBits(&gPaintBuffer, &port->portBits,
-     *              &gPaintBuffer.bounds, &paintRect,
-     *              srcCopy, NULL);
-     * }
-     *
-     * if (gRenderState.showGrid) {
-     *     MacPaint_DrawGridOverlay();
-     * }
-     *
-     * if (gRenderState.showSelectionRect) {
-     *     MacPaint_DrawSelectionRectangle();
-     * }
-     *
-     * MacPaint_DrawToolbox();
-     * MacPaint_DrawStatusBar();
-     */
+    GrafPtr port = GetWindowPort(gPaintWindow);
+    if (!port) {
+        return;
+    }
+
+    SetPort(port);
+    PenNormal();
+
+    /* Render paint buffer using appropriate mode */
+    if (gRenderState.fatBitsMode) {
+        MacPaint_RenderFatBits();
+    } else {
+        /* Normal 1:1 rendering using CopyBits */
+        Rect dstRect;
+        MacPaint_GetPaintRect(&dstRect);
+        CopyBits(&gPaintBuffer, &port->portBits,
+                 &gPaintBuffer.bounds, &dstRect,
+                 srcCopy, NULL);
+    }
+
+    /* Render overlay elements */
+    if (gRenderState.showGrid) {
+        MacPaint_DrawGridOverlay();
+    }
+
+    if (gRenderState.showSelectionRect) {
+        MacPaint_DrawSelectionRectangle();
+    }
+
+    MacPaint_DrawToolbox();
+    MacPaint_DrawStatusBar();
 }
 
 /**
@@ -90,37 +95,50 @@ void MacPaint_RenderPaintBuffer(void)
  */
 void MacPaint_RenderFatBits(void)
 {
-    /* TODO: Render zoomed view
-     *
-     * Pseudocode:
-     * GrafPtr port = GetWindowPort(gPaintWindow);
-     *
-     * zoom = gRenderState.fatBitsZoom;  // 2, 4, 8, etc
-     *
-     * for (y = 0; y < gPaintBuffer.bounds.bottom; y++) {
-     *     for (x = 0; x < gPaintBuffer.bounds.right; x++) {
-     *         if (MacPaint_PixelTrue(x, y, &gPaintBuffer)) {
-     *             Rect pixelRect = {
-     *                 y * zoom, x * zoom,
-     *                 (y + 1) * zoom, (x + 1) * zoom
-     *             };
-     *             PaintRect(&pixelRect);
-     *         }
-     *     }
-     * }
-     *
-     * // Draw grid
-     * for (x = 0; x < gPaintBuffer.bounds.right; x++) {
-     *     int screenX = x * zoom;
-     *     MoveTo(screenX, 0);
-     *     LineTo(screenX, gPaintBuffer.bounds.bottom * zoom);
-     * }
-     * for (y = 0; y < gPaintBuffer.bounds.bottom; y++) {
-     *     int screenY = y * zoom;
-     *     MoveTo(0, screenY);
-     *     LineTo(gPaintBuffer.bounds.right * zoom, screenY);
-     * }
-     */
+    GrafPtr port = GetWindowPort(gPaintWindow);
+    if (!port) {
+        return;
+    }
+
+    SetPort(port);
+    int zoom = gRenderState.fatBitsZoom;
+    int x, y;
+    Rect pixelRect;
+    Rect dstRect;
+    MacPaint_GetPaintRect(&dstRect);
+
+    PenNormal();
+    PenSize(1, 1);
+
+    /* Draw each pixel as a zoom block */
+    for (y = 0; y < gPaintBuffer.bounds.bottom; y++) {
+        for (x = 0; x < gPaintBuffer.bounds.right; x++) {
+            pixelRect.top = dstRect.top + (y * zoom);
+            pixelRect.left = dstRect.left + (x * zoom);
+            pixelRect.bottom = pixelRect.top + zoom;
+            pixelRect.right = pixelRect.left + zoom;
+
+            if (MacPaint_PixelTrue(x, y, &gPaintBuffer)) {
+                PaintRect(&pixelRect);
+            } else {
+                FrameRect(&pixelRect);
+            }
+        }
+    }
+
+    /* Draw pixel grid lines */
+    PenMode(patXor);
+    for (x = 0; x <= gPaintBuffer.bounds.right; x++) {
+        int screenX = dstRect.left + (x * zoom);
+        MoveTo(screenX, dstRect.top);
+        LineTo(screenX, dstRect.bottom);
+    }
+    for (y = 0; y <= gPaintBuffer.bounds.bottom; y++) {
+        int screenY = dstRect.top + (y * zoom);
+        MoveTo(dstRect.left, screenY);
+        LineTo(dstRect.right, screenY);
+    }
+    PenNormal();
 }
 
 /*
@@ -136,32 +154,35 @@ void MacPaint_DrawGridOverlay(void)
         return;
     }
 
-    /* TODO: Use QuickDraw to draw grid
-     *
-     * Pseudocode:
-     * GrafPtr port = GetWindowPort(gPaintWindow);
-     * SetPort(port);
-     *
-     * PenMode(patXor);  // XOR mode so grid is visible on any background
-     * PenPat(gRenderState.gridColor);
-     * PenSize(1, 1);
-     *
-     * spacing = gRenderState.gridSpacing;
-     *
-     * // Draw vertical lines
-     * for (x = 0; x < paintRect.right; x += spacing) {
-     *     MoveTo(paintRect.left + x, paintRect.top);
-     *     LineTo(paintRect.left + x, paintRect.bottom);
-     * }
-     *
-     * // Draw horizontal lines
-     * for (y = 0; y < paintRect.bottom; y += spacing) {
-     *     MoveTo(paintRect.left, paintRect.top + y);
-     *     LineTo(paintRect.right, paintRect.top + y);
-     * }
-     *
-     * PenNormal();
-     */
+    GrafPtr port = GetWindowPort(gPaintWindow);
+    if (!port) {
+        return;
+    }
+
+    SetPort(port);
+
+    Rect paintRect;
+    MacPaint_GetPaintRect(&paintRect);
+
+    /* Use XOR pen mode so grid is visible on any background */
+    PenMode(patXor);
+    PenSize(1, 1);
+
+    int spacing = gRenderState.gridSpacing;
+
+    /* Draw vertical grid lines */
+    for (int x = 0; x < paintRect.right; x += spacing) {
+        MoveTo(paintRect.left + x, paintRect.top);
+        LineTo(paintRect.left + x, paintRect.bottom);
+    }
+
+    /* Draw horizontal grid lines */
+    for (int y = 0; y < paintRect.bottom; y += spacing) {
+        MoveTo(paintRect.left, paintRect.top + y);
+        LineTo(paintRect.right, paintRect.top + y);
+    }
+
+    PenNormal();
 }
 
 /**
@@ -197,26 +218,30 @@ void MacPaint_DrawSelectionRectangle(void)
         return;
     }
 
-    /* TODO: Draw animated selection rectangle
-     *
-     * Pseudocode:
-     * GrafPtr port = GetWindowPort(gPaintWindow);
-     * SetPort(port);
-     *
-     * PenMode(patXor);  // XOR so visible on any background
-     * PenSize(1, 1);
-     *
-     * // Pattern for "marching ants" effect
-     * UInt8 marchPattern[8] = {0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00};
-     * PenPat((Pattern*)marchPattern);
-     *
-     * FrameRect(&gRenderState.selectionRect);  // Draw outline
-     *
-     * // Optional: draw 4 corner handles
-     * // MacPaint_DrawSelectionHandles();
-     *
-     * PenNormal();
-     */
+    GrafPtr port = GetWindowPort(gPaintWindow);
+    if (!port) {
+        return;
+    }
+
+    SetPort(port);
+
+    /* Use XOR pen mode so visible on any background */
+    PenMode(patXor);
+    PenSize(1, 1);
+
+    /* Create marching ants pattern with animation offset */
+    UInt8 marchPattern[8];
+    int offset = gRenderState.selectionMarching % 8;
+    for (int i = 0; i < 8; i++) {
+        marchPattern[i] = (i >= offset) ? 0xFF : 0x00;
+    }
+
+    PenPat((Pattern *)marchPattern);
+
+    /* Draw outline with marching ants effect */
+    FrameRect(&gRenderState.selectionRect);
+
+    PenNormal();
 }
 
 /**
@@ -243,13 +268,12 @@ void MacPaint_AnimateSelection(void)
         return;
     }
 
-    /* TODO: Update animation frame
-     * gRenderState.selectionMarching++;
-     * if (gRenderState.selectionMarching > 7) {
-     *     gRenderState.selectionMarching = 0;
-     * }
-     * MacPaint_InvalidateWindowArea();
-     */
+    /* Update animation frame for marching ants */
+    gRenderState.selectionMarching++;
+    if (gRenderState.selectionMarching > 7) {
+        gRenderState.selectionMarching = 0;
+    }
+    MacPaint_InvalidateWindowArea();
 }
 
 /*
@@ -563,24 +587,23 @@ void MacPaint_FullWindowUpdate(void)
         return;
     }
 
-    /* TODO: Complete redraw sequence
-     *
-     * Pseudocode:
-     * BeginUpdate(gPaintWindow);
-     *
-     * // Erase background
-     * GrafPtr port = GetWindowPort(gPaintWindow);
-     * SetPort(port);
-     * SetBackColor(whiteColor);
-     * EraseRect(&port->portRect);
-     *
-     * // Render all elements in order
-     * MacPaint_RenderPaintBuffer();
-     * MacPaint_DrawToolbox();
-     * MacPaint_DrawStatusBar();
-     *
-     * EndUpdate(gPaintWindow);
-     */
+    BeginUpdate(gPaintWindow);
+
+    GrafPtr port = GetWindowPort(gPaintWindow);
+    if (port) {
+        SetPort(port);
+
+        /* Erase background with white */
+        BackColor(whiteColor);
+        EraseRect(&port->portRect);
+
+        /* Render all elements in order */
+        MacPaint_RenderPaintBuffer();
+        MacPaint_DrawToolbox();
+        MacPaint_DrawStatusBar();
+    }
+
+    EndUpdate(gPaintWindow);
 }
 
 /*
