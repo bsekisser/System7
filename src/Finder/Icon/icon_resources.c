@@ -21,6 +21,12 @@ bool IconRes_LoadFamilyByID(int16_t rsrcID, IconFamily* out) {
 bool IconRes_MapTypeCreatorToIcon(uint32_t type, uint32_t creator, int16_t* outRsrcID) {
     /* Simple hardcoded mappings for now */
 
+    /* Finder application */
+    if (type == 'APPL' && creator == 'MACS') {
+        *outRsrcID = 12500; /* Finder.icn */
+        return true;
+    }
+
     /* Application */
     if (type == 'APPL') {
         *outRsrcID = 128;  /* Generic app icon */
