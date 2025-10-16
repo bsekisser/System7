@@ -12,6 +12,7 @@
 #include <stddef.h>
 #include <string.h>
 #include "System71StdLib.h"
+#include "hardware_detect.h"
 #include "mmio.h"
 
 /* Hardware revision register address (Pi 3/4/5 compatible) */

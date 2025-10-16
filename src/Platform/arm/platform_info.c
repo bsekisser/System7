@@ -5,11 +5,7 @@
 #include <string.h>
 #include "Platform/platform_info.h"
 #include "System71StdLib.h"
-
-/* Hardware detection from boot sequence */
-extern rpi_model_t hardware_get_model(void);
-extern const char* hardware_get_model_string(void);
-extern uint32_t device_tree_get_memory_size(void);
+#include "hardware_detect.h"
 
 static platform_info_t g_platform_info = {
     .type = PLATFORM_ARM_PI4,  /* Default, will be updated */
@@ -22,6 +18,8 @@ static platform_info_t g_platform_info = {
 
 static char g_memory_gb_str[32] = {0};
 static int g_platform_info_initialized = 0;
+
+extern uint32_t device_tree_get_memory_size(void);
 
 static void platform_info_init(void) {
     if (g_platform_info_initialized) return;

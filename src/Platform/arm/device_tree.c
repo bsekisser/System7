@@ -178,9 +178,17 @@ uint32_t device_tree_get_memory_size(void) {
         if (strstr(model, "Pi 3") || strstr(model, "3B")) {
             return 1 * 1024 * 1024 * 1024;  /* Pi 3: 1GB */
         } else if (strstr(model, "Pi 4") || strstr(model, "4B")) {
-            return 4 * 1024 * 1024 * 1024;  /* Pi 4: 4GB (typical) */
+            uint64_t mem = 4ULL * 1024 * 1024 * 1024;
+            if (mem > UINT32_MAX) {
+                mem = UINT32_MAX;
+            }
+            return (uint32_t)mem;          /* Pi 4: approx 4GB */
         } else if (strstr(model, "Pi 5") || strstr(model, "5B")) {
-            return 8 * 1024 * 1024 * 1024;  /* Pi 5: 8GB (typical) */
+            uint64_t mem = 8ULL * 1024 * 1024 * 1024;
+            if (mem > UINT32_MAX) {
+                mem = UINT32_MAX;
+            }
+            return (uint32_t)mem;          /* Pi 5: approx 8GB */
         }
     }
 

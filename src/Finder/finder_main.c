@@ -18,6 +18,7 @@
 #include "SystemTypes.h"
 
 #include "Finder/finder.h"
+#include "Platform/Halt.h"
 #include "Finder/finder_types.h"
 /* Use local headers instead of system headers */
 #include "MemoryMgr/memory_manager_types.h"
@@ -669,7 +670,7 @@ static OSErr HandleShutDown(void)
     serial_puts("Finder: Shutting down system\n");
 
     /* Halt the CPU */
-    __asm__ volatile("cli; hlt");
+    platform_halt();
 
     return noErr;  /* Never reached */
 }

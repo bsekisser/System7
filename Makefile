@@ -184,6 +184,7 @@ C_SOURCES = src/main.c \
             src/SystemInit.c \
             src/sys71_stubs.c \
             src/System71StdLib.c \
+            src/runtime_stubs.c \
             src/System/SystemTheme.c \
             src/ToolboxCompat.c \
             src/Finder/finder_main.c \
@@ -224,7 +225,8 @@ C_SOURCES = src/main.c \
               src/Platform/arm/xhci.c \
               src/Platform/arm/dwcotg.c \
               src/Platform/arm/usb_controller.c \
-              src/Platform/arm/hid_input.c, \
+              src/Platform/arm/hid_input.c \
+              src/Platform/arm/input_stubs.c, \
               src/Platform/x86/io.c \
               src/Platform/x86/ata.c \
               src/Platform/x86/ps2.c \
@@ -478,7 +480,11 @@ src/patterns_rsrc.c: $(RSRC_BIN)
 # Link kernel
 $(KERNEL): $(OBJECTS) | $(BUILD_DIR)
 	@echo "LD $(KERNEL)"
-	@$(LD) $(LDFLAGS) -T $(HAL_DIR)/linker.ld -o $(KERNEL) $(OBJECTS)
+	@if [ "$(PLATFORM)" = "arm" ]; then \
+		$(CC) $(LDFLAGS) -Wl,-T,$(HAL_DIR)/linker.ld -nostdlib -o $(KERNEL) $(OBJECTS) -lgcc; \
+	else \
+		$(LD) $(LDFLAGS) -T $(HAL_DIR)/linker.ld -o $(KERNEL) $(OBJECTS); \
+	fi
 	@readelf -h $(KERNEL) >/dev/null 2>&1 || { echo "ERROR: Invalid ELF file"; exit 1; }
 	@echo "✓ Kernel linked successfully ($(shell stat -c%s $(KERNEL) 2>/dev/null || stat -f%z $(KERNEL) 2>/dev/null) bytes)"
 

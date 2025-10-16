@@ -3,6 +3,6 @@
 
 #include <stdint.h>
 
-void hal_boot_init(void);
+void hal_boot_init(void *boot_arg);
 
 #endif /* HAL_BOOT_H */

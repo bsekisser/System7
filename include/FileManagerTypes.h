@@ -9,6 +9,7 @@
 #define __FILEMANAGERTYPES_H__
 
 #include "SystemTypes.h"
+#include <time.h>
 
 /* pthread inline functions for single-threaded kernel */
 static inline int pthread_mutex_init(pthread_mutex_t *mutex, const void *attr) {
@@ -26,12 +27,6 @@ static inline int pthread_mutex_lock(pthread_mutex_t *mutex) {
 static inline int pthread_mutex_unlock(pthread_mutex_t *mutex) {
     return 0;
 }
-
-/* time_t type */
-#ifndef _TIME_T_DEFINED
-#define _TIME_T_DEFINED
-typedef long time_t;
-#endif
 
 /* Extended Volume Control Block for File Manager */
 typedef struct VCBExt {

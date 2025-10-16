@@ -2,6 +2,7 @@
 #include "multiboot.h"
 #include "System71StdLib.h"
 #include "System/SystemLogging.h"
+#include "Platform/Halt.h"
 /*
  * System 7.1 Portable - System Initialization Implementation
  *
@@ -613,8 +614,8 @@ void SystemPanic(SystemError error_code, const char* message) {
     }
 
     /* Force halt - no exit in kernel mode */
-    while (1) {
-        __asm__ volatile ("cli; hlt");
+    for (;;) {
+        platform_halt();
     }
 }
 

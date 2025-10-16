@@ -6,14 +6,14 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "System71StdLib.h"
-#include "boot.h"
+#include "Platform/include/boot.h"
+#include "hardware_detect.h"
 #include "mmio.h"
 
 /* Forward declarations of platform-specific initialization */
 extern void device_tree_init(void *dtb_ptr);
 extern void device_tree_dump(void);
 extern uint32_t device_tree_get_memory_size(void);
-extern rpi_model_t hardware_detect_model(char *model_string, uint32_t string_len);
 extern void hardware_report_info(void);
 extern int arm_framebuffer_init(void);
 extern int arm_platform_timer_init(void);

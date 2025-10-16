@@ -86,8 +86,9 @@ bss_done:
     /* Call boot initialization with DTB address as argument
      * ARM EABI calling convention: first arg in r0, second in r1, etc.
      */
-    mov r0, r7              /* r0 = DTB address */
-    bl boot_main            /* Call boot_main(dtb_addr) */
+    mov r0, #0              /* r0 = placeholder magic value */
+    mov r1, r7              /* r1 = DTB address */
+    bl boot_main            /* Call boot_main(magic, dtb_addr) */
 
     /* Should not return from boot_main
      * If it does, halt
@@ -108,7 +109,7 @@ stack_top:
 /* Mark stack as non-executable for security
  * This is a note section that some tools recognize
  */
-.section .note.GNU-stack,"",@progbits
+.section .note.GNU-stack,"",%progbits
 
 /* Export labels for linker script and debugging */
 .global _kernel_entry

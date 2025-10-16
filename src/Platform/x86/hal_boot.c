@@ -12,7 +12,8 @@
  * For x86, most initialization is handled in kernel_main.
  * This function can be extended to handle x86-specific early init.
  */
-void hal_boot_init(void) {
+void hal_boot_init(void *boot_arg) {
+    (void)boot_arg;
     /* No early x86-specific initialization needed yet */
     /* Serial port and other hardware init happens in kernel_main */
 }

@@ -12,7 +12,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "System71StdLib.h"
-#include "storage.h"
+#include "Platform/include/storage.h"
 #include "MacTypes.h"
 #include "FileManagerTypes.h"
 

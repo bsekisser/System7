@@ -15,6 +15,8 @@
 #include "ControlPanels/Keyboard.h"
 #include "ControlPanels/ControlStrip.h"
 #include "Datetime/datetime_cdev.h"
+#include "Platform/Halt.h"
+#include "Platform/include/io.h"
 
 #include <string.h>
 
@@ -24,6 +26,7 @@
 
 /* Forward declarations */
 static void ShowAboutBox(void);
+static void perform_power_off(void);
 
 /* Menu IDs - Standard System 7.1 */
 #define kAppleMenuID    128  /* Apple menu is ID 128 in our system */
@@ -63,6 +66,31 @@ static void ShowAboutBox(void);
 #define kByKind         5
 #define kByLabel        6
 #define kByDate         7
+
+static void perform_power_off(void) {
+#if defined(__i386__) || defined(__x86_64__)
+    /* ACPI power-off sequence for x86 hardware */
+    hal_outw(0x604, 0x2000);
+    hal_outb(0xB004, 0x53);
+#endif
+    platform_halt();
+}
+
+static void perform_restart(void) {
+#if defined(__i386__) || defined(__x86_64__)
+    __asm__ volatile(
+        "movl $0, %%esp\n\t"
+        "push $0\n\t"
+        "push $0\n\t"
+        "lidt (%%esp)\n\t"
+        "int3\n\t"
+        :
+        :
+        : "memory"
+    );
+#endif
+    platform_halt();
+}
 
 /* Forward declarations */
 static void HandleAppleMenu(short item);
@@ -217,21 +245,7 @@ static void HandleAppleMenu(short item)
         MENU_LOG_INFO("System shutdown initiated...\n");
         MENU_LOG_INFO("It is now safe to turn off your computer.\n");
 
-        __asm__ volatile(
-            "movw $0x2000, %%ax\n"
-            "movw $0x604, %%dx\n"
-            "outw %%ax, %%dx\n"
-            : : : "ax", "dx"
-        );
-
-        __asm__ volatile(
-            "movb $0x53, %%al\n"
-            "movw $0xB004, %%dx\n"
-            "outb %%al, %%dx\n"
-            : : : "al", "dx"
-        );
-
-        __asm__ volatile("cli; hlt");
+        perform_power_off();
         return;
     }
 
@@ -302,7 +316,7 @@ static void HandleFileMenu(short item)
             MENU_LOG_INFO("File > Quit - Shutting down...\n");
             /* TODO: Proper shutdown sequence */
             /* For now, just halt */
-            __asm__ volatile("cli; hlt");
+            perform_power_off();
             break;
 
         default:
@@ -464,14 +478,7 @@ static void HandleSpecialMenu(short item)
     if (strcmp(itemName, "Restart") == 0) {
         MENU_LOG_INFO("Special > Restart\n");
         MENU_LOG_INFO("System restart initiated...\n");
-        __asm__ volatile(
-            "movl $0, %%esp\n"
-            "push $0\n"
-            "push $0\n"
-            "lidt (%%esp)\n"
-            "int3\n"
-            : : : "memory"
-        );
+        perform_restart();
         return;
     }
 
