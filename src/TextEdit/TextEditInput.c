@@ -574,11 +574,10 @@ static Boolean TE_IsWordChar(char ch) {
  * TE_GetKeys - Get keyboard state
  */
 static void TE_GetKeys(KeyMap keys) {
-    /* Simple stub - mark all keys as up */
-    keys[0] = 0;
-    keys[1] = 0;
-    keys[2] = 0;
-    keys[3] = 0;
+    if (!keys) {
+        return;
+    }
+    GetKeys(keys);
 }
 
 /*

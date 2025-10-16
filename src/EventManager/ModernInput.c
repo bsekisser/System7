@@ -1,5 +1,4 @@
 /**
-#include "EventManager/EventManagerInternal.h"
  * @file ModernInput.c
  * @brief Modern Input System Integration for Event Manager
  *
@@ -12,6 +11,7 @@
  */
 
 #include "SystemTypes.h"
+#include "EventManager/EventManagerInternal.h"
 #include "EventManager/EventManager.h"
 #include "EventManager/EventTypes.h"
 #include "EventManager/EventStructs.h"
@@ -19,6 +19,7 @@
 #include "EventManager/MouseEvents.h"
 #include "EventManager/KeyboardEvents.h"
 #include "EventManager/EventLogging.h"
+#include "Platform/PS2Input.h"
 #include <string.h>
 
 /* External functions */
@@ -30,10 +31,6 @@ extern volatile Boolean gInMouseTracking;
 
 /* QEMU PS/2 jitter tolerance: allows tiny grace for packet arrival delays */
 #define QEMU_JITTER_HACK 1
-
-/* PS/2 Controller integration */
-extern Boolean InitPS2Controller(void);
-extern void PollPS2Input(void);
 
 /* Global mouse position from PS2Controller.c */
 extern Point g_mousePos;
@@ -78,6 +75,7 @@ static struct {
     Boolean multiTouchEnabled;
     Boolean gesturesEnabled;
     Boolean accessibilityEnabled;
+    Boolean capsLockLatched;
     UInt32 pollCounter;  /* PS/2 poll throttling */
 #if QEMU_JITTER_HACK
     UInt32 lastDownTick;  /* Tick of last mouseDown to coalesce jitter */
@@ -95,6 +93,7 @@ static struct {
     false,
     false,
     false,
+    false,
     0
 #if QEMU_JITTER_HACK
     , 0
@@ -102,19 +101,61 @@ static struct {
 #endif
 };
 
-/**
- * Check if two points are within double-click distance
- * Uses global gDoubleClickSlop setting
- */
-static Boolean PointsNearby(Point p1, Point p2)
+static Boolean KeyMapHasKey(const KeyMap map, UInt16 scanCode)
 {
-    SInt16 dx = p1.h - p2.h;
-    SInt16 dy = p1.v - p2.v;
+    if (scanCode >= 128) {
+        return false;
+    }
 
-    if (dx < 0) dx = -dx;
-    if (dy < 0) dy = -dy;
+    const UInt32 *words = (const UInt32 *)map;
+    UInt16 arrayIndex = scanCode / 32;
+    UInt16 bitIndex = scanCode % 32;
 
-    return (dx <= gDoubleClickSlop && dy <= gDoubleClickSlop);
+    return (words[arrayIndex] & (1U << bitIndex)) != 0;
+}
+
+static UInt16 ComputeModifiersFromKeyMap(const KeyMap map, UInt8 buttonState)
+{
+    UInt16 mods = 0;
+
+    if (buttonState & 1) {
+        mods |= btnState;
+    }
+
+    if (KeyMapHasKey(map, kScanCommand)) {
+        mods |= cmdKey;
+    }
+    /* Some keyboards report right command as 0x36 */
+    if (KeyMapHasKey(map, 0x36)) {
+        mods |= cmdKey;
+    }
+
+    if (KeyMapHasKey(map, kScanShift)) {
+        mods |= shiftKey;
+    }
+    if (KeyMapHasKey(map, kScanRightShift)) {
+        mods |= shiftKey | rightShiftKey;
+    }
+
+    if (KeyMapHasKey(map, kScanOption)) {
+        mods |= optionKey;
+    }
+    if (KeyMapHasKey(map, kScanRightOption)) {
+        mods |= optionKey | rightOptionKey;
+    }
+
+    if (KeyMapHasKey(map, kScanControl)) {
+        mods |= controlKey;
+    }
+    if (KeyMapHasKey(map, kScanRightControl)) {
+        mods |= controlKey | rightControlKey;
+    }
+
+    if (KeyMapHasKey(map, kScanCapsLock) || g_modernInput.capsLockLatched) {
+        mods |= alphaLock;
+    }
+
+    return mods;
 }
 
 /**
@@ -150,6 +191,7 @@ SInt16 InitModernInput(const char* platform)
     g_modernInput.lastClickPos.h = 0;
     g_modernInput.lastClickPos.v = 0;
     g_modernInput.clickCount = 0;
+    g_modernInput.capsLockLatched = false;
 
     g_modernInput.initialized = true;
 
@@ -235,8 +277,7 @@ void ProcessModernInput(void)
                      pollCount, currentButtonState, g_modernInput.lastButtonState);
     }
 
-    /* Get keyboard state from PS2Controller */
-    extern Boolean GetPS2KeyboardState(KeyMap keyMap);
+    /* Get keyboard state from PS/2 controller */
     if (!GetPS2KeyboardState(currentKeyMap)) {
         /* If no keyboard state available, clear the map */
         memset(currentKeyMap, 0, sizeof(KeyMap));
@@ -373,10 +414,9 @@ void ProcessModernInput(void)
 
     /* Check for keyboard state changes */
     if (memcmp(currentKeyMap, g_modernInput.lastKeyMap, sizeof(KeyMap)) != 0) {
-        /* Update Event Manager keyboard state */
-        UpdateKeyboardState(currentKeyMap);
+        UInt16 newModifiers = ComputeModifiersFromKeyMap(currentKeyMap, currentButtonState);
+        UInt16 oldModifiers = ComputeModifiersFromKeyMap(g_modernInput.lastKeyMap, g_modernInput.lastButtonState);
 
-        /* Detect key presses and releases */
         for (int i = 0; i < 16; i++) {
             UInt8 oldByte = g_modernInput.lastKeyMap[i];
             UInt8 newByte = currentKeyMap[i];
@@ -386,13 +426,25 @@ void ProcessModernInput(void)
                 for (int bit = 0; bit < 8; bit++) {
                     if (changed & (1 << bit)) {
                         UInt16 keyCode = (i * 8) + bit;
+                        Boolean isPressed = (newByte & (1 << bit)) != 0;
 
-                        if (newByte & (1 << bit)) {
-                            /* Key pressed */
-                            PostEvent(keyDown, keyCode);
-                        } else {
-                            /* Key released */
-                            PostEvent(keyUp, keyCode);
+                        if (isPressed && keyCode == kScanCapsLock) {
+                            g_modernInput.capsLockLatched = !g_modernInput.capsLockLatched;
+                            newModifiers = ComputeModifiersFromKeyMap(currentKeyMap, currentButtonState);
+                        }
+
+                        UInt16 modifiers = isPressed ? newModifiers : oldModifiers;
+                        UInt32 timestamp = TickCount();
+
+                        SInt16 eventsGenerated = ProcessRawKeyboardEvent(keyCode, isPressed, modifiers, timestamp);
+
+                        if (eventsGenerated == 0) {
+                            UInt32 charCode = GetKeyCharacter(keyCode, modifiers);
+                            if (charCode != 0 || keyCode == kScanReturn || keyCode == kScanSpace ||
+                                keyCode == kScanTab || keyCode == kScanDelete) {
+                                SInt32 message = (charCode & 0xFFFF) | ((SInt32)keyCode << 8);
+                                PostEvent(isPressed ? keyDown : keyUp, message);
+                            }
                         }
                     }
                 }

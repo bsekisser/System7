@@ -481,6 +481,7 @@ void STView_Key(STDocument* doc, EventRecord* event) {
     }
 
     /* Mark as dirty */
+    STView_Draw(doc);
     STDoc_SetDirty(doc, true);
 }
 

@@ -11,6 +11,7 @@
 #include "Platform/PS2Input.h"
 #include <stdint.h>
 #include "Platform/PlatformLogging.h"
+#include <string.h>
 
 /* Event modifier key constants */
 #define shiftKey    0x0200
@@ -107,14 +108,45 @@ struct {
     uint8_t packet_index;
 } g_mouseState = {400, 300, 0, {0, 0, 0}, 0};
 
+
 /* Keyboard state */
-static struct {
-    Boolean shift_pressed;
-    Boolean ctrl_pressed;
-    Boolean alt_pressed;
-    Boolean caps_lock;
-    uint8_t last_scancode;
-} g_keyboardState = {false, false, false, false, 0};
+typedef struct {
+    UInt32 keyMap[4];
+    Boolean e0Prefix;
+    Boolean e1Prefix;
+    UInt8 e1BytesRemaining;
+    Boolean leftShift;
+    Boolean rightShift;
+    Boolean leftOption;
+    Boolean rightOption;
+    Boolean leftControl;
+    Boolean rightControl;
+    Boolean leftCommand;
+    Boolean rightCommand;
+    Boolean capsLockLatched;
+} Ps2KeyboardState;
+
+static Ps2KeyboardState g_keyboardState = {
+    {0, 0, 0, 0},
+    false,
+    false,
+    0,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+};
+
+static void ResetKeyboardState(void)
+{
+    memset(&g_keyboardState, 0, sizeof(g_keyboardState));
+}
+
 
 /* Wait for PS/2 controller ready for input */
 static Boolean ps2_wait_input(void) {
@@ -174,94 +206,145 @@ static Boolean ps2_mouse_command(uint8_t cmd) {
     return false;
 }
 
-/* Scan code to ASCII translation (simplified) */
-static char scancode_to_ascii(uint8_t scancode, Boolean shift) {
-    /* Basic US keyboard layout - scan code set 1 */
-    static const char normal_map[128] = {
-        0, 27, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b', '\t',
-        'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n', 0, 'a', 's',
-        'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`', 0, '\\', 'z', 'x', 'c', 'v',
-        'b', 'n', 'm', ',', '.', '/', 0, '*', 0, ' ', 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, '7', '8', '9', '-', '4', '5', '6', '+', '1',
-        '2', '3', '0', '.', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    };
+static const uint8_t kUnmappedKey = 0xFF;
 
-    static const char shift_map[128] = {
-        0, 27, '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', '\b', '\t',
-        'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}', '\n', 0, 'A', 'S',
-        'D', 'F', 'G', 'H', 'J', 'K', 'L', ':', '"', '~', 0, '|', 'Z', 'X', 'C', 'V',
-        'B', 'N', 'M', '<', '>', '?', 0, '*', 0, ' ', 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, '7', '8', '9', '-', '4', '5', '6', '+', '1',
-        '2', '3', '0', '.', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    };
+typedef struct {
+    UInt8 scan;
+    UInt8 mac;
+} ScanMapEntry;
 
-    if (scancode >= 128) return 0;
+static const ScanMapEntry g_set1BaseMap[] = {
+    {0x01, kScanEscape}, {0x02, 0x12}, {0x03, 0x13}, {0x04, 0x14}, {0x05, 0x15},
+    {0x06, 0x17}, {0x07, 0x16}, {0x08, 0x1A}, {0x09, 0x1C}, {0x0A, 0x19},
+    {0x0B, 0x1D}, {0x0C, 0x1B}, {0x0D, 0x18}, {0x0E, kScanDelete}, {0x0F, kScanTab},
+    {0x10, 0x0C}, {0x11, 0x0D}, {0x12, 0x0E}, {0x13, 0x0F}, {0x14, 0x11},
+    {0x15, 0x10}, {0x16, 0x20}, {0x17, 0x22}, {0x18, 0x1F}, {0x19, 0x23},
+    {0x1A, 0x21}, {0x1B, 0x1E}, {0x1C, kScanReturn}, {0x1D, kScanControl},
+    {0x1E, 0x00}, {0x1F, 0x01}, {0x20, 0x02}, {0x21, 0x03}, {0x22, 0x05},
+    {0x23, 0x04}, {0x24, 0x26}, {0x25, 0x28}, {0x26, 0x25}, {0x27, 0x29},
+    {0x28, 0x27}, {0x29, 0x32}, {0x2A, kScanShift}, {0x2B, 0x2A}, {0x2C, 0x06},
+    {0x2D, 0x07}, {0x2E, 0x08}, {0x2F, 0x09}, {0x30, 0x0B}, {0x31, 0x2D},
+    {0x32, 0x2E}, {0x33, 0x2B}, {0x34, 0x2F}, {0x35, 0x2C}, {0x36, kScanRightShift},
+    {0x37, 0x43}, {0x38, kScanOption}, {0x39, kScanSpace}, {0x3A, kScanCapsLock},
+    {0x3B, 0x7A}, {0x3C, 0x78}, {0x3D, 0x63}, {0x3E, 0x76}, {0x3F, 0x60},
+    {0x40, 0x61}, {0x41, 0x62}, {0x42, 0x64}, {0x43, 0x65}, {0x44, 0x6D},
+    {0x45, 0x47}, {0x46, 0x71}, {0x47, 0x59}, {0x48, 0x5B}, {0x49, 0x5C},
+    {0x4A, 0x4E}, {0x4B, 0x56}, {0x4C, 0x57}, {0x4D, 0x58}, {0x4E, 0x45},
+    {0x4F, 0x53}, {0x50, 0x54}, {0x51, 0x55}, {0x52, 0x52}, {0x53, 0x41},
+    {0x57, 0x67}, {0x58, 0x6F}, {0x76, kScanEscape},
+    {0xFF, kUnmappedKey}
+};
 
-    if (shift || g_keyboardState.caps_lock) {
-        char ch = shift_map[scancode];
-        if (g_keyboardState.caps_lock && ch >= 'A' && ch <= 'Z' && !shift) {
-            ch = normal_map[scancode]; /* Caps lock without shift = lowercase */
+static const ScanMapEntry g_set1ExtendedMap[] = {
+    {0x11, kScanRightOption}, {0x14, kScanRightControl}, {0x1C, 0x4C},
+    {0x35, 0x4B}, {0x37, 0x69}, {0x38, kScanRightOption}, {0x47, 0x73},
+    {0x48, kScanUpArrow}, {0x49, 0x74}, {0x4B, kScanLeftArrow},
+    {0x4D, kScanRightArrow}, {0x4F, 0x77}, {0x50, kScanDownArrow},
+    {0x51, 0x79}, {0x52, 0x72}, {0x53, 0x75}, {0x5B, 0x37},
+    {0x5C, 0x36}, {0x5D, 0x6E}, {0x5E, 0x6D}, {0x5F, 0x6F},
+    {0xFF, kUnmappedKey}
+};
+
+static UInt8 map_set1_scancode_to_mac(uint8_t scanCode, Boolean extended)
+{
+    const ScanMapEntry* table = extended ? g_set1ExtendedMap : g_set1BaseMap;
+    for (size_t i = 0; table[i].scan != 0xFF; ++i) {
+        if (table[i].scan == scanCode) {
+            return table[i].mac;
         }
-        return ch;
     }
-
-    return normal_map[scancode];
+    return kUnmappedKey;
 }
 
-/* Process keyboard scancode */
-static void process_keyboard_scancode(uint8_t scancode) {
-    Boolean key_released = (scancode & 0x80) != 0;
-    scancode &= 0x7F;
-
-    /* Update modifier keys */
-    switch (scancode) {
-        case 0x2A: /* Left Shift */
-        case 0x36: /* Right Shift */
-            g_keyboardState.shift_pressed = !key_released;
-            return;
-
-        case 0x1D: /* Control */
-            g_keyboardState.ctrl_pressed = !key_released;
-            return;
-
-        case 0x38: /* Alt */
-            g_keyboardState.alt_pressed = !key_released;
-            return;
-
-        case 0x3A: /* Caps Lock */
-            if (!key_released) {
-                g_keyboardState.caps_lock = !g_keyboardState.caps_lock;
-            }
-            return;
+static void UpdateKeyMapState(uint8_t macCode, Boolean isPressed)
+{
+    if (macCode >= 128) {
+        return;
     }
 
-    /* Only process key presses, not releases (for now) */
-    if (key_released) return;
+    UInt16 arrayIndex = macCode / 32;
+    UInt16 bitIndex = macCode % 32;
+    UInt32 mask = (1U << bitIndex);
 
-    /* Convert to ASCII */
-    char ascii = scancode_to_ascii(scancode, g_keyboardState.shift_pressed);
-    if (ascii == 0) return;
+    if (isPressed) {
+        g_keyboardState.keyMap[arrayIndex] |= mask;
+    } else {
+        g_keyboardState.keyMap[arrayIndex] &= ~mask;
+    }
+}
 
-    /* Create keyboard event message */
-    /* Message format: high byte = virtual key code, low byte = ASCII */
-    UInt32 message = (scancode << 8) | ascii;
 
-    /* Modifiers are encoded in the message for key events */
-    UInt16 modifiers = 0;
-    if (g_keyboardState.shift_pressed) modifiers |= shiftKey;
-    if (g_keyboardState.ctrl_pressed) modifiers |= controlKey;
-    if (g_keyboardState.alt_pressed) modifiers |= optionKey;
-    if (g_keyboardState.caps_lock) modifiers |= alphaLock;
+/* Process keyboard scancode */
+static void process_keyboard_scancode(uint8_t scancode)
+{
+    if (scancode == 0xE0) {
+        g_keyboardState.e0Prefix = true;
+        return;
+    }
 
-    /* Add modifiers to message (high word) */
-    message |= ((UInt32)modifiers << 16);
+    if (scancode == 0xE1) {
+        g_keyboardState.e1Prefix = true;
+        g_keyboardState.e1BytesRemaining = 5; /* Pause key sequence */
+        return;
+    }
 
-    PostEvent(keyDown, message);
+    if (g_keyboardState.e1Prefix) {
+        if (g_keyboardState.e1BytesRemaining > 0) {
+            g_keyboardState.e1BytesRemaining--;
+        }
+        if (g_keyboardState.e1BytesRemaining == 0) {
+            g_keyboardState.e1Prefix = false;
+        }
+        return;
+    }
 
-    /* SPACEBAR WORKAROUND: Simulate mouse click when spacebar pressed */
+    Boolean extended = g_keyboardState.e0Prefix;
+    g_keyboardState.e0Prefix = false;
 
-    PLATFORM_LOG_DEBUG("KBD: scancode 0x%02x → vk=0x%02x, ch='%c' (0x%02x), mods=0x%04x\n",
-                  scancode, scancode, (ascii >= 32 && ascii < 127) ? ascii : '?', ascii, modifiers);
+    Boolean isRelease = (scancode & 0x80) != 0;
+    uint8_t baseCode = scancode & 0x7F;
+
+    uint8_t macCode = map_set1_scancode_to_mac(baseCode, extended);
+    if (macCode == kUnmappedKey) {
+        return;
+    }
+
+    Boolean isPressed = !isRelease;
+    UpdateKeyMapState(macCode, isPressed);
+
+    switch (macCode) {
+        case kScanShift:
+            g_keyboardState.leftShift = isPressed;
+            break;
+        case kScanRightShift:
+            g_keyboardState.rightShift = isPressed;
+            break;
+        case kScanOption:
+            g_keyboardState.leftOption = isPressed;
+            break;
+        case kScanRightOption:
+            g_keyboardState.rightOption = isPressed;
+            break;
+        case kScanControl:
+            g_keyboardState.leftControl = isPressed;
+            break;
+        case kScanRightControl:
+            g_keyboardState.rightControl = isPressed;
+            break;
+        case kScanCommand:
+            g_keyboardState.leftCommand = isPressed;
+            break;
+        case 0x36: /* Right Command */
+            g_keyboardState.rightCommand = isPressed;
+            break;
+        case kScanCapsLock:
+            if (isPressed) {
+                g_keyboardState.capsLockLatched = !g_keyboardState.capsLockLatched;
+            }
+            break;
+        default:
+            break;
+    }
 }
 
 /* Process mouse packet */
@@ -357,6 +440,8 @@ static Boolean init_keyboard(void) {
         }
     }
 
+    ResetKeyboardState();
+
     g_keyboardEnabled = true;
     PLATFORM_LOG_DEBUG("PS/2 keyboard initialized\n");
     return true;
@@ -395,8 +480,10 @@ static Boolean init_mouse(void) {
 
     /* Read and discard mouse ID */
     /* PLATFORM_LOG_DEBUG("MOUSE: Reading mouse ID...\n"); */
+
     if (ps2_wait_output()) {
         uint8_t id = ps2_read_data();
+        (void)id;
         /* PLATFORM_LOG_DEBUG("MOUSE: Mouse ID: 0x%02x\n", id); */
     } else {
         /* PLATFORM_LOG_DEBUG("MOUSE: No mouse ID received\n"); */
@@ -483,7 +570,7 @@ Boolean InitPS2Controller(void) {
     config |= 0x02;  /* Enable mouse IRQ (bit 1) */
     config |= 0x01;  /* Enable keyboard IRQ (bit 0) */
     config &= ~0x20; /* Enable AUX port (clear bit 5) */
-    config &= ~0x40; /* Disable translation */
+    config |= 0x40;  /* Enable set 1 translation */
 
     /* PLATFORM_LOG_DEBUG("PS2: New config byte: 0x%02x\n", config); */
 
@@ -617,53 +704,48 @@ void GetMouse(Point* mouseLoc) {
 
 /* Button() moved to MouseEvents.c - reads gCurrentButtons instead of hardware */
 
+
 /* Get current keyboard modifiers as Event Manager modifier flags */
-UInt16 GetPS2Modifiers(void) {
+UInt16 GetPS2Modifiers(void)
+{
     UInt16 modifiers = 0;
 
-    if (g_keyboardState.shift_pressed) modifiers |= shiftKey;     /* 0x0200 */
-    if (g_keyboardState.caps_lock) modifiers |= alphaLock;        /* 0x0400 */
-    if (g_keyboardState.alt_pressed) modifiers |= optionKey;      /* 0x0800 */
-    if (g_keyboardState.ctrl_pressed) modifiers |= controlKey;    /* 0x1000 */
-
-    /* Note: cmdKey (0x0100) maps to Alt on PC keyboards */
-    if (g_keyboardState.alt_pressed) modifiers |= 0x0100;         /* cmdKey */
+    if (g_keyboardState.leftCommand || g_keyboardState.rightCommand) {
+        modifiers |= cmdKey;
+    }
+    if (g_keyboardState.leftShift || g_keyboardState.rightShift) {
+        modifiers |= shiftKey;
+    }
+    if (g_keyboardState.rightShift) {
+        modifiers |= rightShiftKey;
+    }
+    if (g_keyboardState.leftOption || g_keyboardState.rightOption) {
+        modifiers |= optionKey;
+    }
+    if (g_keyboardState.rightOption) {
+        modifiers |= rightOptionKey;
+    }
+    if (g_keyboardState.leftControl || g_keyboardState.rightControl) {
+        modifiers |= controlKey;
+    }
+    if (g_keyboardState.rightControl) {
+        modifiers |= rightControlKey;
+    }
+    if (g_keyboardState.capsLockLatched) {
+        modifiers |= alphaLock;
+    }
 
     return modifiers;
 }
 
+
 /* Get keyboard state for Event Manager */
-Boolean GetPS2KeyboardState(KeyMap keyMap) {
-    if (!keyMap) {
+Boolean GetPS2KeyboardState(KeyMap keyMap)
+{
+    if (!g_keyboardEnabled || keyMap == NULL) {
         return false;
     }
 
-    /* Initialize keymap to all zeros */
-    for (int i = 0; i < 16; i++) {
-        keyMap[i] = 0;
-    }
-
-    /* We don't have a full key state array, just modifier states */
-    /* Set modifier keys based on current state */
-    if (g_keyboardState.shift_pressed) keyMap[7] |= 0x02;     /* Shift */
-    if (g_keyboardState.ctrl_pressed) keyMap[7] |= 0x10;      /* Control */
-    if (g_keyboardState.alt_pressed) keyMap[7] |= 0x08;       /* Option/Alt */
-    if (g_keyboardState.caps_lock) keyMap[7] |= 0x04;         /* Caps Lock */
-
-    /* We can check the last scancode for recently pressed keys */
-    /* This is a simplified implementation */
-    uint8_t lastScan = g_keyboardState.last_scancode;
-    if (lastScan) {
-        /* Map some common scancodes to keymap bits */
-        switch (lastScan) {
-            case 0x1C: keyMap[0] |= 0x01; break;  /* A */
-            case 0x32: keyMap[1] |= 0x02; break;  /* B */
-            case 0x21: keyMap[1] |= 0x08; break;  /* C */
-            case 0x29: keyMap[6] |= 0x02; break;  /* Space */
-            case 0x5A: keyMap[4] |= 0x80; break;  /* Return */
-            case 0x76: keyMap[6] |= 0x80; break;  /* Escape */
-        }
-    }
-
+    memcpy(keyMap, g_keyboardState.keyMap, sizeof(KeyMap));
     return true;
 }
