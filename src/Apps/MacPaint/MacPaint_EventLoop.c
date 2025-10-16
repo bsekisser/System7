@@ -16,9 +16,34 @@
 #include "Apps/MacPaint.h"
 #include "WindowManager/WindowManager.h"
 #include "MenuManager/MenuManager.h"
+#include "EventManager/EventManager.h"
 #include "System71StdLib.h"
 #include "MemoryMgr/MemoryManager.h"
 #include <string.h>
+
+/*
+ * EVENT TYPE CONSTANTS (System 7.1 compatible)
+ * Local constants for event types - use local names to avoid conflicts
+ */
+
+enum {
+    kEventMouseDown   = 1,
+    kEventMouseUp     = 2,
+    kEventKeyDown     = 3,
+    kEventAutoKey     = 5,
+    kEventUpdateEvt   = 6,
+    kEventOSEvt       = 15,
+    kEventNullEvent   = 0,
+    kEventQuitEvent   = 0xFFFFFFF,
+    kEventCloseEvt    = 8
+};
+
+/* MenuResult type for menu selection return */
+typedef UInt32 MenuResult;
+
+/* Suspend/resume messages */
+#define kSuspendResumeMessage 0x01
+#define kResumeFlag 1
 
 /*
  * APPLICATION STATE FOR EVENT LOOP
@@ -293,97 +318,126 @@ int MacPaint_IsEventInPaintWindow(int x, int y)
 
 /**
  * MacPaint_RunEventLoop - Main application event loop
- * Processes events until application should quit
+ * Processes events until application should quit using WaitNextEvent
  */
 void MacPaint_RunEventLoop(void)
 {
+    EventRecord event;
+    WindowPtr eventWindow;
+    int localX, localY;
+    MenuResult menuResult;
+    int menuID, itemID;
+    int keyCode;
+
     gEventState.running = 1;
 
-    /* TODO: Full WaitNextEvent-based event loop
-     *
-     * Pseudocode:
-     * while (gEventState.running) {
-     *     EventRecord event;
-     *     event.what = nullEvent;
-     *
-     *     // Wait for next event (max 30 ticks per iteration)
-     *     WaitNextEvent(everyEvent, &event, 30, NULL);
-     *
-     *     switch (event.what) {
-     *
-     *         case mouseDown:
-     *             // Check what window/region click is in
-     *             if (click in paint window):
-     *                 Convert to local coordinates
-     *                 MacPaint_HandleMouseDown(localX, localY, event.modifiers)
-     *             else if (click in menu bar):
-     *                 MenuHandle menu = MenuSelect(event.where);
-     *                 itemID = LoWord(menu);
-     *                 menuID = HiWord(menu);
-     *                 MacPaint_HandleMenuClick(menuID, itemID)
-     *             break;
-     *
-     *         case mouseMoved:
-     *             // Only track if mouse is down
-     *             if (gEventState.mouseDown):
-     *                 Convert to local window coordinates
-     *                 MacPaint_HandleMouseDrag(localX, localY)
-     *             break;
-     *
-     *         case mouseUp:
-     *             // Note: Some systems generate mouseUp automatically
-     *             MacPaint_HandleMouseUp(event.where.h, event.where.v)
-     *             break;
-     *
-     *         case keyDown:
-     *         case autoKey:
-     *             keyCode = (event.message & keyCodeMask) >> 8;
-     *             MacPaint_HandleKeyDown(keyCode, event.modifiers)
-     *             break;
-     *
-     *         case updateEvt:
-     *             // Window needs redraw
-     *             MacPaint_HandleWindowUpdate((WindowPtr)event.message)
-     *             break;
-     *
-     *         case osEvt:
-     *             // Suspend/resume or mouse moved events
-     *             if ((event.message >> 24) == suspendResumeMessage):
-     *                 if (event.message & resumeFlag):
-     *                     // App is being resumed
-     *                 else:
-     *                     // App is being suspended
-     *             break;
-     *
-     *         case kEventWindowClose:  // Carbon API event
-     *         case closeEvt:           // Classic Event Manager
-     *             MacPaint_HandleWindowClose((WindowPtr)event.message)
-     *             break;
-     *
-     *         case quitEvent:
-     *             gEventState.running = 0
-     *             break;
-     *     }
-     *
-     *     // Update menu items based on current state
-     *     MacPaint_AdjustMenus()
-     *
-     *     // Process any pending redraws
-     *     if (gEventState.windowNeedsRedraw):
-     *         MacPaint_HandleWindowUpdate(gEventState.paintWindow)
-     *         gEventState.windowNeedsRedraw = 0
-     * }
-     */
-
-    /* Placeholder: minimal event loop for testing */
     while (gEventState.running) {
-        /* TODO: Actual WaitNextEvent loop implementation */
+        /* Wait for next event (max 30 ticks / ~500ms per iteration for responsiveness) */
+        event.what = nullEvent;
 
-        /* Simulate one event cycle for now */
-        MacPaint_InvalidateWindowArea();
+        if (!WaitNextEvent(everyEvent, &event, 30, NULL)) {
+            /* No event received - handle idle time processing */
+            MacPaint_ProcessIdleTime();
+            continue;
+        }
 
-        /* Exit after one iteration for safety during development */
-        break;
+        /* Process different event types */
+        switch (event.what) {
+
+            case kEventMouseDown:
+                /* Determine which window/region the click is in */
+                eventWindow = FrontWindow();
+
+                /* Check for menu bar click */
+                if (event.where.v < 20) {
+                    /* Click is in menu bar region */
+                    menuResult = MenuSelect(event.where);
+                    menuID = HiWord(menuResult);
+                    itemID = LoWord(menuResult);
+                    if (menuID != 0) {
+                        MacPaint_HandleMenuClickEvent(menuID, itemID);
+                    }
+                } else if (eventWindow == gEventState.paintWindow) {
+                    /* Convert global to local window coordinates */
+                    GrafPtr port = GetWindowPort(eventWindow);
+                    if (port) {
+                        SetPort(port);
+                        localX = event.where.h - port->portRect.left;
+                        localY = event.where.v - port->portRect.top;
+                        MacPaint_HandleMouseDownEvent(localX, localY, event.modifiers);
+                    }
+                }
+                break;
+
+            case kEventMouseUp:
+                /* Mouse button released */
+                eventWindow = FrontWindow();
+                if (eventWindow == gEventState.paintWindow) {
+                    GrafPtr port = GetWindowPort(eventWindow);
+                    if (port) {
+                        SetPort(port);
+                        localX = event.where.h - port->portRect.left;
+                        localY = event.where.v - port->portRect.top;
+                        MacPaint_HandleMouseUpEvent(localX, localY);
+                    }
+                }
+                break;
+
+            case kEventKeyDown:
+            case kEventAutoKey:
+                /* Extract key code from event message
+                 * Format: bits 8-15 contain the key code
+                 */
+                keyCode = (event.message >> 8) & 0xFF;
+                MacPaint_HandleKeyDownEvent(keyCode, event.modifiers);
+                break;
+
+            case kEventUpdateEvt:
+                /* Window needs redraw */
+                eventWindow = (WindowPtr)event.message;
+                MacPaint_HandleWindowUpdate(eventWindow);
+                break;
+
+            case kEventOSEvt:
+                /* Operating system event (suspend/resume) */
+                /* Bit 24 indicates event type */
+                if ((event.message >> 24) == kSuspendResumeMessage) {
+                    if (event.message & kResumeFlag) {
+                        /* Application is being resumed */
+                        MacPaint_InvalidateWindowArea();
+                    } else {
+                        /* Application is being suspended */
+                        /* Could save state or pause animations here */
+                    }
+                }
+                break;
+
+            case kEventCloseEvt:
+                /* Window close event */
+                eventWindow = (WindowPtr)event.message;
+                if (eventWindow == gEventState.paintWindow) {
+                    MacPaint_HandleWindowClose(eventWindow);
+                }
+                break;
+
+            case kEventQuitEvent:
+                /* Quit event from system */
+                gEventState.running = 0;
+                break;
+
+            case kEventNullEvent:
+                /* No event, but we got control back from WaitNextEvent */
+                MacPaint_ProcessIdleTime();
+                break;
+
+            default:
+                /* Unknown event type - just process idle time */
+                MacPaint_ProcessIdleTime();
+                break;
+        }
+
+        /* Update menu items to reflect current application state */
+        MacPaint_AdjustMenus();
     }
 }
 
