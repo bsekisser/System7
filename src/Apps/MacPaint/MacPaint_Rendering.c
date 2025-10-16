@@ -71,21 +71,21 @@ static void MacPaint_UpdateInvalidationRects(void)
         return;
     }
 
-    /* Paint canvas area (left side, minus right toolbox and bottom status) */
-    gInvalidState.paintRect.left = port->portRect.left;
+    /* Paint canvas area (right side, minus left toolbox and bottom status) */
+    gInvalidState.paintRect.left = port->portRect.left + MACPAINT_TOOLBOX_WIDTH;
     gInvalidState.paintRect.top = port->portRect.top;
-    gInvalidState.paintRect.right = port->portRect.right - 74;  /* 74 pixels for toolbox */
-    gInvalidState.paintRect.bottom = port->portRect.bottom - 20; /* 20 pixels for status */
+    gInvalidState.paintRect.right = port->portRect.right;
+    gInvalidState.paintRect.bottom = port->portRect.bottom - MACPAINT_STATUS_HEIGHT;
 
     /* Toolbox area (right side) */
-    gInvalidState.toolboxRect.left = port->portRect.right - 74;
+    gInvalidState.toolboxRect.left = port->portRect.left;
     gInvalidState.toolboxRect.top = port->portRect.top;
-    gInvalidState.toolboxRect.right = port->portRect.right;
-    gInvalidState.toolboxRect.bottom = port->portRect.bottom - 20;
+    gInvalidState.toolboxRect.right = port->portRect.left + MACPAINT_TOOLBOX_WIDTH;
+    gInvalidState.toolboxRect.bottom = port->portRect.bottom - MACPAINT_STATUS_HEIGHT;
 
     /* Status bar area (bottom) */
     gInvalidState.statusRect.left = port->portRect.left;
-    gInvalidState.statusRect.top = port->portRect.bottom - 20;
+    gInvalidState.statusRect.top = port->portRect.bottom - MACPAINT_STATUS_HEIGHT;
     gInvalidState.statusRect.right = port->portRect.right;
     gInvalidState.statusRect.bottom = port->portRect.bottom;
 }
@@ -501,12 +501,12 @@ void MacPaint_DrawToolbox(void)
     SetPort(port);
     PenNormal();
 
-    /* Toolbox area on right side of window */
+    /* Toolbox area on left side of window */
     Rect toolboxRect;
-    toolboxRect.left = port->portRect.right - 74;    /* 74 pixels wide for 2x36+2 */
-    toolboxRect.right = port->portRect.right;
+    toolboxRect.left = port->portRect.left;
+    toolboxRect.right = port->portRect.left + MACPAINT_TOOLBOX_WIDTH;    /* 74 pixels wide for 2x36+2 */
     toolboxRect.top = port->portRect.top;
-    toolboxRect.bottom = port->portRect.bottom - 20; /* Leave space for status bar */
+    toolboxRect.bottom = port->portRect.bottom - MACPAINT_STATUS_HEIGHT; /* Leave space for status bar */
 
     /* Draw toolbox frame */
     FrameRect(&toolboxRect);
@@ -557,10 +557,10 @@ void MacPaint_HighlightActiveTool(void)
 
     /* Calculate highlighted tool position */
     Rect toolboxRect;
-    toolboxRect.left = port->portRect.right - 74;
-    toolboxRect.right = port->portRect.right;
+    toolboxRect.left = port->portRect.left;
+    toolboxRect.right = port->portRect.left + MACPAINT_TOOLBOX_WIDTH;
     toolboxRect.top = port->portRect.top;
-    toolboxRect.bottom = port->portRect.bottom - 20;
+    toolboxRect.bottom = port->portRect.bottom - MACPAINT_STATUS_HEIGHT;
 
     int toolSize = 30;
     int spacing = 2;
@@ -602,7 +602,7 @@ void MacPaint_DrawStatusBar(void)
 
     /* Calculate status bar area (bottom 20 pixels of window) */
     Rect statusRect;
-    statusRect.top = port->portRect.bottom - 20;
+    statusRect.top = port->portRect.bottom - MACPAINT_STATUS_HEIGHT;
     statusRect.left = port->portRect.left;
     statusRect.right = port->portRect.right;
     statusRect.bottom = port->portRect.bottom;

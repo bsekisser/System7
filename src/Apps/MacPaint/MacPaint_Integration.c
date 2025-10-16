@@ -34,6 +34,54 @@ typedef struct {
 } DocumentWindow;
 
 static DocumentWindow gDocWindow = {0};
+static void MacPaint_ResetDocumentWindow(void);
+static void MacPaint_UpdateDocumentGeometry(void);
+
+static void MacPaint_ResetDocumentWindow(void)
+{
+    gDocWindow.window = NULL;
+    gDocWindow.port = NULL;
+    gDocWindow.paintRect.left = 0;
+    gDocWindow.paintRect.top = 0;
+    gDocWindow.paintRect.right = MACPAINT_DOC_WIDTH;
+    gDocWindow.paintRect.bottom = MACPAINT_DOC_HEIGHT;
+    gDocWindow.windowOpen = 0;
+}
+
+static void MacPaint_UpdateDocumentGeometry(void)
+{
+    if (!gDocWindow.window) {
+        gDocWindow.port = NULL;
+        gDocWindow.paintRect.left = 0;
+        gDocWindow.paintRect.top = 0;
+        gDocWindow.paintRect.right = MACPAINT_DOC_WIDTH;
+        gDocWindow.paintRect.bottom = MACPAINT_DOC_HEIGHT;
+        return;
+    }
+
+    GrafPtr port = GetWindowPort(gDocWindow.window);
+    gDocWindow.port = port;
+
+    if (port) {
+        gDocWindow.paintRect.left = port->portRect.left + MACPAINT_TOOLBOX_WIDTH;
+        gDocWindow.paintRect.top = port->portRect.top;
+        gDocWindow.paintRect.right = port->portRect.right;
+        gDocWindow.paintRect.bottom = port->portRect.bottom - MACPAINT_STATUS_HEIGHT;
+
+        if (gDocWindow.paintRect.right < gDocWindow.paintRect.left) {
+            gDocWindow.paintRect.right = gDocWindow.paintRect.left;
+        }
+
+        if (gDocWindow.paintRect.bottom < gDocWindow.paintRect.top) {
+            gDocWindow.paintRect.bottom = gDocWindow.paintRect.top;
+        }
+    } else {
+        gDocWindow.paintRect.left = 0;
+        gDocWindow.paintRect.top = 0;
+        gDocWindow.paintRect.right = MACPAINT_DOC_WIDTH;
+        gDocWindow.paintRect.bottom = MACPAINT_DOC_HEIGHT;
+    }
+}
 
 /**
  * MacPaint_CreateWindow - Create main paint window
@@ -44,14 +92,8 @@ OSErr MacPaint_CreateWindow(void)
         return noErr;  /* Already open */
     }
 
-    /* TODO: Use WindowManager to create window
-     * - Title from document name with dirty indicator
-     * - Size: 600x800 typical
-     * - Controls: scroll bars, zoom
-     * - Position: centered on screen
-     */
+    MacPaint_ResetDocumentWindow();
 
-    gDocWindow.windowOpen = 1;
     return noErr;
 }
 
@@ -68,9 +110,27 @@ WindowPtr MacPaint_GetWindowPtr(void)
  */
 void MacPaint_GetPaintRect(Rect *rect)
 {
-    if (rect) {
-        *rect = gDocWindow.paintRect;
+    if (!rect) {
+        return;
     }
+
+    MacPaint_UpdateDocumentGeometry();
+    *rect = gDocWindow.paintRect;
+}
+
+/**
+ * MacPaint_RegisterMainWindow - Bind the QuickDraw window to document state
+ */
+void MacPaint_RegisterMainWindow(WindowPtr window)
+{
+    if (!window) {
+        MacPaint_ResetDocumentWindow();
+        return;
+    }
+
+    gDocWindow.window = window;
+    gDocWindow.windowOpen = 1;
+    MacPaint_UpdateDocumentGeometry();
 }
 
 /**
@@ -95,8 +155,9 @@ void MacPaint_CloseWindow(void)
          * DisposeWindow(gDocWindow.window);
          */
         gDocWindow.window = NULL;
-        gDocWindow.windowOpen = 0;
     }
+
+    MacPaint_ResetDocumentWindow();
 }
 
 /**

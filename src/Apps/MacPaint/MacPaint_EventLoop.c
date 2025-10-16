@@ -83,7 +83,7 @@ OSErr MacPaint_CreateMainWindow(void)
     /* Create window bounds - centered on screen with reasonable size */
     bounds.left = 40;
     bounds.top = 80;
-    bounds.right = bounds.left + 640;
+    bounds.right = bounds.left + (MACPAINT_DOC_WIDTH + MACPAINT_TOOLBOX_WIDTH);
     bounds.bottom = bounds.top + 480;
 
     /* Create a document window */
@@ -103,6 +103,7 @@ OSErr MacPaint_CreateMainWindow(void)
 
     gEventState.paintWindow = gPaintWindow;
     gEventState.windowNeedsRedraw = 1;
+    MacPaint_RegisterMainWindow(gPaintWindow);
 
     ShowWindow(gPaintWindow);
 
@@ -190,19 +191,33 @@ void MacPaint_HandleWindowResize(WindowPtr window)
  */
 void MacPaint_HandleMouseDownEvent(int x, int y, int modifiers)
 {
+    Rect paintRect;
+    int canvasX;
+    int canvasY;
+
     gEventState.mouseDown = 1;
-    gEventState.lastMouseX = x;
-    gEventState.lastMouseY = y;
     gEventState.dragInProgress = 0;
 
     /* Update cursor for current position */
     MacPaint_UpdateCursorPosition(x, y);
 
+    MacPaint_GetPaintRect(&paintRect);
+    canvasX = x - paintRect.left;
+    canvasY = y - paintRect.top;
+
+    if (canvasX < 0) canvasX = 0;
+    if (canvasY < 0) canvasY = 0;
+    if (canvasX >= MACPAINT_DOC_WIDTH) canvasX = MACPAINT_DOC_WIDTH - 1;
+    if (canvasY >= MACPAINT_DOC_HEIGHT) canvasY = MACPAINT_DOC_HEIGHT - 1;
+
+    gEventState.lastMouseX = canvasX;
+    gEventState.lastMouseY = canvasY;
+
     /* Save undo state before drawing */
     MacPaint_SaveUndoState("Drawing");
 
     /* Route to tool handler */
-    MacPaint_HandleToolMouseEvent(gCurrentTool, x, y, 1);
+    MacPaint_HandleToolMouseEvent(gCurrentTool, canvasX, canvasY, 1);
 
     /* Invalidate only paint area for efficiency */
     MacPaint_InvalidatePaintArea();
@@ -213,6 +228,10 @@ void MacPaint_HandleMouseDownEvent(int x, int y, int modifiers)
  */
 void MacPaint_HandleMouseDragEvent(int x, int y)
 {
+    Rect paintRect;
+    int canvasX;
+    int canvasY;
+
     if (!gEventState.mouseDown) {
         return;
     }
@@ -220,22 +239,31 @@ void MacPaint_HandleMouseDragEvent(int x, int y)
     /* Update cursor position for any position changes */
     MacPaint_UpdateCursorPosition(x, y);
 
+    MacPaint_GetPaintRect(&paintRect);
+    canvasX = x - paintRect.left;
+    canvasY = y - paintRect.top;
+
+    if (canvasX < 0) canvasX = 0;
+    if (canvasY < 0) canvasY = 0;
+    if (canvasX >= MACPAINT_DOC_WIDTH) canvasX = MACPAINT_DOC_WIDTH - 1;
+    if (canvasY >= MACPAINT_DOC_HEIGHT) canvasY = MACPAINT_DOC_HEIGHT - 1;
+
     /* Detect if movement is significant (drag threshold) */
-    int dx = (x > gEventState.lastMouseX) ?
-        (x - gEventState.lastMouseX) : (gEventState.lastMouseX - x);
-    int dy = (y > gEventState.lastMouseY) ?
-        (y - gEventState.lastMouseY) : (gEventState.lastMouseY - y);
+    int dx = (canvasX > gEventState.lastMouseX) ?
+        (canvasX - gEventState.lastMouseX) : (gEventState.lastMouseX - canvasX);
+    int dy = (canvasY > gEventState.lastMouseY) ?
+        (canvasY - gEventState.lastMouseY) : (gEventState.lastMouseY - canvasY);
 
     if (!gEventState.dragInProgress && (dx > 2 || dy > 2)) {
         gEventState.dragInProgress = 1;
     }
 
     if (gEventState.dragInProgress) {
-        gEventState.lastMouseX = x;
-        gEventState.lastMouseY = y;
+        gEventState.lastMouseX = canvasX;
+        gEventState.lastMouseY = canvasY;
 
         /* Route to tool handler for continuous drawing */
-        MacPaint_HandleToolMouseEvent(gCurrentTool, x, y, 1);
+        MacPaint_HandleToolMouseEvent(gCurrentTool, canvasX, canvasY, 1);
 
         MacPaint_InvalidatePaintArea();
     }
@@ -246,6 +274,10 @@ void MacPaint_HandleMouseDragEvent(int x, int y)
  */
 void MacPaint_HandleMouseUpEvent(int x, int y)
 {
+    Rect paintRect;
+    int canvasX;
+    int canvasY;
+
     if (!gEventState.mouseDown) {
         return;
     }
@@ -256,8 +288,17 @@ void MacPaint_HandleMouseUpEvent(int x, int y)
     /* Update cursor for current position */
     MacPaint_UpdateCursorPosition(x, y);
 
+    MacPaint_GetPaintRect(&paintRect);
+    canvasX = x - paintRect.left;
+    canvasY = y - paintRect.top;
+
+    if (canvasX < 0) canvasX = 0;
+    if (canvasY < 0) canvasY = 0;
+    if (canvasX >= MACPAINT_DOC_WIDTH) canvasX = MACPAINT_DOC_WIDTH - 1;
+    if (canvasY >= MACPAINT_DOC_HEIGHT) canvasY = MACPAINT_DOC_HEIGHT - 1;
+
     /* Route to tool handler to finalize drawing */
-    MacPaint_HandleToolMouseEvent(gCurrentTool, x, y, 0);
+    MacPaint_HandleToolMouseEvent(gCurrentTool, canvasX, canvasY, 0);
 
     /* Invalidate only paint area for efficiency */
     MacPaint_InvalidatePaintArea();
@@ -333,10 +374,10 @@ static int MacPaint_IsPointInToolbox(int localX, int localY)
     GrafPtr port = MacPaint_GetWindowPort(gEventState.paintWindow);
     if (!port) return 0;
 
-    int toolboxLeft = port->portRect.right - 74;   /* 74 pixels wide */
+    int toolboxLeft = port->portRect.left;
     int toolboxTop = port->portRect.top;
-    int toolboxRight = port->portRect.right;
-    int toolboxBottom = port->portRect.bottom - 20; /* Exclude status bar */
+    int toolboxRight = port->portRect.left + MACPAINT_TOOLBOX_WIDTH;
+    int toolboxBottom = port->portRect.bottom - MACPAINT_STATUS_HEIGHT; /* Exclude status bar */
 
     return (localX >= toolboxLeft && localX <= toolboxRight &&
             localY >= toolboxTop && localY <= toolboxBottom);
@@ -355,10 +396,10 @@ static int MacPaint_IsPointInCanvas(int localX, int localY)
     GrafPtr port = MacPaint_GetWindowPort(gEventState.paintWindow);
     if (!port) return 0;
 
-    int canvasLeft = port->portRect.left;
+    int canvasLeft = port->portRect.left + MACPAINT_TOOLBOX_WIDTH;
     int canvasTop = port->portRect.top;
-    int canvasRight = port->portRect.right - 74;   /* Exclude toolbox */
-    int canvasBottom = port->portRect.bottom - 20; /* Exclude status bar */
+    int canvasRight = port->portRect.right;   /* Exclude toolbox */
+    int canvasBottom = port->portRect.bottom - MACPAINT_STATUS_HEIGHT; /* Exclude status bar */
 
     return (localX >= canvasLeft && localX <= canvasRight &&
             localY >= canvasTop && localY <= canvasBottom);
@@ -377,7 +418,7 @@ static int MacPaint_GetToolboxToolID(int localX, int localY)
     GrafPtr port = MacPaint_GetWindowPort(gEventState.paintWindow);
     if (!port) return -1;
 
-    int toolboxLeft = port->portRect.right - 74;
+    int toolboxLeft = port->portRect.left;
     int toolboxTop = port->portRect.top;
 
     /* Tool layout: 2 columns x 6 rows, 30x30 pixels each with 2 pixel spacing */
@@ -431,17 +472,30 @@ static void MacPaint_HandleToolboxClick(int localX, int localY, int modifiers)
  */
 static void MacPaint_HandleCanvasClick(int localX, int localY, int modifiers)
 {
+    Rect paintRect;
+    int canvasX;
+    int canvasY;
+
+    MacPaint_GetPaintRect(&paintRect);
+    canvasX = localX - paintRect.left;
+    canvasY = localY - paintRect.top;
+
+    if (canvasX < 0) canvasX = 0;
+    if (canvasY < 0) canvasY = 0;
+    if (canvasX >= MACPAINT_DOC_WIDTH) canvasX = MACPAINT_DOC_WIDTH - 1;
+    if (canvasY >= MACPAINT_DOC_HEIGHT) canvasY = MACPAINT_DOC_HEIGHT - 1;
+
     /* Save undo state before drawing */
     MacPaint_SaveUndoState("Drawing");
 
     /* Update mouse state */
     gEventState.mouseDown = 1;
-    gEventState.lastMouseX = localX;
-    gEventState.lastMouseY = localY;
+    gEventState.lastMouseX = canvasX;
+    gEventState.lastMouseY = canvasY;
     gEventState.dragInProgress = 0;
 
     /* Route to tool handler */
-    MacPaint_HandleToolMouseEvent(gCurrentTool, localX, localY, 1);
+    MacPaint_HandleToolMouseEvent(gCurrentTool, canvasX, canvasY, 1);
 
     /* Invalidate only paint area for efficiency */
     MacPaint_InvalidatePaintArea();
@@ -547,8 +601,21 @@ void MacPaint_RunEventLoop(void)
                             /* Update cursor for current position */
                             MacPaint_UpdateCursorPosition(localX, localY);
 
+                            Rect paintRect;
+                            int canvasX;
+                            int canvasY;
+
+                            MacPaint_GetPaintRect(&paintRect);
+                            canvasX = localX - paintRect.left;
+                            canvasY = localY - paintRect.top;
+
+                            if (canvasX < 0) canvasX = 0;
+                            if (canvasY < 0) canvasY = 0;
+                            if (canvasX >= MACPAINT_DOC_WIDTH) canvasX = MACPAINT_DOC_WIDTH - 1;
+                            if (canvasY >= MACPAINT_DOC_HEIGHT) canvasY = MACPAINT_DOC_HEIGHT - 1;
+
                             /* Route to tool handler to finalize drawing */
-                            MacPaint_HandleToolMouseEvent(gCurrentTool, localX, localY, 0);
+                            MacPaint_HandleToolMouseEvent(gCurrentTool, canvasX, canvasY, 0);
 
                             /* Invalidate only paint area for efficiency */
                             MacPaint_InvalidatePaintArea();

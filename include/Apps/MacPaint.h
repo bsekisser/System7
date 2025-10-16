@@ -53,6 +53,8 @@ typedef enum {
 #define MACPAINT_DOC_WIDTH 576
 #define MACPAINT_DOC_HEIGHT 720
 #define MACPAINT_PATTERN_COUNT 38
+#define MACPAINT_TOOLBOX_WIDTH 74
+#define MACPAINT_STATUS_HEIGHT 20
 
 /*
  * Initialization and Shutdown
@@ -159,6 +161,11 @@ void MacPaint_SetFatBitsMode(int enabled, int zoomFactor);
 int MacPaint_IsFatBitsMode(void);
 void MacPaint_FullWindowUpdate(void);
 void MacPaint_GetRenderStats(int *pixelsRendered, int *updateTime);
+
+/*
+ * Window Binding
+ */
+void MacPaint_RegisterMainWindow(WindowPtr window);
 
 /*
  * Menu and Event System (from MacPaint_Menus.c)
