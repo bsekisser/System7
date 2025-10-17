@@ -23,15 +23,19 @@ static void uart_puts(const char *s) {
 }
 
 void boot_main(uint32_t magic, uint32_t* mb2_info) {
-    uart_puts("B:M\n");  /* Entry marker */
+    /* Use serial_puts directly to bypass logging system during early boot */
+    extern void serial_puts(const char* str);
+
+    serial_puts("BOOT:M\n");  /* Entry marker */
 
     hal_boot_init(mb2_info);
-    uart_puts("B:H\n");  /* After hal_boot_init */
+    serial_puts("BOOT:H\n");  /* After hal_boot_init */
 
     Serial_WriteString("BOOT\n");
-    uart_puts("B:S\n");  /* After Serial_WriteString */
+    serial_puts("BOOT:S\n");  /* After Serial_WriteString ("BOOT") */
 
+    serial_puts("BOOT:K\n");  /* Before kernel_main */
     /* Call the kernel main function */
     kernel_main(magic, mb2_info);
-    uart_puts("B:K\n");  /* If kernel_main returns */
+    serial_puts("BOOT:EXIT\n");  /* If kernel_main returns */
 }
