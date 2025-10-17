@@ -43,29 +43,13 @@
   ." ================================================" cr
   cr
 
-  ." Checking for preloaded kernel..." cr
+  ." Attempting to boot System 7 kernel from disk..." cr
+  cr
 
-  is-kernel-present if
-    ." ✓ Kernel found at 0x01000000" cr
-    ." ✓ ELF magic verified" cr
-    cr
-    ." Transferring control to kernel..." cr
-    cr
-    KERNEL_ADDR go
-  else
-    ." Kernel not found at 0x01000000" cr
-    cr
-    ." BOOT OPTIONS:" cr
-    ." 1. Use: make PLATFORM=ppc run" cr
-    ."    (QEMU will auto-load kernel via -device loader)" cr
-    cr
-    ." 2. Manual boot from OF prompt:" cr
-    ."    0 > load hd:2,\\kernel.elf" cr
-    ."    0 > go" cr
-    cr
-    ." 3. Or check QEMU device configuration" cr
-    cr
-  then
+  \ Use OF 'boot' command which properly initializes client interface
+  \ This sets up r5 (OF callback), r3/r4 (initrd), and jumps to entry point
+  \ Unlike 'load/go', 'boot' is the standard ELF client boot path
+  boot hd:,\kernel.elf
 ;
 
 \ Run boot sequence automatically

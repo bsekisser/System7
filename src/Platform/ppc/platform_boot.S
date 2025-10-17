@@ -66,8 +66,13 @@ _start:
     addi    r1, r1, -16
     rlwinm  r1, r1, 0, 0, 27          /* Align to 16 bytes */
 
-    /* Preserve incoming boot argument (Open Firmware entry or device tree pointer in r3) */
-    mr      r31, r3                   /* Save boot arg pointer */
+    /* Save Open Firmware callback pointer (r5 per IEEE 1275 calling convention)
+     * When booted by OF via 'boot' command, r5 holds the OF entry point
+     * r3/r4 hold initrd address/length (or 0 if not present)
+     */
+    mr      r31, r5                   /* Save OF callback pointer in r31 */
+    mr      r6, r3                    /* r6 = initrd address (if any) */
+    mr      r7, r4                    /* r7 = initrd length (if any) */
 
     /* Zero out .bss so C globals start from a known state */
     li      r0, 0

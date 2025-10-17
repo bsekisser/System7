@@ -651,9 +651,12 @@ iso: $(PPC_DISK_IMAGE)
 # Boot from disk image
 disk-run: $(PPC_DISK_IMAGE)
 	@echo "Booting from disk image..."
-	@echo "Note: At OpenBIOS prompt, use:"
-	@echo "  0 > load hd:,\\kernel.elf"
-	@echo "  0 > go"
+	@echo "Using OF 'boot' command for proper client interface setup"
+	@echo ""
+	@echo "At OpenBIOS prompt (0 >), use:"
+	@echo "  boot hd:,\\kernel.elf"
+	@echo ""
+	@echo "Or let boot.fs autoboot by exiting this message and waiting."
 	@echo ""
 	qemu-system-ppc -M mac99 -m 512 -serial stdio -monitor none -nographic \
 		-drive file=$(PPC_DISK_IMAGE),format=raw,if=ide
