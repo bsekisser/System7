@@ -258,6 +258,7 @@ C_SOURCES = src/main.c \
                 src/Platform/ppc/hal_input.c \
                 src/Platform/ppc/storage.c \
                 src/Platform/ppc/open_firmware.c \
+                src/Platform/ppc/escc_uart.c \
                 src/Platform/ppc/input_stubs.c, \
                 src/Platform/x86/io.c \
                 src/Platform/x86/ata.c \
