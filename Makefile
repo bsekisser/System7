@@ -620,43 +620,64 @@ test-qemu: $(KERNEL)
 bootloader: $(BOOTLOADER)
 	@echo "Bootloader target completed"
 
+# PowerPC kernel binary (raw format for direct execution)
+KERNEL_BIN = kernel.bin
+
+$(KERNEL_BIN): $(KERNEL)
+	@echo "Converting ELF kernel to raw binary..."
+	@$(OBJCOPY) -O binary $(KERNEL) $(KERNEL_BIN)
+	@echo "✓ Binary kernel: $(KERNEL_BIN)"
+
 # PowerPC disk image creation (no partition table, just FAT32)
 # Uses mtools to avoid requiring root or mount privileges
 PPC_DISK_IMAGE = ppc_system71.img
 
-$(PPC_DISK_IMAGE): $(KERNEL)
+$(PPC_DISK_IMAGE): $(KERNEL) $(KERNEL_BIN)
 	@echo "Creating PowerPC disk image (FAT32, 32 MB)..."
 	@echo "  Image: $(PPC_DISK_IMAGE)"
-	@echo "  Kernel: $(KERNEL)"
+	@echo "  Contents: kernel.elf and kernel.bin"
 	@echo ""
 	@# Create 32 MB FAT32 disk image using dd
 	@dd if=/dev/zero of=$(PPC_DISK_IMAGE) bs=1M count=32 2>/dev/null
 	@# Format as FAT32 with mtools-compatible label
 	@mkfs.fat -F 32 -n "System71" $(PPC_DISK_IMAGE) 2>/dev/null
-	@# Copy kernel to disk using mtools (no sudo needed)
+	@# Copy both ELF and binary kernel to disk
 	@mcopy -i $(PPC_DISK_IMAGE) $(KERNEL) ::kernel.elf
-	@# Verify kernel is on disk
+	@mcopy -i $(PPC_DISK_IMAGE) $(KERNEL_BIN) ::kernel.bin
+	@# Verify contents
 	@echo "Disk contents:"
 	@mdir -i $(PPC_DISK_IMAGE) -a ::
 	@echo ""
 	@echo "✓ Disk image created: $(PPC_DISK_IMAGE)"
 	@echo ""
-	@echo "To boot from disk:"
-	@echo "  make PLATFORM=ppc disk-run"
+	@echo "Boot methods:"
+	@echo "  make PLATFORM=ppc disk-run     (ELF boot attempt)"
+	@echo "  make PLATFORM=ppc boot-bin     (raw binary boot)"
 
 # Build bootable ISO/disk for PPC
 iso: $(PPC_DISK_IMAGE)
 	@echo "PPC disk image ready at $(PPC_DISK_IMAGE)"
 
-# Boot from disk image
+# Boot from disk image with ELF
 disk-run: $(PPC_DISK_IMAGE)
-	@echo "Booting from disk image..."
-	@echo "Using OF 'boot' command for proper client interface setup"
+	@echo "Booting from disk image (ELF)..."
+	@echo "Using OF 'boot' command for client interface setup"
 	@echo ""
 	@echo "At OpenBIOS prompt (0 >), use:"
 	@echo "  boot hd:,\\kernel.elf"
 	@echo ""
-	@echo "Or let boot.fs autoboot by exiting this message and waiting."
+	qemu-system-ppc -M mac99 -m 512 -serial stdio -monitor none -nographic \
+		-drive file=$(PPC_DISK_IMAGE),format=raw,if=ide
+
+# Boot from disk image with raw binary
+boot-bin: $(PPC_DISK_IMAGE)
+	@echo "Booting from disk image (raw binary)..."
+	@echo "Using Forth loader to load kernel.bin directly"
+	@echo ""
+	@echo "At OpenBIOS prompt (0 >), you can also manually:"
+	@echo "  1000000 to load-base"
+	@echo "  \" hd:,\\kernel.bin\" load"
+	@echo "  1000000 execute"
 	@echo ""
 	qemu-system-ppc -M mac99 -m 512 -serial stdio -monitor none -nographic \
 		-drive file=$(PPC_DISK_IMAGE),format=raw,if=ide
