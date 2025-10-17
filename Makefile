@@ -526,7 +526,7 @@ vpath %.c src:src/System:src/QuickDraw:src/WindowManager:src/MenuManager:src/Con
           src/ScrapManager:src/ProcessMgr:src/TimeManager:src/SoundManager:src/FontManager \
           src/Gestalt:src/MemoryMgr:src/ResourceMgr:src/FileMgr:src/FS:src/Finder \
           src/Finder/Icon:src/DeskManager:src/ControlPanels:src/PatternMgr:src/Resources \
-          src/Resources/Icons:src/Apps/SimpleText:src/Apps/MacPaint:src/Platform:src/Platform/x86:src/Platform/arm:src/PrintManager \
+          src/Resources/Icons:src/Apps/SimpleText:src/Apps/MacPaint:src/Platform:src/Platform/x86:src/Platform/arm:src/Platform/ppc:src/PrintManager \
           src/HelpManager:src/ComponentManager:src/EditionManager:src/NotificationManager \
           src/PackageManager:src/NetworkExtension:src/ColorManager:src/CommunicationToolbox \
           src/GestaltManager:src/SpeechManager:src/BootLoader \
@@ -573,6 +573,90 @@ run: $(KERNEL)
 
 debug: $(KERNEL)
 	qemu-system-arm -M raspi3 -kernel $(KERNEL) -m 512 -serial stdio -nographic -s -S
+else ifeq ($(PLATFORM),ppc)
+# PowerPC targets
+
+# Bootloader target
+BOOTLOADER_SRC = src/Platform/ppc/boot.fs
+BOOTLOADER = $(BUILD_DIR)/boot.fs
+
+$(BOOTLOADER): $(BOOTLOADER_SRC) | $(BUILD_DIR)
+	@cp $(BOOTLOADER_SRC) $(BOOTLOADER)
+	@echo "✓ Bootloader copied to $(BOOTLOADER)"
+
+run: $(KERNEL) $(BOOTLOADER)
+	@echo "Running PowerPC kernel in QEMU (mac99 machine)..."
+	@echo "Kernel will be preloaded at 0x01000000"
+	@echo "OpenBIOS will automatically detect and boot it"
+	@echo "Serial output will appear below:"
+	@echo "---"
+	@echo ""
+	@echo "Note: If boot hangs after 'Booting...', the kernel is loaded."
+	@echo "This is the documented OpenBIOS -kernel bug workaround."
+	@echo ""
+	qemu-system-ppc -M mac99 -m 512 -serial stdio -monitor none -nographic \
+		-device loader,file=$(KERNEL),addr=0x01000000,cpu-num=0
+
+debug: $(KERNEL)
+	@echo "Running PowerPC kernel in QEMU debug mode..."
+	@echo "NOTE: OpenBIOS kernel boot may hang. This is a firmware bug."
+	qemu-system-ppc -M mac99 -kernel $(KERNEL) -m 512 -serial stdio -nographic -s -S
+
+test-qemu: $(KERNEL)
+	@echo "Testing QEMU PPC boot (verbose output)..."
+	@echo "  Machine: mac99 (Open Firmware compatible)"
+	@echo "  Kernel: $(KERNEL)"
+	@echo "  Memory: 512 MB"
+	@echo ""
+	@echo "To debug with GDB:"
+	@echo "  make PLATFORM=ppc debug"
+	@echo "  (in another terminal) powerpc-linux-gnu-gdb $(KERNEL)"
+	@echo "  (gdb) target remote :1234"
+	@echo "  (gdb) continue"
+	@echo ""
+	qemu-system-ppc -M mac99 -kernel $(KERNEL) -m 512 -serial stdio -nographic -trace 'enable=*' -d int 2>&1 | head -200
+
+# Build OF Forth bootloader (no compilation needed, just copy)
+bootloader: $(BOOTLOADER)
+	@echo "Bootloader target completed"
+
+# PowerPC disk image creation (no partition table, just FAT32)
+# Uses mtools to avoid requiring root or mount privileges
+PPC_DISK_IMAGE = ppc_system71.img
+
+$(PPC_DISK_IMAGE): $(KERNEL)
+	@echo "Creating PowerPC disk image (FAT32, 32 MB)..."
+	@echo "  Image: $(PPC_DISK_IMAGE)"
+	@echo "  Kernel: $(KERNEL)"
+	@echo ""
+	@# Create 32 MB FAT32 disk image using dd
+	@dd if=/dev/zero of=$(PPC_DISK_IMAGE) bs=1M count=32 2>/dev/null
+	@# Format as FAT32 with mtools-compatible label
+	@mkfs.fat -F 32 -n "System71" $(PPC_DISK_IMAGE) 2>/dev/null
+	@# Copy kernel to disk using mtools (no sudo needed)
+	@mcopy -i $(PPC_DISK_IMAGE) $(KERNEL) ::kernel.elf
+	@# Verify kernel is on disk
+	@echo "Disk contents:"
+	@mdir -i $(PPC_DISK_IMAGE) -a ::
+	@echo ""
+	@echo "✓ Disk image created: $(PPC_DISK_IMAGE)"
+	@echo ""
+	@echo "To boot from disk:"
+	@echo "  make PLATFORM=ppc disk-run"
+
+# Build bootable ISO/disk for PPC
+iso: $(PPC_DISK_IMAGE)
+	@echo "PPC disk image ready at $(PPC_DISK_IMAGE)"
+
+# Boot from disk image
+disk-run: $(PPC_DISK_IMAGE)
+	@echo "Booting from disk image..."
+	@echo "Note: At OpenBIOS prompt, use:"
+	@echo "  0 > load hd:,\\kernel.elf"
+	@echo "  0 > go"
+	@echo ""
+	qemu-system-ppc -M mac99 -m 512 -serial stdio -monitor none -nographic \
+		-drive file=$(PPC_DISK_IMAGE),format=raw,if=ide
 else
 # x86 targets - create ISO image
 iso: $(ISO)

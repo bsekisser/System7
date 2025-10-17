@@ -1,9 +1,11 @@
-/* Placeholder PowerPC boot strap.
+/* PowerPC boot strap for QEMU/firmware.
  *
- * The long-term goal is to accept an Open Firmware entry point, stitch in
- * device tree discovery, and pass a boot argument block down to boot_main.
- * For now we simply zero the argument registers and jump into boot_main so
- * the kernel can continue bringing up higher level systems.
+ * Accepts an Open Firmware entry point (in r3) if available, falls back to
+ * serial console if not. Sets up stack, zeros BSS, and hands control to boot_main.
+ *
+ * When running under QEMU:
+ * - If QEMU provides Open Firmware: r3 contains OF entry point
+ * - If QEMU doesn't provide OF: r3 will be 0, and serial console fallback is used
  */
 
     .section ".bss"
@@ -15,19 +17,56 @@ stack_top:
     .section ".text"
     .globl _start
     .extern boot_main
-.extern ofw_early_init
-.extern ofw_boot_banner
+    .extern ofw_early_init
+    .extern ofw_boot_banner
     .extern __bss_start
     .extern __bss_end
     .type _start,@function
 _start:
+    /* CRITICAL: Direct output to verify _start is executing */
+    /* This code has NO dependencies - pure assembly */
+
+    /* Setup UART for direct I/O (no function calls!) */
+    lis     r10, 0xF020               /* Load UART base 0xF0200000 */
+    ori     r10, r10, 0x0000
+
+    /* Initialize 16550 UART - DIRECT WRITES */
+    li      r11, 0x00
+    stb     r11, 1(r10)               /* Disable interrupts (offset 1) */
+    li      r11, 0x80
+    stb     r11, 3(r10)               /* Enable DLAB (offset 3) */
+    li      r11, 0x01
+    stb     r11, 0(r10)               /* Divisor lo = 1 (115200) */
+    li      r11, 0x00
+    stb     r11, 1(r10)               /* Divisor hi = 0 */
+    li      r11, 0x03
+    stb     r11, 3(r10)               /* LCR: 8N1 */
+    li      r11, 0x07
+    stb     r11, 2(r10)               /* FCR: Enable FIFO */
+    li      r11, 0x03
+    stb     r11, 4(r10)               /* MCR: RTS/DTR */
+
+    /* Write boot banner directly */
+    li      r11, 0x53                 /* 'S' */
+    stb     r11, 0(r10)
+    li      r11, 0x37                 /* '7' */
+    stb     r11, 0(r10)
+    li      r11, 0x20                 /* ' ' */
+    stb     r11, 0(r10)
+    li      r11, 0x42                 /* 'B' - Boot marker */
+    stb     r11, 0(r10)
+    li      r11, 0x0A                 /* '\n' */
+    stb     r11, 0(r10)
+    li      r11, 0x0D                 /* '\r' */
+    stb     r11, 0(r10)
+
     /* Align and prime the stack pointer (r1) */
     lis     r1, stack_top@ha
     addi    r1, r1, stack_top@l
     addi    r1, r1, -16
     rlwinm  r1, r1, 0, 0, 27          /* Align to 16 bytes */
 
-    /* Preserve incoming Open Firmware argument (r3) for C side */
+    /* Preserve incoming boot argument (Open Firmware entry or device tree pointer in r3) */
     mr      r31, r3                   /* Save boot arg pointer */
 
     /* Zero out .bss so C globals start from a known state */
@@ -44,9 +83,11 @@ _start:
     b       1b
 2:
 
+    /* Call Open Firmware early initialization */
     mr      r3, r31
     bl      ofw_early_init
 
+    /* Emit boot banner if OF is available */
     mr      r3, r31
     bl      ofw_boot_banner
 
@@ -56,7 +97,7 @@ _start:
 
     bl      boot_main
 
-/* If boot_main returns just spin so we can spot it in a debugger. */
+/* If boot_main returns, just spin so we can spot it in a debugger. */
 1:
     b       1b
 

@@ -248,6 +248,22 @@ void serial_set_pl011_base(uintptr_t base) {
 }
 #endif
 
+#if defined(__powerpc__) || defined(__powerpc64__)
+/* PowerPC MMIO serial support - QEMU compat 16550 UART at 0xf0200000 */
+static volatile uint8_t* g_ppc_uart_base = (volatile uint8_t*)0xF0200000;
+#define PPC_UART_STRIDE 4
+
+static inline uint8_t ppc_uart_read(int reg) {
+    return g_ppc_uart_base[reg * PPC_UART_STRIDE];
+}
+
+static inline void ppc_uart_write(int reg, uint8_t val) {
+    g_ppc_uart_base[reg * PPC_UART_STRIDE] = val;
+}
+
+static int g_ppc_mmio_available = 0;
+#endif
+
 void serial_init(void) {
 #if defined(__arm__) || defined(__aarch64__)
     /* Initialize PL011 UART (115200 baud, 8N1) */
@@ -267,7 +283,16 @@ void serial_init(void) {
     *cr = PL011_UARTEN | PL011_TXE | PL011_RXE;
     return;
 #elif defined(__powerpc__) || defined(__powerpc64__)
-    /* TODO: Wire up Open Firmware or UART console. */
+    /* Initialize 16550-compatible UART at QEMU default address */
+    /* Set up 115200 baud, 8N1 */
+    ppc_uart_write(1, 0x00);   /* Disable all interrupts */
+    ppc_uart_write(3, 0x80);   /* Enable DLAB (divisor latch) */
+    ppc_uart_write(0, 0x01);   /* Divisor lo byte (115200 @ 1.8432MHz = 1) */
+    ppc_uart_write(1, 0x00);   /* Divisor hi byte */
+    ppc_uart_write(3, 0x03);   /* 8 bits, no parity, 1 stop bit */
+    ppc_uart_write(2, 0x07);   /* Enable FIFO, clear it */
+    ppc_uart_write(4, 0x03);   /* RTS/DTR set */
+    g_ppc_mmio_available = 1;
     return;
 #else
     outb(COM1 + 1, 0x00);    // Disable all interrupts
@@ -295,14 +320,36 @@ void serial_putchar(char c) {
     *dr = (uint32_t)c;
     return;
 #elif defined(__powerpc__) || defined(__powerpc64__)
-    if (!ofw_console_available()) {
+    /* Try OF console first, fall back to MMIO 16550 UART */
+    if (ofw_console_available()) {
+        if (c == '\n') {
+            const char cr = '\r';
+            ofw_console_write(&cr, 1);
+        }
+        ofw_console_write(&c, 1);
         return;
     }
-    if (c == '\n') {
-        const char cr = '\r';
-        ofw_console_write(&cr, 1);
+
+    /* MMIO 16550 fallback */
+    if (g_ppc_mmio_available) {
+        /* Wait for transmitter to be ready (LSR bit 5 = THRE) */
+        int timeout = 100000;
+        while ((ppc_uart_read(5) & 0x20) == 0 && timeout-- > 0) {
+            /* busy wait */
+        }
+
+        if (c == '\n') {
+            /* Send CR first */
+            ppc_uart_write(0, '\r');
+            timeout = 100000;
+            while ((ppc_uart_read(5) & 0x20) == 0 && timeout-- > 0) {
+                /* busy wait */
+            }
+        }
+
+        /* Send the character */
+        ppc_uart_write(0, (uint8_t)c);
     }
-    ofw_console_write(&c, 1);
     return;
 #else
     while ((inb(COM1 + 5) & 0x20) == 0);
@@ -318,16 +365,34 @@ void serial_puts(const char* str) {
 #if defined(__arm__) || defined(__aarch64__)
     (void)str;
 #elif defined(__powerpc__) || defined(__powerpc64__)
-    if (!ofw_console_available()) {
+    /* Try OF console first, then fall back to MMIO or just return */
+    if (ofw_console_available()) {
+        while (*str) {
+            char ch = *str++;
+            if (ch == '\n') {
+                const char cr = '\r';
+                ofw_console_write(&cr, 1);
+            }
+            ofw_console_write(&ch, 1);
+        }
         return;
     }
-    while (*str) {
-        char ch = *str++;
-        if (ch == '\n') {
-            const char cr = '\r';
-            ofw_console_write(&cr, 1);
+
+    /* MMIO 16550 fallback */
+    if (g_ppc_mmio_available) {
+        while (*str) {
+            char ch = *str++;
+            if (ch == '\n') {
+                /* Wait for THRE and send CR */
+                int timeout = 100000;
+                while ((ppc_uart_read(5) & 0x20) == 0 && timeout-- > 0);
+                ppc_uart_write(0, '\r');
+            }
+            /* Wait for THRE and send character */
+            int timeout = 100000;
+            while ((ppc_uart_read(5) & 0x20) == 0 && timeout-- > 0);
+            ppc_uart_write(0, (uint8_t)ch);
         }
-        ofw_console_write(&ch, 1);
     }
     return;
 #else
