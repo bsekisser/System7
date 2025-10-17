@@ -47,6 +47,8 @@ _start:
     stb     r11, 4(r10)               /* MCR: RTS/DTR */
 
     /* Write boot banner directly */
+    li      r11, 0x3A                 /* ':' - entry marker */
+    stb     r11, 0(r10)
     li      r11, 0x53                 /* 'S' */
     stb     r11, 0(r10)
     li      r11, 0x37                 /* '7' */
