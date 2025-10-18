@@ -155,6 +155,22 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
         if (theWindow->strucRgn) {
             WM_InvalidateScreenRegion(theWindow->strucRgn);
         }
+
+        /* If window shrank, we need to invalidate the newly exposed desktop area */
+        /* This is the area that was covered by the window before but isn't covered now */
+        if (oldStrucRgn && theWindow->strucRgn) {
+            /* Create a region for areas that were covered before but aren't now */
+            RgnHandle exposedDesktop = Platform_NewRgn();
+            if (exposedDesktop) {
+                /* Exposed area = old region minus new region */
+                DiffRgn(oldStrucRgn, theWindow->strucRgn, exposedDesktop);
+
+                /* Invalidate the exposed desktop area so it gets repainted */
+                WM_InvalidateScreenRegion(exposedDesktop);
+
+                Platform_DisposeRgn(exposedDesktop);
+            }
+        }
     }
 
     /* Update window visibility */
@@ -352,8 +368,9 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
 
         serial_puts("[GW] Starting window redraw\n");
 
-        /* Use PaintBehind to repaint the window with the new size/position */
-        serial_puts("[GW] Calling PaintBehind to repaint window\n");
+        /* Use PaintBehind to repaint windows behind and including the resized window */
+        /* This ensures both the resized window and any desktop/windows behind it are redrawn */
+        serial_puts("[GW] Calling PaintBehind to repaint window and exposed areas\n");
         PaintBehind(theWindow, NULL);
         serial_puts("[GW] PaintBehind completed\n");
 
