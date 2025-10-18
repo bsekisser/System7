@@ -51,7 +51,7 @@ static struct {
     .enableHighDPI = true,
     .enableAccessibility = true,
     .enableTouch = false,
-    .enableAnimation = false,
+    .enableAnimation = true,  /* Enable for visual feedback */
     .currentPlatform = kPlatformGeneric
 };
 

@@ -80,21 +80,33 @@ extern void HUnlock(Handle h);
 #define CTRL_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleControl, kLogLevelDebug, "[CTRL] " fmt, ##__VA_ARGS__)
 #define CTRL_LOG_WARN(fmt, ...)  serial_logf(kLogModuleControl, kLogLevelWarn,  "[CTRL] " fmt, ##__VA_ARGS__)
 
-/* Simple GetFontInfo implementation - uses default Chicago 12 metrics
- * TODO: Replace with FontManager's GetFontInfo() once available.
- *       When switching, re-verify label vertical centering at multiple font sizes.
+/* GetFontInfo implementation with proper size scaling
+ * Calculates font metrics based on current port's font size
+ * Provides proper vertical centering support for controls
  */
-static void GetFontInfo_Local(FontInfo* info) {
+static void GetFontInfo(FontInfo* info) {
     if (!info) return;
-    /* Default metrics for Chicago 12 font */
-    info->ascent = 9;
-    info->descent = 2;
-    info->widMax = 12;
-    info->leading = 2;
-}
 
-/* Use local version until FontManager provides GetFontInfo */
-#define GetFontInfo GetFontInfo_Local
+    GrafPtr port = NULL;
+    GetPort(&port);
+
+    if (port) {
+        short fontSize = port->txSize;
+        if (fontSize == 0) fontSize = 12;
+
+        /* Scale metrics proportionally with font size */
+        info->ascent = (fontSize * 3) / 4;   /* 75% of size */
+        info->descent = fontSize / 4;         /* 25% of size */
+        info->widMax = fontSize;              /* Max width roughly equals size */
+        info->leading = fontSize / 6;         /* Small leading */
+    } else {
+        /* Fallback for Chicago 12pt */
+        info->ascent = 9;
+        info->descent = 2;
+        info->widMax = 12;
+        info->leading = 2;
+    }
+}
 
 /* Standard control dimensions */
 #define BUTTON_HEIGHT       20

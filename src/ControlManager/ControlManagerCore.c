@@ -774,7 +774,7 @@ static void InitializePlatformSettings(void) {
     gControlMgr.platformSettings.enableAccessibility = true;
     gControlMgr.platformSettings.enableHighDPI = true;
     gControlMgr.platformSettings.enableTouch = false;
-    gControlMgr.platformSettings.enableAnimation = false;
+    gControlMgr.platformSettings.enableAnimation = true;  /* Enable for visual feedback */
 
     /* Platform-specific initialization could go here */
 }
