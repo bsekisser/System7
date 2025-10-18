@@ -727,6 +727,15 @@ long TrackMenu(short menuID, Point *startPt) {
     if (g_menuTrackState.highlightedItem > 0) {
         result = ((long)menuID << 16) | g_menuTrackState.highlightedItem;
         serial_puts("TrackMenu: Item selected\n");
+
+        /* Show visual feedback - keep selected item highlighted briefly */
+        /* This gives the user visual confirmation their selection was registered */
+        volatile int feedbackDelay = 0;
+        for (feedbackDelay = 0; feedbackDelay < 200000; feedbackDelay++) {
+            /* Spin loop for ~200ms visual feedback */
+            SystemTask();
+            EventPumpYield();
+        }
     } else {
         serial_puts("TrackMenu: No selection\n");
     }
