@@ -166,8 +166,59 @@ void TEKey(CharParameter key, TEHandle hTE) {
             break;
 
         case kPageUp:
+            /* Scroll up by approximately view height */
+            {
+                SInt16 viewHeight = pTE->base.viewRect.bottom - pTE->base.viewRect.top;
+                SInt16 lineHeight = pTE->base.lineHeight ? pTE->base.lineHeight : 16;
+                SInt16 linesPerPage = (viewHeight / lineHeight) - 1;  /* Leave one line overlap */
+                if (linesPerPage < 1) linesPerPage = 1;
+
+                /* Scroll up */
+                TEScroll(0, -(linesPerPage * lineHeight), hTE);
+
+                /* Move selection to top of visible area */
+                if (shift) {
+                    /* Extend selection upward */
+                    SInt32 newPos = pTE->base.selEnd - (linesPerPage * lineHeight);
+                    if (newPos < 0) newPos = 0;
+                    TE_ExtendSelection(hTE, newPos);
+                } else {
+                    /* Move cursor to top of visible area */
+                    SInt32 topLine = TE_OffsetToLine(hTE, pTE->base.selEnd);
+                    SInt32 targetLine = topLine - linesPerPage;
+                    if (targetLine < 0) targetLine = 0;
+                    SInt32 newPos = TE_LineToOffset(hTE, targetLine);
+                    TESetSelect(newPos, newPos, hTE);
+                }
+            }
+            break;
+
         case kPageDown:
-            /* TODO: Implement page scrolling */
+            /* Scroll down by approximately view height */
+            {
+                SInt16 viewHeight = pTE->base.viewRect.bottom - pTE->base.viewRect.top;
+                SInt16 lineHeight = pTE->base.lineHeight ? pTE->base.lineHeight : 16;
+                SInt16 linesPerPage = (viewHeight / lineHeight) - 1;  /* Leave one line overlap */
+                if (linesPerPage < 1) linesPerPage = 1;
+
+                /* Scroll down */
+                TEScroll(0, linesPerPage * lineHeight, hTE);
+
+                /* Move selection to bottom of visible area */
+                if (shift) {
+                    /* Extend selection downward */
+                    SInt32 newPos = pTE->base.selEnd + (linesPerPage * lineHeight);
+                    if (newPos > pTE->base.teLength) newPos = pTE->base.teLength;
+                    TE_ExtendSelection(hTE, newPos);
+                } else {
+                    /* Move cursor to bottom of visible area */
+                    SInt32 bottomLine = TE_OffsetToLine(hTE, pTE->base.selEnd);
+                    SInt32 targetLine = bottomLine + linesPerPage;
+                    SInt32 newPos = TE_LineToOffset(hTE, targetLine);
+                    if (newPos > pTE->base.teLength) newPos = pTE->base.teLength;
+                    TESetSelect(newPos, newPos, hTE);
+                }
+            }
             break;
 
         default:

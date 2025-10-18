@@ -263,7 +263,7 @@ void TEKey(SInt16 key, TEHandle hTE)
             if (pTE->selStart > 0) {
                 pTE->selStart--;
                 pTE->selEnd = pTE->selStart;
-                /* TODO: Remove character from text */
+                TEDelete(hTE);
             }
             break;
 
