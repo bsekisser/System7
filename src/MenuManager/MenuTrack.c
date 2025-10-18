@@ -406,11 +406,26 @@ void UpdateMenuTrackingNew(Point mousePt) {
     /* Check if mouse is over a menu item - account for 2px top padding */
     short newHighlight = 0;
     short itemsTop = top + 2;  /* Menu items start 2 pixels below menu top */
-    if (mousePt.h >= left && mousePt.h < left + menuWidth &&
-        mousePt.v >= itemsTop && mousePt.v < itemsTop + itemCount * lineHeight) {
-        newHighlight = (mousePt.v - itemsTop) / lineHeight + 1;
-        if (newHighlight < 1 || newHighlight > itemCount) {
-            newHighlight = 0;
+
+    /* First check if mouse is horizontally within menu */
+    if (mousePt.h >= left && mousePt.h < left + menuWidth) {
+        /* Check each item's position to find which one the mouse is over */
+        for (short i = 1; i <= itemCount; i++) {
+            short itemTop = itemsTop + (i - 1) * lineHeight;
+            short itemBottom = itemTop + lineHeight;
+
+            /* Check if mouse is vertically within this item */
+            if (mousePt.v >= itemTop && mousePt.v < itemBottom) {
+                /* Check if this item has text (not a separator/empty) */
+                char itemText[64];
+                GetItemText(theMenu, i, itemText);
+                if (itemText[0] != 0) {
+                    newHighlight = i;
+                    MENU_LOG_TRACE("UpdateMenu: Mouse at (%d,%d) is over item %d\n",
+                                 mousePt.h, mousePt.v, i);
+                }
+                break;  /* Found the item, stop searching */
+            }
         }
     }
 
@@ -428,11 +443,11 @@ void UpdateMenuTrackingNew(Point mousePt) {
             DrawHighlightRect(left + 2, oldTop, left + menuWidth - 2, oldTop + lineHeight - 1, false);
 
             /* Redraw text in normal black on white */
-            char itemText[64];
-            GetItemText(theMenu, g_menuTrackState.highlightedItem, itemText);
-            if (itemText[0] != 0) {
+            char oldText[64];
+            GetItemText(theMenu, g_menuTrackState.highlightedItem, oldText);
+            if (oldText[0] != 0) {
                 /* Use DrawMenuItemText for consistent normal rendering */
-                DrawMenuItemText(itemText, left + 4, oldTop + 12);
+                DrawMenuItemText(oldText, left + 4, oldTop + 12);
             }
         }
 
@@ -445,10 +460,10 @@ void UpdateMenuTrackingNew(Point mousePt) {
             DrawHighlightRect(left + 2, itemTop, left + menuWidth - 2, itemTop + lineHeight - 1, true);
 
             /* Redraw text in white on black using inverted text */
-            char itemText[64];
-            GetItemText(theMenu, newHighlight, itemText);
-            if (itemText[0] != 0) {
-                DrawInvertedText(itemText, left + 4, itemTop + 12, true);  /* true = white inverted text */
+            char newText[64];
+            GetItemText(theMenu, newHighlight, newText);
+            if (newText[0] != 0) {
+                DrawInvertedText(newText, left + 4, itemTop + 12, true);  /* true = white inverted text */
             }
         }
 
