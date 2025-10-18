@@ -118,7 +118,7 @@ int DeskManager_RegisterBuiltinDAs(void)
 {
     int result;
 
-    /* Register Calculator */
+    /* TODO: Register Calculator - requires math library
     DARegistryEntry calculatorEntry = {0};
     strcpy(calculatorEntry.name, "Calculator");
     calculatorEntry.type = DA_TYPE_CALCULATOR;
@@ -130,6 +130,7 @@ int DeskManager_RegisterBuiltinDAs(void)
     if (result != 0) {
         return result;
     }
+    */
 
     /* Register Key Caps */
     DARegistryEntry keyCapsEntry = {0};
@@ -144,7 +145,7 @@ int DeskManager_RegisterBuiltinDAs(void)
         return result;
     }
 
-    /* Register Alarm Clock */
+    /* TODO: Register Alarm Clock - requires system time library
     DARegistryEntry alarmEntry = {0};
     strcpy(alarmEntry.name, "Alarm Clock");
     alarmEntry.type = DA_TYPE_ALARM;
@@ -156,8 +157,9 @@ int DeskManager_RegisterBuiltinDAs(void)
     if (result != 0) {
         return result;
     }
+    */
 
-    /* Register Chooser */
+    /* TODO: Register Chooser - requires network/device enumeration
     DARegistryEntry chooserEntry = {0};
     strcpy(chooserEntry.name, "Chooser");
     chooserEntry.type = DA_TYPE_CHOOSER;
@@ -169,6 +171,7 @@ int DeskManager_RegisterBuiltinDAs(void)
     if (result != 0) {
         return result;
     }
+    */
 
     return DESK_ERR_NONE;
 }

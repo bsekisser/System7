@@ -19,7 +19,13 @@
 #include "DeskManager/Notepad.h"
 #include "DeskManager/DeskManager.h"
 #include "TextEdit/TextEdit.h"
+#include "QuickDraw/QuickDraw.h"
+#include "WindowManager/WindowManager.h"
+#include "EventManager/EventManager.h"
+#include "MemoryMgr/MemoryManager.h"
 
+/* External QuickDraw globals */
+extern QDGlobals qd;
 
 /* Global Notepad state */
 static NotePadGlobals *gNotepad = NULL;
@@ -152,7 +158,7 @@ OSErr Notepad_Open(WindowPtr *window) {
         return memFullErr;
     }
 
-    SetPort(gNotepad->window);
+    SetPort((GrafPtr)gNotepad->window);
 
     /* Create TextEdit record */
     SetRect(&teRect, 10, 40, 390, 270);
@@ -313,17 +319,17 @@ void Notepad_Draw(void) {
         return;
     }
 
-    SetPort(gNotepad->window);  /* Safe now: BeginUpdate swapped portBits to GWorld */
+    SetPort((GrafPtr)gNotepad->window);  /* Safe now: BeginUpdate swapped portBits to GWorld */
 
     /* Clear window */
-    EraseRect(&gNotepad->window->portRect);
+    EraseRect(&gNotepad->window->port.portRect);
 
     /* Draw page indicator */
     Notepad_DrawPageIndicator(gNotepad);
 
     /* Draw text */
     if (gNotepad->teRecord != NULL) {
-        TEUpdate(&gNotepad->window->portRect, gNotepad->teRecord);
+        TEUpdate(&gNotepad->window->port.portRect, gNotepad->teRecord);
     }
 
     /* Draw frame around text area */
@@ -440,13 +446,15 @@ static void Notepad_UpdatePageDisplay(NotePadGlobals *notepad) {
         return;
     }
 
-    SetPort(notepad->window);
+    SetPort((GrafPtr)notepad->window);
 
     /* Redraw page indicator */
     Notepad_DrawPageIndicator(notepad);
 
     /* Update text display */
-    InvalRect(&notepad->teRecord->viewRect);
+    if (notepad->teRecord) {
+        InvalRect(&(**notepad->teRecord).viewRect);
+    }
 }
 
 /*
@@ -456,7 +464,7 @@ static void Notepad_DrawPageIndicator(NotePadGlobals *notepad) {
     Rect indicatorRect;
     char pageText[32];
 
-    SetPort(notepad->window);
+    SetPort((GrafPtr)notepad->window);
 
     /* Clear indicator area */
     SetRect(&indicatorRect, 0, 0, 400, 35);

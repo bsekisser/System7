@@ -1,6 +1,7 @@
 // #include "CompatibilityFix.h" // Removed
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 /*
  * Chooser.c - Chooser Desk Accessory Implementation
  *
