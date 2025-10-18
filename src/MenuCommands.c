@@ -243,15 +243,6 @@ static void HandleAppleMenu(short item)
         return;
     }
 
-    if (strcmp(itemName, "Shut Down") == 0) {
-        MENU_LOG_INFO("Apple Menu > Shut Down\n");
-        MENU_LOG_INFO("System shutdown initiated...\n");
-        MENU_LOG_INFO("It is now safe to turn off your computer.\n");
-
-        perform_power_off();
-        return;
-    }
-
     MENU_LOG_WARN("Unknown Apple menu item: '%s' (index %d)\n", itemName, item);
 }
 
@@ -582,6 +573,14 @@ static void HandleSpecialMenu(short item)
             MENU_LOG_INFO("Special > Restart\n");
             MENU_LOG_INFO("System restart initiated...\n");
             perform_restart();
+            break;
+        }
+
+        case 8: {  /* Shut Down */
+            MENU_LOG_INFO("Special > Shut Down\n");
+            MENU_LOG_INFO("System shutdown initiated...\n");
+            MENU_LOG_INFO("It is now safe to turn off your computer.\n");
+            perform_power_off();
             break;
         }
 

@@ -264,6 +264,7 @@ static OSErr SetupMenus(void)
     AppendMenu(gSpecialMenu, "\012Erase Disk");
     AppendMenu(gSpecialMenu, "\002(-");
     AppendMenu(gSpecialMenu, "\007Restart");
+    AppendMenu(gSpecialMenu, "\011Shut Down");
 
     /* Insert menus into menu bar in correct order: Apple, File, Edit, View, Label, Special */
     /* InsertMenu with 0 adds to end, so insert in order */
