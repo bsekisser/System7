@@ -17,6 +17,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "FileMgr/file_manager.h"
 #include "DeskManager/DeskManager.h"
+#include "ListManager/ListManager.h"
 
 /* Debug logging */
 #ifdef SF_HAL_DEBUG
@@ -28,7 +29,7 @@
 #define SF_HAL_LOG_INFO(fmt, ...)  serial_logf(kLogModuleStandardFile, kLogLevelInfo, "[SF HAL] " fmt, ##__VA_ARGS__)
 #define SF_HAL_LOG_WARN(fmt, ...)  serial_logf(kLogModuleStandardFile, kLogLevelWarn, "[SF HAL] " fmt, ##__VA_ARGS__)
 
-/* File list entry */
+/* File list entry (for data storage) */
 typedef struct {
     FSSpec spec;
     OSType fileType;
@@ -37,19 +38,63 @@ typedef struct {
 
 /* HAL state */
 static Boolean gHALInitialized = false;
-static FileListEntry *gFileList = NULL;
+
+/* File list data (stored separately from visual list) */
+static FileListEntry *gFileListArray = NULL;
 static short gFileListCount = 0;
 static short gFileListCapacity = 0;
+
+/* Visual list control */
+static ListHandle gFileListHandle = NULL;
+
+/* Selection and navigation */
 static short gSelectedIndex = -1;
 static short gCurrentVRefNum = 0;
 static long gCurrentDirID = 0;
 static Boolean gNavigationRequested = false;
 
+/* List dimensions */
+#define LIST_LEFT 10
+#define LIST_TOP 30
+#define LIST_RIGHT 440
+#define LIST_BOTTOM 280
 #define INITIAL_FILE_LIST_CAPACITY 100
 
 /* Forward declarations */
 extern void SF_PopulateFileList(void);
 static void StandardFile_HAL_NavigateToFolder(const FSSpec *folderSpec);
+static OSErr StandardFile_HAL_CreateListControl(DialogPtr dialog, ListHandle *outList);
+
+/*
+ * StandardFile_HAL_CreateListControl - Create list control in dialog
+ */
+static OSErr StandardFile_HAL_CreateListControl(DialogPtr dialog, ListHandle *outList) {
+    if (!dialog || !outList) {
+        return paramErr;
+    }
+
+    Rect listBounds = {LIST_TOP, LIST_LEFT, LIST_BOTTOM, LIST_RIGHT};
+    Rect cellSize = {0, 0, 16, LIST_RIGHT - LIST_LEFT};  /* Row height 16, full width */
+
+    ListParams params = {
+        .viewRect = listBounds,
+        .cellSizeRect = cellSize,
+        .window = (WindowPtr)dialog,
+        .hasVScroll = true,
+        .hasHScroll = false,
+        .selMode = lsSingleSel,
+        .refCon = 0
+    };
+
+    *outList = LNew(&params);
+    if (*outList == NULL) {
+        SF_HAL_LOG_WARN("StandardFile HAL: Failed to create list control\n");
+        return memFullErr;
+    }
+
+    SF_HAL_LOG_DEBUG("StandardFile HAL: Created list control\n");
+    return noErr;
+}
 
 /*
  * StandardFile_HAL_Init - Initialize HAL subsystem
@@ -58,11 +103,12 @@ void StandardFile_HAL_Init(void) {
     if (!gHALInitialized) {
         SF_HAL_LOG_DEBUG("StandardFile HAL: Initializing\n");
 
-        /* Allocate file list */
+        /* Allocate file list array */
         gFileListCapacity = INITIAL_FILE_LIST_CAPACITY;
-        gFileList = (FileListEntry*)malloc(gFileListCapacity * sizeof(FileListEntry));
+        gFileListArray = (FileListEntry*)malloc(gFileListCapacity * sizeof(FileListEntry));
         gFileListCount = 0;
         gSelectedIndex = -1;
+        gFileListHandle = NULL;
 
         gHALInitialized = true;
     }
@@ -74,8 +120,8 @@ void StandardFile_HAL_Init(void) {
 OSErr StandardFile_HAL_CreateOpenDialog(DialogPtr *outDialog, ConstStr255Param prompt) {
     SF_HAL_LOG_DEBUG("StandardFile HAL: CreateOpenDialog prompt='%s'\n", prompt ? prompt : "(null)");
 
-    /* Create a simple modal dialog */
-    Rect bounds = {100, 100, 350, 450};
+    /* Create a modal dialog with list area */
+    Rect bounds = {100, 100, 400, 500};
     static unsigned char title[] = {9, 'O','p','e','n',' ','F','i','l','e'};
     *outDialog = NewDialog(NULL, &bounds, title, true, dBoxProc,
                            (WindowPtr)-1, false, 0, NULL);
@@ -83,6 +129,19 @@ OSErr StandardFile_HAL_CreateOpenDialog(DialogPtr *outDialog, ConstStr255Param p
     if (*outDialog == NULL) {
         return memFullErr;
     }
+
+    /* Create list control in the dialog */
+    OSErr err = StandardFile_HAL_CreateListControl(*outDialog, &gFileListHandle);
+    if (err != noErr) {
+        DisposeDialog(*outDialog);
+        *outDialog = NULL;
+        gFileListHandle = NULL;
+        return err;
+    }
+
+    /* Clear file list data */
+    gFileListCount = 0;
+    gSelectedIndex = -1;
 
     return noErr;
 }
@@ -95,8 +154,8 @@ OSErr StandardFile_HAL_CreateSaveDialog(DialogPtr *outDialog, ConstStr255Param p
     SF_HAL_LOG_DEBUG("StandardFile HAL: CreateSaveDialog prompt='%s' default='%s'\n",
            prompt ? prompt : "(null)", defaultName ? defaultName : "(null)");
 
-    /* Create a simple modal dialog */
-    Rect bounds = {100, 100, 350, 400};
+    /* Create a modal dialog with list area */
+    Rect bounds = {100, 100, 400, 500};
     static unsigned char title[] = {9, 'S','a','v','e',' ','F','i','l','e'};
     *outDialog = NewDialog(NULL, &bounds, title, true, dBoxProc,
                            (WindowPtr)-1, false, 0, NULL);
@@ -104,6 +163,19 @@ OSErr StandardFile_HAL_CreateSaveDialog(DialogPtr *outDialog, ConstStr255Param p
     if (*outDialog == NULL) {
         return memFullErr;
     }
+
+    /* Create list control in the dialog */
+    OSErr err = StandardFile_HAL_CreateListControl(*outDialog, &gFileListHandle);
+    if (err != noErr) {
+        DisposeDialog(*outDialog);
+        *outDialog = NULL;
+        gFileListHandle = NULL;
+        return err;
+    }
+
+    /* Clear file list data */
+    gFileListCount = 0;
+    gSelectedIndex = -1;
 
     return noErr;
 }
@@ -113,6 +185,13 @@ OSErr StandardFile_HAL_CreateSaveDialog(DialogPtr *outDialog, ConstStr255Param p
  */
 void StandardFile_HAL_DisposeOpenDialog(DialogPtr dialog) {
     SF_HAL_LOG_DEBUG("StandardFile HAL: DisposeOpenDialog\n");
+
+    /* Dispose list control */
+    if (gFileListHandle) {
+        LDispose(gFileListHandle);
+        gFileListHandle = NULL;
+    }
+
     if (dialog) {
         DisposeDialog(dialog);
     }
@@ -123,6 +202,13 @@ void StandardFile_HAL_DisposeOpenDialog(DialogPtr dialog) {
  */
 void StandardFile_HAL_DisposeSaveDialog(DialogPtr dialog) {
     SF_HAL_LOG_DEBUG("StandardFile HAL: DisposeSaveDialog\n");
+
+    /* Dispose list control */
+    if (gFileListHandle) {
+        LDispose(gFileListHandle);
+        gFileListHandle = NULL;
+    }
+
     if (dialog) {
         DisposeDialog(dialog);
     }
@@ -134,7 +220,7 @@ void StandardFile_HAL_DisposeSaveDialog(DialogPtr dialog) {
 void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
     SF_HAL_LOG_DEBUG("StandardFile HAL: RunDialog - starting modal loop\n");
 
-    if (!dialog || !itemHit) {
+    if (!dialog || !itemHit || !gFileListHandle) {
         if (itemHit) *itemHit = sfItemCancelButton;
         return;
     }
@@ -143,6 +229,7 @@ void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
     Boolean done = false;
     DialogPtr whichDialog;
     short item;
+    short listItem = 0;
 
     /* Show the dialog window */
     ShowWindow(dialog);
@@ -160,10 +247,10 @@ void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
                             /* Open/Save button */
                             if (gSelectedIndex >= 0 && gSelectedIndex < gFileListCount) {
                                 /* Check if it's a folder */
-                                if (gFileList[gSelectedIndex].isFolder) {
+                                if (gFileListArray[gSelectedIndex].isFolder) {
                                     /* Navigate into folder - don't exit, repopulate */
                                     SF_HAL_LOG_DEBUG("StandardFile HAL: Navigating into folder\n");
-                                    StandardFile_HAL_NavigateToFolder(&gFileList[gSelectedIndex].spec);
+                                    StandardFile_HAL_NavigateToFolder(&gFileListArray[gSelectedIndex].spec);
                                     /* Signal StandardFile.c to repopulate */
                                     *itemHit = sfItemOpenButton;  /* Will be handled by StandardFile.c */
                                     done = true;  /* Exit loop so StandardFile can handle navigation */
@@ -185,8 +272,54 @@ void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
                     }
                 }
             } else {
+                /* Handle list control interactions */
+                if (gFileListHandle && event.what == mouseDown) {
+                    Point localPt = event.where;
+                    WindowPtr eventWindow = NULL;
+                    if (FindWindow(event.where, &eventWindow) == inContent) {
+                        if (eventWindow == (WindowPtr)dialog) {
+                            GlobalToLocal(&localPt);
+
+                            /* Try to handle list click */
+                            if (LClick(gFileListHandle, localPt, event.modifiers, &listItem)) {
+                                gSelectedIndex = listItem - 1;  /* Convert to 0-indexed */
+                                SF_HAL_LOG_DEBUG("StandardFile HAL: List item clicked: %d (selected %d)\n",
+                                       listItem, gSelectedIndex);
+
+                                /* Check for double-click */
+                                if (LClick(gFileListHandle, localPt, event.modifiers, &listItem)) {
+                                    /* Double-click detected */
+                                    if (gSelectedIndex >= 0 && gSelectedIndex < gFileListCount) {
+                                        if (gFileListArray[gSelectedIndex].isFolder) {
+                                            /* Navigate into folder */
+                                            SF_HAL_LOG_DEBUG("StandardFile HAL: Double-click navigating into folder\n");
+                                            StandardFile_HAL_NavigateToFolder(&gFileListArray[gSelectedIndex].spec);
+                                            *itemHit = sfItemOpenButton;
+                                            done = true;
+                                        } else {
+                                            /* Double-click on file = Open */
+                                            *itemHit = sfItemOpenButton;
+                                            done = true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 /* Handle other event types (update, activate, etc.) */
                 switch (event.what) {
+                    case updateEvt: {
+                        /* Redraw list when window is updated */
+                        if ((WindowPtr)dialog == (WindowPtr)event.message) {
+                            if (gFileListHandle) {
+                                LDraw(gFileListHandle);
+                            }
+                        }
+                        break;
+                    }
+
                     case keyDown:
                     case autoKey: {
                         char key = event.message & charCodeMask;
@@ -198,17 +331,47 @@ void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
                                 done = true;
                             }
                         } else {
-                            /* Regular keys */
-                            if (key == '\r' || key == 0x03) {
-                                /* Return/Enter = Open */
-                                if (gSelectedIndex >= 0) {
-                                    *itemHit = sfItemOpenButton;
+                            /* Regular keys - forward to list */
+                            switch (key) {
+                                case 0x1E:  /* Up arrow key */
+                                    /* Move selection up */
+                                    if (gSelectedIndex > 0) {
+                                        gSelectedIndex--;
+                                        Cell cell = {0, gSelectedIndex};
+                                        LSetSelect(gFileListHandle, true, cell);
+                                        LDraw(gFileListHandle);
+                                    }
+                                    break;
+
+                                case 0x1F:  /* Down arrow key */
+                                    /* Move selection down */
+                                    if (gSelectedIndex < gFileListCount - 1) {
+                                        gSelectedIndex++;
+                                        Cell cell = {0, gSelectedIndex};
+                                        LSetSelect(gFileListHandle, true, cell);
+                                        LDraw(gFileListHandle);
+                                    }
+                                    break;
+
+                                case '\r':
+                                case 0x03:
+                                    /* Return/Enter = Open */
+                                    if (gSelectedIndex >= 0 && gSelectedIndex < gFileListCount) {
+                                        if (gFileListArray[gSelectedIndex].isFolder) {
+                                            StandardFile_HAL_NavigateToFolder(&gFileListArray[gSelectedIndex].spec);
+                                            *itemHit = sfItemOpenButton;
+                                        } else {
+                                            *itemHit = sfItemOpenButton;
+                                        }
+                                        done = true;
+                                    }
+                                    break;
+
+                                case 0x1B:
+                                    /* Escape = Cancel */
+                                    *itemHit = sfItemCancelButton;
                                     done = true;
-                                }
-                            } else if (key == 0x1B) {
-                                /* Escape = Cancel */
-                                *itemHit = sfItemCancelButton;
-                                done = true;
+                                    break;
                             }
                         }
                         break;
@@ -229,6 +392,16 @@ void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
  */
 void StandardFile_HAL_ClearFileList(DialogPtr dialog) {
     SF_HAL_LOG_DEBUG("StandardFile HAL: ClearFileList\n");
+
+    /* Clear list rows from ListHandle */
+    if (gFileListHandle) {
+        short rows = (*gFileListHandle)->dataBounds.bottom - (*gFileListHandle)->dataBounds.top;
+        if (rows > 0) {
+            LDelRow(gFileListHandle, rows, 0);
+        }
+    }
+
+    /* Clear data */
     gFileListCount = 0;
     gSelectedIndex = -1;
 }
@@ -239,11 +412,11 @@ void StandardFile_HAL_ClearFileList(DialogPtr dialog) {
 void StandardFile_HAL_AddFileToList(DialogPtr dialog, const FSSpec *spec, OSType fileType) {
     if (!spec) return;
 
-    /* Check if we need to expand the list */
+    /* Check if we need to expand the array */
     if (gFileListCount >= gFileListCapacity) {
         gFileListCapacity *= 2;
-        gFileList = (FileListEntry*)realloc(gFileList, gFileListCapacity * sizeof(FileListEntry));
-        if (!gFileList) {
+        gFileListArray = (FileListEntry*)realloc(gFileListArray, gFileListCapacity * sizeof(FileListEntry));
+        if (!gFileListArray) {
             gFileListCapacity = 0;
             gFileListCount = 0;
             return;
@@ -263,14 +436,34 @@ void StandardFile_HAL_AddFileToList(DialogPtr dialog, const FSSpec *spec, OSType
         isFolder = (pb.u.hFileInfo.ioFlAttrib & 0x10) != 0;  /* 0x10 = directory bit */
     }
 
-    /* Add to list */
-    gFileList[gFileListCount].spec = *spec;
-    gFileList[gFileListCount].fileType = fileType;
-    gFileList[gFileListCount].isFolder = isFolder;
+    /* Add to data array */
+    gFileListArray[gFileListCount].spec = *spec;
+    gFileListArray[gFileListCount].fileType = fileType;
+    gFileListArray[gFileListCount].isFolder = isFolder;
 
     SF_HAL_LOG_DEBUG("StandardFile HAL: AddFileToList [%d] name='%.*s' type='%.4s' isFolder=%d\n",
            gFileListCount, spec->name[0], spec->name + 1,
            (char*)&fileType, isFolder);
+
+    /* Add row to list display */
+    if (gFileListHandle) {
+        /* Add a new row after the last row */
+        LAddRow(gFileListHandle, 1, gFileListCount - 1);
+
+        /* Build display string: "[folder] Name" or "Name (TYPE)" */
+        Str255 displayStr;
+        if (isFolder) {
+            displayStr[0] = spec->name[0] + 1;  /* +1 for folder indicator */
+            displayStr[1] = '*';  /* Folder marker */
+            BlockMove(&spec->name[1], &displayStr[2], spec->name[0]);
+        } else {
+            BlockMove(spec->name, displayStr, spec->name[0] + 1);
+        }
+
+        /* Set cell content */
+        Cell cell = {0, gFileListCount};
+        LSetCell(gFileListHandle, &displayStr[1], displayStr[0], cell);
+    }
 
     gFileListCount++;
 }
@@ -280,7 +473,11 @@ void StandardFile_HAL_AddFileToList(DialogPtr dialog, const FSSpec *spec, OSType
  */
 void StandardFile_HAL_UpdateFileList(DialogPtr dialog) {
     SF_HAL_LOG_DEBUG("StandardFile HAL: UpdateFileList count=%d\n", gFileListCount);
-    /* In a full implementation, this would redraw the list control */
+
+    /* Redraw the list control */
+    if (gFileListHandle) {
+        LDraw(gFileListHandle);
+    }
 }
 
 /*
@@ -289,10 +486,24 @@ void StandardFile_HAL_UpdateFileList(DialogPtr dialog) {
 void StandardFile_HAL_SelectFile(DialogPtr dialog, short index) {
     if (index >= 0 && index < gFileListCount) {
         gSelectedIndex = index;
+
+        /* Update list selection */
+        if (gFileListHandle) {
+            Cell cell = {0, index};
+            LSetSelect(gFileListHandle, true, cell);
+        }
+
         SF_HAL_LOG_DEBUG("StandardFile HAL: SelectFile index=%d name='%.*s'\n",
-               index, gFileList[index].spec.name[0], gFileList[index].spec.name + 1);
+               index, gFileListArray[index].spec.name[0], gFileListArray[index].spec.name + 1);
     } else {
         gSelectedIndex = -1;
+
+        /* Clear selection */
+        if (gFileListHandle) {
+            Cell cell = {0, 0};
+            LSetSelect(gFileListHandle, false, cell);
+        }
+
         SF_HAL_LOG_DEBUG("StandardFile HAL: SelectFile index=%d (invalid, cleared)\n", index);
     }
 }
@@ -306,11 +517,21 @@ short StandardFile_HAL_GetSelectedFile(DialogPtr dialog) {
 }
 
 /*
+ * Get selected file spec
+ */
+const FSSpec* StandardFile_HAL_GetSelectedFileSpec(void) {
+    if (gSelectedIndex >= 0 && gSelectedIndex < gFileListCount) {
+        return &gFileListArray[gSelectedIndex].spec;
+    }
+    return NULL;
+}
+
+/*
  * StandardFile_HAL_SetSaveFileName - Set the save file name field
  */
 void StandardFile_HAL_SetSaveFileName(DialogPtr dialog, ConstStr255Param name) {
     SF_HAL_LOG_DEBUG("StandardFile HAL: SetSaveFileName name='%s'\n", name ? name : "(null)");
-    /* Stub: would set TEHandle text */
+    /* Stub: would set TEHandle text in dialog */
 }
 
 /*
@@ -318,12 +539,17 @@ void StandardFile_HAL_SetSaveFileName(DialogPtr dialog, ConstStr255Param name) {
  */
 void StandardFile_HAL_GetSaveFileName(DialogPtr dialog, Str255 name) {
     SF_HAL_LOG_DEBUG("StandardFile HAL: GetSaveFileName\n");
-    /* Stub: return default name */
+    /* Return selected file name or default */
     if (name) {
-        const char *defaultName = "Untitled.txt";
-        int len = strlen(defaultName);
-        name[0] = len;
-        memcpy(name + 1, defaultName, len);
+        if (gSelectedIndex >= 0 && gSelectedIndex < gFileListCount) {
+            BlockMove(gFileListArray[gSelectedIndex].spec.name, name,
+                     gFileListArray[gSelectedIndex].spec.name[0] + 1);
+        } else {
+            const char *defaultName = "Untitled";
+            int len = strlen(defaultName);
+            name[0] = len;
+            memcpy(name + 1, defaultName, len);
+        }
     }
 }
 
