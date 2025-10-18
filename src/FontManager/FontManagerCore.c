@@ -44,6 +44,18 @@ extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 /* Global Font Manager state */
 static FontManagerState g_fmState = {0};
 
+/* Font stack for nested font operations (push/pop semantics) */
+#define MAX_FONT_STACK 16
+typedef struct FontStackEntry {
+    SInt16 fontNum;    /* Font family ID */
+    SInt16 fontSize;   /* Size in points */
+    Style  fontFace;   /* Style flags (bold, italic, etc.) */
+    SInt32 fgColor;    /* Foreground color */
+} FontStackEntry;
+
+static FontStackEntry g_fontStack[MAX_FONT_STACK];
+static SInt16 g_fontStackDepth = 0;
+
 /* ============================================================================
  * Internal Low-Level Character Drawing
  * ============================================================================ */
@@ -492,6 +504,10 @@ void QD_LocalToPixel(short localX, short localY, short* pixelX, short* pixelY) {
 void DrawChar(short ch) {
     if (!g_currentPort) return;
 
+    Style face = g_currentPort->txFace;
+    Boolean hasBold = (face & bold) != 0;
+    Boolean hasItalic = (face & italic) != 0;
+
     /* Get current font strike */
     FontStrike *strike = FM_GetCurrentStrike();
 
@@ -503,7 +519,21 @@ void DrawChar(short ch) {
         short px, py;
         QD_LocalToPixel(pen.h, pen.v - CHICAGO_ASCENT, &px, &py);
         UInt32 color = QDPlatform_MapQDColor(g_currentPort->fgColor);
-        FM_DrawChicagoCharInternal(px, py, (char)ch, color);
+
+        /* Draw character with style synthesis */
+        if (hasBold) {
+            /* Bold: draw twice with 1 pixel offset */
+            FM_DrawChicagoCharInternal(px, py, (char)ch, color);
+            FM_DrawChicagoCharInternal(px + 1, py, (char)ch, color);
+        } else {
+            FM_DrawChicagoCharInternal(px, py, (char)ch, color);
+        }
+
+        if (hasItalic) {
+            /* Italic: draw with slight right offset for shear effect */
+            FM_DrawChicagoCharInternal(px + 1, py, (char)ch, color);
+        }
+
         g_currentPort->pnLoc.h += CharWidth(ch);
         return;
     }
@@ -520,14 +550,28 @@ void DrawChar(short ch) {
     /* Draw the glyph using platform layer */
     extern SInt16 QDPlatform_DrawGlyph(FontStrike *strike, UInt8 ch, SInt16 x, SInt16 y,
                                        GrafPtr port, UInt32 color);
-    SInt16 advance = QDPlatform_DrawGlyph(strike, (UInt8)ch, glyphX, glyphY,
-                                          g_currentPort, color);
 
-    /* Advance pen by character width */
-    if (advance > 0) {
-        g_currentPort->pnLoc.h += advance;
+    if (hasBold) {
+        /* Bold: draw twice with 1 pixel offset */
+        SInt16 advance = QDPlatform_DrawGlyph(strike, (UInt8)ch, glyphX, glyphY,
+                                              g_currentPort, color);
+        QDPlatform_DrawGlyph(strike, (UInt8)ch, glyphX + 1, glyphY,
+                             g_currentPort, color);
+        /* Advance pen by character width + bold offset */
+        if (advance > 0) {
+            g_currentPort->pnLoc.h += advance + 1;
+        } else {
+            g_currentPort->pnLoc.h += CharWidth(ch) + 1;
+        }
     } else {
-        g_currentPort->pnLoc.h += CharWidth(ch);
+        SInt16 advance = QDPlatform_DrawGlyph(strike, (UInt8)ch, glyphX, glyphY,
+                                              g_currentPort, color);
+        /* Advance pen by character width */
+        if (advance > 0) {
+            g_currentPort->pnLoc.h += advance;
+        } else {
+            g_currentPort->pnLoc.h += CharWidth(ch);
+        }
     }
 }
 
@@ -541,10 +585,8 @@ void DrawString(ConstStr255Param s) {
     Style face = g_currentPort->txFace;
     short startX = g_currentPort->pnLoc.h;  /* Save start for underline */
 
-    /* Draw each character using DrawChar */
+    /* Draw each character using DrawChar (bold/italic handled there) */
     for (int i = 1; i <= len; i++) {
-        /* TODO: Handle bold by drawing twice with 1px offset */
-        /* TODO: Handle italic with bitmap shearing */
         DrawChar(s[i]);
     }
 
@@ -676,6 +718,94 @@ OSErr GetLastFontError(void) {
 
 void SetFontErrorCallback(void (*callback)(OSErr error, const char *message)) {
     /* Store callback for error notifications */
+}
+
+/* ============================================================================
+ * Font Stack (Push/Pop for nested font operations)
+ * ============================================================================ */
+
+/*
+ * FMPushFont - Save current font state on stack
+ * Allows nested font changes (e.g., bold text within normal text)
+ */
+void FMPushFont(void) {
+    if (g_fontStackDepth >= MAX_FONT_STACK) {
+        FM_LOG("FMPushFont: Stack overflow (depth=%d)\n", g_fontStackDepth);
+        return;
+    }
+
+    FontStackEntry *entry = &g_fontStack[g_fontStackDepth++];
+
+    /* Save current port state */
+    if (g_currentPort) {
+        entry->fontNum = g_currentPort->txFont;
+        entry->fontSize = g_currentPort->txSize;
+        entry->fontFace = g_currentPort->txFace;
+        entry->fgColor = g_currentPort->fgColor;
+    } else {
+        entry->fontNum = systemFont;
+        entry->fontSize = 12;
+        entry->fontFace = normal;
+        entry->fgColor = 0;  /* Black */
+    }
+
+    FM_LOG("FMPushFont: Saved font state (depth=%d, font=%d, size=%d, face=0x%02X)\n",
+           g_fontStackDepth, entry->fontNum, entry->fontSize, entry->fontFace);
+}
+
+/*
+ * FMPopFont - Restore font state from stack
+ * Returns to previous font settings
+ */
+void FMPopFont(void) {
+    if (g_fontStackDepth <= 0) {
+        FM_LOG("FMPopFont: Stack underflow\n");
+        return;
+    }
+
+    FontStackEntry *entry = &g_fontStack[--g_fontStackDepth];
+
+    /* Restore font state */
+    if (g_currentPort) {
+        TextFont(entry->fontNum);
+        TextSize(entry->fontSize);
+        TextFace(entry->fontFace);
+        RGBForeColor((RGBColor*)&entry->fgColor);  /* Approximate - would need proper RGB conversion */
+    }
+
+    FM_LOG("FMPopFont: Restored font state (depth=%d, font=%d, size=%d, face=0x%02X)\n",
+           g_fontStackDepth, entry->fontNum, entry->fontSize, entry->fontFace);
+}
+
+/*
+ * FMGetFontStackDepth - Get current stack depth (for debugging)
+ */
+SInt16 FMGetFontStackDepth(void) {
+    return g_fontStackDepth;
+}
+
+/*
+ * FMSetFontSize - Change current font size (with common sizes 9, 12, 14, 18)
+ */
+void FMSetFontSize(SInt16 size) {
+    if (!g_currentPort) return;
+
+    /* Map requested size to available sizes */
+    SInt16 mappedSize = 12;  /* Default to 12pt */
+
+    if (size <= 9) {
+        mappedSize = 9;
+    } else if (size <= 12) {
+        mappedSize = 12;
+    } else if (size <= 14) {
+        mappedSize = 14;
+    } else {
+        mappedSize = 18;
+    }
+
+    TextSize(mappedSize);
+
+    FM_LOG("FMSetFontSize: Set font size from %d to %d\n", size, mappedSize);
 }
 
 /* ============================================================================

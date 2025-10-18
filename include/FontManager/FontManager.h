@@ -186,6 +186,12 @@ void FM_DrawRun(const unsigned char* bytes, short len, Point baseline);
 OSErr GetLastFontError(void);
 void SetFontErrorCallback(void (*callback)(OSErr error, const char *message));
 
+/* Font Stack (Push/Pop for nested font operations) */
+void FMPushFont(void);          /* Save current font state */
+void FMPopFont(void);           /* Restore previous font state */
+SInt16 FMGetFontStackDepth(void); /* Get current stack depth */
+void FMSetFontSize(SInt16 size); /* Set font size with standard sizes (9, 12, 14, 18) */
+
 #ifdef __cplusplus
 }
 #endif
