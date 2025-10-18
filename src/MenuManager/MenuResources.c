@@ -22,6 +22,115 @@
 /* ===== MENU Resource Parser ===== */
 
 /*
+ * ParseMenuItemString
+ * Parses a single menu item string and extracts:
+ * - Command key (/ or ^)
+ * - Mark character (!)
+ * - Text style (<)
+ * - Disabled status (()
+ * - Submenu indicator (>)
+ * - Separator (-)
+ *
+ * Returns the cleaned item text
+ */
+static void ParseMenuItemString(const uint8_t* itemData, uint8_t itemLen,
+                                 uint8_t* outText, uint8_t* outTextLen,
+                                 uint8_t* outCmdChar, uint8_t* outMark,
+                                 uint8_t* outStyle, Boolean* outDisabled)
+{
+    if (!itemData || itemLen == 0) {
+        if (outTextLen) *outTextLen = 0;
+        return;
+    }
+
+    uint8_t cleanText[256];
+    uint8_t cleanLen = 0;
+    uint8_t pos = 0;
+
+    if (outCmdChar) *outCmdChar = 0;
+    if (outMark) *outMark = 0;
+    if (outStyle) *outStyle = 0;
+    if (outDisabled) *outDisabled = false;
+
+    /* Parse item for special codes */
+    while (pos < itemLen) {
+        uint8_t ch = itemData[pos];
+
+        /* Check for special codes */
+        if (ch == '/' && pos + 1 < itemLen) {
+            /* Command key: /X means Cmd+X */
+            if (outCmdChar) *outCmdChar = itemData[pos + 1];
+            pos += 2;
+            continue;
+        }
+
+        if (ch == '^' && pos + 1 < itemLen) {
+            /* Alt command: ^X */
+            if (outCmdChar) *outCmdChar = itemData[pos + 1] | 0x80;  /* Set high bit for alt */
+            pos += 2;
+            continue;
+        }
+
+        if (ch == '!' && pos + 1 < itemLen) {
+            /* Mark character: !C */
+            if (outMark) *outMark = itemData[pos + 1];
+            pos += 2;
+            continue;
+        }
+
+        if (ch == '<' && pos + 1 < itemLen) {
+            /* Style: <B = bold, <I = italic, <U = underline, <O = outline, <S = shadow */
+            uint8_t styleChar = itemData[pos + 1];
+            if (outStyle) {
+                switch (styleChar) {
+                    case 'B': *outStyle |= 0x01; break;  /* bold */
+                    case 'I': *outStyle |= 0x02; break;  /* italic */
+                    case 'U': *outStyle |= 0x04; break;  /* underline */
+                    case 'O': *outStyle |= 0x08; break;  /* outline */
+                    case 'S': *outStyle |= 0x10; break;  /* shadow */
+                    default: break;
+                }
+            }
+            pos += 2;
+            continue;
+        }
+
+        if (ch == '(' && pos == 0) {
+            /* Disabled: ( prefix */
+            if (outDisabled) *outDisabled = true;
+            pos++;
+            continue;
+        }
+
+        if (ch == '-' && cleanLen == 0) {
+            /* Separator: - on its own */
+            cleanText[cleanLen++] = '-';
+            pos++;
+            break;
+        }
+
+        if (ch == '>') {
+            /* Submenu indicator - skip for now */
+            pos++;
+            continue;
+        }
+
+        /* Regular text */
+        if (cleanLen < 255) {
+            cleanText[cleanLen++] = ch;
+        }
+        pos++;
+    }
+
+    if (outText && outTextLen) {
+        *outTextLen = cleanLen;
+        if (cleanLen > 0) {
+            memcpy(outText, cleanText, cleanLen);
+        }
+    }
+}
+
+/*
  * ParseMENUResource
  * Parses a MENU resource and returns a MenuHandle
  *
@@ -74,10 +183,44 @@ MenuHandle ParseMENUResource(Handle resourceHandle)
         return NULL;
     }
 
-    /* Parse menu items - simplified: append raw item data */
-    /* In a real implementation, we'd parse each item and call AppendMenu */
-    /* For now, just parse items from the resource data starting after title */
+    /* Parse menu items starting after title */
     uint8_t itemCount = data[0x0B + titleLen];
+    uint8_t itemOffset = 0x0C + titleLen;  /* Start of first item */
+
+    for (int i = 0; i < itemCount && itemOffset < 512; i++) {
+        /* Each item is: length byte + text */
+        uint8_t itemLen = data[itemOffset];
+        if (itemLen == 0) {
+            break;
+        }
+
+        if (itemOffset + itemLen + 1 >= 512) {
+            MENU_LOG_WARN("ParseMENUResource: Item %d exceeds resource bounds\n", i);
+            break;
+        }
+
+        /* Parse this item */
+        uint8_t itemText[256];
+        uint8_t itemTextLen = 0;
+        uint8_t cmdChar = 0, markChar = 0, style = 0;
+        Boolean disabled = false;
+
+        ParseMenuItemString(&data[itemOffset + 1], itemLen,
+                            itemText, &itemTextLen,
+                            &cmdChar, &markChar, &style, &disabled);
+
+        /* Create Pascal string for AppendMenu */
+        Str255 itemPascal;
+        itemPascal[0] = itemTextLen;
+        memcpy(&itemPascal[1], itemText, itemTextLen);
+
+        /* Append to menu - simplified, just append text */
+        AppendMenu(theMenu, itemPascal);
+
+        /* TODO: Store command key, mark, and style in menu item extended data */
+
+        itemOffset += itemLen + 1;
+    }
 
     MENU_LOG_DEBUG("ParseMENUResource: Parsed menu ID=%d, title len=%d, items=%d\n",
                    menuID, titleLen, itemCount);
