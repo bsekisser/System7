@@ -30,6 +30,7 @@ extern "C" {
 #define AUDIO_API_PULSE      2
 #define AUDIO_API_COREAUDIO  3
 #define AUDIO_API_WASAPI     4
+#define AUDIO_API_AUTO       0xFF  /* Auto-detect based on platform */
 
 /* Audio Device Types */
 typedef enum {

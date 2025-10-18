@@ -52,6 +52,7 @@ const AudioFormat AUDIO_FORMAT_DAT = {
 OSErr SoundHardwareInit(SoundHardwarePtr* hardware, AudioAPIType apiType)
 {
     SoundHardwarePtr hw;
+    AudioAPIType selectedAPI = apiType;
 
     if (hardware == NULL) {
         return paramErr;
@@ -62,8 +63,45 @@ OSErr SoundHardwareInit(SoundHardwarePtr* hardware, AudioAPIType apiType)
         return memFullErr;
     }
 
-    hw->apiType = apiType;
-    strcpy(hw->apiName, "Dummy Audio");
+    /* Auto-detect platform if AUDIO_API_AUTO requested */
+    if (apiType == AUDIO_API_AUTO) {
+        /* Detect platform and select appropriate audio API */
+        #ifdef __linux__
+            /* Try PulseAudio first on Linux, fall back to ALSA */
+            selectedAPI = AUDIO_API_PULSE;
+        #elif defined(__APPLE__)
+            selectedAPI = AUDIO_API_COREAUDIO;
+        #elif defined(_WIN32) || defined(_WIN64)
+            selectedAPI = AUDIO_API_WASAPI;
+        #else
+            /* Default to Dummy for unknown platforms */
+            selectedAPI = AUDIO_API_DUMMY;
+        #endif
+    }
+
+    /* Store the selected API type */
+    hw->apiType = selectedAPI;
+
+    /* Set API name based on type */
+    switch (selectedAPI) {
+        case AUDIO_API_ALSA:
+            strcpy(hw->apiName, "ALSA Audio");
+            break;
+        case AUDIO_API_PULSE:
+            strcpy(hw->apiName, "PulseAudio");
+            break;
+        case AUDIO_API_COREAUDIO:
+            strcpy(hw->apiName, "CoreAudio");
+            break;
+        case AUDIO_API_WASAPI:
+            strcpy(hw->apiName, "WASAPI");
+            break;
+        case AUDIO_API_DUMMY:
+        default:
+            strcpy(hw->apiName, "Dummy Audio (No Hardware)");
+            break;
+    }
+
     hw->initialized = true;
 
     *hardware = hw;
