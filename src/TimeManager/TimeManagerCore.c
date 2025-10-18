@@ -84,7 +84,7 @@ static inline void RestoreInterrupts(UInt32 state) {
 static inline UInt32 DisableInterrupts(void) {
     UInt32 msr;
     __asm__ __volatile__(
-        "mfmsr %0; lis %%r0, 0; ori %%r0, %%r0, 0x8000; andc %0, %0, %%r0; mtmsr %0"
+        "mfmsr %0; lis %%r0, 0; ori %%r0, %%r0, 0x8000; andc %%r0, %0, %%r0; mtmsr %%r0"
         : "=r"(msr) : : "r0"
     );
     return msr;
