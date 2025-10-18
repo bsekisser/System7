@@ -30,9 +30,75 @@ static Boolean gInitialized = false;
 
 /* Deferred queue interface declared in TimeManagerPriv.h */
 
-/* Interrupt masking stubs */
+/* Interrupt masking - architecture-specific implementations */
+#if defined(__x86_64__) || defined(__i386__)
+/* x86: Use EFLAGS interrupt flag (IF) */
+static inline UInt32 DisableInterrupts(void) {
+    UInt32 flags;
+    __asm__ __volatile__(
+        "pushf; pop %0; cli"
+        : "=r"(flags)
+    );
+    return flags;
+}
+
+static inline void RestoreInterrupts(UInt32 state) {
+    /* Restore IF bit from saved state */
+    if (state & 0x200) {  /* IF = bit 9 in EFLAGS */
+        __asm__ __volatile__("sti");
+    }
+}
+
+#elif defined(__aarch64__)
+/* AArch64: Disable IRQ/FIQ via DAIF register */
+static inline UInt32 DisableInterrupts(void) {
+    UInt32 daif;
+    __asm__ __volatile__(
+        "mrs %0, daif; msr daifset, #3"  /* Disable IRQ and FIQ */
+        : "=r"(daif)
+    );
+    return daif;
+}
+
+static inline void RestoreInterrupts(UInt32 state) {
+    __asm__ __volatile__("msr daif, %0" : : "r"(state));
+}
+
+#elif defined(__arm__)
+/* ARMv7: Use CPSR to disable IRQ */
+static inline UInt32 DisableInterrupts(void) {
+    UInt32 cpsr;
+    __asm__ __volatile__(
+        "mrs %0, cpsr; orr %0, %0, #0x80; msr cpsr_c, %0"
+        : "=r"(cpsr)
+    );
+    return cpsr;
+}
+
+static inline void RestoreInterrupts(UInt32 state) {
+    __asm__ __volatile__("msr cpsr_c, %0" : : "r"(state));
+}
+
+#elif defined(__powerpc__) || defined(__powerpc64__)
+/* PowerPC: Disable via MSR[EE] bit */
+static inline UInt32 DisableInterrupts(void) {
+    UInt32 msr;
+    __asm__ __volatile__(
+        "mfmsr %0; lis %%r0, 0; ori %%r0, %%r0, 0x8000; andc %0, %0, %%r0; mtmsr %0"
+        : "=r"(msr) : : "r0"
+    );
+    return msr;
+}
+
+static inline void RestoreInterrupts(UInt32 state) {
+    __asm__ __volatile__("mtmsr %0" : : "r"(state));
+}
+
+#else
+/* Fallback for unknown architectures - no-op */
 static inline UInt32 DisableInterrupts(void) { return 0; }
 static inline void RestoreInterrupts(UInt32 state) { (void)state; }
+#endif
 
 /* Find entry by task pointer */
 static TMEntry* FindEntry(TMTask *task) {
