@@ -871,8 +871,8 @@ Boolean WM_TrackWindowPart(WindowPtr window, Point startPt, short part) {
 /* These functions would be implemented by the platform layer */
 
 static Boolean WM_IsMouseDown(void) {
-    /* TODO: Implement platform-specific mouse state checking */
-    return false;
+    extern Boolean Button(void);
+    return Button();
 }
 
 /* [WM-050] Platform_* functions removed - implemented in WindowPlatform.c */
@@ -894,8 +894,11 @@ static GrafPtr WM_GetCurrentPort(void) {
 /* [WM-050] Platform_SetClipRgn removed - stub only */
 
 static Boolean WM_EmptyRgn(RgnHandle rgn) {
-    /* TODO: Implement platform-specific empty region test */
-    return true;
+    extern Boolean EmptyRgn(RgnHandle rgn);
+    if (rgn == NULL) {
+        return true;
+    }
+    return EmptyRgn(rgn);
 }
 
 /* [WM-050] Platform region/drag functions removed - implemented in WindowPlatform.c or stubs only */
