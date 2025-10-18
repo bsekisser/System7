@@ -214,15 +214,29 @@ paint_windows:
         if (w->contRgn) {
             WM_LOG_TRACE("[PaintBehind] Painting content for window %p\n", w);
             extern void InvalRgn(RgnHandle badRgn);
+            extern void ClipRect(const Rect* r);
             GrafPtr savePort;
             GetPort(&savePort);
             SetPort((GrafPtr)w);
 
-            /* CRITICAL: Calculate visible region and clip to it to prevent overdraw! */
-            CalcVis(w);
-            if (w->visRgn) {
-                w->port.clipRgn = w->visRgn;
+            /* CRITICAL: Clip to content area to prevent content from overwriting chrome
+             * This ensures FillRect and drawing stay within content bounds */
+            Rect contentClip = w->port.portRect;
+            contentClip.top += 20;      /* Title bar height */
+            contentClip.left += 1;      /* Left frame */
+            contentClip.right -= 1;     /* Right frame */
+            contentClip.bottom -= 16;   /* Grow box height (bottom 16px) */
+
+            /* Ensure clip rect isn't inverted */
+            if (contentClip.left >= contentClip.right) {
+                contentClip.left = contentClip.right;
             }
+            if (contentClip.top >= contentClip.bottom) {
+                contentClip.top = contentClip.bottom;
+            }
+
+            /* Set clip region to content area only */
+            ClipRect(&contentClip);
 
             InvalRgn(w->contRgn);
 
