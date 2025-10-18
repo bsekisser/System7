@@ -619,8 +619,18 @@ Boolean WaitNextEvent(SInt16 eventMask, EventRecord* theEvent,
         ProcessSystemEvents();
 
         /* Check for mouse-moved events if region specified */
-        if (mouseRgn) {
-            /* TODO: Implement mouse region checking */
+        if (mouseRgn != NULL) {
+            extern Boolean PtInRgn(Point pt, RgnHandle rgn);
+
+            /* Generate mouseMoved event if mouse left the specified region */
+            if (!PtInRgn(g_mousePos, mouseRgn)) {
+                theEvent->what = osEvt;
+                theEvent->message = (mouseMovedMessage << 24);
+                theEvent->when = g_tickCount;
+                theEvent->where = g_mousePos;
+                theEvent->modifiers = 0;
+                return true;
+            }
         }
 
         /* Brief sleep to avoid busy waiting */
