@@ -150,9 +150,11 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
         case inZoomIn:
         case inZoomOut:
             /* Check if window has zoom box */
-            /* TODO: Check window definition for zoom capability */
-            Platform_GetWindowZoomBoxRect(theWindow, &partRect);
-            validPart = true;
+            extern Boolean WM_WindowHasZoomBox(WindowPtr window);
+            if (WM_WindowHasZoomBox(theWindow)) {
+                Platform_GetWindowZoomBoxRect(theWindow, &partRect);
+                validPart = true;
+            }
             break;
         default:
             WM_DEBUG("TrackBox: Invalid part code %d", partCode);
