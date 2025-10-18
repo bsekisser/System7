@@ -108,26 +108,9 @@ void Platform_CalculateWindowRegions(WindowPtr window) {
         RectRgn(window->strucRgn, &newStrucBounds);
     }
 
-    /* Update content region - MUST be inset from structure to exclude chrome */
-    /* Chrome includes: title bar (20px top), frame (1px each side), grow box (16x16 bottom-right) */
+    /* Update content region (typically same as structure region for simple windows) */
     if (window->contRgn) {
-        Rect contentBounds = newStrucBounds;
-
-        /* Inset from all sides to exclude chrome */
-        contentBounds.left += 1;      /* Left frame */
-        contentBounds.top += 20;      /* Title bar height */
-        contentBounds.right -= 1;     /* Right frame */
-        contentBounds.bottom -= 16;   /* Grow box height (bottom 16px) */
-
-        /* Ensure content area isn't inverted */
-        if (contentBounds.left >= contentBounds.right) {
-            contentBounds.left = contentBounds.right;
-        }
-        if (contentBounds.top >= contentBounds.bottom) {
-            contentBounds.top = contentBounds.bottom;
-        }
-
-        RectRgn(window->contRgn, &contentBounds);
+        RectRgn(window->contRgn, &newStrucBounds);
     }
 }
 
