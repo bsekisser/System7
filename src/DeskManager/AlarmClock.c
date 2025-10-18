@@ -1,3 +1,4 @@
+#include <time.h>
 // #include "CompatibilityFix.h" // Removed
 #include <stdlib.h>
 #include <string.h>
@@ -83,26 +84,26 @@ int AlarmClock_Initialize(AlarmClock *clock)
     clock->updateInterval = 1000;  /* 1 second */
 
     /* Set window bounds */
-    (clock)->left = 100;
-    (clock)->top = 100;
-    (clock)->right = 300;
-    (clock)->bottom = 200;
+    (clock)->windowBounds.left = 100;
+    (clock)->windowBounds.top = 100;
+    (clock)->windowBounds.right = 300;
+    (clock)->windowBounds.bottom = 200;
 
     /* Set display areas */
-    (clock)->left = 20;
-    (clock)->top = 40;
-    (clock)->right = 180;
-    (clock)->bottom = 70;
+    (clock)->windowBounds.left = 20;
+    (clock)->windowBounds.top = 40;
+    (clock)->windowBounds.right = 180;
+    (clock)->windowBounds.bottom = 70;
 
-    (clock)->left = 20;
-    (clock)->top = 80;
-    (clock)->right = 180;
-    (clock)->bottom = 100;
+    (clock)->windowBounds.left = 20;
+    (clock)->windowBounds.top = 80;
+    (clock)->windowBounds.right = 180;
+    (clock)->windowBounds.bottom = 100;
 
-    (clock)->left = 20;
-    (clock)->top = 110;
-    (clock)->right = 180;
-    (clock)->bottom = 130;
+    (clock)->windowBounds.left = 20;
+    (clock)->windowBounds.top = 110;
+    (clock)->windowBounds.right = 180;
+    (clock)->windowBounds.bottom = 130;
 
     /* Initialize time */
     AlarmClock_UpdateTime(clock);

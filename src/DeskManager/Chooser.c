@@ -30,26 +30,26 @@ int Chooser_Initialize(Chooser *chooser)
     memset(chooser, 0, sizeof(Chooser));
 
     /* Set window bounds */
-    (chooser)->left = 100;
-    (chooser)->top = 100;
-    (chooser)->right = 500;
-    (chooser)->bottom = 400;
+    (chooser)->windowBounds.left = 100;
+    (chooser)->windowBounds.top = 100;
+    (chooser)->windowBounds.right = 500;
+    (chooser)->windowBounds.bottom = 400;
 
     /* Set display areas */
-    (chooser)->left = 20;
-    (chooser)->top = 40;
-    (chooser)->right = 180;
-    (chooser)->bottom = 200;
+    (chooser)->windowBounds.left = 20;
+    (chooser)->windowBounds.top = 40;
+    (chooser)->windowBounds.right = 180;
+    (chooser)->windowBounds.bottom = 200;
 
-    (chooser)->left = 200;
-    (chooser)->top = 40;
-    (chooser)->right = 360;
-    (chooser)->bottom = 120;
+    (chooser)->windowBounds.left = 200;
+    (chooser)->windowBounds.top = 40;
+    (chooser)->windowBounds.right = 360;
+    (chooser)->windowBounds.bottom = 120;
 
-    (chooser)->left = 20;
-    (chooser)->top = 220;
-    (chooser)->right = 380;
-    (chooser)->bottom = 280;
+    (chooser)->windowBounds.left = 20;
+    (chooser)->windowBounds.top = 220;
+    (chooser)->windowBounds.right = 380;
+    (chooser)->windowBounds.bottom = 280;
 
     /* Set default settings */
     chooser->appleTalkActive = true;
@@ -455,14 +455,14 @@ int Chooser_HandleClick(Chooser *chooser, Point point, UInt16 modifiers)
     }
 
     /* Check which area was clicked */
-    if (point.h >= (chooser)->left &&
-        point.h < (chooser)->right &&
-        point.v >= (chooser)->top &&
-        point.v < (chooser)->bottom) {
+    if (point.h >= (chooser)->windowBounds.left &&
+        point.h < (chooser)->windowBounds.right &&
+        point.v >= (chooser)->windowBounds.top &&
+        point.v < (chooser)->windowBounds.bottom) {
 
         /* Click in device list */
         int itemHeight = 20;  /* Assumed item height */
-        int clickedIndex = (point.v - (chooser)->top) / itemHeight;
+        int clickedIndex = (point.v - (chooser)->windowBounds.top) / itemHeight;
 
         DeviceInfo *device = chooser->devices;
         for (int i = 0; i < clickedIndex && device; i++) {
@@ -478,14 +478,14 @@ int Chooser_HandleClick(Chooser *chooser, Point point, UInt16 modifiers)
     }
 
     if (chooser->showZones &&
-        point.h >= (chooser)->left &&
-        point.h < (chooser)->right &&
-        point.v >= (chooser)->top &&
-        point.v < (chooser)->bottom) {
+        point.h >= (chooser)->windowBounds.left &&
+        point.h < (chooser)->windowBounds.right &&
+        point.v >= (chooser)->windowBounds.top &&
+        point.v < (chooser)->windowBounds.bottom) {
 
         /* Click in zone list */
         int itemHeight = 15;  /* Assumed item height */
-        int clickedIndex = (point.v - (chooser)->top) / itemHeight;
+        int clickedIndex = (point.v - (chooser)->windowBounds.top) / itemHeight;
 
         ATZone *zone = chooser->zones;
         for (int i = 0; i < clickedIndex && zone; i++) {

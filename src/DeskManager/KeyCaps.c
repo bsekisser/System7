@@ -66,29 +66,29 @@ int KeyCaps_Initialize(KeyCaps *keyCaps)
         key->isDeadKey = false;
 
         /* Set key rectangle (simplified layout) */
-        (key)->left = (i % 13) * 30 + 10;
-        (key)->top = (i / 13) * 25 + 10;
-        (key)->right = (key)->left + 25;
-        (key)->bottom = (key)->top + 20;
+        (key)->bounds.left = (i % 13) * 30 + 10;
+        (key)->bounds.top = (i / 13) * 25 + 10;
+        (key)->bounds.right = (key)->bounds.left + 25;
+        (key)->bounds.bottom = (key)->bounds.top + 20;
     }
 
     /* Set window bounds */
-    (keyCaps)->left = 100;
-    (keyCaps)->top = 100;
-    (keyCaps)->right = 500;
-    (keyCaps)->bottom = 300;
+    (keyCaps)->windowBounds.left = 100;
+    (keyCaps)->windowBounds.top = 100;
+    (keyCaps)->windowBounds.right = 500;
+    (keyCaps)->windowBounds.bottom = 300;
 
     /* Set keyboard display area */
-    (keyCaps)->left = 10;
-    (keyCaps)->top = 30;
-    (keyCaps)->right = 390;
-    (keyCaps)->bottom = 150;
+    (keyCaps)->windowBounds.left = 10;
+    (keyCaps)->windowBounds.top = 30;
+    (keyCaps)->windowBounds.right = 390;
+    (keyCaps)->windowBounds.bottom = 150;
 
     /* Set character display area */
-    (keyCaps)->left = 10;
-    (keyCaps)->top = 160;
-    (keyCaps)->right = 390;
-    (keyCaps)->bottom = 190;
+    (keyCaps)->windowBounds.left = 10;
+    (keyCaps)->windowBounds.top = 160;
+    (keyCaps)->windowBounds.right = 390;
+    (keyCaps)->windowBounds.bottom = 190;
 
     keyCaps->showModifiers = true;
     keyCaps->showCharInfo = true;
@@ -212,8 +212,8 @@ int KeyCaps_HandleClick(KeyCaps *keyCaps, Point point, ModifierMask modifiers)
     /* Find which key was clicked */
     for (int i = 0; i < keyCaps->currentLayout->numKeys; i++) {
         const KeyInfo *key = &keyCaps->currentLayout->keys[i];
-        if (point.h >= (key)->left && point.h < (key)->right &&
-            point.v >= (key)->top && point.v < (key)->bottom) {
+        if (point.h >= (key)->bounds.left && point.h < (key)->bounds.right &&
+            point.v >= (key)->bounds.top && point.v < (key)->bounds.bottom) {
 
             /* Get character for this key */
             UInt16 charCode = KeyCaps_GetCharForKey(keyCaps, key->scanCode,

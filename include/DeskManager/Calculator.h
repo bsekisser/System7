@@ -72,8 +72,19 @@ typedef enum {
     CALC_OP_XOR = 17,
     CALC_OP_AND = 18,
     CALC_OP_OR = 19,
-    CALC_OP_NOT = 20
+    CALC_OP_NOT = 20,
+    CALC_OP_ASIN = 21,
+    CALC_OP_ACOS = 22,
+    CALC_OP_ATAN = 23,
+    CALC_OP_FACTORIAL = 24,
+    CALC_OP_CHANGE_SIGN = 25,
+    CALC_OP_SHIFT_LEFT = 26,
+    CALC_OP_SHIFT_RIGHT = 27,
+    CALC_OP_MOD = 28
 } CalcOperation;
+
+/* Aliases for backward compatibility */
+#define CALC_BASE_HEX CALC_BASE_HEXADECIMAL
 
 /* Calculator Button IDs (matching Mac OS Calculator) */
 typedef enum {
@@ -102,12 +113,25 @@ typedef enum {
     CALC_BTN_PERCENT = 22,
     CALC_BTN_NEGATE = 23,
     CALC_BTN_CLEAR = 24,
-    CALC_BTN_CLEAR_ALL = 25
+    CALC_BTN_CLEAR_ALL = 25,
+    CALC_BTN_MEM_CLEAR = 26,
+    CALC_BTN_MEM_RECALL = 27,
+    CALC_BTN_MEM_STORE = 28,
+    CALC_BTN_MEM_ADD = 29,
+    CALC_BTN_MODE_BASIC = 30,
+    CALC_BTN_MODE_SCI = 31,
+    CALC_BTN_MODE_PROG = 32
 } CalcButtonID;
+
+/* Aliases for backward compatibility */
+#define CALC_BTN_ADD CALC_BTN_PLUS
+#define CALC_BTN_SUBTRACT CALC_BTN_MINUS
+#define CALC_BTN_DECIMAL CALC_BTN_POINT
 
 /* Calculator Number */
 typedef struct {
     double value;
+    SInt64 intValue;
     CalcBase base;
     Boolean isInteger;
 } CalcNumber;
@@ -118,14 +142,18 @@ typedef struct {
     CalcNumber operand2;
     CalcOperation operation;
     CalcNumber result;
+    char expression[CALC_DISPLAY_DIGITS + 1];
 } CalcHistoryEntry;
 
 /* Calculator State */
 typedef struct {
     double value;
+    double accumulator;
+    SInt64 intValue;
     CalcBase base;
     Boolean isInteger;
     double memory[CALC_MEMORY_SLOTS];
+    int memoryUsed[CALC_MEMORY_SLOTS];
     char display[CALC_DISPLAY_DIGITS + 1];
     int left, top, right, bottom;
     CalcHistoryEntry *history;
@@ -140,6 +168,7 @@ typedef struct {
     int errorCode;
     char errorMessage[256];
     void *buttonRects;
+    SInt16 iconID;
 } Calculator;
 
 /* Calculator Functions */

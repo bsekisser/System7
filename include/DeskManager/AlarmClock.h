@@ -127,6 +127,7 @@ typedef struct AlarmClock {
     Boolean autoUpdate;
     SInt16 updateInterval;
     DateTime currentTime;
+    SInt32 timestamp;
     AlarmTime time;
     AlarmDate date;
     char timeString[32];

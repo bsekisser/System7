@@ -241,10 +241,6 @@ int Calculator_KeyPress(Calculator *calc, char key)
         case '\n':
             return Calculator_PerformOperation(calc, CALC_OP_EQUALS);
 
-        case 'c': case 'C':
-            Calculator_Clear(calc);
-            return CALC_ERR_NONE;
-
         case '\b':  /* Backspace */
             Calculator_Backspace(calc);
             return CALC_ERR_NONE;
@@ -580,7 +576,7 @@ void Calculator_ToggleAngleMode(Calculator *calc)
 void Calculator_MemoryClear(Calculator *calc, int slot)
 {
     if (calc && slot >= 0 && slot < CALC_MEMORY_SLOTS) {
-        calc->memory[slot].value = 0.0;
+        calc->memory[slot] = 0.0;
         calc->memoryUsed[slot] = false;
     }
 }
@@ -588,7 +584,7 @@ void Calculator_MemoryClear(Calculator *calc, int slot)
 void Calculator_MemoryStore(Calculator *calc, int slot)
 {
     if (calc && slot >= 0 && slot < CALC_MEMORY_SLOTS) {
-        calc->memory[slot] = calc->display;
+        calc->memory[slot] = calc->value;
         calc->memoryUsed[slot] = true;
     }
 }
@@ -603,7 +599,7 @@ int Calculator_MemoryRecall(Calculator *calc, int slot)
         return CALC_ERR_MEMORY_EMPTY;
     }
 
-    calc->display = calc->memory[slot];
+    calc->value = calc->memory[slot];
     calc->newNumber = true;
     calc->state = CALC_STATE_RESULT;
     Calculator_UpdateDisplay(calc);
@@ -614,7 +610,7 @@ int Calculator_MemoryRecall(Calculator *calc, int slot)
 void Calculator_MemoryAdd(Calculator *calc, int slot)
 {
     if (calc && slot >= 0 && slot < CALC_MEMORY_SLOTS) {
-        calc->memory[slot].value += (calc)->value;
+        calc->memory[slot] += calc->value;
         calc->memoryUsed[slot] = true;
     }
 }
@@ -622,7 +618,7 @@ void Calculator_MemoryAdd(Calculator *calc, int slot)
 void Calculator_MemorySubtract(Calculator *calc, int slot)
 {
     if (calc && slot >= 0 && slot < CALC_MEMORY_SLOTS) {
-        calc->memory[slot].value -= (calc)->value;
+        calc->memory[slot] -= calc->value;
         calc->memoryUsed[slot] = true;
     }
 }
@@ -979,9 +975,6 @@ static int Calculator_DAOpen(DeskAccessory *da)
     DAWindowAttr attr;
     DA_LoadWindowTemplate(DA_RESID_CALCULATOR, &attr);
     strcpy(attr.title, "Calculator");
-
-    /* Set calculator icon for the window */
-    attr.iconID = kCalculatorIconID;
 
     return DA_CreateWindow(da, &attr);
 }
