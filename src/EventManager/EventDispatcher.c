@@ -351,9 +351,11 @@ Boolean HandleMouseDown(EventRecord* event)
         case inGrow:
             /* Resize window using grow box */
             if (whichWindow) {
-                extern Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode);
                 EVT_LOG_DEBUG("Grow window 0x%08x\n", (unsigned int)whichWindow);
-                TrackBox(whichWindow, event->where, inGrow);
+                /* Call GrowWindow directly instead of TrackBox to handle resize properly */
+                extern long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox);
+                long newSize = GrowWindow(whichWindow, event->where, NULL);
+                EVT_LOG_DEBUG("GrowWindow returned size=0x%08lX\n", newSize);
             }
             return true;
 

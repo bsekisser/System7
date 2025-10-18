@@ -176,38 +176,66 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
  * ============================================================================ */
 
 long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
-    if (theWindow == NULL) return 0;
+    extern void serial_puts(const char* str);
+    serial_puts("[GW] GrowWindow ENTRY\n");
 
+    if (theWindow == NULL) {
+        serial_puts("[GW] GrowWindow: NULL window\n");
+        return 0;
+    }
+
+    serial_puts("[GW] GrowWindow: Starting grow tracking\n");
     WM_DEBUG("GrowWindow: Starting grow tracking from (%d, %d)", startPt.h, startPt.v);
 
     /* Check if window supports growing */
+    serial_puts("[GW] Checking grow box\n");
     if (!WM_WindowHasGrowBox(theWindow)) {
+        serial_puts("[GW] No grow box\n");
         WM_DEBUG("GrowWindow: Window does not have grow box");
         return 0;
     }
 
     /* Initialize resize state */
+    serial_puts("[GW] Initializing resize state\n");
     Local_InitializeResizeState(theWindow, startPt, bBox);
+    serial_puts("[GW] Resize state initialized\n");
 
     /* Check if mouse is still down */
+    serial_puts("[GW] Checking mouse\n");
     if (!Platform_IsMouseDown()) {
+        serial_puts("[GW] Mouse not down\n");
         WM_DEBUG("GrowWindow: Mouse not down, aborting grow");
         return 0;
     }
 
     /* Start resize feedback */
+    serial_puts("[GW] Starting feedback\n");
     Local_StartResizeFeedback();
+    serial_puts("[GW] Feedback started\n");
 
     /* Main resize tracking loop */
+    serial_puts("[GW] Entering main loop\n");
     Boolean resizeContinues = true;
     Point currentPt = startPt;
     Point lastPt = startPt;
     long lastSize = 0;
 
-    while (resizeContinues) {
+    int loopCount = 0;
+    const int MAX_LOOP_ITERATIONS = 1000000;  /* Prevent infinite loops */
+
+    while (resizeContinues && loopCount < MAX_LOOP_ITERATIONS) {
+        loopCount++;
+        if (loopCount % 100000 == 0) {
+            serial_puts("[GW] Loop iteration count: 100k\n");
+        }
+
         /* Get current mouse state */
         Platform_GetMousePosition(&currentPt);
         resizeContinues = Platform_IsMouseDown();
+
+        if (!resizeContinues && loopCount < 100) {
+            serial_puts("[GW] Mouse up detected, exiting\n");
+        }
 
         /* Update resize state */
         g_resizeState.currentPoint = currentPt;
@@ -222,20 +250,45 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
             g_resizeState.hasMoved = true;
         }
 
-        /* Brief delay to avoid consuming too much CPU */
-        Platform_WaitTicks(1);
+        /* Note: Cannot use Platform_WaitTicks here - it would hang because TickCount()
+           doesn't advance while we're blocking in event handling. Instead, let the loop
+           iterate freely. The system responsiveness is maintained through the event loop. */
     }
 
-    /* End resize feedback */
-    Local_EndResizeFeedback();
+    if (loopCount >= MAX_LOOP_ITERATIONS) {
+        serial_puts("[GW] Loop hit iteration limit\n");
+    } else {
+        serial_puts("[GW] Loop exited normally\n");
+    }
 
-    /* Calculate final size */
+    serial_puts("[GW] Exited main loop\n");
+
+    /* End resize feedback */
+    serial_puts("[GW] Ending feedback\n");
+    Local_EndResizeFeedback();
+    serial_puts("[GW] Feedback ended\n");
+
+    /* Calculate final size and apply it */
+    serial_puts("[GW] Calculating final size\n");
     long finalSize = g_resizeState.hasMoved ? Local_CalculateNewSize(currentPt) : 0;
+    serial_puts("[GW] Final size calculated\n");
+
+    if (finalSize != 0) {
+        short finalWidth = (short)(finalSize >> 16);
+        short finalHeight = (short)(finalSize & 0xFFFF);
+        serial_puts("[GW] Applying final resize\n");
+        WM_DEBUG("GrowWindow: Applying final resize to %dx%d", finalWidth, finalHeight);
+        SizeWindow(theWindow, finalWidth, finalHeight, true);
+        serial_puts("[GW] Resize applied\n");
+    }
 
     /* Clean up resize state */
+    serial_puts("[GW] Cleaning up\n");
     Local_CleanupResizeState();
+    serial_puts("[GW] Cleanup complete\n");
 
     WM_DEBUG("GrowWindow: Grow tracking completed, result = 0x%08lX", finalSize);
+    serial_puts("[GW] GrowWindow EXIT\n");
     return finalSize;
 }
 
