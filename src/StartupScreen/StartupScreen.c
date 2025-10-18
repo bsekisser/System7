@@ -512,10 +512,10 @@ OSErr SetStartupPhase(StartupPhase phase) {
 }
 
 /*
- * Play startup sound
+ * Play startup sound - plays the classic System 7 startup chime
  */
 OSErr PlayStartupSound(void) {
-    SoundEffects_Play(kSoundEffectBeep);
+    SoundEffects_Play(kSoundEffectStartupChime);
     return noErr;
 }
 

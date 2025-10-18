@@ -85,6 +85,10 @@ static void delay_ms(uint32_t ms) {
 }
 
 void PCSpkr_Beep(uint32_t frequency, uint32_t duration_ms) {
+    extern void serial_puts(const char* str);
+    char buf[128];
+    snprintf(buf, sizeof(buf), "[BEEP] PCSpkr_Beep called: freq=%u Hz, duration=%u ms\n", frequency, duration_ms);
+    serial_puts(buf);
 
     SND_LOG_DEBUG("PCSpkr_Beep: freq=%u Hz, duration=%u ms\n", frequency, duration_ms);
 
