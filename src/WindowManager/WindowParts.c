@@ -509,9 +509,17 @@ Boolean WM_WindowHasGrowBox(WindowPtr window) {
 Boolean WM_WindowIsZoomed(WindowPtr window) {
     if (window == NULL) return false;
 
-    /* TODO: Implement actual zoom state tracking */
-    /* For now, return false (not zoomed) */
-    return false;
+    /* Get window state data from WindowResizing module */
+    extern void* WM_GetWindowStateData(WindowPtr window);
+    void* statePtr = WM_GetWindowStateData(window);
+    if (statePtr == NULL) {
+        return false;
+    }
+
+    /* WindowStateData structure: first field is Boolean isZoomed */
+    /* Access at offset 0 since isZoomed is the first member */
+    Boolean* isZoomed = (Boolean*)statePtr;
+    return *isZoomed;
 }
 
 /* ============================================================================

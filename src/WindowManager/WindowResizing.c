@@ -40,7 +40,7 @@ static Point Local_ApplySnapToSize(short width, short height);
 static void Local_StartResizeFeedback(void);
 static void Local_UpdateResizeFeedback(long newSize);
 static void Local_EndResizeFeedback(void);
-static WindowStateData* WM_GetWindowStateData(WindowPtr window);
+WindowStateData* WM_GetWindowStateData(WindowPtr window);
 static WindowStateData* WM_CreateWindowStateData(WindowPtr window);
 static void WM_CalculateStandardState(WindowPtr window, Rect* stdState);
 static void WM_UpdateWindowUserState(WindowPtr window);
@@ -506,7 +506,7 @@ static void Local_EndResizeFeedback(void) {
  * Window State Management
  * ============================================================================ */
 
-static WindowStateData* WM_GetWindowStateData(WindowPtr window) {
+WindowStateData* WM_GetWindowStateData(WindowPtr window) {
     if (window == NULL) return NULL;
 
     /* Try to get state data from auxiliary window record */
