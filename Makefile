@@ -461,7 +461,10 @@ endif
 # Add ExtensionManager and related loaders
 C_SOURCES += src/ExtensionManager/ExtensionManagerCore.c \
              src/ExtensionManager/CDEFLoader.c \
-             src/ExtensionManager/ControlPanelManager.c
+             src/ExtensionManager/ControlPanelManager.c \
+             src/ExtensionManager/DRVRLoader.c \
+             src/ExtensionManager/FKEYLoader.c \
+             src/ExtensionManager/DefLoader.c
 CFLAGS += -DENABLE_EXTENSIONS=1
 
 # Speech Manager - Minimal implementation with SoundManager integration

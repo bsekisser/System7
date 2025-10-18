@@ -38,6 +38,7 @@ extern void DoMenuCommand(short menuID, short item);
 #endif
 #include "../include/Resources/system7_resources.h"
 #include "../include/TimeManager/TimeManager.h"
+#include "../include/ExtensionManager/DefLoader.h"
 #ifdef ENABLE_PROCESS_COOP
 #include "../include/ProcessMgr/ProcessTypes.h"
 #endif
@@ -827,6 +828,74 @@ static void init_system71(void) {
             }
         } else {
             serial_printf("  WARNING: Control Panel Manager initialization failed with error %d\n", extErr);
+        }
+
+        /* DRVR Loader - loads device driver resources */
+        extern OSErr DRVRLoader_Initialize(void);
+        extern SInt16 DRVRLoader_LoadAllDrivers(void);
+        extErr = DRVRLoader_Initialize();
+        if (extErr == noErr) {
+            serial_puts("  DRVR Loader initialized\n");
+
+            /* Load all device drivers */
+            SInt16 drvrsLoaded = DRVRLoader_LoadAllDrivers();
+            if (drvrsLoaded > 0) {
+                serial_printf("  Loaded %d device drivers\n", drvrsLoaded);
+            } else {
+                serial_puts("  No device drivers found\n");
+            }
+        } else {
+            serial_printf("  WARNING: DRVR Loader initialization failed with error %d\n", extErr);
+        }
+
+        /* FKEY Loader - loads function key resources */
+        extern OSErr FKEYLoader_Initialize(void);
+        extern SInt16 FKEYLoader_LoadAllFKEYs(void);
+        extErr = FKEYLoader_Initialize();
+        if (extErr == noErr) {
+            serial_puts("  FKEY Loader initialized\n");
+
+            /* Load all function keys */
+            SInt16 fkeysLoaded = FKEYLoader_LoadAllFKEYs();
+            if (fkeysLoaded > 0) {
+                serial_printf("  Loaded %d function key resources\n", fkeysLoaded);
+            } else {
+                serial_puts("  No function key resources found\n");
+            }
+        } else {
+            serial_printf("  WARNING: FKEY Loader initialization failed with error %d\n", extErr);
+        }
+
+        /* Definition Loader - loads WDEF, LDEF, MDEF resources */
+        extern OSErr DefLoader_Initialize(void);
+        extern SInt16 DefLoader_LoadAllDefinitions(ResType defType);
+        extErr = DefLoader_Initialize();
+        if (extErr == noErr) {
+            serial_puts("  Definition Loader initialized\n");
+
+            /* Load window definitions */
+            SInt16 wdefsLoaded = DefLoader_LoadAllDefinitions(WDEF_TYPE);
+            if (wdefsLoaded > 0) {
+                serial_printf("  Loaded %d WDEF resources\n", wdefsLoaded);
+            }
+
+            /* Load list definitions */
+            SInt16 ldefsLoaded = DefLoader_LoadAllDefinitions(LDEF_TYPE);
+            if (ldefsLoaded > 0) {
+                serial_printf("  Loaded %d LDEF resources\n", ldefsLoaded);
+            }
+
+            /* Load menu definitions */
+            SInt16 mdefsLoaded = DefLoader_LoadAllDefinitions(MDEF_TYPE);
+            if (mdefsLoaded > 0) {
+                serial_printf("  Loaded %d MDEF resources\n", mdefsLoaded);
+            }
+
+            if (wdefsLoaded == 0 && ldefsLoaded == 0 && mdefsLoaded == 0) {
+                serial_puts("  No definition resources found\n");
+            }
+        } else {
+            serial_printf("  WARNING: Definition Loader initialization failed with error %d\n", extErr);
         }
     }
 #endif
