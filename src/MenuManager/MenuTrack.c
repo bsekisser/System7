@@ -661,18 +661,17 @@ long TrackMenu(short menuID, Point *startPt) {
     serial_puts("TrackMenu: DrawMenuOld returned\n");
     serial_puts("TrackMenu: Menu drawn, entering tracking loop\n");
 
-    /* Classic Mac-style tracking loop with event pumping */
-    /* Track WHILE button is held down - this is the System 7 behavior */
-    /* The button is already down from the initial click that opened the menu */
+    /* Persistent menu tracking - menu stays open until user makes a selection or clicks outside */
     /* ADD SAFETY TIMEOUT: Prevent infinite tracking loop */
     Boolean tracking = true;
+    Boolean buttonWasReleased = false;
     int updateCount = 0;
     int buttonCheckCount = 0;
-    const int MAX_TRACKING_UPDATES = 500000;  /* Safety limit: ~5 seconds at typical loop rate */
+    const int MAX_TRACKING_UPDATES = 1000000;  /* Increased: menu can stay open longer */
 
-    serial_puts("TrackMenu: Starting tracking loop - menu open\n");
+    serial_puts("TrackMenu: Starting persistent menu tracking\n");
 
-    /* Track while button is held down */
+    /* Track menu - menu stays open even after button is released */
     while (tracking && updateCount < MAX_TRACKING_UPDATES) {
         /* Pump events for responsive UI */
         SystemTask();          /* House-keeping tasks */
@@ -691,29 +690,79 @@ long TrackMenu(short menuID, Point *startPt) {
         /* Update menu highlighting based on mouse position */
         UpdateMenuTrackingNew(mousePt);
 
-        /* Check if button is still pressed */
+        /* Check button state */
         buttonCheckCount++;
         Boolean buttonState = Button();
-        if (buttonCheckCount <= 5) {
+        if (buttonCheckCount <= 5 && !buttonWasReleased) {
             MENU_LOG_TRACE("TrackMenu: Button check #%d = %d\n", buttonCheckCount, buttonState);
         }
 
-        /* Exit tracking loop when button is released */
-        if (!buttonState) {
-            MENU_LOG_TRACE("TrackMenu: Button released at check #%d, ending tracking\n", buttonCheckCount);
-            tracking = false;
+        /* Track when button is first released */
+        if (!buttonState && !buttonWasReleased) {
+            buttonWasReleased = true;
+            serial_puts("TrackMenu: Button released, menu stays open for selection\n");
         }
 
-        /* Small delay to prevent CPU hogging (optional) */
-        /* In real Classic Mac, WaitNextEvent would provide this */
+        /* After button is released, wait for next click to make selection */
+        /* Detect when button goes from released (false) to pressed (true) again */
+        if (buttonWasReleased && buttonState) {
+            /* User clicked again while menu is open - check what they clicked on */
+            serial_puts("TrackMenu: Second click detected\n");
+
+            Point clickPt = mousePt;  /* Capture click position */
+
+            /* Check if click is within the menu bounds */
+            if (clickPt.h >= left && clickPt.h < left + menuWidth) {
+                short itemsTop = top + 2;
+                if (clickPt.v >= itemsTop && clickPt.v < itemsTop + itemCount * lineHeight) {
+                    /* Click was within menu - find which item was clicked */
+                    /* Re-scan items to find which one the click was on */
+                    short clickedItem = 0;
+                    for (short i = 1; i <= itemCount; i++) {
+                        short itemTop = itemsTop + (i - 1) * lineHeight;
+                        short itemBottom = itemTop + lineHeight;
+                        if (clickPt.v >= itemTop && clickPt.v < itemBottom) {
+                            char itemText[64];
+                            GetItemText(theMenu, i, itemText);
+                            if (itemText[0] != 0) {  /* Skip empty items */
+                                clickedItem = i;
+                            }
+                            break;
+                        }
+                    }
+
+                    if (clickedItem > 0) {
+                        result = ((long)menuID << 16) | clickedItem;
+                        MENU_LOG_TRACE("TrackMenu: Item %d selected by click\n", clickedItem);
+
+                        /* Show visual feedback - keep selected item highlighted briefly */
+                        volatile int feedbackDelay = 0;
+                        for (feedbackDelay = 0; feedbackDelay < 200000; feedbackDelay++) {
+                            SystemTask();
+                            EventPumpYield();
+                        }
+                    }
+                    tracking = false;
+                    break;
+                }
+            }
+
+            /* Click was outside menu - cancel and close */
+            MENU_LOG_TRACE("TrackMenu: Click outside menu at (%d,%d), cancelling\n", clickPt.h, clickPt.v);
+            result = 0;
+            tracking = false;
+            break;
+        }
+
+        /* Small delay to prevent CPU hogging */
         {
             volatile int i;
-            for (i = 0; i < 100; i++);  /* Much smaller delay with event pumping */
+            for (i = 0; i < 100; i++);
         }
 
         /* Debug output every 100 updates to avoid spam */
         if (updateCount % 100 == 0) {
-            MENU_LOG_TRACE("TrackMenu: Still tracking, update %d\n", updateCount);
+            MENU_LOG_TRACE("TrackMenu: Still tracking, update %d, menu open=%d\n", updateCount, buttonWasReleased);
         }
     }
 
@@ -721,24 +770,7 @@ long TrackMenu(short menuID, Point *startPt) {
         MENU_LOG_WARN("TrackMenu: Tracking timeout! Escaped loop after %d updates\n", updateCount);
     }
 
-    serial_puts("TrackMenu: Mouse released\n");
-
-    /* Get final selection */
-    if (g_menuTrackState.highlightedItem > 0) {
-        result = ((long)menuID << 16) | g_menuTrackState.highlightedItem;
-        serial_puts("TrackMenu: Item selected\n");
-
-        /* Show visual feedback - keep selected item highlighted briefly */
-        /* This gives the user visual confirmation their selection was registered */
-        volatile int feedbackDelay = 0;
-        for (feedbackDelay = 0; feedbackDelay < 200000; feedbackDelay++) {
-            /* Spin loop for ~200ms visual feedback */
-            SystemTask();
-            EventPumpYield();
-        }
-    } else {
-        serial_puts("TrackMenu: No selection\n");
-    }
+    serial_puts("TrackMenu: Menu tracking complete\n");
 
     /* Restore background */
     if (savedBits) {
