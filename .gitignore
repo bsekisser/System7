@@ -55,4 +55,6 @@ resources/
 
 # Local helper docs generated per-agent
 AGENTS.md
-GEMINI.md
+GEMINI.mdLISTMANAGER_*.md
+LISTMANAGER_*.txt
+NEXT_IMPLEMENTATION_TARGETS.md
