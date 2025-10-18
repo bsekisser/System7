@@ -761,6 +761,40 @@ static void init_system71(void) {
     Gestalt_SetInitBit(2);  /* kGestaltInitBit_ResourceMgr */
 #endif
 
+    /* Extension Manager - loads INIT resources and system extensions */
+#ifdef ENABLE_EXTENSIONS
+    {
+        extern OSErr ExtensionManager_Initialize(void);
+        extern SInt16 ExtensionManager_ScanForExtensions(Boolean rescan);
+        extern OSErr ExtensionManager_LoadAllExtensions(void);
+
+        OSErr extErr = ExtensionManager_Initialize();
+        if (extErr == noErr) {
+            serial_puts("  Extension Manager initialized\n");
+
+            /* Scan for INIT resources */
+            SInt16 found = ExtensionManager_ScanForExtensions(false);
+            if (found > 0) {
+                serial_printf("  Found %d extension resources\n", found);
+
+                /* Load all discovered extensions in priority order */
+                extErr = ExtensionManager_LoadAllExtensions();
+                if (extErr == noErr) {
+                    extern SInt16 ExtensionManager_GetActiveCount(void);
+                    SInt16 active = ExtensionManager_GetActiveCount();
+                    serial_printf("  Loaded %d active extensions\n", active);
+                } else {
+                    serial_printf("  WARNING: Extension loading failed with error %d\n", extErr);
+                }
+            } else {
+                serial_puts("  No extension resources found\n");
+            }
+        } else {
+            serial_printf("  WARNING: Extension Manager initialization failed with error %d\n", extErr);
+        }
+    }
+#endif
+
 #ifdef ENABLE_RESOURCES
     /* Resource Manager smoke test */
     {

@@ -458,6 +458,10 @@ CFLAGS += -DLIST_SMOKE_TEST=1
 endif
 endif
 
+# Add ExtensionManager
+C_SOURCES += src/ExtensionManager/ExtensionManagerCore.c
+CFLAGS += -DENABLE_EXTENSIONS=1
+
 # Speech Manager - Minimal implementation with SoundManager integration
 C_SOURCES += src/SpeechManager/SpeechManagerCore.c \
              src/SpeechManager/SpeechOutput_Stub.c \
