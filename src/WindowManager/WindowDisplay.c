@@ -797,13 +797,42 @@ static void DrawWindowControls(WindowPtr window) {
         SetRect(&growBox, frame.right - 16, frame.bottom - 16,
                 frame.right, frame.bottom);
 
-        /* Draw grow lines */
-        MoveTo(growBox.left, growBox.bottom - 1);
-        LineTo(growBox.right - 1, growBox.top);
-        MoveTo(growBox.left + 4, growBox.bottom - 1);
-        LineTo(growBox.right - 1, growBox.top + 4);
-        MoveTo(growBox.left + 8, growBox.bottom - 1);
-        LineTo(growBox.right - 1, growBox.top + 8);
+        extern void* framebuffer;
+        extern uint32_t fb_width, fb_height, fb_pitch;
+
+        if (framebuffer) {
+            uint32_t* fb = (uint32_t*)framebuffer;
+            int pitch = fb_pitch / 4;
+            uint32_t black = 0xFF000000;
+
+            /* Draw three diagonal lines from bottom-left to top-right */
+            /* Line 1: Full diagonal */
+            for (int i = 0; i < 16; i++) {
+                int x = growBox.left + i;
+                int y = growBox.bottom - 1 - i;
+                if (x >= 0 && x < (int)fb_width && y >= 0 && y < (int)fb_height) {
+                    fb[y * pitch + x] = black;
+                }
+            }
+
+            /* Line 2: Offset by 4 pixels */
+            for (int i = 0; i < 12; i++) {
+                int x = growBox.left + 4 + i;
+                int y = growBox.bottom - 1 - i;
+                if (x >= 0 && x < (int)fb_width && y >= 0 && y < (int)fb_height) {
+                    fb[y * pitch + x] = black;
+                }
+            }
+
+            /* Line 3: Offset by 8 pixels */
+            for (int i = 0; i < 8; i++) {
+                int x = growBox.left + 8 + i;
+                int y = growBox.bottom - 1 - i;
+                if (x >= 0 && x < (int)fb_width && y >= 0 && y < (int)fb_height) {
+                    fb[y * pitch + x] = black;
+                }
+            }
+        }
     }
 
     /* Draw scroll bars if present */
