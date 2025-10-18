@@ -213,46 +213,98 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
     Local_StartResizeFeedback();
     serial_puts("[GW] Feedback started\n");
 
+    /* Get original window bounds for tracking */
+    Rect originalBounds = theWindow->port.portRect;
+
     /* Main resize tracking loop */
     serial_puts("[GW] Entering main loop\n");
     Boolean resizeContinues = true;
     Point currentPt = startPt;
-    Point lastPt = startPt;
     long lastSize = 0;
+
+    /* Track outline for XOR visual feedback */
+    Rect outlineRect = originalBounds;
+    Boolean outlineDrawn = false;
 
     int loopCount = 0;
     const int MAX_LOOP_ITERATIONS = 1000000;  /* Prevent infinite loops */
 
     while (resizeContinues && loopCount < MAX_LOOP_ITERATIONS) {
         loopCount++;
-        if (loopCount % 100000 == 0) {
-            serial_puts("[GW] Loop iteration count: 100k\n");
+
+        /* Poll hardware for new input events (like DragWindow) */
+        extern void EventPumpYield(void);
+        EventPumpYield();
+
+        /* Get current mouse state using same method as DragWindow */
+        extern void GetMouse(Point* mouseLoc);
+        extern Boolean StillDown(void);
+        GetMouse(&currentPt);  /* Returns GLOBAL coords */
+        resizeContinues = StillDown();
+
+        /* Calculate delta from original grow box click */
+        short deltaH = currentPt.h - startPt.h;
+        short deltaV = currentPt.v - startPt.v;
+
+        /* Log first few iterations to debug */
+        if (loopCount <= 5) {
+            serial_puts("[GW] Loop: delta=");
+            // Can't easily print ints, so just indicate we're updating
+            if (deltaH != 0 || deltaV != 0) {
+                serial_puts("[GW] Delta detected\n");
+            }
         }
 
-        /* Get current mouse state */
-        Platform_GetMousePosition(&currentPt);
-        resizeContinues = Platform_IsMouseDown();
+        /* Calculate new size */
+        short newWidth = (short)(originalBounds.right - originalBounds.left + deltaH);
+        short newHeight = (short)(originalBounds.bottom - originalBounds.top + deltaV);
 
-        if (!resizeContinues && loopCount < 100) {
-            serial_puts("[GW] Mouse up detected, exiting\n");
-        }
+        /* Constrain to minimum size */
+        if (newWidth < MIN_RESIZE_WIDTH) newWidth = MIN_RESIZE_WIDTH;
+        if (newHeight < MIN_RESIZE_HEIGHT) newHeight = MIN_RESIZE_HEIGHT;
 
-        /* Update resize state */
-        g_resizeState.currentPoint = currentPt;
+        /* Build new outline rect */
+        Rect newOutline = originalBounds;
+        newOutline.right = originalBounds.left + newWidth;
+        newOutline.bottom = originalBounds.top + newHeight;
 
-        /* Calculate new window size */
-        long newSize = Local_CalculateNewSize(currentPt);
+        /* Update visual feedback if size changed */
+        if (newOutline.right != outlineRect.right || newOutline.bottom != outlineRect.bottom) {
+            serial_puts("[GW] Outline size changed\n");
 
-        /* Update feedback if size changed */
-        if (newSize != lastSize) {
-            Local_UpdateResizeFeedback(newSize);
-            lastSize = newSize;
+            /* Erase old outline (XOR twice = erase) */
+            if (outlineDrawn) {
+                extern void InvertRect(const Rect* rect);
+                extern void QDPlatform_FlushScreen(void);
+                InvertRect(&outlineRect);
+                QDPlatform_FlushScreen();
+                serial_puts("[GW] Old outline erased\n");
+            }
+
+            /* Draw new outline */
+            extern void InvertRect(const Rect* rect);
+            extern void QDPlatform_FlushScreen(void);
+            InvertRect(&newOutline);
+            QDPlatform_FlushScreen();
+            serial_puts("[GW] New outline drawn\n");
+
+            outlineRect = newOutline;
+            outlineDrawn = true;
             g_resizeState.hasMoved = true;
         }
 
         /* Note: Cannot use Platform_WaitTicks here - it would hang because TickCount()
            doesn't advance while we're blocking in event handling. Instead, let the loop
            iterate freely. The system responsiveness is maintained through the event loop. */
+    }
+
+    /* Erase the outline by XOR-ing one more time */
+    if (outlineDrawn) {
+        extern void InvertRect(const Rect* rect);
+        extern void QDPlatform_FlushScreen(void);
+        InvertRect(&outlineRect);
+        QDPlatform_FlushScreen();
+        serial_puts("[GW] Outline erased\n");
     }
 
     if (loopCount >= MAX_LOOP_ITERATIONS) {
@@ -268,18 +320,51 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
     Local_EndResizeFeedback();
     serial_puts("[GW] Feedback ended\n");
 
-    /* Calculate final size and apply it */
+    /* Calculate and apply final size */
     serial_puts("[GW] Calculating final size\n");
-    long finalSize = g_resizeState.hasMoved ? Local_CalculateNewSize(currentPt) : 0;
-    serial_puts("[GW] Final size calculated\n");
 
-    if (finalSize != 0) {
-        short finalWidth = (short)(finalSize >> 16);
-        short finalHeight = (short)(finalSize & 0xFFFF);
-        serial_puts("[GW] Applying final resize\n");
-        WM_DEBUG("GrowWindow: Applying final resize to %dx%d", finalWidth, finalHeight);
+    /* Calculate final width and height from outline */
+    short finalWidth = outlineRect.right - outlineRect.left;
+    short finalHeight = outlineRect.bottom - outlineRect.top;
+    short originalWidth = originalBounds.right - originalBounds.left;
+    short originalHeight = originalBounds.bottom - originalBounds.top;
+    long finalSize = ((long)finalWidth << 16) | (finalHeight & 0xFFFF);
+
+    serial_puts("[GW] Final size calculated\n");
+    serial_puts("[GW] Checking if resize is needed\n");
+
+    /* Apply resize if size actually changed */
+    if (finalWidth != originalWidth || finalHeight != originalHeight) {
+        serial_puts("[GW] Size changed, applying resize\n");
+        WM_DEBUG("GrowWindow: Applying final resize from %dx%d to %dx%d",
+                 originalWidth, originalHeight, finalWidth, finalHeight);
+
+        /* Apply the resize */
         SizeWindow(theWindow, finalWidth, finalHeight, true);
-        serial_puts("[GW] Resize applied\n");
+        serial_puts("[GW] SizeWindow called\n");
+
+        /* Force complete window redraw using BeginUpdate/EndUpdate pattern */
+        extern void BeginUpdate(WindowPtr window);
+        extern void EndUpdate(WindowPtr window);
+        extern Boolean IsFolderWindow(WindowPtr w);
+        extern void FolderWindow_Draw(WindowPtr w);
+
+        serial_puts("[GW] Starting window redraw\n");
+        BeginUpdate(theWindow);
+        if (IsFolderWindow(theWindow)) {
+            FolderWindow_Draw(theWindow);
+        }
+        EndUpdate(theWindow);
+        serial_puts("[GW] Window redraw complete\n");
+
+        /* Flush screen to ensure all updates are visible */
+        extern void QDPlatform_FlushScreen(void);
+        QDPlatform_FlushScreen();
+        serial_puts("[GW] Screen flushed\n");
+
+        serial_puts("[GW] Resize applied and redrawn\n");
+    } else {
+        serial_puts("[GW] No size change detected\n");
     }
 
     /* Clean up resize state */
