@@ -1,6 +1,6 @@
 #include <stdlib.h>
-#include "MenuManager/menu_private.h"
 #include <string.h>
+#include "MenuManager/menu_private.h"
 /*
  * MenuManagerCore.c - Core Menu Manager Implementation
  *
@@ -17,6 +17,7 @@
 #include "../include/QuickDraw/QuickDraw.h"
 #include "../include/QuickDraw/DisplayBezel.h"
 #include "../include/QuickDrawConstants.h"
+#include "../include/ResourceMgr/ResourceMgr.h"
 
 #include "../include/MenuManager/MenuManager.h"
 #include "../include/MenuManager/MenuTypes.h"
@@ -225,6 +226,8 @@ Handle GetMenuBar(void)
 
 /*
  * GetNewMBar - Create menu list from MBAR resource
+ *
+ * Loads an MBAR resource by ID and creates menu list with MENU resources
  */
 Handle GetNewMBar(short menuBarID)
 {
@@ -232,19 +235,61 @@ Handle GetNewMBar(short menuBarID)
         return NULL;
     }
 
-    /* TODO: Implement resource loading */
-    /* For now, create an empty menu list */
-    size_t menuBarSize = sizeof(MenuBarList) + (MAX_MENUS - 1) * sizeof(MenuListEntry);
-    MenuBarList* menuBar = (MenuBarList*)malloc(menuBarSize);
-    if (menuBar == NULL) {
+    /* Load MBAR resource */
+    Handle mbarHandle = GetResource('MBAR', menuBarID);
+    if (mbarHandle == NULL) {
+        MENU_LOG_WARN("GetNewMBar: MBAR resource %d not found\n", menuBarID);
+        /* Return empty menu list instead of NULL */
+        size_t menuBarSize = sizeof(MenuBarList) + (MAX_MENUS - 1) * sizeof(MenuListEntry);
+        MenuBarList* menuBar = (MenuBarList*)malloc(menuBarSize);
+        if (menuBar) {
+            menuBar->numMenus = 0;
+            menuBar->totalWidth = 0;
+            menuBar->lastRight = 0;
+            menuBar->mbResID = menuBarID;
+        }
+        return (Handle)menuBar;
+    }
+
+    /* Parse MBAR resource to get menu ID array */
+    extern short* ParseMBARResource(Handle resourceHandle, short* outMenuCount);
+    short menuCount = 0;
+    short* menuIDs = ParseMBARResource(mbarHandle, &menuCount);
+
+    if (!menuIDs || menuCount <= 0) {
+        MENU_LOG_ERROR("GetNewMBar: Failed to parse MBAR %d\n", menuBarID);
         return NULL;
     }
 
-    menuBar->numMenus = 0;
+    /* Allocate MenuBarList for the menus */
+    size_t menuBarSize = sizeof(MenuBarList) + (menuCount - 1) * sizeof(MenuListEntry);
+    MenuBarList* menuBar = (MenuBarList*)malloc(menuBarSize);
+    if (!menuBar) {
+        free(menuIDs);
+        return NULL;
+    }
+
+    menuBar->numMenus = menuCount;
     menuBar->totalWidth = 0;
     menuBar->lastRight = 0;
     menuBar->mbResID = menuBarID;
 
+    /* Load each MENU resource and add to menu bar */
+    for (int i = 0; i < menuCount; i++) {
+        MenuHandle theMenu = GetMenu(menuIDs[i]);
+        if (theMenu) {
+            menuBar->menus[i].menuID = menuIDs[i];
+            menuBar->menus[i].menuLeft = 0;
+            menuBar->menus[i].menuWidth = 0;
+        } else {
+            MENU_LOG_WARN("GetNewMBar: Could not load MENU resource %d\n", menuIDs[i]);
+            /* Skip this menu */
+        }
+    }
+
+    free(menuIDs);
+
+    MENU_LOG_DEBUG("GetNewMBar: Created menu bar %d with %d menus\n", menuBarID, menuCount);
     return (Handle)menuBar;
 }
 
@@ -628,6 +673,8 @@ MenuHandle NewMenu(short menuID, ConstStr255Param menuTitle)
 
 /*
  * GetMenu - Load menu from MENU resource
+ *
+ * Loads a MENU resource by ID and returns a MenuHandle
  */
 MenuHandle GetMenu(short resourceID)
 {
@@ -635,13 +682,28 @@ MenuHandle GetMenu(short resourceID)
         return NULL;
     }
 
-    /* TODO: Implement resource loading */
-    /* For now, create a simple menu */
-    unsigned char title[256];
-    snprintf((char*)&title[1], 255, "Menu %d", resourceID);
-    title[0] = strlen((char*)&title[1]);
+    /* Load MENU resource */
+    Handle menuHandle = GetResource('MENU', resourceID);
+    if (menuHandle == NULL) {
+        MENU_LOG_WARN("GetMenu: MENU resource %d not found\n", resourceID);
+        /* Return fallback menu with generic title */
+        unsigned char title[256];
+        snprintf((char*)&title[1], 255, "Menu %d", resourceID);
+        title[0] = strlen((char*)&title[1]);
+        return NewMenu(resourceID, title);
+    }
 
-    return NewMenu(resourceID, title);
+    /* Parse MENU resource to create menu */
+    extern MenuHandle ParseMENUResource(Handle resourceHandle);
+    MenuHandle theMenu = ParseMENUResource(menuHandle);
+
+    if (!theMenu) {
+        MENU_LOG_ERROR("GetMenu: Failed to parse MENU resource %d\n", resourceID);
+        return NULL;
+    }
+
+    MENU_LOG_DEBUG("GetMenu: Successfully loaded MENU resource %d\n", resourceID);
+    return theMenu;
 }
 
 /*

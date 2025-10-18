@@ -283,6 +283,7 @@ C_SOURCES = src/main.c \
             src/MenuManager/MenuAppleIcon.c \
             src/MenuManager/MenuAppIcon.c \
             src/MenuManager/MenuItems.c \
+            src/MenuManager/MenuResources.c \
             src/MenuManager/platform_stubs.c \
             src/MenuCommands.c \
             src/Finder/Icon/icon_system.c \
