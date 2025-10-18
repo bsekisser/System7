@@ -883,7 +883,9 @@ static void CleanupTrackingState(MenuTrackInfo* state)
 
     /* Clean up any allocated resources */
     if (state->savedRegion != NULL) {
-        /* TODO: Dispose region */
+        extern void DisposeRgn(RgnHandle rgn);
+        DisposeRgn(state->savedRegion);
+        state->savedRegion = NULL;
     }
 
     if (state->savedBits != NULL) {
@@ -1091,12 +1093,33 @@ static void GetCurrentMouseState(Point* mousePt, Boolean* buttonDown, unsigned l
 }
 
 /*
- * WaitForMouseChange - Wait for mouse change
+ * WaitForMouseChange - Wait for mouse change or timeout
  */
 static Boolean WaitForMouseChange(unsigned long timeout)
 {
-    /* TODO: Implement proper waiting with timeout */
-    return true;
+    extern UInt32 TickCount(void);
+    extern void SystemTask(void);
+
+    Point startPt, currentPt;
+    Boolean startMouseDown, currentMouseDown;
+    unsigned long startMods, currentMods;
+    unsigned long startTime = TickCount();
+
+    GetCurrentMouseState(&startPt, &startMouseDown, &startMods);
+
+    while ((TickCount() - startTime) < timeout) {
+        GetCurrentMouseState(&currentPt, &currentMouseDown, &currentMods);
+
+        /* Check if mouse position, button state, or modifiers changed */
+        if ((currentPt.h != startPt.h) || (currentPt.v != startPt.v) ||
+            (currentMouseDown != startMouseDown) || (currentMods != startMods)) {
+            return true;
+        }
+
+        SystemTask();
+    }
+
+    return false;
 }
 
 /*
@@ -1104,8 +1127,8 @@ static Boolean WaitForMouseChange(unsigned long timeout)
  */
 static unsigned long GetCurrentTime(void)
 {
-    /* TODO: Get actual system time */
-    return 0;
+    extern UInt32 TickCount(void);
+    return TickCount();
 }
 
 /* ============================================================================

@@ -698,11 +698,25 @@ void FlashMenuItem(MenuHandle theMenu, short item, short flashes)
         return;
     }
 
+    extern UInt32 TickCount(void);
+    extern void SystemTask(void);
+
     for (short i = 0; i < flashes; i++) {
         HiliteMenuItem(theMenu, item, true);
-        /* TODO: Add delay */
+
+        /* Delay ~8 ticks (133ms at 60Hz) */
+        UInt32 startTick = TickCount();
+        while ((TickCount() - startTick) < 8) {
+            SystemTask();
+        }
+
         HiliteMenuItem(theMenu, item, false);
-        /* TODO: Add delay */
+
+        /* Delay ~8 ticks */
+        startTick = TickCount();
+        while ((TickCount() - startTick) < 8) {
+            SystemTask();
+        }
     }
 }
 
