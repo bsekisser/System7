@@ -84,11 +84,12 @@ void OpenDesktopCdev(void) {
     ForeColor(blackColor);
     BackColor(whiteColor);
 
-    /* Create OK and Cancel buttons */
+    /* Create OK and Cancel buttons - use LOCAL window coordinates */
+    Rect portRect = gDesktopCdevWin->port.portRect;
     Rect buttonRect;
-    buttonRect.bottom = winRect.bottom - winRect.top - 20;
+    buttonRect.bottom = portRect.bottom - 20;
     buttonRect.top = buttonRect.bottom - 20;
-    buttonRect.right = winRect.right - winRect.left - 20;
+    buttonRect.right = portRect.right - 20;
     buttonRect.left = buttonRect.right - 80;
 
     static unsigned char okTitle[] = {2, 'O','K'};
