@@ -170,6 +170,41 @@ int DA_SetActive(DeskAccessory *da);
 int DA_SendMessage(DeskAccessory *da, DAMessage message,
                    void *param1, void *param2);
 
+/* DA Preferences and Persistence */
+
+/**
+ * Set DA preference (key-value pair)
+ * @param daName DA name
+ * @param key Preference key
+ * @param value Preference value
+ * @return 0 on success, negative on error
+ */
+int DA_SetPreference(const char *daName, const char *key, const char *value);
+
+/**
+ * Get DA preference
+ * @param daName DA name
+ * @param key Preference key
+ * @param buffer Buffer to store value
+ * @param bufferSize Size of buffer
+ * @return 0 on success, negative on error
+ */
+int DA_GetPreference(const char *daName, const char *key, char *buffer, int bufferSize);
+
+/**
+ * Save DA preferences to storage
+ * @param daName DA name (NULL for all)
+ * @return 0 on success, negative on error
+ */
+int DA_SavePreferences(const char *daName);
+
+/**
+ * Load DA preferences from storage
+ * @param daName DA name (NULL for all)
+ * @return 0 on success, negative on error
+ */
+int DA_LoadPreferences(const char *daName);
+
 /* System Integration Functions */
 
 /**

@@ -339,6 +339,7 @@ C_SOURCES = src/main.c \
             src/DeskManager/DALoader.c \
             src/DeskManager/SystemMenu.c \
             src/DeskManager/DAWindows.c \
+            src/DeskManager/DAPreferences.c \
             src/DeskManager/Calculator.c \
             src/DeskManager/KeyCaps.c \
             src/DeskManager/AlarmClock.c \
