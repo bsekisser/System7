@@ -198,8 +198,6 @@ static OSErr SetupMenus(void)
     AppendMenu(gAppleMenu, "\016Control Strip...");
     AppendMenu(gAppleMenu, "\002(-");
     AddResMenu(gAppleMenu, 'DRVR');
-    AppendMenu(gAppleMenu, "\002(-");
-    AppendMenu(gAppleMenu, "\011Shut Down");
 
     /* File Menu - Finder specific (System 7.1) */
     static unsigned char fileTitle[] = {4, 'F', 'i', 'l', 'e'};  /* Pascal string: "File" */
