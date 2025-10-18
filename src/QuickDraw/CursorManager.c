@@ -280,6 +280,11 @@ Point CursorManager_GetCursorHotspot(void) {
 
 /* Show/hide cursor */
 void ShowCursor(void) {
+    /* Don't show cursor while menu is being tracked */
+    if (IsMenuTrackingNew()) {
+        return;
+    }
+
     Boolean wasVisible = CursorManager_ShouldBeVisible();
     if (gCursorState.hideLevel > 0) {
         gCursorState.hideLevel--;

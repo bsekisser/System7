@@ -1309,6 +1309,12 @@ void UpdateCursorDisplay(void) {
     extern const Cursor* CursorManager_GetCurrentCursorImage(void);
     extern Point CursorManager_GetCursorHotspot(void);
     extern void CursorManager_HandleMouseMotion(Point newPos);
+    extern Boolean IsMenuTrackingNew(void);
+
+    /* Don't update cursor display while menu is being tracked - prevents cursor changes during menu operations */
+    if (IsMenuTrackingNew()) {
+        return;
+    }
 
     const Cursor* cursorImage = CursorManager_GetCurrentCursorImage();
     if (!cursorImage) {
