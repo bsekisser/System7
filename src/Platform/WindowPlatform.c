@@ -81,18 +81,37 @@ Boolean Platform_InitializeWindowPort(WindowPtr window) {
 void Platform_CalculateWindowRegions(WindowPtr window) {
     if (!window) return;
 
-    /* If regions are already set (e.g., by Platform_InitializeWindowPort), don't overwrite them */
-    /* strucRgn should contain global bounds, while portRect is in local coordinates */
-    /* Only recalculate if regions are not yet initialized */
-    if (window->strucRgn && !EmptyRgn(window->strucRgn)) {
-        /* Regions already set, don't overwrite */
-        return;
+    /* CRITICAL: Always recalculate regions when called, especially during resize
+     * We preserve the window's TOP-LEFT position and apply the new size from portRect
+     * This ensures strucRgn (global coords) stays synchronized with portRect (local size) */
+
+    short newWidth = window->port.portRect.right - window->port.portRect.left;
+    short newHeight = window->port.portRect.bottom - window->port.portRect.top;
+
+    /* Get current window position from strucRgn if it exists */
+    short windowLeft = 0;
+    short windowTop = 0;
+
+    if (window->strucRgn && *window->strucRgn) {
+        /* Preserve current window position (top-left corner) */
+        windowLeft = (*window->strucRgn)->rgnBBox.left;
+        windowTop = (*window->strucRgn)->rgnBBox.top;
     }
 
-    /* For initial setup or if regions are empty, use portRect */
-    /* Note: portRect might be in local coordinates at this point */
-    RectRgn(window->strucRgn, &window->port.portRect);
-    RectRgn(window->contRgn, &window->port.portRect);
+    /* Calculate new structure region with preserved position and new size */
+    Rect newStrucBounds;
+    SetRect(&newStrucBounds, windowLeft, windowTop,
+            windowLeft + newWidth, windowTop + newHeight);
+
+    /* Update structure region to new bounds */
+    if (window->strucRgn) {
+        RectRgn(window->strucRgn, &newStrucBounds);
+    }
+
+    /* Update content region (typically same as structure region for simple windows) */
+    if (window->contRgn) {
+        RectRgn(window->contRgn, &newStrucBounds);
+    }
 }
 
 /* Create native window (no-op for our framebuffer implementation) */

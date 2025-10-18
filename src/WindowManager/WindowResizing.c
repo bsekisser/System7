@@ -343,19 +343,31 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
         SizeWindow(theWindow, finalWidth, finalHeight, true);
         serial_puts("[GW] SizeWindow called\n");
 
-        /* Force complete window redraw using BeginUpdate/EndUpdate pattern */
+        /* Force complete window redraw - MUST redraw frame/chrome AND content */
+        /* PaintBehind is designed to repaint windows after structural changes */
+        extern void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn);
+        extern void FolderWindow_Draw(WindowPtr w);
         extern void BeginUpdate(WindowPtr window);
         extern void EndUpdate(WindowPtr window);
-        extern Boolean IsFolderWindow(WindowPtr w);
-        extern void FolderWindow_Draw(WindowPtr w);
 
         serial_puts("[GW] Starting window redraw\n");
-        BeginUpdate(theWindow);
-        if (IsFolderWindow(theWindow)) {
+
+        /* Use PaintBehind to repaint the window with the new size/position */
+        serial_puts("[GW] Calling PaintBehind to repaint window\n");
+        PaintBehind(theWindow, NULL);
+        serial_puts("[GW] PaintBehind completed\n");
+
+        /* Also redraw folder content if applicable */
+        serial_puts("[GW] Checking for folder window content\n");
+        Boolean isFolderWindow = (theWindow->refCon == 0x4449534b || theWindow->refCon == 0x54525348);  /* 'DISK' or 'TRSH' */
+
+        if (isFolderWindow) {
+            /* Folder windows have special drawing code for the file list */
+            serial_puts("[GW] Drawing folder window content\n");
+            BeginUpdate(theWindow);
             FolderWindow_Draw(theWindow);
+            EndUpdate(theWindow);
         }
-        EndUpdate(theWindow);
-        serial_puts("[GW] Window redraw complete\n");
 
         /* Flush screen to ensure all updates are visible */
         extern void QDPlatform_FlushScreen(void);
