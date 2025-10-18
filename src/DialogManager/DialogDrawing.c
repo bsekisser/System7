@@ -47,24 +47,8 @@ extern QDGlobals qd;
 /* Dialog Manager state access */
 extern DialogManagerState* GetDialogManagerState(void);
 
-/* Helper: Inset rectangle */
-static void InsetRect(Rect* r, SInt16 dh, SInt16 dv) {
-    r->left += dh;
-    r->top += dv;
-    r->right -= dh;
-    r->bottom -= dv;
-}
-
-/* Helper: Offset rectangle */
-static void OffsetRect(Rect* r, SInt16 dh, SInt16 dv) {
-    r->left += dh;
-    r->top += dv;
-    r->right += dh;
-    r->bottom += dv;
-}
-
-/* Helper: Check if point is in rect */
-static Boolean PtInRect(Point pt, const Rect* r) {
+/* Helper: Check if point is in rect (renamed to avoid QuickDraw conflict) */
+static Boolean DlgPtInRect(Point pt, const Rect* r) {
     return (pt.h >= r->left && pt.h < r->right &&
             pt.v >= r->top && pt.v < r->bottom);
 }

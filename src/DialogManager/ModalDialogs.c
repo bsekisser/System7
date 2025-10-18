@@ -153,25 +153,13 @@ void ModalDialog(ModalFilterProcPtr filterProc, SInt16* itemHit)
 
     DIALOG_LOG_DEBUG("ModalDialog: Starting modal loop for dialog %p\n", (void*)dlg);
 
-    /* Test-only: auto-dismiss after timeout for smoke tests */
-    UInt32 startTime = TickCount();
-    UInt32 noEventCount = 0;
-    const UInt32 kTestTimeout = 60; /* 1 second */
-
     for (;;) {
-        /* Test-only: auto-dismiss for smoke testing */
-        if (TickCount() - startTime > kTestTimeout) {
-            DIALOG_LOG_DEBUG("ModalDialog: Test timeout, auto-dismissing with default item\n");
-            if (itemHit) *itemHit = GetDialogDefaultItem(dlg);
-            return;
-        }
 
         /* Wait for next event (use GetNextEvent if WaitNextEvent unavailable) */
         if (!GetNextEvent(eventMask, &evt)) {
             SystemTask();
             /* Update caret blink during idle time */
             UpdateDialogCaret(dlg);
-            noEventCount++;
             continue;
         }
 

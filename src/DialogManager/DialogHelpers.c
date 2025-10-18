@@ -31,8 +31,8 @@ extern UInt32 TickCount(void);
 static DialogPtr gFocusDialog = NULL;
 static SInt16 gFocusItemNo = 0;
 
-/* Helper: Check if point is in rect */
-static Boolean PtInRect(Point pt, const Rect* r) {
+/* Helper: Check if point is in rect (renamed to avoid QuickDraw conflict) */
+static Boolean DlgPtInRect(Point pt, const Rect* r) {
     return (pt.h >= r->left && pt.h < r->right &&
             pt.v >= r->top && pt.v < r->bottom);
 }

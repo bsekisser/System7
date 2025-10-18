@@ -740,24 +740,10 @@ static void DrawButtonItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemE
 }
 #endif /* DrawButtonItem */
 
-#if 0  /* UNUSED: DrawTextItem - preserved for possible future use */
-static void DrawTextItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemEx* item)
-{
-    if (!item) {
-        return;
-    }
-
-    const unsigned char* text = (const unsigned char*)item->data;
-    SInt16 itemType = item->type & itemTypeMask;
-
-    if (itemType == editText) {
-        Boolean hasFocus = false;  /* TODO: track which field has focus */
-        DrawDialogEditText(&item->bounds, text, item->enabled, hasFocus);
-    } else {
-        DrawDialogStaticText(theDialog, &item->bounds, text, item->enabled);
-    }
-}
-#endif /* DrawTextItem */
+/* NOTE: Text/Icon drawing functions moved to DialogDrawing.c unified dispatcher.
+ * Keyboard focus tracking now implemented in DialogKeyboard.c
+ * (see DM_SetKeyboardFocus, DM_GetKeyboardFocus, DM_FocusNextControl)
+ */
 
 #if 0  /* UNUSED: DrawIconItem - preserved for possible future use */
 static void DrawIconItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemEx* item)

@@ -10,6 +10,7 @@
 
 #include "SystemTypes.h"
 #include "DialogManager.h"
+#include "TextEdit/TextEdit.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -75,6 +76,53 @@ void ClearDialogEditTextFocus(DialogPtr theDialog);
  *   theDialog - The dialog to initialize
  */
 void InitDialogEditTextFocus(DialogPtr theDialog);
+
+/* ============================================================================
+ * TextEdit Integration Functions
+ * ============================================================================ */
+
+/*
+ * GetOrCreateDialogTEHandle - Get or create TextEdit handle for dialog item
+ *
+ * Returns: TEHandle for the specified dialog item, or NULL on error
+ */
+extern TEHandle GetOrCreateDialogTEHandle(DialogPtr theDialog, SInt16 itemNo);
+
+/*
+ * HandleDialogEditTextClick - Handle mouse clicks in edit-text items
+ *
+ * Returns: true if click was handled, false otherwise
+ */
+extern Boolean HandleDialogEditTextClick(DialogPtr theDialog, SInt16 itemNo, Point mousePt);
+
+/*
+ * HandleDialogEditTextKey - Handle keyboard events in edit-text items
+ *
+ * Returns: true if key was handled, false otherwise
+ */
+extern Boolean HandleDialogEditTextKey(DialogPtr theDialog, SInt16 itemNo, CharParameter key);
+
+/*
+ * UpdateDialogTEDisplay - Update TextEdit display for dialog item
+ *
+ * Called when dialog item needs to be redrawn
+ */
+extern void UpdateDialogTEDisplay(DialogPtr theDialog, SInt16 itemNo);
+
+/*
+ * HandleDialogCut - Handle cut operation in focused edit-text item
+ */
+extern void HandleDialogCut(DialogPtr theDialog);
+
+/*
+ * HandleDialogCopy - Handle copy operation in focused edit-text item
+ */
+extern void HandleDialogCopy(DialogPtr theDialog);
+
+/*
+ * HandleDialogPaste - Handle paste operation in focused edit-text item
+ */
+extern void HandleDialogPaste(DialogPtr theDialog);
 
 #ifdef __cplusplus
 }

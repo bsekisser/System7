@@ -76,6 +76,9 @@ typedef struct DialogManagerState_Extended {
     SInt16 focusedEditTextItem;
     UInt32 caretBlinkTime;
     Boolean caretVisible;
+
+    /* TextEdit integration for dialog items */
+    void* teHandles[256];       /* TEHandles for dialog items (max 256 items) */
 } DialogManagerState_Extended;
 
 #endif /* DIALOGMANAGERSTATEEXT_H */
