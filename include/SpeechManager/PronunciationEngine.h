@@ -28,22 +28,43 @@ extern "C" {
 /* ===== Phoneme and Pronunciation Constants ===== */
 
 /* Phoneme symbol types */
+#define kPhonemeSymbolARPA  0
+#define kPhonemeSymbolIPA   1
+#define kPhonemeSymbolSAM   2
 
 /* Phoneme categories */
+#define kPhonemeVowel       0
+#define kPhonemeConsonant   1
+#define kPhonemeGlide       2
 
 /* Stress levels */
+#define kStressNone     0
+#define kStressPrimary  1
+#define kStressSecondary 2
 
 /* Syllable boundaries */
+#define kSyllableInternal   0
+#define kSyllableBoundary   1
+
+/* ===== Phoneme Type Definitions ===== */
+
+/* Phoneme symbol type */
+typedef short PhonemeSymbolType;
+
+/* Opaque types for pronunciation system */
+typedef long PronunciationDictionary;
+typedef long PronunciationEntry;
+typedef long PhoneticAnalysis;
 
 /* ===== Phoneme Structures ===== */
 
 /* Extended phoneme information */
 
-/* Pronunciation entry */
+/* Pronunciation entry - opaque */
 
-/* Phonetic analysis result */
+/* Phonetic analysis result - opaque */
 
-/* Pronunciation dictionary */
+/* Pronunciation dictionary - opaque */
 
 /* ===== Pronunciation Engine Management ===== */
 

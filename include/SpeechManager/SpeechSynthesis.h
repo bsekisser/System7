@@ -28,28 +28,64 @@ extern "C" {
 /* ===== Synthesis Engine Constants ===== */
 
 /* Synthesis engine types */
+#define kSynthEngineTypeFestival 0
+#define kSynthEngineTypeEspeak   1
+#define kSynthEngineTypeVoiceXML 2
 
 /* Synthesis quality levels */
+#define kSynthQualityLow    0
+#define kSynthQualityMed    1
+#define kSynthQualityHigh   2
 
 /* Synthesis engine capabilities */
+#define kSynthCapPolyphonic   0x0001
+#define kSynthCapStreaming    0x0002
+#define kSynthCapRealtime     0x0004
+#define kSynthCapPhonetic     0x0008
 
 /* Audio format specifications */
+#define kAudioFormatPCM       0
+#define kAudioFormatMP3       1
+#define kAudioFormatWAV       2
+
+/* ===== Synthesis Engine Type Definitions ===== */
+
+/* Opaque handles for synthesis objects */
+typedef long SynthEngineRef;
+typedef long SynthEngineType;
+typedef long SynthEngineCapabilities;
+typedef long SynthesisState;
+typedef long SynthesisProgress;
+typedef short SynthQuality;
+typedef long AudioFormatDescriptor;
+typedef long EmotionalState;
+
+/* Forward declarations for opaque structures */
+typedef struct SynthEngineInfoStruct *SynthEngineInfo;
+typedef struct SynthesisParametersStruct *SynthesisParameters;
+typedef struct SynthesisResultStruct *SynthesisResult;
+
+/* Callback types */
+typedef void (*SynthesisProgressProc)(SynthEngineRef engine, long bytesProcessed, long totalBytes, void *userData);
+typedef void (*SynthesisCompletionProc)(SynthEngineRef engine, void *result, void *userData);
+typedef void (*SynthesisErrorProc)(SynthEngineRef engine, OSErr error, void *userData);
+typedef void (*SynthesisAudioProc)(SynthEngineRef engine, const void *audioData, long audioLength, void *userData);
 
 /* ===== Synthesis Engine Structures ===== */
 
 /* Audio format descriptor */
 
-/* Synthesis engine information */
+/* Synthesis engine information - opaque */
 
-/* Synthesis parameters */
+/* Synthesis parameters - opaque */
 
-/* Synthesis progress information */
+/* Synthesis progress information - opaque */
 
-/* Synthesis result */
+/* Synthesis result - opaque */
 
 /* ===== Synthesis Engine Management ===== */
 
-/* Engine opaque handle */
+/* Engine opaque handle already defined above */
 
 /* Engine initialization and cleanup */
 OSErr InitializeSpeechSynthesis(void);

@@ -123,6 +123,7 @@ extern "C" {
 
 /* Version and initialization */
 UInt32 SpeechManagerVersion(void);
+OSErr SpeechManagerInit(void);
 
 /* Voice management */
 OSErr MakeVoiceSpec(OSType creator, OSType id, VoiceSpec *voice);

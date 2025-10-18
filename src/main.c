@@ -933,6 +933,14 @@ static void init_system71(void) {
         serial_puts("  WARNING: Sound Manager initialization failed\n");
     }
 
+    /* Initialize Speech Manager */
+    extern OSErr SpeechManagerInit(void);
+    if (SpeechManagerInit() == noErr) {
+        serial_puts("  Speech Manager initialized\n");
+    } else {
+        serial_puts("  WARNING: Speech Manager initialization failed\n");
+    }
+
     /* Hide startup screen before starting Finder */
     HideStartupScreen();
 

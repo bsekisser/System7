@@ -452,6 +452,10 @@ CFLAGS += -DLIST_SMOKE_TEST=1
 endif
 endif
 
+# Speech Manager - Minimal implementation (stubs for incomplete types)
+C_SOURCES += src/SpeechManager/SpeechManagerCore.c
+CFLAGS += -DENABLE_SPEECH=1
+
 # Add Control smoke test if enabled
 ifeq ($(CTRL_SMOKE_TEST),1)
 CFLAGS += -DCTRL_SMOKE_TEST=1

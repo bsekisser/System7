@@ -28,14 +28,45 @@ extern "C" {
 /* ===== Text Processing Constants ===== */
 
 /* Text input modes */
+#define kTextInputModePlainText   0
+#define kTextInputModePhonetic    1
+#define kTextInputModeSSML        2
 
 /* Text processing flags */
+#define kTextProcessFlagNone      0x0000
+#define kTextProcessFlagExpand    0x0001
+#define kTextProcessFlagAnalyze   0x0002
+#define kTextProcessFlagNormalize 0x0004
 
 /* Text analysis results */
+#define kTextAnalysisSuccess      0
+#define kTextAnalysisWarning      1
+#define kTextAnalysisError        2
+
+/* ===== Text Processing Type Definitions ===== */
+
+/* Text input mode enumeration */
+typedef short TextInputMode;
+
+/* Text processing flags */
+typedef unsigned short TextProcessingFlags;
+
+/* Forward declarations for opaque types */
+typedef struct TextProcessingContextStruct *TextProcessingContext;
+typedef struct TextSegmentStruct *TextSegment;
+typedef struct TextAnalysisResultStruct *TextAnalysisResult;
+typedef struct PhonemeConversionResultStruct *PhonemeConversionResult;
+typedef struct TextStreamContextStruct *TextStreamContext;
+
+/* Callback types */
+typedef void (*SpeechTextDoneProcPtr)(SpeechChannel chan, long refCon);
+typedef void (*TextProcessingProgressProc)(long progress, long total, void *userData);
+typedef void (*TextAnalysisProc)(const char *text, long textLength, void *userData);
+typedef void (*PronunciationProc)(const char *word, const char *pronunciation, void *userData);
 
 /* ===== Text Structures ===== */
 
-/* Text processing context */
+/* Text processing context - opaque */
 
 /* Text segment for analysis */
 
