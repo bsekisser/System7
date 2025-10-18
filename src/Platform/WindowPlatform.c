@@ -551,9 +551,10 @@ void Platform_DrawCloseBoxDirect(WindowPtr window) {
 /* Wait functions */
 void Platform_WaitTicks(short ticks) {
     extern UInt32 TickCount(void);
+    extern void ProcessModernInput(void);  /* Poll PS/2 controller for button updates */
     UInt32 start = TickCount();
     while (TickCount() - start < ticks) {
-        /* Wait */
+        ProcessModernInput();  /* Critical: update gCurrentButtons during waits */
     }
 }
 
