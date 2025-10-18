@@ -103,16 +103,16 @@ int DA_CreateWindow(DeskAccessory *da, const DAWindowAttr *attr)
 
     /* Set window attributes */
     window->attributes = 0;
-    if (attr->goAwayFlag) {
+    if (attr->hasGoAway) {
         window->attributes |= WINDOW_ATTR_CLOSEBOX;
     }
     window->attributes |= WINDOW_ATTR_TITLE;
 
     /* Adjust content rectangle for title bar and borders */
-    (window)->top += 20;  /* Title bar height */
-    (window)->left += 1;  /* Left border */
-    (window)->right -= 1; /* Right border */
-    (window)->bottom -= 1; /* Bottom border */
+    (window)->bounds.top += 20;  /* Title bar height */
+    (window)->bounds.left += 1;  /* Left border */
+    (window)->bounds.right -= 1; /* Right border */
+    (window)->bounds.bottom -= 1; /* Bottom border */
 
     /* Create platform window */
     int result = DAWindow_CreatePlatformWindow(window);
@@ -205,20 +205,20 @@ void DAWindow_Move(DeskAccessory *da, SInt16 h, SInt16 v)
     }
 
     DAWindow *window = (DAWindow *)da->window;
-    SInt16 deltaH = h - (window)->left;
-    SInt16 deltaV = v - (window)->top;
+    SInt16 deltaH = h - (window)->bounds.left;
+    SInt16 deltaV = v - (window)->bounds.top;
 
     /* Update bounds */
-    (window)->left += deltaH;
-    (window)->top += deltaV;
-    (window)->right += deltaH;
-    (window)->bottom += deltaV;
+    (window)->bounds.left += deltaH;
+    (window)->bounds.top += deltaV;
+    (window)->bounds.right += deltaH;
+    (window)->bounds.bottom += deltaV;
 
     /* Update content rect */
-    (window)->left += deltaH;
-    (window)->top += deltaV;
-    (window)->right += deltaH;
-    (window)->bottom += deltaV;
+    (window)->bounds.left += deltaH;
+    (window)->bounds.top += deltaV;
+    (window)->bounds.right += deltaH;
+    (window)->bounds.bottom += deltaV;
 
     DAWindow_UpdatePlatformWindow(window);
 }
@@ -235,15 +235,15 @@ void DAWindow_Resize(DeskAccessory *da, SInt16 width, SInt16 height)
     DAWindow *window = (DAWindow *)da->window;
 
     /* Update bounds */
-    (window)->right = (window)->left + width;
-    (window)->bottom = (window)->top + height;
+    (window)->bounds.right = (window)->bounds.left + width;
+    (window)->bounds.bottom = (window)->bounds.top + height;
 
     /* Update content rect */
     window->contentRect = window->bounds;
-    (window)->top += 20;  /* Title bar */
-    (window)->left += 1;  /* Border */
-    (window)->right -= 1;
-    (window)->bottom -= 1;
+    (window)->bounds.top += 20;  /* Title bar */
+    (window)->bounds.left += 1;  /* Border */
+    (window)->bounds.right -= 1;
+    (window)->bounds.bottom -= 1;
 
     window->needsUpdate = true;
     DAWindow_UpdatePlatformWindow(window);
@@ -362,8 +362,8 @@ int DAWindow_HandleMouseDown(DeskAccessory *da, const EventRecord *event)
     Point localPoint = event->where;
 
     /* Convert to local coordinates */
-    localPoint.h -= (window)->left;
-    localPoint.v -= (window)->top;
+    localPoint.h -= (window)->bounds.left;
+    localPoint.v -= (window)->bounds.top;
 
     /* Check if click is in window */
     if (!DAWindow_PointInWindow(window, event->where)) {
@@ -462,8 +462,8 @@ void DAWindow_GetPosition(DeskAccessory *da, SInt16 *h, SInt16 *v)
     }
 
     DAWindow *window = (DAWindow *)da->window;
-    *h = (window)->left;
-    *v = (window)->top;
+    *h = (window)->bounds.left;
+    *v = (window)->bounds.top;
 }
 
 /*
@@ -484,8 +484,8 @@ void DAWindow_GetSize(DeskAccessory *da, SInt16 *width, SInt16 *height)
     }
 
     DAWindow *window = (DAWindow *)da->window;
-    *width = (window)->right - (window)->left;
-    *height = (window)->bottom - (window)->top;
+    *width = (window)->bounds.right - (window)->bounds.left;
+    *height = (window)->bounds.bottom - (window)->bounds.top;
 }
 
 /* Internal Functions */
@@ -631,10 +631,10 @@ static Boolean DAWindow_PointInWindow(DAWindow *window, Point point)
         return false;
     }
 
-    return (point.h >= (window)->left &&
-            point.h < (window)->right &&
-            point.v >= (window)->top &&
-            point.v < (window)->bottom);
+    return (point.h >= (window)->bounds.left &&
+            point.h < (window)->bounds.right &&
+            point.v >= (window)->bounds.top &&
+            point.v < (window)->bounds.bottom);
 }
 
 /*

@@ -335,6 +335,15 @@ C_SOURCES = src/main.c \
             src/color_icons.c \
             src/DeskManager/DeskManagerCore.c \
             src/DeskManager/DeskManagerStubs.c \
+            src/DeskManager/BuiltinDAs.c \
+            src/DeskManager/DALoader.c \
+            src/DeskManager/SystemMenu.c \
+            src/DeskManager/DAWindows.c \
+            src/DeskManager/Calculator.c \
+            src/DeskManager/KeyCaps.c \
+            src/DeskManager/AlarmClock.c \
+            src/DeskManager/Chooser.c \
+            src/DeskManager/Notepad.c \
             src/DialogManager/DialogManagerCore.c \
             src/DialogManager/DialogManagerStubs.c \
             src/DialogManager/ModalDialogs.c \

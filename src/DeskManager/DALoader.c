@@ -79,13 +79,13 @@ int DA_LoadWindowTemplate(SInt16 resourceID, DAWindowAttr *attr)
     memset(attr, 0, sizeof(DAWindowAttr));
 
     /* Set default values */
-    (attr)->left = 100;
-    (attr)->top = 100;
-    (attr)->right = 400;
-    (attr)->bottom = 300;
+    attr->bounds.left = 100;
+    attr->bounds.top = 100;
+    attr->bounds.right = 400;
+    attr->bounds.bottom = 300;
     attr->procID = 0;  /* Standard window */
     attr->visible = true;
-    attr->goAwayFlag = true;
+    attr->hasGoAway = true;
     strcpy(attr->title, "Desk Accessory");
 
     DA_FreeResourceData(data);
@@ -336,14 +336,14 @@ int DA_Control(DeskAccessory *da, SInt16 controlCode, DAControlPB *params)
 
         case DA_CONTROL_ACTIVATE:
             if (da->activate) {
-                Boolean active = (params->csParam != NULL);
-                return da->activate(da, active);
+                Boolean active = (params->csParam[0] != 0);
+                da->activate(da, active);
             }
             break;
 
         case DA_CONTROL_UPDATE:
             if (da->update) {
-                return da->update(da);
+                da->update(da);
             }
             break;
 

@@ -205,7 +205,7 @@ static int Calculator_DAInitialize(DeskAccessory *da, const DADriverHeader *head
     attr.bounds.bottom = 400;
     attr.procID = 0;
     attr.visible = true;
-    attr.goAwayFlag = true;
+    attr.hasGoAway = true;
     attr.refCon = 0;
     strcpy(attr.title, "Calculator");
 
@@ -333,7 +333,7 @@ static int KeyCaps_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
     attr.bounds.bottom = 320;
     attr.procID = 0;
     attr.visible = true;
-    attr.goAwayFlag = true;
+    attr.hasGoAway = true;
     attr.refCon = 0;
     strcpy(attr.title, "Key Caps");
 
@@ -419,7 +419,7 @@ static int AlarmClock_DAInitialize(DeskAccessory *da, const DADriverHeader *head
     attr.bounds.bottom = 240;
     attr.procID = 0;
     attr.visible = true;
-    attr.goAwayFlag = true;
+    attr.hasGoAway = true;
     attr.refCon = 0;
     strcpy(attr.title, "Alarm Clock");
 
@@ -512,7 +512,7 @@ static int Chooser_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
     attr.bounds.bottom = 400;
     attr.procID = 0;
     attr.visible = true;
-    attr.goAwayFlag = true;
+    attr.hasGoAway = true;
     attr.refCon = 0;
     strcpy(attr.title, "Chooser");
 

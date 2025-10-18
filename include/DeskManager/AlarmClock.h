@@ -26,24 +26,123 @@
 #define TIME_FORMAT_LENGTH      32          /* Time format string length */
 
 /* Time Display Modes */
+typedef enum {
+    TIME_MODE_12_HOUR = 0,
+    TIME_MODE_24_HOUR = 1
+} TimeDisplayMode;
 
 /* Date Display Modes */
+typedef enum {
+    DATE_MODE_MDY = 0,
+    DATE_MODE_DMY = 1,
+    DATE_MODE_YMD = 2,
+    DATE_MODE_LONG = 3
+} DateDisplayMode;
 
 /* Alarm Types */
+typedef enum {
+    ALARM_TYPE_ONCE = 0,
+    ALARM_TYPE_DAILY = 1,
+    ALARM_TYPE_WEEKLY = 2,
+    ALARM_TYPE_MONTHLY = 3,
+    ALARM_TYPE_YEARLY = 4
+} AlarmType;
 
 /* Alarm States */
+typedef enum {
+    ALARM_STATE_DISABLED = 0,
+    ALARM_STATE_ENABLED = 1,
+    ALARM_STATE_TRIGGERED = 2,
+    ALARM_STATE_SNOOZED = 3
+} AlarmState;
 
 /* Notification Types */
+typedef enum {
+    NOTIFY_SOUND = 0x01,
+    NOTIFY_DIALOG = 0x02,
+    NOTIFY_MENU_FLASH = 0x04
+} NotificationType;
 
 /* Time Structure */
+typedef struct AlarmTime {
+    UInt8 hour;
+    UInt8 minute;
+    UInt8 second;
+} AlarmTime;
 
 /* Date Structure */
+typedef struct AlarmDate {
+    UInt16 year;
+    UInt8 month;
+    UInt8 day;
+    UInt8 weekday;
+} AlarmDate;
 
 /* Date/Time Structure */
+typedef struct DateTime {
+    UInt16 year;
+    UInt8 month;
+    UInt8 day;
+    UInt8 hour;
+    UInt8 minute;
+    UInt8 second;
+    UInt8 millisecond;
+    UInt8 weekday;
+    SInt32 timestamp;
+    SInt16 timezone;
+    Boolean dstActive;
+} DateTime;
 
 /* Alarm Structure */
+typedef struct Alarm {
+    SInt16 id;
+    char name[ALARM_NAME_LENGTH];
+    AlarmType type;
+    AlarmState state;
+    DateTime triggerTime;
+    DateTime lastTriggered;
+    DateTime nextTrigger;
+    UInt32 notifyType;
+    char soundName[32];
+    SInt16 volume;
+    Boolean canSnooze;
+    SInt16 snoozeMinutes;
+    SInt16 maxSnoozes;
+    SInt32 triggerCount;
+    Boolean userCreated;
+    SInt32 timestamp;
+    struct Alarm *next;
+} Alarm;
 
 /* Alarm Clock State */
+typedef struct AlarmClock {
+    Rect windowBounds;
+    TimeDisplayMode timeMode;
+    DateDisplayMode dateMode;
+    Boolean showDate;
+    Boolean showSeconds;
+    Boolean blinkColon;
+    Boolean use24Hour;
+    Boolean showAMPM;
+    Boolean autoUpdate;
+    SInt16 updateInterval;
+    DateTime currentTime;
+    AlarmTime time;
+    AlarmDate date;
+    char timeString[32];
+    char dateString[32];
+    char timeFormat[TIME_FORMAT_LENGTH];
+    char dateFormat[TIME_FORMAT_LENGTH];
+    Boolean soundEnabled;
+    char defaultSound[32];
+    SInt16 defaultVolume;
+    Alarm *alarms;
+    SInt16 numAlarms;
+    SInt16 nextAlarmID;
+    Rect timeDisplayRect;
+    Rect dateDisplayRect;
+    Rect alarmIndicatorRect;
+} AlarmClock;
 
 /* Alarm Clock Functions */
 

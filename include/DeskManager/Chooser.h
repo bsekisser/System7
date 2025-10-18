@@ -28,20 +28,101 @@
 #define DRIVER_NAME_LENGTH      32          /* Maximum driver name length */
 
 /* Device Types */
+typedef enum {
+    DEVICE_TYPE_UNKNOWN = 0,
+    DEVICE_TYPE_PRINTER = 1,
+    DEVICE_TYPE_FILE_SERVER = 2,
+    DEVICE_TYPE_SHARED_DISK = 3,
+    DEVICE_TYPE_SCANNER = 4,
+    DEVICE_TYPE_FAX = 5,
+    DEVICE_TYPE_NETWORK = 6,
+    DEVICE_TYPE_SERIAL = 7,
+    DEVICE_TYPE_USB = 8
+} DeviceType;
 
 /* Connection Types */
+typedef enum {
+    CONNECTION_APPLETALK = 0,
+    CONNECTION_SERIAL = 1,
+    CONNECTION_PARALLEL = 2,
+    CONNECTION_USB = 3,
+    CONNECTION_ETHERNET = 4,
+    CONNECTION_WIRELESS = 5,
+    CONNECTION_BLUETOOTH = 6,
+    CONNECTION_LOCAL = 7
+} ConnectionType;
 
 /* Device States */
+typedef enum {
+    DEVICE_STATE_OFFLINE = 0,
+    DEVICE_STATE_AVAILABLE = 1,
+    DEVICE_STATE_BUSY = 2,
+    DEVICE_STATE_ERROR = 3
+} DeviceState;
 
 /* AppleTalk Zone */
+typedef struct ATZone {
+    char name[ZONE_NAME_LENGTH];
+    Boolean isDefault;
+    SInt16 deviceCount;
+    struct ATZone *next;
+} ATZone;
 
 /* Device Information */
+typedef struct DeviceInfo {
+    char name[DEVICE_NAME_LENGTH];
+    char type[DEVICE_NAME_LENGTH];
+    char driver[DRIVER_NAME_LENGTH];
+    DeviceType deviceType;
+    ConnectionType connectionType;
+    DeviceState state;
+    char zone[ZONE_NAME_LENGTH];
+    char address[DEVICE_NAME_LENGTH];
+    Boolean canPrint;
+    Boolean canShare;
+    Boolean supportsColor;
+    Boolean supportsDuplex;
+    char status[64];
+    SInt32 lastSeen;
+    Boolean isSelected;
+    SInt16 iconID;
+    Handle icon;
+    struct DeviceInfo *next;
+} DeviceInfo;
 
 /* Printer Information (extends DeviceInfo) */
 
-/* Chooser State */
-
 /* Device Discovery Callback */
+typedef int (*DeviceDiscoveryCallback)(DeviceInfo *device, void *context);
+
+/* Chooser State */
+typedef struct Chooser {
+    Rect windowBounds;
+    Rect deviceListRect;
+    Rect zoneListRect;
+    Rect deviceInfoRect;
+    DeviceInfo *devices;
+    ATZone *zones;
+    ATZone *currentZone;
+    DeviceInfo *selectedDevice;
+    SInt16 selectedDeviceIndex;
+    SInt16 selectedZoneIndex;
+    SInt16 deviceCount;
+    SInt16 zoneCount;
+    char lastSelectedPrinter[DEVICE_NAME_LENGTH];
+    char lastSelectedZone[ZONE_NAME_LENGTH];
+    Boolean appleTalkActive;
+    Boolean backgroundScan;
+    SInt16 scanInterval;
+    SInt32 lastScan;
+    Boolean autoSelect;
+    Boolean showOffline;
+    Boolean useBackground;
+    Boolean showZones;
+    Boolean showDetails;
+    DeviceDiscoveryCallback discoveryCallback;
+    void *callbackContext;
+} Chooser;
 
 /* Chooser Functions */
 

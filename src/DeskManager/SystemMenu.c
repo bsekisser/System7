@@ -376,7 +376,7 @@ static void SystemMenu_AddItem(MenuItem *item)
         g_systemMenu.firstItem = item;
         g_systemMenu.lastItem = item;
     } else {
-        (g_systemMenu)->next = item;
+        g_systemMenu.lastItem->next = item;
         g_systemMenu.lastItem = item;
     }
 

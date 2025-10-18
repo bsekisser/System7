@@ -28,20 +28,119 @@
 #include "SystemTypes.h"
 
 /* Calculator Modes */
+typedef enum {
+    CALC_MODE_BASIC = 0,
+    CALC_MODE_SCIENTIFIC = 1,
+    CALC_MODE_PROGRAMMER = 2
+} CalcMode;
 
 /* Calculator Number Bases */
+typedef enum {
+    CALC_BASE_DECIMAL = 10,
+    CALC_BASE_BINARY = 2,
+    CALC_BASE_OCTAL = 8,
+    CALC_BASE_HEXADECIMAL = 16
+} CalcBase;
 
 /* Calculator States */
+typedef enum {
+    CALC_STATE_ENTRY = 0,
+    CALC_STATE_OPERATION = 1,
+    CALC_STATE_RESULT = 2,
+    CALC_STATE_ERROR = 3
+} CalcState;
 
 /* Calculator Operations */
+typedef enum {
+    CALC_OP_NONE = 0,
+    CALC_OP_ADD = 1,
+    CALC_OP_SUBTRACT = 2,
+    CALC_OP_MULTIPLY = 3,
+    CALC_OP_DIVIDE = 4,
+    CALC_OP_EQUALS = 5,
+    CALC_OP_PERCENT = 6,
+    CALC_OP_NEGATE = 7,
+    CALC_OP_RECIPROCAL = 8,
+    CALC_OP_SQUARE = 9,
+    CALC_OP_SQRT = 10,
+    CALC_OP_SIN = 11,
+    CALC_OP_COS = 12,
+    CALC_OP_TAN = 13,
+    CALC_OP_LOG = 14,
+    CALC_OP_LN = 15,
+    CALC_OP_EXP = 16,
+    CALC_OP_XOR = 17,
+    CALC_OP_AND = 18,
+    CALC_OP_OR = 19,
+    CALC_OP_NOT = 20
+} CalcOperation;
 
 /* Calculator Button IDs (matching Mac OS Calculator) */
+typedef enum {
+    CALC_BTN_0 = 0,
+    CALC_BTN_1 = 1,
+    CALC_BTN_2 = 2,
+    CALC_BTN_3 = 3,
+    CALC_BTN_4 = 4,
+    CALC_BTN_5 = 5,
+    CALC_BTN_6 = 6,
+    CALC_BTN_7 = 7,
+    CALC_BTN_8 = 8,
+    CALC_BTN_9 = 9,
+    CALC_BTN_A = 10,
+    CALC_BTN_B = 11,
+    CALC_BTN_C = 12,
+    CALC_BTN_D = 13,
+    CALC_BTN_E = 14,
+    CALC_BTN_F = 15,
+    CALC_BTN_POINT = 16,
+    CALC_BTN_PLUS = 17,
+    CALC_BTN_MINUS = 18,
+    CALC_BTN_MULTIPLY = 19,
+    CALC_BTN_DIVIDE = 20,
+    CALC_BTN_EQUALS = 21,
+    CALC_BTN_PERCENT = 22,
+    CALC_BTN_NEGATE = 23,
+    CALC_BTN_CLEAR = 24,
+    CALC_BTN_CLEAR_ALL = 25
+} CalcButtonID;
 
 /* Calculator Number */
+typedef struct {
+    double value;
+    CalcBase base;
+    Boolean isInteger;
+} CalcNumber;
 
 /* Calculator History Entry */
+typedef struct {
+    CalcNumber operand1;
+    CalcNumber operand2;
+    CalcOperation operation;
+    CalcNumber result;
+} CalcHistoryEntry;
 
 /* Calculator State */
+typedef struct {
+    double value;
+    CalcBase base;
+    Boolean isInteger;
+    double memory[CALC_MEMORY_SLOTS];
+    char display[CALC_DISPLAY_DIGITS + 1];
+    int left, top, right, bottom;
+    CalcHistoryEntry *history;
+    int historyCount;
+    CalcMode mode;
+    CalcState state;
+    CalcOperation pendingOp;
+    Boolean newNumber;
+    Boolean decimalEntered;
+    Boolean angleRadians;
+    int precision;
+    int errorCode;
+    char errorMessage[256];
+    void *buttonRects;
+} Calculator;
 
 /* Calculator Functions */
 

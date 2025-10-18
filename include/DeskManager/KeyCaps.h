@@ -31,17 +31,75 @@
 #define KBD_LAYOUT_DVORAK       2           /* Dvorak layout */
 #define KBD_LAYOUT_CUSTOM       255         /* Custom layout */
 
-/* Key Types */
+/* Modifier Key Masks */
+typedef enum {
+    MOD_NONE = 0x0000,
+    MOD_SHIFT = 0x0001,
+    MOD_CONTROL = 0x0002,
+    MOD_OPTION = 0x0004,
+    MOD_COMMAND = 0x0008,
+    MOD_CAPS_LOCK = 0x0100
+} ModifierMask;
 
-/* Modifier Keys */
+/* Key Types */
+typedef enum {
+    KEY_TYPE_NORMAL = 0,
+    KEY_TYPE_MODIFIER = 1,
+    KEY_TYPE_FUNCTION = 2,
+    KEY_TYPE_DEADKEY = 3
+} KeyType;
 
 /* Key Information */
+typedef struct KeyInfo {
+    UInt8 scanCode;
+    KeyType type;
+    char label[32];
+    UInt16 baseChar;
+    UInt16 shiftChar;
+    UInt16 optionChar;
+    UInt16 shiftOptionChar;
+    Boolean isDeadKey;
+    Rect bounds;
+} KeyInfo;
 
 /* Keyboard Layout */
-
-/* Key Caps State */
+typedef struct KeyboardLayout {
+    char name[32];
+    UInt16 layoutID;
+    UInt8 scriptCode;
+    UInt8 languageCode;
+    SInt16 numKeys;
+    char fontName[32];
+    SInt16 fontSize;
+    KeyInfo keys[128];
+} KeyboardLayout;
 
 /* Character Information */
+typedef struct CharInfo {
+    UInt16 charCode;
+    char displayChar;
+    Boolean isDeadKey;
+    Boolean isPrintable;
+    UInt16 deadKeyCombinations[16];
+    SInt16 combinationCount;
+} CharInfo;
+
+/* Key Caps State */
+typedef struct KeyCaps {
+    Rect windowBounds;
+    KeyboardLayout *currentLayout;
+    ModifierMask modifiers;
+    ModifierMask stickyMods;
+    Boolean capsLockOn;
+    Boolean deadKeyActive;
+    UInt16 selectedChar;
+    Boolean showModifiers;
+    Boolean showCharInfo;
+    Boolean windowVisible;
+    Boolean insertMode;
+    Rect keyboardDisplayRect;
+    Rect charDisplayRect;
+} KeyCaps;
 
 /* Key Caps Functions */
 

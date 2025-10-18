@@ -28,6 +28,17 @@
 /* Desk Accessory Messages */
 
 /* Desk Accessory Types */
+#define DA_TYPE_CALCULATOR      1
+#define DA_TYPE_KEYCAPS         2
+#define DA_TYPE_ALARM           3
+#define DA_TYPE_CHOOSER         4
+#define DA_TYPE_NOTEPAD         5
+
+#define DA_RESID_CALCULATOR     4
+#define DA_RESID_KEYCAPS        11
+#define DA_RESID_ALARM          15
+#define DA_RESID_CHOOSER        7
+#define DA_RESID_NOTEPAD        5
 
 /* Desk Accessory States */
 

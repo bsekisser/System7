@@ -36,7 +36,26 @@
 #define MENU_PASTE              5
 #define MENU_CLEAR              6
 
+/* Notepad File Header Structure */
+typedef struct NotePadFileHeader {
+    UInt32 signature;
+    UInt16 version;
+    UInt16 pageCount;
+    UInt16 currentPage;
+} NotePadFileHeader;
+
 /* Notepad Global Data Structure */
+typedef struct NotePadGlobals {
+    WindowPtr window;
+    TEHandle teRecord;
+    Handle pageData[NOTEPAD_MAX_PAGES];
+    short currentPage;
+    short totalPages;
+    Boolean isDirty;
+    short fileRefNum;
+    SInt16 systemFolderVRefNum;
+    SInt32 systemFolderDirID;
+} NotePadGlobals;
 
 /* File Header Structure */
 
