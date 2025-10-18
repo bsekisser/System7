@@ -156,6 +156,14 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
                 validPart = true;
             }
             break;
+        case inGrow:
+            /* Check if window has grow box (resize capability) */
+            extern Boolean WM_WindowHasGrowBox(WindowPtr window);
+            if (WM_WindowHasGrowBox(theWindow)) {
+                Platform_GetWindowGrowBoxRect(theWindow, &partRect);
+                validPart = true;
+            }
+            break;
         default:
             WM_DEBUG("TrackBox: Invalid part code %d", partCode);
             return false;
