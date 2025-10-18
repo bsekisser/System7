@@ -8,6 +8,7 @@
 #include "MemoryMgr/MemoryManager.h"
 #include "FontManager/FontManager.h"
 #include "QuickDraw/QuickDraw.h"
+#include "EventManager/EventManager.h"
 #include <string.h>
 #include "TextEdit/TELogging.h"
 
@@ -346,7 +347,32 @@ void TEIdle(TEHandle hTE) {
 
     /* Handle autoscroll during drag selection */
     if (pTE->inDragSel) {
-        /* TODO: Implement autoscroll */
+        Point mousePt;
+        Rect viewRect = pTE->base.viewRect;
+        SInt16 autoscrollDistance = 4;  /* Pixels per autoscroll */
+
+        GetMouse(&mousePt);
+
+        /* Check if mouse is near view edges - autoscroll if so */
+        if (mousePt.h < viewRect.left + 16) {
+            /* Near left edge - scroll left */
+            TEScroll(-autoscrollDistance, 0, hTE);
+            TED_LOG("TEIdle: autoscroll left\n");
+        } else if (mousePt.h > viewRect.right - 16) {
+            /* Near right edge - scroll right */
+            TEScroll(autoscrollDistance, 0, hTE);
+            TED_LOG("TEIdle: autoscroll right\n");
+        }
+
+        if (mousePt.v < viewRect.top + 16) {
+            /* Near top edge - scroll up */
+            TEScroll(0, -autoscrollDistance, hTE);
+            TED_LOG("TEIdle: autoscroll up\n");
+        } else if (mousePt.v > viewRect.bottom - 16) {
+            /* Near bottom edge - scroll down */
+            TEScroll(0, autoscrollDistance, hTE);
+            TED_LOG("TEIdle: autoscroll down\n");
+        }
     }
 
     HUnlock((Handle)hTE);

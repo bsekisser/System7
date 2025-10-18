@@ -17,6 +17,7 @@
 #include "FontManager/FontManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "WindowManager/WindowManager.h"
+#include "FileManager.h"
 #include "TextEdit/TELogging.h"
 
 /* Boolean constants */
@@ -790,38 +791,80 @@ void TextEdit_LoadFile(const char* path) {
     SelectWindow(g_textEditWindow);
     SetPort((GrafPtr)g_textEditWindow);
 
-    /* For now, show sample text based on filename */
-    /* TODO: Use VFS to actually load file contents */
-    if (strstr(path, "Read Me") || strstr(path, "readme")) {
-        sampleText = "Welcome to System 7.1!\r\r"
-                    "This is a minimal implementation of a classic Mac OS-style system.\r\r"
-                    "Features:\r"
-                    "- Window Manager with draggable, resizable windows\r"
-                    "- Finder with desktop icons and folder navigation\r"
-                    "- TextEdit API for text editing\r"
-                    "- SimpleText application for viewing text files\r\r"
-                    "Double-click icons to open them.\r"
-                    "Drag windows by their title bars.\r"
-                    "Close windows with the close box.";
-    } else if (strstr(path, "About")) {
-        sampleText = "About This Macintosh\r\r"
-                    "System 7.1 Compatible OS\r"
-                    "Version 0.1\r\r"
-                    "Memory: 4MB\r"
-                    "Processor: x86\r\r"
-                    "This system implements a subset of the\r"
-                    "classic Macintosh Toolbox APIs.";
-    } else {
-        sampleText = "SimpleText\r\r"
-                    "This is a simple text editor that uses the TextEdit API.\r\r"
-                    "File: ";
-        snprintf(buffer, sizeof(buffer), "%s%s\r\r(File loading from VFS not yet implemented)", sampleText, path);
-        TESetText(buffer, strlen(buffer), g_appTE);
-        goto update_title;
-    }
+    /* Attempt to load file from VFS */
+    {
+        Handle fileBuffer = NULL;
+        UInt32 fileSize = 0;
+        Str255 pathPascal;
+        FileRefNum refNum = -1;
+        OSErr err;
+        UInt32 bytesRead;
 
-    /* Set the text */
-    TESetText(sampleText, strlen(sampleText), g_appTE);
+        /* Convert C string path to Pascal string for file system */
+        size_t pathLen = strlen(path);
+        if (pathLen > 255) pathLen = 255;
+        pathPascal[0] = (unsigned char)pathLen;
+        memcpy(&pathPascal[1], path, pathLen);
+
+        /* Try to open the file */
+        err = FSOpen(pathPascal, 0, &refNum);
+        if (err == noErr && refNum >= 0) {
+            /* Get file size */
+            err = FSGetEOF(refNum, &fileSize);
+            if (err == noErr && fileSize > 0 && fileSize < 1000000) {  /* Max 1MB text files */
+                /* Allocate buffer for file content */
+                fileBuffer = NewHandle(fileSize);
+                if (fileBuffer) {
+                    HLock(fileBuffer);
+                    bytesRead = fileSize;
+                    err = FSRead(refNum, &bytesRead, *fileBuffer);
+                    HUnlock(fileBuffer);
+
+                    if (err == noErr && bytesRead > 0) {
+                        /* Successfully read file - set as text */
+                        TESetText(*fileBuffer, bytesRead, g_appTE);
+                        DisposeHandle(fileBuffer);
+                        FSClose(refNum);
+                        TE_LOG("TextEdit_LoadFile: Loaded %lu bytes from %s\n", bytesRead, path);
+                        goto update_title;
+                    }
+                    DisposeHandle(fileBuffer);
+                }
+            }
+            FSClose(refNum);
+        }
+
+        /* If file loading failed, show sample text or error message */
+        if (strstr(path, "Read Me") || strstr(path, "readme")) {
+            sampleText = "Welcome to System 7.1!\r\r"
+                        "This is a minimal implementation of a classic Mac OS-style system.\r\r"
+                        "Features:\r"
+                        "- Window Manager with draggable, resizable windows\r"
+                        "- Finder with desktop icons and folder navigation\r"
+                        "- TextEdit API for text editing\r"
+                        "- SimpleText application for viewing text files\r\r"
+                        "Double-click icons to open them.\r"
+                        "Drag windows by their title bars.\r"
+                        "Close windows with the close box.";
+        } else if (strstr(path, "About")) {
+            sampleText = "About This Macintosh\r\r"
+                        "System 7.1 Compatible OS\r"
+                        "Version 0.1\r\r"
+                        "Memory: 4MB\r"
+                        "Processor: x86\r\r"
+                        "This system implements a subset of the\r"
+                        "classic Macintosh Toolbox APIs.";
+        } else {
+            snprintf(buffer, sizeof(buffer), "SimpleText\r\r"
+                    "Could not load file: %s\r\r"
+                    "The file may not exist, or there was an error reading it.", path);
+            TESetText(buffer, strlen(buffer), g_appTE);
+            goto update_title;
+        }
+
+        /* Set the sample text */
+        TESetText(sampleText, strlen(sampleText), g_appTE);
+    }
 
 update_title:
     /* Update window title with filename */
