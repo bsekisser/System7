@@ -19,6 +19,14 @@
 #include "MenuManager/MenuTypes.h"
 #include "MenuManager/MenuLogging.h"
 
+/* Extern declarations for menu item metadata functions */
+extern void SetItemCmd(MenuHandle theMenu, short item, short cmdChar);
+extern void SetItemMark(MenuHandle theMenu, short item, short markChar);
+extern void SetItemStyle(MenuHandle theMenu, short item, short chStyle);
+extern void DisableItem(MenuHandle theMenu, short item);
+extern void SetItemSubmenu(MenuHandle theMenu, short item, short submenuID);
+extern short CountMItems(MenuHandle theMenu);
+
 /* ===== MENU Resource Parser ===== */
 
 /*
@@ -36,7 +44,8 @@
 static void ParseMenuItemString(const uint8_t* itemData, uint8_t itemLen,
                                  uint8_t* outText, uint8_t* outTextLen,
                                  uint8_t* outCmdChar, uint8_t* outMark,
-                                 uint8_t* outStyle, Boolean* outDisabled)
+                                 uint8_t* outStyle, Boolean* outDisabled,
+                                 Boolean* outIsSubmenu)
 {
     if (!itemData || itemLen == 0) {
         if (outTextLen) *outTextLen = 0;
@@ -51,6 +60,7 @@ static void ParseMenuItemString(const uint8_t* itemData, uint8_t itemLen,
     if (outMark) *outMark = 0;
     if (outStyle) *outStyle = 0;
     if (outDisabled) *outDisabled = false;
+    if (outIsSubmenu) *outIsSubmenu = false;
 
     /* Parse item for special codes */
     while (pos < itemLen) {
@@ -110,7 +120,8 @@ static void ParseMenuItemString(const uint8_t* itemData, uint8_t itemLen,
         }
 
         if (ch == '>') {
-            /* Submenu indicator - skip for now */
+            /* Submenu indicator - mark as submenu item */
+            if (outIsSubmenu) *outIsSubmenu = true;
             pos++;
             continue;
         }
@@ -204,20 +215,53 @@ MenuHandle ParseMENUResource(Handle resourceHandle)
         uint8_t itemTextLen = 0;
         uint8_t cmdChar = 0, markChar = 0, style = 0;
         Boolean disabled = false;
+        Boolean isSubmenu = false;
 
         ParseMenuItemString(&data[itemOffset + 1], itemLen,
                             itemText, &itemTextLen,
-                            &cmdChar, &markChar, &style, &disabled);
+                            &cmdChar, &markChar, &style, &disabled, &isSubmenu);
 
         /* Create Pascal string for AppendMenu */
         Str255 itemPascal;
         itemPascal[0] = itemTextLen;
         memcpy(&itemPascal[1], itemText, itemTextLen);
 
-        /* Append to menu - simplified, just append text */
+        /* Append to menu */
         AppendMenu(theMenu, itemPascal);
 
-        /* TODO: Store command key, mark, and style in menu item extended data */
+        /* Get the item number (1-based index of newly added item) */
+        short itemNum = CountMItems(theMenu);
+
+        /* Store command key if present */
+        if (cmdChar != 0) {
+            SetItemCmd(theMenu, itemNum, (short)cmdChar);
+            MENU_LOG_DEBUG("ParseMENUResource: Item %d cmd key = 0x%02X\n", itemNum, cmdChar);
+        }
+
+        /* Store mark character if present */
+        if (markChar != 0) {
+            SetItemMark(theMenu, itemNum, (short)markChar);
+            MENU_LOG_DEBUG("ParseMENUResource: Item %d mark = 0x%02X\n", itemNum, markChar);
+        }
+
+        /* Store text style if present */
+        if (style != 0) {
+            SetItemStyle(theMenu, itemNum, (short)style);
+            MENU_LOG_DEBUG("ParseMENUResource: Item %d style = 0x%02X\n", itemNum, style);
+        }
+
+        /* Disable item if marked as disabled */
+        if (disabled) {
+            DisableItem(theMenu, itemNum);
+            MENU_LOG_DEBUG("ParseMENUResource: Item %d disabled\n", itemNum);
+        }
+
+        /* Mark as submenu item if it has submenu indicator */
+        if (isSubmenu) {
+            /* Set submenuID to 0 initially - will be set by application if needed */
+            SetItemSubmenu(theMenu, itemNum, 0);
+            MENU_LOG_DEBUG("ParseMENUResource: Item %d is submenu marker\n", itemNum);
+        }
 
         itemOffset += itemLen + 1;
     }

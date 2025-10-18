@@ -39,6 +39,7 @@ typedef struct MenuItemRec {
     short iconID;      /* Icon ID (0 = none) */
     Style style;       /* Text style (bold, italic, etc.) */
     short isSeparator; /* 1 if separator item */
+    short submenuID;   /* Submenu ID (0 = none, otherwise MENU resource ID) */
 } MenuItemRec;
 
 /* Extended menu data - attached to menu handle */
@@ -208,6 +209,7 @@ void AppendMenu(MenuHandle menu, ConstStr255Param data) {
                 item->mark = 0;
                 item->iconID = 0;
                 item->style = normal;
+                item->submenuID = 0;
 
                 extData->itemCount++;
 
@@ -265,6 +267,7 @@ void InsertMenuItem(MenuHandle theMenu, ConstStr255Param itemString, short after
     item->mark = 0;
     item->iconID = 0;
     item->style = normal;
+    item->submenuID = 0;
 
     extData->itemCount++;
 
@@ -595,6 +598,42 @@ void GetItemStyle(MenuHandle theMenu, short item, Style* chStyle) {
     *chStyle = extData->items[item - 1].style;
 }
 
+/*
+ * SetItemSubmenu - Set item submenu ID
+ */
+void SetItemSubmenu(MenuHandle theMenu, short item, short submenuID) {
+    MenuExtData* extData;
+
+    if (!theMenu || item < 1) return;
+
+    extData = GetMenuExtData(theMenu);
+    if (!extData || item > extData->itemCount) return;
+
+    extData->items[item - 1].submenuID = submenuID;
+
+    MENU_LOG_TRACE("SetItemSubmenu: item %d submenu=%d\n", item, submenuID);
+}
+
+/*
+ * GetItemSubmenu - Get item submenu ID
+ */
+void GetItemSubmenu(MenuHandle theMenu, short item, short* submenuID) {
+    MenuExtData* extData;
+
+    if (!theMenu || !submenuID || item < 1) {
+        if (submenuID) *submenuID = 0;
+        return;
+    }
+
+    extData = GetMenuExtData(theMenu);
+    if (!extData || item > extData->itemCount) {
+        *submenuID = 0;
+        return;
+    }
+
+    *submenuID = extData->items[item - 1].submenuID;
+}
+
 /* ============================================================================
  * Menu Item Query Functions - For MDEF
  * ============================================================================ */
@@ -639,6 +678,20 @@ char GetMenuItemCmdKey(MenuHandle theMenu, short item) {
     if (!extData || item > extData->itemCount) return 0;
 
     return extData->items[item - 1].cmdKey;
+}
+
+/*
+ * GetMenuItemSubmenu - Get item submenu ID (for hierarchical menus)
+ */
+short GetMenuItemSubmenu(MenuHandle theMenu, short item) {
+    MenuExtData* extData;
+
+    if (!theMenu || item < 1) return 0;
+
+    extData = GetMenuExtData(theMenu);
+    if (!extData || item > extData->itemCount) return 0;
+
+    return extData->items[item - 1].submenuID;
 }
 
 /* ============================================================================
