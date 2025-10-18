@@ -649,8 +649,11 @@ long TrackMenu(short menuID, Point *startPt) {
     /* Classic Mac-style tracking loop with event pumping */
     /* Track while button is held down - this is the System 7 behavior */
     /* Initially, wait for button release from the initial click */
+    /* ADD SAFETY TIMEOUT: Prevent infinite loop if Button() never returns false */
     int releaseWaitCount = 0;
-    while (Button()) {
+    const int MAX_RELEASE_WAIT = 100000;  /* Safety limit: ~1 second at typical loop rate */
+
+    while (Button() && releaseWaitCount < MAX_RELEASE_WAIT) {
         SystemTask();          /* House-keeping */
         EventPumpYield();      /* Platform's input pump */
         releaseWaitCount++;
@@ -658,7 +661,12 @@ long TrackMenu(short menuID, Point *startPt) {
             MENU_LOG_TRACE("TrackMenu: Waiting for initial release, count=%d\n", releaseWaitCount);
         }
     }
-    MENU_LOG_TRACE("TrackMenu: Initial button release detected after %d iterations\n", releaseWaitCount);
+
+    if (releaseWaitCount >= MAX_RELEASE_WAIT) {
+        MENU_LOG_WARN("TrackMenu: Initial button release timeout! Escaped loop after %d iterations\n", releaseWaitCount);
+    } else {
+        MENU_LOG_TRACE("TrackMenu: Initial button release detected after %d iterations\n", releaseWaitCount);
+    }
 
     /* Add a small debounce delay after release */
     {
@@ -668,11 +676,13 @@ long TrackMenu(short menuID, Point *startPt) {
     serial_puts("TrackMenu: Debounce complete, starting tracking\n");
 
     /* Now track until button is pressed again (user selects or cancels) */
+    /* ADD SAFETY TIMEOUT: Prevent infinite tracking loop */
     Boolean tracking = true;
     int updateCount = 0;
     int buttonCheckCount = 0;
+    const int MAX_TRACKING_UPDATES = 500000;  /* Safety limit: ~5 seconds at typical loop rate */
 
-    while (tracking) {
+    while (tracking && updateCount < MAX_TRACKING_UPDATES) {
         /* Pump events for responsive UI */
         SystemTask();          /* House-keeping tasks */
         EventPumpYield();      /* Platform's input pump */
@@ -713,6 +723,10 @@ long TrackMenu(short menuID, Point *startPt) {
         if (updateCount % 100 == 0) {
             MENU_LOG_TRACE("TrackMenu: Still tracking, update %d\n", updateCount);
         }
+    }
+
+    if (updateCount >= MAX_TRACKING_UPDATES) {
+        MENU_LOG_WARN("TrackMenu: Tracking timeout! Escaped loop after %d updates\n", updateCount);
     }
 
     serial_puts("TrackMenu: Mouse released\n");

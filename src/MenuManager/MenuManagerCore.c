@@ -473,44 +473,17 @@ void DrawMenuBar(void)
                         ForeColor(blackColor);  /* Ensure black text */
                         MoveTo(x + 4, 14);  /* Shifted right 4px and down 1px */
 
-                        /* TEMPORARY FIX: Use hardcoded menu titles based on menu ID */
-                        const char* hardcodedTitle = NULL;
-                        Str255 titlePascal;
-                        if (mptr->menuID == 129) {
-                            hardcodedTitle = "File";
-                            titleLen = 4;
-                        } else if (mptr->menuID == 130) {
-                            hardcodedTitle = "Edit";
-                            titleLen = 4;
-                        } else if (mptr->menuID == 131) {
-                            hardcodedTitle = "View";
-                            titleLen = 4;
-                        } else if (mptr->menuID == 132) {
-                            hardcodedTitle = "Label";
-                            titleLen = 5;
-                        } else if (mptr->menuID == 133) {
-                            hardcodedTitle = "Special";
-                            titleLen = 7;
-                        }
+                        /* Use actual menu data for title, not hardcoded values */
+                        /* This allows custom menus to display their own titles */
+                        MENU_LOG_DEBUG("DrawMenuBar: Drawing menu ID %d, title len=%d\n", mptr->menuID, titleLen);
 
-                        if (hardcodedTitle) {
-                            MENU_LOG_DEBUG("DrawMenuBar: Drawing hardcoded title '%s' len=%d\n", hardcodedTitle, titleLen);
-                            titlePascal[0] = (unsigned char)titleLen;
-                            memcpy(&titlePascal[1], hardcodedTitle, titleLen);
-                            DrawText(&titlePascal[1], 0, titleLen);
-                            menuWidth = StringWidth(titlePascal) + 20;
-                            memcpy(titleText, &titlePascal[1], titleLen);
-                            titleText[titleLen] = '\0';
-                        } else {
-                            /* Fall back to menu data if not a known menu */
-                            serial_puts("DrawMenuBar: Drawing from menu data\n");
-                            DrawText((char*)&(**menu).menuData[1], 0, titleLen);
-                            menuWidth = StringWidth((ConstStr255Param)(**menu).menuData) + 20;
-                            memcpy(titleText, &(**menu).menuData[1], titleLen);
-                            titleText[titleLen] = '\0';
-                        }
+                        /* Draw title from menu data */
+                        DrawText((char*)&(**menu).menuData[1], 0, titleLen);
+                        menuWidth = StringWidth((ConstStr255Param)(**menu).menuData) + 20;
+                        memcpy(titleText, &(**menu).menuData[1], titleLen);
+                        titleText[titleLen] = '\0';
 
-                        serial_puts("DrawMenuBar: DrawText returned\n");
+                        MENU_LOG_TRACE("DrawMenuBar: Drew title '%.*s' for menu ID %d\n", titleLen, titleText, mptr->menuID);
                         AddMenuTitle(mptr->menuID, x, menuWidth, titleText);
                         x += menuWidth;
                     }
@@ -744,12 +717,16 @@ void InsertMenu(MenuHandle theMenu, short beforeID)
         }
     }
 
-    /* Expand menu list */
+    /* Expand menu list - fix potential memory leak */
     size_t newSize = sizeof(MenuBarList) + (menuBar->numMenus) * sizeof(MenuListEntry);
-    gMenuList = (Handle)realloc(gMenuList, newSize);
-    if (gMenuList == NULL) {
+    Handle newMenuList = (Handle)realloc(gMenuList, newSize);
+    if (newMenuList == NULL) {
+        /* realloc failed, old gMenuList still valid - return without freeing */
+        MENU_LOG_ERROR("InsertMenu: realloc failed for size %zu\n", newSize);
         return;
     }
+    /* Realloc succeeded, update pointer */
+    gMenuList = newMenuList;
     menuBar = (MenuBarList*)gMenuList;
     if (gMenuMgrState) {
         gMenuMgrState->menuBar = gMenuList;
