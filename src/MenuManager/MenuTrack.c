@@ -65,15 +65,6 @@ extern uint32_t fb_pitch;
 extern void SetRect(Rect* rect, short left, short top, short right, short bottom);
 extern void InvalRect(const Rect* rect);
 
-/* --- Safe strcpy (avoids missing symbol) --- */
-static void simple_strcpy(char* dst, const char* src) {
-    if (!dst || !src) return;
-    while (*src) {
-        *dst++ = *src++;
-    }
-    *dst = 0;
-}
-
 /* Draw filled rectangle */
 static void DrawMenuRect(short left, short top, short right, short bottom, uint32_t color) {
     if (!framebuffer) return;
@@ -157,49 +148,6 @@ static void DrawMenuOld(MenuHandle theMenu, short left, short top, short itemCou
 
     /* Restore original port */
     if (savePort) SetPort(savePort);
-}
-
-/* Simple cursor drawing - arrow pointer */
-static void DrawCursor(short x, short y) {
-    if (!framebuffer) return;
-
-    uint32_t *fb = (uint32_t*)framebuffer;
-    int pitch = fb_pitch / 4;
-
-    /* Simple arrow cursor pattern (11x16) */
-    static const char arrow[16][11] = {
-        {1,0,0,0,0,0,0,0,0,0,0},
-        {1,1,0,0,0,0,0,0,0,0,0},
-        {1,2,1,0,0,0,0,0,0,0,0},
-        {1,2,2,1,0,0,0,0,0,0,0},
-        {1,2,2,2,1,0,0,0,0,0,0},
-        {1,2,2,2,2,1,0,0,0,0,0},
-        {1,2,2,2,2,2,1,0,0,0,0},
-        {1,2,2,2,2,2,2,1,0,0,0},
-        {1,2,2,2,2,2,2,2,1,0,0},
-        {1,2,2,2,2,1,1,1,1,1,0},
-        {1,2,2,1,2,1,0,0,0,0,0},
-        {1,2,1,0,1,2,1,0,0,0,0},
-        {1,1,0,0,1,2,1,0,0,0,0},
-        {1,0,0,0,0,1,2,1,0,0,0},
-        {0,0,0,0,0,1,2,1,0,0,0},
-        {0,0,0,0,0,0,1,1,0,0,0}
-    };
-
-    /* Draw arrow */
-    for (int row = 0; row < 16; row++) {
-        for (int col = 0; col < 11; col++) {
-            int px = x + col;
-            int py = y + row;
-            if (px >= 0 && px < (int)fb_width && py >= 0 && py < (int)fb_height) {
-                if (arrow[row][col] == 1) {
-                    fb[py * pitch + px] = 0xFF000000; /* Black outline */
-                } else if (arrow[row][col] == 2) {
-                    fb[py * pitch + px] = 0xFFFFFFFF; /* White fill */
-                }
-            }
-        }
-    }
 }
 
 /* Begin tracking a menu - draws it and sets up state */
@@ -484,7 +432,6 @@ long EndMenuTrackingNew(void) {
     }
 
     /* Clear tracking state */
-    short wasMenuID = g_menuTrackState.menuID;
     g_menuTrackState.isTracking = false;
     g_menuTrackState.activeMenu = NULL;
     g_menuTrackState.highlightedItem = 0;
@@ -917,12 +864,11 @@ void DrawMenuBarWithHighlight(short highlightMenuID) {
 
     /* Redraw the title text in white */
     const char* titleText = "";
-    short titleLen = 0;
-    if (highlightMenuID == 129) { titleText = "File"; titleLen = 4; }
-    else if (highlightMenuID == 130) { titleText = "Edit"; titleLen = 4; }
-    else if (highlightMenuID == 131) { titleText = "View"; titleLen = 4; }
-    else if (highlightMenuID == 132) { titleText = "Label"; titleLen = 5; }
-    else if (highlightMenuID == 133) { titleText = "Special"; titleLen = 7; }
+    if (highlightMenuID == 129) { titleText = "File"; }
+    else if (highlightMenuID == 130) { titleText = "Edit"; }
+    else if (highlightMenuID == 131) { titleText = "View"; }
+    else if (highlightMenuID == 132) { titleText = "Label"; }
+    else if (highlightMenuID == 133) { titleText = "Special"; }
 
     if (highlightMenuID != 128) {  /* Not Apple menu - draw text */
         DrawInvertedText(titleText, titleX + 4, 14, true);
