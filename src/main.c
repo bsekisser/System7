@@ -767,6 +767,10 @@ static void init_system71(void) {
         extern OSErr ExtensionManager_Initialize(void);
         extern SInt16 ExtensionManager_ScanForExtensions(Boolean rescan);
         extern OSErr ExtensionManager_LoadAllExtensions(void);
+        extern OSErr CDEFLoader_Initialize(void);
+        extern SInt16 CDEFLoader_LoadAllCDEFs(void);
+        extern OSErr ControlPanelManager_Initialize(void);
+        extern SInt16 ControlPanelManager_ScanForControlPanels(Boolean rescan);
 
         OSErr extErr = ExtensionManager_Initialize();
         if (extErr == noErr) {
@@ -791,6 +795,38 @@ static void init_system71(void) {
             }
         } else {
             serial_printf("  WARNING: Extension Manager initialization failed with error %d\n", extErr);
+        }
+
+        /* CDEF Loader - loads Control Definition resources */
+        extErr = CDEFLoader_Initialize();
+        if (extErr == noErr) {
+            serial_puts("  CDEF Loader initialized\n");
+
+            /* Load all CDEF resources */
+            SInt16 cdefLoaded = CDEFLoader_LoadAllCDEFs();
+            if (cdefLoaded > 0) {
+                serial_printf("  Loaded %d CDEF resources\n", cdefLoaded);
+            } else {
+                serial_puts("  No CDEF resources found\n");
+            }
+        } else {
+            serial_printf("  WARNING: CDEF Loader initialization failed with error %d\n", extErr);
+        }
+
+        /* Control Panel Manager - discovers and manages control panels */
+        extErr = ControlPanelManager_Initialize();
+        if (extErr == noErr) {
+            serial_puts("  Control Panel Manager initialized\n");
+
+            /* Scan for control panel resources */
+            SInt16 cpanels = ControlPanelManager_ScanForControlPanels(false);
+            if (cpanels > 0) {
+                serial_printf("  Found %d control panels\n", cpanels);
+            } else {
+                serial_puts("  No control panels found\n");
+            }
+        } else {
+            serial_printf("  WARNING: Control Panel Manager initialization failed with error %d\n", extErr);
         }
     }
 #endif
