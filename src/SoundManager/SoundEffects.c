@@ -36,7 +36,7 @@ static const SoundEffectDataEntry kSoundEffectTable[kSoundEffectCount] = {
         BOOT_CHIME_SAMPLE_RATE,
         BOOT_CHIME_CHANNELS,
         BOOT_CHIME_BITS_PER_SAMPLE,
-        880, 500
+        0, 0  /* No fallback beep for startup chime - keep chime sound only */
     },
     [kSoundEffectBeep] = EFFECT_ENTRY(gSosumiPCM, SOUND_SOSUMI_SAMPLE_RATE, SOUND_SOSUMI_CHANNELS,
                                       SOUND_SOSUMI_BITS_PER_SAMPLE, SOUND_SOSUMI_DATA_SIZE,
