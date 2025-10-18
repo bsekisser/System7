@@ -201,7 +201,7 @@ static OSErr SetupMenus(void)
     AppendMenu(gAppleMenu, "\002(-");
     AppendMenu(gAppleMenu, "\011Shut Down");
 
-    /* File Menu - Evidence: "Get Info", "Find", "Find Again" */
+    /* File Menu - Finder specific (System 7.1) */
     static unsigned char fileTitle[] = {4, 'F', 'i', 'l', 'e'};  /* Pascal string: "File" */
     gFileMenu = NewMenu(129, fileTitle);
     AppendMenu(gFileMenu, "\015New Folder/N");
@@ -217,9 +217,6 @@ static OSErr SetupMenus(void)
     AppendMenu(gFileMenu, "\002(-");
     AppendMenu(gFileMenu, "\011Find.../F");
     AppendMenu(gFileMenu, "\015Find Again/G");
-    AppendMenu(gFileMenu, "\002(-");
-    AppendMenu(gFileMenu, "\023[Test] Open File...");
-    AppendMenu(gFileMenu, "\023[Test] Save File...");
 
     /* Edit Menu */
     static unsigned char editTitle[] = {4, 'E', 'd', 'i', 't'};  /* Pascal string: "Edit" */

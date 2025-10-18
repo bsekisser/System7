@@ -48,12 +48,9 @@ const RGBColor kRGBMagenta = {65535, 0, 65535};
 const RGBColor kRGBYellow = {65535, 65535, 0};
 
 /* Forward declarations */
-static PixMapHandle CreatePixMap(SInt16 width, SInt16 height, SInt16 depth);
-static CTabHandle CreateColorTable(SInt16 numColors);
 static void InitializeDevice(GDHandle device, SInt16 depth);
 static RGBColor IndexToRGB(SInt32 index);
 static SInt32 RGBToIndex(const RGBColor *color);
-static void UpdateColorTable(CTabHandle cTable);
 
 /* ================================================================
  * COLOR QUICKDRAW INITIALIZATION
@@ -722,4 +719,196 @@ void FillCRgn(RgnHandle rgn, PixPatHandle pp) {
     assert(rgn != NULL);
     assert(pp != NULL);
     FillRgn(rgn, &(*pp)->pat1Data);
+}
+
+/* GWorld functions are implemented in GWorld.c */
+
+/* ================================================================
+ * MISSING COLOR OPERATIONS
+ * ================================================================ */
+
+void FillCArc(const Rect *r, SInt16 startAngle, SInt16 arcAngle,
+              PixPatHandle pp) {
+    assert(g_currentCPort != NULL);
+    assert(r != NULL);
+    assert(pp != NULL);
+    /* Use regular FillArc with pattern from PixPat */
+    FillArc(r, startAngle, arcAngle, &(*pp)->pat1Data);
+}
+
+void FillCRoundRect(const Rect *r, SInt16 ovalWidth, SInt16 ovalHeight,
+                    PixPatHandle pp) {
+    assert(g_currentCPort != NULL);
+    assert(r != NULL);
+    assert(pp != NULL);
+    FillRoundRect(r, ovalWidth, ovalHeight, &(*pp)->pat1Data);
+}
+
+void FillCPoly(PolyHandle poly, PixPatHandle pp) {
+    assert(g_currentCPort != NULL);
+    assert(poly != NULL);
+    assert(pp != NULL);
+    FillPoly(poly, &(*pp)->pat1Data);
+}
+
+void SeedCFill(const BitMap *srcBits, const BitMap *dstBits,
+               const Rect *srcRect, const Rect *dstRect,
+               SInt16 seedH, SInt16 seedV,
+               ColorSearchProcPtr matchProc, SInt32 matchData) {
+    /* Placeholder for color-based seed fill */
+    /* Would need to implement color matching logic */
+}
+
+void CalcCMask(const BitMap *srcBits, const BitMap *dstBits,
+               const Rect *srcRect, const Rect *dstRect,
+               const RGBColor *seedRGB, ColorSearchProcPtr matchProc,
+               SInt32 matchData) {
+    /* Placeholder for color mask calculation */
+}
+
+PicHandle OpenCPicture(const OpenCPicParams *newHeader) {
+    /* Create a new picture handle */
+    PicHandle pic = (PicHandle)malloc(sizeof(Handle));
+    if (!pic) {
+        return NULL;
+    }
+
+    /* Initialize picture data */
+    Picture *picData = (Picture *)malloc(sizeof(Picture));
+    if (!picData) {
+        free(pic);
+        return NULL;
+    }
+
+    memset(picData, 0, sizeof(Picture));
+    *pic = picData;
+
+    return pic;
+}
+
+void OpColor(const RGBColor *color) {
+    if (color) {
+        /* Record color operation in current picture */
+        if (g_currentCPort && g_currentCPort->picSave) {
+            /* Would append color opcode to picture */
+        }
+    }
+}
+
+void HiliteColor(const RGBColor *color) {
+    if (color) {
+        /* Set highlight color (typically used in pictures) */
+        /* For now, just store it locally if needed */
+        /* In future, this would set hilite color for painting/selection */
+    }
+}
+
+/* Resource management and cursor operations (stubs) */
+
+CCrsrHandle GetCCursor(SInt16 crsrID) {
+    /* Placeholder for loading color cursor from resources */
+    return NULL;
+}
+
+void SetCCursor(CCrsrHandle cCrsr) {
+    /* Placeholder for setting color cursor */
+}
+
+void AllocCursor(void) {
+    /* Placeholder for allocating cursor */
+}
+
+void DisposeCCursor(CCrsrHandle cCrsr) {
+    if (cCrsr) {
+        free(cCrsr);
+    }
+}
+
+CIconHandle GetCIcon(SInt16 iconID) {
+    /* Placeholder for loading color icon from resources */
+    return NULL;
+}
+
+void PlotCIcon(const Rect *theRect, CIconHandle theIcon) {
+    if (theRect && theIcon) {
+        /* Placeholder for plotting color icon */
+    }
+}
+
+void DisposeCIcon(CIconHandle theIcon) {
+    if (theIcon) {
+        free(theIcon);
+    }
+}
+
+void SetStdCProcs(CQDProcs *procs) {
+    /* Placeholder for setting standard color QuickDraw procedures */
+}
+
+GDHandle GetMaxDevice(const Rect *globalRect) {
+    /* Return main device for now */
+    return g_mainDevice;
+}
+
+void AddSearch(ColorSearchProcPtr searchProc) {
+    /* Placeholder for adding search procedure */
+}
+
+void AddComp(ColorComplementProcPtr compProc) {
+    /* Placeholder for adding complement procedure */
+}
+
+void DelSearch(ColorSearchProcPtr searchProc) {
+    /* Placeholder for deleting search procedure */
+}
+
+void DelComp(ColorComplementProcPtr compProc) {
+    /* Placeholder for deleting complement procedure */
+}
+
+void SetClientID(SInt16 id) {
+    /* Placeholder for setting client ID */
+}
+
+void ProtectEntry(SInt16 index, Boolean protect) {
+    /* Placeholder for protecting color table entry */
+}
+
+void ReserveEntry(SInt16 index, Boolean reserve) {
+    /* Placeholder for reserving color table entry */
+}
+
+void SetEntries(SInt16 start, SInt16 count, const ColorSpec *aTable) {
+    (void)start;
+    (void)count;
+    (void)aTable;
+    /* Placeholder for setting color table entries */
+}
+
+void SaveEntries(CTabHandle srcTable, CTabHandle resultTable,
+                 ReqListRec *selection) {
+    /* Placeholder for saving color table entries */
+}
+
+void RestoreEntries(CTabHandle srcTable, CTabHandle dstTable,
+                    ReqListRec *selection) {
+    /* Placeholder for restoring color table entries */
+}
+
+void DeviceLoop(RgnHandle drawingRgn, DeviceLoopDrawingProcPtr drawingProc,
+                SInt32 userData, SInt32 flags) {
+    /* Placeholder for device loop iteration */
+}
+
+Ptr GetMaskTable(void) {
+    /* Placeholder for getting mask table */
+    return NULL;
+}
+
+void GetSubTable(CTabHandle myColors, SInt16 iTabRes, CTabHandle targetTbl) {
+    /* Placeholder for getting color table subtable */
+}
+
+void MakeITable(CTabHandle cTabH, ITabHandle iTabH, SInt16 res) {
+    /* Placeholder for making inverse table */
 }

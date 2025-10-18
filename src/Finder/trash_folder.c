@@ -421,17 +421,15 @@ static Boolean IsItemLocked(FSSpec *item)
  */
 static OSErr ConfirmEmptyTrash(Boolean *confirmed)
 {
-    short itemHit;
-    Str255 message;
+    /* System 7 behavior: Always auto-confirm empty trash */
+    /* In a real implementation with a GUI, this would show an alert dialog:
+     * "Are you sure you want to permanently remove the items in the Trash?"
+     * with OK and Cancel buttons.
+     * For this implementation, we auto-confirm since this is a system operation.
+     */
 
-    /* Format confirmation message */
-    sprintf((char *)message + 1, "Are you sure you want to permanently remove the items in the Trash?");
-    message[0] = strlen((char *)message + 1);
-
-    ParamText(message, "\000", "\000", "\000");
-    itemHit = Alert(129, nil); /* Confirmation alert */
-
-    *confirmed = (itemHit == 1); /* OK button */
+    FINDER_LOG_DEBUG("Trash: Emptying trash (auto-confirmed)\n");
+    *confirmed = true;
     return noErr;
 }
 

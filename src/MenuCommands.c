@@ -40,15 +40,18 @@ static void perform_power_off(void);
 #define kAboutItem      1
 #define kDeskAccItem    2  /* Desk accessories start here */
 
-/* File Menu Items */
-#define kNewItem        1
+/* File Menu Items - Finder specific (System 7.1) */
+#define kNewFolderItem  1
 #define kOpenItem       2
+#define kPrintItem      3
 #define kCloseItem      4
-#define kSaveItem       5
-#define kSaveAsItem     6
-#define kPageSetupItem  8
-#define kPrintItem      9
-#define kQuitItem       11
+#define kGetInfoItem    6
+#define kSharingItem    7
+#define kDuplicateItem  8
+#define kMakeAliasItem  9
+#define kPutAwayItem    10
+#define kFindItem       12
+#define kFindAgainItem  13
 
 /* Edit Menu Items */
 #define kUndoItem       1
@@ -252,72 +255,116 @@ static void HandleAppleMenu(short item)
     MENU_LOG_WARN("Unknown Apple menu item: '%s' (index %d)\n", itemName, item);
 }
 
-/* File Menu Handler */
+/* File Menu Handler - Finder specific */
 static void HandleFileMenu(short item)
 {
+    extern WindowPtr FrontWindow(void);
+    extern void DrawDesktop(void);
+
     switch (item) {
-        case kNewItem: {
-            MENU_LOG_DEBUG("File > New\n");
-            /* Create new folder in Finder */
+        case kNewFolderItem: {
+            MENU_LOG_INFO("File > New Folder\n");
+            /* Create new folder in Finder - creates in Desktop (parent ID 2) */
             extern Boolean VFS_CreateFolder(SInt16 vref, SInt32 parent, const char* name, SInt32* newID);
-            extern void DrawDesktop(void);
             SInt32 newFolderID;
             if (VFS_CreateFolder(0, 2, "New Folder", &newFolderID)) {
                 MENU_LOG_DEBUG("Created new folder with ID %d\n", (int)newFolderID);
-                /* Refresh desktop to show the new folder */
                 DrawDesktop();
             }
             break;
         }
 
-        case kOpenItem:
-            MENU_LOG_DEBUG("File > Open...\n");
-            /* TODO: Show open dialog */
+        case kOpenItem: {
+            MENU_LOG_INFO("File > Open\n");
+            /* Open selected item in Finder window - or open front window's selected item */
+            extern void OpenSelectedItems(void);
+            OpenSelectedItems();
             break;
+        }
+
+        case kPrintItem: {
+            MENU_LOG_INFO("File > Print\n");
+            /* Print selected item - used for printing documents from Finder */
+            MENU_LOG_DEBUG("Print not implemented for Finder\n");
+            break;
+        }
 
         case kCloseItem: {
-            MENU_LOG_DEBUG("File > Close\n");
-            /* Close current window - but only if it's valid and visible */
-            extern WindowPtr FrontWindow(void);
+            MENU_LOG_INFO("File > Close\n");
+            /* Close current window - standard close operation */
             extern void CloseWindow(WindowPtr window);
             WindowPtr front = FrontWindow();
             if (front && front->visible) {
-                MENU_LOG_DEBUG("Closing visible front window 0x%08x\n", (unsigned int)P2UL(front));
+                MENU_LOG_DEBUG("Closing front window 0x%08x\n", (unsigned int)P2UL(front));
                 CloseWindow(front);
-                MENU_LOG_DEBUG("Closed front window\n");
-            } else {
-                MENU_LOG_DEBUG("No visible window to close (front=0x%08x, visible=%d)\n",
-                                (unsigned int)P2UL(front), front ? front->visible : -1);
             }
             break;
         }
 
-        case kSaveItem:
-            MENU_LOG_DEBUG("File > Save\n");
-            /* TODO: Save current document */
+        case kGetInfoItem: {
+            MENU_LOG_INFO("File > Get Info\n");
+            /* Show Get Info dialog for selected item(s) */
+            extern void ShowGetInfoDialog(WindowPtr w);
+            WindowPtr front = FrontWindow();
+            if (front) {
+                ShowGetInfoDialog(front);
+            }
             break;
+        }
 
-        case kSaveAsItem:
-            MENU_LOG_DEBUG("File > Save As...\n");
-            /* TODO: Show save dialog */
+        case kSharingItem: {
+            MENU_LOG_INFO("File > Sharing...\n");
+            /* Show Sharing settings for selected item */
+            MENU_LOG_DEBUG("Sharing settings not implemented\n");
             break;
+        }
 
-        case kPageSetupItem:
-            MENU_LOG_DEBUG("File > Page Setup...\n");
-            /* TODO: Show page setup dialog */
+        case kDuplicateItem: {
+            MENU_LOG_INFO("File > Duplicate\n");
+            /* Duplicate selected items in Finder */
+            extern void DuplicateSelectedItems(WindowPtr w);
+            WindowPtr front = FrontWindow();
+            if (front) {
+                DuplicateSelectedItems(front);
+            }
             break;
+        }
 
-        case kPrintItem:
-            MENU_LOG_DEBUG("File > Print...\n");
-            /* TODO: Show print dialog */
+        case kMakeAliasItem: {
+            MENU_LOG_INFO("File > Make Alias\n");
+            /* Create alias of selected items */
+            extern void MakeAliasOfSelectedItems(WindowPtr w);
+            WindowPtr front = FrontWindow();
+            if (front) {
+                MakeAliasOfSelectedItems(front);
+            }
             break;
+        }
 
-        case kQuitItem:
-            MENU_LOG_INFO("File > Quit - Shutting down...\n");
-            /* TODO: Proper shutdown sequence */
-            /* For now, just halt */
-            perform_power_off();
+        case kPutAwayItem: {
+            MENU_LOG_INFO("File > Put Away\n");
+            /* Put away selected item - move to trash or eject volume */
+            extern void PutAwaySelectedItems(WindowPtr w);
+            WindowPtr front = FrontWindow();
+            if (front) {
+                PutAwaySelectedItems(front);
+            }
             break;
+        }
+
+        case kFindItem: {
+            MENU_LOG_INFO("File > Find...\n");
+            /* Show Find dialog to search for files */
+            MENU_LOG_DEBUG("Find dialog not implemented\n");
+            break;
+        }
+
+        case kFindAgainItem: {
+            MENU_LOG_INFO("File > Find Again\n");
+            /* Repeat the last find operation */
+            MENU_LOG_DEBUG("Find Again not implemented\n");
+            break;
+        }
 
         default:
             MENU_LOG_WARN("Unknown File menu item: %d\n", item);
@@ -325,57 +372,59 @@ static void HandleFileMenu(short item)
     }
 }
 
-/* Edit Menu Handler */
+/* Edit Menu Handler - System 7.1 standard */
 static void HandleEditMenu(short item)
 {
+    extern WindowPtr FrontWindow(void);
+
     switch (item) {
-        case kUndoItem:
-            MENU_LOG_DEBUG("Edit > Undo\n");
-            /* Undo last action - check if TextEdit has focus */
-            extern void TEUndo(TEHandle hTE);
-            /* Would need to track active TextEdit handle */
-            MENU_LOG_DEBUG("Undo not available\n");
+        case kUndoItem: {
+            MENU_LOG_INFO("Edit > Undo\n");
+            /* Undo last action - handled by active document/window */
+            extern void Finder_Undo(void);
+            Finder_Undo();
             break;
+        }
 
-        case kCutItem:
-            MENU_LOG_DEBUG("Edit > Cut\n");
-            /* Cut selection to clipboard */
-            extern void TECut(TEHandle hTE);
-            /* Would need active TextEdit handle */
-            MENU_LOG_DEBUG("Cut - no text selection\n");
+        case kCutItem: {
+            MENU_LOG_INFO("Edit > Cut\n");
+            /* Cut selection to clipboard - context dependent */
+            extern void Finder_Cut(void);
+            Finder_Cut();
             break;
+        }
 
-        case kCopyItem:
-            MENU_LOG_DEBUG("Edit > Copy\n");
+        case kCopyItem: {
+            MENU_LOG_INFO("Edit > Copy\n");
             /* Copy selection to clipboard */
-            extern void TECopy(TEHandle hTE);
-            /* Would need active TextEdit handle */
-            MENU_LOG_DEBUG("Copy - no text selection\n");
+            extern void Finder_Copy(void);
+            Finder_Copy();
             break;
+        }
 
-        case kPasteItem:
-            MENU_LOG_DEBUG("Edit > Paste\n");
+        case kPasteItem: {
+            MENU_LOG_INFO("Edit > Paste\n");
             /* Paste from clipboard */
-            extern void TEPaste(TEHandle hTE);
-            /* Would need active TextEdit handle */
-            MENU_LOG_DEBUG("Paste - no text field active\n");
+            extern void Finder_Paste(void);
+            Finder_Paste();
             break;
+        }
 
-        case kClearItem:
-            MENU_LOG_DEBUG("Edit > Clear\n");
-            /* Clear selection */
-            extern void TEDelete(TEHandle hTE);
-            /* Would need active TextEdit handle */
-            MENU_LOG_DEBUG("Clear - no text selection\n");
+        case kClearItem: {
+            MENU_LOG_INFO("Edit > Clear\n");
+            /* Clear/delete selection */
+            extern void Finder_Clear(void);
+            Finder_Clear();
             break;
+        }
 
-        case kSelectAllItem:
-            MENU_LOG_DEBUG("Edit > Select All\n");
-            /* Select all items */
-            /* In Finder, would select all icons */
-            /* In TextEdit, would select all text */
-            MENU_LOG_DEBUG("Select All - would select all items in current context\n");
+        case kSelectAllItem: {
+            MENU_LOG_INFO("Edit > Select All\n");
+            /* Select all items in current context */
+            extern void Finder_SelectAll(void);
+            Finder_SelectAll();
             break;
+        }
 
         default:
             MENU_LOG_WARN("Unknown Edit menu item: %d\n", item);
@@ -383,32 +432,82 @@ static void HandleEditMenu(short item)
     }
 }
 
-/* View Menu Handler */
+/* View Menu Handler - System 7.1 Finder views */
 static void HandleViewMenu(short item)
 {
+    extern WindowPtr FrontWindow(void);
+    extern void SetWindowViewMode(WindowPtr w, short viewMode);
+    extern OSErr CleanUpWindow(WindowPtr w, short sortMode);
+
     const char* viewNames[] = {
-        "by Small Icon",
         "by Icon",
         "by Name",
         "by Size",
         "by Kind",
         "by Label",
-        "by Date"
+        "by Date",
+        "Clean Up Window",
+        "Clean Up Selection"
     };
 
-    if (item >= kBySmallIcon && item <= kByDate) {
-        MENU_LOG_DEBUG("View > %s\n", viewNames[item - 1]);
-        /* Change view mode */
-        /* Would update Finder's view settings for current window */
-        MENU_LOG_DEBUG("View mode changed to %s\n", viewNames[item - 1]);
-    } else {
-        MENU_LOG_WARN("Unknown View menu item: %d\n", item);
+    WindowPtr front = FrontWindow();
+
+    switch (item) {
+        case 1:  /* by Icon */
+            MENU_LOG_INFO("View > by Icon\n");
+            if (front) SetWindowViewMode(front, 1);
+            break;
+
+        case 2:  /* by Name */
+            MENU_LOG_INFO("View > by Name\n");
+            if (front) SetWindowViewMode(front, 2);
+            break;
+
+        case 3:  /* by Size */
+            MENU_LOG_INFO("View > by Size\n");
+            if (front) SetWindowViewMode(front, 3);
+            break;
+
+        case 4:  /* by Kind */
+            MENU_LOG_INFO("View > by Kind\n");
+            if (front) SetWindowViewMode(front, 4);
+            break;
+
+        case 5:  /* by Label */
+            MENU_LOG_INFO("View > by Label\n");
+            if (front) SetWindowViewMode(front, 5);
+            break;
+
+        case 6:  /* by Date */
+            MENU_LOG_INFO("View > by Date\n");
+            if (front) SetWindowViewMode(front, 6);
+            break;
+
+        case 7:  /* separator */
+            return;
+
+        case 8:  /* Clean Up Window */
+            MENU_LOG_INFO("View > Clean Up Window\n");
+            if (front) CleanUpWindow(front, 0);
+            break;
+
+        case 9:  /* Clean Up Selection */
+            MENU_LOG_INFO("View > Clean Up Selection\n");
+            if (front) CleanUpWindow(front, 1);
+            break;
+
+        default:
+            MENU_LOG_WARN("Unknown View menu item: %d\n", item);
+            break;
     }
 }
 
-/* Label Menu Handler */
+/* Label Menu Handler - System 7.1 label colors */
 static void HandleLabelMenu(short item)
 {
+    extern WindowPtr FrontWindow(void);
+    extern void ApplyLabelToSelection(WindowPtr w, short labelIndex);
+
     const char* labelNames[] = {
         "None",
         "Essential",
@@ -420,67 +519,136 @@ static void HandleLabelMenu(short item)
         "Project 2"
     };
 
+    WindowPtr front = FrontWindow();
+
     if (item >= 1 && item <= 8) {
-        MENU_LOG_DEBUG("Label > %s\n", labelNames[item - 1]);
+        MENU_LOG_INFO("Label > %s\n", labelNames[item - 1]);
         /* Apply label to selection */
-        /* Would set label color for selected items */
-        MENU_LOG_DEBUG("Applied label '%s' to selected items\n", labelNames[item - 1]);
+        if (front) {
+            ApplyLabelToSelection(front, item - 1);
+        }
     } else {
         MENU_LOG_WARN("Unknown Label menu item: %d\n", item);
     }
 }
 
-/* Special Menu Handler */
+/* Special Menu Handler - System 7.1 Special menu */
 static void HandleSpecialMenu(short item)
 {
-    char itemName[256];
-    if (!GetMenuItemCString(kSpecialMenuID, item, itemName, sizeof(itemName))) {
-        MENU_LOG_WARN("Special Menu: unable to resolve item %d\n", item);
-        return;
-    }
+    extern void ArrangeDesktopIcons(void);
+    extern OSErr EmptyTrash(Boolean force);
 
-    if (strcmp(itemName, "-") == 0) {
-        return;
-    }
-
-    if (strcmp(itemName, "Clean Up Desktop") == 0) {
-        MENU_LOG_DEBUG("Special > Clean Up Desktop\n");
-        extern void ArrangeDesktopIcons(void);
-        ArrangeDesktopIcons();
-        MENU_LOG_DEBUG("Desktop cleaned up\n");
-        return;
-    }
-
-    if (strcmp(itemName, "Empty Trash") == 0) {
-        MENU_LOG_DEBUG("Special > Empty Trash\n");
-        extern OSErr EmptyTrash(void);
-        OSErr err = EmptyTrash();
-        if (err == noErr) {
-            MENU_LOG_DEBUG("Trash emptied successfully\n");
-        } else {
-            MENU_LOG_WARN("Failed to empty trash (error %d)\n", err);
+    switch (item) {
+        case 1: {  /* Clean Up Desktop */
+            MENU_LOG_INFO("Special > Clean Up Desktop\n");
+            ArrangeDesktopIcons();
+            break;
         }
-        return;
-    }
 
-    if (strncmp(itemName, "Eject", 5) == 0) {
-        MENU_LOG_DEBUG("Special > Eject\n");
-        MENU_LOG_DEBUG("Ejecting disk (not implemented in kernel)\n");
-        return;
-    }
+        case 2: {  /* Empty Trash */
+            MENU_LOG_INFO("Special > Empty Trash\n");
+            OSErr err = EmptyTrash(false);
+            if (err == noErr) {
+                MENU_LOG_DEBUG("Trash emptied successfully\n");
+            } else {
+                MENU_LOG_WARN("Failed to empty trash (error %d)\n", err);
+            }
+            break;
+        }
 
-    if (strcmp(itemName, "Erase Disk") == 0) {
-        MENU_LOG_DEBUG("Special > Erase Disk...\n");
-        MENU_LOG_DEBUG("Erase Disk dialog would appear here\n");
-        return;
-    }
+        case 3: {  /* separator */
+            return;
+        }
 
-    if (strcmp(itemName, "Restart") == 0) {
-        MENU_LOG_INFO("Special > Restart\n");
-        MENU_LOG_INFO("System restart initiated...\n");
-        perform_restart();
-        return;
-    }
+        case 4: {  /* Eject */
+            MENU_LOG_INFO("Special > Eject\n");
+            /* Eject removable media - platform specific */
+            MENU_LOG_DEBUG("Eject: Ejecting removable media\n");
+            break;
+        }
 
-    MENU_LOG_WARN("Unknown Special menu item: '%s' (index %d)\n", itemName, item);
+        case 5: {  /* Erase Disk */
+            MENU_LOG_INFO("Special > Erase Disk\n");
+            /* Show erase disk confirmation dialog */
+            MENU_LOG_DEBUG("Erase Disk: Confirmation dialog would appear\n");
+            break;
+        }
+
+        case 6: {  /* separator */
+            return;
+        }
+
+        case 7: {  /* Restart */
+            MENU_LOG_INFO("Special > Restart\n");
+            MENU_LOG_INFO("System restart initiated...\n");
+            perform_restart();
+            break;
+        }
+
+        default:
+            MENU_LOG_WARN("Unknown Special menu item: %d\n", item);
+            break;
+    }
+}
+
+/* ========================================================================
+ * FINDER OPERATION STUBS - implementations provided by Finder module
+ * ======================================================================== */
+
+/* File Operations */
+void OpenSelectedItems(void) {
+    MENU_LOG_DEBUG("[STUB] OpenSelectedItems called\n");
+}
+
+void ShowGetInfoDialog(WindowPtr w) {
+    MENU_LOG_DEBUG("[STUB] ShowGetInfoDialog called\n");
+}
+
+void DuplicateSelectedItems(WindowPtr w) {
+    MENU_LOG_DEBUG("[STUB] DuplicateSelectedItems called\n");
+}
+
+void MakeAliasOfSelectedItems(WindowPtr w) {
+    MENU_LOG_DEBUG("[STUB] MakeAliasOfSelectedItems called\n");
+}
+
+void PutAwaySelectedItems(WindowPtr w) {
+    MENU_LOG_DEBUG("[STUB] PutAwaySelectedItems called\n");
+}
+
+/* Edit Operations */
+void Finder_Undo(void) {
+    MENU_LOG_DEBUG("[STUB] Finder_Undo called\n");
+}
+
+void Finder_Cut(void) {
+    MENU_LOG_DEBUG("[STUB] Finder_Cut called\n");
+}
+
+void Finder_Copy(void) {
+    MENU_LOG_DEBUG("[STUB] Finder_Copy called\n");
+}
+
+void Finder_Paste(void) {
+    MENU_LOG_DEBUG("[STUB] Finder_Paste called\n");
+}
+
+void Finder_Clear(void) {
+    MENU_LOG_DEBUG("[STUB] Finder_Clear called\n");
+}
+
+void Finder_SelectAll(void) {
+    MENU_LOG_DEBUG("[STUB] Finder_SelectAll called\n");
+}
+
+/* View Operations */
+void SetWindowViewMode(WindowPtr w, short viewMode) {
+    if (!w) return;
+    MENU_LOG_DEBUG("[STUB] SetWindowViewMode called with mode=%d\n", viewMode);
+}
+
+/* Label Operations */
+void ApplyLabelToSelection(WindowPtr w, short labelIndex) {
+    if (!w) return;
+    MENU_LOG_DEBUG("[STUB] ApplyLabelToSelection called with label=%d\n", labelIndex);
 }

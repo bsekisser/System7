@@ -135,6 +135,9 @@ static CursorState gCursorState = {
 
 extern void InvalidateCursor(void);
 
+/* Check if menu tracking is active - don't switch cursor during menu operations */
+extern Boolean IsMenuTrackingNew(void);
+
 static inline UInt16 cursor_get_bit(UInt16 row, int col) {
     return (UInt16)((row >> (15 - col)) & 0x1);
 }
@@ -236,6 +239,11 @@ static OSErr InitStandardCursors(void) {
 
 /* Set cursor to arrow */
 void InitCursor(void) {
+    /* Don't switch cursor while a menu is being tracked */
+    if (IsMenuTrackingNew()) {
+        return;
+    }
+
     if (!gArrowCursor) {
         if (InitStandardCursors() != noErr) {
             return;
@@ -249,6 +257,11 @@ void InitCursor(void) {
 
 /* Set cursor from resource ID */
 void SetCursor(const Cursor* crsr) {
+    /* Don't switch cursor while a menu is being tracked */
+    if (IsMenuTrackingNew()) {
+        return;
+    }
+
     CursorManager_SetCursorInternal(crsr, false);
 }
 

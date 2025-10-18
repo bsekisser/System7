@@ -129,7 +129,7 @@ void DelComp(ColorComplementProcPtr compProc);
 void SetClientID(SInt16 id);
 void ProtectEntry(SInt16 index, Boolean protect);
 void ReserveEntry(SInt16 index, Boolean reserve);
-void SetEntries(SInt16 start, SInt16 count, CSpecArray aTable);
+void SetEntries(SInt16 start, SInt16 count, const ColorSpec *aTable);
 void SaveEntries(CTabHandle srcTable, CTabHandle resultTable,
                  ReqListRec *selection);
 void RestoreEntries(CTabHandle srcTable, CTabHandle dstTable,
