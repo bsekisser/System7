@@ -454,8 +454,14 @@ endif
 
 # Speech Manager - Minimal implementation with SoundManager integration
 C_SOURCES += src/SpeechManager/SpeechManagerCore.c \
-             src/SpeechManager/SpeechOutput_Stub.c
+             src/SpeechManager/SpeechOutput_Stub.c \
+             src/SpeechManager/SpeechSmoke.c
 CFLAGS += -DENABLE_SPEECH=1
+
+# Speech Manager smoke test (optional testing)
+ifeq ($(SPEECH_SMOKE_TEST),1)
+CFLAGS += -DSPEECH_SMOKE_TEST=1
+endif
 
 # Add Control smoke test if enabled
 ifeq ($(CTRL_SMOKE_TEST),1)

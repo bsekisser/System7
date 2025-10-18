@@ -1473,6 +1473,14 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
     serial_puts("MAIN: List Manager smoke tests complete\n");
     #endif
 
+    /* Run Speech Manager smoke tests */
+    #ifdef SPEECH_SMOKE_TEST
+    extern void RunSpeechSmokeTest(void);
+    serial_puts("MAIN: Running Speech Manager smoke tests\n");
+    RunSpeechSmokeTest();
+    serial_puts("MAIN: Speech Manager smoke tests complete\n");
+    #endif
+
     /* Draw initial cursor */
 #if 1
     /* Draw initial cursor with safety checks */
