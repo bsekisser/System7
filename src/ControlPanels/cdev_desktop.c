@@ -141,7 +141,7 @@ void CloseDesktopCdev(void) {
         if (ColorManager_IsAvailable()) {
             ColorManager_SetBackground(&gOriginalColor);
             ColorManager_CommitQuickDraw();
-            ColorManager_Shutdown();
+            /* ColorManager_Shutdown(); */ /* DISABLED: Testing if this causes freeze */
         }
     }
 }
