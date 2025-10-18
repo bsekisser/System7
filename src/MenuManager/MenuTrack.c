@@ -647,41 +647,17 @@ long TrackMenu(short menuID, Point *startPt) {
     serial_puts("TrackMenu: Menu drawn, entering tracking loop\n");
 
     /* Classic Mac-style tracking loop with event pumping */
-    /* Track while button is held down - this is the System 7 behavior */
-    /* Initially, wait for button release from the initial click */
-    /* ADD SAFETY TIMEOUT: Prevent infinite loop if Button() never returns false */
-    int releaseWaitCount = 0;
-    const int MAX_RELEASE_WAIT = 100000;  /* Safety limit: ~1 second at typical loop rate */
-
-    while (Button() && releaseWaitCount < MAX_RELEASE_WAIT) {
-        SystemTask();          /* House-keeping */
-        EventPumpYield();      /* Platform's input pump */
-        releaseWaitCount++;
-        if (releaseWaitCount % 1000 == 0) {
-            MENU_LOG_TRACE("TrackMenu: Waiting for initial release, count=%d\n", releaseWaitCount);
-        }
-    }
-
-    if (releaseWaitCount >= MAX_RELEASE_WAIT) {
-        MENU_LOG_WARN("TrackMenu: Initial button release timeout! Escaped loop after %d iterations\n", releaseWaitCount);
-    } else {
-        MENU_LOG_TRACE("TrackMenu: Initial button release detected after %d iterations\n", releaseWaitCount);
-    }
-
-    /* Add a small debounce delay after release */
-    {
-        volatile int i;
-        for (i = 0; i < 10000; i++);  /* Debounce delay */
-    }
-    serial_puts("TrackMenu: Debounce complete, starting tracking\n");
-
-    /* Now track until button is pressed again (user selects or cancels) */
+    /* Track WHILE button is held down - this is the System 7 behavior */
+    /* The button is already down from the initial click that opened the menu */
     /* ADD SAFETY TIMEOUT: Prevent infinite tracking loop */
     Boolean tracking = true;
     int updateCount = 0;
     int buttonCheckCount = 0;
     const int MAX_TRACKING_UPDATES = 500000;  /* Safety limit: ~5 seconds at typical loop rate */
 
+    serial_puts("TrackMenu: Starting tracking loop - menu open\n");
+
+    /* Track while button is held down */
     while (tracking && updateCount < MAX_TRACKING_UPDATES) {
         /* Pump events for responsive UI */
         SystemTask();          /* House-keeping tasks */
@@ -700,15 +676,16 @@ long TrackMenu(short menuID, Point *startPt) {
         /* Update menu highlighting based on mouse position */
         UpdateMenuTrackingNew(mousePt);
 
-        /* Check if button pressed to end tracking */
+        /* Check if button is still pressed */
         buttonCheckCount++;
         Boolean buttonState = Button();
         if (buttonCheckCount <= 5) {
             MENU_LOG_TRACE("TrackMenu: Button check #%d = %d\n", buttonCheckCount, buttonState);
         }
 
-        if (buttonState) {
-            MENU_LOG_TRACE("TrackMenu: Button pressed at check #%d, ending tracking\n", buttonCheckCount);
+        /* Exit tracking loop when button is released */
+        if (!buttonState) {
+            MENU_LOG_TRACE("TrackMenu: Button released at check #%d, ending tracking\n", buttonCheckCount);
             tracking = false;
         }
 
