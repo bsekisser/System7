@@ -28,12 +28,46 @@ extern "C" {
 /* ===== Audio Output Constants ===== */
 
 /* Output device types */
+#define kAudioDeviceBuiltIn    0
+#define kAudioDeviceExternal   1
+#define kAudioDeviceUSB        2
 
 /* Output quality levels */
+typedef short AudioOutputQuality;
+#define kAudioQualityLow      0
+#define kAudioQualityMed      1
+#define kAudioQualityHigh     2
 
 /* Output routing modes */
+typedef short AudioRoutingMode;
+#define kRoutingMode_Automatic    0
+#define kRoutingMode_Manual       1
+#define kRoutingMode_Override     2
 
 /* Output processing flags */
+typedef long AudioOutputFlags;
+#define kAudioFlag_None       0x0000
+#define kAudioFlag_Normalize  0x0001
+#define kAudioFlag_Compress   0x0002
+#define kAudioFlag_Equalize   0x0004
+
+/* ===== Audio Output Type Definitions ===== */
+
+/* Opaque types for audio output system */
+typedef long AudioOutputDevice;
+typedef long AudioOutputStream;
+typedef long AudioOutputConfig;
+typedef long AudioOutputFormat;
+typedef long AudioFileFormat;
+typedef long AudioProcessor;
+typedef long AudioOutputStats;
+
+/* Callback types */
+typedef void (*AudioOutputProc)(long userData);
+typedef void (*AudioBufferProc)(void *buffer, long size, void *userData);
+typedef void (*AudioLevelProc)(long leftLevel, long rightLevel, void *userData);
+typedef void (*AudioDeviceChangeProc)(long userData);
+typedef OSErr (*AudioEffectProc)(void *audioData, long dataSize, void *effectData, void *userData);
 
 /* ===== Audio Output Structures ===== */
 

@@ -1,4 +1,4 @@
-#include "SuperCompat.h"
+
 #include <stdlib.h>
 #include <string.h>
 /*
@@ -13,7 +13,7 @@
  *              including channel lifecycle, properties, and control.
  */
 
-#include "CompatibilityFix.h"
+
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 

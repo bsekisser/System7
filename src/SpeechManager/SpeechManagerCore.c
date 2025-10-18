@@ -22,6 +22,7 @@
 #include "SpeechManager/SpeechChannels.h"
 #include "SpeechManager/TextToSpeech.h"
 #include "SpeechManager/SpeechSynthesis.h"
+#include "SpeechManager/SpeechOutput.h"
 
 
 /* ===== Global Variables ===== */
@@ -58,6 +59,12 @@ static OSErr InitializeSpeechManager(void) {
         return noErr;
     }
 
+    /* Initialize audio output (connects to SoundManager) */
+    OSErr err = InitializeAudioOutput();
+    if (err != noErr) {
+        return err;
+    }
+
     /* Minimal initialization - just mark as initialized */
     /* Full initialization would require CompleteImplementation of:
      * - InitializeVoiceManager()
@@ -79,6 +86,9 @@ static void CleanupSpeechManager(void) {
     if (!gSpeechGlobals.initialized) {
         return;
     }
+
+    /* Clean up audio output */
+    CleanupAudioOutput();
 
     /* Minimal cleanup - reset globals */
     /* Full cleanup would require implementing:
