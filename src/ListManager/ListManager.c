@@ -39,6 +39,7 @@
 #include "ListManager/ListManager.h"
 #include "ListManager/ListManagerInternal.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "EventManager/EventManager.h"
 #include "System71StdLib.h"
 #include "ListManager/ListLogging.h"
 
@@ -598,30 +599,61 @@ void LGetCellRect(ListHandle lh, Cell cell, Rect* outCellRect)
 void LScroll(ListHandle lh, short dRows, short dCols)
 {
     ListMgrRec* list;
-    
+    short rowsPerStep, colsPerStep;
+    short numSteps;
+    short step;
+
     if (!lh) return;
-    
+
     HLock((Handle)lh);
     list = *LIST_MGR_HANDLE(lh);
-    
-    list->topRow += dRows;
-    list->leftCol += dCols;
 
-    List_ClampScroll(list);
-    List_UpdateScrollbars(list);
+    /* Use smooth scrolling animation with 5 steps */
+    #define SCROLL_STEPS 5
+    numSteps = SCROLL_STEPS;
+    rowsPerStep = (dRows > 0) ? (dRows + numSteps - 1) / numSteps : (dRows - numSteps + 1) / numSteps;
+    colsPerStep = (dCols > 0) ? (dCols + numSteps - 1) / numSteps : (dCols - numSteps + 1) / numSteps;
 
-    /* Invalidate only the exposed band for efficient redraw */
-    if (dRows != 0) {
-        List_InvalidateBand(list, dRows);
+    /* Scroll in incremental steps */
+    for (step = 0; step < numSteps; step++) {
+        short stepRows = rowsPerStep;
+        short stepCols = colsPerStep;
+
+        /* Adjust last step to reach exact destination */
+        if (step == numSteps - 1) {
+            stepRows = dRows - (rowsPerStep * (numSteps - 1));
+            stepCols = dCols - (colsPerStep * (numSteps - 1));
+        }
+
+        list->topRow += stepRows;
+        list->leftCol += stepCols;
+
+        List_ClampScroll(list);
+        List_UpdateScrollbars(list);
+
+        /* Invalidate only the exposed band for efficient redraw */
+        if (stepRows != 0) {
+            List_InvalidateBand(list, stepRows);
+        }
+        if (stepCols != 0) {
+            List_InvalidateAll(list);  /* Horizontal scroll still needs full invalidate */
+        }
+
+        /* Allow some time for drawing on the last step only (for visual effect) */
+        if (step < numSteps - 1) {
+            /* Small delay to make scrolling visible */
+            UInt32 startTime = TickCount();
+            while (TickCount() - startTime < 2) {
+                /* Yield to allow drawing */
+                SystemTask();
+            }
+        }
     }
-    if (dCols != 0) {
-        List_InvalidateAll(list);  /* Horizontal scroll still needs full invalidate */
-    }
-    
+
     HUnlock((Handle)lh);
-    
-    LIST_LOG("LScroll: dRows=%d dCols=%d -> topRow=%d\n",
-             dRows, dCols, LIST_MGR_PTR(lh)->topRow);
+
+    LIST_LOG("LScroll: dRows=%d dCols=%d (smooth, %d steps) -> topRow=%d\n",
+             dRows, dCols, numSteps, LIST_MGR_PTR(lh)->topRow);
 }
 
 /* ================================================================
@@ -648,7 +680,7 @@ Boolean LClick(ListHandle lh, Point localWhere, unsigned short mods, short* outI
     
     /* Record last click */
     list->lastClick.cell = hitCell;
-    list->lastClick.when = 0;  /* TODO: Get actual tick count */
+    list->lastClick.when = TickCount();
     list->lastClick.mods = mods;
     list->lastClick.valid = true;
     
@@ -821,9 +853,83 @@ Boolean LLastClick(ListHandle lh, Cell* outCell, UInt32* outWhen, unsigned short
 
 Boolean LSearch(ListHandle lh, const unsigned char* pStr, Boolean caseSensitive, Cell* outFound)
 {
-    /* Stub */
-    LIST_LOG("LSearch: stub\n");
-    return false;
+    ListMgrRec* list;
+    SInt16 row, col;
+    Cell searchCell;
+    unsigned char cellStr[256];
+    SInt16 len;
+    SInt16 searchLen;
+    Boolean found = false;
+
+    if (!lh || !pStr || !outFound) {
+        return false;
+    }
+
+    HLock((Handle)lh);
+    list = (ListMgrRec*)*lh;
+
+    searchLen = pStr[0];  /* Pascal string length */
+    if (searchLen == 0) {
+        HUnlock((Handle)lh);
+        return false;
+    }
+
+    LIST_LOG("LSearch: searching for '%.*s' (len=%d, case=%s)\n",
+             searchLen, &pStr[1], searchLen, caseSensitive ? "sensitive" : "insensitive");
+
+    /* Search through all cells */
+    for (row = 0; row < list->rowCount && !found; row++) {
+        for (col = 0; col < list->colCount && !found; col++) {
+            searchCell.h = col;
+            searchCell.v = row;
+
+            /* Get cell data */
+            len = LGetCell(lh, cellStr, sizeof(cellStr), searchCell);
+            if (len > 0) {
+                /* Compare strings */
+                if (caseSensitive) {
+                    /* Case-sensitive comparison */
+                    if (len >= searchLen &&
+                        memcmp(&cellStr[1], &pStr[1], searchLen) == 0) {
+                        found = true;
+                        *outFound = searchCell;
+                        LIST_LOG("LSearch: found at cell (%d,%d)\n", col, row);
+                    }
+                } else {
+                    /* Case-insensitive comparison */
+                    SInt16 i;
+                    Boolean match = (len >= searchLen);
+
+                    for (i = 0; i < searchLen && match; i++) {
+                        unsigned char c1 = cellStr[1 + i];
+                        unsigned char c2 = pStr[1 + i];
+
+                        /* Convert to uppercase for comparison */
+                        if (c1 >= 'a' && c1 <= 'z') c1 -= 32;
+                        if (c2 >= 'a' && c2 <= 'z') c2 -= 32;
+
+                        if (c1 != c2) {
+                            match = false;
+                        }
+                    }
+
+                    if (match) {
+                        found = true;
+                        *outFound = searchCell;
+                        LIST_LOG("LSearch: found (case-insensitive) at cell (%d,%d)\n", col, row);
+                    }
+                }
+            }
+        }
+    }
+
+    HUnlock((Handle)lh);
+
+    if (!found) {
+        LIST_LOG("LSearch: not found\n");
+    }
+
+    return found;
 }
 
 /* ================================================================
