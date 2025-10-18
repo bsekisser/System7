@@ -62,6 +62,9 @@ static UInt32 g_caretTime = kDefaultCaretBlinkTime;
 static UInt32 g_systemStartTime = 0;
 static UInt32 g_lastTickUpdate = 0;
 
+/* Event window tracking (for modal dialogs and event routing) */
+static WindowPtr g_eventWindow = NULL;
+
 /*---------------------------------------------------------------------------
  * Private Function Declarations
  *---------------------------------------------------------------------------*/
@@ -799,4 +802,20 @@ void SetTimingParameters(UInt32 doubleTime, UInt32 caretTime)
     g_caretTime = caretTime;
     g_eventGlobals.DoubleTime = doubleTime;
     g_eventGlobals.CaretTime = caretTime;
+}
+
+/**
+ * Set event window for modal dialog or focused event routing
+ */
+void SetEventWindow(WindowPtr window)
+{
+    g_eventWindow = window;
+}
+
+/**
+ * Get event window for modal dialog or focused event routing
+ */
+WindowPtr GetEventWindow(void)
+{
+    return g_eventWindow;
 }
