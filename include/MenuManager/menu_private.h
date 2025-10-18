@@ -97,6 +97,7 @@ OSErr CalcMenuBar(void);
 Boolean CheckMenuItemEnabled(MenuHandle theMenu, short item);
 Boolean CheckMenuItemSeparator(MenuHandle theMenu, short item);
 char GetMenuItemCmdKey(MenuHandle theMenu, short item);
+short GetMenuItemSubmenu(MenuHandle theMenu, short item);
 
 Handle SaveBits(const Rect *bounds, SInt16 mode);
 OSErr RestoreBits(Handle bitsHandle);
@@ -109,6 +110,10 @@ void SetMenuBarGlobalInvalidBit(Boolean invalid);
 Boolean GetMenuBarGlobalInvalidBit(void);
 Boolean GetValidateMenuBarSemaphore(void);
 void SetValidateMenuBarSemaphore(Boolean locked);
+
+/* Menu resource parsing */
+MenuHandle ParseMENUResource(Handle resourceHandle);
+short* ParseMBARResource(Handle resourceHandle, short* outMenuCount);
 
 /* Menu Manager dispatch mechanism */
 OSErr MenuDispatch(SInt16 selector, void *params);

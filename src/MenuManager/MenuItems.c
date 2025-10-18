@@ -1,5 +1,4 @@
 /*
-#include "MenuManager/menu_private.h"
  * MenuItems.c - Menu Item Management Implementation
  *
  * System 7.1-compatible menu item management with full support for:
@@ -17,6 +16,7 @@
 #include <string.h>
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "MenuManager/menu_private.h"    /* Must come before MenuManager.h for internal prototypes */
 #include "MenuManager/MenuManager.h"
 #include "MenuManager/MenuLogging.h"
 #include "MenuManager/MenuTypes.h"

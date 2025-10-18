@@ -541,6 +541,30 @@ void SetItemCmd(MenuHandle theMenu, short item, short cmdChar);
  */
 void GetItemCmd(MenuHandle theMenu, short item, short* cmdChar);
 
+/*
+ * SetItemSubmenu - Set item submenu ID
+ *
+ * Associates a submenu with a menu item for hierarchical menus.
+ *
+ * Parameters:
+ *   theMenu   - Handle to menu
+ *   item      - Item number (1-based)
+ *   submenuID - Resource ID of submenu (0 = no submenu)
+ */
+void SetItemSubmenu(MenuHandle theMenu, short item, short submenuID);
+
+/*
+ * GetItemSubmenu - Get item submenu ID
+ *
+ * Retrieves the submenu ID associated with a menu item.
+ *
+ * Parameters:
+ *   theMenu   - Handle to menu
+ *   item      - Item number (1-based)
+ *   submenuID - Pointer to receive submenu ID
+ */
+void GetItemSubmenu(MenuHandle theMenu, short item, short* submenuID);
+
 /* ============================================================================
  * Menu Manager API - Menu Selection and Tracking
  * ============================================================================ */
