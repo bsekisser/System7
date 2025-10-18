@@ -147,16 +147,9 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
         Local_GenerateResizeUpdateEvents(theWindow, currentWidth, currentHeight, w, h);
     }
 
-    /* Invalidate old and new window areas */
+    /* Invalidate old and new window areas, and explicitly erase exposed desktop */
     if (theWindow->visible) {
-        if (oldStrucRgn) {
-            WM_InvalidateScreenRegion(oldStrucRgn);
-        }
-        if (theWindow->strucRgn) {
-            WM_InvalidateScreenRegion(theWindow->strucRgn);
-        }
-
-        /* If window shrank, we need to invalidate the newly exposed desktop area */
+        /* If window shrank, we need to erase and repaint the newly exposed desktop area */
         /* This is the area that was covered by the window before but isn't covered now */
         if (oldStrucRgn && theWindow->strucRgn) {
             /* Create a region for areas that were covered before but aren't now */
@@ -165,11 +158,33 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
                 /* Exposed area = old region minus new region */
                 DiffRgn(oldStrucRgn, theWindow->strucRgn, exposedDesktop);
 
-                /* Invalidate the exposed desktop area so it gets repainted */
-                WM_InvalidateScreenRegion(exposedDesktop);
+                /* CRITICAL: Erase the exposed desktop area with desktop pattern BEFORE repainting */
+                /* This is the same approach used in HideWindow */
+                extern void EraseRgn(RgnHandle rgn);
+                extern void GetWMgrPort(GrafPtr* port);
+                extern void SetPort(GrafPtr port);
+                extern void GetPort(GrafPtr* port);
+
+                GrafPtr savePort, wmPort;
+                GetPort(&savePort);
+                GetWMgrPort(&wmPort);
+                SetPort(wmPort);
+
+                EraseRgn(exposedDesktop);
+
+                SetPort(savePort);
+
+                WM_DEBUG("SizeWindow: Erased exposed desktop area");
 
                 Platform_DisposeRgn(exposedDesktop);
             }
+        }
+
+        if (oldStrucRgn) {
+            WM_InvalidateScreenRegion(oldStrucRgn);
+        }
+        if (theWindow->strucRgn) {
+            WM_InvalidateScreenRegion(theWindow->strucRgn);
         }
     }
 
