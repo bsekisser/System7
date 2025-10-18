@@ -483,16 +483,58 @@ static void DA_FreeRegistryEntry(DARegistryEntry *entry)
 static int DA_LoadResourceData(SInt16 resourceID, UInt32 resourceType,
                                void **data, size_t *size)
 {
-    /* In a real implementation, this would load from resource files */
-    /* For now, return dummy data */
+    /* For now, return default templates based on resource type */
 
-    *size = 256;  /* Dummy size */
+    switch (resourceType) {
+        case DA_RESOURCE_TYPE_WIND:
+            /* Default window template for DA windows */
+            *size = 64;
+            break;
+
+        case DA_RESOURCE_TYPE_DLOG:
+            /* Default dialog template */
+            *size = 128;
+            break;
+
+        case DA_RESOURCE_TYPE_DITL:
+            /* Default dialog item list */
+            *size = 256;
+            break;
+
+        case DA_RESOURCE_TYPE_MENU:
+            /* Default menu template */
+            *size = 512;
+            break;
+
+        case DA_RESOURCE_TYPE_DRVR:
+            /* Driver resource */
+            *size = 32;
+            break;
+
+        default:
+            *size = 256;
+            break;
+    }
+
     *data = malloc(*size);
     if (!*data) {
         return DESK_ERR_NO_MEMORY;
     }
 
     memset(*data, 0, *size);
+
+    /* Initialize with default values based on resource type */
+    if (resourceType == DA_RESOURCE_TYPE_WIND) {
+        /* Default WIND template values */
+        UInt16 *wind_data = (UInt16 *)*data;
+        if (*size >= 8) {
+            wind_data[0] = 100;  /* top */
+            wind_data[1] = 100;  /* left */
+            wind_data[2] = 400;  /* bottom */
+            wind_data[3] = 300;  /* right */
+        }
+    }
+
     return DESK_ERR_NONE;
 }
 

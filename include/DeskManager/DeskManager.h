@@ -73,6 +73,32 @@ SInt16 OpenDeskAcc(const char *name);
 void CloseDeskAcc(SInt16 refNum);
 
 /**
+ * Suspend a desk accessory (pause its execution)
+ * @param refNum Reference number of the DA to suspend
+ * @return 0 on success, negative on error
+ */
+int DeskManager_SuspendDA(SInt16 refNum);
+
+/**
+ * Resume a desk accessory (resume its execution)
+ * @param refNum Reference number of the DA to resume
+ * @return 0 on success, negative on error
+ */
+int DeskManager_ResumeDA(SInt16 refNum);
+
+/**
+ * Suspend all desk accessories
+ * @return Number of DAs suspended
+ */
+int DeskManager_SuspendAll(void);
+
+/**
+ * Resume all desk accessories
+ * @return Number of DAs resumed
+ */
+int DeskManager_ResumeAll(void);
+
+/**
  * Handle system-level events for desk accessories
  * @param event Pointer to event record
  * @return true if event was handled by a DA

@@ -548,3 +548,105 @@ static void DA_RemoveFromList(DeskAccessory *da)
 
     da->next = da->prev = NULL;
 }
+
+/*
+ * Suspend a desk accessory
+ */
+int DeskManager_SuspendDA(SInt16 refNum)
+{
+    if (!g_deskMgrInitialized) {
+        return DESK_ERR_SYSTEM_ERROR;
+    }
+
+    DeskAccessory *da = DA_GetByRefNum(refNum);
+    if (!da) {
+        return DESK_ERR_NOT_FOUND;
+    }
+
+    if (da->state == DA_STATE_CLOSED || da->state == DA_STATE_SUSPENDED) {
+        return DESK_ERR_INVALID_PARAM;
+    }
+
+    /* Call DA's suspend callback if available */
+    DARegistryEntry *entry = DA_FindRegistryEntry(da->name);
+    if (entry && entry->interface && entry->interface->suspend) {
+        entry->interface->suspend(da);
+    }
+
+    da->state = DA_STATE_SUSPENDED;
+    return DESK_ERR_NONE;
+}
+
+/*
+ * Resume a desk accessory
+ */
+int DeskManager_ResumeDA(SInt16 refNum)
+{
+    if (!g_deskMgrInitialized) {
+        return DESK_ERR_SYSTEM_ERROR;
+    }
+
+    DeskAccessory *da = DA_GetByRefNum(refNum);
+    if (!da) {
+        return DESK_ERR_NOT_FOUND;
+    }
+
+    if (da->state != DA_STATE_SUSPENDED) {
+        return DESK_ERR_INVALID_PARAM;
+    }
+
+    /* Call DA's resume callback if available */
+    DARegistryEntry *entry = DA_FindRegistryEntry(da->name);
+    if (entry && entry->interface && entry->interface->resume) {
+        entry->interface->resume(da);
+    }
+
+    da->state = DA_STATE_OPEN;
+    return DESK_ERR_NONE;
+}
+
+/*
+ * Suspend all desk accessories
+ */
+int DeskManager_SuspendAll(void)
+{
+    if (!g_deskMgrInitialized) {
+        return 0;
+    }
+
+    int count = 0;
+    DeskAccessory *da = g_deskMgr.firstDA;
+    while (da) {
+        if (da->state == DA_STATE_OPEN || da->state == DA_STATE_ACTIVE) {
+            if (DeskManager_SuspendDA(da->refNum) == DESK_ERR_NONE) {
+                count++;
+            }
+        }
+        da = da->next;
+    }
+
+    return count;
+}
+
+/*
+ * Resume all desk accessories
+ */
+int DeskManager_ResumeAll(void)
+{
+    if (!g_deskMgrInitialized) {
+        return 0;
+    }
+
+    int count = 0;
+    DeskAccessory *da = g_deskMgr.firstDA;
+    while (da) {
+        if (da->state == DA_STATE_SUSPENDED) {
+            if (DeskManager_ResumeDA(da->refNum) == DESK_ERR_NONE) {
+                count++;
+            }
+        }
+        da = da->next;
+    }
+
+    return count;
+}
