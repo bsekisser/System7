@@ -336,11 +336,12 @@ static void Desktop_DrawIconsCommon(RgnHandle clip)
         bool selected = (gSelectedIcon == i);
         handle.selected = selected;
 
-        Point localPos = gDesktopIcons[i].position;
-        GlobalToLocal(&localPos);
+        /* Desktop icons use global screen coordinates - no conversion needed
+         * gDesktopIcons[i].position is already in global screen coordinates */
+        Point screenPos = gDesktopIcons[i].position;
 
-        int centerX = localPos.h + (kIconW / 2);
-        int topY = localPos.v;
+        int centerX = screenPos.h + (kIconW / 2);
+        int topY = screenPos.v;
         int labelOffset = Desktop_LabelOffsetForItem(&gDesktopIcons[i]);
 
         Icon_DrawWithLabelOffset(&handle,
@@ -352,10 +353,10 @@ static void Desktop_DrawIconsCommon(RgnHandle clip)
 
 #ifdef DESKTOP_DEBUG_OUTLINES
         Rect outline = {
-            .top = localPos.v,
-            .left = localPos.h,
-            .bottom = localPos.v + kIconH,
-            .right = localPos.h + kIconW
+            .top = screenPos.v,
+            .left = screenPos.h,
+            .bottom = screenPos.v + kIconH,
+            .right = screenPos.h + kIconW
         };
         FrameRect(&outline);
 #endif
