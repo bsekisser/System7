@@ -235,6 +235,11 @@ paint_windows:
             }
 
             SetPort(savePort);
+
+            /* Phase 3: Redraw chrome on top of content to ensure it's not covered by fills
+             * Call PaintOne again to redraw the frame and controls on top */
+            WM_LOG_TRACE("[PaintBehind] Redrawing chrome on top of content for window %p\n", w);
+            PaintOne(w, clobberedRgn);
         }
     }
 
