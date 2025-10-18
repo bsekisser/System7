@@ -166,6 +166,11 @@ static void CursorManager_SetCursorInternal(const Cursor* crsr, Boolean watchAct
         return;
     }
 
+    /* Don't allow cursor changes while menu is being tracked */
+    if (IsMenuTrackingNew()) {
+        return;
+    }
+
     CursorManager_CopyCursor(crsr, &gCursorState.currentImage);
     gCursorState.hasCursor = true;
     gCursorState.hotSpot = crsr->hotSpot;
@@ -347,6 +352,11 @@ int IsCursorVisible(void) {
 
 /* Spin the watch cursor (animated wait) */
 void SpinCursor(short increment) {
+    /* Don't spin cursor while menu is being tracked */
+    if (IsMenuTrackingNew()) {
+        return;
+    }
+
     if (!gCursorState.watchActive || !gWatchCursor) {
         return;
     }
