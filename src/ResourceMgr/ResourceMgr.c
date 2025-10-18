@@ -1053,6 +1053,103 @@ SInt16 CountResources(ResType theType) {
     return count;
 }
 
+/* Helper: Get Nth type from resource map (1-indexed) */
+static ResType ResMap_GetIndType(ResFile* file, SInt16 index) {
+    ResMapHeader* map;
+    UInt16 typeListOff;
+    UInt16 numTypes;
+    UInt8* typeList;
+
+    if (!file || !file->map || index < 1) {
+        gResMgr.resError = resNotFound;
+        return 0;
+    }
+
+    map = file->map;
+    typeListOff = read_be16((UInt8*)&map->typeListOffset);
+
+    /* Bounds check */
+    if (typeListOff == 0xFFFF || typeListOff >= file->mapSize) {
+        gResMgr.resError = mapReadErr;
+        return 0;
+    }
+
+    if (typeListOff + 2 > file->mapSize) {
+        gResMgr.resError = mapReadErr;
+        return 0;
+    }
+
+    typeList = (UInt8*)map + typeListOff;
+    numTypes = read_be16(typeList) + 1;  /* Count is stored as n-1 */
+
+    if (index > numTypes) {
+        gResMgr.resError = resNotFound;
+        return 0;
+    }
+
+    /* Bounds check: ensure type list entries fit in map */
+    UInt32 typeListSize = 2 + (numTypes * sizeof(TypeListEntry));
+    if (typeListOff + typeListSize > file->mapSize) {
+        gResMgr.resError = mapReadErr;
+        return 0;
+    }
+
+    typeList += 2;  /* Skip count */
+
+    TypeListEntry* entry = (TypeListEntry*)(typeList + (index - 1) * sizeof(TypeListEntry));
+    return read_be32((UInt8*)&entry->resType);
+}
+
+/* Helper: Get Nth resource of a given type (1-indexed) */
+static RefListEntry* ResMap_GetIndResource(ResFile* file, ResType type, SInt16 index) {
+    TypeListEntry* typeEntry;
+    UInt16 count;
+    UInt16 refListOff;
+    UInt8* refList;
+
+    if (!file || !file->map || index < 1) {
+        gResMgr.resError = resNotFound;
+        return NULL;
+    }
+
+    typeEntry = ResMap_FindType(file, type);
+    if (!typeEntry) {
+        gResMgr.resError = resNotFound;
+        return NULL;
+    }
+
+    count = read_be16((UInt8*)&typeEntry->count) + 1;  /* Count is stored as n-1 */
+    if (index > count) {
+        gResMgr.resError = resNotFound;
+        return NULL;
+    }
+
+    refListOff = read_be16((UInt8*)&typeEntry->refListOffset);
+
+    /* Reference list offset is from start of type list */
+    ResMapHeader* map = file->map;
+    UInt16 typeListOff = read_be16((UInt8*)&map->typeListOffset);
+
+    /* Bounds check */
+    if (typeListOff == 0xFFFF || typeListOff >= file->mapSize) {
+        gResMgr.resError = mapReadErr;
+        return NULL;
+    }
+
+    /* Bounds check: ensure reference list is within map */
+    UInt32 refListStart = typeListOff + refListOff;
+    UInt32 refListSize = count * sizeof(RefListEntry);
+    if (refListStart >= file->mapSize || refListStart + refListSize > file->mapSize) {
+        gResMgr.resError = mapReadErr;
+        return NULL;
+    }
+
+    refList = (UInt8*)map + refListStart;
+
+    /* Return the Nth entry */
+    return (RefListEntry*)(refList + (index - 1) * sizeof(RefListEntry));
+}
+
 SInt16 Count1Resources(ResType theType) {
     if (gResMgr.curResFile < 0) return 0;
 
@@ -1064,38 +1161,105 @@ SInt16 Count1Resources(ResType theType) {
     return 0;
 }
 
-/* Get indexed resource (stub) */
+/* Get indexed resource from current file (1-indexed) */
 Handle GetIndResource(ResType theType, SInt16 index) {
-    (void)theType; (void)index;
-    gResMgr.resError = resNotFound;
-    return NULL;
+    ResFile* file;
+    RefListEntry* ref;
+    Handle h;
+
+    if (gResMgr.curResFile < 0) {
+        gResMgr.resError = resNotFound;
+        return NULL;
+    }
+
+    file = &gResMgr.resFiles[gResMgr.curResFile];
+    ref = ResMap_GetIndResource(file, theType, index);
+    if (!ref) {
+        gResMgr.resError = resNotFound;
+        return NULL;
+    }
+
+    h = ResFile_LoadResource(file, ref);
+    if (h) {
+        gResMgr.resError = noErr;
+    } else {
+        gResMgr.resError = resNotFound;
+    }
+    return h;
 }
 
+/* Get indexed resource from 1-file (usually current file) (1-indexed) */
 Handle Get1IndResource(ResType theType, SInt16 index) {
-    (void)theType; (void)index;
-    gResMgr.resError = resNotFound;
-    return NULL;
+    return GetIndResource(theType, index);
 }
 
-/* Type enumeration (stub) */
+/* Get Nth type from current file (1-indexed) */
 void GetIndType(ResType *theType, SInt16 index) {
-    (void)index;
-    if (theType) *theType = 0;
-    gResMgr.resError = resNotFound;
+    ResType type;
+
+    if (!theType) return;
+
+    if (gResMgr.curResFile < 0) {
+        gResMgr.resError = resNotFound;
+        *theType = 0;
+        return;
+    }
+
+    type = ResMap_GetIndType(&gResMgr.resFiles[gResMgr.curResFile], index);
+    if (type == 0) {
+        gResMgr.resError = resNotFound;
+    } else {
+        gResMgr.resError = noErr;
+    }
+    *theType = type;
 }
 
+/* Get Nth type from 1-file (1-indexed) */
 void Get1IndType(ResType *theType, SInt16 index) {
-    (void)index;
-    if (theType) *theType = 0;
-    gResMgr.resError = resNotFound;
+    GetIndType(theType, index);
 }
 
+/* Count total types in current file */
 SInt16 CountTypes(void) {
-    return 0;
+    ResMapHeader* map;
+    UInt16 typeListOff;
+    UInt8* typeList;
+
+    if (gResMgr.curResFile < 0) {
+        gResMgr.resError = resNotFound;
+        return 0;
+    }
+
+    ResFile* file = &gResMgr.resFiles[gResMgr.curResFile];
+    if (!file->map) {
+        gResMgr.resError = mapReadErr;
+        return 0;
+    }
+
+    map = file->map;
+    typeListOff = read_be16((UInt8*)&map->typeListOffset);
+
+    /* Bounds check */
+    if (typeListOff == 0xFFFF || typeListOff >= file->mapSize) {
+        gResMgr.resError = mapReadErr;
+        return 0;
+    }
+
+    if (typeListOff + 2 > file->mapSize) {
+        gResMgr.resError = mapReadErr;
+        return 0;
+    }
+
+    typeList = (UInt8*)map + typeListOff;
+    SInt16 numTypes = read_be16(typeList) + 1;  /* Count is stored as n-1 */
+
+    gResMgr.resError = noErr;
+    return numTypes;
 }
 
+/* Count types in 1-file (usually current file) */
 SInt16 Count1Types(void) {
-    return 0;
+    return CountTypes();
 }
 
 /* Unique ID generation */
