@@ -15,7 +15,15 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Recent Updates
 
-- ✅ **PS/2 Keyboard Translation Overhaul**: Full set 1 mapping feeds the Toolbox key codes that Classic Mac software expects.
+- ✅ **Window Resize System - Complete**: Interactive window resizing with proper chrome handling
+  - Window chrome (frame, titlebar, controls) properly resizes with new dimensions
+  - Grow box indicator stays visible and correctly positioned after resize
+  - Desktop areas cleaned when window shrinks (no garbage pixels left behind)
+  - Content fill doesn't overwrite chrome (chrome redrawn after content)
+  - XOR outline provides real-time feedback during grow box drag
+  - Implementation: strucRgn recalculation, grow box framebuffer rendering, desktop erase, chrome redraw
+  - Commits: 52d756c, a5c7391, 64eed1b, 8c3c24b, f76b532, 47018eb
+- ✅ **PS/2 Keyboard Translation Overhaul**: Full set 1 mapping feeds the Toolbox key codes that Classic Mac software expects.
   - Hardware translation re-enabled in the controller config (set 1) for reliable scancode delivery.
   - New lookup tables cover left/right modifiers, keypad, arrows, and function keys (see `src/Platform/x86/ps2.c`).
   - Modern input bridge recomputes modifiers, latches caps lock, and always generates a fallback `keyDown/keyUp` so apps never miss characters.
@@ -232,8 +240,14 @@ This is a proof-of-concept implementation focused on understanding and recreatin
 - **Window Manager**:
   - Window structure, creation, and display with chrome (title bar, close box)
   - Interactive window dragging with XOR outline feedback
+  - Interactive window resizing with grow box:
+    - Chrome (frame, titlebar, controls) properly resizes with new dimensions
+    - Grow box indicator stays visible and correctly positioned after resize
+    - Desktop areas cleaned when window shrinks (no garbage pixels)
+    - Content fill doesn't overwrite chrome (chrome redrawn after content)
+    - XOR outline provides real-time feedback during grow box drag
   - Window layering and activation
-  - Mouse hit testing (title bar, content, close box)
+  - Mouse hit testing (title bar, content, close box, grow box)
   - Font Manager integration for window titles (Chicago 12pt)
 - **Time Manager**: Production-quality implementation with:
   - Accurate TSC frequency calibration via CPUID (±100 ppm drift)
@@ -328,7 +342,6 @@ This is a proof-of-concept implementation focused on understanding and recreatin
   - Update event pipeline (basic implementation in place)
   - WDEF (Window Definition Procedure) dispatch (partial)
   - Visible region (visRgn) calculation (basic implementation)
-  - Window resizing and grow box handling (stubbed)
 - **Desktop Icons**:
   - Icons render and display correctly
   - Double-click to open functional
@@ -693,9 +706,9 @@ This project exists for:
 This project is in **active development** with no guaranteed timeline. Planned work includes:
 
 **Short Term** (Proof of Concept Completion):
+- ✅ Complete window resizing functionality (done: chrome resizing, grow box, desktop cleanup)
 - Fix desktop artifacts
 - Debug window close crash issue
-- Complete window resizing functionality
 
 **Medium Term** (Core Toolbox):
 - Complete Window Definition Procedure (WDEF) dispatch
@@ -718,6 +731,6 @@ This project is in **active development** with no guaranteed timeline. Planned w
 
 **Status**: Experimental - Educational - In Development
 
-**Last Updated**: October 2025 (PowerPC Graphics Investigation - Production-ready graphics code confirmed)
+**Last Updated**: October 2025 (Window Resize System Complete - Interactive window resizing with proper chrome handling)
 
 For questions, issues, or discussion, please use GitHub Issues.
