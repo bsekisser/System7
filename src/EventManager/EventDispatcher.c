@@ -349,10 +349,11 @@ Boolean HandleMouseDown(EventRecord* event)
             return true;
 
         case inGrow:
-            /* Resize window */
+            /* Resize window using grow box */
             if (whichWindow) {
-                /* TODO: Implement window resizing */
+                extern Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode);
                 EVT_LOG_DEBUG("Grow window 0x%08x\n", (unsigned int)whichWindow);
+                TrackBox(whichWindow, event->where, inGrow);
             }
             return true;
 
@@ -369,8 +370,9 @@ Boolean HandleMouseDown(EventRecord* event)
         case inZoomOut:
             /* Zoom box clicked */
             if (whichWindow) {
-                /* TODO: Implement window zooming */
-                EVT_LOG_DEBUG("Zoom window 0x%08x\n", (unsigned int)whichWindow);
+                extern void ZoomWindow(WindowPtr theWindow, short partCode, Boolean front);
+                EVT_LOG_DEBUG("Zoom window 0x%08x (partCode=%d)\n", (unsigned int)whichWindow, windowPart);
+                ZoomWindow(whichWindow, windowPart, true);
             }
             return true;
 
