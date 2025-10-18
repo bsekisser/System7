@@ -85,17 +85,7 @@ OSErr SoundEffects_Play(SoundEffectId effect)
                                      entry->bitsPerSample);
     if (err != noErr) {
         if (entry->fallbackDurationMs > 0) {
-            extern void serial_puts(const char* str);
-            char buf[160];
-            snprintf(buf, sizeof(buf), "[SOUND] PCM playback failed (err=%d), using fallback freq=%u dur=%u\n",
-                     err, entry->fallbackFrequency, entry->fallbackDurationMs);
-            serial_puts(buf);
             PCSpkr_Beep(entry->fallbackFrequency, entry->fallbackDurationMs);
-        } else {
-            extern void serial_puts(const char* str);
-            char buf[100];
-            snprintf(buf, sizeof(buf), "[SOUND] PCM playback failed (err=%d), no fallback\n", err);
-            serial_puts(buf);
         }
     }
     return err;
