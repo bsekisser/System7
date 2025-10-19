@@ -231,6 +231,9 @@ void SetDialogItemText(Handle item, const Str255 text) {
     unsigned char len = text[0];
     if (len > 255) len = 255;
 
+    /* CRITICAL: Lock handle before SetHandleSize which can trigger heap compaction */
+    HLock(item);
+
     /* Resize handle to accommodate new text */
     Size newSize = sizeof(DialogItem) + len + 1;
     SetHandleSize(item, newSize);
@@ -250,6 +253,8 @@ void SetDialogItemText(Handle item, const Str255 text) {
     } else {
         // DIALOG_LOG_DEBUG("SetDialogItemText: Failed to resize handle\n");
     }
+
+    HUnlock(item);
 }
 
 /*
