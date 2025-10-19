@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -370,7 +371,7 @@ OSErr CreatePronunciationDictionary(PronunciationDictionary **dictionary) {
         return paramErr;
     }
 
-    *dictionary = malloc(sizeof(PronunciationDictionary));
+    *dictionary = NewPtr(sizeof(PronunciationDictionary));
     if (!*dictionary) {
         return memFullErr;
     }
@@ -379,19 +380,19 @@ OSErr CreatePronunciationDictionary(PronunciationDictionary **dictionary) {
 
     /* Allocate entries array */
     (*dictionary)->maxEntries = 1024; /* Initial size */
-    (*dictionary)->entries = malloc((*dictionary)->maxEntries * sizeof(PronunciationEntry));
+    (*dictionary)->entries = NewPtr((*dictionary)->maxEntries * sizeof(PronunciationEntry));
     if (!(*dictionary)->entries) {
-        free(*dictionary);
+        DisposePtr((Ptr)*dictionary);
         *dictionary = NULL;
         return memFullErr;
     }
 
     /* Allocate rules array */
     (*dictionary)->maxRules = 256; /* Initial size */
-    (*dictionary)->rules = malloc((*dictionary)->maxRules * sizeof(PronunciationRule));
+    (*dictionary)->rules = NewPtr((*dictionary)->maxRules * sizeof(PronunciationRule));
     if (!(*dictionary)->rules) {
-        free((*dictionary)->entries);
-        free(*dictionary);
+        DisposePtr((Ptr)(*dictionary)->entries);
+        DisposePtr((Ptr)*dictionary);
         *dictionary = NULL;
         return memFullErr;
     }
@@ -405,9 +406,9 @@ OSErr CreatePronunciationDictionary(PronunciationDictionary **dictionary) {
     /* Initialize mutex */
     int result = pthread_mutex_init(&(*dictionary)->dictionaryMutex, NULL);
     if (result != 0) {
-        free((*dictionary)->rules);
-        free((*dictionary)->entries);
-        free(*dictionary);
+        DisposePtr((Ptr)(*dictionary)->rules);
+        DisposePtr((Ptr)(*dictionary)->entries);
+        DisposePtr((Ptr)*dictionary);
         *dictionary = NULL;
         return memFullErr;
     }
@@ -426,14 +427,14 @@ OSErr DisposePronunciationDictionary(PronunciationDictionary *dictionary) {
     }
 
     if (dictionary->entries) {
-        free(dictionary->entries);
+        DisposePtr((Ptr)dictionary->entries);
     }
     if (dictionary->rules) {
-        free(dictionary->rules);
+        DisposePtr((Ptr)dictionary->rules);
     }
 
     pthread_mutex_destroy(&dictionary->dictionaryMutex);
-    free(dictionary);
+    DisposePtr((Ptr)dictionary);
 
     return noErr;
 }
@@ -452,12 +453,16 @@ OSErr AddPronunciation(PronunciationDictionary *dictionary, const char *word,
 
     /* Check if we need to expand the array */
     if (dictionary->entryCount >= dictionary->maxEntries) {
+        Size oldSize = dictionary->maxEntries * sizeof(PronunciationEntry);
         long newSize = dictionary->maxEntries * 2;
-        PronunciationEntry *newEntries = realloc(dictionary->entries,
-                                                  newSize * sizeof(PronunciationEntry));
+        PronunciationEntry *newEntries = (PronunciationEntry *)NewPtr(newSize * sizeof(PronunciationEntry));
         if (!newEntries) {
             pthread_mutex_unlock(&dictionary->dictionaryMutex);
             return memFullErr;
+        }
+        if (dictionary->entries) {
+            BlockMove(dictionary->entries, newEntries, oldSize);
+            DisposePtr((Ptr)dictionary->entries);
         }
         dictionary->entries = newEntries;
         dictionary->maxEntries = newSize;
@@ -530,7 +535,7 @@ OSErr ConvertTextToPhonemes(const char *text, long textLength, PhonemeSymbolType
     }
 
     /* Create null-terminated text */
-    char *nullTermText = malloc(textLength + 1);
+    char *nullTermText = NewPtr(textLength + 1);
     if (!nullTermText) {
         return memFullErr;
     }
@@ -544,7 +549,7 @@ OSErr ConvertTextToPhonemes(const char *text, long textLength, PhonemeSymbolType
         *phonemeLength = strlen(phonemeBuffer);
     }
 
-    free(nullTermText);
+    DisposePtr((Ptr)nullTermText);
     return err;
 }
 

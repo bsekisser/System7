@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SystemTypes.h"
 #include <stdlib.h>
 #include <string.h>
@@ -218,7 +219,7 @@ OSErr SndNewChannel(SndChannelPtr* chan, SInt16 synth, SInt32 init, SndCallBackP
     }
 
     /* Allocate channel structure */
-    newChan = (SndChannelPtr)calloc(1, sizeof(SndChannel));
+    newChan = (SndChannelPtr)NewPtrClear(sizeof(SndChannel));
     if (newChan == NULL) {
         return memFullErr;
     }
@@ -243,7 +244,7 @@ OSErr SndNewChannel(SndChannelPtr* chan, SInt16 synth, SInt32 init, SndCallBackP
     /* Allocate command queue */
     newChan->queue = (SndCommand*)calloc(newChan->queueSize, sizeof(SndCommand));
     if (newChan->queue == NULL) {
-        free(newChan);
+        DisposePtr((Ptr)newChan);
         return memFullErr;
     }
 
@@ -266,8 +267,8 @@ OSErr SndNewChannel(SndChannelPtr* chan, SInt16 synth, SInt32 init, SndCallBackP
         g_soundMgr.channelCount--;
         pthread_mutex_unlock(&g_soundMutex);
 
-        free(newChan->queue);
-        free(newChan);
+        DisposePtr((Ptr)newChan->queue);
+        DisposePtr((Ptr)newChan);
         return err;
     }
 
@@ -320,10 +321,10 @@ OSErr SndDisposeChannel(SndChannelPtr chan, Boolean quietNow)
 
     /* Free resources */
     if (chan->queue != NULL) {
-        free(chan->queue);
+        DisposePtr((Ptr)chan->queue);
     }
 
-    free(chan);
+    DisposePtr((Ptr)chan);
     return noErr;
 }
 

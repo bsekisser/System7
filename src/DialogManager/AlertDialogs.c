@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /*
 #include "DialogManager/DialogInternal.h"
  * AlertDialogs.c - Alert Dialog Implementation
@@ -26,10 +27,7 @@
 extern void SysBeep(SInt16 duration);
 extern UInt32 TickCount(void);
 extern void ShowWindow(WindowPtr window);
-extern Handle NewHandleClear(Size byteCount);
-extern void DisposeHandle(Handle h);
-extern void HLock(Handle h);
-extern void HUnlock(Handle h);
+/* NewHandleClear, DisposeHandle, HLock, HUnlock now provided by MemoryManager.h */
 extern ControlHandle _GetFirstControl(WindowPtr window);
 extern void CenterDialogOnScreen(DialogPtr dlg);
 extern void InvalRect(const Rect* r);
@@ -376,7 +374,7 @@ static OSErr BuildFallbackDLOG(const BuiltInAlertSpec* spec, DialogTemplate** ou
         return -50; /* paramErr */
     }
 
-    t = (DialogTemplate*)malloc(sizeof(DialogTemplate));
+    t = (DialogTemplate*)NewPtr(sizeof(DialogTemplate));
     if (!t) {
         return -108; /* memFullErr */
     }
@@ -533,7 +531,7 @@ static Boolean LoadAlertWithFallback(SInt16 alertID, SInt16 alertType,
     if (err != noErr) {
     // printf("Failed to build fallback DITL: error %d\n", err);
         if (*outDLOG) {
-            free(*outDLOG);
+            DisposePtr((Ptr)*outDLOG);
             *outDLOG = NULL;
         }
         return false;
@@ -649,7 +647,7 @@ static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt
 
     if (!alertDialog) {
     // printf("Error: Failed to create alert dialog\n");
-        if (dlogTemplate) free(dlogTemplate);
+        if (dlogTemplate) DisposePtr((Ptr)dlogTemplate);
         if (ditlHandle) DisposeHandle(ditlHandle);
         return 1;
     }
@@ -693,7 +691,7 @@ static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt
 
     /* Dispose of the alert dialog */
     DisposeDialog(alertDialog);
-    if (dlogTemplate) free(dlogTemplate);
+    if (dlogTemplate) DisposePtr((Ptr)dlogTemplate);
 
     /* Advance alert stage for repeated alerts */
     if (gAlertState.alertStage < 3) {

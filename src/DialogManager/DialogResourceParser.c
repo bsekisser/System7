@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /*
 #include "DialogManager/DialogInternal.h"
  * DialogResourceParser.c - DLOG and DITL Resource Parsing
@@ -64,7 +65,7 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
     // DIALOG_LOG_DEBUG("Dialog: Parsing DITL with %d items\n", count);
 
     /* Allocate item array */
-    itemArray = (DialogItemEx*)malloc(count * sizeof(DialogItemEx));
+    itemArray = (DialogItemEx*)NewPtr(count * sizeof(DialogItemEx));
     if (!itemArray) {
         // DIALOG_LOG_DEBUG("Dialog: ParseDITL - malloc failed\n");
         HUnlock(ditlHandle);
@@ -118,7 +119,7 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
                 baseType == statText || baseType == editText) {
                 /* Text-based item - copy string data */
                 if (dataLen > 0) {
-                    unsigned char* textData = (unsigned char*)malloc(dataLen + 1);
+                    unsigned char* textData = (unsigned char*)NewPtr(dataLen + 1);
                     if (textData) {
                         memcpy(textData, p, dataLen);
                         textData[dataLen] = 0;
@@ -160,12 +161,12 @@ void FreeParsedDITL(DialogItemEx* items, SInt16 itemCount) {
 
     for (i = 0; i < itemCount; i++) {
         if (items[i].data) {
-            free(items[i].data);
+            DisposePtr((Ptr)items[i].data);
             items[i].data = NULL;
         }
     }
 
-    free(items);
+    DisposePtr((Ptr)items);
 }
 
 /* Create a simple default DITL for testing (OK and Cancel buttons) */
@@ -185,12 +186,12 @@ Handle CreateDefaultDITL(void) {
         0x4F, 0x4B   /* "OK" in Pascal string format (length byte omitted for simplicity) */
     };
 
-    Handle h = (Handle)malloc(sizeof(Ptr));
+    Handle h = (Handle)NewPtr(sizeof(Ptr));
     if (!h) return NULL;
 
-    *h = (Ptr)malloc(sizeof(defaultDITL));
+    *h = (Ptr)NewPtr(sizeof(defaultDITL));
     if (!*h) {
-        free(h);
+        DisposePtr((Ptr)h);
         return NULL;
     }
 

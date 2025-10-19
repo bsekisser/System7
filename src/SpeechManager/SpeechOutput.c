@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -335,7 +336,7 @@ void CleanupAudioOutput(void) {
             CloseAudioOutputStream(stream);
         }
         if (stream->audioBuffer) {
-            free(stream->audioBuffer);
+            DisposePtr((Ptr)stream->audioBuffer);
         }
         pthread_mutex_destroy(&stream->streamMutex);
         pthread_cond_destroy(&stream->bufferCondition);
@@ -456,7 +457,7 @@ OSErr CreateAudioOutputStream(const AudioOutputConfig *config, AudioOutputStream
     /* Allocate audio buffer */
     newStream->bufferFrames = config->bufferSize;
     newStream->bufferSize = newStream->bufferFrames * (newStream)->\2->frameSize;
-    newStream->audioBuffer = malloc(newStream->bufferSize);
+    newStream->audioBuffer = NewPtr(newStream->bufferSize);
     if (!newStream->audioBuffer) {
         pthread_mutex_unlock(&gAudioManager.managerMutex);
         return memFullErr;
@@ -499,7 +500,7 @@ OSErr DisposeAudioOutputStream(AudioOutputStream *stream) {
 
     /* Free resources */
     if (foundStream->audioBuffer) {
-        free(foundStream->audioBuffer);
+        DisposePtr((Ptr)foundStream->audioBuffer);
     }
 
     pthread_mutex_destroy(&foundStream->streamMutex);
@@ -610,7 +611,7 @@ OSErr WriteAudioData(AudioOutputStream *stream, const void *audioData, long data
     long frameCount = dataSize / (foundStream)->\2->frameSize;
 
     /* Copy data to internal buffer for processing */
-    void *processBuffer = malloc(dataSize);
+    void *processBuffer = NewPtr(dataSize);
     if (!processBuffer) {
         pthread_mutex_unlock(&foundStream->streamMutex);
         return memFullErr;
@@ -653,7 +654,7 @@ OSErr WriteAudioData(AudioOutputStream *stream, const void *audioData, long data
         }
     }
 
-    free(processBuffer);
+    DisposePtr((Ptr)processBuffer);
     pthread_mutex_unlock(&foundStream->streamMutex);
 
     return err;
@@ -768,7 +769,7 @@ OSErr GenerateTestTone(double frequency, long durationMs, const AudioOutputForma
 
     long frameCount = (format->sampleRate * durationMs) / 1000;
     *dataSize = frameCount * format->frameSize;
-    *audioData = malloc(*dataSize);
+    *audioData = NewPtr(*dataSize);
 
     if (!*audioData) {
         return memFullErr;

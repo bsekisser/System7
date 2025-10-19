@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SuperCompat.h"
 #include <stdlib.h>
 #include <string.h>
@@ -75,12 +76,12 @@ typedef struct AEHandle {
  * ======================================================================== */
 
 Handle AEAllocateHandle(Size size) {
-    AEHandle* handle = malloc(sizeof(AEHandle));
+    AEHandle* handle = NewPtr(sizeof(AEHandle));
     if (!handle) return NULL;
 
-    handle->data = malloc(size);
+    handle->data = NewPtr(size);
     if (!handle->data) {
-        free(handle);
+        DisposePtr((Ptr)handle);
         return NULL;
     }
 
@@ -108,8 +109,8 @@ void AEDisposeHandle(Handle h) {
         g_aeMgrState.totalMemoryAllocated -= (handle->size + sizeof(AEHandle));
         pthread_mutex_unlock(&g_aeMgrState.mutex);
 
-        free(handle->data);
-        free(handle);
+        DisposePtr((Ptr)handle->data);
+        DisposePtr((Ptr)handle);
     }
 }
 
@@ -117,8 +118,14 @@ OSErr AESetHandleSize(Handle h, Size newSize) {
     if (!h) return errAENotAEDesc;
 
     AEHandle* handle = (AEHandle*)h;
-    void* newData = realloc(handle->data, newSize);
+    void* newData = NewPtr(newSize);
     if (!newData) return memFullErr;
+
+    if (handle->data) {
+        Size copySize = (newSize < handle->size) ? newSize : handle->size;
+        BlockMove(handle->data, newData, copySize);
+        DisposePtr((Ptr)handle->data);
+    }
 
     pthread_mutex_lock(&g_aeMgrState.mutex);
     g_aeMgrState.totalMemoryAllocated += (newSize - handle->size);
@@ -191,21 +198,21 @@ void AEManagerCleanup(void) {
     AEHandlerTableEntry* handler = g_aeMgrState.eventHandlers;
     while (handler) {
         AEHandlerTableEntry* next = handler->next;
-        free(handler);
+        DisposePtr((Ptr)handler);
         handler = next;
     }
 
     AECoercionHandlerEntry* coercion = g_aeMgrState.coercionHandlers;
     while (coercion) {
         AECoercionHandlerEntry* next = coercion->next;
-        free(coercion);
+        DisposePtr((Ptr)coercion);
         coercion = next;
     }
 
     AESpecialHandlerEntry* special = g_aeMgrState.specialHandlers;
     while (special) {
         AESpecialHandlerEntry* next = special->next;
-        free(special);
+        DisposePtr((Ptr)special);
         special = next;
     }
 
@@ -560,19 +567,19 @@ OSErr AEGetKeyDesc(const AERecord* theAERecord, AEKeyword theAEKeyword, DescType
     if (err != noErr) return err;
 
     /* Create a temporary buffer */
-    void* tempData = malloc(actualSize);
+    void* tempData = NewPtr(actualSize);
     if (!tempData) return memFullErr;
 
     /* Get the actual data */
     err = AEGetKeyPtr(theAERecord, theAEKeyword, desiredType, &actualType, tempData, actualSize, &actualSize);
     if (err != noErr) {
-        free(tempData);
+        DisposePtr((Ptr)tempData);
         return err;
     }
 
     /* Create the result descriptor */
     err = AECreateDesc(actualType, tempData, actualSize, result);
-    free(tempData);
+    DisposePtr((Ptr)tempData);
 
     return err;
 }

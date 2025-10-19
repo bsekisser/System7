@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /*
 #include <stdlib.h>
 #include <string.h>
@@ -214,7 +215,7 @@ OSErr AEGenerateScriptFromRecording(char** scriptText, Size* scriptSize) {
     Size estimatedSize = 1024;  /* Header */
     estimatedSize += g_recordingSession.eventCount * 512;  /* Estimate per event */
 
-    *scriptText = malloc(estimatedSize);
+    *scriptText = NewPtr(estimatedSize);
     if (!*scriptText) {
         pthread_mutex_unlock(&g_recordingMutex);
         return memFullErr;
@@ -420,7 +421,7 @@ OSErr AELoadRecording(const char* filePath) {
         fread(&eventSize, sizeof(Size), 1, file);
 
         if (eventSize > 0) {
-            void* eventData = malloc(eventSize);
+            void* eventData = NewPtr(eventSize);
             if (!eventData) {
                 fclose(file);
                 pthread_mutex_unlock(&g_recordingMutex);
@@ -428,7 +429,7 @@ OSErr AELoadRecording(const char* filePath) {
             }
             fread(eventData, 1, eventSize, file);
             AECreateDesc(eventType, eventData, eventSize, &recorded->event);
-            free(eventData);
+            DisposePtr((Ptr)eventData);
         }
 
         /* Read reply descriptor if present */
@@ -439,7 +440,7 @@ OSErr AELoadRecording(const char* filePath) {
             fread(&replySize, sizeof(Size), 1, file);
 
             if (replySize > 0) {
-                void* replyData = malloc(replySize);
+                void* replyData = NewPtr(replySize);
                 if (!replyData) {
                     fclose(file);
                     pthread_mutex_unlock(&g_recordingMutex);
@@ -447,7 +448,7 @@ OSErr AELoadRecording(const char* filePath) {
                 }
                 fread(replyData, 1, replySize, file);
                 AECreateDesc(replyType, replyData, replySize, &recorded->reply);
-                free(replyData);
+                DisposePtr((Ptr)replyData);
             }
         }
 
@@ -473,7 +474,7 @@ void AEClearRecording(void) {
             }
         }
 
-        free(g_recordingSession.events);
+        DisposePtr((Ptr)g_recordingSession.events);
         g_recordingSession.events = NULL;
     }
 

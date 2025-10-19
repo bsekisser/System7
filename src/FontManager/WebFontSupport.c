@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 #include "FontManager/FontInternal.h"
 #include <stdlib.h>
@@ -104,7 +105,7 @@ OSErr DownloadWebFont(ConstStr255Param url, ConstStr255Param cachePath,
         metadata->src = strdup(cUrl);
     }
 
-    free(fontData);
+    DisposePtr((Ptr)fontData);
     return noErr;
 }
 
@@ -139,14 +140,14 @@ OSErr LoadWebFont(ConstStr255Param filePath, WebFontMetadata *metadata, ModernFo
     fileSize = ftell(file);
     fseek(file, 0, SEEK_SET);
 
-    fontData = malloc(fileSize);
+    fontData = NewPtr(fileSize);
     if (fontData == NULL) {
         fclose(file);
         return fontOutOfMemoryErr;
     }
 
     if (fread(fontData, 1, fileSize, file) != fileSize) {
-        free(fontData);
+        DisposePtr((Ptr)fontData);
         fclose(file);
         return fontCorruptErr;
     }
@@ -155,14 +156,14 @@ OSErr LoadWebFont(ConstStr255Param filePath, WebFontMetadata *metadata, ModernFo
     /* Detect format */
     format = DetectFontFormat(fontData, fileSize);
     if (format == 0) {
-        free(fontData);
+        DisposePtr((Ptr)fontData);
         return kModernFontNotSupportedErr;
     }
 
     /* Create ModernFont structure */
-    webFont = (ModernFont *)calloc(1, sizeof(ModernFont));
+    webFont = (ModernFont *)NewPtrClear(sizeof(ModernFont));
     if (webFont == NULL) {
-        free(fontData);
+        DisposePtr((Ptr)fontData);
         return fontOutOfMemoryErr;
     }
 
@@ -197,8 +198,8 @@ OSErr LoadWebFont(ConstStr255Param filePath, WebFontMetadata *metadata, ModernFo
     }
 
     if (error != noErr) {
-        free(webFont);
-        free(fontData);
+        DisposePtr((Ptr)webFont);
+        DisposePtr((Ptr)fontData);
         return error;
     }
 
@@ -211,7 +212,7 @@ OSErr LoadWebFont(ConstStr255Param filePath, WebFontMetadata *metadata, ModernFo
         }
     }
 
-    free(fontData);
+    DisposePtr((Ptr)fontData);
     *font = webFont;
     return noErr;
 }
@@ -250,14 +251,14 @@ OSErr ParseWebFontCSS(ConstStr255Param cssPath, WebFontMetadata **metadataArray,
     fileSize = ftell(file);
     fseek(file, 0, SEEK_SET);
 
-    cssContent = (char *)malloc(fileSize + 1);
+    cssContent = (char *)NewPtr(fileSize + 1);
     if (cssContent == NULL) {
         fclose(file);
         return fontOutOfMemoryErr;
     }
 
     if (fread(cssContent, 1, fileSize, file) != fileSize) {
-        free(cssContent);
+        DisposePtr((Ptr)cssContent);
         fclose(file);
         return fontCorruptErr;
     }
@@ -265,9 +266,9 @@ OSErr ParseWebFontCSS(ConstStr255Param cssPath, WebFontMetadata **metadataArray,
     fclose(file);
 
     /* Allocate metadata array */
-    metadata = (WebFontMetadata *)calloc(metadataCapacity, sizeof(WebFontMetadata));
+    metadata = (WebFontMetadata *)NewPtrClear(metadataCapacity * sizeof(WebFontMetadata));
     if (metadata == NULL) {
-        free(cssContent);
+        DisposePtr((Ptr)cssContent);
         return fontOutOfMemoryErr;
     }
 
@@ -280,34 +281,41 @@ OSErr ParseWebFontCSS(ConstStr255Param cssPath, WebFontMetadata **metadataArray,
         if (braceStart != NULL && braceEnd != NULL) {
             /* Extract @font-face block */
             size_t blockLen = braceEnd - braceStart + 1;
-            char *fontFaceBlock = (char *)malloc(blockLen + 1);
+            char *fontFaceBlock = (char *)NewPtr(blockLen + 1);
             if (fontFaceBlock != NULL) {
                 memcpy(fontFaceBlock, braceStart, blockLen);
                 fontFaceBlock[blockLen] = '\0';
 
                 /* Parse the font-face block */
                 if (metadataCount >= metadataCapacity) {
+                    Size oldSize = metadataCapacity * sizeof(WebFontMetadata);
                     metadataCapacity *= 2;
-                    metadata = (WebFontMetadata *)realloc(metadata,
-                                                         metadataCapacity * sizeof(WebFontMetadata));
-                    if (metadata == NULL) {
-                        free(fontFaceBlock);
-                        free(cssContent);
+                    Size newSize = metadataCapacity * sizeof(WebFontMetadata);
+                    WebFontMetadata *newMetadata = (WebFontMetadata *)NewPtrClear(newSize);
+                    if (newMetadata == NULL) {
+                        DisposePtr((Ptr)fontFaceBlock);
+                        DisposePtr((Ptr)cssContent);
+                        DisposePtr((Ptr)metadata);
                         return fontOutOfMemoryErr;
                     }
+                    if (metadata) {
+                        BlockMove(metadata, newMetadata, oldSize);
+                        DisposePtr((Ptr)metadata);
+                    }
+                    metadata = newMetadata;
                 }
 
                 ParseCSSFontFace(fontFaceBlock, &metadata[metadataCount]);
                 metadataCount++;
 
-                free(fontFaceBlock);
+                DisposePtr((Ptr)fontFaceBlock);
             }
         }
 
         current = (braceEnd != NULL) ? braceEnd + 1 : fontFaceStart + 10;
     }
 
-    free(cssContent);
+    DisposePtr((Ptr)cssContent);
 
     *metadataArray = metadata;
     *count = metadataCount;
@@ -339,8 +347,8 @@ OSErr ValidateWebFont(ConstStr255Param filePath, WebFontMetadata *metadata)
         format != kFontFormatWOFF2 &&
         format != kFontFormatOpenType &&
         format != kFontFormatTrueType) {
-        if (familyName) free(familyName);
-        if (styleName) free(styleName);
+        if (familyName) DisposePtr((Ptr)familyName);
+        if (styleName) DisposePtr((Ptr)styleName);
         return kModernFontNotSupportedErr;
     }
 
@@ -370,8 +378,8 @@ OSErr ValidateWebFont(ConstStr255Param filePath, WebFontMetadata *metadata)
         }
     }
 
-    if (familyName) free(familyName);
-    if (styleName) free(styleName);
+    if (familyName) DisposePtr((Ptr)familyName);
+    if (styleName) DisposePtr((Ptr)styleName);
     return noErr;
 }
 
@@ -404,7 +412,7 @@ static OSErr DownloadFile(ConstStr255Param url, void **data, unsigned long *size
 
     /* Download data */
     download.capacity = 1024 * 1024; /* 1MB initial */
-    download.data = malloc(download.capacity);
+    download.data = NewPtr(download.capacity);
     if (download.data == NULL) {
         InternetCloseHandle(hUrl);
         InternetCloseHandle(hInternet);
@@ -414,13 +422,20 @@ static OSErr DownloadFile(ConstStr255Param url, void **data, unsigned long *size
     char buffer[8192];
     while (InternetReadFile(hUrl, buffer, sizeof(buffer), &bytesRead) && bytesRead > 0) {
         if (download.size + bytesRead > download.capacity) {
+            Size oldCapacity = download.capacity;
             download.capacity *= 2;
-            download.data = realloc(download.data, download.capacity);
-            if (download.data == NULL) {
+            void *newData = NewPtr(download.capacity);
+            if (newData == NULL) {
+                DisposePtr((Ptr)download.data);
                 InternetCloseHandle(hUrl);
                 InternetCloseHandle(hInternet);
                 return fontOutOfMemoryErr;
             }
+            if (download.data) {
+                BlockMove(download.data, newData, oldCapacity);
+                DisposePtr((Ptr)download.data);
+            }
+            download.data = newData;
         }
         memcpy((char*)download.data + download.size, buffer, bytesRead);
         download.size += bytesRead;
@@ -441,11 +456,19 @@ static size_t WriteCallback(void *contents, size_t size, size_t nmemb, WebFontDo
     size_t realsize = size * nmemb;
 
     if (download->size + realsize > download->capacity) {
+        Size oldCapacity = download->capacity;
         download->capacity = (download->size + realsize) * 2;
-        download->data = realloc(download->data, download->capacity);
-        if (download->data == NULL) {
+        void *newData = NewPtr(download->capacity);
+        if (newData == NULL) {
+            if (download->data) DisposePtr((Ptr)download->data);
+            download->data = NULL;
             return 0; /* Out of memory */
         }
+        if (download->data) {
+            BlockMove(download->data, newData, oldCapacity);
+            DisposePtr((Ptr)download->data);
+        }
+        download->data = newData;
     }
 
     memcpy((char*)download->data + download->size, contents, realsize);
@@ -473,7 +496,7 @@ static OSErr DownloadFile(ConstStr255Param url, void **data, unsigned long *size
 
     /* Initialize download buffer */
     download.capacity = 1024 * 1024; /* 1MB initial */
-    download.data = malloc(download.capacity);
+    download.data = NewPtr(download.capacity);
     if (download.data == NULL) {
         curl_easy_cleanup(curl);
         return fontOutOfMemoryErr;
@@ -491,7 +514,7 @@ static OSErr DownloadFile(ConstStr255Param url, void **data, unsigned long *size
     curl_easy_cleanup(curl);
 
     if (res != CURLE_OK) {
-        free(download.data);
+        DisposePtr((Ptr)download.data);
         return kModernFontNetworkErr;
     }
 
@@ -602,7 +625,7 @@ static OSErr ParseCSSFontFace(const char *css, WebFontMetadata *metadata)
 
     metadata->isValid = (metadata->fontFamily != NULL && metadata->src != NULL);
 
-    free(cssBlock);
+    DisposePtr((Ptr)cssBlock);
     return noErr;
 }
 
@@ -632,7 +655,7 @@ static OSErr ExtractFontURL(const char *srcProperty, char **url, char **format)
     /* Extract URL */
     if (url != NULL) {
         size_t urlLen = urlEnd - urlStart + 1;
-        *url = (char *)malloc(urlLen + 1);
+        *url = (char *)NewPtr(urlLen + 1);
         if (*url != NULL) {
             memcpy(*url, urlStart, urlLen);
             (*url)[urlLen] = '\0';
@@ -655,7 +678,7 @@ static OSErr ExtractFontURL(const char *srcProperty, char **url, char **format)
             }
 
             size_t formatLen = formatEnd - formatStart + 1;
-            *format = (char *)malloc(formatLen + 1);
+            *format = (char *)NewPtr(formatLen + 1);
             if (*format != NULL) {
                 memcpy(*format, formatStart, formatLen);
                 (*format)[formatLen] = '\0';

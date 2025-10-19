@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SuperCompat.h"
 #include <stdlib.h>
 #include <string.h>
@@ -65,7 +66,7 @@ static OSErr HandleOpenDocuments(const AppleEvent* theAppleEvent, AppleEvent* re
             Size textSize;
             if (AECoerceToText(&fileDesc, &textData, &textSize) == noErr) {
                 printf("  Document %d: %.*s\n", i, (int)textSize, textData);
-                free(textData);
+                DisposePtr((Ptr)textData);
             }
             AEDisposeDesc(&fileDesc);
         }
@@ -161,7 +162,7 @@ static void DemonstrateAppleScript(void) {
             Size resultSize;
             if (AECoerceToText(&result, &resultText, &resultSize) == noErr) {
                 printf("Script result: %.*s\n", (int)resultSize, resultText);
-                free(resultText);
+                DisposePtr((Ptr)resultText);
             }
             AEDisposeDesc(&result);
         } else {
@@ -273,7 +274,7 @@ static void DemonstrateEventRecording(void) {
     err = AEGenerateScriptFromRecording(session, &scriptOptions, &scriptText, &scriptSize);
     if (err == noErr) {
         printf("\nGenerated AppleScript:\n%.*s\n", (int)scriptSize, scriptText);
-        free(scriptText);
+        DisposePtr((Ptr)scriptText);
     }
 
     /* Save recording to file */
@@ -454,12 +455,12 @@ int main(int argc, char* argv[]) {
         char* appName;
         Size nameSize;
         if (AEGetParamPtr(&reply, 'name', typeChar, NULL, NULL, 0, &nameSize) == noErr) {
-            appName = malloc(nameSize + 1);
+            appName = NewPtr(nameSize + 1);
             if (AEGetParamPtr(&reply, 'name', typeChar, NULL, appName, nameSize, &nameSize) == noErr) {
                 appName[nameSize] = '\0';
                 printf("Application name from reply: %s\n", appName);
             }
-            free(appName);
+            DisposePtr((Ptr)appName);
         }
     }
 
@@ -487,7 +488,7 @@ int main(int argc, char* argv[]) {
             Size textSize;
             if (AECoerceToText(&item, &text, &textSize) == noErr) {
                 printf("  Item %d: %.*s\n", i, (int)textSize, text);
-                free(text);
+                DisposePtr((Ptr)text);
             }
             AEDisposeDesc(&item);
         }

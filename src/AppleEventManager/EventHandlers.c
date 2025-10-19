@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SuperCompat.h"
 #include <stdlib.h>
 #include <string.h>
@@ -101,7 +102,7 @@ OSErr AEInstallEventHandler(AEEventClass theAEEventClass, AEEventID theAEEventID
     }
 
     /* Create new handler entry */
-    AEHandlerTableEntry* newEntry = malloc(sizeof(AEHandlerTableEntry));
+    AEHandlerTableEntry* newEntry = NewPtr(sizeof(AEHandlerTableEntry));
     if (!newEntry) {
         pthread_mutex_unlock(&g_aeMgrState.mutex);
         return memFullErr;
@@ -136,7 +137,7 @@ OSErr AERemoveEventHandler(AEEventClass theAEEventClass, AEEventID theAEEventID,
 
             AEHandlerTableEntry* toDelete = *current;
             *current = (*current)->next;
-            free(toDelete);
+            DisposePtr((Ptr)toDelete);
             g_aeMgrState.handlersInstalled--;
 
             pthread_mutex_unlock(&g_aeMgrState.mutex);
@@ -459,7 +460,7 @@ OSErr AEInstallCoercionHandler(DescType fromType, DescType toType, CoercionHandl
     }
 
     /* Create new coercion handler entry */
-    AECoercionHandlerEntry* newEntry = malloc(sizeof(AECoercionHandlerEntry));
+    AECoercionHandlerEntry* newEntry = NewPtr(sizeof(AECoercionHandlerEntry));
     if (!newEntry) {
         pthread_mutex_unlock(&g_aeMgrState.mutex);
         return memFullErr;
@@ -494,7 +495,7 @@ OSErr AERemoveCoercionHandler(DescType fromType, DescType toType, CoercionHandle
 
             AECoercionHandlerEntry* toDelete = *current;
             *current = (*current)->next;
-            free(toDelete);
+            DisposePtr((Ptr)toDelete);
 
             pthread_mutex_unlock(&g_aeMgrState.mutex);
             return noErr;
@@ -556,7 +557,7 @@ OSErr AEInstallSpecialHandler(AEKeyword functionClass, void* handler, Boolean is
     }
 
     /* Create new special handler entry */
-    AESpecialHandlerEntry* newEntry = malloc(sizeof(AESpecialHandlerEntry));
+    AESpecialHandlerEntry* newEntry = NewPtr(sizeof(AESpecialHandlerEntry));
     if (!newEntry) {
         pthread_mutex_unlock(&g_aeMgrState.mutex);
         return memFullErr;
@@ -587,7 +588,7 @@ OSErr AERemoveSpecialHandler(AEKeyword functionClass, void* handler, Boolean isS
 
             AESpecialHandlerEntry* toDelete = *current;
             *current = (*current)->next;
-            free(toDelete);
+            DisposePtr((Ptr)toDelete);
 
             pthread_mutex_unlock(&g_aeMgrState.mutex);
             return noErr;

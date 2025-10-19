@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SystemTypes.h"
 #include <stdlib.h>
 #include <string.h>
@@ -176,7 +177,7 @@ void MIDIManagerShutdown(void) {
 
     /* Free MIDI file data */
     if (g_midiManager.file.data) {
-        free(g_midiManager.file.data);
+        DisposePtr((Ptr)g_midiManager.file.data);
     }
 
     g_midiManager.initialized = false;
@@ -462,7 +463,7 @@ OSErr MIDILoadFile(const char* filePath) {
     fseek(file, 0, SEEK_SET);
 
     /* Allocate buffer */
-    UInt8* data = malloc(size);
+    UInt8* data = NewPtr(size);
     if (!data) {
         fclose(file);
         return memFullErr;
@@ -473,20 +474,20 @@ OSErr MIDILoadFile(const char* filePath) {
     fclose(file);
 
     if (bytesRead != size) {
-        free(data);
+        DisposePtr((Ptr)data);
         return ioErr;
     }
 
     /* Parse MIDI file */
     OSErr err = ParseMIDIFile(data, size);
     if (err != noErr) {
-        free(data);
+        DisposePtr((Ptr)data);
         return err;
     }
 
     /* Store file data */
     if (g_midiManager.file.data) {
-        free(g_midiManager.file.data);
+        DisposePtr((Ptr)g_midiManager.file.data);
     }
     g_midiManager.file.data = data;
     g_midiManager.file.size = size;

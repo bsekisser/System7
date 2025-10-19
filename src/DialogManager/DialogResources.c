@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /*
 #include "DialogManager/DialogInternal.h"
  * DialogResources.c - Dialog Resource Management Implementation
@@ -207,7 +208,7 @@ OSErr LoadAlertTemplate(SInt16 alertID, AlertTemplate** template)
 void DisposeDialogTemplate(DialogTemplate* template)
 {
     if (template) {
-        free(template);
+        DisposePtr((Ptr)template);
     }
 }
 
@@ -217,7 +218,7 @@ void DisposeDialogTemplate(DialogTemplate* template)
 void DisposeAlertTemplate(AlertTemplate* template)
 {
     if (template) {
-        free(template);
+        DisposePtr((Ptr)template);
     }
 }
 
@@ -228,9 +229,9 @@ void DisposeDialogItemList(Handle itemList)
 {
     if (itemList) {
         if (*itemList) {
-            free(*itemList);
+            DisposePtr((Ptr)*itemList);
         }
-        free(itemList);
+        DisposePtr((Ptr)itemList);
     }
 }
 
@@ -261,7 +262,7 @@ static OSErr ParseDLOGResourceData(const UInt8* data, SInt32 dataSize, DialogTem
     }
 
     /* Allocate template structure */
-    tpl = (DialogTemplate*)malloc(sizeof(DialogTemplate));
+    tpl = (DialogTemplate*)NewPtr(sizeof(DialogTemplate));
     if (!tpl) {
         return -108; /* memFullErr */
     }
@@ -330,14 +331,14 @@ static OSErr ParseDITLResourceData(const UInt8* data, SInt32 dataSize, Handle* i
     /* Allocate handle for item list */
     /* We'll store the raw DITL data for now */
     SInt32 listSize = dataSize;
-    list = (Handle)malloc(sizeof(Ptr));
+    list = (Handle)NewPtr(sizeof(Ptr));
     if (!list) {
         return -108; /* memFullErr */
     }
 
-    *list = (Ptr)malloc(listSize);
+    *list = (Ptr)NewPtr(listSize);
     if (!*list) {
-        free(list);
+        DisposePtr((Ptr)list);
         return -108; /* memFullErr */
     }
 
@@ -361,7 +362,7 @@ static OSErr ParseALRTResourceData(const UInt8* data, SInt32 dataSize, AlertTemp
     }
 
     /* Allocate template structure */
-    tpl = (AlertTemplate*)malloc(sizeof(AlertTemplate));
+    tpl = (AlertTemplate*)NewPtr(sizeof(AlertTemplate));
     if (!tpl) {
         return -108; /* memFullErr */
     }
@@ -437,7 +438,7 @@ DialogTemplate* CreateDialogTemplate(const Rect* bounds, SInt16 procID,
                                      Boolean visible, Boolean goAway, SInt32 refCon,
                                      const unsigned char* title, SInt16 itemsID)
 {
-    DialogTemplate* tpl = (DialogTemplate*)malloc(sizeof(DialogTemplate));
+    DialogTemplate* tpl = (DialogTemplate*)NewPtr(sizeof(DialogTemplate));
     if (!tpl) {
         return NULL;
     }
@@ -461,7 +462,7 @@ DialogTemplate* CreateDialogTemplate(const Rect* bounds, SInt16 procID,
 AlertTemplate* CreateAlertTemplate(const Rect* bounds, SInt16 itemsID,
                                    StageList stages)
 {
-    AlertTemplate* tpl = (AlertTemplate*)malloc(sizeof(AlertTemplate));
+    AlertTemplate* tpl = (AlertTemplate*)NewPtr(sizeof(AlertTemplate));
     if (!tpl) {
         return NULL;
     }
@@ -477,14 +478,14 @@ Handle CreateDialogItemList(SInt16 itemCount)
 {
     /* Create a minimal DITL structure */
     SInt32 listSize = 2; /* Start with item count */
-    Handle list = (Handle)malloc(sizeof(Ptr));
+    Handle list = (Handle)NewPtr(sizeof(Ptr));
     if (!list) {
         return NULL;
     }
 
-    *list = (Ptr)malloc(listSize);
+    *list = (Ptr)NewPtr(listSize);
     if (!*list) {
-        free(list);
+        DisposePtr((Ptr)list);
         return NULL;
     }
 

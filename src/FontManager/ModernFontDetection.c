@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 #include "FontManager/FontInternal.h"
 #include <stdlib.h>
@@ -311,14 +312,14 @@ OSErr GetFontFileInfo(ConstStr255Param filePath, unsigned short *format,
 
     /* Limit size for format detection */
     unsigned long readSize = (fileSize > 1024) ? 1024 : fileSize;
-    fontData = malloc(readSize);
+    fontData = NewPtr(readSize);
     if (fontData == NULL) {
         fclose(file);
         return fontOutOfMemoryErr;
     }
 
     if (fread(fontData, 1, readSize, file) != readSize) {
-        free(fontData);
+        DisposePtr((Ptr)fontData);
         fclose(file);
         return fontCorruptErr;
     }
@@ -351,7 +352,7 @@ OSErr GetFontFileInfo(ConstStr255Param filePath, unsigned short *format,
         error = kModernFontNotSupportedErr;
     }
 
-    free(fontData);
+    DisposePtr((Ptr)fontData);
     return error;
 }
 

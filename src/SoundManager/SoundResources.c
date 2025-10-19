@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SystemTypes.h"
 #include <stdlib.h>
 #include <string.h>
@@ -45,7 +46,7 @@ OSErr LoadSoundResource(Handle soundHandle, SndListResource** resource)
     /* This would typically interface with the Resource Manager */
     /* For now, return placeholder implementation */
 
-    sndRes = (SndListResource*)calloc(1, sizeof(SndListResource));
+    sndRes = (SndListResource*)NewPtrClear(sizeof(SndListResource));
     if (sndRes == NULL) {
         return memFullErr;
     }

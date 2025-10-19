@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -153,7 +154,7 @@ static OSErr LoadResourceFromFile(const char *filePath, long offset,
     }
 
     long dataSize = fileSize - offset;
-    void *data = malloc(dataSize);
+    void *data = NewPtr(dataSize);
     if (!data) {
         fclose(file);
         return memFullErr;
@@ -163,7 +164,7 @@ static OSErr LoadResourceFromFile(const char *filePath, long offset,
     fclose(file);
 
     if (bytesRead != dataSize) {
-        free(data);
+        DisposePtr((Ptr)data);
         return resNotFound;
     }
 
@@ -218,7 +219,7 @@ OSErr CreateVoiceResourceManager(VoiceResourceManager **manager) {
         return paramErr;
     }
 
-    *manager = malloc(sizeof(VoiceResourceManager));
+    *manager = NewPtr(sizeof(VoiceResourceManager));
     if (!*manager) {
         return memFullErr;
     }
@@ -236,7 +237,7 @@ OSErr CreateVoiceResourceManager(VoiceResourceManager **manager) {
     /* Initialize mutex */
     int result = pthread_mutex_init(&(*manager)->managerMutex, NULL);
     if (result != 0) {
-        free(*manager);
+        DisposePtr((Ptr)*manager);
         *manager = NULL;
         return memFullErr;
     }
@@ -264,10 +265,10 @@ OSErr DisposeVoiceResourceManager(VoiceResourceManager *manager) {
     for (long i = 0; i < manager->resourceCount; i++) {
         VoiceResourceData *resource = &manager->resources[i];
         if (resource->resourceData) {
-            free(resource->resourceData);
+            DisposePtr((Ptr)resource->resourceData);
         }
         if (resource->decompressedData) {
-            free(resource->decompressedData);
+            DisposePtr((Ptr)resource->decompressedData);
         }
     }
 
@@ -279,7 +280,7 @@ OSErr DisposeVoiceResourceManager(VoiceResourceManager *manager) {
         gDefaultResourceManager = NULL;
     }
 
-    free(manager);
+    DisposePtr((Ptr)manager);
     return noErr;
 }
 
@@ -350,7 +351,7 @@ OSErr LoadVoiceResource(VoiceResourceManager *manager, const VoiceSpec *voice,
         Boolean isValid = manager->validateCallback(&resource->info, data, dataSize,
                                                   manager->validateUserData);
         if (!isValid) {
-            free(data);
+            DisposePtr((Ptr)data);
             NotifyError(manager, voice, paramErr, "Voice resource validation failed");
             pthread_mutex_unlock(&manager->managerMutex);
             return paramErr;
@@ -411,12 +412,12 @@ OSErr UnloadVoiceResource(VoiceResourceManager *manager, const VoiceSpec *voice)
     if (resource->refCount <= 0) {
         if (resource->resourceData) {
             UpdateCacheUsage(manager, -resource->resourceSize);
-            free(resource->resourceData);
+            DisposePtr((Ptr)resource->resourceData);
             resource->resourceData = NULL;
         }
 
         if (resource->decompressedData) {
-            free(resource->decompressedData);
+            DisposePtr((Ptr)resource->decompressedData);
             resource->decompressedData = NULL;
         }
 
@@ -509,12 +510,12 @@ OSErr FlushVoiceResourceCache(VoiceResourceManager *manager) {
         if (resource->isLoaded && resource->refCount == 0) {
             if (resource->resourceData) {
                 UpdateCacheUsage(manager, -resource->resourceSize);
-                free(resource->resourceData);
+                DisposePtr((Ptr)resource->resourceData);
                 resource->resourceData = NULL;
             }
 
             if (resource->decompressedData) {
-                free(resource->decompressedData);
+                DisposePtr((Ptr)resource->decompressedData);
                 resource->decompressedData = NULL;
             }
 
@@ -605,14 +606,14 @@ OSErr CompressVoiceResource(const void *sourceData, long sourceSize,
 
     /* Use zlib for compression */
     uLongf destLen = compressBound(sourceSize);
-    Bytef *dest = malloc(destLen);
+    Bytef *dest = NewPtr(destLen);
     if (!dest) {
         return memFullErr;
     }
 
     int result = compress(dest, &destLen, (const Bytef *)sourceData, sourceSize);
     if (result != Z_OK) {
-        free(dest);
+        DisposePtr((Ptr)dest);
         return paramErr;
     }
 
@@ -634,14 +635,14 @@ OSErr DecompressVoiceResource(const void *compressedData, long compressedSize,
 
     /* Estimate decompressed size (this is simplified) */
     uLongf destLen = compressedSize * 4; /* Rough estimate */
-    Bytef *dest = malloc(destLen);
+    Bytef *dest = NewPtr(destLen);
     if (!dest) {
         return memFullErr;
     }
 
     int result = uncompress(dest, &destLen, (const Bytef *)compressedData, compressedSize);
     if (result != Z_OK) {
-        free(dest);
+        DisposePtr((Ptr)dest);
         return paramErr;
     }
 

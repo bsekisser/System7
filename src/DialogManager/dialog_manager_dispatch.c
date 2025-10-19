@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 #include "DialogManager/DialogInternal.h"
 #include <stdlib.h>
@@ -53,7 +54,7 @@ DialogPtr TrapNewDialog(void* wStorage, const Rect* boundsRect,
     /* Handle title string conversion - evidence from implementation c2pstr/p2cstr */
     if (title) {
         size_t len = strlen((const char*)title);
-        titleCopy = malloc(len + 2);  /* Extra space for length byte and null */
+        titleCopy = NewPtr(len + 2);  /* Extra space for length byte and null */
         if (titleCopy) {
             strcpy(titleCopy, (const char*)title);
             TrapC2PStr(titleCopy);  /* Convert to Pascal string */
@@ -67,7 +68,7 @@ DialogPtr TrapNewDialog(void* wStorage, const Rect* boundsRect,
     /* Convert title back - evidence from implementation p2cstr after trap */
     if (titleCopy) {
         TrapP2CStr((unsigned char*)titleCopy);
-        free(titleCopy);
+        DisposePtr((Ptr)titleCopy);
     }
 
     return result;
@@ -87,7 +88,7 @@ DialogPtr TrapNewColorDialog(void* wStorage, const Rect* boundsRect,
     /* Same string handling as NewDialog - evidence from implementation */
     if (title) {
         size_t len = strlen((const char*)title);
-        titleCopy = malloc(len + 2);
+        titleCopy = NewPtr(len + 2);
         if (titleCopy) {
             strcpy(titleCopy, (const char*)title);
             TrapC2PStr(titleCopy);
@@ -101,7 +102,7 @@ DialogPtr TrapNewColorDialog(void* wStorage, const Rect* boundsRect,
     /* Convert title back */
     if (titleCopy) {
         TrapP2CStr((unsigned char*)titleCopy);
-        free(titleCopy);
+        DisposePtr((Ptr)titleCopy);
     }
 
     return result;
@@ -120,7 +121,7 @@ void TrapParamText(const unsigned char* param0, const unsigned char* param1,
     for (int i = 0; i < 4; i++) {
         if (params[i]) {
             size_t len = strlen((const char*)params[i]);
-            paramCopies[i] = malloc(len + 2);
+            paramCopies[i] = NewPtr(len + 2);
             if (paramCopies[i]) {
                 strcpy(paramCopies[i], (const char*)params[i]);
                 TrapC2PStr(paramCopies[i]);
@@ -138,7 +139,7 @@ void TrapParamText(const unsigned char* param0, const unsigned char* param1,
     for (int i = 0; i < 4; i++) {
         if (paramCopies[i]) {
             TrapP2CStr((unsigned char*)paramCopies[i]);
-            free(paramCopies[i]);
+            DisposePtr((Ptr)paramCopies[i]);
         }
     }
 }

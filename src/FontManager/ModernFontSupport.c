@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 #include "FontManager/FontInternal.h"
 #include <stdlib.h>
@@ -112,12 +113,12 @@ void CleanupModernFontSupport(void)
                             UnloadFontCollection(gModernFontCache->fonts[i]->data.collection);
                             break;
                     }
-                    free(gModernFontCache->fonts[i]);
+                    DisposePtr((Ptr)gModernFontCache->fonts[i]);
                 }
             }
-            free(gModernFontCache->fonts);
+            DisposePtr((Ptr)gModernFontCache->fonts);
         }
-        free(gModernFontCache);
+        DisposePtr((Ptr)gModernFontCache);
         gModernFontCache = NULL;
     }
 
@@ -126,18 +127,18 @@ void CleanupModernFontSupport(void)
         if (gFontDirectory->entries != NULL) {
             for (unsigned long i = 0; i < gFontDirectory->count; i++) {
                 if (gFontDirectory->entries[i].filePath != NULL) {
-                    free(gFontDirectory->entries[i].filePath);
+                    DisposePtr((Ptr)gFontDirectory->entries[i].filePath);
                 }
                 if (gFontDirectory->entries[i].familyName != NULL) {
-                    free(gFontDirectory->entries[i].familyName);
+                    DisposePtr((Ptr)gFontDirectory->entries[i].familyName);
                 }
                 if (gFontDirectory->entries[i].styleName != NULL) {
-                    free(gFontDirectory->entries[i].styleName);
+                    DisposePtr((Ptr)gFontDirectory->entries[i].styleName);
                 }
             }
-            free(gFontDirectory->entries);
+            DisposePtr((Ptr)gFontDirectory->entries);
         }
-        free(gFontDirectory);
+        DisposePtr((Ptr)gFontDirectory);
         gFontDirectory = NULL;
     }
 
@@ -175,7 +176,7 @@ OSErr LoadOpenTypeFont(ConstStr255Param filePath, OpenTypeFont **font)
     fseek(file, 0, SEEK_SET);
 
     /* Allocate memory for font data */
-    fontData = malloc(fileSize);
+    fontData = NewPtr(fileSize);
     if (fontData == NULL) {
         fclose(file);
         return fontOutOfMemoryErr;
@@ -183,7 +184,7 @@ OSErr LoadOpenTypeFont(ConstStr255Param filePath, OpenTypeFont **font)
 
     /* Read font data */
     if (fread(fontData, 1, fileSize, file) != fileSize) {
-        free(fontData);
+        DisposePtr((Ptr)fontData);
         fclose(file);
         return fontCorruptErr;
     }
@@ -192,7 +193,7 @@ OSErr LoadOpenTypeFont(ConstStr255Param filePath, OpenTypeFont **font)
     /* Parse OpenType font */
     error = ParseOpenTypeFont(fontData, fileSize, font);
     if (error != noErr) {
-        free(fontData);
+        DisposePtr((Ptr)fontData);
         return error;
     }
 
@@ -210,21 +211,21 @@ OSErr UnloadOpenTypeFont(OpenTypeFont *font)
 
     /* Free font data */
     if (font->fontData != NULL) {
-        free(font->fontData);
+        DisposePtr((Ptr)font->fontData);
     }
 
     /* Free name strings */
     if (font->familyName != NULL) {
-        free(font->familyName);
+        DisposePtr((Ptr)font->familyName);
     }
     if (font->styleName != NULL) {
-        free(font->styleName);
+        DisposePtr((Ptr)font->styleName);
     }
 
     /* Free table pointers (they point into fontData, so no separate free needed) */
 
     /* Free the font structure itself */
-    free(font);
+    DisposePtr((Ptr)font);
 
     return noErr;
 }
@@ -248,15 +249,15 @@ OSErr ParseOpenTypeFont(const void *fontData, unsigned long dataSize, OpenTypeFo
     }
 
     /* Allocate OpenType font structure */
-    otFont = (OpenTypeFont *)calloc(1, sizeof(OpenTypeFont));
+    otFont = (OpenTypeFont *)NewPtrClear(sizeof(OpenTypeFont));
     if (otFont == NULL) {
         return fontOutOfMemoryErr;
     }
 
     /* Copy font data */
-    otFont->fontData = malloc(dataSize);
+    otFont->fontData = NewPtr(dataSize);
     if (otFont->fontData == NULL) {
-        free(otFont);
+        DisposePtr((Ptr)otFont);
         return fontOutOfMemoryErr;
     }
     memcpy(otFont->fontData, fontData, dataSize);
@@ -359,14 +360,14 @@ OSErr LoadWOFFFont(ConstStr255Param filePath, WOFFFont **font)
     fileSize = ftell(file);
     fseek(file, 0, SEEK_SET);
 
-    woffData = malloc(fileSize);
+    woffData = NewPtr(fileSize);
     if (woffData == NULL) {
         fclose(file);
         return fontOutOfMemoryErr;
     }
 
     if (fread(woffData, 1, fileSize, file) != fileSize) {
-        free(woffData);
+        DisposePtr((Ptr)woffData);
         fclose(file);
         return fontCorruptErr;
     }
@@ -375,15 +376,15 @@ OSErr LoadWOFFFont(ConstStr255Param filePath, WOFFFont **font)
     /* Decompress WOFF to OpenType */
     error = DecompressWOFF(woffData, fileSize, &otfData, &otfSize);
     if (error != noErr) {
-        free(woffData);
+        DisposePtr((Ptr)woffData);
         return error;
     }
 
     /* Create WOFF font structure */
-    woffFont = (WOFFFont *)calloc(1, sizeof(WOFFFont));
+    woffFont = (WOFFFont *)NewPtrClear(sizeof(WOFFFont));
     if (woffFont == NULL) {
-        free(woffData);
-        free(otfData);
+        DisposePtr((Ptr)woffData);
+        DisposePtr((Ptr)otfData);
         return fontOutOfMemoryErr;
     }
 
@@ -394,13 +395,13 @@ OSErr LoadWOFFFont(ConstStr255Param filePath, WOFFFont **font)
     /* Parse the decompressed OpenType data */
     error = ParseOpenTypeFont(otfData, otfSize, &woffFont->otFont);
     if (error != noErr) {
-        free(woffData);
-        free(otfData);
-        free(woffFont);
+        DisposePtr((Ptr)woffData);
+        DisposePtr((Ptr)otfData);
+        DisposePtr((Ptr)woffFont);
         return error;
     }
 
-    free(woffData); /* We don't need the original WOFF data anymore */
+    DisposePtr((Ptr)woffData); /* We don't need the original WOFF data anymore */
     *font = woffFont;
     return noErr;
 }
@@ -419,10 +420,10 @@ OSErr UnloadWOFFFont(WOFFFont *font)
     }
 
     if (font->originalData != NULL) {
-        free(font->originalData);
+        DisposePtr((Ptr)font->originalData);
     }
 
-    free(font);
+    DisposePtr((Ptr)font);
     return noErr;
 }
 
@@ -469,7 +470,7 @@ OSErr LoadSystemFont(ConstStr255Param fontName, SystemFont **font)
     cFontName[fontName[0]] = '\0';
 
     /* Allocate system font structure */
-    sysFont = (SystemFont *)calloc(1, sizeof(SystemFont));
+    sysFont = (SystemFont *)NewPtrClear(sizeof(SystemFont));
     if (sysFont == NULL) {
         return fontOutOfMemoryErr;
     }
@@ -477,7 +478,7 @@ OSErr LoadSystemFont(ConstStr255Param fontName, SystemFont **font)
     /* Copy font name */
     sysFont->systemName = strdup(cFontName);
     if (sysFont->systemName == NULL) {
-        free(sysFont);
+        DisposePtr((Ptr)sysFont);
         return fontOutOfMemoryErr;
     }
 
@@ -533,10 +534,10 @@ OSErr LoadSystemFont(ConstStr255Param fontName, SystemFont **font)
 #endif
 
     if (!sysFont->isInstalled) {
-        free(sysFont->systemName);
-        if (sysFont->displayName) free(sysFont->displayName);
-        if (sysFont->filePath) free(sysFont->filePath);
-        free(sysFont);
+        DisposePtr((Ptr)sysFont->systemName);
+        if (sysFont->displayName) DisposePtr((Ptr)sysFont->displayName);
+        if (sysFont->filePath) DisposePtr((Ptr)sysFont->filePath);
+        DisposePtr((Ptr)sysFont);
         return fontNotFoundErr;
     }
 
@@ -560,16 +561,16 @@ OSErr UnloadSystemFont(SystemFont *font)
 #endif
 
     if (font->systemName != NULL) {
-        free(font->systemName);
+        DisposePtr((Ptr)font->systemName);
     }
     if (font->displayName != NULL) {
-        free(font->displayName);
+        DisposePtr((Ptr)font->displayName);
     }
     if (font->filePath != NULL) {
-        free(font->filePath);
+        DisposePtr((Ptr)font->filePath);
     }
 
-    free(font);
+    DisposePtr((Ptr)font);
     return noErr;
 }
 
@@ -582,7 +583,7 @@ OSErr InitializeFontDirectory(void)
         return noErr; /* Already initialized */
     }
 
-    gFontDirectory = (FontDirectory *)calloc(1, sizeof(FontDirectory));
+    gFontDirectory = (FontDirectory *)NewPtrClear(sizeof(FontDirectory));
     if (gFontDirectory == NULL) {
         return fontOutOfMemoryErr;
     }
@@ -590,7 +591,7 @@ OSErr InitializeFontDirectory(void)
     gFontDirectory->capacity = 256; /* Initial capacity */
     gFontDirectory->entries = (FontDirectoryEntry *)calloc(gFontDirectory->capacity, sizeof(FontDirectoryEntry));
     if (gFontDirectory->entries == NULL) {
-        free(gFontDirectory);
+        DisposePtr((Ptr)gFontDirectory);
         gFontDirectory = NULL;
         return fontOutOfMemoryErr;
     }
@@ -609,7 +610,7 @@ static OSErr InitializeModernFontCache(void)
         return noErr; /* Already initialized */
     }
 
-    gModernFontCache = (ModernFontCache *)calloc(1, sizeof(ModernFontCache));
+    gModernFontCache = (ModernFontCache *)NewPtrClear(sizeof(ModernFontCache));
     if (gModernFontCache == NULL) {
         return fontOutOfMemoryErr;
     }
@@ -618,7 +619,7 @@ static OSErr InitializeModernFontCache(void)
     gModernFontCache->maxSize = 16 * 1024 * 1024; /* 16MB max cache */
     gModernFontCache->fonts = (ModernFont **)calloc(gModernFontCache->capacity, sizeof(ModernFont *));
     if (gModernFontCache->fonts == NULL) {
-        free(gModernFontCache);
+        DisposePtr((Ptr)gModernFontCache);
         gModernFontCache = NULL;
         return fontOutOfMemoryErr;
     }

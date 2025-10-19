@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SuperCompat.h"
 #include <stdlib.h>
 #include <string.h>
@@ -42,7 +43,7 @@ static OSErr TextToIntegerCoercion(const AEDesc* fromDesc, DescType toType, long
     if (!text || textSize == 0) return errAECoercionFail;
 
     /* Create temporary null-terminated string */
-    char* tempStr = malloc(textSize + 1);
+    char* tempStr = NewPtr(textSize + 1);
     if (!tempStr) return memFullErr;
     memcpy(tempStr, text, textSize);
     tempStr[textSize] = '\0';
@@ -50,7 +51,7 @@ static OSErr TextToIntegerCoercion(const AEDesc* fromDesc, DescType toType, long
     /* Convert to integer */
     char* endPtr;
     long value = strtol(tempStr, &endPtr, 10);
-    free(tempStr);
+    DisposePtr((Ptr)tempStr);
 
     if (endPtr == tempStr) {
         return errAECoercionFail;  /* No conversion performed */
@@ -263,7 +264,7 @@ OSErr AEInstallCoercionHandler(DescType fromType, DescType toType, AECoercionHan
     }
 
     /* Add new handler */
-    AECoercionHandlerEntry* newEntry = malloc(sizeof(AECoercionHandlerEntry));
+    AECoercionHandlerEntry* newEntry = NewPtr(sizeof(AECoercionHandlerEntry));
     if (!newEntry) {
         pthread_mutex_unlock(&g_aeMgrMutex);
         return memFullErr;
@@ -291,7 +292,7 @@ OSErr AERemoveCoercionHandler(DescType fromType, DescType toType, AECoercionHand
         if ((*current)->fromType == fromType && (*current)->toType == toType && (*current)->isSysHandler == isSysHandler) {
             AECoercionHandlerEntry* toRemove = *current;
             *current = (*current)->next;
-            free(toRemove);
+            DisposePtr((Ptr)toRemove);
             pthread_mutex_unlock(&g_aeMgrMutex);
             return noErr;
         }

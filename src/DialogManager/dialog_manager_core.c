@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 #include "DialogManager/DialogInternal.h"
 #include <stdlib.h>
@@ -114,7 +115,7 @@ DialogPtr NewDialog(void* wStorage, const Rect* boundsRect,
     if (wStorage) {
         dialog = (DialogPtr)wStorage;
     } else {
-        dialog = (DialogPtr)malloc(sizeof(DialogRecord));
+        dialog = (DialogPtr)NewPtr(sizeof(DialogRecord));
         if (!dialog) return NULL;
     }
 
@@ -133,7 +134,7 @@ DialogPtr NewDialog(void* wStorage, const Rect* boundsRect,
     WindowPtr window = NewWindow(wStorage, boundsRect, title, visible,
                                 procID, behind, goAwayFlag, refCon);
     if (!window) {
-        if (!wStorage) free(dialog);
+        if (!wStorage) DisposePtr((Ptr)dialog);
         return NULL;
     }
 

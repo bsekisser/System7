@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SuperCompat.h"
 #include <stdlib.h>
 #include <string.h>
@@ -196,19 +197,19 @@ OSErr AEGetNthDesc(const AEDescList* list, SInt32 index, DescType desiredType,
     if (err != noErr) return err;
 
     /* Create a temporary buffer */
-    void* tempData = malloc(actualSize);
+    void* tempData = NewPtr(actualSize);
     if (!tempData) return memFullErr;
 
     /* Get the actual data */
     err = AEGetNthPtr(list, index, desiredType, &actualType, tempData, actualSize, &actualSize);
     if (err != noErr) {
-        free(tempData);
+        DisposePtr((Ptr)tempData);
         return err;
     }
 
     /* Create the result descriptor */
     err = AECreateDesc(actualType, tempData, actualSize, result);
-    free(tempData);
+    DisposePtr((Ptr)tempData);
 
     if (typeCode) *typeCode = actualType;
     return err;

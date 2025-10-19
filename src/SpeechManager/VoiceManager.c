@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -158,7 +159,7 @@ static OSErr RemoveVoiceEntry(const VoiceSpec *voice) {
         if ((entry)->\2->creator == voice->creator && (entry)->\2->id == voice->id) {
             /* Free any allocated resources */
             if (entry->resourceData) {
-                free(entry->resourceData);
+                DisposePtr((Ptr)entry->resourceData);
             }
 
             /* Shift remaining entries */
@@ -257,7 +258,7 @@ void CleanupVoiceManager(void) {
     for (short i = 0; i < gVoiceManager.voiceCount; i++) {
         VoiceEntry *entry = &gVoiceManager.voices[i];
         if (entry->resourceData) {
-            free(entry->resourceData);
+            DisposePtr((Ptr)entry->resourceData);
             entry->resourceData = NULL;
         }
     }

@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -235,13 +236,13 @@ static void DeallocateChannelRecord(SpeechChannelRecord *record) {
 
     /* Clean up resources */
     if (record->textBuffer) {
-        free(record->textBuffer);
+        DisposePtr((Ptr)record->textBuffer);
     }
     if (record->audioBuffer) {
-        free(record->audioBuffer);
+        DisposePtr((Ptr)record->audioBuffer);
     }
     if (record->lastErrorMessage) {
-        free(record->lastErrorMessage);
+        DisposePtr((Ptr)record->lastErrorMessage);
     }
 
     /* Clean up threading objects */
@@ -352,7 +353,7 @@ OSErr NewSpeechChannel(VoiceSpec *voice, SpeechChannel *chan) {
 
     /* Allocate text buffer */
     record->textBufferSize = gChannelManager.defaultConfig.bufferSize;
-    record->textBuffer = malloc(record->textBufferSize);
+    record->textBuffer = NewPtr(record->textBufferSize);
     if (!record->textBuffer) {
         DeallocateChannelRecord(record);
         pthread_mutex_unlock(&gChannelManager.managerMutex);
@@ -427,10 +428,15 @@ OSErr SpeakText(SpeechChannel chan, void *textBuf, long textBytes) {
 
     /* Copy text to buffer */
     if (textBytes > record->textBufferSize) {
-        char *newBuffer = realloc(record->textBuffer, textBytes + 1);
+        Size oldSize = record->textBufferSize;
+        char *newBuffer = (char *)NewPtr(textBytes + 1);
         if (!newBuffer) {
             pthread_mutex_unlock(&record->channelMutex);
             return memFullErr;
+        }
+        if (record->textBuffer) {
+            BlockMove(record->textBuffer, newBuffer, oldSize);
+            DisposePtr((Ptr)record->textBuffer);
         }
         record->textBuffer = newBuffer;
         record->textBufferSize = textBytes + 1;

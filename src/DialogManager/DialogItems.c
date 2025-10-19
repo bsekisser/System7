@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 #include "DialogManager/DialogInternal.h"
 #include <stdlib.h>
@@ -438,12 +439,17 @@ void AppendDITL(DialogPtr theDialog, Handle theHandle, DITLMethod method)
 
     /* Resize the cache to accommodate new items */
     SInt16 totalItems = cache->itemCount + newItemCount;
-    DialogItemEx* expandedItems = (DialogItemEx*)realloc(cache->items,
-                                                         totalItems * sizeof(DialogItemEx));
+    Size oldSize = cache->itemCount * sizeof(DialogItemEx);
+    DialogItemEx* expandedItems = (DialogItemEx*)NewPtr(totalItems * sizeof(DialogItemEx));
     if (!expandedItems) {
-        free(newItems);
+        DisposePtr((Ptr)newItems);
         // DIALOG_LOG_DEBUG("Error: Failed to expand item cache\n");
         return;
+    }
+
+    if (cache->items) {
+        BlockMove(cache->items, expandedItems, oldSize);
+        DisposePtr((Ptr)cache->items);
     }
 
     cache->items = expandedItems;
@@ -453,7 +459,7 @@ void AppendDITL(DialogPtr theDialog, Handle theHandle, DITLMethod method)
     cache->itemCount = totalItems;
     cache->needsUpdate = true;
 
-    free(newItems);
+    DisposePtr((Ptr)newItems);
 
     // DIALOG_LOG_DEBUG("Appended %d items to dialog (method %d), total now %d\n", newItemCount, method, totalItems);
 }
@@ -497,7 +503,7 @@ void ShortenDITL(DialogPtr theDialog, SInt16 numberItems)
         /* Removing all items */
         cache->itemCount = 0;
         if (cache->items) {
-            free(cache->items);
+            DisposePtr((Ptr)cache->items);
             cache->items = NULL;
         }
     } else {
@@ -510,7 +516,19 @@ void ShortenDITL(DialogPtr theDialog, SInt16 numberItems)
         }
 
         cache->itemCount = newCount;
-        cache->items = (DialogItemEx*)realloc(cache->items, newCount * sizeof(DialogItemEx));
+        /* Shrink the array */
+        if (newCount > 0) {
+            DialogItemEx* shrunkItems = (DialogItemEx*)NewPtr(newCount * sizeof(DialogItemEx));
+            if (shrunkItems) {
+                BlockMove(cache->items, shrunkItems, newCount * sizeof(DialogItemEx));
+                DisposePtr((Ptr)cache->items);
+                cache->items = shrunkItems;
+            }
+            /* If allocation fails, keep the old (larger) buffer */
+        } else {
+            DisposePtr((Ptr)cache->items);
+            cache->items = NULL;
+        }
     }
 
     cache->needsUpdate = true;
@@ -796,7 +814,7 @@ static void DisposeDialogItemCache(DialogItemCache* cache)
     }
 
     if (cache->items) {
-        free(cache->items);
+        DisposePtr((Ptr)cache->items);
         cache->items = NULL;
     }
 

@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -144,7 +145,7 @@ static void CleanupEngine(SynthEngineRecord *engine) {
     }
 
     if (engine->engineData) {
-        free(engine->engineData);
+        DisposePtr((Ptr)engine->engineData);
         engine->engineData = NULL;
     }
 
@@ -218,7 +219,7 @@ static OSErr BasicTextSynthesis(SynthEngineRecord *engine, const char *text, lon
     }
 
     /* Allocate result structure */
-    *result = malloc(sizeof(SynthesisResult));
+    *result = NewPtr(sizeof(SynthesisResult));
     if (!*result) {
         return memFullErr;
     }
@@ -231,9 +232,9 @@ static OSErr BasicTextSynthesis(SynthEngineRecord *engine, const char *text, lon
         audioSize = MAX_AUDIO_BUFFER;
     }
 
-    (*result)->audioData = malloc(audioSize);
+    (*result)->audioData = NewPtr(audioSize);
     if (!(*result)->audioData) {
-        free(*result);
+        DisposePtr((Ptr)*result);
         *result = NULL;
         return memFullErr;
     }
@@ -714,15 +715,15 @@ OSErr DisposeSynthesisResult(SynthesisResult *result) {
     }
 
     if (result->audioData) {
-        free(result->audioData);
+        DisposePtr((Ptr)result->audioData);
     }
     if (result->errorMessage) {
-        free(result->errorMessage);
+        DisposePtr((Ptr)result->errorMessage);
     }
     if (result->metadata) {
-        free(result->metadata);
+        DisposePtr((Ptr)result->metadata);
     }
 
-    free(result);
+    DisposePtr((Ptr)result);
     return noErr;
 }

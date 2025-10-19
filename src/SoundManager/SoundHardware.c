@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SystemTypes.h"
 #include <stdlib.h>
 #include <string.h>
@@ -58,7 +59,7 @@ OSErr SoundHardwareInit(SoundHardwarePtr* hardware, AudioAPIType apiType)
         return paramErr;
     }
 
-    hw = (SoundHardwarePtr)calloc(1, sizeof(SoundHardware));
+    hw = (SoundHardwarePtr)NewPtrClear(sizeof(SoundHardware));
     if (hw == NULL) {
         return memFullErr;
     }
@@ -112,9 +113,9 @@ OSErr SoundHardwareShutdown(SoundHardwarePtr hardware)
 {
     if (hardware != NULL) {
         if (hardware->devices) {
-            free(hardware->devices);
+            DisposePtr((Ptr)hardware->devices);
         }
-        free(hardware);
+        DisposePtr((Ptr)hardware);
     }
     return noErr;
 }
@@ -127,7 +128,7 @@ OSErr SoundHardwareEnumerateDevices(SoundHardwarePtr hardware)
 
     /* Create dummy device */
     hardware->deviceCount = 1;
-    hardware->devices = (AudioDeviceInfo*)calloc(1, sizeof(AudioDeviceInfo));
+    hardware->devices = (AudioDeviceInfo*)NewPtrClear(sizeof(AudioDeviceInfo));
     if (hardware->devices == NULL) {
         return memFullErr;
     }
@@ -168,7 +169,7 @@ OSErr AudioStreamOpen(SoundHardwarePtr hardware, AudioStreamPtr* stream,
         return paramErr;
     }
 
-    s = (AudioStreamPtr)calloc(1, sizeof(AudioStream));
+    s = (AudioStreamPtr)NewPtrClear(sizeof(AudioStream));
     if (s == NULL) {
         return memFullErr;
     }
@@ -185,7 +186,7 @@ OSErr AudioStreamOpen(SoundHardwarePtr hardware, AudioStreamPtr* stream,
 OSErr AudioStreamClose(AudioStreamPtr stream)
 {
     if (stream != NULL) {
-        free(stream);
+        DisposePtr((Ptr)stream);
     }
     return noErr;
 }

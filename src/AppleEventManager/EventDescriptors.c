@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SuperCompat.h"
 #include <stdlib.h>
 #include <string.h>
@@ -256,7 +257,7 @@ OSErr AECoerceToText(const AEDesc* fromDesc, char** textData, Size* textSize) {
     /* Handle text types directly */
     if (fromDesc->descriptorType == typeChar) {
         Size dataSize = AEGetDescSize(fromDesc);
-        *textData = malloc(dataSize + 1);
+        *textData = NewPtr(dataSize + 1);
         if (!*textData) return memFullErr;
 
         if (dataSize > 0) {
@@ -352,7 +353,7 @@ OSErr AECoerceToText(const AEDesc* fromDesc, char** textData, Size* textSize) {
     }
 
     if (resultText && resultSize > 0) {
-        *textData = malloc(resultSize + 1);
+        *textData = NewPtr(resultSize + 1);
         if (!*textData) return memFullErr;
 
         memcpy(*textData, resultText, resultSize);
@@ -433,10 +434,10 @@ OSErr AECoerceToInteger(const AEDesc* fromDesc, SInt32* integerValue) {
                 long value = strtol(textData, &endPtr, 10);
                 if (endPtr != textData && *endPtr == '\0') {
                     *integerValue = (SInt32)value;
-                    free(textData);
+                    DisposePtr((Ptr)textData);
                     return noErr;
                 }
-                free(textData);
+                DisposePtr((Ptr)textData);
             }
             break;
         }
@@ -499,14 +500,14 @@ OSErr AECoerceToBoolean(const AEDesc* fromDesc, Boolean* booleanValue) {
 
                 if (strcmp(textData, "true") == 0 || strcmp(textData, "yes") == 0 || strcmp(textData, "1") == 0) {
                     *booleanValue = true;
-                    free(textData);
+                    DisposePtr((Ptr)textData);
                     return noErr;
                 } else if (strcmp(textData, "false") == 0 || strcmp(textData, "no") == 0 || strcmp(textData, "0") == 0) {
                     *booleanValue = false;
-                    free(textData);
+                    DisposePtr((Ptr)textData);
                     return noErr;
                 }
-                free(textData);
+                DisposePtr((Ptr)textData);
             }
             break;
         }
@@ -568,10 +569,10 @@ OSErr AECoerceToFloat(const AEDesc* fromDesc, double* floatValue) {
                 double value = strtod(textData, &endPtr);
                 if (endPtr != textData && *endPtr == '\0') {
                     *floatValue = value;
-                    free(textData);
+                    DisposePtr((Ptr)textData);
                     return noErr;
                 }
-                free(textData);
+                DisposePtr((Ptr)textData);
             }
             break;
         }
@@ -597,7 +598,7 @@ OSErr AEDisposeDescArray(AEDesc* descArray, SInt32 count) {
 OSErr AEDuplicateDescArray(const AEDesc* sourceArray, SInt32 count, AEDesc** destArray) {
     if (!sourceArray || !destArray || count < 0) return errAENotAEDesc;
 
-    *destArray = malloc(count * sizeof(AEDesc));
+    *destArray = NewPtr(count * sizeof(AEDesc));
     if (!*destArray) return memFullErr;
 
     for (SInt32 i = 0; i < count; i++) {
@@ -607,7 +608,7 @@ OSErr AEDuplicateDescArray(const AEDesc* sourceArray, SInt32 count, AEDesc** des
             for (SInt32 j = 0; j < i; j++) {
                 AEDisposeDesc(&(*destArray)[j]);
             }
-            free(*destArray);
+            DisposePtr((Ptr)*destArray);
             *destArray = NULL;
             return err;
         }

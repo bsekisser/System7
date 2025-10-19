@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -351,7 +352,7 @@ OSErr CreateTextProcessingContext(TextProcessingContext **context) {
         return err;
     }
 
-    *context = malloc(sizeof(TextProcessingContext));
+    *context = NewPtr(sizeof(TextProcessingContext));
     if (!*context) {
         return memFullErr;
     }
@@ -384,7 +385,7 @@ OSErr DisposeTextProcessingContext(TextProcessingContext *context) {
         UnloadTextDictionary(context->abbreviationDict);
     }
 
-    free(context);
+    DisposePtr((Ptr)context);
     return noErr;
 }
 
@@ -398,7 +399,7 @@ OSErr AnalyzeText(const char *text, long textLength, TextProcessingContext *cont
         return paramErr;
     }
 
-    *result = malloc(sizeof(TextAnalysisResult));
+    *result = NewPtr(sizeof(TextAnalysisResult));
     if (!*result) {
         return memFullErr;
     }
@@ -406,9 +407,9 @@ OSErr AnalyzeText(const char *text, long textLength, TextProcessingContext *cont
     memset(*result, 0, sizeof(TextAnalysisResult));
 
     /* Allocate segments array */
-    (*result)->segments = malloc(MAX_SEGMENTS * sizeof(TextSegment));
+    (*result)->segments = NewPtr(MAX_SEGMENTS * sizeof(TextSegment));
     if (!(*result)->segments) {
-        free(*result);
+        DisposePtr((Ptr)*result);
         *result = NULL;
         return memFullErr;
     }
@@ -463,13 +464,13 @@ OSErr DisposeTextAnalysisResult(TextAnalysisResult *result) {
     }
 
     if (result->segments) {
-        free(result->segments);
+        DisposePtr((Ptr)result->segments);
     }
     if (result->errorMessage) {
-        free(result->errorMessage);
+        DisposePtr((Ptr)result->errorMessage);
     }
 
-    free(result);
+    DisposePtr((Ptr)result);
     return noErr;
 }
 
@@ -484,7 +485,7 @@ OSErr NormalizeText(const char *inputText, long inputLength, TextProcessingConte
     }
 
     /* Allocate output buffer */
-    *outputText = malloc(MAX_TEXT_LENGTH);
+    *outputText = NewPtr(MAX_TEXT_LENGTH);
     if (!*outputText) {
         return memFullErr;
     }
@@ -533,7 +534,7 @@ OSErr ProcessNumbers(const char *inputText, long inputLength, TextProcessingCont
 
     if (!(context->flags & kTextFlag_ProcessNumbers)) {
         /* Just copy input to output */
-        *outputText = malloc(inputLength + 1);
+        *outputText = NewPtr(inputLength + 1);
         if (!*outputText) {
             return memFullErr;
         }
@@ -544,7 +545,7 @@ OSErr ProcessNumbers(const char *inputText, long inputLength, TextProcessingCont
     }
 
     /* Allocate output buffer */
-    *outputText = malloc(MAX_TEXT_LENGTH);
+    *outputText = NewPtr(MAX_TEXT_LENGTH);
     if (!*outputText) {
         return memFullErr;
     }
@@ -603,7 +604,7 @@ OSErr ExpandAbbreviations(const char *inputText, long inputLength, TextProcessin
 
     if (!(context->flags & kTextFlag_ProcessAbbrev)) {
         /* Just copy input to output */
-        *outputText = malloc(inputLength + 1);
+        *outputText = NewPtr(inputLength + 1);
         if (!*outputText) {
             return memFullErr;
         }
@@ -614,7 +615,7 @@ OSErr ExpandAbbreviations(const char *inputText, long inputLength, TextProcessin
     }
 
     /* Allocate output buffer */
-    *outputText = malloc(MAX_TEXT_LENGTH);
+    *outputText = NewPtr(MAX_TEXT_LENGTH);
     if (!*outputText) {
         return memFullErr;
     }
@@ -681,7 +682,7 @@ OSErr TextToPhonemes(SpeechChannel chan, void *textBuf, long textBytes,
     }
 
     /* Allocate phoneme buffer */
-    *phonemeBuf = malloc(MAX_PHONEME_LENGTH);
+    *phonemeBuf = NewPtr(MAX_PHONEME_LENGTH);
     if (!*phonemeBuf) {
         return memFullErr;
     }
@@ -692,7 +693,7 @@ OSErr TextToPhonemes(SpeechChannel chan, void *textBuf, long textBytes,
                                            phonemeBytes);
 
     if (err != noErr) {
-        free(*phonemeBuf);
+        DisposePtr((Ptr)*phonemeBuf);
         *phonemeBuf = NULL;
         *phonemeBytes = 0;
     }
@@ -710,7 +711,7 @@ OSErr LoadTextDictionary(const char *dictionaryPath, void **dictionary) {
     }
 
     /* For now, just create an empty dictionary placeholder */
-    *dictionary = malloc(sizeof(int)); /* Placeholder */
+    *dictionary = NewPtr(sizeof(int)); /* Placeholder */
     if (!*dictionary) {
         return memFullErr;
     }
@@ -724,7 +725,7 @@ OSErr LoadTextDictionary(const char *dictionaryPath, void **dictionary) {
  */
 OSErr UnloadTextDictionary(void *dictionary) {
     if (dictionary) {
-        free(dictionary);
+        DisposePtr((Ptr)dictionary);
     }
     return noErr;
 }

@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SystemTypes.h"
 #include <stdlib.h>
 #include <string.h>
@@ -150,7 +151,7 @@ OSErr MixerInit(MixerPtr* mixer, UInt16 numChannels, UInt32 sampleRate)
     }
 
     /* Allocate extended mixer */
-    extMixer = (ExtendedMixer*)calloc(1, sizeof(ExtendedMixer));
+    extMixer = (ExtendedMixer*)NewPtrClear(sizeof(ExtendedMixer));
     if (extMixer == NULL) {
         return memFullErr;
     }
@@ -168,7 +169,7 @@ OSErr MixerInit(MixerPtr* mixer, UInt16 numChannels, UInt32 sampleRate)
     /* Allocate channel arrays */
     extMixer->extChannels = (ExtendedMixerChannel*)calloc(numChannels, sizeof(ExtendedMixerChannel));
     if (extMixer->extChannels == NULL) {
-        free(extMixer);
+        DisposePtr((Ptr)extMixer);
         return memFullErr;
     }
 
@@ -190,11 +191,11 @@ OSErr MixerInit(MixerPtr* mixer, UInt16 numChannels, UInt32 sampleRate)
             /* Cleanup on failure */
             for (int j = 0; j < i; j++) {
                 if (extMixer->extChannels[j].tempBuffer) {
-                    free(extMixer->extChannels[j].tempBuffer);
+                    DisposePtr((Ptr)extMixer->extChannels[j].tempBuffer);
                 }
             }
-            free(extMixer->extChannels);
-            free(extMixer);
+            DisposePtr((Ptr)extMixer->extChannels);
+            DisposePtr((Ptr)extMixer);
             return memFullErr;
         }
 
@@ -220,13 +221,13 @@ OSErr MixerInit(MixerPtr* mixer, UInt16 numChannels, UInt32 sampleRate)
         /* Cleanup on failure */
         for (i = 0; i < numChannels; i++) {
             if (extMixer->extChannels[i].tempBuffer) {
-                free(extMixer->extChannels[i].tempBuffer);
+                DisposePtr((Ptr)extMixer->extChannels[i].tempBuffer);
             }
         }
-        if (extMixer->floatMixBuffer) free(extMixer->floatMixBuffer);
-        if (extMixer->tempOutputBuffer) free(extMixer->tempOutputBuffer);
-        free(extMixer->extChannels);
-        free(extMixer);
+        if (extMixer->floatMixBuffer) DisposePtr((Ptr)extMixer->floatMixBuffer);
+        if (extMixer->tempOutputBuffer) DisposePtr((Ptr)extMixer->tempOutputBuffer);
+        DisposePtr((Ptr)extMixer->extChannels);
+        DisposePtr((Ptr)extMixer);
         return memFullErr;
     }
 
@@ -263,35 +264,35 @@ OSErr MixerDispose(MixerPtr mixer)
         ExtendedMixerChannel* chan = &extMixer->extChannels[i];
 
         if (chan->tempBuffer) {
-            free(chan->tempBuffer);
+            DisposePtr((Ptr)chan->tempBuffer);
         }
 
         /* Free effect buffers */
         if ((chan)->delayBuffer) {
-            free((chan)->delayBuffer);
+            DisposePtr((Ptr)(chan)->delayBuffer);
         }
         if ((chan)->delayBuffer) {
-            free((chan)->delayBuffer);
+            DisposePtr((Ptr)(chan)->delayBuffer);
         }
     }
 
     /* Free master effect buffers */
     if ((extMixer)->delayBuffer) {
-        free((extMixer)->delayBuffer);
+        DisposePtr((Ptr)(extMixer)->delayBuffer);
     }
 
     /* Free processing buffers */
     if (extMixer->floatMixBuffer) {
-        free(extMixer->floatMixBuffer);
+        DisposePtr((Ptr)extMixer->floatMixBuffer);
     }
     if (extMixer->tempOutputBuffer) {
-        free(extMixer->tempOutputBuffer);
+        DisposePtr((Ptr)extMixer->tempOutputBuffer);
     }
     if (extMixer->extChannels) {
-        free(extMixer->extChannels);
+        DisposePtr((Ptr)extMixer->extChannels);
     }
 
-    free(extMixer);
+    DisposePtr((Ptr)extMixer);
     return noErr;
 }
 
