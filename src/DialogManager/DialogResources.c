@@ -9,7 +9,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#define printf(...) DIALOG_LOG_DEBUG(__VA_ARGS__)
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"

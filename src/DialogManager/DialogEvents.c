@@ -8,7 +8,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#define printf(...) DIALOG_LOG_DEBUG(__VA_ARGS__)
 
 #include "SystemTypes.h"
 #include "System71StdLib.h"
@@ -38,7 +37,7 @@ void InitDialogEvents(void)
     }
 
     gDialogEventState.initialized = true;
-    printf("Dialog event subsystem initialized\n");
+    // printf("Dialog event subsystem initialized\n");
 }
 
 /*
@@ -165,8 +164,8 @@ void HandleDialogActivate(DialogPtr theDialog, const EventRecord* theEvent, Bool
         return;
     }
 
-    printf("HandleDialogActivate: dialog=%p, activating=%d\n",
-           (void*)theDialog, activating);
+    // printf("HandleDialogActivate: dialog=%p, activating=%d\n",
+    // (void*)theDialog, activating);
 }
 
 /*
@@ -190,8 +189,8 @@ SInt16 AdvanceDialogFocus(DialogPtr theDialog, Boolean backward)
         return 0;
     }
 
-    printf("AdvanceDialogFocus: dialog=%p, backward=%d\n",
-           (void*)theDialog, backward);
+    // printf("AdvanceDialogFocus: dialog=%p, backward=%d\n",
+    // (void*)theDialog, backward);
 
     return 0; /* Success */
 }
@@ -206,5 +205,5 @@ void CleanupDialogEvents(void)
     }
 
     gDialogEventState.initialized = false;
-    printf("Dialog event subsystem cleaned up\n");
+    // printf("Dialog event subsystem cleaned up\n");
 }
