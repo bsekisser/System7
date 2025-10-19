@@ -311,7 +311,7 @@ short* ParseMBARResource(Handle resourceHandle, short* outMenuCount)
     }
 
     /* Allocate array for menu IDs */
-    short* menuIDs = (short*)malloc(count * sizeof(short));
+    short* menuIDs = (short*)NewPtr(count * sizeof(short));
     if (!menuIDs) {
         HUnlock(resourceHandle);
         return NULL;

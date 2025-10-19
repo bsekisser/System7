@@ -123,6 +123,7 @@ void DoMenuCommand(short menuID, short item);
 
 /* Menu item functions */
 SInt16 CountMenuItems(MenuHandle theMenu);
+void CleanupMenuExtData(void);  /* Free all menu extended data - must be called during cleanup */
 
 /* Menu title tracking */
 void InitMenuTitleTracking(void);

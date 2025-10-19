@@ -261,9 +261,13 @@ OSErr DiscardBits(Handle bitsHandle) {
 
     serial_puts("[SAVEBITS] DiscardBits: About to DisposeHandle\n");
 
-    /* Dispose the handle */
+    /* Dispose the handle - after this call, bitsHandle is INVALID */
     DisposeHandle(bitsHandle);
 
+    /* IMPORTANT: bitsHandle is now invalid and must NOT be used.
+     * Callers should NULL out their copy of the handle after this call. */
+
+    serial_puts("[SAVEBITS] DiscardBits: DisposeHandle completed - handle now INVALID\n");
     serial_puts("[SAVEBITS] DiscardBits: EXIT\n");
 
     return noErr;

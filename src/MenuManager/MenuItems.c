@@ -16,6 +16,7 @@
 #include <string.h>
 #include "SystemTypes.h"
 #include "System71StdLib.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "MenuManager/menu_private.h"    /* Must come before MenuManager.h for internal prototypes */
 #include "MenuManager/MenuManager.h"
 #include "MenuManager/MenuLogging.h"
@@ -98,7 +99,7 @@ static MenuExtData* GetMenuExtData(MenuHandle theMenu) {
         return NULL;
     }
 
-    extData = (MenuExtData*)malloc(sizeof(MenuExtData));
+    extData = (MenuExtData*)NewPtr(sizeof(MenuExtData));
     if (!extData) {
         HUnlock((Handle)theMenu);
         return NULL;
@@ -803,4 +804,34 @@ void InsertFontResMenu(MenuHandle theMenu, short afterItem, short scriptFilter) 
             insertIndex++;  /* Next item inserted after this one */
         }
     }
+}
+
+/* ============================================================================
+ * Cleanup Functions
+ * ============================================================================ */
+
+/*
+ * CleanupMenuExtData - Free all allocated menu extended data
+ *
+ * CRITICAL: This must be called during CleanupMenus() to prevent memory leaks.
+ * All MenuExtData structures allocated via GetMenuExtData() are freed here.
+ */
+void CleanupMenuExtData(void) {
+    extern void serial_puts(const char* str);
+
+    serial_puts("CleanupMenuExtData: Freeing all menu extended data\n");
+
+    /* Free all allocated MenuExtData structures */
+    for (int i = 0; i < gNumMenuExtData; i++) {
+        if (gMenuExtData[i].extData != NULL) {
+            DisposePtr((Ptr)gMenuExtData[i].extData);
+            gMenuExtData[i].extData = NULL;
+            gMenuExtData[i].menuID = 0;
+        }
+    }
+
+    /* Reset counter */
+    gNumMenuExtData = 0;
+
+    serial_puts("CleanupMenuExtData: All menu extended data freed\n");
 }

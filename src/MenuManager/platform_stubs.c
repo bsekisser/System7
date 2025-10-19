@@ -34,7 +34,7 @@ void* Platform_SaveScreenBits_Impl(const Rect* rect)
         return NULL;
     }
 
-    ScreenBits* bits = (ScreenBits*)malloc(sizeof(ScreenBits));
+    ScreenBits* bits = (ScreenBits*)NewPtr(sizeof(ScreenBits));
     if (!bits) {
         return NULL;
     }
@@ -44,7 +44,7 @@ void* Platform_SaveScreenBits_Impl(const Rect* rect)
     uint32_t height = rect->bottom - rect->top;
 
     if (width <= 0 || height <= 0 || width > fb_width || height > fb_height) {
-        free(bits);
+        DisposePtr((Ptr)bits);
         return NULL;
     }
 
@@ -54,9 +54,9 @@ void* Platform_SaveScreenBits_Impl(const Rect* rect)
     bits->dataSize = height * fb_pitch;
 
     /* Allocate buffer for screen data */
-    bits->pixelData = (uint8_t*)malloc(bits->dataSize);
+    bits->pixelData = (uint8_t*)NewPtr(bits->dataSize);
     if (!bits->pixelData) {
-        free(bits);
+        DisposePtr((Ptr)bits);
         return NULL;
     }
 
@@ -123,11 +123,11 @@ void Platform_DisposeScreenBits(Handle bits)
     ScreenBits* screenBits = (ScreenBits*)bits;
 
     if (screenBits->pixelData) {
-        free(screenBits->pixelData);
+        DisposePtr((Ptr)screenBits->pixelData);
         screenBits->pixelData = NULL;
     }
 
-    free(screenBits);
+    DisposePtr((Ptr)screenBits);
 }
 
 /* Platform drawing functions - forward to MenuDisplay routines */

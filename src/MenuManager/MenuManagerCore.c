@@ -18,6 +18,7 @@
 #include "../include/QuickDraw/DisplayBezel.h"
 #include "../include/QuickDrawConstants.h"
 #include "../include/ResourceMgr/ResourceMgr.h"
+#include "../include/MemoryMgr/MemoryManager.h"
 
 #include "../include/MenuManager/MenuManager.h"
 #include "../include/MenuManager/MenuTypes.h"
@@ -75,8 +76,8 @@ typedef struct MenuBarList {
 typedef struct MenuManagerState {
     Boolean initialized;
     Boolean menuBarVisible;
-    Handle menuBar;
-    Handle menuList;
+    Ptr menuBar;               /* Non-relocatable menu bar */
+    Ptr menuList;              /* Non-relocatable menu list */
     short hiliteMenu;
     Boolean menuBarInvalid;
     short currentMenuBar;
@@ -103,7 +104,7 @@ static Boolean gMenuMgrInitialized = false;
 
 /* Low memory globals (for compatibility) */
 static short gMBarHeight = 20;          /* Menu bar height */
-static Handle gMenuList = NULL;         /* Current menu list */
+static Ptr gMenuList = NULL;            /* Current menu list (non-relocatable) */
 static MCTableHandle gMCTable = NULL;   /* Menu color table */
 static short gMenuFlash = 3;            /* Flash count */
 static long gLastMenuChoice = 0;        /* Last menu choice */
@@ -184,6 +185,16 @@ void CleanupMenus(void)
         return;
     }
 
+    /* CRITICAL: Clean up menu extended data to prevent memory leaks */
+    CleanupMenuExtData();
+
+    /* CRITICAL: Clear menu handle tracking array to prevent stale pointers */
+    for (int i = 0; i < gNumMenuHandles; i++) {
+        gMenuHandles[i].menuID = 0;
+        gMenuHandles[i].handle = NULL;
+    }
+    gNumMenuHandles = 0;
+
     /* Clean up platform-specific resources */
     Platform_CleanupMenuSystem();
 
@@ -195,7 +206,7 @@ void CleanupMenus(void)
 
     /* Clear menu list */
     if (gMenuList != NULL) {
-        free(gMenuList);
+        DisposePtr((Ptr)gMenuList);
         gMenuList = NULL;
     }
 
@@ -221,7 +232,7 @@ Handle GetMenuBar(void)
         return NULL;
     }
 
-    return gMenuList;
+    return (Handle)gMenuList;  /* Cast Ptr to Handle for API compatibility */
 }
 
 /*
@@ -241,14 +252,14 @@ Handle GetNewMBar(short menuBarID)
         MENU_LOG_WARN("GetNewMBar: MBAR resource %d not found\n", menuBarID);
         /* Return empty menu list instead of NULL */
         size_t menuBarSize = sizeof(MenuBarList) + (MAX_MENUS - 1) * sizeof(MenuListEntry);
-        MenuBarList* menuBar = (MenuBarList*)malloc(menuBarSize);
+        MenuBarList* menuBar = (MenuBarList*)NewPtr(menuBarSize);
         if (menuBar) {
             menuBar->numMenus = 0;
             menuBar->totalWidth = 0;
             menuBar->lastRight = 0;
             menuBar->mbResID = menuBarID;
         }
-        return (Handle)menuBar;
+        return (Handle)menuBar;  /* Cast Ptr to Handle for API compatibility */
     }
 
     /* Parse MBAR resource to get menu ID array */
@@ -263,9 +274,9 @@ Handle GetNewMBar(short menuBarID)
 
     /* Allocate MenuBarList for the menus */
     size_t menuBarSize = sizeof(MenuBarList) + (menuCount - 1) * sizeof(MenuListEntry);
-    MenuBarList* menuBar = (MenuBarList*)malloc(menuBarSize);
+    MenuBarList* menuBar = (MenuBarList*)NewPtr(menuBarSize);
     if (!menuBar) {
-        free(menuIDs);
+        DisposePtr((Ptr)menuIDs);
         return NULL;
     }
 
@@ -287,14 +298,18 @@ Handle GetNewMBar(short menuBarID)
         }
     }
 
-    free(menuIDs);
+    DisposePtr((Ptr)menuIDs);
 
     MENU_LOG_DEBUG("GetNewMBar: Created menu bar %d with %d menus\n", menuBarID, menuCount);
-    return (Handle)menuBar;
+    return (Handle)menuBar;  /* Cast Ptr to Handle for API compatibility */
 }
 
 /*
  * SetMenuBar - Set current menu list
+ *
+ * IMPORTANT: This function takes ownership of menuList. The caller should NOT
+ * dispose of menuList after calling this function, as it will be disposed when
+ * a new menu list is set or during CleanupMenus().
  */
 void SetMenuBar(Handle menuList)
 {
@@ -302,13 +317,16 @@ void SetMenuBar(Handle menuList)
         return;
     }
 
-    /* Dispose of old menu list if it exists */
-    if (gMenuList != NULL && gMenuList != menuList) {
-        free(gMenuList);
+    /* SAFETY: Only dispose old menu list if it's different from new one */
+    if (gMenuList != NULL && gMenuList != (Ptr)menuList) {
+        /* Dispose old menu list - we own this memory */
+        DisposePtr(gMenuList);
+        gMenuList = NULL;  /* Prevent use-after-free */
     }
 
-    gMenuList = menuList;
-    gMenuMgrState->menuList = menuList;
+    /* Take ownership of new menu list */
+    gMenuList = (Ptr)menuList;  /* Cast Handle to Ptr (assuming non-relocatable) */
+    gMenuMgrState->menuList = (Ptr)menuList;
 
     /* Update menu bar display */
     UpdateMenuBarLayout();
@@ -325,10 +343,18 @@ void ClearMenuBar(void)
     }
 
     if (gMenuList != NULL) {
-        free(gMenuList);
+        DisposePtr((Ptr)gMenuList);
         gMenuList = NULL;
         gMenuMgrState->menuList = NULL;
     }
+
+    /* CRITICAL: Clear menu handle tracking array to prevent stale pointers */
+    /* NOTE: We don't dispose the menu handles themselves here, only clear references */
+    for (int i = 0; i < gNumMenuHandles; i++) {
+        gMenuHandles[i].menuID = 0;
+        gMenuHandles[i].handle = NULL;
+    }
+    gNumMenuHandles = 0;
 
     /* Clear menu bar display */
     InvalidateMenuBar();
@@ -400,7 +426,7 @@ void SetupDefaultMenus(void)
     menuBar->totalWidth = 290;
 
     if (gMenuMgrState) {
-        gMenuMgrState->menuBar = (Handle)menuBar;
+        gMenuMgrState->menuBar = (Ptr)menuBar;
     }
 
     MENU_LOG_INFO("SetupDefaultMenus: Manually set up %d menus\n", menuBar->numMenus);
@@ -637,15 +663,15 @@ MenuHandle NewMenu(short menuID, ConstStr255Param menuTitle)
     }
 
     /* Allocate menu handle */
-    theMenu = (MenuHandle)malloc(sizeof(MenuInfo*));
+    theMenu = (MenuHandle)NewPtr(sizeof(MenuInfo*));
     if (theMenu == NULL) {
         return NULL;
     }
 
     /* Allocate menu info */
-    menuPtr = (MenuInfo*)malloc(sizeof(MenuInfo));
+    menuPtr = (MenuInfo*)NewPtr(sizeof(MenuInfo));
     if (menuPtr == NULL) {
-        free(theMenu);
+        DisposePtr((Ptr)theMenu);
         return NULL;
     }
 
@@ -734,11 +760,26 @@ void DisposeMenu(MenuHandle theMenu)
     /* Remove from menu bar if present */
     DeleteMenu((*theMenu)->menuID);
 
+    /* CRITICAL: Remove from gMenuHandles tracking array to prevent stale pointers */
+    for (int i = 0; i < gNumMenuHandles; i++) {
+        if (gMenuHandles[i].handle == theMenu) {
+            /* Shift array down to remove this entry */
+            for (int j = i; j < gNumMenuHandles - 1; j++) {
+                gMenuHandles[j] = gMenuHandles[j + 1];
+            }
+            /* Clear last entry */
+            gMenuHandles[gNumMenuHandles - 1].menuID = 0;
+            gMenuHandles[gNumMenuHandles - 1].handle = NULL;
+            gNumMenuHandles--;
+            break;
+        }
+    }
+
     /* Free menu data */
     if (*theMenu != NULL) {
-        free(*theMenu);
+        DisposePtr((Ptr)*theMenu);
     }
-    free(theMenu);
+    DisposePtr((Ptr)theMenu);
 }
 
 /*
@@ -762,7 +803,7 @@ void InsertMenu(MenuHandle theMenu, short beforeID)
     if (gMenuList == NULL) {
         /* Allocate space for MenuBarList + room for MAX_MENUS menu entries */
         size_t menuBarSize = sizeof(MenuBarList) + (MAX_MENUS - 1) * sizeof(MenuListEntry);
-        gMenuList = (Handle)malloc(menuBarSize);
+        gMenuList = NewPtr(menuBarSize);
         if (gMenuList == NULL) {
             return;
         }
@@ -777,7 +818,7 @@ void InsertMenu(MenuHandle theMenu, short beforeID)
 
     /* Make sure menu bar is set in state */
     if (gMenuMgrState) {
-        gMenuMgrState->menuBar = gMenuList;
+        gMenuMgrState->menuBar = gMenuList;  /* Already a Ptr */
     }
 
     /* Find insertion point */
@@ -791,20 +832,26 @@ void InsertMenu(MenuHandle theMenu, short beforeID)
         }
     }
 
-    /* Expand menu list - fix potential memory leak */
+    /* Expand menu list - allocate new memory and copy */
     size_t newSize = sizeof(MenuBarList) + (menuBar->numMenus) * sizeof(MenuListEntry);
-    Handle newMenuList = (Handle)realloc(gMenuList, newSize);
+    Ptr newMenuList = NewPtr(newSize);
     if (newMenuList == NULL) {
-        /* realloc failed, old gMenuList still valid - return without freeing */
-        MENU_LOG_ERROR("InsertMenu: realloc failed for size %zu\n", newSize);
+        MENU_LOG_ERROR("InsertMenu: NewPtr failed for size %zu\n", newSize);
         return;
     }
-    /* Realloc succeeded, update pointer */
-    gMenuList = newMenuList;
-    menuBar = (MenuBarList*)gMenuList;
+
+    /* Copy existing data to new buffer BEFORE disposing old buffer */
+    size_t oldSize = sizeof(MenuBarList) + (menuBar->numMenus - 1) * sizeof(MenuListEntry);
+    memcpy(newMenuList, gMenuList, oldSize);
+
+    /* CRITICAL: Dispose old buffer and immediately update all pointers */
+    Ptr oldMenuList = gMenuList;  /* Save old pointer for disposal */
+    gMenuList = newMenuList;      /* Update global first */
+    menuBar = (MenuBarList*)gMenuList;  /* Update local pointer */
     if (gMenuMgrState) {
-        gMenuMgrState->menuBar = gMenuList;
+        gMenuMgrState->menuBar = gMenuList;  /* Update state */
     }
+    DisposePtr(oldMenuList);  /* Dispose old buffer AFTER all pointers updated */
 
     /* Shift existing menus if inserting in middle */
     if (insertIndex < menuBar->numMenus) {
@@ -930,7 +977,7 @@ MenuManagerState* GetMenuManagerState(void)
  */
 static MenuManagerState* AllocateMenuManagerState(void)
 {
-    MenuManagerState* state = (MenuManagerState*)malloc(sizeof(MenuManagerState));
+    MenuManagerState* state = (MenuManagerState*)NewPtr(sizeof(MenuManagerState));
     if (state == NULL) {
         return NULL;
     }
@@ -975,14 +1022,14 @@ static void DisposeMenuManagerState(MenuManagerState* state)
 
     /* Clean up any allocated resources */
     if (state->menuColorTable != NULL) {
-        free(state->menuColorTable);
+        DisposePtr((Ptr)state->menuColorTable);
     }
 
     if (state->platformData != NULL) {
-        free(state->platformData);
+        DisposePtr((Ptr)state->platformData);
     }
 
-    free(state);
+    DisposePtr((Ptr)state);
 }
 
 /*
@@ -1177,7 +1224,7 @@ void SetMCInfo(MCTableHandle menuCTbl)
 void DisposeMCInfo(MCTableHandle menuCTbl)
 {
     if (menuCTbl != NULL) {
-        free(menuCTbl);
+        DisposePtr((Ptr)menuCTbl);
     }
 }
 
