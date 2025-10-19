@@ -1,6 +1,7 @@
 #include "SystemTypes.h"
 #include <stdlib.h>
 #include <string.h>
+#include "MemoryMgr/MemoryManager.h"
 #include <stdio.h>
 #include "System71StdLib.h"
 /*
@@ -180,7 +181,7 @@ size_t GetDecompressedSize(const ExtendedResourceHeader* header) {
 /* ---- Variable Table Implementation (DonnBits) ------------------------------------ */
 
 VarTable* VarTable_Create(size_t ratio, size_t unpackedSize) {
-    VarTable* table = (VarTable*)calloc(1, sizeof(VarTable));
+    VarTable* table = (VarTable*)NewPtrClear(sizeof(VarTable));
     if (!table) return NULL;
 
     /* Calculate table size based on ratio */
@@ -249,35 +250,35 @@ int VarTable_Fetch(VarTable* table, size_t index, UInt8** data, size_t* length) 
 
 void VarTable_Free(VarTable* table) {
     if (table) {
-        free(table->entries);
-        free(table->data);
-        free(table);
+        DisposePtr((Ptr)table->entries);
+        DisposePtr((Ptr)table->data);
+        DisposePtr((Ptr)table);
     }
 }
 
 /* ---- DonnBits Decompression Implementation --------------------------------------- */
 
 DecompressContext* DonnBits_Init(const UInt8* compressedData, size_t compressedSize, size_t decompressedSize) {
-    DecompressContext* ctx = (DecompressContext*)calloc(1, sizeof(DecompressContext));
+    DecompressContext* ctx = (DecompressContext*)NewPtrClear(sizeof(DecompressContext));
     if (!ctx) return NULL;
 
     ctx->input = compressedData;
     ctx->inputSize = compressedSize;
     ctx->inputPos = 0;
 
-    ctx->output = (UInt8*)malloc(decompressedSize);
+    ctx->output = (UInt8*)NewPtr(decompressedSize);
     ctx->outputSize = decompressedSize;
     ctx->outputPos = 0;
 
     if (!ctx->output) {
-        free(ctx);
+        DisposePtr((Ptr)ctx);
         return NULL;
     }
 
     /* Read header */
     if (compressedSize < sizeof(DonnBitsHeader) + 4) {
-        free(ctx->output);
-        free(ctx);
+        DisposePtr((Ptr)ctx->output);
+        DisposePtr((Ptr)ctx);
         return NULL;
     }
 
@@ -289,8 +290,8 @@ DecompressContext* DonnBits_Init(const UInt8* compressedData, size_t compressedS
     /* Create variable table */
     ctx->varTable = VarTable_Create((ctx)->donnBits.varTableRatio, decompressedSize);
     if (!ctx->varTable) {
-        free(ctx->output);
-        free(ctx);
+        DisposePtr((Ptr)ctx->output);
+        DisposePtr((Ptr)ctx);
         return NULL;
     }
 
@@ -705,34 +706,34 @@ int DonnBits_Decompress(DecompressContext* ctx) {
 void DonnBits_Cleanup(DecompressContext* ctx) {
     if (ctx) {
         VarTable_Free(ctx->varTable);
-        free(ctx->output);
-        free(ctx);
+        DisposePtr((Ptr)ctx->output);
+        DisposePtr((Ptr)ctx);
     }
 }
 
 /* ---- GreggyBits Decompression Implementation ------------------------------------- */
 
 DecompressContext* GreggyBits_Init(const UInt8* compressedData, size_t compressedSize, size_t decompressedSize) {
-    DecompressContext* ctx = (DecompressContext*)calloc(1, sizeof(DecompressContext));
+    DecompressContext* ctx = (DecompressContext*)NewPtrClear(sizeof(DecompressContext));
     if (!ctx) return NULL;
 
     ctx->input = compressedData;
     ctx->inputSize = compressedSize;
     ctx->inputPos = 0;
 
-    ctx->output = (UInt8*)malloc(decompressedSize);
+    ctx->output = (UInt8*)NewPtr(decompressedSize);
     ctx->outputSize = decompressedSize;
     ctx->outputPos = 0;
 
     if (!ctx->output) {
-        free(ctx);
+        DisposePtr((Ptr)ctx);
         return NULL;
     }
 
     /* Read header */
     if (compressedSize < sizeof(GreggyBitsHeader) + 4) {
-        free(ctx->output);
-        free(ctx);
+        DisposePtr((Ptr)ctx->output);
+        DisposePtr((Ptr)ctx);
         return NULL;
     }
 
@@ -754,7 +755,7 @@ int GreggyBits_LoadByteTable(DecompressContext* ctx) {
             return inputOutOfBounds;
         }
 
-        ctx->byteTable = (UInt16*)malloc(256 * sizeof(UInt16));
+        ctx->byteTable = (UInt16*)NewPtr(256 * sizeof(UInt16));
         if (!ctx->byteTable) {
             SetError(ctx, memFullErr, "Failed to allocate byte table");
             return memFullErr;
@@ -896,10 +897,10 @@ int GreggyBits_Decompress(DecompressContext* ctx) {
 void GreggyBits_Cleanup(DecompressContext* ctx) {
     if (ctx) {
         if (ctx->byteTable != gStaticByteTable) {
-            free(ctx->byteTable);
+            DisposePtr((Ptr)ctx->byteTable);
         }
-        free(ctx->output);
-        free(ctx);
+        DisposePtr((Ptr)ctx->output);
+        DisposePtr((Ptr)ctx);
     }
 }
 
@@ -910,26 +911,26 @@ const UInt16* GreggyBits_GetStaticTable(void) {
 /* ---- Dcmp1 Decompression Implementation (byte-wise) ------------------------------ */
 
 DecompressContext* Dcmp1_Init(const UInt8* compressedData, size_t compressedSize, size_t decompressedSize) {
-    DecompressContext* ctx = (DecompressContext*)calloc(1, sizeof(DecompressContext));
+    DecompressContext* ctx = (DecompressContext*)NewPtrClear(sizeof(DecompressContext));
     if (!ctx) return NULL;
 
     ctx->input = compressedData;
     ctx->inputSize = compressedSize;
     ctx->inputPos = 0;
 
-    ctx->output = (UInt8*)malloc(decompressedSize);
+    ctx->output = (UInt8*)NewPtr(decompressedSize);
     ctx->outputSize = decompressedSize;
     ctx->outputPos = 0;
 
     if (!ctx->output) {
-        free(ctx);
+        DisposePtr((Ptr)ctx);
         return NULL;
     }
 
     /* Read header - dcmp 1 uses DonnBits header format */
     if (compressedSize < sizeof(DonnBitsHeader) + 4) {
-        free(ctx->output);
-        free(ctx);
+        DisposePtr((Ptr)ctx->output);
+        DisposePtr((Ptr)ctx);
         return NULL;
     }
 
@@ -941,8 +942,8 @@ DecompressContext* Dcmp1_Init(const UInt8* compressedData, size_t compressedSize
     /* Create variable table (same as DonnBits) */
     ctx->varTable = VarTable_Create((ctx)->donnBits.varTableRatio, decompressedSize);
     if (!ctx->varTable) {
-        free(ctx->output);
-        free(ctx);
+        DisposePtr((Ptr)ctx->output);
+        DisposePtr((Ptr)ctx);
         return NULL;
     }
 
@@ -1065,8 +1066,8 @@ int Dcmp1_Decompress(DecompressContext* ctx) {
 void Dcmp1_Cleanup(DecompressContext* ctx) {
     if (ctx) {
         VarTable_Free(ctx->varTable);
-        free(ctx->output);
-        free(ctx);
+        DisposePtr((Ptr)ctx->output);
+        DisposePtr((Ptr)ctx);
     }
 }
 
@@ -1082,7 +1083,7 @@ int DecompressResource(const UInt8* compressedData, size_t compressedSize,
     if (!IsExtendedResource(compressedData, compressedSize)) {
         /* Not an extended resource, just copy data */
         *decompressedSize = compressedSize;
-        *decompressedData = (UInt8*)malloc(compressedSize);
+        *decompressedData = (UInt8*)NewPtr(compressedSize);
         if (!*decompressedData) {
             return memFullErr;
         }
@@ -1097,7 +1098,7 @@ int DecompressResource(const UInt8* compressedData, size_t compressedSize,
         /* Extended but not compressed, skip header */
         size_t dataOffset = 4 + header->headerLength;
         *decompressedSize = header->actualSize;
-        *decompressedData = (UInt8*)malloc(header->actualSize);
+        *decompressedData = (UInt8*)NewPtr(header->actualSize);
         if (!*decompressedData) {
             return memFullErr;
         }
@@ -1112,7 +1113,7 @@ int DecompressResource(const UInt8* compressedData, size_t compressedSize,
         while (cache) {
             if (cache->signature == signature) {
                 *decompressedSize = cache->size;
-                *decompressedData = (UInt8*)malloc(cache->size);
+                *decompressedData = (UInt8*)NewPtr(cache->size);
                 if (!*decompressedData) {
                     return memFullErr;
                 }
@@ -1192,7 +1193,7 @@ int DecompressResource(const UInt8* compressedData, size_t compressedSize,
 
         DecompressProc proc = GetDecompressor(defProcID);
         if (proc) {
-            *decompressedData = (UInt8*)malloc(header->actualSize);
+            *decompressedData = (UInt8*)NewPtr(header->actualSize);
             if (*decompressedData) {
                 result = proc(compressedData + 4 + header->headerLength,
                             *decompressedData,
@@ -1208,18 +1209,18 @@ int DecompressResource(const UInt8* compressedData, size_t compressedSize,
 
     /* Add to cache if successful and caching enabled */
     if (result == 0 && gCachingEnabled && *decompressedData) {
-        DecompressCache* cache = (DecompressCache*)malloc(sizeof(DecompressCache));
+        DecompressCache* cache = (DecompressCache*)NewPtr(sizeof(DecompressCache));
         if (cache) {
             cache->signature = CalculateChecksum(compressedData, compressedSize);
             cache->size = *decompressedSize;
-            cache->data = (UInt8*)malloc(cache->size);
+            cache->data = (UInt8*)NewPtr(cache->size);
             if (cache->data) {
                 memcpy(cache->data, *decompressedData, cache->size);
                 cache->timestamp = time(NULL);
                 cache->next = gCacheHead;
                 gCacheHead = cache;
             } else {
-                free(cache);
+                DisposePtr((Ptr)cache);
             }
         }
     }
@@ -1272,8 +1273,8 @@ void ClearDecompressCache(void) {
     DecompressCache* cache = gCacheHead;
     while (cache) {
         DecompressCache* next = cache->next;
-        free(cache->data);
-        free(cache);
+        DisposePtr((Ptr)cache->data);
+        DisposePtr((Ptr)cache);
         cache = next;
     }
     gCacheHead = NULL;

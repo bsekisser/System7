@@ -16,6 +16,7 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "QuickDrawConstants.h"
+#include "MemoryMgr/MemoryManager.h"
 
 #include "QuickDraw/ColorQuickDraw.h"
 #include "QuickDraw/QDRegions.h"
@@ -143,7 +144,7 @@ void InitCPort(CGrafPtr port) {
     port->bkColor = whiteColor;
 
     /* Create graphics variables */
-    port->grafVars = (Handle)calloc(1, sizeof(GrafVars));
+    port->grafVars = (Handle)NewPtrClear(sizeof(GrafVars));
 
     /* Clear other fields */
     port->colrBit = 0;
@@ -178,7 +179,7 @@ void CloseCPort(CGrafPtr port) {
 
     /* Dispose of graphics variables */
     if (port->grafVars) {
-        free(port->grafVars);
+        DisposePtr((Ptr)port->grafVars);
     }
 
     /* Clear saved handles */
@@ -208,12 +209,12 @@ void GetCPort(CGrafPtr *port) {
  * ================================================================ */
 
 PixMapHandle NewPixMap(void) {
-    PixMapHandle pm = (PixMapHandle)calloc(1, sizeof(PixMapPtr));
+    PixMapHandle pm = (PixMapHandle)NewPtrClear(sizeof(PixMapPtr));
     if (!pm) return NULL;
 
-    PixMap *pixMap = (PixMap *)calloc(1, sizeof(PixMap));
+    PixMap *pixMap = (PixMap *)NewPtrClear(sizeof(PixMap));
     if (!pixMap) {
-        free(pm);
+        DisposePtr((Ptr)pm);
         return NULL;
     }
 
@@ -249,8 +250,8 @@ void DisposePixMap(PixMapHandle pm) {
         DisposeCTable((CTabHandle)pixMap->pmTable);
     }
 
-    free(pixMap);
-    free(pm);
+    DisposePtr((Ptr)pixMap);
+    DisposePtr((Ptr)pm);
 }
 
 void CopyPixMap(PixMapHandle srcPM, PixMapHandle dstPM) {
@@ -291,12 +292,12 @@ void SetPortPix(PixMapHandle pm) {
  * ================================================================ */
 
 PixPatHandle NewPixPat(void) {
-    PixPatHandle pp = (PixPatHandle)calloc(1, sizeof(PixPatPtr));
+    PixPatHandle pp = (PixPatHandle)NewPtrClear(sizeof(PixPatPtr));
     if (!pp) return NULL;
 
-    PixPat *pixPat = (PixPat *)calloc(1, sizeof(PixPat));
+    PixPat *pixPat = (PixPat *)NewPtrClear(sizeof(PixPat));
     if (!pixPat) {
-        free(pp);
+        DisposePtr((Ptr)pp);
         return NULL;
     }
 
@@ -327,12 +328,12 @@ void DisposePixPat(PixPatHandle pp) {
     }
 
     /* Dispose of data handles */
-    if (pixPat->patData) free(pixPat->patData);
-    if (pixPat->patXData) free(pixPat->patXData);
-    if (pixPat->patXMap) free(pixPat->patXMap);
+    if (pixPat->patData) DisposePtr((Ptr)pixPat->patData);
+    if (pixPat->patXData) DisposePtr((Ptr)pixPat->patXData);
+    if (pixPat->patXMap) DisposePtr((Ptr)pixPat->patXMap);
 
-    free(pixPat);
-    free(pp);
+    DisposePtr((Ptr)pixPat);
+    DisposePtr((Ptr)pp);
 }
 
 void CopyPixPat(PixPatHandle srcPP, PixPatHandle dstPP) {
@@ -344,9 +345,9 @@ void CopyPixPat(PixPatHandle srcPP, PixPatHandle dstPP) {
 
     /* Dispose of existing data */
     if (dst->patMap) DisposePixMap(dst->patMap);
-    if (dst->patData) free(dst->patData);
-    if (dst->patXData) free(dst->patXData);
-    if (dst->patXMap) free(dst->patXMap);
+    if (dst->patData) DisposePtr((Ptr)dst->patData);
+    if (dst->patXData) DisposePtr((Ptr)dst->patXData);
+    if (dst->patXMap) DisposePtr((Ptr)dst->patXMap);
 
     /* Copy structure */
     *dst = *src;
@@ -486,12 +487,12 @@ void GetCPixel(SInt16 h, SInt16 v, RGBColor *cPix) {
  * ================================================================ */
 
 GDHandle NewGDevice(SInt16 refNum, SInt32 mode) {
-    GDHandle gdh = (GDHandle)calloc(1, sizeof(GDPtr));
+    GDHandle gdh = (GDHandle)NewPtrClear(sizeof(GDPtr));
     if (!gdh) return NULL;
 
-    GDevice *device = (GDevice *)calloc(1, sizeof(GDevice));
+    GDevice *device = (GDevice *)NewPtrClear(sizeof(GDevice));
     if (!device) {
-        free(gdh);
+        DisposePtr((Ptr)gdh);
         return NULL;
     }
 
@@ -545,8 +546,8 @@ void DisposeGDevice(GDHandle gdh) {
         }
     }
 
-    free(device);
-    free(gdh);
+    DisposePtr((Ptr)device);
+    DisposePtr((Ptr)gdh);
 }
 
 void SetGDevice(GDHandle gd) {
@@ -590,14 +591,14 @@ void SetDeviceAttribute(GDHandle gdh, SInt16 attribute, Boolean value) {
  * ================================================================ */
 
 CTabHandle GetCTable(SInt16 ctID) {
-    CTabHandle cTable = (CTabHandle)calloc(1, sizeof(CTabPtr));
+    CTabHandle cTable = (CTabHandle)NewPtrClear(sizeof(CTabPtr));
     if (!cTable) return NULL;
 
     /* Calculate size needed */
     size_t tableSize = sizeof(ColorTable) + (ctID - 1) * sizeof(ColorSpec);
-    ColorTable *table = (ColorTable *)calloc(1, tableSize);
+    ColorTable *table = (ColorTable *)NewPtrClear(tableSize);
     if (!table) {
-        free(cTable);
+        DisposePtr((Ptr)cTable);
         return NULL;
     }
 
@@ -629,8 +630,8 @@ CTabHandle GetCTable(SInt16 ctID) {
 
 void DisposeCTable(CTabHandle cTable) {
     if (!cTable || !*cTable) return;
-    free(*cTable);
-    free(cTable);
+    DisposePtr((Ptr)*cTable);
+    DisposePtr((Ptr)cTable);
 }
 
 SInt32 GetCTSeed(void) {
@@ -768,15 +769,15 @@ void CalcCMask(const BitMap *srcBits, const BitMap *dstBits,
 
 PicHandle OpenCPicture(const OpenCPicParams *newHeader) {
     /* Create a new picture handle */
-    PicHandle pic = (PicHandle)malloc(sizeof(Handle));
+    PicHandle pic = (PicHandle)NewPtr(sizeof(Handle));
     if (!pic) {
         return NULL;
     }
 
     /* Initialize picture data */
-    Picture *picData = (Picture *)malloc(sizeof(Picture));
+    Picture *picData = (Picture *)NewPtr(sizeof(Picture));
     if (!picData) {
-        free(pic);
+        DisposePtr((Ptr)pic);
         return NULL;
     }
 
@@ -820,7 +821,7 @@ void AllocCursor(void) {
 
 void DisposeCCursor(CCrsrHandle cCrsr) {
     if (cCrsr) {
-        free(cCrsr);
+        DisposePtr((Ptr)cCrsr);
     }
 }
 
@@ -837,7 +838,7 @@ void PlotCIcon(const Rect *theRect, CIconHandle theIcon) {
 
 void DisposeCIcon(CIconHandle theIcon) {
     if (theIcon) {
-        free(theIcon);
+        DisposePtr((Ptr)theIcon);
     }
 }
 
