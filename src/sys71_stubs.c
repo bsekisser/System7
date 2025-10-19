@@ -1038,7 +1038,19 @@ extern void* framebuffer;
 
 /* Window Manager update pipeline functions */
 /* WM_Update is needed by main.c even when other stubs are disabled */
+/* Tracks if display needs updating to avoid constant flashing */
+static Boolean gDisplayDirty = true;
+static int gLastWindowCount = -1;
+static int gUpdateThrottle = 0;
+
 void WM_Update(void) {
+    /* Throttle updates to reduce flashing - only update periodically */
+    gUpdateThrottle++;
+    if (gUpdateThrottle < 5) {  /* Update every 5 frames instead of every frame */
+        return;
+    }
+    gUpdateThrottle = 0;
+
     /* Create a screen port if qd.thePort is NULL */
     static GrafPort screenPort;
     if (qd.thePort == NULL) {
@@ -1048,6 +1060,25 @@ void WM_Update(void) {
         screenPort.portRect = qd.screenBits.bounds;
         qd.thePort = &screenPort;
     }
+
+    /* Check if window count has changed */
+    int currentWindowCount = 0;
+    {
+        extern WindowPtr FrontWindow(void);
+        WindowPtr w = FrontWindow();
+        while (w) {
+            currentWindowCount++;
+            w = w->nextWindow;
+        }
+    }
+
+    /* Skip full redraw if nothing changed */
+    if (!gDisplayDirty && currentWindowCount == gLastWindowCount) {
+        return;
+    }
+
+    gLastWindowCount = currentWindowCount;
+    gDisplayDirty = false;
 
     /* Use QuickDraw to draw desktop */
     GrafPtr savePort;
@@ -1070,20 +1101,13 @@ void WM_Update(void) {
         /* Build window list (back to front order) */
         WindowPtr window = FrontWindow();
         WindowPtr* windowStack = NULL;
-        int windowCount = 0;
-
-        /* Count windows using window->nextWindow chain */
-        WindowPtr w = window;
-        while (w) {
-            windowCount++;
-            w = w->nextWindow;
-        }
+        int windowCount = currentWindowCount;
 
         /* Allocate and fill window stack */
         if (windowCount > 0) {
             windowStack = (WindowPtr*)malloc(windowCount * sizeof(WindowPtr));
             if (windowStack) {
-                w = window;
+                WindowPtr w = window;
                 for (int i = 0; i < windowCount && w; i++) {
                     windowStack[i] = w;
                     w = w->nextWindow;
@@ -1120,6 +1144,11 @@ void WM_Update(void) {
     /* Old cursor drawing code removed to prevent double cursor issue */
 
     SetPort(savePort);
+}
+
+/* Mark display as needing update when windows change */
+void WM_InvalidateDisplay(void) {
+    gDisplayDirty = true;
 }
 
 /* [WM-050] Stub quarantine: real BeginUpdate/EndUpdate in WindowEvents.c */
