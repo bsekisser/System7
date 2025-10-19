@@ -545,6 +545,12 @@ void DrawMenuBar(void)
         (void)MenuAppleIcon_Draw(qd.thePort, x, 0, false);
     }
 
+    /* Draw Finder icon at top-right of menu bar */
+    {
+        short finderIconX = qd.screenBits.bounds.right - 32;  /* Position at right edge with padding */
+        MenuAppIcon_Draw(qd.thePort, finderIconX, 0, false);
+    }
+
     QD_DrawCRTBezel();
 
     SetPort(savePort);
