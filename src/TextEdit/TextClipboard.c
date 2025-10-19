@@ -442,28 +442,43 @@ OSErr TECopyAsRTF(TEHandle hTE, Handle *rtfHandle)
     char *textPtr;
     char *rtfPtr;
     long rtfLength;
+    long actualSize;
 
     if (!hTE || !*hTE || !rtfHandle) return paramErr;
 
     *rtfHandle = NULL;
 
+    /* CRITICAL: Lock hTE before dereferencing to prevent heap compaction issues */
+    HLock((Handle)hTE);
     teRec = (TERec **)hTE;
     textHandle = (**teRec).hText;
 
-    if (!textHandle) return paramErr;
+    if (!textHandle) {
+        HUnlock((Handle)hTE);
+        return paramErr;
+    }
 
     selStart = (**teRec).selStart;
     selEnd = (**teRec).selEnd;
     selLength = selEnd - selStart;
 
-    if (selLength <= 0) return paramErr;
+    if (selLength <= 0) {
+        HUnlock((Handle)hTE);
+        return paramErr;
+    }
 
     /* Create minimal RTF wrapper */
     /* RTF header + text + footer */
     rtfLength = 50 + selLength + 10; /* Rough estimate */
 
+    HUnlock((Handle)hTE);
+
     *rtfHandle = NewHandle(rtfLength);
     if (!*rtfHandle) return MemError();
+
+    HLock((Handle)hTE);
+    textHandle = (**teRec).hText;
+    selStart = (**teRec).selStart;
 
     HLock(*rtfHandle);
     HLock(textHandle);
@@ -492,11 +507,15 @@ OSErr TECopyAsRTF(TEHandle hTE, Handle *rtfHandle)
     strcpy(rtfPtr, "}");
     rtfPtr += 1;
 
+    /* Calculate actual size before unlocking */
+    actualSize = rtfPtr - **rtfHandle;
+
     HUnlock(textHandle);
     HUnlock(*rtfHandle);
+    HUnlock((Handle)hTE);
 
     /* Resize handle to actual size */
-    SetHandleSize(*rtfHandle, rtfPtr - **rtfHandle);
+    SetHandleSize(*rtfHandle, actualSize);
 
     return noErr;
 }
