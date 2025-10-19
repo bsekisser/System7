@@ -714,29 +714,38 @@ OSErr TEGetSelectedText(TEHandle hTE, Handle* textHandle)
 {
     TERec **teRec;
     long selLength;
+    long selStart;
     char *srcPtr;
 
     if (!hTE || !*hTE || !textHandle) return paramErr;
 
+    /* CRITICAL: Lock hTE before dereferencing to prevent heap compaction issues */
+    HLock((Handle)hTE);
     teRec = (TERec **)hTE;
     selLength = (**teRec).selEnd - (**teRec).selStart;
 
     if (selLength <= 0) {
         *textHandle = NULL;
+        HUnlock((Handle)hTE);
         return noErr;
     }
+
+    selStart = (**teRec).selStart;
+    HUnlock((Handle)hTE);
 
     *textHandle = NewHandle(selLength);
     if (!*textHandle) return MemError();
 
+    HLock((Handle)hTE);
     HLock((**teRec).hText);
     HLock(*textHandle);
 
-    srcPtr = *(**teRec).hText + (**teRec).selStart;
+    srcPtr = *(**teRec).hText + selStart;
     memcpy(**textHandle, srcPtr, selLength);
 
     HUnlock(*textHandle);
     HUnlock((**teRec).hText);
+    HUnlock((Handle)hTE);
 
     return noErr;
 }
