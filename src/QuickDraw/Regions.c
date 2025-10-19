@@ -191,21 +191,28 @@ static RgnHandle DuplicateRgn(RgnHandle srcRgn) {
 void SetEmptyRgn(RgnHandle rgn) {
     assert(rgn != NULL && *rgn != NULL);
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock((Handle)rgn);
     Region *region = *rgn;
 
     /* Don't resize - just mark as empty
      * realloc() is broken in bare-metal kernel and causes freeze */
     region->rgnSize = kMinRegionSize;
     SetRect(&region->rgnBBox, 0, 0, 0, 0);
+
+    HUnlock((Handle)rgn);
 }
 
 void SetRectRgn(RgnHandle rgn, SInt16 left, SInt16 top, SInt16 right, SInt16 bottom) {
     assert(rgn != NULL && *rgn != NULL);
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock((Handle)rgn);
     Region *region = *rgn;
 
     /* Empty region if rectangle is empty */
     if (left >= right || top >= bottom) {
+        HUnlock((Handle)rgn);
         SetEmptyRgn(rgn);
         return;
     }
@@ -222,6 +229,8 @@ void SetRectRgn(RgnHandle rgn, SInt16 left, SInt16 top, SInt16 right, SInt16 bot
 
     region->rgnSize = kMinRegionSize;
     SetRect(&region->rgnBBox, left, top, right, bottom);
+
+    HUnlock((Handle)rgn);
 }
 
 void RectRgn(RgnHandle rgn, const Rect *r) {
@@ -313,6 +322,8 @@ void CloseRgn(RgnHandle dstRgn) {
 void OffsetRgn(RgnHandle rgn, SInt16 dh, SInt16 dv) {
     assert(rgn != NULL && *rgn != NULL);
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock((Handle)rgn);
     Region *region = *rgn;
 
     /* Offset bounding box */
@@ -340,19 +351,26 @@ void OffsetRgn(RgnHandle rgn, SInt16 dh, SInt16 dv) {
             }
         }
     }
+
+    HUnlock((Handle)rgn);
 }
 
 void InsetRgn(RgnHandle rgn, SInt16 dh, SInt16 dv) {
     assert(rgn != NULL && *rgn != NULL);
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock((Handle)rgn);
     Region *region = *rgn;
 
     /* For rectangular regions, just inset the bounds */
     if (region->rgnSize == kMinRegionSize) {
         InsetRect(&region->rgnBBox, dh, dv);
         if (EmptyRect(&region->rgnBBox)) {
+            HUnlock((Handle)rgn);
             SetEmptyRgn(rgn);
+            return;
         }
+        HUnlock((Handle)rgn);
         return;
     }
 
@@ -360,8 +378,11 @@ void InsetRgn(RgnHandle rgn, SInt16 dh, SInt16 dv) {
     /* For now, we'll implement a simplified version */
     InsetRect(&region->rgnBBox, dh, dv);
     if (EmptyRect(&region->rgnBBox)) {
+        HUnlock((Handle)rgn);
         SetEmptyRgn(rgn);
+        return;
     }
+    HUnlock((Handle)rgn);
 }
 
 /* ================================================================
@@ -493,13 +514,21 @@ void XorRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn) {
 Boolean EmptyRgn(RgnHandle rgn) {
     assert(rgn != NULL && *rgn != NULL);
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock((Handle)rgn);
     Region *region = *rgn;
-    return EmptyRect(&region->rgnBBox);
+    Boolean result = EmptyRect(&region->rgnBBox);
+    HUnlock((Handle)rgn);
+    return result;
 }
 
 Boolean EqualRgn(RgnHandle rgnA, RgnHandle rgnB) {
     assert(rgnA != NULL && *rgnA != NULL);
     assert(rgnB != NULL && *rgnB != NULL);
+
+    /* CRITICAL: Lock handles before dereferencing to prevent heap compaction issues */
+    HLock((Handle)rgnA);
+    HLock((Handle)rgnB);
 
     Region *regionA = *rgnA;
     Region *regionB = *rgnB;
@@ -508,40 +537,56 @@ Boolean EqualRgn(RgnHandle rgnA, RgnHandle rgnB) {
     SInt16 sizeB = sanitize_region_size(regionB, "EqualRgn(B)");
 
     /* First check sizes */
-    if (sizeA != sizeB) return false;
+    if (sizeA != sizeB) {
+        HUnlock((Handle)rgnB);
+        HUnlock((Handle)rgnA);
+        return false;
+    }
 
     /* Then compare the data */
-    return memcmp(regionA, regionB, (size_t)sizeA) == 0;
+    Boolean result = (memcmp(regionA, regionB, (size_t)sizeA) == 0);
+    HUnlock((Handle)rgnB);
+    HUnlock((Handle)rgnA);
+    return result;
 }
 
 Boolean RectInRgn(const Rect *r, RgnHandle rgn) {
     assert(r != NULL);
     assert(rgn != NULL && *rgn != NULL);
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock((Handle)rgn);
     Region *region = *rgn;
 
     /* Simple implementation - check if rectangles intersect */
     Rect intersection;
-    return SectRect(r, &region->rgnBBox, &intersection);
+    Boolean result = SectRect(r, &region->rgnBBox, &intersection);
+    HUnlock((Handle)rgn);
+    return result;
 }
 
 Boolean PtInRgn(Point pt, RgnHandle rgn) {
     assert(rgn != NULL && *rgn != NULL);
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock((Handle)rgn);
     Region *region = *rgn;
 
     /* First check bounding box */
     if (!PtInRect(pt, &region->rgnBBox)) {
+        HUnlock((Handle)rgn);
         return false;
     }
 
     /* For rectangular regions, that's sufficient */
     if (region->rgnSize == kMinRegionSize) {
+        HUnlock((Handle)rgn);
         return true;
     }
 
     /* For complex regions, we need to check scan lines */
     /* This is a simplified implementation */
+    HUnlock((Handle)rgn);
     return true;
 }
 
@@ -603,10 +648,15 @@ Boolean IsComplexRegion(RgnHandle rgn) {
 Boolean ValidateRegion(RgnHandle rgn) {
     if (!rgn || !*rgn) return false;
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock((Handle)rgn);
     Region *region = *rgn;
 
     /* Check minimum size */
-    if (region->rgnSize < kMinRegionSize) return false;
+    if (region->rgnSize < kMinRegionSize) {
+        HUnlock((Handle)rgn);
+        return false;
+    }
 
     /* Check maximum size - rgnSize is SInt16, max value is 32767, so this check is unnecessary
      * as kMaxRegionSize == 32767. Keeping for documentation but disabling the warning. */
@@ -614,11 +664,13 @@ Boolean ValidateRegion(RgnHandle rgn) {
 
     /* For rectangular regions, just validate bounds */
     if (region->rgnSize == kMinRegionSize) {
+        HUnlock((Handle)rgn);
         return true;
     }
 
     /* For complex regions, validate scan line data */
     /* This would be more complex in a full implementation */
+    HUnlock((Handle)rgn);
     return true;
 }
 
@@ -632,8 +684,14 @@ void CompactRegion(RgnHandle rgn) {
 SInt16 GetRegionComplexity(RgnHandle rgn) {
     if (!rgn || !*rgn) return 0;
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock((Handle)rgn);
     Region *region = *rgn;
-    if (region->rgnSize == kMinRegionSize) return 1;
+
+    if (region->rgnSize == kMinRegionSize) {
+        HUnlock((Handle)rgn);
+        return 1;
+    }
 
     /* Count scan lines for complex regions */
     SInt16 complexity = 0;
@@ -651,6 +709,7 @@ SInt16 GetRegionComplexity(RgnHandle rgn) {
         dataPtr += sizeof(SInt16) + count * sizeof(SInt16);
     }
 
+    HUnlock((Handle)rgn);
     return complexity;
 }
 

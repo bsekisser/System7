@@ -600,7 +600,12 @@ void Platform_SetUpdatePort(GrafPtr port) {
 /* Region operations */
 void Platform_CopyRgn(RgnHandle src, RgnHandle dst) {
     if (src && dst && *src && *dst) {
+        /* CRITICAL: Lock handles before dereferencing to prevent heap compaction issues */
+        HLock((Handle)src);
+        HLock((Handle)dst);
         **dst = **src;
+        HUnlock((Handle)dst);
+        HUnlock((Handle)src);
     }
 }
 

@@ -218,7 +218,10 @@ void SetPopupMenu(ControlHandle popup, MenuHandle menu) {
     /* Set new menu */
     popupData->popupMenu = menu;
     if (menu) {
+        /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+        HLock((Handle)menu);
         popupData->menuID = (**menu).menuID;
+        HUnlock((Handle)menu);
     }
 
     /* Update selection */
