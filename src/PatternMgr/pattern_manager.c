@@ -59,8 +59,8 @@ void PM_SetBackPat(const Pattern *pat) {
     gPM.usePixPat = false;
     gPM.backPat = *pat;
 
-    /* Inform QuickDraw - update the global pattern */
-    BackPat(pat);
+    /* Store the pattern but DON'T call BackPat() - we only want it on the desktop, not in windows */
+    /* The DeskHook will use this pattern directly when drawing the desktop background */
     /* Also update our local copy for EraseRect */
     UpdateBackgroundPattern(pat);
 }
@@ -89,10 +89,10 @@ void PM_SetBackPixPat(Handle pixPatHandle) {
     if (DecodePPAT8(data, sz, gPM.colorPattern)) {
         gPM.hasColorPattern = true;
         serial_puts("PM_SetBackPixPat: Successfully decoded color pattern\n");
-        /* Set a neutral pattern so EraseRect knows to use color */
+        /* Don't call BackPat() - pattern only applies to desktop, not windows */
+        /* Set neutral pattern for UpdateBackgroundPattern so windows aren't affected */
         Pattern neutralPat;
         memset(&neutralPat, 0xFF, sizeof(neutralPat));
-        BackPat(&neutralPat);
         UpdateBackgroundPattern(&neutralPat);
     } else {
         /* Fall back to using first 8 bytes as pattern */
@@ -101,7 +101,7 @@ void PM_SetBackPixPat(Handle pixPatHandle) {
         if (sz >= 8) {
             Pattern tmpPat;
             memcpy(&tmpPat.pat, data, 8);
-            BackPat(&tmpPat);
+            /* Don't call BackPat() - pattern only applies to desktop */
             UpdateBackgroundPattern(&tmpPat);
         }
     }
