@@ -120,6 +120,7 @@ short FolderWindow_GetSelectedAsSpecs(WindowPtr w, FSSpec** outSpecs);
 VRefNum FolderWindow_GetVRef(WindowPtr w);
 DirID FolderWindow_GetCurrentDir(WindowPtr w);
 void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly);
+void FolderWindow_SortAndArrange(WindowPtr w, short sortType);
 void FolderWindowProc(WindowPtr window, short message, long param);
 void CleanupFolderWindow(WindowPtr w);
 

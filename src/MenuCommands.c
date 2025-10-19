@@ -1130,7 +1130,20 @@ void Finder_SelectAll(void) {
 /* View Operations */
 void SetWindowViewMode(WindowPtr w, short viewMode) {
     if (!w) return;
-    MENU_LOG_DEBUG("[STUB] SetWindowViewMode called with mode=%d\n", viewMode);
+
+    MENU_LOG_DEBUG("SetWindowViewMode called with mode=%d\n", viewMode);
+
+    /* Check if it's a folder window */
+    extern Boolean IsFolderWindow(WindowPtr w);
+    extern void FolderWindow_SortAndArrange(WindowPtr w, short sortType);
+
+    if (IsFolderWindow(w)) {
+        /* viewMode: 1=by Icon, 2=by Name, 3=by Size, 4=by Kind, 5=by Label, 6=by Date */
+        FolderWindow_SortAndArrange(w, viewMode);
+        MENU_LOG_DEBUG("SetWindowViewMode: Sorted folder window by mode %d\n", viewMode);
+    } else {
+        MENU_LOG_DEBUG("SetWindowViewMode: Window is not a folder window\n");
+    }
 }
 
 /* Label Operations */

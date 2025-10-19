@@ -1674,6 +1674,109 @@ DirID FolderWindow_GetCurrentDir(WindowPtr w) {
 }
 
 /*
+ * Sort items by name (folders first, then alphabetically)
+ */
+static void SortFolderItemsByName(FolderItem* items, short count) {
+    /* Simple bubble sort - adequate for typical folder sizes */
+    for (short i = 0; i < count - 1; i++) {
+        for (short j = 0; j < count - i - 1; j++) {
+            Boolean shouldSwap = false;
+
+            /* Folders always come first */
+            if (!items[j].isFolder && items[j+1].isFolder) {
+                shouldSwap = true;
+            } else if (items[j].isFolder == items[j+1].isFolder) {
+                /* Both are folders or both are files - compare names */
+                if (strcmp(items[j].name, items[j+1].name) > 0) {
+                    shouldSwap = true;
+                }
+            }
+
+            if (shouldSwap) {
+                FolderItem temp = items[j];
+                items[j] = items[j+1];
+                items[j+1] = temp;
+            }
+        }
+    }
+}
+
+/*
+ * Sort items by kind/type (folders first, then by file type)
+ */
+static void SortFolderItemsByKind(FolderItem* items, short count) {
+    /* Simple bubble sort */
+    for (short i = 0; i < count - 1; i++) {
+        for (short j = 0; j < count - i - 1; j++) {
+            Boolean shouldSwap = false;
+
+            /* Folders always come first */
+            if (!items[j].isFolder && items[j+1].isFolder) {
+                shouldSwap = true;
+            } else if (items[j].isFolder == items[j+1].isFolder) {
+                /* Both are folders or both are files */
+                if (items[j].type > items[j+1].type) {
+                    shouldSwap = true;
+                } else if (items[j].type == items[j+1].type) {
+                    /* Same type - sort by name */
+                    if (strcmp(items[j].name, items[j+1].name) > 0) {
+                        shouldSwap = true;
+                    }
+                }
+            }
+
+            if (shouldSwap) {
+                FolderItem temp = items[j];
+                items[j] = items[j+1];
+                items[j+1] = temp;
+            }
+        }
+    }
+}
+
+/*
+ * FolderWindow_SortAndArrange - Sort items and arrange in grid
+ * sortType: 0=none, 1=by Icon, 2=by Name, 3=by Size, 4=by Kind, 5=by Label, 6=by Date
+ */
+void FolderWindow_SortAndArrange(WindowPtr w, short sortType) {
+    if (!w || !IsFolderWindow(w)) return;
+
+    FolderWindowState* state = GetFolderState(w);
+    if (!state || !state->items || state->itemCount == 0) return;
+
+    FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: sortType=%d, itemCount=%d\n",
+                     sortType, state->itemCount);
+
+    /* Sort the items array */
+    switch (sortType) {
+        case 2:  /* by Name */
+            SortFolderItemsByName(state->items, state->itemCount);
+            FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: Sorted by name\n");
+            break;
+
+        case 4:  /* by Kind */
+            SortFolderItemsByKind(state->items, state->itemCount);
+            FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: Sorted by kind\n");
+            break;
+
+        case 3:  /* by Size - not implemented (no size field in FolderItem) */
+        case 5:  /* by Label - not implemented (no label field in FolderItem) */
+        case 6:  /* by Date - not implemented (no date field in FolderItem) */
+            FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: Sort type %d not yet implemented\n", sortType);
+            /* Fall through to arrange without sorting */
+            break;
+
+        case 1:  /* by Icon - just arrange, don't sort */
+        default:
+            FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: No sorting, just arranging\n");
+            break;
+    }
+
+    /* Arrange all items in grid after sorting */
+    FolderWindow_CleanUp(w, false);  /* false = arrange all items */
+}
+
+/*
  * FolderWindow_CleanUp - Arrange icons in a grid pattern
  */
 void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly) {
