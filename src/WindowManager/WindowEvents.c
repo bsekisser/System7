@@ -198,28 +198,71 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
     Boolean inPart = true;
     Boolean lastInPart = true;
     Point currentPt = thePt;
+    int loopCount = 0;
+    const int MAX_TRACKING_ITERATIONS = 5000;  /* Timeout after ~5 seconds at 1ms per iteration */
 
-    while (buttonDown) {
+    extern void serial_puts(const char* str);
+    serial_puts("[TB] Entering tracking loop\n");
+
+    /* Process input ONCE before checking button state to ensure gCurrentButtons
+     * is up-to-date with the latest PS/2 events */
+    extern void ProcessModernInput(void);
+    ProcessModernInput();
+    serial_puts("[TB] Processed input before loop\n");
+
+    while (buttonDown && loopCount < MAX_TRACKING_ITERATIONS) {
         /* Get current mouse position and button state */
         /* TODO: Get actual mouse state from platform */
         buttonDown = WM_IsMouseDown();
+
+        if (loopCount == 0) {
+            char buf[80];
+            snprintf(buf, sizeof(buf), "[TB] First iteration: buttonDown=%d\n", buttonDown ? 1 : 0);
+            serial_puts(buf);
+        }
+
+        loopCount++;
+        if (loopCount % 50 == 0 || loopCount < 5) {
+            char buf[80];
+            snprintf(buf, sizeof(buf), "[TB] Loop %d, buttonDown=%d, partCode=%d\n", loopCount, buttonDown, partCode);
+            serial_puts(buf);
+        }
+
         if (buttonDown) {
             Platform_GetMousePosition(&currentPt);
         }
 
+        serial_puts("[TB-LOOP] After mouse check\n");
+
         /* Check if mouse is still in the part */
         inPart = WM_PtInRect(currentPt, &partRect);
+
+        serial_puts("[TB-LOOP] After inPart check\n");
 
         /* Update visual feedback if state changed */
         if (inPart != lastInPart) {
             /* Highlight or unhighlight the part */
+            serial_puts("[TB-LOOP] About to highlight\n");
             Platform_HighlightWindowPart(theWindow, partCode, inPart);
+            serial_puts("[TB-LOOP] After highlight\n");
             lastInPart = inPart;
         }
 
+        serial_puts("[TB-LOOP] About to wait\n");
         /* Brief delay to avoid consuming too much CPU */
         Platform_WaitTicks(1);
+        serial_puts("[TB-LOOP] After wait, looping\n");
     }
+
+    /* If we hit the timeout limit, log it */
+    if (loopCount >= MAX_TRACKING_ITERATIONS) {
+        serial_puts("[TB] WARNING: Tracking loop timeout - exceeded max iterations\n");
+        buttonDown = false;  /* Force exit */
+    }
+
+    char buf[80];
+    snprintf(buf, sizeof(buf), "[TB] Exited loop after %d iterations\n", loopCount);
+    serial_puts(buf);
 
     /* DON'T call Platform_HighlightWindowPart to unhighlight - it will invert again
      * and leave a ghost on the framebuffer. Instead, just invalidate and let the
@@ -235,16 +278,23 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
      * 3. With GWorld double-buffering, the offscreen buffer doesn't have these pixels
      * 4. Cursor continues to be drawn after window redraw, leaving new ghosts
      * Solution: Redraw window + force desktop manager to redraw background */
+    serial_puts("[TB] Calling BeginUpdate\n");
     BeginUpdate(theWindow);
+    serial_puts("[TB] BeginUpdate done\n");
 
     /* Draw window contents if this is a folder window */
     extern Boolean IsFolderWindow(WindowPtr w);
     extern void FolderWindow_Draw(WindowPtr w);
+    serial_puts("[TB] Checking if folder window\n");
     if (IsFolderWindow(theWindow)) {
+        serial_puts("[TB] Drawing folder window\n");
         FolderWindow_Draw(theWindow);
+        serial_puts("[TB] Folder window drawn\n");
     }
 
+    serial_puts("[TB] Calling EndUpdate\n");
     EndUpdate(theWindow);
+    serial_puts("[TB] EndUpdate done\n");
 
     /* TODO: Also need to invalidate desktop/background to clean up cursor ghosts
      * that appear when moving mouse after close button tracking completes.
@@ -253,16 +303,24 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
     /* Manually erase the close box area to remove InvertRect artifacts.
      * We need to draw directly to framebuffer since the title bar chrome
      * is outside the GWorld content buffer. */
+    serial_puts("[TB] Checking if close box needs drawing\n");
     if (partCode == inGoAway) {
         extern void Platform_DrawCloseBoxDirect(WindowPtr window);
+        serial_puts("[TB] Drawing close box directly\n");
         Platform_DrawCloseBoxDirect(theWindow);
+        serial_puts("[TB] Close box drawn\n");
     }
 
     /* Show cursor now that window/title bar has been redrawn cleanly */
+    serial_puts("[TB] Showing cursor\n");
     ShowCursor();
+    serial_puts("[TB] Cursor shown\n");
 
     /* Return true if mouse was released inside the part */
     Boolean result = inPart;
+    char resultBuf[60];
+    snprintf(resultBuf, sizeof(resultBuf), "[TB] TrackBox returning %d\n", result ? 1 : 0);
+    serial_puts(resultBuf);
     WM_DEBUG("TrackBox: Tracking complete, result = %s", result ? "true" : "false");
     return result;
 }
