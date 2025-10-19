@@ -48,30 +48,33 @@ bool LoadPATResource(int16_t id, Pattern *outPat) {
             memcpy(outPat->pat, builtInData, 8);
             return true;
         }
+        /* No pattern found */
         return false;
     }
 
+    /* Handle was found - extract pattern data carefully */
     HLock(h);
-    const uint8_t *p = (const uint8_t *)*h;
-    Size sz = GetHandleSize(h);
 
-    const uint8_t *block = NULL;
-    if (sz == 8) {
-        /* Perfect match - pattern is exactly 8 bytes */
-        block = p;
-    } else if (sz >= 8) {
-        /* Use first 8 bytes */
-        find8(p, sz, &block);
-    }
-
-    if (!block) {
+    /* Verify handle is still valid */
+    if (!*h) {
         HUnlock(h);
         ReleaseResource(h);
         return false;
     }
 
+    const uint8_t *p = (const uint8_t *)*h;
+    Size sz = GetHandleSize(h);
+
+    /* Ensure we have at least 8 bytes */
+    if (sz < 8) {
+        HUnlock(h);
+        ReleaseResource(h);
+        return false;
+    }
+
+    /* Copy exactly 8 bytes - use first 8 bytes if larger */
     memset(outPat, 0, sizeof(*outPat));
-    memcpy(outPat->pat, block, 8);
+    memcpy(outPat->pat, p, 8);
 
     HUnlock(h);
     ReleaseResource(h);

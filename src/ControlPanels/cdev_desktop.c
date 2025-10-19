@@ -281,7 +281,6 @@ Boolean DesktopPatterns_HandleEvent(EventRecord *event) {
  * DrawPatternCell - Draw a single pattern cell in the grid
  */
 static void DrawPatternCell(int col, int row, int16_t patID, bool selected) {
-    serial_puts("[CDEV-CELL] Drawing cell\n");
     Rect cellRect;
     cellRect.left = WINDOW_MARGIN + col * (CELL_W + CELL_PAD);
     cellRect.top = 40 + row * (CELL_H + CELL_PAD);
@@ -298,16 +297,18 @@ static void DrawPatternCell(int col, int row, int16_t patID, bool selected) {
         FrameRect(&cellRect);
     }
 
+    /* Create interior rect for fill - don't modify the original */
+    Rect fillRect = cellRect;
+    InsetRect(&fillRect, 1, 1);
+
     /* Fill with pattern */
     Pattern pat;
     if (LoadPATResource(patID, &pat)) {
-        InsetRect(&cellRect, 1, 1);
-        FillRect(&cellRect, &pat);
+        FillRect(&fillRect, &pat);
     } else {
-        /* Fallback: lightly shade missing pattern */
-        InsetRect(&cellRect, 1, 1);
+        /* Fallback: lightly shade missing pattern - pattern load failed */
         Pattern fallback = qd.ltGray;
-        FillRect(&cellRect, &fallback);
+        FillRect(&fillRect, &fallback);
     }
 }
 
