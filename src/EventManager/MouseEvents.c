@@ -428,13 +428,7 @@ Boolean Button(void)
 
     Boolean result = (gCurrentButtons & 1) != 0;
 
-    if (callCount % 200 == 0) {
-        extern void serial_puts(const char* str);
-        char buf[80];
-        snprintf(buf, sizeof(buf), "[BTN] Button() call %d, gCurrentButtons=0x%02X, result=%d\n",
-                 callCount, gCurrentButtons, result);
-        serial_puts(buf);
-    }
+    /* Disabled Button() debug output to reduce serial log noise */
 
     return result;
 }

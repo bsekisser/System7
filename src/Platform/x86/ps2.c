@@ -658,13 +658,8 @@ void PollPS2Input(void) {
         PLATFORM_LOG_DEBUG("PS2: PollPS2Input first call!\n");
     }
 
-    /* Log every 1000th call to show polling is happening */
-    if ((++call_count % 1000) == 0) {
-        char msg[80];
-        sprintf(msg, "[PS2-POLL] Call #%d, packets=%d, mouse_bytes=%d, buttons=0x%02x\n",
-                call_count, packet_count, mouse_byte_count, g_mouseState.buttons);
-        serial_puts(msg);
-    }
+    /* Disabled polling debug output to reduce serial log noise */
+    call_count++;
 
     /* Drain the controller completely this tick */
     for (;;) {
