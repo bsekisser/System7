@@ -424,9 +424,19 @@ OSErr CleanUpDesktop(void)
  */
 static void Finder_DeskHook(RgnHandle invalidRgn)
 {
-    GrafPtr savePort;
+    /* CRITICAL: Get Window Manager port instead of using qd.thePort
+     * qd.thePort may have been set to a window's port by previous drawing operations,
+     * causing desktop icons to shift coordinates. WMgr port is always in global screen coords. */
+    extern void GetWMgrPort(GrafPtr* port);
+    GrafPtr savePort, wmgrPort;
     GetPort(&savePort);
-    SetPort(qd.thePort);  /* Draw to screen port - FIX: qd.thePort is already a GrafPtr */
+    GetWMgrPort(&wmgrPort);
+    if (wmgrPort) {
+        SetPort(wmgrPort);  /* Draw to Window Manager port (global screen coordinates) */
+    } else {
+        /* Fallback to qd.thePort if WMgr port not available */
+        SetPort(qd.thePort);
+    }
 
     /* Clip to the invalid region */
     RgnHandle desktopClip = NewRgn();
