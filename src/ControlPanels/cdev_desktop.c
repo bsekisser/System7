@@ -236,10 +236,19 @@ Boolean DesktopPatterns_HandleEvent(EventRecord *event) {
                                 gSelectedPatID = patID;
                                 serial_puts("[CDEV-EVT] Pattern selected\n");
 
-                                /* Apply pattern immediately for preview */
+                                /* Apply pattern immediately for preview on the DESKTOP, not the window */
                                 Pattern pat;
                                 if (PM_LoadPAT(patID, &pat)) {
+                                    /* Switch to desktop port to apply pattern there */
+                                    GrafPtr savedPort;
+                                    GetPort(&savedPort);
+                                    if (gDesktopPrevPort) {
+                                        SetPort(gDesktopPrevPort);
+                                    } else {
+                                        SetPort(NULL);  /* Switch to main screen port */
+                                    }
                                     PM_SetBackPat(&pat);
+                                    SetPort(savedPort);  /* Restore window port */
                                 }
 
                                 /* Redraw the grid to show new selection */
@@ -404,30 +413,17 @@ static void ApplySelectedPattern(void) {
     pref.usePixPat = false;
     pref.patID = gSelectedPatID;
 
-    /* Save to PRAM */
+    /* Save to PRAM - this persists the user's choice */
     serial_puts("[CDEV] Saving preference\n");
     PM_SaveDesktopPref(&pref);
     serial_puts("[CDEV] Preference saved\n");
     gOriginalPref = pref;
 
-    /* Apply the pattern */
-    serial_puts("[CDEV] Loading pattern\n");
-    Pattern pat;
-    if (PM_LoadPAT(gSelectedPatID, &pat)) {
-        serial_puts("[CDEV] Pattern loaded, setting back pattern\n");
-        PM_SetBackPat(&pat);
-        serial_puts("[CDEV] Back pattern set\n");
-    } else {
-        serial_puts("[CDEV] Pattern load failed\n");
-    }
-    serial_puts("[CDEV] Committing to QuickDraw\n");
-    if (ColorManager_IsAvailable()) {
-        serial_puts("[CDEV] ColorManager available, committing\n");
-        ColorManager_CommitQuickDraw();
-        serial_puts("[CDEV] ColorManager commit done\n");
-    } else {
-        serial_puts("[CDEV] ColorManager not available\n");
-    }
+    /* Don't apply pattern here - it's already being shown as preview on the desktop.
+     * Just save the preference and close the window. The Finder will update the
+     * desktop when it gets the notification. Applying here would try to set the
+     * pattern on the applet window's port, which causes issues. */
+
     serial_puts("[CDEV] ApplySelectedPattern complete\n");
 }
 
