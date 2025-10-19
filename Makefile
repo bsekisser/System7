@@ -217,6 +217,7 @@ C_SOURCES = src/main.c \
             src/Finder/alias_manager.c \
             src/Finder/trash_folder.c \
             src/Finder/AboutThisMac.c \
+            src/Finder/GetInfo.c \
             src/QuickDraw/QuickDrawCore.c \
             src/QuickDraw/Bitmaps.c \
             src/QuickDraw/QuickDrawPlatform.c \

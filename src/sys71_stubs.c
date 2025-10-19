@@ -872,9 +872,27 @@ OSErr CloseFinderWindow(WindowPtr window) {
         return paramErr;
     }
 
-    /* DisposeWindow calls CloseWindow internally, then frees memory */
-    DisposeWindow(window);
+    /* Try to close special windows first */
+    extern void AboutWindow_CloseIf(WindowPtr w);
+    extern void GetInfo_CloseIf(WindowPtr w);
+    extern void CleanupFolderWindow(WindowPtr w);
+    extern Boolean IsFolderWindow(WindowPtr w);
 
+    /* Check About window */
+    AboutWindow_CloseIf(window);
+
+    /* Check Get Info window */
+    GetInfo_CloseIf(window);
+
+    /* Check folder window */
+    if (IsFolderWindow(window)) {
+        CleanupFolderWindow(window);
+        DisposeWindow(window);
+        return noErr;
+    }
+
+    /* Default: just dispose */
+    DisposeWindow(window);
     return noErr;
 }
 
@@ -893,7 +911,31 @@ void ZoomWindow(WindowPtr window, SInt16 part, Boolean front) {
 #endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 
 void DoUpdate(WindowPtr window) {
-    /* Stub */
+    if (!window) return;
+
+    /* Route to appropriate update handler based on window type */
+    extern Boolean AboutWindow_HandleUpdate(WindowPtr w);
+    extern Boolean GetInfo_HandleUpdate(WindowPtr w);
+    extern void FolderWindow_Draw(WindowPtr w);
+    extern Boolean IsFolderWindow(WindowPtr w);
+
+    /* Try About window */
+    if (AboutWindow_HandleUpdate(window)) {
+        return;
+    }
+
+    /* Try Get Info window */
+    if (GetInfo_HandleUpdate(window)) {
+        return;
+    }
+
+    /* Try folder window */
+    if (IsFolderWindow(window)) {
+        FolderWindow_Draw(window);
+        return;
+    }
+
+    /* Default: no-op for unknown windows */
 }
 
 void DoActivate(WindowPtr window, Boolean activate) {

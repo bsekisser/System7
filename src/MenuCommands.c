@@ -9,6 +9,8 @@
 #include "System71StdLib.h"
 #include "MenuManager/MenuManager.h"
 #include "Finder/AboutThisMac.h"
+#include "Finder/GetInfo.h"
+#include "FS/hfs_types.h"
 #include "ControlPanels/DesktopPatterns.h"
 #include "ControlPanels/Sound.h"
 #include "ControlPanels/Mouse.h"
@@ -666,7 +668,35 @@ void OpenSelectedItems(void) {
 }
 
 void ShowGetInfoDialog(WindowPtr w) {
-    MENU_LOG_DEBUG("[STUB] ShowGetInfoDialog called\n");
+    MENU_LOG_DEBUG("ShowGetInfoDialog called\n");
+
+    if (!w) {
+        MENU_LOG_DEBUG("ShowGetInfoDialog: No window provided\n");
+        return;
+    }
+
+    /* Check if it's a folder window */
+    extern Boolean IsFolderWindow(WindowPtr w);
+    if (!IsFolderWindow(w)) {
+        MENU_LOG_DEBUG("ShowGetInfoDialog: Window is not a folder window\n");
+        return;
+    }
+
+    /* Get selected item */
+    extern Boolean FolderWindow_GetSelectedItem(WindowPtr w, VRefNum* outVref, FileID* outFileID);
+    extern void GetInfo_Show(VRefNum vref, FileID fileID);
+
+    VRefNum vref;
+    FileID fileID;
+
+    if (!FolderWindow_GetSelectedItem(w, &vref, &fileID)) {
+        MENU_LOG_DEBUG("ShowGetInfoDialog: No item selected\n");
+        return;
+    }
+
+    /* Show Get Info window */
+    GetInfo_Show(vref, fileID);
+    MENU_LOG_DEBUG("ShowGetInfoDialog: Displayed Get Info for fileID=%d\n", (int)fileID);
 }
 
 void DuplicateSelectedItems(WindowPtr w) {

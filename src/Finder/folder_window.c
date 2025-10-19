@@ -1255,6 +1255,27 @@ void FolderWindow_SelectAll(WindowPtr w) {
     PostEvent(updateEvt, (UInt32)w);
 }
 
+/* Get selected item info from folder window */
+Boolean FolderWindow_GetSelectedItem(WindowPtr w, VRefNum* outVref, FileID* outFileID) {
+    if (!w || !IsFolderWindow(w) || !outVref || !outFileID) return false;
+
+    FolderWindowState* state = GetFolderState(w);
+    if (!state || state->selectedIndex < 0 || state->selectedIndex >= state->itemCount) {
+        return false;
+    }
+
+    /* Get the selected item */
+    FolderItem* item = &state->items[state->selectedIndex];
+
+    *outVref = state->vref;
+    *outFileID = item->fileID;
+
+    FINDER_LOG_DEBUG("FolderWindow_GetSelectedItem: vref=%d fileID=%d name=%s\n",
+                     (int)*outVref, (int)*outFileID, item->name);
+
+    return true;
+}
+
 /* Update window proc for folder windows */
 void FolderWindowProc(WindowPtr window, short message, long param)
 {
