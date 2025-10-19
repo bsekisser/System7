@@ -67,6 +67,7 @@ typedef struct FolderItem {
     Boolean isFolder;      /* true = folder, false = document/app */
     uint32_t size;         /* File size in bytes (0 for folders) */
     uint32_t modTime;      /* Modification time (seconds since 1904) */
+    short label;           /* Label color index (0-7: None, Essential, Hot, etc.) */
     Point position;        /* position in window (for icon view) */
     FileID fileID;         /* File system ID (CNID) */
     DirID parentID;        /* Parent directory ID */
@@ -551,6 +552,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
             state->items[i].isFolder = (entries[i].kind == kNodeDir);
             state->items[i].size = entries[i].size;
             state->items[i].modTime = entries[i].modTime;
+            state->items[i].label = 0;  /* Default: no label */
             state->items[i].fileID = entries[i].id;
             state->items[i].parentID = entries[i].parent;
             state->items[i].type = entries[i].type;
@@ -1807,6 +1809,40 @@ static void SortFolderItemsByDate(FolderItem* items, short count) {
 }
 
 /*
+ * Sort items by label (folders first, then by label index, then by name)
+ */
+static void SortFolderItemsByLabel(FolderItem* items, short count) {
+    /* Simple bubble sort */
+    for (short i = 0; i < count - 1; i++) {
+        for (short j = 0; j < count - i - 1; j++) {
+            Boolean shouldSwap = false;
+
+            /* Folders always come first */
+            if (!items[j].isFolder && items[j+1].isFolder) {
+                shouldSwap = true;
+            } else if (items[j].isFolder == items[j+1].isFolder) {
+                /* Both are folders or both are files */
+                /* Sort by label index (higher label numbers first for visual grouping) */
+                if (items[j].label < items[j+1].label) {
+                    shouldSwap = true;
+                } else if (items[j].label == items[j+1].label) {
+                    /* Same label - sort by name */
+                    if (strcmp(items[j].name, items[j+1].name) > 0) {
+                        shouldSwap = true;
+                    }
+                }
+            }
+
+            if (shouldSwap) {
+                FolderItem temp = items[j];
+                items[j] = items[j+1];
+                items[j+1] = temp;
+            }
+        }
+    }
+}
+
+/*
  * FolderWindow_SortAndArrange - Sort items and arrange in grid
  * sortType: 0=none, 1=by Icon, 2=by Name, 3=by Size, 4=by Kind, 5=by Label, 6=by Date
  */
@@ -1836,14 +1872,14 @@ void FolderWindow_SortAndArrange(WindowPtr w, short sortType) {
             FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: Sorted by kind\n");
             break;
 
+        case 5:  /* by Label */
+            SortFolderItemsByLabel(state->items, state->itemCount);
+            FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: Sorted by label\n");
+            break;
+
         case 6:  /* by Date */
             SortFolderItemsByDate(state->items, state->itemCount);
             FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: Sorted by date\n");
-            break;
-
-        case 5:  /* by Label - not implemented (no label field in FolderItem) */
-            FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: Sort type %d not yet implemented\n", sortType);
-            /* Fall through to arrange without sorting */
             break;
 
         case 1:  /* by Icon - just arrange, don't sort */
@@ -1854,6 +1890,44 @@ void FolderWindow_SortAndArrange(WindowPtr w, short sortType) {
 
     /* Arrange all items in grid after sorting */
     FolderWindow_CleanUp(w, false);  /* false = arrange all items */
+}
+
+/*
+ * FolderWindow_SetLabelOnSelected - Apply label to selected items
+ */
+void FolderWindow_SetLabelOnSelected(WindowPtr w, short labelIndex) {
+    if (!w || !IsFolderWindow(w)) return;
+
+    FolderWindowState* state = GetFolderState(w);
+    if (!state || !state->items) return;
+
+    FINDER_LOG_DEBUG("FolderWindow_SetLabelOnSelected: labelIndex=%d, itemCount=%d\n",
+                     labelIndex, state->itemCount);
+
+    /* Apply label to all selected items */
+    int labeledCount = 0;
+    for (short i = 0; i < state->itemCount; i++) {
+        Boolean isSelected = false;
+
+        /* Check if this item is selected */
+        if (state->selectedItems && state->selectedItems[i]) {
+            isSelected = true;
+        } else if (i == state->selectedIndex) {
+            isSelected = true;
+        }
+
+        if (isSelected) {
+            state->items[i].label = labelIndex;
+            labeledCount++;
+            FINDER_LOG_DEBUG("FolderWindow_SetLabelOnSelected: Set label %d on item %d '%s'\n",
+                           labelIndex, i, state->items[i].name);
+        }
+    }
+
+    FINDER_LOG_DEBUG("FolderWindow_SetLabelOnSelected: Labeled %d items\n", labeledCount);
+
+    /* Trigger redraw */
+    PostEvent(updateEvt, (UInt32)w);
 }
 
 /*

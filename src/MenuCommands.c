@@ -1285,5 +1285,19 @@ void SetWindowViewMode(WindowPtr w, short viewMode) {
 /* Label Operations */
 void ApplyLabelToSelection(WindowPtr w, short labelIndex) {
     if (!w) return;
-    MENU_LOG_DEBUG("[STUB] ApplyLabelToSelection called with label=%d\n", labelIndex);
+
+    MENU_LOG_DEBUG("ApplyLabelToSelection called with label=%d\n", labelIndex);
+
+    /* Check if it's a folder window */
+    extern Boolean IsFolderWindow(WindowPtr w);
+    if (!IsFolderWindow(w)) {
+        MENU_LOG_DEBUG("ApplyLabelToSelection: Window is not a folder window\n");
+        return;
+    }
+
+    /* Apply label to selected items */
+    extern void FolderWindow_SetLabelOnSelected(WindowPtr w, short labelIndex);
+    FolderWindow_SetLabelOnSelected(w, labelIndex);
+
+    MENU_LOG_DEBUG("ApplyLabelToSelection: Applied label %d to selected items\n", labelIndex);
 }
