@@ -15,9 +15,11 @@
 #include "SystemTypes.h"
 #include "Apps/MacPaint.h"
 #include "WindowManager/WindowManager.h"
+#include "DialogManager/DialogManager.h"
 #include "MenuManager/MenuManager.h"
 #include "EventManager/EventManager.h"
 #include "System71StdLib.h"
+#include "sys71_stubs.h"
 #include "MemoryMgr/MemoryManager.h"
 #include <string.h>
 

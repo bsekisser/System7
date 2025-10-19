@@ -42,7 +42,7 @@ typedef struct SpeechManagerGlobals {
 
 static SpeechManagerGlobals gSpeechGlobals = {
     .initialized = false,
-    .defaultChannel = NULL,
+    .defaultChannel = (long int)NULL,
     .totalVoices = 0,
     .systemWideActivity = false,
     .lastActivity = 0
@@ -97,7 +97,7 @@ static void CleanupSpeechManager(void) {
      * - CleanupVoiceManager()
      */
 
-    gSpeechGlobals.defaultChannel = NULL;
+    gSpeechGlobals.defaultChannel = (long int)NULL;
     gSpeechGlobals.initialized = false;
 }
 

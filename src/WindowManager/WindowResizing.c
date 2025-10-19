@@ -25,6 +25,7 @@
 #include "System71StdLib.h"
 
 #include "WindowManager/WindowManagerInternal.h"
+#include "QuickDraw/QuickDraw.h"
 #include <math.h>
 
 /* [WM-017] Forward declarations for file-local helpers */

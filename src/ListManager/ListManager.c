@@ -40,6 +40,7 @@
 #include "ListManager/ListManagerInternal.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "EventManager/EventManager.h"
+#include "DeskManager/DeskManager.h"
 #include "System71StdLib.h"
 #include "ListManager/ListLogging.h"
 
