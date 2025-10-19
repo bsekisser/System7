@@ -363,7 +363,6 @@ static void HandleFileMenu(short item)
                     InitializeFolderContentsEx(front, false, targetVRef, targetDir);
 
                     /* Trigger redraw */
-                    extern void PostEvent(UInt16 eventType, UInt32 message);
                     PostEvent(updateEvt, (UInt32)front);
                 } else {
                     DrawDesktop();
@@ -792,7 +791,63 @@ void MakeAliasOfSelectedItems(WindowPtr w) {
 }
 
 void PutAwaySelectedItems(WindowPtr w) {
-    MENU_LOG_DEBUG("[STUB] PutAwaySelectedItems called\n");
+    MENU_LOG_DEBUG("PutAwaySelectedItems called\n");
+
+    if (!w) {
+        /* Get front window if not specified */
+        extern WindowPtr FrontWindow(void);
+        w = FrontWindow();
+    }
+
+    if (!w) {
+        MENU_LOG_DEBUG("PutAwaySelectedItems: No window\n");
+        return;
+    }
+
+    /* Check if it's a folder window */
+    extern Boolean IsFolderWindow(WindowPtr w);
+    if (!IsFolderWindow(w)) {
+        MENU_LOG_DEBUG("PutAwaySelectedItems: Window is not a folder window\n");
+        return;
+    }
+
+    /* Get selected items as FSSpec array */
+    extern short FolderWindow_GetSelectedAsSpecs(WindowPtr w, FSSpec** outSpecs);
+    FSSpec* specs = NULL;
+    short count = FolderWindow_GetSelectedAsSpecs(w, &specs);
+
+    if (count == 0 || !specs) {
+        MENU_LOG_DEBUG("PutAwaySelectedItems: No items selected\n");
+        return;
+    }
+
+    MENU_LOG_DEBUG("PutAwaySelectedItems: Moving %d items to trash\n", count);
+
+    /* Move to trash */
+    extern OSErr MoveToTrash(FSSpec *items, short count);
+    OSErr err = MoveToTrash(specs, count);
+
+    if (err == noErr) {
+        MENU_LOG_DEBUG("PutAwaySelectedItems: Successfully moved %d items to trash\n", count);
+
+        /* Reload the folder to reflect the changes */
+        extern void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID);
+        extern VRefNum FolderWindow_GetVRef(WindowPtr w);
+        extern DirID FolderWindow_GetCurrentDir(WindowPtr w);
+
+        VRefNum vref = FolderWindow_GetVRef(w);
+        DirID dirID = FolderWindow_GetCurrentDir(w);
+
+        InitializeFolderContentsEx(w, false, vref, dirID);
+
+        /* Trigger redraw */
+        PostEvent(updateEvt, (UInt32)w);
+    } else {
+        MENU_LOG_DEBUG("PutAwaySelectedItems: MoveToTrash failed with error %d\n", err);
+    }
+
+    /* Free the specs array */
+    free(specs);
 }
 
 /* Edit Operations */
