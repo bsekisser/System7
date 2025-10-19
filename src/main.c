@@ -1824,6 +1824,10 @@ skip_cursor_drawing:
         /* System 7.1 cooperative multitasking */
         SystemTask();
 
+        /* Update and render windows */
+        extern void WM_Update(void);
+        WM_Update();
+
         /* PS/2 polling is now done inside ProcessModernInput() above.
          * Do NOT call PollPS2Input() here - it would consume events twice! */
 

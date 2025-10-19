@@ -548,13 +548,12 @@ short FindWindow(Point thePt, WindowPtr *window) {
 
     /* Search through visible windows from front to back */
     extern WindowPtr FrontWindow(void);
-    extern WindowPtr GetNextWindow(WindowPtr theWindow);
 
     WindowPtr currentWindow = FrontWindow();
 
     while (currentWindow) {
         if (!currentWindow->visible) {
-            currentWindow = GetNextWindow(currentWindow);
+            currentWindow = currentWindow->nextWindow;
             continue;
         }
 
@@ -607,7 +606,7 @@ short FindWindow(Point thePt, WindowPtr *window) {
             }
         }
 
-        currentWindow = GetNextWindow(currentWindow);
+        currentWindow = currentWindow->nextWindow;
     }
 
     /* No window hit, check desktop */
@@ -1038,8 +1037,7 @@ extern QDGlobals qd;
 extern void* framebuffer;
 
 /* Window Manager update pipeline functions */
-/* [WM-053] WM_Update also needs Region Manager, so quarantine with other stubs */
-#if !defined(SYS71_STUBS_DISABLED)
+/* WM_Update is needed by main.c even when other stubs are disabled */
 void WM_Update(void) {
     /* Create a screen port if qd.thePort is NULL */
     static GrafPort screenPort;
@@ -1064,95 +1062,39 @@ void WM_Update(void) {
     FillRect(&desktopRect, &qd.gray);  /* Gray desktop pattern */
 
     /* 2. Draw all visible windows before menu bar */
-    /* TODO: Window drawing disabled until WindowManagerState is properly available */
-    #if 0
-    extern WindowManagerState* GetWindowManagerState(void);
-    WindowManagerState* wmState = GetWindowManagerState();
+    /* Use Window Manager's PaintOne to properly render windows */
+    {
+        extern WindowPtr FrontWindow(void);
+        extern void PaintOne(WindowPtr window, RgnHandle clobberedRgn);
 
-    /* Save pen position before window drawing */
-    Point savedPenPos = {0, 0};
-    if (qd.thePort) {
-        savedPenPos = qd.thePort->pnLoc;
-    }
-
-    if (wmState && wmState->windowList) {
-        /* Draw windows from back to front */
-        WindowPtr window = wmState->windowList;
+        /* Build window list (back to front order) */
+        WindowPtr window = FrontWindow();
         WindowPtr* windowStack = NULL;
         int windowCount = 0;
 
-        /* Count windows and build stack */
-        while (window) {
+        /* Count windows using window->nextWindow chain */
+        WindowPtr w = window;
+        while (w) {
             windowCount++;
-            window = window->nextWindow;
+            w = w->nextWindow;
         }
 
+        /* Allocate and fill window stack */
         if (windowCount > 0) {
             windowStack = (WindowPtr*)malloc(windowCount * sizeof(WindowPtr));
             if (windowStack) {
-                /* Fill stack */
-                window = wmState->windowList;
-                for (int i = 0; i < windowCount && window; i++) {
-                    windowStack[i] = window;
-                    window = window->nextWindow;
+                w = window;
+                for (int i = 0; i < windowCount && w; i++) {
+                    windowStack[i] = w;
+                    w = w->nextWindow;
                 }
 
-                /* Draw windows from back to front */
+                /* Draw windows from back to front (reverse order) */
                 for (int i = windowCount - 1; i >= 0; i--) {
-                    WindowPtr w = windowStack[i];
-                    if (w && w->visible) {
-                        /* Draw window frame */
-                        Rect frameRect = w->port.portRect;
-
-                        /* Draw window shadow */
-                        Rect shadowRect = frameRect;
-                        OffsetRect(&shadowRect, 2, 2);
-                        PenPat(&qd.black);
-                        FrameRect(&shadowRect);
-
-                        /* Draw window background */
-                        PenPat(&qd.white);
-                        PaintRect(&frameRect);
-
-                        /* Draw window frame */
-                        PenPat(&qd.black);
-                        FrameRect(&frameRect);
-
-                        /* Draw title bar */
-                        Rect titleBar = frameRect;
-                        titleBar.bottom = titleBar.top + 20;
-
-                        if (w->hilited) {
-                            /* Active window - draw with stripes */
-                            for (int y = titleBar.top; y < titleBar.bottom; y += 2) {
-                                MoveTo(titleBar.left, y);
-                                LineTo(titleBar.right - 1, y);
-                            }
-                        } else {
-                            /* Inactive window - solid gray */
-                            FillRect(&titleBar, &qd.gray);
-                        }
-
-                        /* Draw window title if present */
-                        if (w->titleHandle && *(w->titleHandle)) {
-                            /* Save and restore pen position for title drawing */
-                            Point titlePenPos = qd.thePort ? qd.thePort->pnLoc : (Point){0, 0};
-                            MoveTo(titleBar.left + 25, titleBar.top + 14);
-                            DrawString(*(w->titleHandle));
-                            if (qd.thePort) {
-                                qd.thePort->pnLoc = titlePenPos;
-                            }
-                        }
-
-                        /* Draw close box if present */
-                        if (w->goAwayFlag) {
-                            Rect closeBox;
-                            closeBox.left = frameRect.left + 2;
-                            closeBox.top = frameRect.top + 2;
-                            closeBox.right = closeBox.left + 16;
-                            closeBox.bottom = closeBox.top + 16;
-                            FrameRect(&closeBox);
-                        }
+                    WindowPtr wnd = windowStack[i];
+                    if (wnd && wnd->visible) {
+                        /* Use sophisticated window drawing from WindowDisplay.c */
+                        PaintOne(wnd, NULL);
                     }
                 }
 
@@ -1160,12 +1102,6 @@ void WM_Update(void) {
             }
         }
     }
-
-    /* Restore pen position after window drawing */
-    if (qd.thePort) {
-        qd.thePort->pnLoc = savedPenPos;
-    }
-    #endif /* Window drawing disabled */
 
     /* 3. Call DeskHook if registered for icons */
     if (g_deskHook) {
@@ -1185,7 +1121,6 @@ void WM_Update(void) {
 
     SetPort(savePort);
 }
-#endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 
 /* [WM-050] Stub quarantine: real BeginUpdate/EndUpdate in WindowEvents.c */
 #if !defined(SYS71_STUBS_DISABLED)
