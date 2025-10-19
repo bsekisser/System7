@@ -287,7 +287,7 @@ void OpenRgn(void) {
     /* Allocate scan data buffer */
     if (!g_regionRecorder.scanData) {
         g_regionRecorder.scanDataSize = 1024;
-        g_regionRecorder.scanData = (SInt16 *)malloc(g_regionRecorder.scanDataSize * sizeof(SInt16));
+        g_regionRecorder.scanData = (SInt16 *)NewPtr(g_regionRecorder.scanDataSize * sizeof(SInt16));
     }
     g_regionRecorder.scanDataUsed = 0;
 
