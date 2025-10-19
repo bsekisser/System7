@@ -1673,6 +1673,72 @@ DirID FolderWindow_GetCurrentDir(WindowPtr w) {
     return state->currentDir;
 }
 
+/*
+ * FolderWindow_CleanUp - Arrange icons in a grid pattern
+ */
+void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly) {
+    if (!w || !IsFolderWindow(w)) return;
+
+    FolderWindowState* state = GetFolderState(w);
+    if (!state || !state->items) return;
+
+    /* Grid parameters - matching classic Mac OS */
+    const short ICON_WIDTH = 80;   /* Width of icon + label */
+    const short ICON_HEIGHT = 64;  /* Height of icon + label */
+    const short LEFT_MARGIN = 20;
+    const short TOP_MARGIN = 40;   /* Below title bar */
+    const short SPACING_H = 10;    /* Horizontal spacing between icons */
+    const short SPACING_V = 10;    /* Vertical spacing between icons */
+
+    /* Calculate grid dimensions */
+    short gridX = LEFT_MARGIN;
+    short gridY = TOP_MARGIN;
+    short col = 0;
+    short maxCols = 5;  /* Maximum icons per row */
+
+    FINDER_LOG_DEBUG("FolderWindow_CleanUp: Arranging %d items, selectedOnly=%d\n",
+                     state->itemCount, selectedOnly);
+
+    for (short i = 0; i < state->itemCount; i++) {
+        /* Check if we should arrange this item */
+        Boolean shouldArrange = true;
+        if (selectedOnly) {
+            shouldArrange = false;
+            if (state->selectedItems && state->selectedItems[i]) {
+                shouldArrange = true;
+            } else if (i == state->selectedIndex) {
+                shouldArrange = true;
+            }
+        }
+
+        if (shouldArrange) {
+            /* Set grid position */
+            state->items[i].position.h = gridX;
+            state->items[i].position.v = gridY;
+
+            FINDER_LOG_DEBUG("FolderWindow_CleanUp: Item %d '%s' -> (%d, %d)\n",
+                           i, state->items[i].name, gridX, gridY);
+
+            /* Advance to next grid position */
+            col++;
+            if (col >= maxCols) {
+                /* Move to next row */
+                col = 0;
+                gridX = LEFT_MARGIN;
+                gridY += ICON_HEIGHT + SPACING_V;
+            } else {
+                /* Move to next column */
+                gridX += ICON_WIDTH + SPACING_H;
+            }
+        }
+    }
+
+    /* Trigger redraw */
+    PostEvent(updateEvt, (UInt32)w);
+
+    FINDER_LOG_DEBUG("FolderWindow_CleanUp: Complete\n");
+}
+
 /* Update window proc for folder windows */
 void FolderWindowProc(WindowPtr window, short message, long param)
 {

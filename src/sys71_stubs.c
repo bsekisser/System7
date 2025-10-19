@@ -1027,6 +1027,18 @@ OSErr CleanUpBy(WindowPtr window, SInt16 sortType) {
 }
 
 OSErr CleanUpWindow(WindowPtr window, SInt16 cleanupType) {
+    if (!window) return paramErr;
+
+    /* Check if it's a folder window */
+    extern Boolean IsFolderWindow(WindowPtr w);
+    extern void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly);
+
+    if (IsFolderWindow(window)) {
+        /* cleanupType: 0 = all items, 1 = selected only */
+        Boolean selectedOnly = (cleanupType == 1);
+        FolderWindow_CleanUp(window, selectedOnly);
+    }
+
     return noErr;
 }
 

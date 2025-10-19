@@ -119,6 +119,7 @@ void FolderWindow_DuplicateSelected(WindowPtr w);
 short FolderWindow_GetSelectedAsSpecs(WindowPtr w, FSSpec** outSpecs);
 VRefNum FolderWindow_GetVRef(WindowPtr w);
 DirID FolderWindow_GetCurrentDir(WindowPtr w);
+void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly);
 void FolderWindowProc(WindowPtr window, short message, long param);
 void CleanupFolderWindow(WindowPtr w);
 
