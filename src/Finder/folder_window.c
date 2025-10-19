@@ -65,6 +65,7 @@ extern bool VFS_Delete(VRefNum vref, FileID id);
 typedef struct FolderItem {
     char name[256];
     Boolean isFolder;      /* true = folder, false = document/app */
+    uint32_t size;         /* File size in bytes (0 for folders) */
     Point position;        /* position in window (for icon view) */
     FileID fileID;         /* File system ID (CNID) */
     DirID parentID;        /* Parent directory ID */
@@ -547,6 +548,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
 
             /* File system metadata */
             state->items[i].isFolder = (entries[i].kind == kNodeDir);
+            state->items[i].size = entries[i].size;
             state->items[i].fileID = entries[i].id;
             state->items[i].parentID = entries[i].parent;
             state->items[i].type = entries[i].type;
@@ -1735,6 +1737,40 @@ static void SortFolderItemsByKind(FolderItem* items, short count) {
 }
 
 /*
+ * Sort items by size (folders first, then by size descending, then by name)
+ */
+static void SortFolderItemsBySize(FolderItem* items, short count) {
+    /* Simple bubble sort */
+    for (short i = 0; i < count - 1; i++) {
+        for (short j = 0; j < count - i - 1; j++) {
+            Boolean shouldSwap = false;
+
+            /* Folders always come first */
+            if (!items[j].isFolder && items[j+1].isFolder) {
+                shouldSwap = true;
+            } else if (items[j].isFolder == items[j+1].isFolder) {
+                /* Both are folders or both are files */
+                /* Sort by size descending (larger files first) */
+                if (items[j].size < items[j+1].size) {
+                    shouldSwap = true;
+                } else if (items[j].size == items[j+1].size) {
+                    /* Same size - sort by name */
+                    if (strcmp(items[j].name, items[j+1].name) > 0) {
+                        shouldSwap = true;
+                    }
+                }
+            }
+
+            if (shouldSwap) {
+                FolderItem temp = items[j];
+                items[j] = items[j+1];
+                items[j+1] = temp;
+            }
+        }
+    }
+}
+
+/*
  * FolderWindow_SortAndArrange - Sort items and arrange in grid
  * sortType: 0=none, 1=by Icon, 2=by Name, 3=by Size, 4=by Kind, 5=by Label, 6=by Date
  */
@@ -1754,12 +1790,16 @@ void FolderWindow_SortAndArrange(WindowPtr w, short sortType) {
             FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: Sorted by name\n");
             break;
 
+        case 3:  /* by Size */
+            SortFolderItemsBySize(state->items, state->itemCount);
+            FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: Sorted by size\n");
+            break;
+
         case 4:  /* by Kind */
             SortFolderItemsByKind(state->items, state->itemCount);
             FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: Sorted by kind\n");
             break;
 
-        case 3:  /* by Size - not implemented (no size field in FolderItem) */
         case 5:  /* by Label - not implemented (no label field in FolderItem) */
         case 6:  /* by Date - not implemented (no date field in FolderItem) */
             FINDER_LOG_DEBUG("FolderWindow_SortAndArrange: Sort type %d not yet implemented\n", sortType);
