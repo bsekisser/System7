@@ -114,6 +114,11 @@ Boolean IsFolderWindow(WindowPtr w);
 void FolderWindow_SelectAll(WindowPtr w);
 Boolean FolderWindow_GetSelectedItem(WindowPtr w, VRefNum* outVref, FileID* outFileID);
 void FolderWindow_DeleteSelected(WindowPtr w);
+void FolderWindow_OpenSelected(WindowPtr w);
+void FolderWindow_DuplicateSelected(WindowPtr w);
+short FolderWindow_GetSelectedAsSpecs(WindowPtr w, FSSpec** outSpecs);
+VRefNum FolderWindow_GetVRef(WindowPtr w);
+DirID FolderWindow_GetCurrentDir(WindowPtr w);
 void FolderWindowProc(WindowPtr window, short message, long param);
 void CleanupFolderWindow(WindowPtr w);
 

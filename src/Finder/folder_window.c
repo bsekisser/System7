@@ -1334,6 +1334,345 @@ void FolderWindow_DeleteSelected(WindowPtr w) {
     PostEvent(updateEvt, (UInt32)w);
 }
 
+/*
+ * FolderWindow_OpenSelected - Open the currently selected item
+ * Extracted from double-click handler for use with Return/Enter keys and File > Open
+ */
+void FolderWindow_OpenSelected(WindowPtr w) {
+    if (!w || !IsFolderWindow(w)) return;
+
+    FolderWindowState* state = GetFolderState(w);
+    if (!state || !state->items) return;
+
+    /* Check if there's a valid selection */
+    if (state->selectedIndex < 0 || state->selectedIndex >= state->itemCount) {
+        FINDER_LOG_DEBUG("FolderWindow_OpenSelected: No valid selection\n");
+        return;
+    }
+
+    short itemIndex = state->selectedIndex;
+
+    /* Check if this is a folder */
+    if (state->items[itemIndex].isFolder) {
+        /* Open folder: create new window showing the subfolder's contents */
+        extern WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param title);
+
+        /* Convert C string to Pascal string for window title */
+        Str255 pTitle;
+        size_t len = strlen(state->items[itemIndex].name);
+        if (len > 255) len = 255;
+        pTitle[0] = (unsigned char)len;
+        memcpy(&pTitle[1], state->items[itemIndex].name, len);
+
+        /* Open folder window with the subfolder's directory ID */
+        WindowPtr newWin = FolderWindow_OpenFolder(state->vref, state->items[itemIndex].fileID, pTitle);
+        if (newWin) {
+            FINDER_LOG_DEBUG("FW: opened subfolder window 0x%08x (dirID=%d)\n",
+                           (unsigned int)P2UL(newWin),
+                           (int)state->items[itemIndex].fileID);
+            /* Post update for the new window and old window */
+            PostEvent(updateEvt, (UInt32)newWin);
+            PostEvent(updateEvt, (UInt32)w);
+        }
+    } else {
+        /* Document/app: check if it's a text file */
+        Boolean isTextFile = false;
+        const char* name = state->items[itemIndex].name;
+
+        /* Check file type */
+        if (state->items[itemIndex].type == 'TEXT') {
+            isTextFile = true;
+        }
+
+        /* Check filename patterns for text files */
+        if (!isTextFile) {
+            int len = strlen(name);
+            /* Check for .txt extension */
+            if (len >= 4) {
+                const char* ext = name + len - 4;
+                if (ext[0] == '.' &&
+                    (ext[1] == 't' || ext[1] == 'T') &&
+                    (ext[2] == 'x' || ext[2] == 'X') &&
+                    (ext[3] == 't' || ext[3] == 'T')) {
+                    isTextFile = true;
+                }
+            }
+            /* Check for "readme" or "README" prefix */
+            if (!isTextFile && len >= 6) {
+                const char* prefix = name;
+                if ((prefix[0] == 'r' || prefix[0] == 'R') &&
+                    (prefix[1] == 'e' || prefix[1] == 'E') &&
+                    (prefix[2] == 'a' || prefix[2] == 'A') &&
+                    (prefix[3] == 'd' || prefix[3] == 'D') &&
+                    (prefix[4] == 'm' || prefix[4] == 'M') &&
+                    (prefix[5] == 'e' || prefix[5] == 'E')) {
+                    isTextFile = true;
+                }
+            }
+        }
+
+        if (isTextFile) {
+            FINDER_LOG_DEBUG("FW: Opening text file \"%s\" with SimpleText\n", name);
+            /* Launch SimpleText if not already running */
+            extern void SimpleText_Launch(void);
+            extern Boolean SimpleText_IsRunning(void);
+            extern void SimpleText_OpenFile(const char* path);
+
+            if (!SimpleText_IsRunning()) {
+                SimpleText_Launch();
+                FINDER_LOG_DEBUG("FW: Launched SimpleText\n");
+            }
+
+            /* Build full path to the file */
+            char fullPath[512];
+            snprintf(fullPath, sizeof(fullPath), "/%s", name);  /* Simple path for now */
+
+            /* Load file content into SimpleText window */
+            SimpleText_OpenFile(fullPath);
+            FINDER_LOG_DEBUG("FW: Opened file '%s' in SimpleText\n", name);
+        } else if (state->items[itemIndex].type == 'APPL') {
+            /* Application file */
+            if (strcmp(name, "TextEdit") == 0) {
+                FINDER_LOG_DEBUG("FW: Launching TextEdit application\n");
+                extern void TextEdit_InitApp(void);
+                TextEdit_InitApp();
+            } else if (strcmp(name, "SimpleText") == 0) {
+                FINDER_LOG_DEBUG("FW: Launching SimpleText application\n");
+                extern void SimpleText_Launch(void);
+                SimpleText_Launch();
+            } else if (strcmp(name, "MacPaint") == 0) {
+                FINDER_LOG_DEBUG("FW: Launching MacPaint application\n");
+                extern void MacPaint_Launch(void);
+                MacPaint_Launch();
+            } else if (strcmp(name, "Desktop Patterns") == 0) {
+                FINDER_LOG_DEBUG("FW: Opening Desktop Patterns control panel\n");
+                extern void OpenDesktopCdev(void);
+                OpenDesktopCdev();
+            } else if (strcmp(name, "Date & Time") == 0) {
+                FINDER_LOG_DEBUG("FW: Opening Date & Time control panel\n");
+                extern void DateTimePanel_Open(void);
+                DateTimePanel_Open();
+            } else if (strcmp(name, "Sound") == 0) {
+                FINDER_LOG_DEBUG("FW: Opening Sound control panel\n");
+                extern void SoundPanel_Open(void);
+                SoundPanel_Open();
+            } else if (strcmp(name, "Mouse") == 0) {
+                FINDER_LOG_DEBUG("FW: Opening Mouse control panel\n");
+                extern void MousePanel_Open(void);
+                MousePanel_Open();
+            } else if (strcmp(name, "Keyboard") == 0) {
+                FINDER_LOG_DEBUG("FW: Opening Keyboard control panel\n");
+                extern void KeyboardPanel_Open(void);
+                KeyboardPanel_Open();
+            } else if (strcmp(name, "Control Strip") == 0) {
+                FINDER_LOG_DEBUG("FW: Toggling Control Strip palette\n");
+                extern void ControlStrip_Toggle(void);
+                ControlStrip_Toggle();
+            } else {
+                FINDER_LOG_DEBUG("FW: OPEN app \"%s\" not implemented\n", name);
+            }
+        } else {
+            FINDER_LOG_DEBUG("FW: OPEN doc \"%s\" not implemented\n", name);
+        }
+    }
+
+    FINDER_LOG_DEBUG("FolderWindow_OpenSelected: Opened item '%s'\n", state->items[itemIndex].name);
+}
+
+/*
+ * FolderWindow_DuplicateSelected - Duplicate selected items in current folder
+ */
+void FolderWindow_DuplicateSelected(WindowPtr w) {
+    if (!w || !IsFolderWindow(w)) return;
+
+    FolderWindowState* state = GetFolderState(w);
+    if (!state || !state->items) return;
+
+    extern bool VFS_GenerateUniqueName(VRefNum vref, DirID dir, const char* base, char* out);
+    extern bool VFS_Copy(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* newName, FileID* newID);
+    extern bool VFS_GetByID(VRefNum vref, FileID id, CatEntry* outEntry);
+
+    FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: itemCount=%d\n", state->itemCount);
+
+    /* Duplicate each selected item */
+    for (short i = 0; i < state->itemCount; i++) {
+        Boolean shouldDuplicate = false;
+
+        /* Check if this item is selected */
+        if (state->selectedItems) {
+            shouldDuplicate = state->selectedItems[i];
+        } else if (i == state->selectedIndex) {
+            shouldDuplicate = true;
+        }
+
+        if (shouldDuplicate) {
+            FolderItem* item = &state->items[i];
+            FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Duplicating '%s' (fileID=%d)\n",
+                           item->name, item->fileID);
+
+            /* Generate unique name for the copy */
+            char copyName[256];
+            char baseName[256];
+            snprintf(baseName, sizeof(baseName), "%s copy", item->name);
+
+            if (!VFS_GenerateUniqueName(state->vref, state->currentDir, baseName, copyName)) {
+                FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Failed to generate unique name\n");
+                continue;
+            }
+
+            FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Generated name '%s'\n", copyName);
+
+            /* Copy the file/folder */
+            FileID newID = 0;
+            bool copied = VFS_Copy(state->vref, state->currentDir, item->fileID,
+                                  state->currentDir, copyName, &newID);
+
+            if (copied && newID != 0) {
+                FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: VFS_Copy succeeded, newID=%d\n", newID);
+
+                /* Get catalog entry for the new item */
+                CatEntry newEntry;
+                if (VFS_GetByID(state->vref, newID, &newEntry)) {
+                    /* Add to items array - reallocate if needed */
+                    FolderItem* newItems = realloc(state->items,
+                                                  sizeof(FolderItem) * (state->itemCount + 1));
+                    if (newItems) {
+                        state->items = newItems;
+
+                        /* Reallocate selectedItems array too */
+                        if (state->selectedItems) {
+                            Boolean* newSelected = realloc(state->selectedItems,
+                                                          sizeof(Boolean) * (state->itemCount + 1));
+                            if (newSelected) {
+                                state->selectedItems = newSelected;
+                                state->selectedItems[state->itemCount] = false;
+                            }
+                        }
+
+                        /* Add the new item */
+                        FolderItem* newItem = &state->items[state->itemCount];
+                        strncpy(newItem->name, newEntry.name, sizeof(newItem->name) - 1);
+                        newItem->name[sizeof(newItem->name) - 1] = '\0';
+                        newItem->fileID = newID;
+                        newItem->isFolder = (newEntry.kind == kNodeDir);
+                        newItem->type = newEntry.type;
+                        newItem->creator = newEntry.creator;
+
+                        state->itemCount++;
+
+                        FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Added new item to window, count=%d\n",
+                                       state->itemCount);
+                    } else {
+                        FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Failed to reallocate items array\n");
+                    }
+                } else {
+                    FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Failed to get catalog entry for new item\n");
+                }
+            } else {
+                FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: VFS_Copy failed\n");
+            }
+        }
+    }
+
+    /* Trigger redraw */
+    PostEvent(updateEvt, (UInt32)w);
+}
+
+/*
+ * FolderWindow_GetSelectedAsSpecs - Get selected items as FSSpec array
+ * Returns count of selected items, fills specs array (caller must free)
+ */
+short FolderWindow_GetSelectedAsSpecs(WindowPtr w, FSSpec** outSpecs) {
+    if (!w || !IsFolderWindow(w) || !outSpecs) return 0;
+
+    FolderWindowState* state = GetFolderState(w);
+    if (!state || !state->items) return 0;
+
+    /* Count selected items */
+    short selectedCount = 0;
+    for (short i = 0; i < state->itemCount; i++) {
+        Boolean isSelected = false;
+        if (state->selectedItems) {
+            isSelected = state->selectedItems[i];
+        } else if (i == state->selectedIndex) {
+            isSelected = true;
+        }
+        if (isSelected) {
+            selectedCount++;
+        }
+    }
+
+    if (selectedCount == 0) {
+        *outSpecs = NULL;
+        return 0;
+    }
+
+    /* Allocate FSSpec array */
+    FSSpec* specs = malloc(sizeof(FSSpec) * selectedCount);
+    if (!specs) {
+        FINDER_LOG_DEBUG("FolderWindow_GetSelectedAsSpecs: malloc failed\n");
+        *outSpecs = NULL;
+        return 0;
+    }
+
+    /* Fill FSSpec array */
+    short specIndex = 0;
+    for (short i = 0; i < state->itemCount; i++) {
+        Boolean isSelected = false;
+        if (state->selectedItems) {
+            isSelected = state->selectedItems[i];
+        } else if (i == state->selectedIndex) {
+            isSelected = true;
+        }
+
+        if (isSelected) {
+            FolderItem* item = &state->items[i];
+
+            /* Build FSSpec */
+            specs[specIndex].vRefNum = state->vref;
+            specs[specIndex].parID = state->currentDir;
+
+            /* Convert name to Pascal string */
+            size_t len = strlen(item->name);
+            if (len > 255) len = 255;
+            specs[specIndex].name[0] = (unsigned char)len;
+            memcpy(&specs[specIndex].name[1], item->name, len);
+
+            FINDER_LOG_DEBUG("FolderWindow_GetSelectedAsSpecs: [%d] name='%s' vref=%d parID=%d\n",
+                           specIndex, item->name, state->vref, state->currentDir);
+
+            specIndex++;
+        }
+    }
+
+    *outSpecs = specs;
+    return selectedCount;
+}
+
+/*
+ * FolderWindow_GetVRef - Get volume reference for folder window
+ */
+VRefNum FolderWindow_GetVRef(WindowPtr w) {
+    if (!w || !IsFolderWindow(w)) return 0;
+
+    FolderWindowState* state = GetFolderState(w);
+    if (!state) return 0;
+
+    return state->vref;
+}
+
+/*
+ * FolderWindow_GetCurrentDir - Get current directory ID for folder window
+ */
+DirID FolderWindow_GetCurrentDir(WindowPtr w) {
+    if (!w || !IsFolderWindow(w)) return 0;
+
+    FolderWindowState* state = GetFolderState(w);
+    if (!state) return 0;
+
+    return state->currentDir;
+}
+
 /* Update window proc for folder windows */
 void FolderWindowProc(WindowPtr window, short message, long param)
 {

@@ -633,7 +633,59 @@ long sysconf(int name) { return -1; }
 
 /* Missing function implementations */
 void HandleKeyDown(EventRecord* event) {
-    /* Stub */
+    if (!event) return;
+
+    /* Extract character code and key code from message */
+    char charCode = (char)(event->message & charCodeMask);
+
+    /* Key codes for special keys */
+    #define kDeleteKey      0x08  /* Backspace/Delete */
+    #define kReturnKey      0x0D  /* Return */
+    #define kEnterKey       0x03  /* Enter */
+
+    /* Check for command key shortcuts */
+    if (event->modifiers & cmdKey) {
+        extern long MenuKey(short ch);
+        extern void DoMenuCommand(short menuID, short item);
+        extern SInt16 HiWord(SInt32 x);
+        extern SInt16 LoWord(SInt32 x);
+
+        /* Convert to uppercase for menu matching */
+        char menuChar = charCode;
+        if (menuChar >= 'a' && menuChar <= 'z') {
+            menuChar = menuChar - 'a' + 'A';
+        }
+
+        /* Call MenuKey to find matching menu command */
+        long menuChoice = MenuKey(menuChar);
+
+        if (menuChoice != 0) {
+            /* Found a menu command - extract menuID and item, then execute */
+            short menuID = HiWord(menuChoice);
+            short menuItem = LoWord(menuChoice);
+            DoMenuCommand(menuID, menuItem);
+            return;
+        }
+    }
+
+    /* Handle special keys without command modifier */
+    if (!(event->modifiers & cmdKey)) {
+        /* Delete key - delete selected items */
+        if (charCode == kDeleteKey) {
+            extern void Finder_Clear(void);
+            Finder_Clear();
+            return;
+        }
+
+        /* Return/Enter - open selected items */
+        if (charCode == kReturnKey || charCode == kEnterKey) {
+            extern void OpenSelectedItems(void);
+            OpenSelectedItems();
+            return;
+        }
+    }
+
+    /* If we get here, key was not handled */
 }
 
 OSErr ResolveAliasFile(const FSSpec* spec, FSSpec* target, Boolean* wasAliased, Boolean* wasFolder) {

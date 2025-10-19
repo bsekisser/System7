@@ -664,7 +664,27 @@ static void HandleSpecialMenu(short item)
 
 /* File Operations */
 void OpenSelectedItems(void) {
-    MENU_LOG_DEBUG("[STUB] OpenSelectedItems called\n");
+    MENU_LOG_DEBUG("OpenSelectedItems called\n");
+
+    /* Get front window */
+    extern WindowPtr FrontWindow(void);
+    WindowPtr frontWin = FrontWindow();
+    if (!frontWin) {
+        MENU_LOG_DEBUG("OpenSelectedItems: No front window\n");
+        return;
+    }
+
+    /* Check if it's a folder window */
+    extern Boolean IsFolderWindow(WindowPtr w);
+    if (!IsFolderWindow(frontWin)) {
+        MENU_LOG_DEBUG("OpenSelectedItems: Front window is not a folder window\n");
+        return;
+    }
+
+    /* Call folder window open helper - simulates double-click on selected item */
+    extern void FolderWindow_OpenSelected(WindowPtr w);
+    FolderWindow_OpenSelected(frontWin);
+    MENU_LOG_DEBUG("OpenSelectedItems: Opened selected item\n");
 }
 
 void ShowGetInfoDialog(WindowPtr w) {
@@ -700,7 +720,30 @@ void ShowGetInfoDialog(WindowPtr w) {
 }
 
 void DuplicateSelectedItems(WindowPtr w) {
-    MENU_LOG_DEBUG("[STUB] DuplicateSelectedItems called\n");
+    MENU_LOG_DEBUG("DuplicateSelectedItems called\n");
+
+    if (!w) {
+        /* Get front window if not specified */
+        extern WindowPtr FrontWindow(void);
+        w = FrontWindow();
+    }
+
+    if (!w) {
+        MENU_LOG_DEBUG("DuplicateSelectedItems: No window\n");
+        return;
+    }
+
+    /* Check if it's a folder window */
+    extern Boolean IsFolderWindow(WindowPtr w);
+    if (!IsFolderWindow(w)) {
+        MENU_LOG_DEBUG("DuplicateSelectedItems: Window is not a folder window\n");
+        return;
+    }
+
+    /* Call folder window duplicate helper */
+    extern void FolderWindow_DuplicateSelected(WindowPtr w);
+    FolderWindow_DuplicateSelected(w);
+    MENU_LOG_DEBUG("DuplicateSelectedItems: Duplicated selected items\n");
 }
 
 void MakeAliasOfSelectedItems(WindowPtr w) {
@@ -717,15 +760,282 @@ void Finder_Undo(void) {
 }
 
 void Finder_Cut(void) {
-    MENU_LOG_DEBUG("[STUB] Finder_Cut called\n");
+    MENU_LOG_DEBUG("Finder_Cut called\n");
+
+    /* Get front window */
+    extern WindowPtr FrontWindow(void);
+    WindowPtr frontWin = FrontWindow();
+    if (!frontWin) {
+        MENU_LOG_DEBUG("Finder_Cut: No front window\n");
+        return;
+    }
+
+    /* Check if it's a folder window */
+    extern Boolean IsFolderWindow(WindowPtr w);
+    if (!IsFolderWindow(frontWin)) {
+        MENU_LOG_DEBUG("Finder_Cut: Front window is not a folder window\n");
+        return;
+    }
+
+    /* Get selected items as FSSpec array */
+    extern short FolderWindow_GetSelectedAsSpecs(WindowPtr w, FSSpec** outSpecs);
+    FSSpec* specs = NULL;
+    short count = FolderWindow_GetSelectedAsSpecs(frontWin, &specs);
+
+    if (count == 0 || !specs) {
+        MENU_LOG_DEBUG("Finder_Cut: No items selected\n");
+        return;
+    }
+
+    MENU_LOG_DEBUG("Finder_Cut: Cutting %d items to clipboard\n", count);
+
+    /* Copy to clipboard with CUT flag set */
+    /* Format: [count:2 bytes][cutMode:1 byte][FSSpec array] */
+    extern void ZeroScrap(void);
+    extern void PutScrap(long byteCount, OSType theType, const void* sourcePtr);
+
+    ZeroScrap();  /* Clear clipboard */
+
+    /* Calculate total size: count + cutMode + FSSpec array */
+    long dataSize = sizeof(SInt16) + sizeof(UInt8) + (sizeof(FSSpec) * count);
+    void* data = malloc(dataSize);
+    if (!data) {
+        MENU_LOG_DEBUG("Finder_Cut: malloc failed\n");
+        free(specs);
+        return;
+    }
+
+    /* Pack data: count, cutMode=1, FSSpec array */
+    *(SInt16*)data = count;
+    *((UInt8*)data + sizeof(SInt16)) = 1;  /* cutMode = 1 for Cut */
+    memcpy((char*)data + sizeof(SInt16) + sizeof(UInt8), specs, sizeof(FSSpec) * count);
+
+    /* Put to scrap with 'fSSp' type */
+    PutScrap(dataSize, 'fSSp', data);
+
+    MENU_LOG_DEBUG("Finder_Cut: Successfully cut %d items to clipboard\n", count);
+
+    /* Free buffers */
+    free(data);
+    free(specs);
 }
 
 void Finder_Copy(void) {
-    MENU_LOG_DEBUG("[STUB] Finder_Copy called\n");
+    MENU_LOG_DEBUG("Finder_Copy called\n");
+
+    /* Get front window */
+    extern WindowPtr FrontWindow(void);
+    WindowPtr frontWin = FrontWindow();
+    if (!frontWin) {
+        MENU_LOG_DEBUG("Finder_Copy: No front window\n");
+        return;
+    }
+
+    /* Check if it's a folder window */
+    extern Boolean IsFolderWindow(WindowPtr w);
+    if (!IsFolderWindow(frontWin)) {
+        MENU_LOG_DEBUG("Finder_Copy: Front window is not a folder window\n");
+        return;
+    }
+
+    /* Get selected items as FSSpec array */
+    extern short FolderWindow_GetSelectedAsSpecs(WindowPtr w, FSSpec** outSpecs);
+    FSSpec* specs = NULL;
+    short count = FolderWindow_GetSelectedAsSpecs(frontWin, &specs);
+
+    if (count == 0 || !specs) {
+        MENU_LOG_DEBUG("Finder_Copy: No items selected\n");
+        return;
+    }
+
+    MENU_LOG_DEBUG("Finder_Copy: Copying %d items to clipboard\n", count);
+
+    /* Copy to clipboard using basic Scrap Manager */
+    /* Format: [count:2 bytes][cutMode:1 byte][FSSpec array] */
+    extern void ZeroScrap(void);
+    extern void PutScrap(long byteCount, OSType theType, const void* sourcePtr);
+
+    ZeroScrap();  /* Clear clipboard */
+
+    /* Calculate total size: count + cutMode + FSSpec array */
+    long dataSize = sizeof(SInt16) + sizeof(UInt8) + (sizeof(FSSpec) * count);
+    void* data = malloc(dataSize);
+    if (!data) {
+        MENU_LOG_DEBUG("Finder_Copy: malloc failed\n");
+        free(specs);
+        return;
+    }
+
+    /* Pack data: count, cutMode=0, FSSpec array */
+    *(SInt16*)data = count;
+    *((UInt8*)data + sizeof(SInt16)) = 0;  /* cutMode = 0 for Copy */
+    memcpy((char*)data + sizeof(SInt16) + sizeof(UInt8), specs, sizeof(FSSpec) * count);
+
+    /* Put to scrap with 'fSSp' type (file FSSpec) */
+    PutScrap(dataSize, 'fSSp', data);
+
+    MENU_LOG_DEBUG("Finder_Copy: Successfully copied %d items to clipboard\n", count);
+
+    /* Free buffers */
+    free(data);
+    free(specs);
 }
 
 void Finder_Paste(void) {
-    MENU_LOG_DEBUG("[STUB] Finder_Paste called\n");
+    MENU_LOG_DEBUG("Finder_Paste called\n");
+
+    /* Get front window */
+    extern WindowPtr FrontWindow(void);
+    WindowPtr frontWin = FrontWindow();
+    if (!frontWin) {
+        MENU_LOG_DEBUG("Finder_Paste: No front window\n");
+        return;
+    }
+
+    /* Check if it's a folder window */
+    extern Boolean IsFolderWindow(WindowPtr w);
+    if (!IsFolderWindow(frontWin)) {
+        MENU_LOG_DEBUG("Finder_Paste: Front window is not a folder window\n");
+        return;
+    }
+
+    /* Get files from clipboard using basic Scrap Manager */
+    extern long GetScrap(Handle hDest, OSType theType, long* offset);
+    extern Handle NewHandle(Size byteCount);
+    extern void DisposeHandle(Handle h);
+
+    Handle scrapHandle = NewHandle(0);
+    if (!scrapHandle) {
+        MENU_LOG_DEBUG("Finder_Paste: Failed to allocate handle\n");
+        return;
+    }
+
+    long scrapSize = GetScrap(scrapHandle, 'fSSp', NULL);
+    if (scrapSize <= (sizeof(SInt16) + sizeof(UInt8))) {
+        MENU_LOG_DEBUG("Finder_Paste: No files on clipboard (size=%ld)\n", scrapSize);
+        DisposeHandle(scrapHandle);
+        return;
+    }
+
+    /* Unpack data: count, cutMode, FSSpec array */
+    void* scrapData = *scrapHandle;
+    SInt16 sourceCount = *(SInt16*)scrapData;
+    UInt8 cutMode = *((UInt8*)scrapData + sizeof(SInt16));
+    FSSpec* sourceSpecs = (FSSpec*)((char*)scrapData + sizeof(SInt16) + sizeof(UInt8));
+
+    if (sourceCount == 0) {
+        MENU_LOG_DEBUG("Finder_Paste: Empty file list on clipboard\n");
+        DisposeHandle(scrapHandle);
+        return;
+    }
+
+    MENU_LOG_DEBUG("Finder_Paste: Pasting %d items from clipboard (cutMode=%d)\n", sourceCount, cutMode);
+
+    /* Get destination folder info */
+    extern VRefNum FolderWindow_GetVRef(WindowPtr w);
+    extern DirID FolderWindow_GetCurrentDir(WindowPtr w);
+    VRefNum destVRef = FolderWindow_GetVRef(frontWin);
+    DirID destDir = FolderWindow_GetCurrentDir(frontWin);
+
+    if (destVRef == 0 || destDir == 0) {
+        MENU_LOG_DEBUG("Finder_Paste: Failed to get destination folder info\n");
+        free(sourceSpecs);
+        return;
+    }
+
+    /* Copy each file to the destination folder */
+    extern bool VFS_GenerateUniqueName(VRefNum vref, DirID dir, const char* base, char* out);
+    extern bool VFS_Copy(VRefNum vref, DirID fromDir, FileID id, DirID toDir, const char* newName, FileID* newID);
+    extern bool VFS_Lookup(VRefNum vref, DirID dir, const char* name, CatEntry* entry);
+
+    for (SInt16 i = 0; i < sourceCount; i++) {
+        FSSpec* src = &sourceSpecs[i];
+
+        /* Convert Pascal string name to C string */
+        char sourceName[256];
+        int len = src->name[0];
+        if (len > 255) len = 255;
+        memcpy(sourceName, &src->name[1], len);
+        sourceName[len] = '\0';
+
+        MENU_LOG_DEBUG("Finder_Paste: Processing '%s' from vref=%d parID=%d\n",
+                     sourceName, src->vRefNum, src->parID);
+
+        /* Get source file's catalog entry to get its FileID */
+        CatEntry sourceEntry;
+        if (!VFS_Lookup(src->vRefNum, src->parID, sourceName, &sourceEntry)) {
+            MENU_LOG_DEBUG("Finder_Paste: Failed to get catalog entry for '%s'\n", sourceName);
+            continue;
+        }
+
+        /* Generate unique name in destination */
+        char destName[256];
+        if (!VFS_GenerateUniqueName(destVRef, destDir, sourceName, destName)) {
+            MENU_LOG_DEBUG("Finder_Paste: Failed to generate unique name for '%s'\n", sourceName);
+            continue;
+        }
+
+        MENU_LOG_DEBUG("Finder_Paste: Copying '%s' to '%s' in dir=%d\n",
+                     sourceName, destName, destDir);
+
+        /* Copy the file */
+        FileID newID = 0;
+        bool copied = VFS_Copy(src->vRefNum, src->parID, sourceEntry.id,
+                              destDir, destName, &newID);
+
+        if (copied) {
+            MENU_LOG_DEBUG("Finder_Paste: Successfully pasted '%s' as '%s' (newID=%d)\n",
+                         sourceName, destName, newID);
+        } else {
+            MENU_LOG_DEBUG("Finder_Paste: Failed to copy '%s'\n", sourceName);
+        }
+    }
+
+    /* If this was a CUT operation, delete the source files */
+    if (cutMode == 1) {
+        MENU_LOG_DEBUG("Finder_Paste: Cut mode - deleting source files\n");
+
+        extern bool VFS_Delete(VRefNum vref, FileID id);
+
+        for (SInt16 i = 0; i < sourceCount; i++) {
+            FSSpec* src = &sourceSpecs[i];
+
+            /* Convert Pascal string name to C string */
+            char sourceName[256];
+            int len = src->name[0];
+            if (len > 255) len = 255;
+            memcpy(sourceName, &src->name[1], len);
+            sourceName[len] = '\0';
+
+            /* Get source file's catalog entry to get its FileID */
+            CatEntry sourceEntry;
+            if (!VFS_Lookup(src->vRefNum, src->parID, sourceName, &sourceEntry)) {
+                MENU_LOG_DEBUG("Finder_Paste: Failed to lookup '%s' for deletion\n", sourceName);
+                continue;
+            }
+
+            /* Delete the source file */
+            bool deleted = VFS_Delete(src->vRefNum, sourceEntry.id);
+            if (deleted) {
+                MENU_LOG_DEBUG("Finder_Paste: Deleted source file '%s'\n", sourceName);
+            } else {
+                MENU_LOG_DEBUG("Finder_Paste: Failed to delete source file '%s'\n", sourceName);
+            }
+        }
+
+        /* Clear the clipboard after cut/paste */
+        extern void ZeroScrap(void);
+        ZeroScrap();
+    }
+
+    /* Free the scrap handle */
+    DisposeHandle(scrapHandle);
+
+    /* Refresh the folder window */
+    extern void PostEvent(UInt16 eventType, UInt32 message);
+    PostEvent(updateEvt, (UInt32)frontWin);
+
+    MENU_LOG_DEBUG("Finder_Paste: Paste operation complete\n");
 }
 
 void Finder_Clear(void) {
