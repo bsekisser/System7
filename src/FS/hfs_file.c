@@ -89,18 +89,18 @@ static bool read_from_extents(HFS_Volume* vol, const HFS_Extent* extents,
         uint32_t blocksToRead = (toRead + allocOffset + vol->alBlkSize - 1) / vol->alBlkSize;
 
         /* Allocate temporary buffer for block-aligned read */
-        uint8_t* tempBuf = malloc(blocksToRead * vol->alBlkSize);
+        uint8_t* tempBuf = NewPtr(blocksToRead * vol->alBlkSize);
         if (!tempBuf) return false;
 
         /* Read the allocation blocks */
         if (!HFS_ReadAllocBlocks(vol, startAllocBlock, blocksToRead, tempBuf)) {
-            free(tempBuf);
+            DisposePtr((Ptr)tempBuf);
             return false;
         }
 
         /* Copy requested portion to destination */
         memcpy(dst, tempBuf + allocOffset, toRead);
-        free(tempBuf);
+        DisposePtr((Ptr)tempBuf);
 
         dst += toRead;
         offset += toRead;
@@ -128,7 +128,7 @@ HFSFile* HFS_FileOpen(HFS_Catalog* cat, FileID id, bool resourceFork) {
     }
 
     /* Allocate file handle */
-    HFSFile* file = (HFSFile*)malloc(sizeof(HFSFile));
+    HFSFile* file = (HFSFile*)NewPtr(sizeof(HFSFile));
     if (!file) return NULL;
 
     memset(file, 0, sizeof(HFSFile));
@@ -168,7 +168,7 @@ HFSFile* HFS_FileOpenByPath(HFS_Catalog* cat, const char* path, bool resourceFor
 
 void HFS_FileClose(HFSFile* file) {
     if (file) {
-        free(file);
+        DisposePtr((Ptr)file);
     }
 }
 

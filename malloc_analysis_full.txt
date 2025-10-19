@@ -1,0 +1,369 @@
+====================================================================================================
+MALLOC/FREE/CALLOC/REALLOC USAGE ANALYSIS
+====================================================================================================
+
+
+====================================================================================================
+SUBSYSTEM: FileMgr
+====================================================================================================
+Files: 12 | malloc: 18 | free: 60 | calloc: 10 | realloc: 0 | TOTAL: 88
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/FS/hfs_diskio.c
+    malloc:   5 | free:   9 | calloc:   0 | realloc:   0 | TOTAL:  14
+  /home/k/iteration2/src/FileMgr/volume_manager.c
+    malloc:   2 | free:   7 | calloc:   0 | realloc:   0 | TOTAL:   9
+  /home/k/iteration2/src/FS/hfs_btree.c
+    malloc:   3 | free:   6 | calloc:   0 | realloc:   0 | TOTAL:   9
+  /home/k/iteration2/src/FS/hfs_volume.c
+    malloc:   1 | free:   8 | calloc:   0 | realloc:   0 | TOTAL:   9
+  /home/k/iteration2/src/HFS_Allocation.c
+    malloc:   0 | free:   5 | calloc:   3 | realloc:   0 | TOTAL:   8
+  /home/k/iteration2/src/FileManager.c
+    malloc:   0 | free:   5 | calloc:   2 | realloc:   0 | TOTAL:   7
+  /home/k/iteration2/src/FileMgr/btree_services.c
+    malloc:   2 | free:   5 | calloc:   0 | realloc:   0 | TOTAL:   7
+  /home/k/iteration2/src/FS/vfs.c
+    malloc:   3 | free:   4 | calloc:   0 | realloc:   0 | TOTAL:   7
+  /home/k/iteration2/src/HFS_Catalog.c
+    malloc:   0 | free:   3 | calloc:   2 | realloc:   0 | TOTAL:   5
+  /home/k/iteration2/src/FS/hfs_file.c
+    malloc:   2 | free:   3 | calloc:   0 | realloc:   0 | TOTAL:   5
+  /home/k/iteration2/src/HFS_Volume.c
+    malloc:   0 | free:   3 | calloc:   1 | realloc:   0 | TOTAL:   4
+  /home/k/iteration2/src/FileManagerStubs.c
+    malloc:   0 | free:   2 | calloc:   2 | realloc:   0 | TOTAL:   4
+
+====================================================================================================
+SUBSYSTEM: FontManager
+====================================================================================================
+Files: 3 | malloc: 11 | free: 57 | calloc: 9 | realloc: 3 | TOTAL: 80
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/FontManager/ModernFontSupport.c
+    malloc:   3 | free:  36 | calloc:   7 | realloc:   0 | TOTAL:  46
+  /home/k/iteration2/src/FontManager/WebFontSupport.c
+    malloc:   7 | free:  19 | calloc:   2 | realloc:   3 | TOTAL:  31
+  /home/k/iteration2/src/FontManager/ModernFontDetection.c
+    malloc:   1 | free:   2 | calloc:   0 | realloc:   0 | TOTAL:   3
+
+====================================================================================================
+SUBSYSTEM: SpeechManager
+====================================================================================================
+Files: 7 | malloc: 24 | free: 43 | calloc: 0 | realloc: 2 | TOTAL: 69
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/SpeechManager/TextToSpeech.c
+    malloc:  10 | free:   7 | calloc:   0 | realloc:   0 | TOTAL:  17
+  /home/k/iteration2/src/SpeechManager/VoiceResources.c
+    malloc:   4 | free:  12 | calloc:   0 | realloc:   0 | TOTAL:  16
+  /home/k/iteration2/src/SpeechManager/PronunciationEngine.c
+    malloc:   4 | free:  10 | calloc:   0 | realloc:   1 | TOTAL:  15
+  /home/k/iteration2/src/SpeechManager/SpeechSynthesis.c
+    malloc:   2 | free:   6 | calloc:   0 | realloc:   0 | TOTAL:   8
+  /home/k/iteration2/src/SpeechManager/SpeechOutput.c
+    malloc:   3 | free:   3 | calloc:   0 | realloc:   0 | TOTAL:   6
+  /home/k/iteration2/src/SpeechManager/SpeechChannels.c
+    malloc:   1 | free:   3 | calloc:   0 | realloc:   1 | TOTAL:   5
+  /home/k/iteration2/src/SpeechManager/VoiceManager.c
+    malloc:   0 | free:   2 | calloc:   0 | realloc:   0 | TOTAL:   2
+
+====================================================================================================
+SUBSYSTEM: AppleEventManager
+====================================================================================================
+Files: 7 | malloc: 16 | free: 31 | calloc: 2 | realloc: 1 | TOTAL: 50
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/AppleEventManager/AppleEventManagerCore.c
+    malloc:   3 | free:   8 | calloc:   0 | realloc:   1 | TOTAL:  12
+  /home/k/iteration2/src/AppleEventManager/EventDescriptors.c
+    malloc:   3 | free:   8 | calloc:   0 | realloc:   0 | TOTAL:  11
+  /home/k/iteration2/src/AppleEventManager/EventRecording.c
+    malloc:   3 | free:   3 | calloc:   2 | realloc:   0 | TOTAL:   8
+  /home/k/iteration2/src/AppleEventManager/EventHandlers.c
+    malloc:   3 | free:   3 | calloc:   0 | realloc:   0 | TOTAL:   6
+  /home/k/iteration2/src/AppleEventManager/AppleEventExample.c
+    malloc:   1 | free:   5 | calloc:   0 | realloc:   0 | TOTAL:   6
+  /home/k/iteration2/src/AppleEventManager/EventCoercion.c
+    malloc:   2 | free:   2 | calloc:   0 | realloc:   0 | TOTAL:   4
+  /home/k/iteration2/src/AppleEventManager/AppleEventDispatch.c
+    malloc:   1 | free:   2 | calloc:   0 | realloc:   0 | TOTAL:   3
+
+====================================================================================================
+SUBSYSTEM: DeskManager
+====================================================================================================
+Files: 11 | malloc: 16 | free: 26 | calloc: 6 | realloc: 0 | TOTAL: 48
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/DeskManager/BuiltinDAs.c
+    malloc:   4 | free:   8 | calloc:   0 | realloc:   0 | TOTAL:  12
+  /home/k/iteration2/src/DeskManager/DALoader.c
+    malloc:   2 | free:   6 | calloc:   2 | realloc:   0 | TOTAL:  10
+  /home/k/iteration2/src/DeskManager/Chooser.c
+    malloc:   4 | free:   2 | calloc:   0 | realloc:   0 | TOTAL:   6
+  /home/k/iteration2/src/DeskManager/DAWindows.c
+    malloc:   1 | free:   2 | calloc:   1 | realloc:   0 | TOTAL:   4
+  /home/k/iteration2/src/DeskManager/SystemMenu.c
+    malloc:   1 | free:   2 | calloc:   1 | realloc:   0 | TOTAL:   4
+  /home/k/iteration2/src/DeskManager/Notepad.c
+    malloc:   0 | free:   2 | calloc:   1 | realloc:   0 | TOTAL:   3
+  /home/k/iteration2/src/DeskManager/AlarmClock.c
+    malloc:   1 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   2
+  /home/k/iteration2/src/DeskManager/DAPreferences.c
+    malloc:   2 | free:   0 | calloc:   0 | realloc:   0 | TOTAL:   2
+  /home/k/iteration2/src/DeskManager/KeyCaps.c
+    malloc:   1 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   2
+  /home/k/iteration2/src/DeskManager/DeskManagerCore.c
+    malloc:   0 | free:   1 | calloc:   1 | realloc:   0 | TOTAL:   2
+  /home/k/iteration2/src/DeskManager/Calculator.c
+    malloc:   0 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   1
+
+====================================================================================================
+SUBSYSTEM: SoundManager
+====================================================================================================
+Files: 5 | malloc: 1 | free: 29 | calloc: 14 | realloc: 0 | TOTAL: 44
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/SoundManager/SoundMixing.c
+    malloc:   0 | free:  17 | calloc:   7 | realloc:   0 | TOTAL:  24
+  /home/k/iteration2/src/SoundManager/SoundManagerCore.c
+    malloc:   0 | free:   5 | calloc:   2 | realloc:   0 | TOTAL:   7
+  /home/k/iteration2/src/SoundManager/SoundHardware.c
+    malloc:   0 | free:   3 | calloc:   3 | realloc:   0 | TOTAL:   6
+  /home/k/iteration2/src/SoundManager/SoundMIDI.c
+    malloc:   1 | free:   4 | calloc:   0 | realloc:   0 | TOTAL:   5
+  /home/k/iteration2/src/SoundManager/SoundResources.c
+    malloc:   0 | free:   0 | calloc:   2 | realloc:   0 | TOTAL:   2
+
+====================================================================================================
+SUBSYSTEM: DialogManager
+====================================================================================================
+Files: 6 | malloc: 17 | free: 20 | calloc: 0 | realloc: 2 | TOTAL: 39
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/DialogManager/DialogResources.c
+    malloc:   8 | free:   6 | calloc:   0 | realloc:   0 | TOTAL:  14
+  /home/k/iteration2/src/DialogManager/DialogResourceParser.c
+    malloc:   4 | free:   3 | calloc:   0 | realloc:   0 | TOTAL:   7
+  /home/k/iteration2/src/DialogManager/DialogItems.c
+    malloc:   0 | free:   4 | calloc:   0 | realloc:   2 | TOTAL:   6
+  /home/k/iteration2/src/DialogManager/dialog_manager_dispatch.c
+    malloc:   3 | free:   3 | calloc:   0 | realloc:   0 | TOTAL:   6
+  /home/k/iteration2/src/DialogManager/AlertDialogs.c
+    malloc:   1 | free:   3 | calloc:   0 | realloc:   0 | TOTAL:   4
+  /home/k/iteration2/src/DialogManager/dialog_manager_core.c
+    malloc:   1 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   2
+
+====================================================================================================
+SUBSYSTEM: ResourceMgr
+====================================================================================================
+Files: 2 | malloc: 3 | free: 22 | calloc: 3 | realloc: 1 | TOTAL: 29
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/ResourceManager.c
+    malloc:   1 | free:  17 | calloc:   3 | realloc:   1 | TOTAL:  22
+  /home/k/iteration2/src/ResourceMgr/resource_manager.c
+    malloc:   2 | free:   5 | calloc:   0 | realloc:   0 | TOTAL:   7
+
+====================================================================================================
+SUBSYSTEM: CoreSystem
+====================================================================================================
+Files: 5 | malloc: 1 | free: 11 | calloc: 9 | realloc: 0 | TOTAL: 21
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/ExpandMem.c
+    malloc:   0 | free:   4 | calloc:   3 | realloc:   0 | TOTAL:   7
+  /home/k/iteration2/src/SystemInit.c
+    malloc:   0 | free:   4 | calloc:   2 | realloc:   0 | TOTAL:   6
+  /home/k/iteration2/src/SCSIManager.c
+    malloc:   0 | free:   2 | calloc:   2 | realloc:   0 | TOTAL:   4
+  /home/k/iteration2/src/TrapDispatcher.c
+    malloc:   1 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   2
+  /home/k/iteration2/src/ResourceDecompression.c
+    malloc:   0 | free:   0 | calloc:   2 | realloc:   0 | TOTAL:   2
+
+====================================================================================================
+SUBSYSTEM: DeviceManager
+====================================================================================================
+Files: 4 | malloc: 7 | free: 11 | calloc: 0 | realloc: 1 | TOTAL: 19
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/DeviceManager/UnitTable.c
+    malloc:   4 | free:   7 | calloc:   0 | realloc:   1 | TOTAL:  12
+  /home/k/iteration2/src/DeviceManager/DeviceInterrupts.c
+    malloc:   1 | free:   2 | calloc:   0 | realloc:   0 | TOTAL:   3
+  /home/k/iteration2/src/DeviceManager/DriverDispatch.c
+    malloc:   1 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   2
+  /home/k/iteration2/src/DeviceManager/DeviceIO.c
+    malloc:   1 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   2
+
+====================================================================================================
+SUBSYSTEM: Finder
+====================================================================================================
+Files: 2 | malloc: 7 | free: 6 | calloc: 1 | realloc: 2 | TOTAL: 16
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/Finder/folder_window.c
+    malloc:   7 | free:   6 | calloc:   0 | realloc:   2 | TOTAL:  15
+  /home/k/iteration2/src/Finder/desktop_manager.c
+    malloc:   0 | free:   0 | calloc:   1 | realloc:   0 | TOTAL:   1
+
+====================================================================================================
+SUBSYSTEM: MemoryMgr
+====================================================================================================
+Files: 3 | malloc: 5 | free: 6 | calloc: 2 | realloc: 2 | TOTAL: 15
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/MemoryMgr/MemoryManager.c
+    malloc:   4 | free:   3 | calloc:   1 | realloc:   1 | TOTAL:   9
+  /home/k/iteration2/include/MemoryMgr/MemoryManager.h
+    malloc:   1 | free:   1 | calloc:   1 | realloc:   1 | TOTAL:   4
+  /home/k/iteration2/src/MemoryMgr/heap_compaction.c
+    malloc:   0 | free:   2 | calloc:   0 | realloc:   0 | TOTAL:   2
+
+====================================================================================================
+SUBSYSTEM: TextEdit
+====================================================================================================
+Files: 3 | malloc: 6 | free: 9 | calloc: 0 | realloc: 0 | TOTAL: 15
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/TextEdit/textedit_core.c
+    malloc:   4 | free:   7 | calloc:   0 | realloc:   0 | TOTAL:  11
+  /home/k/iteration2/src/TextEdit/TextInput.c
+    malloc:   1 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   2
+  /home/k/iteration2/src/TextEdit/TextUndo.c
+    malloc:   1 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   2
+
+====================================================================================================
+SUBSYSTEM: EventManager
+====================================================================================================
+Files: 4 | malloc: 3 | free: 8 | calloc: 1 | realloc: 0 | TOTAL: 12
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/EventManager/SystemEvents.c
+    malloc:   2 | free:   5 | calloc:   0 | realloc:   0 | TOTAL:   7
+  /home/k/iteration2/src/EventManager/MouseEvents.c
+    malloc:   1 | free:   2 | calloc:   0 | realloc:   0 | TOTAL:   3
+  /home/k/iteration2/src/EventManager/EventManagerCore.c
+    malloc:   0 | free:   0 | calloc:   1 | realloc:   0 | TOTAL:   1
+  /home/k/iteration2/src/EventManager/KeyboardEvents.c
+    malloc:   0 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   1
+
+====================================================================================================
+SUBSYSTEM: ExtensionManager
+====================================================================================================
+Files: 6 | malloc: 6 | free: 6 | calloc: 0 | realloc: 0 | TOTAL: 12
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/ExtensionManager/FKEYLoader.c
+    malloc:   1 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   2
+  /home/k/iteration2/src/ExtensionManager/ControlPanelManager.c
+    malloc:   1 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   2
+  /home/k/iteration2/src/ExtensionManager/CDEFLoader.c
+    malloc:   1 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   2
+  /home/k/iteration2/src/ExtensionManager/DRVRLoader.c
+    malloc:   1 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   2
+  /home/k/iteration2/src/ExtensionManager/DefLoader.c
+    malloc:   1 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   2
+  /home/k/iteration2/src/ExtensionManager/ExtensionManagerCore.c
+    malloc:   1 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   2
+
+====================================================================================================
+SUBSYSTEM: ScrapManager
+====================================================================================================
+Files: 3 | malloc: 4 | free: 8 | calloc: 0 | realloc: 0 | TOTAL: 12
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/ScrapManager/InterAppScrap.c
+    malloc:   2 | free:   4 | calloc:   0 | realloc:   0 | TOTAL:   6
+  /home/k/iteration2/src/ScrapManager/ModernClipboard.c
+    malloc:   1 | free:   3 | calloc:   0 | realloc:   0 | TOTAL:   4
+  /home/k/iteration2/src/ScrapManager/ScrapMemory.c
+    malloc:   1 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   2
+
+====================================================================================================
+SUBSYSTEM: MenuManager
+====================================================================================================
+Files: 1 | malloc: 2 | free: 9 | calloc: 0 | realloc: 0 | TOTAL: 11
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/MenuCommands.c
+    malloc:   2 | free:   9 | calloc:   0 | realloc:   0 | TOTAL:  11
+
+====================================================================================================
+SUBSYSTEM: StandardFile
+====================================================================================================
+Files: 2 | malloc: 4 | free: 4 | calloc: 0 | realloc: 1 | TOTAL: 9
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/StandardFile/StandardFile.c
+    malloc:   3 | free:   4 | calloc:   0 | realloc:   0 | TOTAL:   7
+  /home/k/iteration2/src/StandardFile/StandardFileHAL_Shims.c
+    malloc:   1 | free:   0 | calloc:   0 | realloc:   1 | TOTAL:   2
+
+====================================================================================================
+SUBSYSTEM: WindowManager
+====================================================================================================
+Files: 4 | malloc: 1 | free: 3 | calloc: 4 | realloc: 0 | TOTAL: 8
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/WindowManager/WindowManagerCore.c
+    malloc:   0 | free:   1 | calloc:   3 | realloc:   0 | TOTAL:   4
+  /home/k/iteration2/src/WindowManager/WindowDisplay.c
+    malloc:   1 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   2
+  /home/k/iteration2/src/WindowManager/WindowEvents.c
+    malloc:   0 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   1
+  /home/k/iteration2/src/WindowManager/WindowResizing.c
+    malloc:   0 | free:   0 | calloc:   1 | realloc:   0 | TOTAL:   1
+
+====================================================================================================
+SUBSYSTEM: Apps
+====================================================================================================
+Files: 1 | malloc: 2 | free: 4 | calloc: 0 | realloc: 0 | TOTAL: 6
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/Apps/SimpleText/STFileIO.c
+    malloc:   2 | free:   4 | calloc:   0 | realloc:   0 | TOTAL:   6
+
+====================================================================================================
+SUBSYSTEM: ControlManager
+====================================================================================================
+Files: 2 | malloc: 3 | free: 2 | calloc: 0 | realloc: 0 | TOTAL: 5
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/ControlManager/control_manager_sys7.c
+    malloc:   2 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   3
+  /home/k/iteration2/src/ControlManager/PlatformControls.c
+    malloc:   1 | free:   1 | calloc:   0 | realloc:   0 | TOTAL:   2
+
+====================================================================================================
+SUBSYSTEM: Chooser
+====================================================================================================
+Files: 1 | malloc: 3 | free: 2 | calloc: 0 | realloc: 0 | TOTAL: 5
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/Chooser/chooser_desk_accessory.c
+    malloc:   3 | free:   2 | calloc:   0 | realloc:   0 | TOTAL:   5
+
+====================================================================================================
+SUBSYSTEM: QuickDraw
+====================================================================================================
+Files: 1 | malloc: 0 | free: 0 | calloc: 0 | realloc: 4 | TOTAL: 4
+----------------------------------------------------------------------------------------------------
+  /home/k/iteration2/src/QuickDraw/Regions.c
+    malloc:   0 | free:   0 | calloc:   0 | realloc:   4 | TOTAL:   4
+
+====================================================================================================
+GRAND TOTALS
+====================================================================================================
+Total malloc calls:  160
+Total free calls:    377
+Total calloc calls:  61
+Total realloc calls: 19
+TOTAL ALL CALLS:     617
+====================================================================================================
+
+====================================================================================================
+PRIORITY RECOMMENDATIONS (by subsystem total)
+====================================================================================================
+ 1. FileMgr                   -  88 calls across 12 files
+ 2. FontManager               -  80 calls across  3 files
+ 3. SpeechManager             -  69 calls across  7 files
+ 4. AppleEventManager         -  50 calls across  7 files
+ 5. DeskManager               -  48 calls across 11 files
+ 6. SoundManager              -  44 calls across  5 files
+ 7. DialogManager             -  39 calls across  6 files
+ 8. ResourceMgr               -  29 calls across  2 files
+ 9. CoreSystem                -  21 calls across  5 files
+10. DeviceManager             -  19 calls across  4 files
+11. Finder                    -  16 calls across  2 files
+12. MemoryMgr                 -  15 calls across  3 files
+13. TextEdit                  -  15 calls across  3 files
+14. EventManager              -  12 calls across  4 files
+15. ExtensionManager          -  12 calls across  6 files
+16. ScrapManager              -  12 calls across  3 files
+17. MenuManager               -  11 calls across  1 files
+18. StandardFile              -   9 calls across  2 files
+19. WindowManager             -   8 calls across  4 files
+20. Apps                      -   6 calls across  1 files
+21. ControlManager            -   5 calls across  2 files
+22. Chooser                   -   5 calls across  1 files
+23. QuickDraw                 -   4 calls across  1 files

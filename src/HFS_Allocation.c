@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SystemTypes.h"
 #include <stdlib.h>
 #include <string.h>
@@ -47,7 +48,7 @@ OSErr Alloc_Init(VCB* vcb)
     bitmapBlocks = (bitmapBytes + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
     /* Allocate bitmap cache */
-    vcb->vcbVBMCache = calloc(1, bitmapBytes);
+    vcb->vcbVBMCache = NewPtrClear(bitmapBytes);
     if (!vcb->vcbVBMCache) {
         return memFullErr;
     }
@@ -55,7 +56,7 @@ OSErr Alloc_Init(VCB* vcb)
     /* Read bitmap from disk */
     err = IO_ReadBlocks(vcb, vcb->vcbVBMSt, bitmapBlocks, vcb->vcbVBMCache);
     if (err != noErr) {
-        free(vcb->vcbVBMCache);
+        DisposePtr((Ptr)vcb->vcbVBMCache);
         vcb->vcbVBMCache = NULL;
         return err;
     }
@@ -74,7 +75,7 @@ OSErr Alloc_Close(VCB* vcb)
 
     /* Free bitmap cache */
     if (vcb->vcbVBMCache) {
-        free(vcb->vcbVBMCache);
+        DisposePtr((Ptr)vcb->vcbVBMCache);
         vcb->vcbVBMCache = NULL;
     }
 
@@ -644,7 +645,7 @@ OSErr Cache_Init(UInt32 cacheSize)
     hashSize = numBuffers * 2;  /* Make hash table 2x buffer count */
     g_FSGlobals.cacheHash = (CacheBuffer**)calloc(hashSize, sizeof(CacheBuffer*));
     if (!g_FSGlobals.cacheHash) {
-        free(buffers);
+        DisposePtr((Ptr)buffers);
         return memFullErr;
     }
 
@@ -667,13 +668,13 @@ void Cache_Shutdown(void)
 
     /* Free cache buffers */
     if (g_FSGlobals.cacheBuffers) {
-        free(g_FSGlobals.cacheBuffers);
+        DisposePtr((Ptr)g_FSGlobals.cacheBuffers);
         g_FSGlobals.cacheBuffers = NULL;
     }
 
     /* Free hash table */
     if (g_FSGlobals.cacheHash) {
-        free(g_FSGlobals.cacheHash);
+        DisposePtr((Ptr)g_FSGlobals.cacheHash);
         g_FSGlobals.cacheHash = NULL;
     }
 

@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SystemTypes.h"
 #include <stdlib.h>
 #include <string.h>
@@ -93,15 +94,15 @@ static pthread_mutex_t gHandleMutex = PTHREAD_MUTEX_INITIALIZER;
 Handle NewHandle(SInt32 size) {
     pthread_mutex_lock(&gHandleMutex);
 
-    HandleBlock* block = (HandleBlock*)calloc(1, sizeof(HandleBlock));
+    HandleBlock* block = (HandleBlock*)NewPtrClear(sizeof(HandleBlock));
     if (!block) {
         pthread_mutex_unlock(&gHandleMutex);
         return NULL;
     }
 
-    block->ptr = calloc(1, size);
+    block->ptr = NewPtrClear(size);
     if (!block->ptr) {
-        free(block);
+        DisposePtr((Ptr)block);
         pthread_mutex_unlock(&gHandleMutex);
         return NULL;
     }
@@ -126,8 +127,8 @@ void DisposeHandle(Handle h) {
     while ((p = *pp) != NULL) {
         if ((Handle)&p->ptr == h) {
             *pp = p->next;
-            free(p->ptr);
-            free(p);
+            DisposePtr((Ptr)p->ptr);
+            DisposePtr((Ptr)p);
             break;
         }
         pp = &p->next;
@@ -144,8 +145,13 @@ void SetHandleSize(Handle h, SInt32 newSize) {
     HandleBlock* p = gHandleList;
     while (p) {
         if ((Handle)&p->ptr == h) {
-            void* newPtr = realloc(p->ptr, newSize);
+            void* newPtr = NewPtr(newSize);
             if (newPtr) {
+                if (p->ptr) {
+                    Size copySize = (newSize < p->size) ? newSize : p->size;
+                    BlockMove(p->ptr, newPtr, copySize);
+                    DisposePtr((Ptr)p->ptr);
+                }
                 p->ptr = newPtr;
                 p->size = newSize;
             } else {
@@ -457,13 +463,13 @@ static void AddToDecompressionCache(ResType type, ResID id, Handle handle) {
                 gDecompCache = oldest->next;
             }
             /* Don't dispose the handle - it's still in use */
-            free(oldest);
+            DisposePtr((Ptr)oldest);
             gDecompCacheSize--;
         }
     }
 
     /* Add new cache entry */
-    DecompressedCache* newCache = (DecompressedCache*)malloc(sizeof(DecompressedCache));
+    DecompressedCache* newCache = (DecompressedCache*)NewPtr(sizeof(DecompressedCache));
     if (newCache) {
         newCache->type = type;
         newCache->id = id;
@@ -572,14 +578,14 @@ static Handle DecompressResourceData(Handle compressedHandle, ResourceEntry* ent
         /* Create new handle for decompressed data */
         Handle decompressedHandle = NewHandle(decompressedSize);
         if (!decompressedHandle) {
-            free(decompressedData);
+            DisposePtr((Ptr)decompressedData);
             SetResError(memFullErr);
             return compressedHandle;
         }
 
         /* Copy decompressed data to handle */
         memcpy(*decompressedHandle, decompressedData, decompressedSize);
-        free(decompressedData);
+        DisposePtr((Ptr)decompressedData);
 
         /* Dispose of compressed handle */
         DisposeHandle(compressedHandle);
@@ -820,7 +826,7 @@ void SetResInfo(Handle theResource, ResID theID, const char* name) {
                 if (entry->handle == theResource) {
                     entry->resID = theID;
                     if (name) {
-                        free(entry->name);
+                        DisposePtr((Ptr)entry->name);
                         entry->name = strdup(name);
                     }
                     map->attributes |= mapChanged;
@@ -958,7 +964,7 @@ RefNum OpenRFPerm(const char* fileName, UInt8 vRefNum, SInt8 permission) {
     }
 
     /* Create new resource map */
-    map = (ResourceMap*)calloc(1, sizeof(ResourceMap));
+    map = (ResourceMap*)NewPtrClear(sizeof(ResourceMap));
     if (!map) {
         fclose(file);
         SetResError(memFullErr);
@@ -1014,11 +1020,11 @@ void CloseResFile(RefNum refNum) {
                     if (entry->handle) {
                         DisposeHandle(entry->handle);
                     }
-                    free(entry->name);
-                    free(entry);
+                    DisposePtr((Ptr)entry->name);
+                    DisposePtr((Ptr)entry);
                     entry = nextEntry;
                 }
-                free(type);
+                DisposePtr((Ptr)type);
                 type = nextType;
             }
 
@@ -1026,8 +1032,8 @@ void CloseResFile(RefNum refNum) {
             if (map->fileHandle) {
                 fclose(map->fileHandle);
             }
-            free(map->fileName);
-            free(map);
+            DisposePtr((Ptr)map->fileName);
+            DisposePtr((Ptr)map);
             return;
         }
         pp = &map->next;
@@ -1165,7 +1171,7 @@ void CleanupResourceManager(void) {
     while (gDecompCache) {
         DecompressedCache* next = gDecompCache->next;
         /* Don't dispose handles - they're owned by the app */
-        free(gDecompCache);
+        DisposePtr((Ptr)gDecompCache);
         gDecompCache = next;
     }
     gDecompCacheSize = 0;
@@ -1180,8 +1186,8 @@ void CleanupResourceManager(void) {
     pthread_mutex_lock(&gHandleMutex);
     while (gHandleList) {
         HandleBlock* next = gHandleList->next;
-        free(gHandleList->ptr);
-        free(gHandleList);
+        DisposePtr((Ptr)gHandleList->ptr);
+        DisposePtr((Ptr)gHandleList);
         gHandleList = next;
     }
     pthread_mutex_unlock(&gHandleMutex);
@@ -1207,7 +1213,7 @@ void ResourceManager_FlushDecompressionCache(void) {
     while (gDecompCache) {
         DecompressedCache* next = gDecompCache->next;
         /* Don't dispose handles - they're owned by the app */
-        free(gDecompCache);
+        DisposePtr((Ptr)gDecompCache);
         gDecompCache = next;
     }
     gDecompCacheSize = 0;
@@ -1237,7 +1243,7 @@ void ResourceManager_SetDecompressionCacheSize(size_t maxItems) {
             gDecompCache = NULL;
         }
 
-        free(curr);
+        DisposePtr((Ptr)curr);
         gDecompCacheSize--;
     }
 }

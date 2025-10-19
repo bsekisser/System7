@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SystemTypes.h"
 #include <stdlib.h>
 #include <string.h>
@@ -35,7 +36,7 @@ VCB* VCB_Alloc(void)
 {
     VCB* vcb;
 
-    vcb = (VCB*)calloc(1, sizeof(VCB));
+    vcb = (VCB*)NewPtrClear(sizeof(VCB));
     if (!vcb) {
         return NULL;
     }
@@ -64,10 +65,10 @@ void VCB_Free(VCB* vcb)
 
     /* Free caches */
     if (vcb->vcbVBMCache) {
-        free(vcb->vcbVBMCache);
+        DisposePtr((Ptr)vcb->vcbVBMCache);
     }
     if (vcb->vcbCtlCache) {
-        free(vcb->vcbCtlCache);
+        DisposePtr((Ptr)vcb->vcbCtlCache);
     }
 
     /* Close B-trees */
@@ -90,7 +91,7 @@ void VCB_Free(VCB* vcb)
     pthread_mutex_destroy(&vcb->vcbMutex);
 #endif
 
-    free(vcb);
+    DisposePtr((Ptr)vcb);
 }
 
 /**

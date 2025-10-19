@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* HFS Volume Management Implementation */
 #include "../../include/FS/hfs_volume.h"
 #include "../../include/FS/hfs_endian.h"
@@ -499,7 +500,7 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
     uint16_t vbmBlocks = (numAlBlks + 4095) / 4096;  /* 1 bit per block */
 
     /* Allocate temporary buffer for sectors */
-    uint8_t* sectorBuf = (uint8_t*)malloc(alBlkSize);
+    uint8_t* sectorBuf = (uint8_t*)NewPtr(alBlkSize);
     if (!sectorBuf) {
         FS_LOG_DEBUG("HFS: Failed to allocate sector buffer\n");
         return false;
@@ -509,7 +510,7 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
     memset(sectorBuf, 0, 512);
     if (!HFS_BD_WriteSector(bd, 0, sectorBuf) || !HFS_BD_WriteSector(bd, 1, sectorBuf)) {
         FS_LOG_DEBUG("HFS: Failed to write boot blocks\n");
-        free(sectorBuf);
+        DisposePtr((Ptr)sectorBuf);
         return false;
     }
 
@@ -553,7 +554,7 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
 
     if (!HFS_BD_WriteSector(bd, HFS_MDB_SECTOR, mdb)) {
         FS_LOG_DEBUG("HFS: Failed to write MDB\n");
-        free(sectorBuf);
+        DisposePtr((Ptr)sectorBuf);
         return false;
     }
 
@@ -570,7 +571,7 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
         for (uint32_t j = 0; j < alBlkSize / 512; j++) {
             if (!HFS_BD_WriteSector(bd, sector + j, sectorBuf + j * 512)) {
                 FS_LOG_DEBUG("HFS: Failed to write VBM\n");
-                free(sectorBuf);
+                DisposePtr((Ptr)sectorBuf);
                 return false;
             }
         }
@@ -607,7 +608,7 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
     for (uint32_t i = 0; i < alBlkSize / 512; i++) {
         if (!HFS_BD_WriteSector(bd, catStart + i, sectorBuf + i * 512)) {
             FS_LOG_DEBUG("HFS: Failed to write catalog header\n");
-            free(sectorBuf);
+            DisposePtr((Ptr)sectorBuf);
             return false;
         }
     }
@@ -618,7 +619,7 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
         for (uint32_t i = 0; i < alBlkSize / 512; i++) {
             if (!HFS_BD_WriteSector(bd, catStart + block * (alBlkSize / 512) + i, sectorBuf + i * 512)) {
                 FS_LOG_DEBUG("HFS: Failed to write catalog blocks\n");
-                free(sectorBuf);
+                DisposePtr((Ptr)sectorBuf);
                 return false;
             }
         }
@@ -652,7 +653,7 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
     for (uint32_t i = 0; i < alBlkSize / 512; i++) {
         if (!HFS_BD_WriteSector(bd, extStart + i, sectorBuf + i * 512)) {
             FS_LOG_DEBUG("HFS: Failed to write extents header\n");
-            free(sectorBuf);
+            DisposePtr((Ptr)sectorBuf);
             return false;
         }
     }
@@ -663,7 +664,7 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
         for (uint32_t i = 0; i < alBlkSize / 512; i++) {
             if (!HFS_BD_WriteSector(bd, extStart + block * (alBlkSize / 512) + i, sectorBuf + i * 512)) {
                 FS_LOG_DEBUG("HFS: Failed to write extents blocks\n");
-                free(sectorBuf);
+                DisposePtr((Ptr)sectorBuf);
                 return false;
             }
         }
@@ -674,7 +675,7 @@ bool HFS_FormatVolume(HFS_BlockDev* bd, const char* volName) {
     /* Flush cache */
     HFS_BD_Flush(bd);
 
-    free(sectorBuf);
+    DisposePtr((Ptr)sectorBuf);
     FS_LOG_DEBUG("HFS: Format complete\n");
     return true;
 }

@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SystemTypes.h"
 #include <stdlib.h>
 #include <string.h>
@@ -140,7 +141,7 @@ Handle GetResourceImpl(ResType theType, ResID theID, Handle* resHandle, OSErr* e
                              (mapHeader)->dataOffset + dataOffset);
 
                         /* Allocate handle for resource data */
-                        Handle newHandle = (Handle)malloc(dataHeader->dataLength);
+                        Handle newHandle = (Handle)NewPtr(dataHeader->dataLength);
                         if (newHandle == 0) {
                             *error = -108; /* memFullErr */
                             return 0;
@@ -215,7 +216,7 @@ SInt16 OpenResFileImpl(ConstStr255Param fileName, SInt16 vRefNum, UInt8 permissi
     }
 
     /* Allocate and read resource map */
-    mapHandle = (Handle)malloc(header.mapLength);
+    mapHandle = (Handle)NewPtr(header.mapLength);
     if (!mapHandle) {
         fclose(file);
         gLastResError = -108; /* memFullErr */
@@ -224,7 +225,7 @@ SInt16 OpenResFileImpl(ConstStr255Param fileName, SInt16 vRefNum, UInt8 permissi
 
     fseek(file, header.mapOffset, SEEK_SET);
     if (fread((void*)mapHandle, header.mapLength, 1, file) != 1) {
-        free((void*)mapHandle);
+        DisposePtr((Ptr)(void*)mapHandle);
         fclose(file);
         gLastResError = mapReadErr;
         return -1;
@@ -250,7 +251,7 @@ SInt16 OpenResFileImpl(ConstStr255Param fileName, SInt16 vRefNum, UInt8 permissi
     }
 
     /* No available file control block */
-    free((void*)mapHandle);
+    DisposePtr((Ptr)(void*)mapHandle);
     gLastResError = -49; /* tmfoErr */
     return -1;
 }
@@ -288,7 +289,7 @@ void ReleaseResourceHandle(Handle resHandle) {
                         if (refEntry[k].resourceHandle == resHandle) {
                             /* Found resource reference, clear handle */
                             refEntry[k].resourceHandle = 0;
-                            free((void*)resHandle);
+                            DisposePtr((Ptr)(void*)resHandle);
                             return;
                         }
                     }
@@ -298,7 +299,7 @@ void ReleaseResourceHandle(Handle resHandle) {
     }
 
     /* Handle not found in resource map, free anyway */
-    free((void*)resHandle);
+    DisposePtr((Ptr)(void*)resHandle);
 }
 
 /*
@@ -336,7 +337,7 @@ void CloseResFile(SInt16 refNum) {
     for (i = 0; i < MAX_OPEN_RES_FILES; i++) {
         if (gOpenResFiles[i].fileRef == refNum) {
             if (gOpenResFiles[i].resourceMapHandle) {
-                free((void*)gOpenResFiles[i].resourceMapHandle);
+                DisposePtr((Ptr)(void*)gOpenResFiles[i].resourceMapHandle);
             }
             memset(&gOpenResFiles[i], 0, sizeof(FileControlBlock));
             break;

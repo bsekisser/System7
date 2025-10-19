@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SystemTypes.h"
 #include <stdlib.h>
 #include <string.h>
@@ -58,7 +59,7 @@ OSErr MountVol(void* param_block) {
     if (pb == NULL) return paramErr;
 
     /* Allocate memory for Master Directory Block - Evidence: block read pattern */
-    mdb = (MDB*)malloc(sizeof(MDB));
+    mdb = (MDB*)NewPtr(sizeof(MDB));
     if (mdb == NULL) {
         return memFullErr;
     }
@@ -78,14 +79,14 @@ OSErr MountVol(void* param_block) {
 
     /* Validate HFS signature - Evidence: ROM HFS volume code signature check */
     if (!IsValidHFSSignature(mdb->drSigWord)) {
-        free(mdb);
+        DisposePtr((Ptr)mdb);
         return badMDBErr;
     }
 
     /* Allocate and initialize VCB - Evidence: ROM HFS volume code VCB creation pattern */
-    vcb = (VCB*)malloc(sizeof(VCB));
+    vcb = (VCB*)NewPtr(sizeof(VCB));
     if (vcb == NULL) {
-        free(mdb);
+        DisposePtr((Ptr)mdb);
         return memFullErr;
     }
 
@@ -114,8 +115,8 @@ OSErr MountVol(void* param_block) {
     /* Call MtCheck to validate volume structure - Evidence: ROM HFS volume code MtCheck call */
     result = MtCheck(vcb);
     if (result != noErr) {
-        free(vcb);
-        free(mdb);
+        DisposePtr((Ptr)vcb);
+        DisposePtr((Ptr)mdb);
         return result;
     }
 
@@ -124,7 +125,7 @@ OSErr MountVol(void* param_block) {
     g_mounted_volumes = vcb;
 
     /* Clean up MDB - no longer needed after VCB creation */
-    free(mdb);
+    DisposePtr((Ptr)mdb);
 
     /* Set result in parameter block */
     pb->ioVRefNum = vcb->vcbVRefNum;
@@ -207,7 +208,7 @@ OSErr OffLine(VCB* vcb) {
     if (vcb == NULL) {
         while (g_mounted_volumes != NULL) {
             VCB* next = (VCB*)g_mounted_volumes->vcbMAdr;
-            free(g_mounted_volumes);
+            DisposePtr((Ptr)g_mounted_volumes);
             g_mounted_volumes = next;
         }
         return noErr;
@@ -221,7 +222,7 @@ OSErr OffLine(VCB* vcb) {
             } else {
                 g_mounted_volumes = (VCB*)current->vcbMAdr;
             }
-            free(current);
+            DisposePtr((Ptr)current);
             return noErr;
         }
         prev = current;

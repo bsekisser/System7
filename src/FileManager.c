@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /*
  * FileManager.c - Core File Manager Implementation
  *
@@ -82,7 +83,7 @@ OSErr FM_Initialize(void)
     g_FSGlobals.wdcbCount = MAX_WDCBS;
     g_FSGlobals.wdcbArray = (WDCB*)calloc(g_FSGlobals.wdcbCount, sizeof(WDCB));
     if (!g_FSGlobals.wdcbArray) {
-        free(g_FSGlobals.fcbArray);
+        DisposePtr((Ptr)g_FSGlobals.fcbArray);
         FS_UnlockGlobal();
         return memFullErr;
     }
@@ -97,8 +98,8 @@ OSErr FM_Initialize(void)
     /* Initialize cache system */
     err = Cache_Init(1024);  /* 1024 blocks = 512KB default cache */
     if (err != noErr) {
-        free(g_FSGlobals.fcbArray);
-        free(g_FSGlobals.wdcbArray);
+        DisposePtr((Ptr)g_FSGlobals.fcbArray);
+        DisposePtr((Ptr)g_FSGlobals.wdcbArray);
         FS_UnlockGlobal();
         return err;
     }
@@ -137,8 +138,8 @@ OSErr FM_Shutdown(void)
     Cache_Shutdown();
 
     /* Free arrays */
-    free(g_FSGlobals.fcbArray);
-    free(g_FSGlobals.wdcbArray);
+    DisposePtr((Ptr)g_FSGlobals.fcbArray);
+    DisposePtr((Ptr)g_FSGlobals.wdcbArray);
 
     g_FSGlobals.initialized = false;
 

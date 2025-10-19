@@ -44,17 +44,17 @@ static bool read_btree_data(HFS_BTree* bt, uint32_t offset, void* buffer, uint32
         }
 
         /* Read the blocks */
-        uint8_t* tempBuffer = malloc(bt->vol->alBlkSize * 2);
+        uint8_t* tempBuffer = NewPtr(bt->vol->alBlkSize * 2);
         if (!tempBuffer) return false;
 
         uint32_t blocksToRead = (toRead + byteOffset + bt->vol->alBlkSize - 1) / bt->vol->alBlkSize;
         if (!HFS_ReadAllocBlocks(bt->vol, startBlock + blockOffset, blocksToRead, tempBuffer)) {
-            free(tempBuffer);
+            DisposePtr((Ptr)tempBuffer);
             return false;
         }
 
         memcpy((uint8_t*)buffer + bytesRead, tempBuffer + byteOffset, toRead);
-        free(tempBuffer);
+        DisposePtr((Ptr)tempBuffer);
 
         bytesRead += toRead;
         currentOffset = 0;  /* Reset for next extent */
@@ -127,7 +127,7 @@ bool HFS_BT_Init(HFS_BTree* bt, HFS_Volume* vol, HFS_BTreeType type) {
     bt->totalNodes  = be32_read(&header->totalNodes);
 
     /* Allocate node buffer */
-    bt->nodeBuffer = malloc(bt->nodeSize);
+    bt->nodeBuffer = NewPtr(bt->nodeSize);
     if (!bt->nodeBuffer) {
         /* FS_LOG_DEBUG("HFS BTree: Failed to allocate node buffer\n"); */
         return false;
@@ -144,7 +144,7 @@ void HFS_BT_Close(HFS_BTree* bt) {
     if (!bt) return;
 
     if (bt->nodeBuffer) {
-        free(bt->nodeBuffer);
+        DisposePtr((Ptr)bt->nodeBuffer);
         bt->nodeBuffer = NULL;
     }
 
@@ -200,13 +200,13 @@ bool HFS_BT_IterateLeaves(HFS_BTree* bt, HFS_BT_IteratorFunc func, void* context
     if (!bt || !func) return false;
 
     uint32_t currentNode = bt->firstLeaf;
-    void* nodeBuffer = malloc(bt->nodeSize);
+    void* nodeBuffer = NewPtr(bt->nodeSize);
     if (!nodeBuffer) return false;
 
     while (currentNode != 0) {
         /* Read the leaf node */
         if (!HFS_BT_ReadNode(bt, currentNode, nodeBuffer)) {
-            free(nodeBuffer);
+            DisposePtr((Ptr)nodeBuffer);
             return false;
         }
 
@@ -231,7 +231,7 @@ bool HFS_BT_IterateLeaves(HFS_BTree* bt, HFS_BT_IteratorFunc func, void* context
                 uint16_t dataLen = recordLen - 1 - keyLen;
 
                 if (!func(key, keyLen, data, dataLen, context)) {
-                    free(nodeBuffer);
+                    DisposePtr((Ptr)nodeBuffer);
                     return true;  /* Iterator requested stop */
                 }
             }
@@ -241,7 +241,7 @@ bool HFS_BT_IterateLeaves(HFS_BTree* bt, HFS_BT_IteratorFunc func, void* context
         currentNode = be32_read(&nodeDesc->fLink);
     }
 
-    free(nodeBuffer);
+    DisposePtr((Ptr)nodeBuffer);
     return true;
 }
 

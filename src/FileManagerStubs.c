@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /*
  * FileManagerStubs.c - Stub implementations for File Manager dependencies
  *
@@ -27,12 +28,12 @@ extern PlatformHooks g_PlatformHooks;
 /* Volume Management */
 VCB* VCB_Alloc(void) {
     FS_LOG_DEBUG("VCB_Alloc stub\n");
-    return (VCB*)calloc(1, sizeof(VCB));
+    return (VCB*)NewPtrClear(sizeof(VCB));
 }
 
 void VCB_Free(VCB* vcb) {
     FS_LOG_DEBUG("VCB_Free stub\n");
-    if (vcb) free(vcb);
+    if (vcb) DisposePtr((Ptr)vcb);
 }
 
 VCB* VCB_Find(VolumeRefNum vRefNum) {
@@ -125,12 +126,12 @@ OSErr FCB_Flush(FCB* fcb) {
 /* Working Directory Management */
 WDCB* WDCB_Alloc(void) {
     FS_LOG_DEBUG("WDCB_Alloc stub\n");
-    return (WDCB*)calloc(1, sizeof(WDCB));
+    return (WDCB*)NewPtrClear(sizeof(WDCB));
 }
 
 void WDCB_Free(WDCB* wdcb) {
     FS_LOG_DEBUG("WDCB_Free stub\n");
-    if (wdcb) free(wdcb);
+    if (wdcb) DisposePtr((Ptr)wdcb);
 }
 
 WDCB* WDCB_Find(WDRefNum wdRefNum) {

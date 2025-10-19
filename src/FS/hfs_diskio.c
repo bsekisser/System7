@@ -39,7 +39,7 @@ bool HFS_BD_InitFile(HFS_BlockDev* bd, const char* path, bool readonly) {
     /* Allocate a 4MB disk image from heap */
     bd->type = HFS_BD_TYPE_FILE;
     bd->size = 4 * 1024 * 1024;
-    bd->data = malloc(bd->size);
+    bd->data = NewPtr(bd->size);
     bd->device_index = -1;
     if (!bd->data) return false;
 
@@ -143,13 +143,13 @@ bool HFS_BD_Read(HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t lengt
         uint32_t sector_count = end_sector - start_sector;
 
         /* Allocate temporary buffer for sector-aligned read */
-        uint8_t* temp_buffer = malloc(sector_count * bd->sectorSize);
+        uint8_t* temp_buffer = NewPtr(sector_count * bd->sectorSize);
         if (!temp_buffer) return false;
 
         /* Read sectors */
         OSErr err = ATA_ReadSectors(ata_dev, start_sector, sector_count, temp_buffer);
         if (err != noErr) {
-            free(temp_buffer);
+            DisposePtr((Ptr)temp_buffer);
             return false;
         }
 
@@ -157,7 +157,7 @@ bool HFS_BD_Read(HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t lengt
         uint32_t offset_in_sector = (uint32_t)offset % bd->sectorSize;
         memcpy(buffer, temp_buffer + offset_in_sector, length);
 
-        free(temp_buffer);
+        DisposePtr((Ptr)temp_buffer);
         return true;
     } else
 #endif
@@ -171,13 +171,13 @@ bool HFS_BD_Read(HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t lengt
         uint32_t block_count = end_block - start_block;
 
         /* Allocate temporary buffer for block-aligned read */
-        uint8_t* temp_buffer = malloc(block_count * bd->sectorSize);
+        uint8_t* temp_buffer = NewPtr(block_count * bd->sectorSize);
         if (!temp_buffer) return false;
 
         /* Read blocks via HAL storage interface */
         OSErr err = hal_storage_read_blocks(bd->device_index, start_block, block_count, temp_buffer);
         if (err != 0) {  /* noErr should be 0 */
-            free(temp_buffer);
+            DisposePtr((Ptr)temp_buffer);
             return false;
         }
 
@@ -185,7 +185,7 @@ bool HFS_BD_Read(HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t lengt
         uint32_t offset_in_block = (uint32_t)offset % bd->sectorSize;
         memcpy(buffer, temp_buffer + offset_in_block, length);
 
-        free(temp_buffer);
+        DisposePtr((Ptr)temp_buffer);
         return true;
         #else
         return false;
@@ -216,7 +216,7 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
         uint32_t offset_in_sector = (uint32_t)offset % bd->sectorSize;
 
         /* Allocate temporary buffer for sector-aligned write */
-        uint8_t* temp_buffer = malloc(sector_count * bd->sectorSize);
+        uint8_t* temp_buffer = NewPtr(sector_count * bd->sectorSize);
         if (!temp_buffer) return false;
 
         /* If write doesn't start/end on sector boundary, need to read-modify-write */
@@ -224,7 +224,7 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
             /* Read existing sectors first */
             OSErr err = ATA_ReadSectors(ata_dev, start_sector, sector_count, temp_buffer);
             if (err != noErr) {
-                free(temp_buffer);
+                DisposePtr((Ptr)temp_buffer);
                 return false;
             }
         }
@@ -234,7 +234,7 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
 
         /* Write sectors */
         OSErr err = ATA_WriteSectors(ata_dev, start_sector, sector_count, temp_buffer);
-        free(temp_buffer);
+        DisposePtr((Ptr)temp_buffer);
 
         return (err == noErr);
     } else
@@ -250,7 +250,7 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
         uint32_t offset_in_block = (uint32_t)offset % bd->sectorSize;
 
         /* Allocate temporary buffer for block-aligned write */
-        uint8_t* temp_buffer = malloc(block_count * bd->sectorSize);
+        uint8_t* temp_buffer = NewPtr(block_count * bd->sectorSize);
         if (!temp_buffer) return false;
 
         /* If write doesn't start/end on block boundary, need to read-modify-write */
@@ -258,7 +258,7 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
             /* Read existing blocks first */
             OSErr err = hal_storage_read_blocks(bd->device_index, start_block, block_count, temp_buffer);
             if (err != 0) {  /* noErr should be 0 */
-                free(temp_buffer);
+                DisposePtr((Ptr)temp_buffer);
                 return false;
             }
         }
@@ -268,7 +268,7 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
 
         /* Write blocks via HAL storage interface */
         OSErr err = hal_storage_write_blocks(bd->device_index, start_block, block_count, temp_buffer);
-        free(temp_buffer);
+        DisposePtr((Ptr)temp_buffer);
 
         return (err == 0);  /* noErr should be 0 */
         #else
@@ -301,7 +301,7 @@ void HFS_BD_Close(HFS_BlockDev* bd) {
     } else if (bd->type == HFS_BD_TYPE_MEMORY || bd->type == HFS_BD_TYPE_FILE) {
         /* If we allocated memory, free it */
         if (bd->data) {
-            free(bd->data);
+            DisposePtr((Ptr)bd->data);
             bd->data = NULL;
         }
     }

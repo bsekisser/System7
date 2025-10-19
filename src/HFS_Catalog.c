@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SystemTypes.h"
 #include <stdlib.h>
 #include <string.h>
@@ -704,7 +705,7 @@ OSErr BTree_Open(VCB* vcb, UInt32 fileID, BTCB** btcb)
     *btcb = NULL;
 
     /* Allocate BTCB */
-    newBTCB = (BTCB*)calloc(1, sizeof(BTCB));
+    newBTCB = (BTCB*)NewPtrClear(sizeof(BTCB));
     if (!newBTCB) {
         return memFullErr;
     }
@@ -734,7 +735,7 @@ OSErr BTree_Open(VCB* vcb, UInt32 fileID, BTCB** btcb)
     /* Allocate cache for nodes */
     newBTCB->btcCache = calloc(10, BTREE_NODE_SIZE);
     if (!newBTCB->btcCache) {
-        free(newBTCB);
+        DisposePtr((Ptr)newBTCB);
         return memFullErr;
     }
 
@@ -754,7 +755,7 @@ OSErr BTree_Close(BTCB* btcb)
 
     /* Free cache */
     if (btcb->btcCache) {
-        free(btcb->btcCache);
+        DisposePtr((Ptr)btcb->btcCache);
     }
 
     /* Destroy mutex */
@@ -764,7 +765,7 @@ OSErr BTree_Close(BTCB* btcb)
     pthread_mutex_destroy(&btcb->btcMutex);
 #endif
 
-    free(btcb);
+    DisposePtr((Ptr)btcb);
 
     return noErr;
 }

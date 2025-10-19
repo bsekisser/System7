@@ -107,7 +107,7 @@ bool VFS_MountBootVolume(const char* volName) {
 
     /* Allocate volume buffer from heap */
     uint64_t volumeSize = 4 * 1024 * 1024;  /* 4MB */
-    void* volumeData = malloc(volumeSize);
+    void* volumeData = NewPtr(volumeSize);
     if (!volumeData) {
         /* FS_LOG_DEBUG("VFS: Failed to allocate volume memory\n"); */
         return false;
@@ -116,7 +116,7 @@ bool VFS_MountBootVolume(const char* volName) {
     /* Create blank HFS volume */
     if (!HFS_CreateBlankVolume(volumeData, volumeSize, volName)) {
         /* FS_LOG_DEBUG("VFS: Failed to create blank volume\n"); */
-        free(volumeData);
+        DisposePtr((Ptr)volumeData);
         return false;
     }
 
@@ -126,14 +126,14 @@ bool VFS_MountBootVolume(const char* volName) {
     /* Mount the volume */
     if (!HFS_VolumeMountMemory(&vol->volume, volumeData, volumeSize, vol->vref)) {
         /* FS_LOG_DEBUG("VFS: Failed to mount volume\n"); */
-        free(volumeData);
+        DisposePtr((Ptr)volumeData);
         return false;
     }
 
     /* Initialize catalog */
     if (!HFS_CatalogInit(&vol->catalog, &vol->volume)) {
         HFS_VolumeUnmount(&vol->volume);
-        free(volumeData);
+        DisposePtr((Ptr)volumeData);
         /* FS_LOG_DEBUG("VFS: Failed to initialize catalog\n"); */
         return false;
     }
@@ -656,7 +656,7 @@ VFSFile* VFS_OpenFile(VRefNum vref, FileID id, bool resourceFork) {
     HFSFile* hfsFile = HFS_FileOpen(&vol->catalog, id, resourceFork);
     if (!hfsFile) return NULL;
 
-    VFSFile* vfsFile = (VFSFile*)malloc(sizeof(VFSFile));
+    VFSFile* vfsFile = (VFSFile*)NewPtr(sizeof(VFSFile));
     if (!vfsFile) {
         HFS_FileClose(hfsFile);
         return NULL;
@@ -679,7 +679,7 @@ VFSFile* VFS_OpenByPath(VRefNum vref, const char* path, bool resourceFork) {
     HFSFile* hfsFile = HFS_FileOpenByPath(&vol->catalog, path, resourceFork);
     if (!hfsFile) return NULL;
 
-    VFSFile* vfsFile = (VFSFile*)malloc(sizeof(VFSFile));
+    VFSFile* vfsFile = (VFSFile*)NewPtr(sizeof(VFSFile));
     if (!vfsFile) {
         HFS_FileClose(hfsFile);
         return NULL;
@@ -698,7 +698,7 @@ void VFS_CloseFile(VFSFile* file) {
         HFS_FileClose(file->hfsFile);
     }
 
-    free(file);
+    DisposePtr((Ptr)file);
 }
 
 bool VFS_ReadFile(VFSFile* file, void* buffer, uint32_t length, uint32_t* bytesRead) {

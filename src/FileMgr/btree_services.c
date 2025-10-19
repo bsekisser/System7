@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 // #include "CompatibilityFix.h" // Removed
 #include <stdlib.h>
 #include <string.h>
@@ -55,7 +56,7 @@ OSErr BTOpen(FCB* fcb, void* btcb_ptr) {
     if (fcb == NULL || btcb == NULL) return paramErr;
 
     /* Allocate memory for header node - Evidence: header node reading pattern */
-    header_node = (BTNode*)malloc(BTREE_NODE_SIZE);
+    header_node = (BTNode*)NewPtr(BTREE_NODE_SIZE);
     if (header_node == NULL) {
         return memFullErr;
     }
@@ -115,7 +116,7 @@ OSErr BTClose(void* btcb_ptr) {
 
     /* Free cached nodes - Evidence: node cache cleanup */
     if (btcb->btcbNodeCache != NULL) {
-        free(btcb->btcbNodeCache);
+        DisposePtr((Ptr)btcb->btcbNodeCache);
         btcb->btcbNodeCache = NULL;
     }
 
@@ -144,7 +145,7 @@ OSErr BTSearch(void* btcb_ptr, void* key, BTNode** node, UInt16* record_index) {
     node_num = btcb->btcbRoot;
 
     /* Allocate node buffer for search */
-    current_node = (BTNode*)malloc(BTREE_NODE_SIZE);
+    current_node = (BTNode*)NewPtr(BTREE_NODE_SIZE);
     if (current_node == NULL) {
         return memFullErr;
     }
@@ -179,7 +180,7 @@ OSErr BTSearch(void* btcb_ptr, void* key, BTNode** node, UInt16* record_index) {
             }
 
             /* Key not found */
-            free(current_node);
+            DisposePtr((Ptr)current_node);
             *node = NULL;
             *record_index = 0;
             return fnfErr;
@@ -190,7 +191,7 @@ OSErr BTSearch(void* btcb_ptr, void* key, BTNode** node, UInt16* record_index) {
         break;
     }
 
-    free(current_node);
+    DisposePtr((Ptr)current_node);
     return fnfErr;
 }
 
@@ -212,7 +213,7 @@ OSErr BTInsert(void* btcb_ptr, void* key, void* data, UInt16 data_len) {
 
     if (result == noErr) {
         /* Key already exists - return error or update based on B-Tree type */
-        if (node != NULL) free(node);
+        if (node != NULL) DisposePtr((Ptr)node);
         return dupFNErr;
     }
 
@@ -260,7 +261,7 @@ OSErr BTDelete(void* btcb_ptr, void* key) {
     btcb->btcbFlags |= kBTHeaderDirty;
 
     /* Clean up */
-    if (node != NULL) free(node);
+    if (node != NULL) DisposePtr((Ptr)node);
 
     return noErr;
 }
