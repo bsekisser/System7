@@ -80,14 +80,22 @@ static OSErr TEValidateHandle(TEHandle hTE)
 
 static OSErr TEAllocateText(TEHandle hTE, long length)
 {
-    TERec **teRec = (TERec **)hTE;
+    TERec **teRec;
     Handle newText;
+    OSErr result;
 
     if (length < 0) return paramErr;
     if (length == 0) length = 1; /* Always allocate at least 1 byte */
 
+    /* CRITICAL: Lock hTE before dereferencing to prevent heap compaction issues */
+    HLock((Handle)hTE);
+    teRec = (TERec **)hTE;
+
     newText = NewHandle(length);
-    if (!newText) return MemError();
+    if (!newText) {
+        HUnlock((Handle)hTE);
+        return MemError();
+    }
 
     if ((**teRec).hText) {
         DisposeHandle((**teRec).hText);
@@ -96,18 +104,29 @@ static OSErr TEAllocateText(TEHandle hTE, long length)
     (**teRec).hText = newText;
     (**teRec).teLength = 0;
 
-    return noErr;
+    result = noErr;
+    HUnlock((Handle)hTE);
+    return result;
 }
 
 static void TERecalculateLines(TEHandle hTE)
 {
-    TERec **teRec = (TERec **)hTE;
+    TERec **teRec;
     char *textPtr;
     long textLen;
     short lineCount = 0;
     long i;
 
-    if (!hTE || !*hTE || !(**teRec).hText) return;
+    if (!hTE || !*hTE) return;
+
+    /* CRITICAL: Lock hTE before dereferencing to prevent heap compaction issues */
+    HLock((Handle)hTE);
+    teRec = (TERec **)hTE;
+
+    if (!(**teRec).hText) {
+        HUnlock((Handle)hTE);
+        return;
+    }
 
     HLock((**teRec).hText);
     textPtr = *(**teRec).hText;
@@ -125,6 +144,7 @@ static void TERecalculateLines(TEHandle hTE)
 
     (**teRec).nLines = lineCount;
     HUnlock((**teRec).hText);
+    HUnlock((Handle)hTE);
 }
 
 TEDispatchHandle TECreateDispatchRec(void)
@@ -135,6 +155,8 @@ TEDispatchHandle TECreateDispatchRec(void)
     hDispatch = (TEDispatchHandle)NewHandleClear(sizeof(TEDispatchRec));
     if (!hDispatch) return NULL;
 
+    /* Lock handle before dereferencing for safety */
+    HLock((Handle)hDispatch);
     dispatch = (TEDispatchRec **)hDispatch;
 
     /* Initialize default hooks to NULL - they will use built-in behavior */
@@ -150,6 +172,7 @@ TEDispatchHandle TECreateDispatchRec(void)
     (**dispatch).TwoByteCharBuffer = 0;
     (**dispatch).lastScript = 0;
 
+    HUnlock((Handle)hDispatch);
     return hDispatch;
 }
 
@@ -216,6 +239,10 @@ pascal TEHandle TENew(const Rect *destRect, const Rect *viewRect)
     hTE = (TEHandle)NewHandleClear(sizeof(TERec));
     if (!hTE) return NULL;
 
+    /* CRITICAL: Lock hTE before dereferencing to prevent heap compaction issues
+     * This is especially important because we call TEAllocateText and TECreateDispatchRec
+     * below, which trigger NewHandle calls that can compact the heap */
+    HLock((Handle)hTE);
     teRec = (TERec **)hTE;
 
     /* Set up rectangles */
@@ -247,6 +274,7 @@ pascal TEHandle TENew(const Rect *destRect, const Rect *viewRect)
     /* Allocate text storage */
     err = TEAllocateText(hTE, 256); /* Initial size */
     if (err != noErr) {
+        HUnlock((Handle)hTE);
         DisposeHandle((Handle)hTE);
         return NULL;
     }
@@ -255,6 +283,7 @@ pascal TEHandle TENew(const Rect *destRect, const Rect *viewRect)
     hDispatch = TECreateDispatchRec();
     if (!hDispatch) {
         DisposeHandle((**teRec).hText);
+        HUnlock((Handle)hTE);
         DisposeHandle((Handle)hTE);
         return NULL;
     }
@@ -275,6 +304,7 @@ pascal TEHandle TENew(const Rect *destRect, const Rect *viewRect)
     (**teRec).nLines = 1;
     (**teRec).lineStarts[0] = 0;
 
+    HUnlock((Handle)hTE);
     return hTE;
 }
 
@@ -288,9 +318,13 @@ pascal TEHandle TEStyleNew(const Rect *destRect, const Rect *viewRect)
     hTE = TENew(destRect, viewRect);
     if (!hTE) return NULL;
 
+    /* CRITICAL: Lock hTE before calling NewHandleClear which can trigger heap compaction */
+    HLock((Handle)hTE);
+
     /* Create style record */
     hStyle = (TEStyleHandle)NewHandleClear(sizeof(TEStyleRec));
     if (!hStyle) {
+        HUnlock((Handle)hTE);
         TEDispose(hTE);
         return NULL;
     }
@@ -300,6 +334,7 @@ pascal TEHandle TEStyleNew(const Rect *destRect, const Rect *viewRect)
     /* Style handle would be stored in an extended TERec structure */
     /* For now, we'll store it in the dispatch record's extended area */
 
+    HUnlock((Handle)hTE);
     return hTE;
 }
 
@@ -315,6 +350,8 @@ pascal void TEDispose(TEHandle hTE)
 
     if (TEValidateHandle(hTE) != noErr) return;
 
+    /* Lock hTE before dereferencing */
+    HLock((Handle)hTE);
     teRec = (TERec **)hTE;
 
     /* Dispose text storage */
@@ -328,6 +365,7 @@ pascal void TEDispose(TEHandle hTE)
         DisposeHandle((Handle)hDispatch);
     }
 
+    /* No need to unlock - we're disposing the handle */
     /* Dispose the TextEdit record itself */
     DisposeHandle((Handle)hTE);
 }
@@ -345,12 +383,17 @@ pascal void TESetText(const void *text, long length, TEHandle hTE)
     if (!text && length > 0) return;
     if (length < 0) length = 0;
 
+    /* CRITICAL: Lock hTE before dereferencing - TEAllocateText can trigger heap compaction */
+    HLock((Handle)hTE);
     teRec = (TERec **)hTE;
 
     /* Resize text handle if necessary */
     if (length > GetHandleSize((**teRec).hText)) {
         err = TEAllocateText(hTE, length + 256); /* Extra space for growth */
-        if (err != noErr) return;
+        if (err != noErr) {
+            HUnlock((Handle)hTE);
+            return;
+        }
     }
 
     /* Copy text data */
@@ -365,6 +408,8 @@ pascal void TESetText(const void *text, long length, TEHandle hTE)
     /* Reset selection */
     (**teRec).selStart = 0;
     (**teRec).selEnd = 0;
+
+    HUnlock((Handle)hTE);
 
     /* Recalculate line breaks */
     TERecalculateLines(hTE);
@@ -477,6 +522,8 @@ pascal void TEInsert(const void *text, long length, TEHandle hTE)
     if (TEValidateHandle(hTE) != noErr) return;
     if (!text || length <= 0) return;
 
+    /* CRITICAL: Lock hTE before dereferencing - SetHandleSize can trigger heap compaction */
+    HLock((Handle)hTE);
     teRec = (TERec **)hTE;
     textHandle = (**teRec).hText;
     insertPos = (**teRec).selStart;
@@ -486,7 +533,10 @@ pascal void TEInsert(const void *text, long length, TEHandle hTE)
     if (newLength > GetHandleSize(textHandle)) {
         SetHandleSize(textHandle, newLength + 256);
         err = MemError();
-        if (err != noErr) return;
+        if (err != noErr) {
+            HUnlock((Handle)hTE);
+            return;
+        }
     }
 
     HLock(textHandle);
@@ -508,6 +558,8 @@ pascal void TEInsert(const void *text, long length, TEHandle hTE)
     (**teRec).selStart = insertPos + length;
     (**teRec).selEnd = (**teRec).selStart;
 
+    HUnlock((Handle)hTE);
+
     /* Recalculate line breaks */
     TERecalculateLines(hTE);
 }
@@ -522,12 +574,17 @@ pascal void TEDelete(TEHandle hTE)
 
     if (TEValidateHandle(hTE) != noErr) return;
 
+    /* Lock hTE before dereferencing */
+    HLock((Handle)hTE);
     teRec = (TERec **)hTE;
     textHandle = (**teRec).hText;
     deleteStart = (**teRec).selStart;
     deleteEnd = (**teRec).selEnd;
 
-    if (deleteStart == deleteEnd) return; /* Nothing to delete */
+    if (deleteStart == deleteEnd) {
+        HUnlock((Handle)hTE);
+        return; /* Nothing to delete */
+    }
 
     deleteLength = deleteEnd - deleteStart;
 
@@ -546,6 +603,8 @@ pascal void TEDelete(TEHandle hTE)
     (**teRec).teLength -= deleteLength;
     (**teRec).selEnd = deleteStart;
 
+    HUnlock((Handle)hTE);
+
     /* Recalculate line breaks */
     TERecalculateLines(hTE);
 }
@@ -554,9 +613,13 @@ pascal void TEKey(short key, TEHandle hTE)
 {
     char ch = (char)(key & 0xFF);
     TERec **teRec;
+    Boolean callDelete = false;
+    Boolean callInsert = false;
 
     if (TEValidateHandle(hTE) != noErr) return;
 
+    /* Lock hTE before dereferencing */
+    HLock((Handle)hTE);
     teRec = (TERec **)hTE;
 
     /* Handle special keys */
@@ -566,9 +629,7 @@ pascal void TEKey(short key, TEHandle hTE)
                 /* Backspace with no selection - delete character before cursor */
                 (**teRec).selStart--;
             }
-            if ((**teRec).selStart < (**teRec).selEnd) {
-                TEDelete(hTE);
-            }
+            callDelete = ((**teRec).selStart < (**teRec).selEnd);
             break;
 
         case leftArrowChar:
@@ -604,14 +665,21 @@ pascal void TEKey(short key, TEHandle hTE)
         default:
             /* Regular character - insert it */
             if (ch >= 0x20 || ch == returnChar || ch == tabChar) {
-                /* Delete selection first if any */
-                if ((**teRec).selStart != (**teRec).selEnd) {
-                    TEDelete(hTE);
-                }
-                /* Insert the character */
-                TEInsert(&ch, 1, hTE);
+                /* Check if we need to delete selection first */
+                callDelete = ((**teRec).selStart != (**teRec).selEnd);
+                callInsert = true;
             }
             break;
+    }
+
+    HUnlock((Handle)hTE);
+
+    /* Call functions that lock hTE internally */
+    if (callDelete) {
+        TEDelete(hTE);
+    }
+    if (callInsert) {
+        TEInsert(&ch, 1, hTE);
     }
 }
 
