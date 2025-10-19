@@ -9,6 +9,7 @@
 #include "SystemTypes.h"
 #include "Apps/MacPaint.h"
 #include "System71StdLib.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "Finder/finder.h"
 #include <string.h>
 
