@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /*
 #include <stdlib.h>
 #include <string.h>
@@ -228,7 +229,7 @@ static IOQueueEntry *AllocateQueueEntry(void) {
         entry->next = NULL;
         memset(entry, 0, sizeof(IOQueueEntry));
     } else {
-        entry = calloc(1, sizeof(IOQueueEntry));
+        entry = NewPtrClear(sizeof(IOQueueEntry));
     }
 
     pthread_mutex_unlock(&g_SCSIMgr.queueMutex);
@@ -669,7 +670,7 @@ void ShutdownSCSIManager(void) {
     while (g_SCSIMgr.freeQueue) {
         IOQueueEntry *entry = g_SCSIMgr.freeQueue;
         g_SCSIMgr.freeQueue = entry->next;
-        free(entry);
+        DisposePtr((Ptr)entry);
     }
 
     /* Destroy mutexes */
@@ -751,7 +752,7 @@ OSErr SCSIExecIOSync(SCSI_IO *ioPtr) {
 }
 
 SCSI_IO *NewSCSI_PB(void) {
-    SCSI_IO *pb = calloc(1, sizeof(SCSI_IO));
+    SCSI_IO *pb = NewPtrClear(sizeof(SCSI_IO));
     if (pb) {
         pb->scsiPBLength = sizeof(SCSI_IO);
         pb->scsiFunctionCode = SCSIExecIO;
@@ -761,7 +762,7 @@ SCSI_IO *NewSCSI_PB(void) {
 
 void DisposeSCSI_PB(SCSI_IO *pb) {
     if (pb) {
-        free(pb);
+        DisposePtr((Ptr)pb);
     }
 }
 

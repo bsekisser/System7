@@ -340,7 +340,7 @@ Boolean CDEFLoader_IsInitialized(void)
  */
 static CDEFEntry* CDEFEntry_Allocate(void)
 {
-    CDEFEntry *entry = malloc(sizeof(CDEFEntry));
+    CDEFEntry *entry = NewPtr(sizeof(CDEFEntry));
     if (entry) {
         memset(entry, 0, sizeof(CDEFEntry));
     }
@@ -360,7 +360,7 @@ static void CDEFEntry_Free(CDEFEntry *entry)
         DisposeHandle(entry->resourceHandle);
     }
 
-    free(entry);
+    DisposePtr((Ptr)entry);
 }
 
 /**

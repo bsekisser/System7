@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SuperCompat.h"
 #include <stdlib.h>
 #include <string.h>
@@ -58,7 +59,7 @@ SInt16 UnitTable_Initialize(SInt16 initialSize)
     }
 
     /* Allocate unit table structure */
-    g_unitTable = (UnitTable*)malloc(sizeof(UnitTable));
+    g_unitTable = (UnitTable*)NewPtr(sizeof(UnitTable));
     if (g_unitTable == NULL) {
         return memFullErr;
     }
@@ -66,9 +67,9 @@ SInt16 UnitTable_Initialize(SInt16 initialSize)
     memset(g_unitTable, 0, sizeof(UnitTable));
 
     /* Allocate entry array */
-    g_unitTable->entries = (UnitTableEntryPtr*)malloc(sizeof(UnitTableEntryPtr) * initialSize);
+    g_unitTable->entries = (UnitTableEntryPtr*)NewPtr(sizeof(UnitTableEntryPtr) * initialSize);
     if (g_unitTable->entries == NULL) {
-        free(g_unitTable);
+        DisposePtr((Ptr)g_unitTable);
         g_unitTable = NULL;
         return memFullErr;
     }
@@ -77,10 +78,10 @@ SInt16 UnitTable_Initialize(SInt16 initialSize)
 
     /* Initialize hash table */
     g_unitTable->hashSize = initialSize * 2; /* Hash table twice the size for better distribution */
-    g_unitTable->hashTable = (UnitTableEntryPtr*)malloc(sizeof(UnitTableEntryPtr) * g_unitTable->hashSize);
+    g_unitTable->hashTable = (UnitTableEntryPtr*)NewPtr(sizeof(UnitTableEntryPtr) * g_unitTable->hashSize);
     if (g_unitTable->hashTable == NULL) {
-        free(g_unitTable->entries);
-        free(g_unitTable);
+        DisposePtr((Ptr)g_unitTable->entries);
+        DisposePtr((Ptr)g_unitTable);
         g_unitTable = NULL;
         return memFullErr;
     }
@@ -123,16 +124,16 @@ void UnitTable_Shutdown(void)
 
     /* Free table structures */
     if (g_unitTable->entries != NULL) {
-        free(g_unitTable->entries);
+        DisposePtr((Ptr)g_unitTable->entries);
         g_unitTable->entries = NULL;
     }
 
     if (g_unitTable->hashTable != NULL) {
-        free(g_unitTable->hashTable);
+        DisposePtr((Ptr)g_unitTable->hashTable);
         g_unitTable->hashTable = NULL;
     }
 
-    free(g_unitTable);
+    DisposePtr((Ptr)g_unitTable);
     g_unitTable = NULL;
 
     g_unitTableInitialized = false;
@@ -236,7 +237,7 @@ static SInt16 AllocateEntry(SInt16 preferredRefNum)
     }
 
     /* Allocate entry structure */
-    UnitTableEntryPtr entry = (UnitTableEntryPtr)malloc(sizeof(UnitTableEntry));
+    UnitTableEntryPtr entry = (UnitTableEntryPtr)NewPtr(sizeof(UnitTableEntry));
     if (entry == NULL) {
         return memFullErr;
     }
@@ -269,7 +270,7 @@ static void DeallocateEntry(UnitTableEntryPtr entry)
 {
     if (entry != NULL) {
         /* Note: DCE handle should be disposed by caller */
-        free(entry);
+        DisposePtr((Ptr)entry);
     }
 }
 
@@ -465,10 +466,16 @@ SInt16 UnitTable_Expand(SInt16 newSize)
 static SInt16 ExpandTable(SInt16 newSize)
 {
     /* Reallocate entry array */
-    UnitTableEntryPtr *newEntries = (UnitTableEntryPtr*)realloc(g_unitTable->entries,
-                                                                sizeof(UnitTableEntryPtr) * newSize);
+    Size oldSize = g_unitTable->size * sizeof(UnitTableEntryPtr);
+    UnitTableEntryPtr *newEntries = (UnitTableEntryPtr*)NewPtr(sizeof(UnitTableEntryPtr) * newSize);
     if (newEntries == NULL) {
         return memFullErr;
+    }
+
+    /* Copy old entries */
+    if (g_unitTable->entries) {
+        BlockMove(g_unitTable->entries, newEntries, oldSize);
+        DisposePtr((Ptr)g_unitTable->entries);
     }
 
     /* Clear new entries */

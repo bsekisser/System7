@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 // #include "CompatibilityFix.h" // Removed
 #include <stdlib.h>
 #include <string.h>
@@ -495,7 +496,7 @@ void DAWindow_GetSize(DeskAccessory *da, SInt16 *width, SInt16 *height)
  */
 static DAWindow *DAWindow_Allocate(void)
 {
-    return calloc(1, sizeof(DAWindow));
+    return NewPtrClear(sizeof(DAWindow));
 }
 
 /*
@@ -504,7 +505,7 @@ static DAWindow *DAWindow_Allocate(void)
 static void DAWindow_Free(DAWindow *window)
 {
     if (window) {
-        free(window);
+        DisposePtr((Ptr)window);
     }
 }
 
@@ -586,7 +587,7 @@ static int DAWindow_CreatePlatformWindow(DAWindow *window)
 
     /* In a real implementation, this would create a platform-specific window */
     /* For now, just allocate a dummy handle */
-    window->platformWindow = malloc(sizeof(WindowRecord));
+    window->platformWindow = NewPtr(sizeof(WindowRecord));
     if (!window->platformWindow) {
         return DESK_ERR_NO_MEMORY;
     }
@@ -604,7 +605,7 @@ static void DAWindow_DestroyPlatformWindow(DAWindow *window)
 {
     if (window && window->platformWindow) {
         /* In a real implementation, would destroy platform window */
-        free(window->platformWindow);
+        DisposePtr((Ptr)window->platformWindow);
         window->platformWindow = NULL;
     }
 }

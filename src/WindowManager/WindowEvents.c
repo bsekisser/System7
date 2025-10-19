@@ -526,7 +526,7 @@ void BeginUpdate(WindowPtr theWindow) {
             } else {
                 Platform_SetClipRgn(&theWindow->port, updateClip);
             }
-            /* FIXME: Platform_DisposeRgn hangs in free() - possible heap corruption
+            /* FIXME: Platform_DisposeRgn hangs in DisposePtr((Ptr)) - possible heap corruption
              * Skip for now to avoid leak, but this needs investigation */
             /* Platform_DisposeRgn(updateClip); */
         }

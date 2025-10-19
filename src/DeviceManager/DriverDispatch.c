@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SuperCompat.h"
 #include <stdlib.h>
 #include <string.h>
@@ -561,7 +562,7 @@ SInt16 GetDriverName(DCEPtr dce, char *name, SInt16 maxLen)
 
 DriverContextPtr CreateDriverContext(DCEPtr dce, Boolean isModern)
 {
-    DriverContextPtr context = (DriverContextPtr)malloc(sizeof(DriverContext));
+    DriverContextPtr context = (DriverContextPtr)NewPtr(sizeof(DriverContext));
     if (context == NULL) {
         return NULL;
     }
@@ -580,7 +581,7 @@ DriverContextPtr CreateDriverContext(DCEPtr dce, Boolean isModern)
 void DestroyDriverContext(DriverContextPtr context)
 {
     if (context != NULL) {
-        free(context);
+        DisposePtr((Ptr)context);
     }
 }
 

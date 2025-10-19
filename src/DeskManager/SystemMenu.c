@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 // #include "CompatibilityFix.h" // Removed
 #include <stdlib.h>
 #include <string.h>
@@ -316,7 +317,7 @@ void SystemMenu_SetEnabled(Boolean enabled)
  */
 static MenuItem *SystemMenu_AllocateItem(void)
 {
-    return calloc(1, sizeof(MenuItem));
+    return NewPtrClear(sizeof(MenuItem));
 }
 
 /*
@@ -325,7 +326,7 @@ static MenuItem *SystemMenu_AllocateItem(void)
 static void SystemMenu_FreeItem(MenuItem *item)
 {
     if (item) {
-        free(item);
+        DisposePtr((Ptr)item);
     }
 }
 
@@ -424,7 +425,7 @@ static int SystemMenu_CreatePlatformMenu(void)
 {
     /* In a real implementation, this would create a platform-specific menu
      * For now, just allocate a dummy handle */
-    g_systemMenu.menuHandle = malloc(sizeof(void *));
+    g_systemMenu.menuHandle = NewPtr(sizeof(void *));
     if (!g_systemMenu.menuHandle) {
         return DESK_ERR_NO_MEMORY;
     }
@@ -438,7 +439,7 @@ static int SystemMenu_CreatePlatformMenu(void)
 static void SystemMenu_DestroyPlatformMenu(void)
 {
     if (g_systemMenu.menuHandle) {
-        free(g_systemMenu.menuHandle);
+        DisposePtr((Ptr)g_systemMenu.menuHandle);
         g_systemMenu.menuHandle = NULL;
     }
 }

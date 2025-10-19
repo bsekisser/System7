@@ -305,7 +305,7 @@ Boolean FKEYLoader_IsInitialized(void)
  */
 static FKEYEntry* FKEYEntry_Allocate(void)
 {
-    FKEYEntry *entry = malloc(sizeof(FKEYEntry));
+    FKEYEntry *entry = NewPtr(sizeof(FKEYEntry));
     if (entry) {
         memset(entry, 0, sizeof(FKEYEntry));
     }
@@ -325,7 +325,7 @@ static void FKEYEntry_Free(FKEYEntry *entry)
         HUnlock(entry->resourceHandle);
     }
 
-    free(entry);
+    DisposePtr((Ptr)entry);
 }
 
 /**

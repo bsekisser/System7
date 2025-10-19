@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SuperCompat.h"
 #include <stdlib.h>
 #include <string.h>
@@ -491,7 +492,7 @@ AsyncIORequestPtr CreateAsyncIORequest(IOParamPtr pb, UInt32 priority,
         return NULL;
     }
 
-    AsyncIORequestPtr request = (AsyncIORequestPtr)malloc(sizeof(AsyncIORequest));
+    AsyncIORequestPtr request = (AsyncIORequestPtr)NewPtr(sizeof(AsyncIORequest));
     if (request == NULL) {
         return NULL;
     }
@@ -543,7 +544,7 @@ SInt16 WaitForAsyncIO(AsyncIORequestPtr request, UInt32 timeout)
 void DestroyAsyncIORequest(AsyncIORequestPtr request)
 {
     if (request != NULL) {
-        free(request);
+        DisposePtr((Ptr)request);
     }
 }
 

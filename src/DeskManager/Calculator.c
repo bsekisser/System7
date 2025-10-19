@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 #include <stdlib.h>
 #include <string.h>
@@ -100,7 +101,7 @@ void Calculator_Shutdown(Calculator *calc)
 {
     if (calc) {
         /* Clean up any allocated resources */
-        free(calc->buttonRects);
+        DisposePtr((Ptr)calc->buttonRects);
         calc->buttonRects = NULL;
     }
 }

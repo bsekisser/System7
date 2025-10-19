@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 #include <stdlib.h>
 #include <string.h>
@@ -124,7 +125,7 @@ OSErr TECreateInputContext(TEHandle hTE, TEInputContext **context)
 
     if (!hTE || !context) return paramErr;
 
-    newContext = (TEInputContext*)malloc(sizeof(TEInputContext));
+    newContext = (TEInputContext*)NewPtr(sizeof(TEInputContext));
     if (!newContext) return memFullErr;
 
     /* Initialize with default values */
@@ -147,7 +148,7 @@ void TEDisposeInputContext(TEInputContext *context)
         DisposeHandle(context->candidateText);
     }
 
-    free(context);
+    DisposePtr((Ptr)context);
 }
 
 OSErr TESetInputContext(TEHandle hTE, TEInputContext *context)

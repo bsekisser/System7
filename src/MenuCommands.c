@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /*
  * MenuCommands.c - Menu Command Dispatcher
  *
@@ -867,7 +868,7 @@ void MakeAliasOfSelectedItems(WindowPtr w) {
     }
 
     /* Free the specs array */
-    free(specs);
+    DisposePtr((Ptr)specs);
 
     /* Reload the folder to show the new aliases */
     extern void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID);
@@ -936,7 +937,7 @@ void PutAwaySelectedItems(WindowPtr w) {
     }
 
     /* Free the specs array */
-    free(specs);
+    DisposePtr((Ptr)specs);
 }
 
 /* Edit Operations */
@@ -983,10 +984,10 @@ void Finder_Cut(void) {
 
     /* Calculate total size: count + cutMode + FSSpec array */
     long dataSize = sizeof(SInt16) + sizeof(UInt8) + (sizeof(FSSpec) * count);
-    void* data = malloc(dataSize);
+    void* data = NewPtr(dataSize);
     if (!data) {
         MENU_LOG_DEBUG("Finder_Cut: malloc failed\n");
-        free(specs);
+        DisposePtr((Ptr)specs);
         return;
     }
 
@@ -1001,8 +1002,8 @@ void Finder_Cut(void) {
     MENU_LOG_DEBUG("Finder_Cut: Successfully cut %d items to clipboard\n", count);
 
     /* Free buffers */
-    free(data);
-    free(specs);
+    DisposePtr((Ptr)data);
+    DisposePtr((Ptr)specs);
 }
 
 void Finder_Copy(void) {
@@ -1044,10 +1045,10 @@ void Finder_Copy(void) {
 
     /* Calculate total size: count + cutMode + FSSpec array */
     long dataSize = sizeof(SInt16) + sizeof(UInt8) + (sizeof(FSSpec) * count);
-    void* data = malloc(dataSize);
+    void* data = NewPtr(dataSize);
     if (!data) {
         MENU_LOG_DEBUG("Finder_Copy: malloc failed\n");
-        free(specs);
+        DisposePtr((Ptr)specs);
         return;
     }
 
@@ -1062,8 +1063,8 @@ void Finder_Copy(void) {
     MENU_LOG_DEBUG("Finder_Copy: Successfully copied %d items to clipboard\n", count);
 
     /* Free buffers */
-    free(data);
-    free(specs);
+    DisposePtr((Ptr)data);
+    DisposePtr((Ptr)specs);
 }
 
 void Finder_Paste(void) {
@@ -1086,8 +1087,7 @@ void Finder_Paste(void) {
 
     /* Get files from clipboard using basic Scrap Manager */
     extern long GetScrap(Handle hDest, OSType theType, long* offset);
-    extern Handle NewHandle(Size byteCount);
-    extern void DisposeHandle(Handle h);
+    /* NewHandle, DisposeHandle now provided by MemoryManager.h */
 
     Handle scrapHandle = NewHandle(0);
     if (!scrapHandle) {
@@ -1124,7 +1124,7 @@ void Finder_Paste(void) {
 
     if (destVRef == 0 || destDir == 0) {
         MENU_LOG_DEBUG("Finder_Paste: Failed to get destination folder info\n");
-        free(sourceSpecs);
+        DisposePtr((Ptr)sourceSpecs);
         return;
     }
 

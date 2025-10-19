@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 #include <stdlib.h>
 #include <string.h>
@@ -227,14 +228,14 @@ ControlHandle NewControl_Sys7(void *window, Rect *bounds, char *title,
     InitControlManager_Sys7();
 
     /* Allocate control record */
-    ControlHandle control = (ControlHandle)malloc(sizeof(ControlRecord*));
+    ControlHandle control = (ControlHandle)NewPtr(sizeof(ControlRecord*));
     if (!control) {
         return NULL;
     }
 
-    *control = (ControlRecord*)malloc(sizeof(ControlRecord));
+    *control = (ControlRecord*)NewPtr(sizeof(ControlRecord));
     if (!*control) {
-        free(control);
+        DisposePtr((Ptr)control);
         return NULL;
     }
 

@@ -386,7 +386,7 @@ Boolean DRVRLoader_IsInitialized(void)
  */
 static DRVREntry* DRVREntry_Allocate(void)
 {
-    DRVREntry *entry = malloc(sizeof(DRVREntry));
+    DRVREntry *entry = NewPtr(sizeof(DRVREntry));
     if (entry) {
         memset(entry, 0, sizeof(DRVREntry));
     }
@@ -406,7 +406,7 @@ static void DRVREntry_Free(DRVREntry *entry)
         DisposeHandle(entry->resourceHandle);
     }
 
-    free(entry);
+    DisposePtr((Ptr)entry);
 }
 
 /**

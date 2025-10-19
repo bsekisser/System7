@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 #include "EventManager/EventManagerInternal.h"
 #include <stdlib.h>
@@ -442,7 +443,7 @@ void ShutdownKeyboardEvents(void)
         if (layout->keyMapData) {
             /* Note: keyMapData is Handle, would need proper disposal */
         }
-        free(layout);
+        DisposePtr((Ptr)layout);
         layout = next;
     }
     g_keyboardLayouts = NULL;

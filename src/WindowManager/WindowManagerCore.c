@@ -667,7 +667,7 @@ WindowManagerState* GetWindowManagerState(void) {
 
 static void InitializeWMgrPort(void) {
     /* Allocate Window Manager port */
-    g_wmState.wMgrPort = (WMgrPort*)calloc(1, sizeof(WMgrPort));
+    g_wmState.wMgrPort = (WMgrPort*)NewPtrClear(sizeof(WMgrPort));
     if (g_wmState.wMgrPort == NULL) {
         #ifdef DEBUG_WINDOW_MANAGER
         printf("InitializeWMgrPort: Failed to allocate WMgrPort\n");
@@ -693,7 +693,7 @@ static void InitializeWMgrPort(void) {
 
     /* Initialize Color Window Manager port if available */
     if (g_wmState.colorQDAvailable) {
-        g_wmState.wMgrCPort = (CGrafPtr)calloc(1, sizeof(CGrafPort));
+        g_wmState.wMgrCPort = (CGrafPtr)NewPtrClear(sizeof(CGrafPort));
         if (g_wmState.wMgrCPort) {
             Platform_InitializeColorPort(g_wmState.wMgrCPort);
         }
@@ -724,7 +724,7 @@ static WindowPtr AllocateWindowRecord(Boolean isColorWindow) {
     size_t recordSize = isColorWindow ? sizeof(CWindowRecord) : sizeof(WindowRecord);
     /* NO serial_printf - variadic funcs corrupt heap before calloc! */
 
-    WindowPtr window = (WindowPtr)calloc(1, recordSize);
+    WindowPtr window = (WindowPtr)NewPtrClear(recordSize);
 
     if (window) {
         serial_puts("[WM] AllocateWindowRecord: SUCCESS\n");
@@ -745,7 +745,7 @@ static void DeallocateWindowRecord(WindowPtr window) {
     serial_puts("[WM] DeallocateWindowRecord: ENTRY\n");
 
     if (window) {
-        DisposePtr(window);  /* Bypass free(), call DisposePtr directly */
+        DisposePtr(window);  /* Bypass DisposePtr((Ptr)), call DisposePtr directly */
     }
 
     serial_puts("[WM] DeallocateWindowRecord: EXIT\n");

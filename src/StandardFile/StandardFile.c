@@ -430,7 +430,7 @@ void CustomGetFile(FileFilterYDProcPtr fileFilter,
 
     /* Copy type list */
     if (numTypes > 0 && typeList != NULL) {
-        gSFState.typeList = (OSType*)malloc(numTypes * sizeof(OSType));
+        gSFState.typeList = (OSType*)NewPtr(numTypes * sizeof(OSType));
         memcpy(gSFState.typeList, typeList, numTypes * sizeof(OSType));
     }
 
@@ -586,7 +586,7 @@ handle_item2:
     SF_DisposeDialog();
 
     if (gSFState.typeList) {
-        free(gSFState.typeList);
+        DisposePtr((Ptr)gSFState.typeList);
         gSFState.typeList = NULL;
     }
 }
@@ -602,13 +602,13 @@ static void SF_PopulateFileList(void) {
 
     /* Free existing file list */
     if (gSFState.files) {
-        free(gSFState.files);
+        DisposePtr((Ptr)gSFState.files);
         gSFState.files = NULL;
     }
     gSFState.numFiles = 0;
 
     /* Allocate temporary storage */
-    FSSpec *tempFiles = (FSSpec*)malloc(sizeof(FSSpec) * 256);
+    FSSpec *tempFiles = (FSSpec*)NewPtr(sizeof(FSSpec) * 256);
     if (!tempFiles) return;
 
     /* Clear file list in dialog */
@@ -672,13 +672,13 @@ static void SF_PopulateFileList(void) {
 
     /* Copy final list */
     if (gSFState.numFiles > 0) {
-        gSFState.files = (FSSpec*)malloc(sizeof(FSSpec) * gSFState.numFiles);
+        gSFState.files = (FSSpec*)NewPtr(sizeof(FSSpec) * gSFState.numFiles);
         if (gSFState.files) {
             memcpy(gSFState.files, tempFiles, sizeof(FSSpec) * gSFState.numFiles);
         }
     }
 
-    free(tempFiles);
+    DisposePtr((Ptr)tempFiles);
 
     /* Update dialog display */
     StandardFile_HAL_UpdateFileList(gSFState.dialog);
@@ -723,7 +723,7 @@ static void SF_NavigateToFolder(FSSpec *folder) {
  */
 static void SF_DisposeDialog(void) {
     if (gSFState.files) {
-        free(gSFState.files);
+        DisposePtr((Ptr)gSFState.files);
         gSFState.files = NULL;
     }
     gSFState.numFiles = 0;

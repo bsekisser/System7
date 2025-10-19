@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include <time.h>
 // #include "CompatibilityFix.h" // Removed
 #include <stdlib.h>
@@ -135,7 +136,7 @@ void AlarmClock_Shutdown(AlarmClock *clock)
     Alarm *alarm = clock->alarms;
     while (alarm) {
         Alarm *next = alarm->next;
-        free(alarm);
+        DisposePtr((Ptr)alarm);
         alarm = next;
     }
     clock->alarms = NULL;
@@ -312,7 +313,7 @@ Alarm *AlarmClock_CreateAlarm(AlarmClock *clock, const char *name,
         return NULL;
     }
 
-    Alarm *alarm = malloc(sizeof(Alarm));
+    Alarm *alarm = NewPtr(sizeof(Alarm));
     if (!alarm) {
         return NULL;
     }

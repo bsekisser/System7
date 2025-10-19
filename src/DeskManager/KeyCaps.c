@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 // #include "CompatibilityFix.h" // Removed
 #include <stdlib.h>
 #include <string.h>
@@ -38,7 +39,7 @@ int KeyCaps_Initialize(KeyCaps *keyCaps)
     memset(keyCaps, 0, sizeof(KeyCaps));
 
     /* Create default keyboard layout */
-    keyCaps->currentLayout = malloc(sizeof(KeyboardLayout));
+    keyCaps->currentLayout = NewPtr(sizeof(KeyboardLayout));
     if (!keyCaps->currentLayout) {
         return KEYCAPS_ERR_NO_LAYOUT;
     }
@@ -103,7 +104,7 @@ int KeyCaps_Initialize(KeyCaps *keyCaps)
 void KeyCaps_Shutdown(KeyCaps *keyCaps)
 {
     if (keyCaps) {
-        free(keyCaps->currentLayout);
+        DisposePtr((Ptr)keyCaps->currentLayout);
         keyCaps->currentLayout = NULL;
     }
 }

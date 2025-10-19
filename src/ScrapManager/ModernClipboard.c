@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 // #include "CompatibilityFix.h" // Removed
 #include "ErrorCodes.h"
 #include <stdlib.h>
@@ -268,7 +269,7 @@ OSErr GetNativeClipboardData(UInt32 platformFormat, Handle *data)
 
     *data = NewHandle(dataSize);
     if (!*data) {
-        free(nativeData);
+        DisposePtr((Ptr)nativeData);
         return memFullErr;
     }
 
@@ -276,7 +277,7 @@ OSErr GetNativeClipboardData(UInt32 platformFormat, Handle *data)
     memcpy(**data, nativeData, dataSize);
     HUnlock(*data);
 
-    free(nativeData);
+    DisposePtr((Ptr)nativeData);
     return noErr;
 }
 
@@ -483,7 +484,7 @@ static OSErr SyncNativeToMac(void)
         if (GetNativeData(CF_TEXT, &textData, &textSize) == noErr && textData) {
             ZeroScrap();
             PutScrap(textSize, SCRAP_TYPE_TEXT, textData);
-            free(textData);
+            DisposePtr((Ptr)textData);
         }
     }
 #endif
@@ -595,7 +596,7 @@ static OSErr GetWindowsData(UInt32 format, void **data, size_t *size)
     }
 
     dataSize = GlobalSize(hMem);
-    *data = malloc(dataSize);
+    *data = NewPtr(dataSize);
     if (!*data) {
         CloseClipboard();
         return memFullErr;

@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 // #include "CompatibilityFix.h" // Removed
 #include <stdlib.h>
 #include <string.h>
@@ -66,7 +67,7 @@ int Chooser_Initialize(Chooser *chooser)
     chooser->selectedZoneIndex = -1;
 
     /* Initialize with default zone */
-    ATZone *defaultZone = malloc(sizeof(ATZone));
+    ATZone *defaultZone = NewPtr(sizeof(ATZone));
     if (defaultZone) {
         strcpy(defaultZone->name, "*");
         defaultZone->isDefault = true;
@@ -97,7 +98,7 @@ void Chooser_Shutdown(Chooser *chooser)
     DeviceInfo *device = chooser->devices;
     while (device) {
         DeviceInfo *next = device->next;
-        free(device);
+        DisposePtr((Ptr)device);
         device = next;
     }
 
@@ -105,7 +106,7 @@ void Chooser_Shutdown(Chooser *chooser)
     ATZone *zone = chooser->zones;
     while (zone) {
         ATZone *next = zone->next;
-        free(zone);
+        DisposePtr((Ptr)zone);
         zone = next;
     }
 
@@ -145,7 +146,7 @@ int Chooser_ScanDevices(Chooser *chooser, DeviceType deviceType)
 
     if (deviceType == DEVICE_TYPE_UNKNOWN || deviceType == DEVICE_TYPE_PRINTER) {
         /* Add dummy printer */
-        DeviceInfo *printer = malloc(sizeof(DeviceInfo));
+        DeviceInfo *printer = NewPtr(sizeof(DeviceInfo));
         if (printer) {
             strcpy(printer->name, "LaserWriter");
             strcpy(printer->type, "PostScript Printer");
@@ -173,7 +174,7 @@ int Chooser_ScanDevices(Chooser *chooser, DeviceType deviceType)
 
     if (deviceType == DEVICE_TYPE_UNKNOWN || deviceType == DEVICE_TYPE_FILE_SERVER) {
         /* Add dummy file server */
-        DeviceInfo *server = malloc(sizeof(DeviceInfo));
+        DeviceInfo *server = NewPtr(sizeof(DeviceInfo));
         if (server) {
             strcpy(server->name, "FileServer");
             strcpy(server->type, "AppleShare Server");
@@ -241,7 +242,7 @@ int Chooser_AddDevice(Chooser *chooser, const DeviceInfo *device)
         return CHOOSER_ERR_INVALID_DEVICE;
     }
 
-    DeviceInfo *newDevice = malloc(sizeof(DeviceInfo));
+    DeviceInfo *newDevice = NewPtr(sizeof(DeviceInfo));
     if (!newDevice) {
         return CHOOSER_ERR_TOO_MANY_DEVICES;
     }

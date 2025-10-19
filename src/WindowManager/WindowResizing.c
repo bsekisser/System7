@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 #include <stdlib.h>
 #include <string.h>
@@ -717,7 +718,7 @@ WindowStateData* WM_GetWindowStateData(WindowPtr window) {
 }
 
 static WindowStateData* WM_CreateWindowStateData(WindowPtr window) {
-    WindowStateData* stateData = (WindowStateData*)calloc(1, sizeof(WindowStateData));
+    WindowStateData* stateData = (WindowStateData*)NewPtrClear(sizeof(WindowStateData));
     if (stateData == NULL) return NULL;
 
     /* Initialize with current window bounds */

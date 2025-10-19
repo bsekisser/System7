@@ -14,6 +14,7 @@
 #define _FILE_DEFINED
 
 #include "SystemTypes.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "Finder/Icon/icon_types.h"
@@ -327,13 +328,13 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
     state->currentDir = dirID;
 
     if (state->items) {
-        free(state->items);
+        DisposePtr((Ptr)state->items);
         state->items = NULL;
         state->itemCount = 0;
     }
 
     if (state->selectedItems) {
-        free(state->selectedItems);
+        DisposePtr((Ptr)state->selectedItems);
         state->selectedItems = NULL;
     }
 
@@ -349,7 +350,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
     /* Handle Applications folder with virtual apps */
     if (dirID == 18) {
         state->itemCount = 3;  /* SimpleText, TextEdit, MacPaint */
-        state->items = (FolderItem*)malloc(sizeof(FolderItem) * state->itemCount);
+        state->items = (FolderItem*)NewPtr(sizeof(FolderItem) * state->itemCount);
         if (!state->items) {
             state->itemCount = 0;
             return;
@@ -399,7 +400,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         }
 
         /* Allocate selection array */
-        state->selectedItems = (Boolean*)malloc(sizeof(Boolean) * state->itemCount);
+        state->selectedItems = (Boolean*)NewPtr(sizeof(Boolean) * state->itemCount);
         if (state->selectedItems) {
             for (int i = 0; i < state->itemCount; i++) {
                 state->selectedItems[i] = false;
@@ -413,7 +414,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
 
     if (dirID == kControlPanelsDirID) {
         state->itemCount = 6;
-        state->items = (FolderItem*)malloc(sizeof(FolderItem) * state->itemCount);
+        state->items = (FolderItem*)NewPtr(sizeof(FolderItem) * state->itemCount);
         if (!state->items) {
             state->itemCount = 0;
             return;
@@ -492,7 +493,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         }
 
         /* Allocate selection array */
-        state->selectedItems = (Boolean*)malloc(sizeof(Boolean) * state->itemCount);
+        state->selectedItems = (Boolean*)NewPtr(sizeof(Boolean) * state->itemCount);
         if (state->selectedItems) {
             for (int i = 0; i < state->itemCount; i++) {
                 state->selectedItems[i] = false;
@@ -529,7 +530,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         }
 
         /* Allocate item array */
-        state->items = (FolderItem*)malloc(sizeof(FolderItem) * totalItems);
+        state->items = (FolderItem*)NewPtr(sizeof(FolderItem) * totalItems);
         if (!state->items) {
             FINDER_LOG_WARN("FW: malloc failed for %d items\n", count);
             state->itemCount = 0;
@@ -590,7 +591,7 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         }
 
         /* Allocate selection array */
-        state->selectedItems = (Boolean*)malloc(sizeof(Boolean) * state->itemCount);
+        state->selectedItems = (Boolean*)NewPtr(sizeof(Boolean) * state->itemCount);
         if (state->selectedItems) {
             for (int i = 0; i < state->itemCount; i++) {
                 state->selectedItems[i] = false;
@@ -1540,16 +1541,22 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
                 CatEntry newEntry;
                 if (VFS_GetByID(state->vref, newID, &newEntry)) {
                     /* Add to items array - reallocate if needed */
-                    FolderItem* newItems = realloc(state->items,
-                                                  sizeof(FolderItem) * (state->itemCount + 1));
+                    Size oldItemsSize = state->itemCount * sizeof(FolderItem);
+                    FolderItem* newItems = (FolderItem*)NewPtr(sizeof(FolderItem) * (state->itemCount + 1));
                     if (newItems) {
+                        if (state->items) {
+                            BlockMove(state->items, newItems, oldItemsSize);
+                            DisposePtr((Ptr)state->items);
+                        }
                         state->items = newItems;
 
                         /* Reallocate selectedItems array too */
                         if (state->selectedItems) {
-                            Boolean* newSelected = realloc(state->selectedItems,
-                                                          sizeof(Boolean) * (state->itemCount + 1));
+                            Size oldSelectedSize = state->itemCount * sizeof(Boolean);
+                            Boolean* newSelected = (Boolean*)NewPtr(sizeof(Boolean) * (state->itemCount + 1));
                             if (newSelected) {
+                                BlockMove(state->selectedItems, newSelected, oldSelectedSize);
+                                DisposePtr((Ptr)state->selectedItems);
                                 state->selectedItems = newSelected;
                                 state->selectedItems[state->itemCount] = false;
                             }
@@ -1614,7 +1621,7 @@ short FolderWindow_GetSelectedAsSpecs(WindowPtr w, FSSpec** outSpecs) {
     }
 
     /* Allocate FSSpec array */
-    FSSpec* specs = malloc(sizeof(FSSpec) * selectedCount);
+    FSSpec* specs = NewPtr(sizeof(FSSpec) * selectedCount);
     if (!specs) {
         FINDER_LOG_DEBUG("FolderWindow_GetSelectedAsSpecs: malloc failed\n");
         *outSpecs = NULL;
@@ -2067,15 +2074,15 @@ FINDER_LOG_DEBUG("CleanupFolderWindow: cleaning up window 0x%08x\n", (unsigned i
                              gFolderWindows[i].state.itemCount);
             } else if (gFolderWindows[i].state.items) {
                 /* Free the items array if allocated */
-                FINDER_LOG_DEBUG("CleanupFolderWindow: calling free()\n");
-                free(gFolderWindows[i].state.items);
-                FINDER_LOG_DEBUG("CleanupFolderWindow: free() returned\n");
+                FINDER_LOG_DEBUG("CleanupFolderWindow: calling DisposePtr((Ptr))\n");
+                DisposePtr((Ptr)gFolderWindows[i].state.items);
+                FINDER_LOG_DEBUG("CleanupFolderWindow: DisposePtr((Ptr)) returned\n");
             }
 
             /* Free the selection array if allocated */
             if (gFolderWindows[i].state.selectedItems) {
                 FINDER_LOG_DEBUG("CleanupFolderWindow: freeing selectedItems\n");
-                free(gFolderWindows[i].state.selectedItems);
+                DisposePtr((Ptr)gFolderWindows[i].state.selectedItems);
             }
 
             /* Clear the slot */

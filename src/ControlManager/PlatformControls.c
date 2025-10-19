@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 #include <stdlib.h>
 /**
@@ -84,7 +85,7 @@ OSErr CreatePlatformControl(ControlHandle control, PlatformControlType type) {
     }
 
     /* Allocate platform data */
-    platformData = (PlatformControlData *)malloc(sizeof(PlatformControlData));
+    platformData = (PlatformControlData *)NewPtr(sizeof(PlatformControlData));
     if (!platformData) {
         return memFullErr;
     }
@@ -159,7 +160,7 @@ void DestroyPlatformControl(ControlHandle control) {
     }
 
     /* Free platform data */
-    free(platformData);
+    DisposePtr((Ptr)platformData);
 }
 
 /**

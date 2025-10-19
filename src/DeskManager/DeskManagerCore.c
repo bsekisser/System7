@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 // #include "CompatibilityFix.h" // Removed
 #define DESKMANAGER_INCLUDED
 #include <stdlib.h>
@@ -472,7 +473,7 @@ static void DA_FreeRefNum(SInt16 refNum)
  */
 static DeskAccessory *DA_AllocateInstance(void)
 {
-    DeskAccessory *da = calloc(1, sizeof(DeskAccessory));
+    DeskAccessory *da = NewPtrClear(sizeof(DeskAccessory));
     if (da) {
         da->state = DA_STATE_CLOSED;
     }
@@ -485,7 +486,7 @@ static DeskAccessory *DA_AllocateInstance(void)
 static void DA_FreeInstance(DeskAccessory *da)
 {
     if (da) {
-        free(da);
+        DisposePtr((Ptr)da);
     }
 }
 

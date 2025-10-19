@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 /*
  * RE-AGENT-BANNER
@@ -50,7 +51,7 @@ extern void serial_puts(const char* str);
 extern int sprintf(char* str, const char* format, ...);
 extern int snprintf(char* str, size_t size, const char* format, ...);
 extern bool Trash_IsEmptyAll(void);
-extern Ptr NewPtr(Size byteCount);
+/* NewPtr now provided by MemoryManager.h */
 extern void InvalRect(const Rect* badRect);
 extern void SetDeskHook(void (*hookProc)(RgnHandle));
 

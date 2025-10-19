@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SystemTypes.h"
 #include "multiboot.h"
 #include "System71StdLib.h"
@@ -290,16 +291,16 @@ static SystemError DetectHardwareCapabilities(void) {
 static SystemError InitializeMemory(void) {
     /* Allocate system heap */
     g_system.system_heap_size = 2 * 1024 * 1024;  /* 2MB system heap */
-    g_system.system_heap = calloc(1, g_system.system_heap_size);
+    g_system.system_heap = NewPtrClear(g_system.system_heap_size);
     if (!g_system.system_heap) {
         return SYS_ERR_NO_MEMORY;
     }
 
     /* Allocate application heap */
     g_system.application_heap_size = 8 * 1024 * 1024;  /* 8MB app heap */
-    g_system.application_heap = calloc(1, g_system.application_heap_size);
+    g_system.application_heap = NewPtrClear(g_system.application_heap_size);
     if (!g_system.application_heap) {
-        free(g_system.system_heap);
+        DisposePtr((Ptr)g_system.system_heap);
         g_system.system_heap = NULL;
         return SYS_ERR_NO_MEMORY;
     }
@@ -573,18 +574,18 @@ SystemError SystemShutdown(Boolean restart) {
     /* Cleanup ExpandMem */
     if (g_system.expand_mem) {
         ExpandMemCleanup(g_system.expand_mem);
-        free(g_system.expand_mem);
+        DisposePtr((Ptr)g_system.expand_mem);
         g_system.expand_mem = NULL;
     }
 
     /* Free memory heaps */
     if (g_system.application_heap) {
-        free(g_system.application_heap);
+        DisposePtr((Ptr)g_system.application_heap);
         g_system.application_heap = NULL;
     }
 
     if (g_system.system_heap) {
-        free(g_system.system_heap);
+        DisposePtr((Ptr)g_system.system_heap);
         g_system.system_heap = NULL;
     }
 

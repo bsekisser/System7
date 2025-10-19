@@ -789,7 +789,7 @@ SInt16 ExtensionManager_RegisterExtension(Extension *extension)
  */
 static Extension* Extension_Allocate(void)
 {
-    Extension *ext = malloc(sizeof(Extension));
+    Extension *ext = NewPtr(sizeof(Extension));
     if (ext) {
         memset(ext, 0, sizeof(Extension));
     }
@@ -809,7 +809,7 @@ static void Extension_Free(Extension *ext)
         DisposeHandle(ext->codeHandle);
     }
 
-    free(ext);
+    DisposePtr((Ptr)ext);
 }
 
 /**

@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SystemTypes.h"
 #include <stdlib.h>
 #include <string.h>
@@ -56,7 +57,7 @@ ExpandMemRec* ExpandMemInit(size_t size) {
     }
 
     /* Allocate and clear ExpandMem */
-    em = (ExpandMemRec*)calloc(1, actual_size);
+    em = (ExpandMemRec*)NewPtrClear(actual_size);
     if (!em) {
         return NULL;
     }
@@ -138,7 +139,7 @@ Boolean ExpandMemExtend(size_t new_size) {
     }
 
     /* Allocate new larger ExpandMem */
-    new_em = (ExpandMemRec*)calloc(1, new_size);
+    new_em = (ExpandMemRec*)NewPtrClear(new_size);
     if (!new_em) {
         return false;
     }
@@ -154,7 +155,7 @@ Boolean ExpandMemExtend(size_t new_size) {
     g_ExpandMem = new_em;
 
     /* Free old ExpandMem */
-    free(old_em);
+    DisposePtr((Ptr)old_em);
 
     return true;
 }
@@ -186,7 +187,7 @@ static Boolean LoadDefaultKCHR(ExpandMemRec* em) {
     kchr_size = KEY_CACHE_MIN + KEY_CACHE_SLOP;
 
     /* Allocate key cache */
-    em->emKeyCache = calloc(1, kchr_size);
+    em->emKeyCache = NewPtrClear(kchr_size);
     if (!em->emKeyCache) {
         return false;
     }
@@ -379,17 +380,17 @@ void ExpandMemCleanup(ExpandMemRec* em) {
 
     /* Free allocated subsystem memory */
     if (em->emKeyCache) {
-        free(em->emKeyCache);
+        DisposePtr((Ptr)em->emKeyCache);
         em->emKeyCache = NULL;
     }
 
     if (em->emFSSpecCache) {
-        free(em->emFSSpecCache);
+        DisposePtr((Ptr)em->emFSSpecCache);
         em->emFSSpecCache = NULL;
     }
 
     if (em->emResourceCache) {
-        free(em->emResourceCache);
+        DisposePtr((Ptr)em->emResourceCache);
         em->emResourceCache = NULL;
     }
 

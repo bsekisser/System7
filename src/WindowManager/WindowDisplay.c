@@ -1488,7 +1488,7 @@ void WM_Update(void) {
 
         /* Allocate and fill window stack */
         if (windowCount > 0) {
-            windowStack = (WindowPtr*)malloc(windowCount * sizeof(WindowPtr));
+            windowStack = (WindowPtr*)NewPtr(windowCount * sizeof(WindowPtr));
             if (windowStack) {
                 WindowPtr w = window;
                 for (int i = 0; i < windowCount && w; i++) {
@@ -1505,7 +1505,7 @@ void WM_Update(void) {
                     }
                 }
 
-                free(windowStack);
+                DisposePtr((Ptr)windowStack);
             }
         }
     }

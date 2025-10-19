@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 #include "EventManager/EventManagerInternal.h"
 #include <stdlib.h>
@@ -301,7 +302,7 @@ void ShutdownMouseEvents(void)
     MouseRegion* region = g_mouseRegions;
     while (region) {
         MouseRegion* next = region->next;
-        free(region);
+        DisposePtr((Ptr)region);
         region = next;
     }
     g_mouseRegions = NULL;
@@ -658,7 +659,7 @@ MouseRegion* AddMouseRegion(const Rect* bounds, void* userData)
 {
     if (!bounds) return NULL;
 
-    MouseRegion* region = (MouseRegion*)malloc(sizeof(MouseRegion));
+    MouseRegion* region = (MouseRegion*)NewPtr(sizeof(MouseRegion));
     if (!region) return NULL;
 
     region->bounds = *bounds;
@@ -682,7 +683,7 @@ void RemoveMouseRegion(MouseRegion* region)
     while (*current) {
         if (*current == region) {
             *current = region->next;
-            free(region);
+            DisposePtr((Ptr)region);
             break;
         }
         current = &((*current)->next);

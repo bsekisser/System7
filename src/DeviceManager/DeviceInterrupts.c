@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SuperCompat.h"
 #include <stdlib.h>
 #include <string.h>
@@ -159,7 +160,7 @@ void DeviceInterrupts_Shutdown(void)
         InterruptHandlerPtr handler = g_interruptHandlers[i];
         while (handler != NULL) {
             InterruptHandlerPtr next = handler->next;
-            free(handler);
+            DisposePtr((Ptr)handler);
             handler = next;
         }
         g_interruptHandlers[i] = NULL;
@@ -224,7 +225,7 @@ static SInt16 RegisterInterruptHandler(SInt16 refNum, InterruptType type, UInt32
     }
 
     /* Allocate new handler */
-    InterruptHandlerPtr handler = (InterruptHandlerPtr)malloc(sizeof(InterruptHandler));
+    InterruptHandlerPtr handler = (InterruptHandlerPtr)NewPtr(sizeof(InterruptHandler));
     if (handler == NULL) {
         return memFullErr;
     }
@@ -258,7 +259,7 @@ static SInt16 UnregisterInterruptHandler(SInt16 refNum)
             if ((*current)->refNum == refNum) {
                 InterruptHandlerPtr handler = *current;
                 *current = handler->next;
-                free(handler);
+                DisposePtr((Ptr)handler);
                 return noErr;
             }
             current = &(*current)->next;

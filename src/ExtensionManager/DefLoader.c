@@ -358,7 +358,7 @@ Boolean DefLoader_IsInitialized(void)
  */
 static DefEntry* DefEntry_Allocate(void)
 {
-    DefEntry *entry = malloc(sizeof(DefEntry));
+    DefEntry *entry = NewPtr(sizeof(DefEntry));
     if (entry) {
         memset(entry, 0, sizeof(DefEntry));
     }
@@ -378,7 +378,7 @@ static void DefEntry_Free(DefEntry *entry)
         HUnlock(entry->resourceHandle);
     }
 
-    free(entry);
+    DisposePtr((Ptr)entry);
 }
 
 /**

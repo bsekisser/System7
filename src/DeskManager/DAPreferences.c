@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /*
  * DAPreferences.c - Desk Accessory Preferences and Persistence
  *
@@ -60,7 +61,7 @@ int DA_SetPreference(const char *daName, const char *key, const char *value)
     /* Find or create preference entry */
     PreferenceEntry *entry = DA_FindPrefEntry(prefs, key);
     if (!entry) {
-        entry = malloc(sizeof(PreferenceEntry));
+        entry = NewPtr(sizeof(PreferenceEntry));
         if (!entry) {
             return DESK_ERR_NO_MEMORY;
         }
@@ -172,7 +173,7 @@ static DAPreferences *DA_CreatePreferences(const char *daName)
         return NULL;
     }
 
-    DAPreferences *prefs = malloc(sizeof(DAPreferences));
+    DAPreferences *prefs = NewPtr(sizeof(DAPreferences));
     if (!prefs) {
         return NULL;
     }

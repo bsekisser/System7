@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 // #include "CompatibilityFix.h" // Removed
 #include <stdlib.h>
 #include <string.h>
@@ -103,7 +104,7 @@ int DA_CreateWindow(DeskAccessory *da, const DAWindowAttr *attr)
 
     /* In a real implementation, this would create a platform-specific window */
     /* For now, just store the attributes */
-    da->window = malloc(sizeof(DAWindowAttr));
+    da->window = NewPtr(sizeof(DAWindowAttr));
     if (!da->window) {
         return DESK_ERR_NO_MEMORY;
     }
@@ -119,7 +120,7 @@ void DA_DestroyWindow(DeskAccessory *da)
 {
     if (da && da->window) {
         /* In a real implementation, would destroy platform window */
-        free(da->window);
+        DisposePtr((Ptr)da->window);
         da->window = NULL;
     }
 }
@@ -240,7 +241,7 @@ DeskAccessory *DA_CreateInstance(const char *name)
         return NULL;
     }
 
-    DeskAccessory *da = calloc(1, sizeof(DeskAccessory));
+    DeskAccessory *da = NewPtrClear(sizeof(DeskAccessory));
     if (!da) {
         return NULL;
     }
@@ -261,9 +262,9 @@ void DA_DestroyInstance(DeskAccessory *da)
 {
     if (da) {
         DA_DestroyWindow(da);
-        free(da->userData);
-        free(da->driverData);
-        free(da);
+        DisposePtr((Ptr)da->userData);
+        DisposePtr((Ptr)da->driverData);
+        DisposePtr((Ptr)da);
     }
 }
 
@@ -464,7 +465,7 @@ Boolean DA_SectRect(const Rect *rect1, const Rect *rect2, Rect *result)
  */
 static DARegistryEntry *DA_AllocateRegistryEntry(void)
 {
-    return calloc(1, sizeof(DARegistryEntry));
+    return NewPtrClear(sizeof(DARegistryEntry));
 }
 
 /*
@@ -473,7 +474,7 @@ static DARegistryEntry *DA_AllocateRegistryEntry(void)
 static void DA_FreeRegistryEntry(DARegistryEntry *entry)
 {
     if (entry) {
-        free(entry);
+        DisposePtr((Ptr)entry);
     }
 }
 
@@ -516,7 +517,7 @@ static int DA_LoadResourceData(SInt16 resourceID, UInt32 resourceType,
             break;
     }
 
-    *data = malloc(*size);
+    *data = NewPtr(*size);
     if (!*data) {
         return DESK_ERR_NO_MEMORY;
     }
@@ -543,5 +544,5 @@ static int DA_LoadResourceData(SInt16 resourceID, UInt32 resourceType,
  */
 static void DA_FreeResourceData(void *data)
 {
-    free(data);
+    DisposePtr((Ptr)data);
 }

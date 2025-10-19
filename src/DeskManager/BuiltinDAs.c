@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 // #include "CompatibilityFix.h" // Removed
 #include <stdlib.h>
 #include <string.h>
@@ -185,7 +186,7 @@ static int Calculator_DAInitialize(DeskAccessory *da, const DADriverHeader *head
     }
 
     /* Allocate calculator data */
-    Calculator *calc = malloc(sizeof(Calculator));
+    Calculator *calc = NewPtr(sizeof(Calculator));
     if (!calc) {
         return DESK_ERR_NO_MEMORY;
     }
@@ -193,7 +194,7 @@ static int Calculator_DAInitialize(DeskAccessory *da, const DADriverHeader *head
     /* Initialize calculator */
     int result = Calculator_Initialize(calc);
     if (result != 0) {
-        free(calc);
+        DisposePtr((Ptr)calc);
         return result;
     }
 
@@ -223,7 +224,7 @@ static int Calculator_DATerminate(DeskAccessory *da)
 
     Calculator *calc = (Calculator *)da->driverData;
     Calculator_Shutdown(calc);
-    free(calc);
+    DisposePtr((Ptr)calc);
     da->driverData = NULL;
 
     return DESK_ERR_NONE;
@@ -313,7 +314,7 @@ static int KeyCaps_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
     }
 
     /* Allocate Key Caps data */
-    KeyCaps *keyCaps = malloc(sizeof(KeyCaps));
+    KeyCaps *keyCaps = NewPtr(sizeof(KeyCaps));
     if (!keyCaps) {
         return DESK_ERR_NO_MEMORY;
     }
@@ -321,7 +322,7 @@ static int KeyCaps_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
     /* Initialize Key Caps */
     int result = KeyCaps_Initialize(keyCaps);
     if (result != 0) {
-        free(keyCaps);
+        DisposePtr((Ptr)keyCaps);
         return result;
     }
 
@@ -351,7 +352,7 @@ static int KeyCaps_DATerminate(DeskAccessory *da)
 
     KeyCaps *keyCaps = (KeyCaps *)da->driverData;
     KeyCaps_Shutdown(keyCaps);
-    free(keyCaps);
+    DisposePtr((Ptr)keyCaps);
     da->driverData = NULL;
 
     return DESK_ERR_NONE;
@@ -399,7 +400,7 @@ static int AlarmClock_DAInitialize(DeskAccessory *da, const DADriverHeader *head
     }
 
     /* Allocate Alarm Clock data */
-    AlarmClock *clock = malloc(sizeof(AlarmClock));
+    AlarmClock *clock = NewPtr(sizeof(AlarmClock));
     if (!clock) {
         return DESK_ERR_NO_MEMORY;
     }
@@ -407,7 +408,7 @@ static int AlarmClock_DAInitialize(DeskAccessory *da, const DADriverHeader *head
     /* Initialize Alarm Clock */
     int result = AlarmClock_Initialize(clock);
     if (result != 0) {
-        free(clock);
+        DisposePtr((Ptr)clock);
         return result;
     }
 
@@ -437,7 +438,7 @@ static int AlarmClock_DATerminate(DeskAccessory *da)
 
     AlarmClock *clock = (AlarmClock *)da->driverData;
     AlarmClock_Shutdown(clock);
-    free(clock);
+    DisposePtr((Ptr)clock);
     da->driverData = NULL;
 
     return DESK_ERR_NONE;
@@ -492,7 +493,7 @@ static int Chooser_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
     }
 
     /* Allocate Chooser data */
-    Chooser *chooser = malloc(sizeof(Chooser));
+    Chooser *chooser = NewPtr(sizeof(Chooser));
     if (!chooser) {
         return DESK_ERR_NO_MEMORY;
     }
@@ -500,7 +501,7 @@ static int Chooser_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
     /* Initialize Chooser */
     int result = Chooser_Initialize(chooser);
     if (result != 0) {
-        free(chooser);
+        DisposePtr((Ptr)chooser);
         return result;
     }
 
@@ -530,7 +531,7 @@ static int Chooser_DATerminate(DeskAccessory *da)
 
     Chooser *chooser = (Chooser *)da->driverData;
     Chooser_Shutdown(chooser);
-    free(chooser);
+    DisposePtr((Ptr)chooser);
     da->driverData = NULL;
 
     return DESK_ERR_NONE;

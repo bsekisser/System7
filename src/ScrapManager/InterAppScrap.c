@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 #include <stdlib.h>
 #include <string.h>
@@ -92,7 +93,7 @@ OSErr RegisterScrapChangeCallback(ScrapChangeCallback callback, void *userData)
     }
 
     /* Add new notification entry */
-    entry = (NotificationEntry *)malloc(sizeof(NotificationEntry));
+    entry = (NotificationEntry *)NewPtr(sizeof(NotificationEntry));
     if (!entry) {
         return memFullErr;
     }
@@ -127,7 +128,7 @@ OSErr UnregisterScrapChangeCallback(ScrapChangeCallback callback)
             } else {
                 gInterAppState.notifications = entry->next;
             }
-            free(entry);
+            DisposePtr((Ptr)entry);
             return noErr;
         }
         prev = entry;
@@ -450,7 +451,7 @@ static ProcessEntry *AddProcessEntry(const ProcessSerialNumber *psn, ConstStr255
         return NULL;
     }
 
-    entry = (ProcessEntry *)malloc(sizeof(ProcessEntry));
+    entry = (ProcessEntry *)NewPtr(sizeof(ProcessEntry));
     if (!entry) {
         return NULL;
     }
@@ -494,7 +495,7 @@ static void RemoveProcessEntry(const ProcessSerialNumber *psn)
                 gInterAppState.processList = entry->next;
             }
 
-            free(entry);
+            DisposePtr((Ptr)entry);
             return;
         }
         prev = entry;
@@ -608,7 +609,7 @@ void CleanupInterAppScrap(void)
     processEntry = gInterAppState.processList;
     while (processEntry) {
         nextProcess = processEntry->next;
-        free(processEntry);
+        DisposePtr((Ptr)processEntry);
         processEntry = nextProcess;
     }
 
@@ -616,7 +617,7 @@ void CleanupInterAppScrap(void)
     notifyEntry = gInterAppState.notifications;
     while (notifyEntry) {
         nextNotify = notifyEntry->next;
-        free(notifyEntry);
+        DisposePtr((Ptr)notifyEntry);
         notifyEntry = nextNotify;
     }
 

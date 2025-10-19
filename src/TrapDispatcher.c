@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SystemTypes.h"
 #include <stdlib.h>
 #include <string.h>
@@ -101,7 +102,7 @@ void TrapDispatcher_Cleanup(void) {
 
     /* Free extended table if allocated */
     if (g_trap_tables.extended_toolbox_table) {
-        free(g_trap_tables.extended_toolbox_table);
+        DisposePtr((Ptr)g_trap_tables.extended_toolbox_table);
         g_trap_tables.extended_toolbox_table = NULL;
     }
 
@@ -479,7 +480,7 @@ int TrapDispatcher_InitializeExtendedTable(void) {
     }
 
     /* Allocate memory for extended table */
-    g_trap_tables.extended_toolbox_table = malloc(512 * sizeof(TrapHandler));
+    g_trap_tables.extended_toolbox_table = NewPtr(512 * sizeof(TrapHandler));
     if (!g_trap_tables.extended_toolbox_table) {
         return -1;  /* Memory allocation failed */
     }

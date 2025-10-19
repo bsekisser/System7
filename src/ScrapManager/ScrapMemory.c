@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 #include <stdlib.h>
 #include <string.h>
@@ -470,7 +471,7 @@ static OSErr InitializeMemoryManager(void)
 
 static MemoryBlock *AllocateMemoryBlock(SInt32 size, ResType dataType)
 {
-    MemoryBlock *block = (MemoryBlock *)malloc(sizeof(MemoryBlock));
+    MemoryBlock *block = (MemoryBlock *)NewPtr(sizeof(MemoryBlock));
     if (!block) {
         return NULL;
     }
@@ -512,7 +513,7 @@ static void FreeMemoryBlock(MemoryBlock *block)
         current = current->next;
     }
 
-    free(block);
+    DisposePtr((Ptr)block);
 }
 
 static MemoryBlock *FindMemoryBlock(void *ptr)

@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 #include "SuperCompat.h"
 #include <stdlib.h>
 #include <string.h>
@@ -30,14 +31,14 @@
 /* Stub implementations for Mac OS functions */
 static Handle GetResource(ResType type, short resID) {
     (void)type; (void)resID;
-    return (Handle)malloc(sizeof(void*));
+    return (Handle)NewPtr(sizeof(void*));
 }
 
 static DialogPtr NewDialog(void *storage, const Rect *bounds, WindowPtr behind, Boolean visible,
                           short procID, WindowPtr goAway, long refCon, Handle items) {
     (void)storage; (void)bounds; (void)behind; (void)visible;
     (void)procID; (void)goAway; (void)refCon; (void)items;
-    return (DialogPtr)malloc(sizeof(void*));
+    return (DialogPtr)NewPtr(sizeof(void*));
 }
 
 static void ReleaseResource(Handle resource) {
@@ -49,7 +50,7 @@ static OSErr MPPOpen(void) {
 }
 
 static void DisposeDialog(DialogPtr dialog) {
-    if (dialog) free(dialog);
+    if (dialog) DisposePtr((Ptr)dialog);
 }
 
 static void ShowWindow(WindowPtr window) {
@@ -61,7 +62,7 @@ static void SelectWindow(WindowPtr window) {
 }
 
 static void DisposeHandle(Handle h) {
-    if (h) free(h);
+    if (h) DisposePtr((Ptr)h);
 }
 
 static Boolean DialogSelect(EventRecord *event, DialogPtr *dialog, short *itemHit) {
@@ -97,7 +98,7 @@ static void DrawDialog(DialogPtr dialog) {
 
 static Handle NewHandle(long size) {
     (void)size;
-    return (Handle)malloc(sizeof(void*));
+    return (Handle)NewPtr(sizeof(void*));
 }
 
 static void HLock(Handle h) {

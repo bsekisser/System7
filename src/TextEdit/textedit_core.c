@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 #include <stdlib.h>
 #include <string.h>
@@ -59,12 +60,12 @@ TEHandle TENew(Rect *destRect, Rect *viewRect)
     TEPtr pTE;
 
     /*
-    hTE = (TEHandle)malloc(sizeof(TEPtr));
+    hTE = (TEHandle)NewPtr(sizeof(TEPtr));
     if (!hTE) return NULL;
 
-    pTE = (TEPtr)malloc(sizeof(TERec));
+    pTE = (TEPtr)NewPtr(sizeof(TERec));
     if (!pTE) {
-        free(hTE);
+        DisposePtr((Ptr)hTE);
         return NULL;
     }
     *hTE = pTE;
@@ -115,14 +116,14 @@ void TEDispose(TEHandle hTE)
     if (pTE) {
         /*
         if (pTE->hText) {
-            free(pTE->hText);
+            DisposePtr((Ptr)pTE->hText);
         }
         if (pTE->hDispText) {
-            free(pTE->hDispText);
+            DisposePtr((Ptr)pTE->hDispText);
         }
-        free(pTE);
+        DisposePtr((Ptr)pTE);
     }
-    free(hTE);
+    DisposePtr((Ptr)hTE);
 }
 
 /* TESetText - Set text content
@@ -139,11 +140,11 @@ void TESetText(void *text, SInt32 length, TEHandle hTE)
 
     /*
     if (pTE->hText) {
-        free(pTE->hText);
+        DisposePtr((Ptr)pTE->hText);
     }
 
     if (length > 0 && text) {
-        pTE->hText = malloc(length + 1);
+        pTE->hText = NewPtr(length + 1);
         if (pTE->hText) {
             textPtr = (char*)pTE->hText;
             memcpy(textPtr, text, length);
@@ -400,7 +401,7 @@ void TEInsert(void *text, SInt32 length, TEHandle hTE)
     }
 
     newLength = pTE->teLength + length;
-    newText = malloc(newLength + 1);
+    newText = NewPtr(newLength + 1);
     if (!newText) return;
 
     oldText = (char*)pTE->hText;
@@ -423,7 +424,7 @@ void TEInsert(void *text, SInt32 length, TEHandle hTE)
     newText[newLength] = '\0';
 
     /* Replace old text */
-    if (pTE->hText) free(pTE->hText);
+    if (pTE->hText) DisposePtr((Ptr)pTE->hText);
     pTE->hText = newText;
     pTE->teLength = newLength;
 

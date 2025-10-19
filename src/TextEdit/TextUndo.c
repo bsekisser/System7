@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 #include <stdlib.h>
 #include <string.h>
@@ -103,7 +104,7 @@ static void TEDisposeUndoRecord(TEUndoRecord *record)
         DisposeHandle((Handle)record->undoStyles);
     }
 
-    free(record);
+    DisposePtr((Ptr)record);
 }
 
 static void TEDisposeUndoList(TEUndoRecord *list)
@@ -124,7 +125,7 @@ static TEUndoRecord* TECreateUndoRecord(short undoType, long start, long end,
     TEUndoRecord *record;
     OSErr err;
 
-    record = (TEUndoRecord*)malloc(sizeof(TEUndoRecord));
+    record = (TEUndoRecord*)NewPtr(sizeof(TEUndoRecord));
     if (!record) return NULL;
 
     memset(record, 0, sizeof(TEUndoRecord));

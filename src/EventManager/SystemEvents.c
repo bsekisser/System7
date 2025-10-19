@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 #include "EventManager/EventManagerInternal.h"
 #include <stdlib.h>
@@ -204,7 +205,7 @@ void ShutdownSystemEvents(void)
     UpdateRegion* region = g_updateRegions;
     while (region) {
         UpdateRegion* next = region->next;
-        free(region);
+        DisposePtr((Ptr)region);
         region = next;
     }
     g_updateRegions = NULL;
@@ -213,7 +214,7 @@ void ShutdownSystemEvents(void)
     EventCallback* callback = g_eventCallbacks;
     while (callback) {
         EventCallback* next = callback->next;
-        free(callback);
+        DisposePtr((Ptr)callback);
         callback = next;
     }
     g_eventCallbacks = NULL;
@@ -316,7 +317,7 @@ SInt16 RequestWindowUpdate(WindowPtr window, RgnHandle updateRgn,
 
     if (!region) {
         /* Create new update region */
-        region = (UpdateRegion*)malloc(sizeof(UpdateRegion));
+        region = (UpdateRegion*)NewPtr(sizeof(UpdateRegion));
         if (!region) {
             return -1; /* Memory error */
         }
@@ -477,7 +478,7 @@ static void RemoveUpdateRegion(UpdateRegion* regionToRemove)
     while (*current) {
         if (*current == regionToRemove) {
             *current = regionToRemove->next;
-            free(regionToRemove);
+            DisposePtr((Ptr)regionToRemove);
             g_updateRegionCount--;
             break;
         }
@@ -826,7 +827,7 @@ SInt16 ProcessClipboardChangeEvent(void)
  */
 void* RegisterSystemEventCallback(SInt16 eventType, SystemEventCallback callback, void* userData)
 {
-    EventCallback* newCallback = (EventCallback*)malloc(sizeof(EventCallback));
+    EventCallback* newCallback = (EventCallback*)NewPtr(sizeof(EventCallback));
     if (!newCallback) {
         return NULL;
     }
@@ -852,7 +853,7 @@ void UnregisterSystemEventCallback(void* handle)
         if (*current == handle) {
             EventCallback* toRemove = *current;
             *current = toRemove->next;
-            free(toRemove);
+            DisposePtr((Ptr)toRemove);
             break;
         }
         current = &((*current)->next);
@@ -979,7 +980,7 @@ void ResetSystemEventState(void)
     UpdateRegion* region = g_updateRegions;
     while (region) {
         UpdateRegion* next = region->next;
-        free(region);
+        DisposePtr((Ptr)region);
         region = next;
     }
     g_updateRegions = NULL;

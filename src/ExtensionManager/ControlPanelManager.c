@@ -360,7 +360,7 @@ void ControlPanelManager_SetDebugMode(Boolean enable)
  */
 static ControlPanelEntry* ControlPanelEntry_Allocate(void)
 {
-    ControlPanelEntry *entry = malloc(sizeof(ControlPanelEntry));
+    ControlPanelEntry *entry = NewPtr(sizeof(ControlPanelEntry));
     if (entry) {
         memset(entry, 0, sizeof(ControlPanelEntry));
     }
@@ -380,7 +380,7 @@ static void ControlPanelEntry_Free(ControlPanelEntry *entry)
         HUnlock(entry->resourceHandle);
     }
 
-    free(entry);
+    DisposePtr((Ptr)entry);
 }
 
 /**

@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /*
  * StandardFileHAL_Shims.c - Hardware Abstraction Layer for Standard File Package
  *
@@ -106,7 +107,7 @@ void StandardFile_HAL_Init(void) {
 
         /* Allocate file list array */
         gFileListCapacity = INITIAL_FILE_LIST_CAPACITY;
-        gFileListArray = (FileListEntry*)malloc(gFileListCapacity * sizeof(FileListEntry));
+        gFileListArray = (FileListEntry*)NewPtr(gFileListCapacity * sizeof(FileListEntry));
         gFileListCount = 0;
         gSelectedIndex = -1;
         gFileListHandle = NULL;
@@ -415,13 +416,19 @@ void StandardFile_HAL_AddFileToList(DialogPtr dialog, const FSSpec *spec, OSType
 
     /* Check if we need to expand the array */
     if (gFileListCount >= gFileListCapacity) {
+        Size oldSize = gFileListCapacity * sizeof(FileListEntry);
         gFileListCapacity *= 2;
-        gFileListArray = (FileListEntry*)realloc(gFileListArray, gFileListCapacity * sizeof(FileListEntry));
-        if (!gFileListArray) {
+        FileListEntry* newArray = (FileListEntry*)NewPtr(gFileListCapacity * sizeof(FileListEntry));
+        if (!newArray) {
             gFileListCapacity = 0;
             gFileListCount = 0;
             return;
         }
+        if (gFileListArray) {
+            BlockMove(gFileListArray, newArray, oldSize);
+            DisposePtr((Ptr)gFileListArray);
+        }
+        gFileListArray = newArray;
     }
 
     /* Determine if this is a folder by checking with File Manager */

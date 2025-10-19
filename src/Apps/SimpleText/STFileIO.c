@@ -68,7 +68,7 @@ static SInt32 STIO_SetText(STDocument* doc, const char* text, SInt32 length) {
     TEDelete(doc->hTE);
     if (text && length > 0) {
         /* Normalize line endings to classic Mac CR */
-        char* normalized = (char*)malloc((size_t)length);
+        char* normalized = (char*)NewPtr((size_t)length);
         if (!normalized) {
             return 0;
         }
@@ -84,7 +84,7 @@ static SInt32 STIO_SetText(STDocument* doc, const char* text, SInt32 length) {
             }
         }
         TEInsert(normalized, outLen, doc->hTE);
-        free(normalized);
+        DisposePtr((Ptr)normalized);
         length = outLen;
     }
     TESetSelect(0, 0, doc->hTE);
@@ -246,7 +246,7 @@ static STIOSavedDocEntry* STIO_AllocateSavedSlot(const char* path) {
         /* Simple LRU: reuse first slot */
         freeSlot = &g_stioSavedDocs[0];
         if (freeSlot->data) {
-            free(freeSlot->data);
+            DisposePtr((Ptr)freeSlot->data);
         }
     }
 
@@ -543,7 +543,7 @@ Boolean STIO_WriteFile(STDocument* doc, const char* path)
 
     if (textLen > 0) {
         HLock((Handle)textHandle);
-        newData = (char*)malloc((size_t)textLen);
+        newData = (char*)NewPtr((size_t)textLen);
         if (newData) {
             memcpy(newData, *textHandle, (size_t)textLen);
         }
@@ -558,13 +558,13 @@ Boolean STIO_WriteFile(STDocument* doc, const char* path)
     STIOSavedDocEntry* slot = STIO_AllocateSavedSlot(path);
     if (!slot) {
         if (newData) {
-            free(newData);
+            DisposePtr((Ptr)newData);
         }
         return false;
     }
 
     if (slot->data) {
-        free(slot->data);
+        DisposePtr((Ptr)slot->data);
         slot->data = NULL;
         slot->length = 0;
     }

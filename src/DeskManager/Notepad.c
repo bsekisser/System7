@@ -48,7 +48,7 @@ OSErr Notepad_Initialize(void) {
     }
 
     /* Allocate globals */
-    gNotepad = (NotePadGlobals*)calloc(1, sizeof(NotePadGlobals));
+    gNotepad = (NotePadGlobals*)NewPtrClear(sizeof(NotePadGlobals));
     if (gNotepad == NULL) {
         return memFullErr;
     }
@@ -67,7 +67,7 @@ OSErr Notepad_Initialize(void) {
             for (short j = 0; j < i; j++) {
                 DisposeHandle(gNotepad->pageData[j]);
             }
-            free(gNotepad);
+            DisposePtr((Ptr)gNotepad);
             gNotepad = NULL;
             return memFullErr;
         }
@@ -122,7 +122,7 @@ void Notepad_Shutdown(void) {
     }
 
     /* Free globals */
-    free(gNotepad);
+    DisposePtr((Ptr)gNotepad);
     gNotepad = NULL;
 }
 

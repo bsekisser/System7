@@ -1,3 +1,4 @@
+#include "MemoryMgr/MemoryManager.h"
 /* #include "SystemTypes.h" */
 #include "EventManager/EventManagerInternal.h"
 #include <stdlib.h>
