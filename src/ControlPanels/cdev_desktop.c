@@ -214,8 +214,12 @@ Boolean DesktopPatterns_HandleEvent(EventRecord *event) {
                                 if (control == gOKButton) {
                                     serial_puts("[CDEV-EVT] OK button clicked\n");
                                     /* Save and apply the selected pattern */
+                                    serial_puts("[CDEV-EVT] Calling ApplySelectedPattern\n");
                                     ApplySelectedPattern();
+                                    serial_puts("[CDEV-EVT] ApplySelectedPattern returned\n");
+                                    serial_puts("[CDEV-EVT] Calling CloseDesktopCdev\n");
                                     CloseDesktopCdev();
+                                    serial_puts("[CDEV-EVT] CloseDesktopCdev returned\n");
                                 } else if (control == gCancelButton) {
                                     serial_puts("[CDEV-EVT] Cancel button clicked\n");
                                     /* Restore original pattern and close */
@@ -287,6 +291,7 @@ static void DrawPatternCell(int col, int row, int16_t patID, bool selected) {
     cellRect.right = cellRect.left + CELL_W;
     cellRect.bottom = cellRect.top + CELL_H;
 
+    serial_puts("[DC] Frame\n");
     /* Draw border */
     if (selected) {
         /* Highlight selected pattern */
@@ -297,19 +302,24 @@ static void DrawPatternCell(int col, int row, int16_t patID, bool selected) {
         FrameRect(&cellRect);
     }
 
+    serial_puts("[DC] Inset\n");
     /* Create interior rect for fill - don't modify the original */
     Rect fillRect = cellRect;
     InsetRect(&fillRect, 1, 1);
 
+    serial_puts("[DC] Load\n");
     /* Fill with pattern */
     Pattern pat;
     if (LoadPATResource(patID, &pat)) {
+        serial_puts("[DC] Fill\n");
         FillRect(&fillRect, &pat);
     } else {
         /* Fallback: lightly shade missing pattern - pattern load failed */
+        serial_puts("[DC] Fallback\n");
         Pattern fallback = qd.ltGray;
         FillRect(&fillRect, &fallback);
     }
+    serial_puts("[DC] Done\n");
 }
 
 /*
@@ -343,7 +353,9 @@ static void DrawPatternGrid(void) {
 
     for (int row = 0; row < GRID_ROWS; row++) {
         for (int col = 0; col < GRID_COLS; col++) {
+            serial_puts("[CDEV-GRID] Drawing cell\n");
             DrawPatternCell(col, row, patID, (patID == gSelectedPatID));
+            serial_puts("[CDEV-GRID] Cell drawn OK\n");
             patID++;
         }
     }
@@ -387,6 +399,7 @@ static void ApplySelectedPattern(void) {
     }
 
     /* Update the preference */
+    serial_puts("[CDEV] Creating pref\n");
     DesktopPref pref = gOriginalPref;
     pref.usePixPat = false;
     pref.patID = gSelectedPatID;
@@ -394,18 +407,26 @@ static void ApplySelectedPattern(void) {
     /* Save to PRAM */
     serial_puts("[CDEV] Saving preference\n");
     PM_SaveDesktopPref(&pref);
+    serial_puts("[CDEV] Preference saved\n");
     gOriginalPref = pref;
 
     /* Apply the pattern */
     serial_puts("[CDEV] Loading pattern\n");
     Pattern pat;
     if (PM_LoadPAT(gSelectedPatID, &pat)) {
-        serial_puts("[CDEV] Setting back pattern\n");
+        serial_puts("[CDEV] Pattern loaded, setting back pattern\n");
         PM_SetBackPat(&pat);
+        serial_puts("[CDEV] Back pattern set\n");
+    } else {
+        serial_puts("[CDEV] Pattern load failed\n");
     }
     serial_puts("[CDEV] Committing to QuickDraw\n");
     if (ColorManager_IsAvailable()) {
+        serial_puts("[CDEV] ColorManager available, committing\n");
         ColorManager_CommitQuickDraw();
+        serial_puts("[CDEV] ColorManager commit done\n");
+    } else {
+        serial_puts("[CDEV] ColorManager not available\n");
     }
     serial_puts("[CDEV] ApplySelectedPattern complete\n");
 }
