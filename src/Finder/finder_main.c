@@ -708,3 +708,185 @@ StringPtr GetFinderVersion(void)
 {
     return gFinderVersion;
 }
+
+/*-----------------------------------------------------------------------*/
+/* Finder Event Handling Functions                                     */
+/*-----------------------------------------------------------------------*/
+
+/*
+ * HandleKeyDown - Handle keyboard input in Finder
+ */
+void HandleKeyDown(EventRecord* event) {
+    if (!event) return;
+
+    /* Extract character code and key code from message */
+    char charCode = (char)(event->message & charCodeMask);
+
+    /* Key codes for special keys */
+    #define kDeleteKey      0x08  /* Backspace/Delete */
+    #define kReturnKey      0x0D  /* Return */
+    #define kEnterKey       0x03  /* Enter */
+
+    /* Check for command key shortcuts */
+    if (event->modifiers & cmdKey) {
+        extern long MenuKey(short ch);
+        extern void DoMenuCommand(short menuID, short item);
+        extern SInt16 HiWord(SInt32 x);
+        extern SInt16 LoWord(SInt32 x);
+
+        /* Convert to uppercase for menu matching */
+        char menuChar = charCode;
+        if (menuChar >= 'a' && menuChar <= 'z') {
+            menuChar = menuChar - 'a' + 'A';
+        }
+
+        /* Call MenuKey to find matching menu command */
+        long menuChoice = MenuKey(menuChar);
+
+        if (menuChoice != 0) {
+            /* Found a menu command - extract menuID and item, then execute */
+            short menuID = HiWord(menuChoice);
+            short menuItem = LoWord(menuChoice);
+            DoMenuCommand(menuID, menuItem);
+            return;
+        }
+    }
+
+    /* Handle special keys without command modifier */
+    if (!(event->modifiers & cmdKey)) {
+        /* Delete key - delete selected items */
+        if (charCode == kDeleteKey) {
+            extern void Finder_Clear(void);
+            Finder_Clear();
+            return;
+        }
+
+        /* Return/Enter - open selected items */
+        if (charCode == kReturnKey || charCode == kEnterKey) {
+            extern void OpenSelectedItems(void);
+            OpenSelectedItems();
+            return;
+        }
+    }
+
+    /* If we get here, key was not handled */
+}
+
+/*
+ * HandleContentClick - Handle mouse click in window content area
+ */
+OSErr HandleContentClick(WindowPtr window, EventRecord* event) {
+    if (!window || !event) {
+        return paramErr;
+    }
+
+    /* Check if this is a folder window */
+    extern Boolean IsFolderWindow(WindowPtr w);
+    extern Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleClick);
+
+    if (IsFolderWindow(window)) {
+        /* Extract double-click flag from event message */
+        UInt16 clickCount = (event->message >> 16) & 0xFFFF;
+        Boolean doubleClick = (clickCount >= 2);
+
+        /* Delegate to folder window handler */
+        HandleFolderWindowClick(window, event, doubleClick);
+        return noErr;
+    }
+
+    /* For now, other window types (applications, control panels) handle their own clicks
+     * through their event loops or will be implemented as needed */
+    return noErr;
+}
+
+/*
+ * CloseFinderWindow - Close a Finder window
+ */
+OSErr CloseFinderWindow(WindowPtr window) {
+    if (!window) {
+        return paramErr;
+    }
+
+    /* Try to close special windows first */
+    extern void AboutWindow_CloseIf(WindowPtr w);
+    extern void GetInfo_CloseIf(WindowPtr w);
+    extern void Find_CloseIf(WindowPtr w);
+    extern void CleanupFolderWindow(WindowPtr w);
+    extern Boolean IsFolderWindow(WindowPtr w);
+
+    /* Check About window */
+    AboutWindow_CloseIf(window);
+
+    /* Check Get Info window */
+    GetInfo_CloseIf(window);
+
+    /* Check Find window */
+    Find_CloseIf(window);
+
+    /* Check folder window */
+    if (IsFolderWindow(window)) {
+        CleanupFolderWindow(window);
+        DisposeWindow(window);
+        return noErr;
+    }
+
+    /* Default: just dispose */
+    DisposeWindow(window);
+    return noErr;
+}
+
+/*
+ * DoUpdate - Handle window update events
+ */
+void DoUpdate(WindowPtr window) {
+    if (!window) return;
+
+    /* Route to appropriate update handler based on window type */
+    extern Boolean AboutWindow_HandleUpdate(WindowPtr w);
+    extern Boolean GetInfo_HandleUpdate(WindowPtr w);
+    extern Boolean Find_HandleUpdate(WindowPtr w);
+    extern void FolderWindow_Draw(WindowPtr w);
+    extern Boolean IsFolderWindow(WindowPtr w);
+
+    /* Try About window */
+    if (AboutWindow_HandleUpdate(window)) {
+        return;
+    }
+
+    /* Try Get Info window */
+    if (GetInfo_HandleUpdate(window)) {
+        return;
+    }
+
+    /* Try Find window */
+    if (Find_HandleUpdate(window)) {
+        return;
+    }
+
+    /* Try folder window */
+    if (IsFolderWindow(window)) {
+        FolderWindow_Draw(window);
+        return;
+    }
+
+    /* Default: no-op for unknown windows */
+}
+
+/*
+ * CleanUpWindow - Clean up items in a window
+ */
+OSErr CleanUpWindow(WindowPtr window, SInt16 cleanupType) {
+    if (!window) return paramErr;
+
+    /* Check if it's a folder window */
+    extern Boolean IsFolderWindow(WindowPtr w);
+    extern void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly);
+
+    if (IsFolderWindow(window)) {
+        /* cleanupType: 0 = all items, 1 = selected only */
+        Boolean selectedOnly = (cleanupType == 1);
+        FolderWindow_CleanUp(window, selectedOnly);
+    }
+
+    return noErr;
+}

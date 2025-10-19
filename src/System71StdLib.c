@@ -69,6 +69,21 @@ int memcmp(const void* s1, const void* s2, size_t n) {
     return 0;
 }
 
+/* Mac Toolbox utility functions */
+SInt16 HiWord(SInt32 x) {
+    return (x >> 16) & 0xFFFF;
+}
+
+SInt16 LoWord(SInt32 x) {
+    return x & 0xFFFF;
+}
+
+void BlockMoveData(const void* srcPtr, void* destPtr, Size byteCount) {
+    unsigned char* d = destPtr;
+    const unsigned char* s = srcPtr;
+    while (byteCount--) *d++ = *s++;
+}
+
 /* String functions */
 size_t strlen(const char* s) {
     size_t len = 0;

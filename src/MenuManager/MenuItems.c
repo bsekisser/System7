@@ -741,3 +741,59 @@ void CalcMenuSize(MenuHandle theMenu) {
     MENU_LOG_TRACE("CalcMenuSize: menu ID %d size %d x %d (%d items)\n",
                  menu->menuID, maxWidth, totalHeight, itemCount);
 }
+
+/*
+ * InsertFontResMenu - Insert FONT resources into menu
+ *
+ * Enumerates all FONT resources and adds them to the menu as items.
+ * Called to populate font menus in applications.
+ *
+ * Parameters:
+ *  theMenu - Menu to insert fonts into
+ *  afterItem - Insert items after this item (0 = at end)
+ *  scriptFilter - Script filter (0 = all scripts, currently unused)
+ */
+void InsertFontResMenu(MenuHandle theMenu, short afterItem, short scriptFilter) {
+    extern Handle GetIndResource(ResType theType, SInt16 index);
+    extern SInt16 CountResources(ResType theType);
+    extern void GetResInfo(Handle theResource, ResID *theID, ResType *theType, char* name);
+
+    SInt16 fontCount;
+    SInt16 i;
+    Handle fontHandle;
+    ResID fontID;
+    ResType fontType;
+    Str255 fontName;
+    char resName[256];
+    short insertIndex;
+
+    if (!theMenu) return;
+
+    /* Count available FONT resources */
+    fontCount = CountResources('FONT');
+    if (fontCount <= 0) return;
+
+    /* Initialize insertion index */
+    insertIndex = afterItem;
+
+    /* Iterate through each FONT resource */
+    for (i = 1; i <= fontCount; i++) {
+        /* Get the font resource by index */
+        fontHandle = GetIndResource('FONT', i);
+        if (!fontHandle) continue;
+
+        /* Get resource information including name */
+        GetResInfo(fontHandle, &fontID, &fontType, resName);
+
+        if (resName[0] > 0) {
+            /* Convert C string to Pascal string */
+            fontName[0] = resName[0];
+            if (resName[0] > 255) fontName[0] = 255;  /* Limit to max Pascal string length */
+            BlockMoveData(&resName[1], &fontName[1], fontName[0]);
+
+            /* Insert the font name as a menu item */
+            InsertMenuItem(theMenu, fontName, insertIndex);
+            insertIndex++;  /* Next item inserted after this one */
+        }
+    }
+}

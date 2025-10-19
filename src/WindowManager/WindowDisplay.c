@@ -1395,3 +1395,134 @@ WindowPtr WM_GetPreviousWindow(WindowPtr window) {
 
 /* FindWindow - Determine which part of the screen was clicked */
 /* [WM-050] FindWindow canonical implementation in WindowEvents.c - removed incomplete duplicate */
+
+/*-----------------------------------------------------------------------*/
+/* Desktop Hook and Display Update Functions                            */
+/*-----------------------------------------------------------------------*/
+
+/* DeskHook type definition if not in headers */
+typedef void (*DeskHookProc)(RgnHandle invalidRgn);
+
+/* DeskHook support */
+DeskHookProc g_deskHook = NULL;  /* Non-static so WindowDragging.c can access it */
+
+/* Tracks if display needs updating to avoid constant flashing */
+static Boolean gDisplayDirty = true;
+static int gLastWindowCount = -1;
+static int gUpdateThrottle = 0;
+
+void SetDeskHook(DeskHookProc proc) {
+    g_deskHook = proc;
+}
+
+/* Mark display as needing update when windows change */
+void WM_InvalidateDisplay(void) {
+    gDisplayDirty = true;
+}
+
+/* Window Manager update pipeline functions */
+/* WM_Update is needed by main.c even when other stubs are disabled */
+void WM_Update(void) {
+    /* Throttle updates to reduce flashing - only update periodically */
+    gUpdateThrottle++;
+    if (gUpdateThrottle < 5) {  /* Update every 5 frames instead of every frame */
+        return;
+    }
+    gUpdateThrottle = 0;
+
+    /* Create a screen port if qd.thePort is NULL */
+    static GrafPort screenPort;
+    if (qd.thePort == NULL) {
+        /* Initialize the screen port */
+        OpenPort(&screenPort);
+        screenPort.portBits = qd.screenBits;  /* Use screen bitmap */
+        screenPort.portRect = qd.screenBits.bounds;
+        qd.thePort = &screenPort;
+    }
+
+    /* Check if window count has changed */
+    int currentWindowCount = 0;
+    {
+        extern WindowPtr FrontWindow(void);
+        WindowPtr w = FrontWindow();
+        while (w) {
+            currentWindowCount++;
+            w = w->nextWindow;
+        }
+    }
+
+    /* Skip full redraw if nothing changed */
+    if (!gDisplayDirty && currentWindowCount == gLastWindowCount) {
+        return;
+    }
+
+    gLastWindowCount = currentWindowCount;
+    gDisplayDirty = false;
+
+    /* Use QuickDraw to draw desktop */
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort(qd.thePort);  /* Draw to screen port */
+
+    /* 1. Draw desktop pattern first */
+    Rect desktopRect;
+    SetRect(&desktopRect, 0, 20,
+            qd.screenBits.bounds.right,
+            qd.screenBits.bounds.bottom);
+    FillRect(&desktopRect, &qd.gray);  /* Gray desktop pattern */
+
+    /* 2. Draw all visible windows before menu bar */
+    /* Use Window Manager's PaintOne to properly render windows */
+    {
+        extern WindowPtr FrontWindow(void);
+        extern void PaintOne(WindowPtr window, RgnHandle clobberedRgn);
+
+        /* Build window list (back to front order) */
+        WindowPtr window = FrontWindow();
+        WindowPtr* windowStack = NULL;
+        int windowCount = currentWindowCount;
+
+        /* Allocate and fill window stack */
+        if (windowCount > 0) {
+            windowStack = (WindowPtr*)malloc(windowCount * sizeof(WindowPtr));
+            if (windowStack) {
+                WindowPtr w = window;
+                for (int i = 0; i < windowCount && w; i++) {
+                    windowStack[i] = w;
+                    w = w->nextWindow;
+                }
+
+                /* Draw windows from back to front (reverse order) */
+                for (int i = windowCount - 1; i >= 0; i--) {
+                    WindowPtr wnd = windowStack[i];
+                    if (wnd && wnd->visible) {
+                        /* Use sophisticated window drawing from WindowDisplay.c */
+                        PaintOne(wnd, NULL);
+                    }
+                }
+
+                free(windowStack);
+            }
+        }
+    }
+
+    /* 3. Call DeskHook if registered for icons */
+    if (g_deskHook) {
+        /* Create a region for the desktop */
+        RgnHandle desktopRgn = NewRgn();
+        extern void RectRgn(RgnHandle rgn, const Rect* r);
+        RectRgn(desktopRgn, &desktopRect);
+        g_deskHook(desktopRgn);
+        DisposeRgn(desktopRgn);
+    }
+
+    /* Draw menu bar LAST to ensure clean pen position */
+    MoveTo(0, 0);  /* Reset pen position before drawing menu bar */
+    extern void DrawMenuBar(void);
+    DrawMenuBar();  /* Menu Manager draws the menu bar */
+
+    /* Mouse cursor is now drawn separately in main.c for better performance */
+    /* Old cursor drawing code removed to prevent double cursor issue */
+
+    SetPort(savePort);
+}

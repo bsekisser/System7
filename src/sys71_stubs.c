@@ -419,77 +419,7 @@ WindowPtr FrontWindow(void) {
     return NULL;
 }
 #endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
-void SetWTitle(WindowPtr window, ConstStr255Param title) {
-    if (!window) {
-        SYSTEM_LOG_DEBUG("SetWTitle: NULL window\n");
-        return;
-    }
-
-    if (!title) {
-        SYSTEM_LOG_DEBUG("SetWTitle: NULL title\n");
-        return;
-    }
-
-    /* Copy title string - Pascal string with length byte */
-    unsigned char len = title[0];
-    /* len is unsigned char, already limited to 255 */
-
-    SYSTEM_LOG_DEBUG("SetWTitle: Setting window title length %d\n", len);
-
-    /* Log title for debugging */
-    char titleBuf[256];
-    for (int i = 0; i < len; i++) {
-        titleBuf[i] = title[i+1];
-    }
-    titleBuf[len] = 0;
-    SYSTEM_LOG_DEBUG("SetWTitle: Title = '%s'\n", titleBuf);
-
-    /* CRITICAL: Allocate and store title in titleHandle using Memory Manager */
-    if (window->titleHandle) {
-        /* Dispose existing title using Memory Manager */
-        SYSTEM_LOG_DEBUG("SetWTitle: Disposing existing titleHandle=%p\n", window->titleHandle);
-        DisposeHandle((Handle)window->titleHandle);
-        window->titleHandle = NULL;
-    }
-
-    if (len > 0) {
-        /* Allocate handle using Memory Manager (not malloc!) */
-        window->titleHandle = (StringHandle)NewHandle(len + 1);
-        if (window->titleHandle) {
-            /* Lock handle for copying */
-            HLock((Handle)window->titleHandle);
-            Ptr titleStr = *window->titleHandle;
-
-            /* Copy Pascal string */
-            titleStr[0] = len;
-            for (int i = 0; i < len; i++) {
-                titleStr[i + 1] = title[i + 1];
-            }
-
-            /* Unlock handle */
-            HUnlock((Handle)window->titleHandle);
-
-            SYSTEM_LOG_DEBUG("SetWTitle: Allocated titleHandle=%p (using NewHandle), string=%p\n",
-                         window->titleHandle, *window->titleHandle);
-        }
-    }
-
-    /* Calculate title width for title bar rendering */
-    extern SInt16 StringWidth(ConstStr255Param s);
-    if (len > 0) {
-        window->titleWidth = StringWidth(title) + 40;  /* Add margins for close box and padding */
-    } else {
-        window->titleWidth = 0;
-    }
-    SYSTEM_LOG_DEBUG("SetWTitle: titleWidth = %d, titleHandle = %p\n", window->titleWidth, window->titleHandle);
-
-    /* Invalidate title bar area */
-    GrafPort* port = (GrafPort*)window;
-    Rect titleBar = port->portRect;
-    titleBar.bottom = titleBar.top + 20;  /* Standard title bar height */
-    extern void InvalRect(const Rect* rect);
-    InvalRect(&titleBar);
-}
+/* SetWTitle moved to WindowManager/WindowManagerCore.c */
 #if !defined(SYS71_STUBS_DISABLED)
 void DrawGrowIcon(WindowPtr window) {
     if (!window) {
@@ -631,62 +561,7 @@ long sysconf(int name) { return -1; }
 
 /* Resource Manager functions provided by Memory Manager */
 
-/* Missing function implementations */
-void HandleKeyDown(EventRecord* event) {
-    if (!event) return;
-
-    /* Extract character code and key code from message */
-    char charCode = (char)(event->message & charCodeMask);
-
-    /* Key codes for special keys */
-    #define kDeleteKey      0x08  /* Backspace/Delete */
-    #define kReturnKey      0x0D  /* Return */
-    #define kEnterKey       0x03  /* Enter */
-
-    /* Check for command key shortcuts */
-    if (event->modifiers & cmdKey) {
-        extern long MenuKey(short ch);
-        extern void DoMenuCommand(short menuID, short item);
-        extern SInt16 HiWord(SInt32 x);
-        extern SInt16 LoWord(SInt32 x);
-
-        /* Convert to uppercase for menu matching */
-        char menuChar = charCode;
-        if (menuChar >= 'a' && menuChar <= 'z') {
-            menuChar = menuChar - 'a' + 'A';
-        }
-
-        /* Call MenuKey to find matching menu command */
-        long menuChoice = MenuKey(menuChar);
-
-        if (menuChoice != 0) {
-            /* Found a menu command - extract menuID and item, then execute */
-            short menuID = HiWord(menuChoice);
-            short menuItem = LoWord(menuChoice);
-            DoMenuCommand(menuID, menuItem);
-            return;
-        }
-    }
-
-    /* Handle special keys without command modifier */
-    if (!(event->modifiers & cmdKey)) {
-        /* Delete key - delete selected items */
-        if (charCode == kDeleteKey) {
-            extern void Finder_Clear(void);
-            Finder_Clear();
-            return;
-        }
-
-        /* Return/Enter - open selected items */
-        if (charCode == kReturnKey || charCode == kEnterKey) {
-            extern void OpenSelectedItems(void);
-            OpenSelectedItems();
-            return;
-        }
-    }
-
-    /* If we get here, key was not handled */
-}
+/* HandleKeyDown moved to Finder/finder_main.c */
 
 OSErr ResolveAliasFile(const FSSpec* spec, FSSpec* target, Boolean* wasAliased, Boolean* wasFolder) {
     if (target) *target = *spec;
@@ -789,71 +664,12 @@ void AddResMenu(MenuHandle theMenu, ResType theType) {
     /* Stub - would add resources to menu */
 }
 
-/*
- * InsertFontResMenu - Insert FONT resources into menu
- *
- * Enumerates all FONT resources and adds them to the menu as items.
- * Called to populate font menus in applications.
- *
- * Parameters:
- *  theMenu - Menu to insert fonts into
- *  afterItem - Insert items after this item (0 = at end)
- *  scriptFilter - Script filter (0 = all scripts, currently unused)
- */
-void InsertFontResMenu(MenuHandle theMenu, short afterItem, short scriptFilter) {
-    extern Handle GetIndResource(ResType theType, SInt16 index);
-    extern SInt16 CountResources(ResType theType);
-    extern void GetResInfo(Handle theResource, ResID *theID, ResType *theType, char* name);
-    extern void InsertMenuItem(MenuHandle theMenu, ConstStr255Param itemString, short afterItem);
-
-    SInt16 fontCount;
-    SInt16 i;
-    Handle fontHandle;
-    ResID fontID;
-    ResType fontType;
-    Str255 fontName;
-    char resName[256];
-    short insertIndex;
-
-    if (!theMenu) return;
-
-    /* Count available FONT resources */
-    fontCount = CountResources('FONT');
-    if (fontCount <= 0) return;
-
-    /* Initialize insertion index */
-    insertIndex = afterItem;
-
-    /* Iterate through each FONT resource */
-    for (i = 1; i <= fontCount; i++) {
-        /* Get the font resource by index */
-        fontHandle = GetIndResource('FONT', i);
-        if (!fontHandle) continue;
-
-        /* Get resource information including name */
-        GetResInfo(fontHandle, &fontID, &fontType, resName);
-
-        if (resName[0] > 0) {
-            /* Convert C string to Pascal string */
-            fontName[0] = resName[0];
-            if (resName[0] > 255) fontName[0] = 255;  /* Limit to max Pascal string length */
-            BlockMoveData(&resName[1], &fontName[1], fontName[0]);
-
-            /* Insert the font name as a menu item */
-            InsertMenuItem(theMenu, fontName, insertIndex);
-            insertIndex++;  /* Next item inserted after this one */
-        }
-    }
-}
+/* InsertFontResMenu moved to MenuManager/MenuItems.c */
 
 /* Memory Manager functions provided by Memory Manager */
 /* MemError moved to System71StdLib.c */
 
-void BlockMoveData(const void* srcPtr, void* destPtr, u32 byteCount) {
-    unsigned char* d = destPtr;
-    const unsigned char* s = srcPtr;
-    while (byteCount--) *d++ = *s++;
-}
+/* BlockMoveData moved to System71StdLib.c */
 
 /* Finder-specific stubs */
 OSErr FindFolder(SInt16 vRefNum, OSType folderType, Boolean createFolder, SInt16* foundVRefNum, SInt32* foundDirID) {
@@ -885,66 +701,13 @@ OSErr ShowAboutFinder(void) {
     return noErr;
 }
 
-OSErr HandleContentClick(WindowPtr window, EventRecord* event) {
-    if (!window || !event) {
-        return paramErr;
-    }
-
-    /* Check if this is a folder window */
-    extern Boolean IsFolderWindow(WindowPtr w);
-    extern Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleClick);
-
-    if (IsFolderWindow(window)) {
-        /* Extract double-click flag from event message */
-        UInt16 clickCount = (event->message >> 16) & 0xFFFF;
-        Boolean doubleClick = (clickCount >= 2);
-
-        /* Delegate to folder window handler */
-        HandleFolderWindowClick(window, event, doubleClick);
-        return noErr;
-    }
-
-    /* For now, other window types (applications, control panels) handle their own clicks
-     * through their event loops or will be implemented as needed */
-    return noErr;
-}
+/* HandleContentClick moved to Finder/finder_main.c */
 
 OSErr HandleGrowWindow(WindowPtr window, EventRecord* event) {
     return noErr;
 }
 
-OSErr CloseFinderWindow(WindowPtr window) {
-    if (!window) {
-        return paramErr;
-    }
-
-    /* Try to close special windows first */
-    extern void AboutWindow_CloseIf(WindowPtr w);
-    extern void GetInfo_CloseIf(WindowPtr w);
-    extern void Find_CloseIf(WindowPtr w);
-    extern void CleanupFolderWindow(WindowPtr w);
-    extern Boolean IsFolderWindow(WindowPtr w);
-
-    /* Check About window */
-    AboutWindow_CloseIf(window);
-
-    /* Check Get Info window */
-    GetInfo_CloseIf(window);
-
-    /* Check Find window */
-    Find_CloseIf(window);
-
-    /* Check folder window */
-    if (IsFolderWindow(window)) {
-        CleanupFolderWindow(window);
-        DisposeWindow(window);
-        return noErr;
-    }
-
-    /* Default: just dispose */
-    DisposeWindow(window);
-    return noErr;
-}
+/* CloseFinderWindow moved to Finder/finder_main.c */
 
 #if !defined(SYS71_STUBS_DISABLED)
 Boolean TrackGoAway(WindowPtr window, Point pt) {
@@ -960,39 +723,7 @@ void ZoomWindow(WindowPtr window, SInt16 part, Boolean front) {
 }
 #endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 
-void DoUpdate(WindowPtr window) {
-    if (!window) return;
-
-    /* Route to appropriate update handler based on window type */
-    extern Boolean AboutWindow_HandleUpdate(WindowPtr w);
-    extern Boolean GetInfo_HandleUpdate(WindowPtr w);
-    extern Boolean Find_HandleUpdate(WindowPtr w);
-    extern void FolderWindow_Draw(WindowPtr w);
-    extern Boolean IsFolderWindow(WindowPtr w);
-
-    /* Try About window */
-    if (AboutWindow_HandleUpdate(window)) {
-        return;
-    }
-
-    /* Try Get Info window */
-    if (GetInfo_HandleUpdate(window)) {
-        return;
-    }
-
-    /* Try Find window */
-    if (Find_HandleUpdate(window)) {
-        return;
-    }
-
-    /* Try folder window */
-    if (IsFolderWindow(window)) {
-        FolderWindow_Draw(window);
-        return;
-    }
-
-    /* Default: no-op for unknown windows */
-}
+/* DoUpdate moved to Finder/finder_main.c */
 
 void DoActivate(WindowPtr window, Boolean activate) {
     /* Stub */
@@ -1030,21 +761,7 @@ OSErr CleanUpBy(WindowPtr window, SInt16 sortType) {
     return noErr;
 }
 
-OSErr CleanUpWindow(WindowPtr window, SInt16 cleanupType) {
-    if (!window) return paramErr;
-
-    /* Check if it's a folder window */
-    extern Boolean IsFolderWindow(WindowPtr w);
-    extern void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly);
-
-    if (IsFolderWindow(window)) {
-        /* cleanupType: 0 = all items, 1 = selected only */
-        Boolean selectedOnly = (cleanupType == 1);
-        FolderWindow_CleanUp(window, selectedOnly);
-    }
-
-    return noErr;
-}
+/* CleanUpWindow moved to Finder/finder_main.c */
 
 /* ParamText provided by DialogManagerCore.c */
 
@@ -1056,13 +773,7 @@ OSErr CleanUpWindow(WindowPtr window, SInt16 cleanupType) {
 
 /* OpenDeskAcc provided by DeskManagerCore.c */
 
-SInt16 HiWord(SInt32 x) {
-    return (x >> 16) & 0xFFFF;
-}
-
-SInt16 LoWord(SInt32 x) {
-    return x & 0xFFFF;
-}
+/* HiWord and LoWord moved to System71StdLib.c */
 
 #if !defined(SYS71_STUBS_DISABLED)
 void InvalRect(const Rect* badRect) {
@@ -1107,6 +818,7 @@ void SetEmptyRgn(RgnHandle rgn) {
 
 /* Standard library functions moved to System71StdLib.c:
  * sprintf, __assert_fail, strlen, abs
+ * HiWord, LoWord, BlockMoveData - moved to System71StdLib.c
  */
 
 /* Minimal math functions for -nostdlib build */
@@ -1159,127 +871,11 @@ extern uint32_t fb_height;
 extern uint32_t fb_pitch;
 extern uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b);
 
-/* DeskHook support */
-DeskHookProc g_deskHook = NULL;  /* Non-static so WindowDragging.c can access it */
-
 /* External QuickDraw globals */
 extern QDGlobals qd;
 extern void* framebuffer;
 
-/* Window Manager update pipeline functions */
-/* WM_Update is needed by main.c even when other stubs are disabled */
-/* Tracks if display needs updating to avoid constant flashing */
-static Boolean gDisplayDirty = true;
-static int gLastWindowCount = -1;
-static int gUpdateThrottle = 0;
-
-void WM_Update(void) {
-    /* Throttle updates to reduce flashing - only update periodically */
-    gUpdateThrottle++;
-    if (gUpdateThrottle < 5) {  /* Update every 5 frames instead of every frame */
-        return;
-    }
-    gUpdateThrottle = 0;
-
-    /* Create a screen port if qd.thePort is NULL */
-    static GrafPort screenPort;
-    if (qd.thePort == NULL) {
-        /* Initialize the screen port */
-        OpenPort(&screenPort);
-        screenPort.portBits = qd.screenBits;  /* Use screen bitmap */
-        screenPort.portRect = qd.screenBits.bounds;
-        qd.thePort = &screenPort;
-    }
-
-    /* Check if window count has changed */
-    int currentWindowCount = 0;
-    {
-        extern WindowPtr FrontWindow(void);
-        WindowPtr w = FrontWindow();
-        while (w) {
-            currentWindowCount++;
-            w = w->nextWindow;
-        }
-    }
-
-    /* Skip full redraw if nothing changed */
-    if (!gDisplayDirty && currentWindowCount == gLastWindowCount) {
-        return;
-    }
-
-    gLastWindowCount = currentWindowCount;
-    gDisplayDirty = false;
-
-    /* Use QuickDraw to draw desktop */
-    GrafPtr savePort;
-    GetPort(&savePort);
-    SetPort(qd.thePort);  /* Draw to screen port */
-
-    /* 1. Draw desktop pattern first */
-    Rect desktopRect;
-    SetRect(&desktopRect, 0, 20,
-            qd.screenBits.bounds.right,
-            qd.screenBits.bounds.bottom);
-    FillRect(&desktopRect, &qd.gray);  /* Gray desktop pattern */
-
-    /* 2. Draw all visible windows before menu bar */
-    /* Use Window Manager's PaintOne to properly render windows */
-    {
-        extern WindowPtr FrontWindow(void);
-        extern void PaintOne(WindowPtr window, RgnHandle clobberedRgn);
-
-        /* Build window list (back to front order) */
-        WindowPtr window = FrontWindow();
-        WindowPtr* windowStack = NULL;
-        int windowCount = currentWindowCount;
-
-        /* Allocate and fill window stack */
-        if (windowCount > 0) {
-            windowStack = (WindowPtr*)malloc(windowCount * sizeof(WindowPtr));
-            if (windowStack) {
-                WindowPtr w = window;
-                for (int i = 0; i < windowCount && w; i++) {
-                    windowStack[i] = w;
-                    w = w->nextWindow;
-                }
-
-                /* Draw windows from back to front (reverse order) */
-                for (int i = windowCount - 1; i >= 0; i--) {
-                    WindowPtr wnd = windowStack[i];
-                    if (wnd && wnd->visible) {
-                        /* Use sophisticated window drawing from WindowDisplay.c */
-                        PaintOne(wnd, NULL);
-                    }
-                }
-
-                free(windowStack);
-            }
-        }
-    }
-
-    /* 3. Call DeskHook if registered for icons */
-    if (g_deskHook) {
-        /* Create a region for the desktop */
-        RgnHandle desktopRgn = NewRgn();
-        RectRgn(desktopRgn, &desktopRect);
-        g_deskHook(desktopRgn);
-        DisposeRgn(desktopRgn);
-    }
-
-    /* Draw menu bar LAST to ensure clean pen position */
-    MoveTo(0, 0);  /* Reset pen position before drawing menu bar */
-    DrawMenuBar();  /* Menu Manager draws the menu bar */
-
-    /* Mouse cursor is now drawn separately in main.c for better performance */
-    /* Old cursor drawing code removed to prevent double cursor issue */
-
-    SetPort(savePort);
-}
-
-/* Mark display as needing update when windows change */
-void WM_InvalidateDisplay(void) {
-    gDisplayDirty = true;
-}
+/* WM_Update, WM_InvalidateDisplay, SetDeskHook, and g_deskHook moved to WindowManager/WindowDisplay.c */
 
 /* [WM-050] Stub quarantine: real BeginUpdate/EndUpdate in WindowEvents.c */
 #if !defined(SYS71_STUBS_DISABLED)
@@ -1292,9 +888,7 @@ void EndUpdate(WindowPtr theWindow) {
 }
 #endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 
-void SetDeskHook(DeskHookProc proc) {
-    g_deskHook = proc;
-}
+/* SetDeskHook moved to WindowManager/WindowDisplay.c */
 
 /* [WM-053] QuickDraw region drawing functions - real implementations in QuickDraw/Regions.c */
 #if !defined(SYS71_STUBS_DISABLED)

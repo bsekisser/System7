@@ -1020,3 +1020,81 @@ void CopyPascalString(const unsigned char* source, unsigned char* dest) {
         memcpy(&dest[1], &source[1], length);
     }
 }
+
+/* ============================================================================
+ * Window Title Management
+ * ============================================================================ */
+
+void SetWTitle(WindowPtr window, ConstStr255Param title) {
+    if (!window) {
+        WM_LOG_DEBUG("SetWTitle: NULL window\n");
+        return;
+    }
+
+    if (!title) {
+        WM_LOG_DEBUG("SetWTitle: NULL title\n");
+        return;
+    }
+
+    /* Copy title string - Pascal string with length byte */
+    unsigned char len = title[0];
+    /* len is unsigned char, already limited to 255 */
+
+    WM_LOG_DEBUG("SetWTitle: Setting window title length %d\n", len);
+
+    /* Log title for debugging */
+    #ifdef DEBUG_WINDOW_MANAGER
+    char titleBuf[256];
+    for (int i = 0; i < len; i++) {
+        titleBuf[i] = title[i+1];
+    }
+    titleBuf[len] = 0;
+    WM_LOG_DEBUG("SetWTitle: Title = '%s'\n", titleBuf);
+    #endif
+
+    /* CRITICAL: Allocate and store title in titleHandle using Memory Manager */
+    if (window->titleHandle) {
+        /* Dispose existing title using Memory Manager */
+        WM_LOG_DEBUG("SetWTitle: Disposing existing titleHandle=%p\n", window->titleHandle);
+        DisposeHandle((Handle)window->titleHandle);
+        window->titleHandle = NULL;
+    }
+
+    if (len > 0) {
+        /* Allocate handle using Memory Manager (not malloc!) */
+        window->titleHandle = (StringHandle)NewHandle(len + 1);
+        if (window->titleHandle) {
+            /* Lock handle for copying */
+            HLock((Handle)window->titleHandle);
+            Ptr titleStr = *window->titleHandle;
+
+            /* Copy Pascal string */
+            titleStr[0] = len;
+            for (int i = 0; i < len; i++) {
+                titleStr[i + 1] = title[i + 1];
+            }
+
+            /* Unlock handle */
+            HUnlock((Handle)window->titleHandle);
+
+            WM_LOG_DEBUG("SetWTitle: Allocated titleHandle=%p (using NewHandle), string=%p\n",
+                         window->titleHandle, *window->titleHandle);
+        }
+    }
+
+    /* Calculate title width for title bar rendering */
+    extern SInt16 StringWidth(ConstStr255Param s);
+    if (len > 0) {
+        window->titleWidth = StringWidth(title) + 40;  /* Add margins for close box and padding */
+    } else {
+        window->titleWidth = 0;
+    }
+    WM_LOG_DEBUG("SetWTitle: titleWidth = %d, titleHandle = %p\n", window->titleWidth, window->titleHandle);
+
+    /* Invalidate title bar area */
+    GrafPort* port = (GrafPort*)window;
+    Rect titleBar = port->portRect;
+    titleBar.bottom = titleBar.top + 20;  /* Standard title bar height */
+    extern void InvalRect(const Rect* rect);
+    InvalRect(&titleBar);
+}
