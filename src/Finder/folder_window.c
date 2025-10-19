@@ -1276,6 +1276,64 @@ Boolean FolderWindow_GetSelectedItem(WindowPtr w, VRefNum* outVref, FileID* outF
     return true;
 }
 
+/* Delete selected items from folder window */
+void FolderWindow_DeleteSelected(WindowPtr w) {
+    if (!w || !IsFolderWindow(w)) return;
+
+    FolderWindowState* state = GetFolderState(w);
+    if (!state || !state->items) return;
+
+    extern bool VFS_Delete(VRefNum vref, FileID id);
+
+    FINDER_LOG_DEBUG("FolderWindow_DeleteSelected: itemCount=%d\n", state->itemCount);
+
+    /* Delete items in reverse order to avoid index shifting issues */
+    for (short i = state->itemCount - 1; i >= 0; i--) {
+        Boolean shouldDelete = false;
+
+        /* Check if this item is selected */
+        if (state->selectedItems) {
+            shouldDelete = state->selectedItems[i];
+        } else if (i == state->selectedIndex) {
+            shouldDelete = true;
+        }
+
+        if (shouldDelete) {
+            FolderItem* item = &state->items[i];
+            FINDER_LOG_DEBUG("FolderWindow_DeleteSelected: Deleting '%s' (fileID=%d)\n",
+                           item->name, item->fileID);
+
+            /* Delete from VFS */
+            bool deleted = VFS_Delete(state->vref, item->fileID);
+
+            if (deleted) {
+                FINDER_LOG_DEBUG("FolderWindow_DeleteSelected: VFS_Delete succeeded\n");
+
+                /* Remove from items array by shifting */
+                for (int j = i; j < state->itemCount - 1; j++) {
+                    state->items[j] = state->items[j + 1];
+                    if (state->selectedItems) {
+                        state->selectedItems[j] = state->selectedItems[j + 1];
+                    }
+                }
+                state->itemCount--;
+
+                /* Clear selection for removed item */
+                if (state->selectedIndex == i) {
+                    state->selectedIndex = -1;
+                } else if (state->selectedIndex > i) {
+                    state->selectedIndex--;
+                }
+            } else {
+                FINDER_LOG_DEBUG("FolderWindow_DeleteSelected: VFS_Delete failed\n");
+            }
+        }
+    }
+
+    /* Trigger redraw */
+    PostEvent(updateEvt, (UInt32)w);
+}
+
 /* Update window proc for folder windows */
 void FolderWindowProc(WindowPtr window, short message, long param)
 {

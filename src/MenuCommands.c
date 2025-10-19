@@ -729,7 +729,27 @@ void Finder_Paste(void) {
 }
 
 void Finder_Clear(void) {
-    MENU_LOG_DEBUG("[STUB] Finder_Clear called\n");
+    MENU_LOG_DEBUG("Finder_Clear called\n");
+
+    /* Get front window */
+    extern WindowPtr FrontWindow(void);
+    WindowPtr frontWin = FrontWindow();
+    if (!frontWin) {
+        MENU_LOG_DEBUG("Finder_Clear: No front window\n");
+        return;
+    }
+
+    /* Check if it's a folder window */
+    extern Boolean IsFolderWindow(WindowPtr w);
+    if (!IsFolderWindow(frontWin)) {
+        MENU_LOG_DEBUG("Finder_Clear: Front window is not a folder window\n");
+        return;
+    }
+
+    /* Call folder window delete helper */
+    extern void FolderWindow_DeleteSelected(WindowPtr w);
+    FolderWindow_DeleteSelected(frontWin);
+    MENU_LOG_DEBUG("Finder_Clear: Deleted selected items\n");
 }
 
 void Finder_SelectAll(void) {
