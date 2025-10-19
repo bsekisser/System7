@@ -61,8 +61,10 @@ void PM_SetBackPat(const Pattern *pat) {
 
     /* Store the pattern but DON'T call BackPat() - we only want it on the desktop, not in windows */
     /* The DeskHook will use this pattern directly when drawing the desktop background */
-    /* Also update our local copy for EraseRect */
-    UpdateBackgroundPattern(pat);
+    /* Set white pattern for EraseRect so windows have white background */
+    Pattern whitePat;
+    memset(&whitePat, 0x00, sizeof(whitePat));  /* 0x00 = white, 0xFF = black */
+    UpdateBackgroundPattern(&whitePat);
 }
 
 void PM_SetBackPixPat(Handle pixPatHandle) {
@@ -90,20 +92,18 @@ void PM_SetBackPixPat(Handle pixPatHandle) {
         gPM.hasColorPattern = true;
         serial_puts("PM_SetBackPixPat: Successfully decoded color pattern\n");
         /* Don't call BackPat() - pattern only applies to desktop, not windows */
-        /* Set neutral pattern for UpdateBackgroundPattern so windows aren't affected */
-        Pattern neutralPat;
-        memset(&neutralPat, 0xFF, sizeof(neutralPat));
-        UpdateBackgroundPattern(&neutralPat);
+        /* Set white pattern for UpdateBackgroundPattern so windows have white background */
+        Pattern whitePat;
+        memset(&whitePat, 0x00, sizeof(whitePat));  /* 0x00 = white, 0xFF = black */
+        UpdateBackgroundPattern(&whitePat);
     } else {
-        /* Fall back to using first 8 bytes as pattern */
+        /* Fall back to using first 8 bytes as pattern for desktop only */
         gPM.hasColorPattern = false;
         serial_puts("PM_SetBackPixPat: Failed to decode, using fallback\n");
-        if (sz >= 8) {
-            Pattern tmpPat;
-            memcpy(&tmpPat.pat, data, 8);
-            /* Don't call BackPat() - pattern only applies to desktop */
-            UpdateBackgroundPattern(&tmpPat);
-        }
+        /* Set white pattern for windows */
+        Pattern whitePat;
+        memset(&whitePat, 0x00, sizeof(whitePat));  /* 0x00 = white, 0xFF = black */
+        UpdateBackgroundPattern(&whitePat);
     }
 
     HUnlock(pixPatHandle);
