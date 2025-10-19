@@ -36,7 +36,10 @@ extern uint32_t fb_pitch;
  * SaveBits - Save screen bits for menu display
  */
 Handle SaveBits(const Rect *bounds, SInt16 mode) {
+    extern void serial_logf(int module, int level, const char* fmt, ...);
+
     if (!bounds || !framebuffer) {
+        serial_logf(3, 2, "[SAVEBITS] SaveBits: NULL bounds or framebuffer\n");
         return NULL;
     }
 
@@ -45,14 +48,21 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
     SInt16 height = bounds->bottom - bounds->top;
 
     if (width <= 0 || height <= 0) {
+        serial_logf(3, 2, "[SAVEBITS] SaveBits: Invalid dimensions %dx%d\n", width, height);
         return NULL;
     }
+
+    serial_logf(3, 2, "[SAVEBITS] SaveBits: Allocating for %dx%d rect\n", width, height);
 
     /* Allocate handle for saved bits record */
     SavedBitsHandle bitsHandle = (SavedBitsHandle)NewHandle(sizeof(SavedBitsRec));
     if (!bitsHandle) {
+        serial_logf(3, 2, "[SAVEBITS] SaveBits: NewHandle failed for SavedBitsRec\n");
         return NULL;
     }
+
+    serial_logf(3, 2, "[SAVEBITS] SaveBits: bitsHandle=%p *bitsHandle=%p\n",
+               bitsHandle, *bitsHandle);
 
     /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
     HLock((Handle)bitsHandle);
@@ -65,13 +75,20 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
     /* Calculate data size (32 bits per pixel = 4 bytes) */
     savedBits->dataSize = width * height * 4;
 
+    serial_logf(3, 2, "[SAVEBITS] SaveBits: Allocating %d bytes for pixel data\n",
+               savedBits->dataSize);
+
     /* Allocate memory for pixel data */
     savedBits->bitsData = malloc(savedBits->dataSize);
     if (!savedBits->bitsData) {
+        serial_logf(3, 2, "[SAVEBITS] SaveBits: malloc failed for pixel data\n");
         HUnlock((Handle)bitsHandle);
         DisposeHandle((Handle)bitsHandle);
         return NULL;
     }
+
+    serial_logf(3, 2, "[SAVEBITS] SaveBits: bitsData=%p size=%d\n",
+               savedBits->bitsData, savedBits->dataSize);
 
     /* Copy pixels from framebuffer to save buffer */
     /* CRITICAL: Use separate index for buffer to prevent overflow when bounds are clipped */
@@ -106,6 +123,9 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
 
     savedBits->valid = true;
 
+    serial_logf(3, 2, "[SAVEBITS] SaveBits: Complete. Returning handle=%p bitsData=%p\n",
+               bitsHandle, savedBits->bitsData);
+
     /* Unlock handle before returning */
     HUnlock((Handle)bitsHandle);
 
@@ -116,15 +136,26 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
  * RestoreBits - Restore saved screen bits
  */
 OSErr RestoreBits(Handle bitsHandle) {
+    extern void serial_logf(int module, int level, const char* fmt, ...);
+
+    serial_logf(3, 2, "[SAVEBITS] RestoreBits: ENTRY bitsHandle=%p\n", bitsHandle);
+
     if (!bitsHandle || !*bitsHandle || !framebuffer) {
+        serial_logf(3, 2, "[SAVEBITS] RestoreBits: Invalid params\n");
         return paramErr;
     }
+
+    serial_logf(3, 2, "[SAVEBITS] RestoreBits: *bitsHandle=%p\n", *bitsHandle);
 
     /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
     HLock(bitsHandle);
     SavedBitsPtr savedBits = (SavedBitsPtr)*bitsHandle;
 
+    serial_logf(3, 2, "[SAVEBITS] RestoreBits: savedBits=%p valid=%d bitsData=%p\n",
+               savedBits, savedBits->valid, savedBits->bitsData);
+
     if (!savedBits->valid || !savedBits->bitsData) {
+        serial_logf(3, 2, "[SAVEBITS] RestoreBits: Invalid savedBits or bitsData\n");
         HUnlock(bitsHandle);
         return paramErr;
     }
@@ -162,6 +193,8 @@ OSErr RestoreBits(Handle bitsHandle) {
     /* Unlock handle after use */
     HUnlock(bitsHandle);
 
+    serial_logf(3, 2, "[SAVEBITS] RestoreBits: EXIT\n");
+
     return noErr;
 }
 
@@ -169,17 +202,37 @@ OSErr RestoreBits(Handle bitsHandle) {
  * DiscardBits - Discard saved screen bits without restoring
  */
 OSErr DiscardBits(Handle bitsHandle) {
+    extern void serial_logf(int module, int level, const char* fmt, ...);
+
+    serial_logf(3, 2, "[SAVEBITS] DiscardBits: ENTRY bitsHandle=%p\n", bitsHandle);
+
     if (!bitsHandle || !*bitsHandle) {
+        serial_logf(3, 2, "[SAVEBITS] DiscardBits: NULL handle, returning paramErr\n");
         return paramErr;
     }
+
+    serial_logf(3, 2, "[SAVEBITS] DiscardBits: *bitsHandle=%p\n", *bitsHandle);
 
     /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
     HLock(bitsHandle);
     SavedBitsPtr savedBits = (SavedBitsPtr)*bitsHandle;
 
-    /* Free pixel data if allocated */
+    serial_logf(3, 2, "[SAVEBITS] DiscardBits: savedBits=%p valid=%d bitsData=%p dataSize=%d\n",
+               savedBits, savedBits->valid, savedBits->bitsData, savedBits->dataSize);
+
+    /* Validate bitsData pointer before freeing */
     if (savedBits->bitsData) {
+        serial_logf(3, 2, "[SAVEBITS] DiscardBits: About to free bitsData=%p\n",
+                   savedBits->bitsData);
+
+        /* Read first few bytes for debugging */
+        unsigned char* bytes = (unsigned char*)savedBits->bitsData;
+        serial_logf(3, 2, "[SAVEBITS] DiscardBits: bitsData first 16 bytes: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
+                   bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+                   bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]);
+
         free(savedBits->bitsData);
+        serial_logf(3, 2, "[SAVEBITS] DiscardBits: free() completed\n");
         savedBits->bitsData = NULL;
     }
 
@@ -189,8 +242,12 @@ OSErr DiscardBits(Handle bitsHandle) {
     /* Unlock handle before disposing */
     HUnlock(bitsHandle);
 
+    serial_logf(3, 2, "[SAVEBITS] DiscardBits: About to DisposeHandle\n");
+
     /* Dispose the handle */
     DisposeHandle(bitsHandle);
+
+    serial_logf(3, 2, "[SAVEBITS] DiscardBits: EXIT\n");
 
     return noErr;
 }
