@@ -455,3 +455,14 @@ static Boolean IsFloppyDisk(short vRefNum)
     /* Check if volume size is approximately 400K */
     return (pb.u.volumeParam.ioVAlBlkSiz * pb.u.volumeParam.ioVNmAlBlks) <= kFloppyDiskSize;
 }
+
+/*
+ * GenerateUniqueTrashName - Generate unique name for item in Trash
+ * Basic stub implementation - just copies the base name unchanged
+ */
+OSErr GenerateUniqueTrashName(Str255 baseName, Str255 uniqueName) {
+    if (uniqueName && baseName) {
+        BlockMoveData(baseName, uniqueName, baseName[0] + 1);
+    }
+    return noErr;
+}

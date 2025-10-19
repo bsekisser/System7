@@ -442,3 +442,27 @@ static Boolean IsValidAliasRecord(AliasRecord *record)
             return false;
     }
 }
+
+/*-----------------------------------------------------------------------*/
+/* Stub Implementations (Basic functionality until fully implemented)   */
+/*-----------------------------------------------------------------------*/
+
+/*
+ * ResolveAliasFile - Resolve alias file to target
+ * Basic stub implementation - returns the original file unchanged
+ */
+OSErr ResolveAliasFile(const FSSpec* spec, FSSpec* target, Boolean* wasAliased, Boolean* wasFolder) {
+    if (target) *target = *spec;
+    if (wasAliased) *wasAliased = false;
+    if (wasFolder) *wasFolder = false;
+    return noErr;
+}
+
+/*
+ * NewAlias - Create new alias handle
+ * Basic stub implementation - allocates empty alias record
+ */
+OSErr NewAlias(const FSSpec* fromFile, const FSSpec* target, AliasHandle* alias) {
+    if (alias) *alias = (AliasHandle)NewHandle(sizeof(AliasRecord));
+    return noErr;
+}

@@ -1526,3 +1526,23 @@ void WM_Update(void) {
 
     SetPort(savePort);
 }
+
+/*
+ * WM_UpdateWindowVisibility - Update window visibility state
+ */
+void WM_UpdateWindowVisibility(WindowPtr window) {
+    if (!window) {
+        WM_LOG_DEBUG("WM_UpdateWindowVisibility: NULL window\n");
+        return;
+    }
+
+    WM_LOG_DEBUG("WM_UpdateWindowVisibility: Updating visibility for window at %p\n", window);
+
+    /* Update window visibility state */
+    if (window->visible) {
+        /* Ensure window is drawn */
+        extern void InvalRect(const Rect* rect);
+        GrafPort* port = (GrafPort*)window;
+        InvalRect(&port->portRect);
+    }
+}

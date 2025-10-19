@@ -710,6 +710,20 @@ StringPtr GetFinderVersion(void)
 }
 
 /*-----------------------------------------------------------------------*/
+/* Finder System Utilities                                              */
+/*-----------------------------------------------------------------------*/
+
+/*
+ * FindFolder - Locate system folders
+ * Basic stub implementation - returns root directory
+ */
+OSErr FindFolder(SInt16 vRefNum, OSType folderType, Boolean createFolder, SInt16* foundVRefNum, SInt32* foundDirID) {
+    if (foundVRefNum) *foundVRefNum = vRefNum;
+    if (foundDirID) *foundDirID = 2;  /* Root directory */
+    return noErr;
+}
+
+/*-----------------------------------------------------------------------*/
 /* Finder Event Handling Functions                                     */
 /*-----------------------------------------------------------------------*/
 

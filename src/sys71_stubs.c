@@ -446,22 +446,7 @@ void DrawGrowIcon(WindowPtr window) {
     FrameRect(&growRect);
 }
 #endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
-void WM_UpdateWindowVisibility(WindowPtr window) {
-    if (!window) {
-        SYSTEM_LOG_DEBUG("WM_UpdateWindowVisibility: NULL window\n");
-        return;
-    }
-
-    SYSTEM_LOG_DEBUG("WM_UpdateWindowVisibility: Updating visibility for window at %p\n", window);
-
-    /* Update window visibility state */
-    if (window->visible) {
-        /* Ensure window is drawn */
-        extern void InvalRect(const Rect* rect);
-        GrafPort* port = (GrafPort*)window;
-        InvalRect(&port->portRect);
-    }
-}
+/* WM_UpdateWindowVisibility moved to WindowManager/WindowDisplay.c */
 
 #if !defined(SYS71_STUBS_DISABLED)
 short FindWindow(Point thePt, WindowPtr *window) {
@@ -563,12 +548,7 @@ long sysconf(int name) { return -1; }
 
 /* HandleKeyDown moved to Finder/finder_main.c */
 
-OSErr ResolveAliasFile(const FSSpec* spec, FSSpec* target, Boolean* wasAliased, Boolean* wasFolder) {
-    if (target) *target = *spec;
-    if (wasAliased) *wasAliased = false;
-    if (wasFolder) *wasFolder = false;
-    return noErr;
-}
+/* ResolveAliasFile moved to Finder/alias_manager.c */
 
 #ifndef ENABLE_RESOURCES
 void ReleaseResource(Handle theResource) {
@@ -576,10 +556,7 @@ void ReleaseResource(Handle theResource) {
 }
 #endif
 
-OSErr NewAlias(const FSSpec* fromFile, const FSSpec* target, AliasHandle* alias) {
-    if (alias) *alias = (AliasHandle)NewHandle(sizeof(AliasRecord));
-    return noErr;
-}
+/* NewAlias moved to Finder/alias_manager.c */
 
 /* Memory Manager functions provided by MemoryManager.c */
 
@@ -672,18 +649,9 @@ void AddResMenu(MenuHandle theMenu, ResType theType) {
 /* BlockMoveData moved to System71StdLib.c */
 
 /* Finder-specific stubs */
-OSErr FindFolder(SInt16 vRefNum, OSType folderType, Boolean createFolder, SInt16* foundVRefNum, SInt32* foundDirID) {
-    if (foundVRefNum) *foundVRefNum = vRefNum;
-    if (foundDirID) *foundDirID = 2;  /* Root directory */
-    return noErr;
-}
+/* FindFolder moved to Finder/finder_main.c */
 
-OSErr GenerateUniqueTrashName(Str255 baseName, Str255 uniqueName) {
-    if (uniqueName && baseName) {
-        BlockMoveData(baseName, uniqueName, baseName[0] + 1);
-    }
-    return noErr;
-}
+/* GenerateUniqueTrashName moved to Finder/trash_folder.c */
 
 OSErr InitializeWindowManager(void) {
     return noErr;
