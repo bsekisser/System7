@@ -77,6 +77,9 @@ static MenuExtData* GetMenuExtData(MenuHandle theMenu) {
         return NULL;
     }
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock((Handle)theMenu);
+
     MENU_LOG_TRACE("GetMenuExtData: *theMenu=%p\n", (void*)*theMenu);
     menuID = (*(MenuInfo**)theMenu)->menuID;
     MENU_LOG_TRACE("GetMenuExtData: menuID=%d\n", menuID);
@@ -84,17 +87,20 @@ static MenuExtData* GetMenuExtData(MenuHandle theMenu) {
     /* Search for existing extended data */
     for (i = 0; i < gNumMenuExtData; i++) {
         if (gMenuExtData[i].menuID == menuID) {
+            HUnlock((Handle)theMenu);
             return gMenuExtData[i].extData;
         }
     }
 
     /* Create new extended data */
     if (gNumMenuExtData >= MAX_MENUS) {
+        HUnlock((Handle)theMenu);
         return NULL;
     }
 
     extData = (MenuExtData*)malloc(sizeof(MenuExtData));
     if (!extData) {
+        HUnlock((Handle)theMenu);
         return NULL;
     }
 
@@ -106,6 +112,7 @@ static MenuExtData* GetMenuExtData(MenuHandle theMenu) {
 
     MENU_LOG_TRACE("Created extended data for menu ID %d\n", menuID);
 
+    HUnlock((Handle)theMenu);
     return extData;
 }
 

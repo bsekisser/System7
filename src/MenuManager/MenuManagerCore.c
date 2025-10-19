@@ -472,6 +472,9 @@ void DrawMenuBar(void)
                 if (menu) {
                     /* serial_puts("DrawMenuBar: Menu handle found\n"); */
 
+                    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+                    HLock((Handle)menu);
+
                     /* Debug: show MenuInfo offsets */
                     MenuInfo* mptr = (MenuInfo*)*menu;
                     /* MENU_LOG_TRACE("  MenuID: %d\n", mptr->menuID); */
@@ -532,6 +535,9 @@ void DrawMenuBar(void)
                         AddMenuTitle(mptr->menuID, x, menuWidth, titleText);
                         x += menuWidth;
                     }
+
+                    /* Unlock handle after use */
+                    HUnlock((Handle)menu);
                 } else {
                     MENU_LOG_DEBUG("DrawMenuBar: GetMenuHandle returned NULL for ID %d\n", currentMenuID);
                 }
@@ -1040,13 +1046,20 @@ static short MeasureMenuTitleWidth(short menuID)
         return kFallbackWidth;
     }
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock((Handle)menu);
+
     unsigned char titleLen = (**menu).menuData[0];
     if (titleLen == 0) {
+        HUnlock((Handle)menu);
         return kFallbackWidth;
     }
     Str255 title;
     title[0] = titleLen;
     memcpy(&title[1], &(**menu).menuData[1], titleLen);
+
+    /* Unlock handle after copying data */
+    HUnlock((Handle)menu);
 
     GrafPtr savePort;
     GetPort(&savePort);

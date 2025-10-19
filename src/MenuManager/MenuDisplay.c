@@ -680,7 +680,10 @@ short GetMenuTitleWidth(MenuHandle theMenu)
         return 0;
     }
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock((Handle)theMenu);
     titleWidth = GetMenuItemTextWidth(&(*(MenuInfo**)theMenu)->menuData[0], normal);
+    HUnlock((Handle)theMenu);
 
     return titleWidth + 16; /* Add margins */
 }
