@@ -931,8 +931,18 @@ static void DisposeAuxCtlRec(AuxCtlHandle auxRec) {
 SInt16 _CallControlDefProc(ControlHandle control, SInt16 message, SInt32 param) {
     ControlDefProcPtr defProc;
     SInt16 variant;
+    SInt16 result;
 
-    if (!control || !(*control)->contrlDefProc) {
+    if (!control) {
+        return 0;
+    }
+
+    /* CRITICAL: Lock control before dereferencing to prevent heap compaction issues
+     * The CDEF may allocate memory, so we must lock the control handle before calling it */
+    HLock((Handle)control);
+
+    if (!(*control)->contrlDefProc) {
+        HUnlock((Handle)control);
         return 0;
     }
 
@@ -941,11 +951,14 @@ SInt16 _CallControlDefProc(ControlHandle control, SInt16 message, SInt32 param) 
     variant = *(SInt16 *)*(*control)->contrlDefProc >> 8;
     defProc = *(ControlDefProcPtr *)((char *)*(*control)->contrlDefProc + 2);
 
-    /* Call CDEF */
+    /* Call CDEF - it can now safely dereference the locked control handle */
     if (defProc) {
-        return (SInt16)(*defProc)(variant, control, message, param);
+        result = (SInt16)(*defProc)(variant, control, message, param);
+        HUnlock((Handle)control);
+        return result;
     }
 
+    HUnlock((Handle)control);
     return 0;
 }
 
@@ -977,11 +990,15 @@ Handle _GetControlDefProc(SInt16 procID) {
         return NULL;
     }
 
+    /* Lock handle before dereferencing */
+    HLock(cdefHandle);
+
     /* Store variant in high byte of first word */
     *(SInt16 *)*cdefHandle = (procID & 0x0F) << 8;
     /* Store procedure pointer */
     *(ControlDefProcPtr *)((char *)*cdefHandle + 2) = defProc;
 
+    HUnlock(cdefHandle);
     return cdefHandle;
 }
 
