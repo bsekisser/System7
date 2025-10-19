@@ -74,21 +74,32 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
     }
 
     /* Copy pixels from framebuffer to save buffer */
+    /* CRITICAL: Use separate index for buffer to prevent overflow when bounds are clipped */
     {
         uint32_t* fb = (uint32_t*)framebuffer;
         uint32_t* savePtr = (uint32_t*)savedBits->bitsData;
         int pitch = fb_pitch / 4;
         int y, x;
+        int bufferIndex = 0;
 
         for (y = 0; y < height; y++) {
             int screenY = bounds->top + y;
-            if (screenY < 0 || screenY >= (int)fb_height) continue;
+            /* If row is out of bounds, fill with black/transparent */
+            if (screenY < 0 || screenY >= (int)fb_height) {
+                for (x = 0; x < width; x++) {
+                    savePtr[bufferIndex++] = 0xFF000000; /* Black */
+                }
+                continue;
+            }
 
             for (x = 0; x < width; x++) {
                 int screenX = bounds->left + x;
-                if (screenX < 0 || screenX >= (int)fb_width) continue;
-
-                savePtr[y * width + x] = fb[screenY * pitch + screenX];
+                /* If pixel is out of bounds, use black/transparent */
+                if (screenX < 0 || screenX >= (int)fb_width) {
+                    savePtr[bufferIndex++] = 0xFF000000; /* Black */
+                } else {
+                    savePtr[bufferIndex++] = fb[screenY * pitch + screenX];
+                }
             }
         }
     }
@@ -119,6 +130,7 @@ OSErr RestoreBits(Handle bitsHandle) {
     }
 
     /* Restore pixels from save buffer to framebuffer */
+    /* CRITICAL: Use separate index for buffer to match SaveBits sequential write */
     {
         uint32_t* fb = (uint32_t*)framebuffer;
         uint32_t* savePtr = (uint32_t*)savedBits->bitsData;
@@ -126,16 +138,23 @@ OSErr RestoreBits(Handle bitsHandle) {
         SInt16 width = savedBits->bounds.right - savedBits->bounds.left;
         SInt16 height = savedBits->bounds.bottom - savedBits->bounds.top;
         int y, x;
+        int bufferIndex = 0;
 
         for (y = 0; y < height; y++) {
             int screenY = savedBits->bounds.top + y;
-            if (screenY < 0 || screenY >= (int)fb_height) continue;
+            /* If row is out of bounds, skip the entire row in buffer */
+            if (screenY < 0 || screenY >= (int)fb_height) {
+                bufferIndex += width; /* Skip this row in buffer */
+                continue;
+            }
 
             for (x = 0; x < width; x++) {
                 int screenX = savedBits->bounds.left + x;
-                if (screenX < 0 || screenX >= (int)fb_width) continue;
-
-                fb[screenY * pitch + screenX] = savePtr[y * width + x];
+                /* Read from buffer sequentially, only write to screen if in bounds */
+                uint32_t pixel = savePtr[bufferIndex++];
+                if (screenX >= 0 && screenX < (int)fb_width) {
+                    fb[screenY * pitch + screenX] = pixel;
+                }
             }
         }
     }
