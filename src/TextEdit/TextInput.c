@@ -250,28 +250,35 @@ OSErr TEProcessKeyDown(TEHandle hTE, short keyCode, char charCode, long modifier
 
     if (!hTE || !*hTE) return paramErr;
 
+    /* CRITICAL: Lock hTE before dereferencing - editing operations allocate memory */
+    HLock((Handle)hTE);
     teRec = (TERec **)hTE;
 
     /* Handle modifier key combinations */
     if (modifiers & kTECommandKey) {
         switch (charCode) {
             case 'a': case 'A':
+                HUnlock((Handle)hTE);
                 return TESelectAll(hTE);
 
             case 'c': case 'C':
+                HUnlock((Handle)hTE);
                 TECopy(hTE);
                 return noErr;
 
             case 'x': case 'X':
+                HUnlock((Handle)hTE);
                 TECut(hTE);
                 return noErr;
 
             case 'v': case 'V':
+                HUnlock((Handle)hTE);
                 TEPaste(hTE);
                 return noErr;
 
             case 'z': case 'Z':
                 /* Undo functionality would go here */
+                HUnlock((Handle)hTE);
                 return noErr;
         }
     }
@@ -280,6 +287,8 @@ OSErr TEProcessKeyDown(TEHandle hTE, short keyCode, char charCode, long modifier
     if (TEIsNavigationKey(keyCode)) {
         Boolean extend = (modifiers & kTEShiftKey) != 0;
         Boolean word = (modifiers & kTEOptionKey) != 0;
+
+        HUnlock((Handle)hTE);
 
         switch (keyCode) {
             case leftArrowChar:
@@ -313,24 +322,54 @@ OSErr TEProcessKeyDown(TEHandle hTE, short keyCode, char charCode, long modifier
 
     /* Handle editing keys */
     if (TEIsEditingKey(keyCode)) {
+        long selStart, selEnd, teLength;
+
+        /* Save values before unlocking */
+        selStart = (**teRec).selStart;
+        selEnd = (**teRec).selEnd;
+        teLength = (**teRec).teLength;
+        HUnlock((Handle)hTE);
+
+        /* Re-lock to modify selection */
+        HLock((Handle)hTE);
+        teRec = (TERec **)hTE;
+
         switch (keyCode) {
             case backspaceChar:
-                if ((**teRec).selStart == (**teRec).selEnd && (**teRec).selStart > 0) {
+                if (selStart == selEnd && selStart > 0) {
                     /* Move selection back one character */
-                    (**teRec).selStart--;
+                    (**teRec).selStart = selStart - 1;
+                    (**teRec).selEnd = selEnd;
                 }
+                HUnlock((Handle)hTE);
+
+                /* Re-lock to check if delete needed */
+                HLock((Handle)hTE);
+                teRec = (TERec **)hTE;
                 if ((**teRec).selStart < (**teRec).selEnd) {
+                    HUnlock((Handle)hTE);
                     TEDelete(hTE);
+                } else {
+                    HUnlock((Handle)hTE);
                 }
                 break;
 
             case 0x7F: /* Forward delete */
-                if ((**teRec).selStart == (**teRec).selEnd && (**teRec).selEnd < (**teRec).teLength) {
+                if (selStart == selEnd && selEnd < teLength) {
                     /* Extend selection forward one character */
-                    (**teRec).selEnd++;
+                    (**teRec).selStart = selStart;
+                    (**teRec).selEnd = selEnd + 1;
                 }
+                HUnlock((Handle)hTE);
+
+                /* Re-lock to check if delete needed */
+                HLock((Handle)hTE);
+                teRec = (TERec **)hTE;
                 if ((**teRec).selStart < (**teRec).selEnd) {
+                    HUnlock((Handle)hTE);
                     TEDelete(hTE);
+                } else {
+                    HUnlock((Handle)hTE);
                 }
                 break;
         }
@@ -338,6 +377,7 @@ OSErr TEProcessKeyDown(TEHandle hTE, short keyCode, char charCode, long modifier
     }
 
     /* Handle regular character input */
+    HUnlock((Handle)hTE);
     if (!TEIsControlCharacter(charCode) || charCode == returnChar || charCode == tabChar) {
         err = TEInsertChar(hTE, charCode);
     }
@@ -364,13 +404,21 @@ OSErr TEProcessKeyRepeat(TEHandle hTE, short keyCode, char charCode, long modifi
 OSErr TEInsertChar(TEHandle hTE, char ch)
 {
     TERec **teRec;
+    long selStart, selEnd;
 
     if (!hTE || !*hTE) return paramErr;
 
+    /* CRITICAL: Lock hTE before dereferencing */
+    HLock((Handle)hTE);
     teRec = (TERec **)hTE;
 
+    /* Save selection values */
+    selStart = (**teRec).selStart;
+    selEnd = (**teRec).selEnd;
+    HUnlock((Handle)hTE);
+
     /* Delete selection first if any */
-    if ((**teRec).selStart != (**teRec).selEnd) {
+    if (selStart != selEnd) {
         TEDelete(hTE);
     }
 
@@ -391,6 +439,7 @@ OSErr TEInsertTextWithStyle(TEHandle hTE, const void* text, short length,
                            const TextStyle* style)
 {
     OSErr err;
+    TERec **teRec;
 
     if (!hTE || !text || length <= 0) return paramErr;
 
@@ -400,15 +449,17 @@ OSErr TEInsertTextWithStyle(TEHandle hTE, const void* text, short length,
 
     /* Apply style if provided */
     if (style) {
-        TERec **teRec = (TERec **)hTE;
-        long start = (**teRec).selStart - length;
-        long end = (**teRec).selStart;
+        /* CRITICAL: Lock hTE after TEInsert call before dereferencing */
+        HLock((Handle)hTE);
+        teRec = (TERec **)hTE;
 
         /* In full implementation, would apply style to inserted text */
         /* For now, just update basic text attributes */
         (**teRec).txFont = style->tsFont;
         (**teRec).txFace = style->tsFace;
         (**teRec).txSize = style->tsSize;
+
+        HUnlock((Handle)hTE);
     }
 
     return noErr;
