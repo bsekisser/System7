@@ -117,7 +117,7 @@ void _CleanupControlManager(void) {
         /* Cleanup control type registry */
         while (gControlMgr.controlTypes) {
             struct ControlTypeEntry *next = gControlMgr.controlTypes->next;
-            free(gControlMgr.controlTypes);
+            DisposePtr((Ptr)gControlMgr.controlTypes);
             gControlMgr.controlTypes = next;
         }
 
@@ -1019,7 +1019,7 @@ void RegisterControlType(SInt16 procID, ControlDefProcPtr defProc) {
     }
 
     /* Create new entry */
-    entry = (struct ControlTypeEntry *)malloc(sizeof(struct ControlTypeEntry));
+    entry = (struct ControlTypeEntry *)NewPtr(sizeof(struct ControlTypeEntry));
     if (entry) {
         entry->procID = procID;
         entry->defProc = defProc;

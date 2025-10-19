@@ -933,7 +933,7 @@ static AuxWinHandle CreateAuxiliaryWindowRecord(WindowPtr owner) {
     if (owner == NULL) return NULL;
 
     /* Allocate handle */
-    AuxWinHandle auxHandle = (AuxWinHandle)malloc(sizeof(AuxWinRec*));
+    AuxWinHandle auxHandle = (AuxWinHandle)NewPtr(sizeof(AuxWinRec*));
     if (auxHandle == NULL) {
         #ifdef DEBUG_WINDOW_MANAGER
         printf("CreateAuxiliaryWindowRecord: Failed to allocate handle\n");
@@ -942,9 +942,9 @@ static AuxWinHandle CreateAuxiliaryWindowRecord(WindowPtr owner) {
     }
 
     /* Allocate record */
-    AuxWinRec* auxRec = (AuxWinRec*)calloc(1, sizeof(AuxWinRec));
+    AuxWinRec* auxRec = (AuxWinRec*)NewPtrClear(sizeof(AuxWinRec));
     if (auxRec == NULL) {
-        free(auxHandle);
+        DisposePtr((Ptr)auxHandle);
         #ifdef DEBUG_WINDOW_MANAGER
         printf("CreateAuxiliaryWindowRecord: Failed to allocate record\n");
         #endif
@@ -998,8 +998,8 @@ static void DisposeAuxiliaryWindowRecord(AuxWinHandle auxWin) {
     }
 
     /* Free the record and handle */
-    free(*auxWin);
-    free(auxWin);
+    DisposePtr((Ptr)*auxWin);
+    DisposePtr((Ptr)auxWin);
 
     #ifdef DEBUG_WINDOW_MANAGER
     printf("DisposeAuxiliaryWindowRecord: Disposed auxiliary record\n");

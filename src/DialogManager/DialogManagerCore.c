@@ -157,7 +157,7 @@ DialogPtr NewDialog(void* wStorage, const Rect* boundsRect, const unsigned char*
     if (!window) {
         // printf("Error: Failed to create dialog window\n");
         if (!wStorage) {
-            free(dialog);
+            DisposePtr((Ptr)dialog);
         }
         return NULL;
     }
@@ -497,7 +497,7 @@ static DialogPtr CreateDialogStructure(void* storage, Boolean isColor)
         dialog = (DialogPtr)storage;
     } else {
         /* Allocate new storage */
-        dialog = (DialogPtr)malloc(sizeof(DialogRecord));
+        dialog = (DialogPtr)NewPtr(sizeof(DialogRecord));
         if (!dialog) {
             return NULL;
         }
@@ -551,7 +551,7 @@ static void DisposeDialogStructure(DialogPtr dialog, Boolean closeOnly)
 
     /* Free the dialog structure if it was allocated */
     if (!closeOnly) {
-        free(dialog);
+        DisposePtr((Ptr)dialog);
     }
 }
 
