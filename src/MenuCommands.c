@@ -323,12 +323,53 @@ static void HandleFileMenu(short item)
     switch (item) {
         case kNewFolderItem: {
             MENU_LOG_INFO("File > New Folder\n");
-            /* Create new folder in Finder - creates in Desktop (parent ID 2) */
-            extern Boolean VFS_CreateFolder(SInt16 vref, SInt32 parent, const char* name, SInt32* newID);
-            SInt32 newFolderID;
-            if (VFS_CreateFolder(0, 2, "New Folder", &newFolderID)) {
-                MENU_LOG_DEBUG("Created new folder with ID %d\n", (int)newFolderID);
-                DrawDesktop();
+            /* Create new folder in current window or desktop */
+            extern bool VFS_CreateFolder(VRefNum vref, DirID parent, const char* name, DirID* newID);
+            extern bool VFS_GenerateUniqueName(VRefNum vref, DirID dir, const char* base, char* out);
+            extern Boolean IsFolderWindow(WindowPtr w);
+            extern VRefNum FolderWindow_GetVRef(WindowPtr w);
+            extern DirID FolderWindow_GetCurrentDir(WindowPtr w);
+
+            WindowPtr front = FrontWindow();
+            VRefNum targetVRef = 0;
+            DirID targetDir = 2;  /* Default to desktop */
+
+            /* If front window is a folder window, create in that folder */
+            if (front && IsFolderWindow(front)) {
+                targetVRef = FolderWindow_GetVRef(front);
+                targetDir = FolderWindow_GetCurrentDir(front);
+                MENU_LOG_DEBUG("Creating folder in folder window (vref=%d, dir=%d)\n",
+                             targetVRef, targetDir);
+            } else {
+                MENU_LOG_DEBUG("Creating folder on desktop (dir=2)\n");
+            }
+
+            /* Generate unique name */
+            char folderName[256];
+            if (!VFS_GenerateUniqueName(targetVRef, targetDir, "untitled folder", folderName)) {
+                MENU_LOG_DEBUG("Failed to generate unique folder name\n");
+                break;
+            }
+
+            /* Create the folder */
+            DirID newFolderID;
+            if (VFS_CreateFolder(targetVRef, targetDir, folderName, &newFolderID)) {
+                MENU_LOG_DEBUG("Created new folder '%s' with ID %d\n", folderName, (int)newFolderID);
+
+                /* Refresh the window or desktop */
+                if (front && IsFolderWindow(front)) {
+                    /* Reload folder contents to show the new folder */
+                    extern void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID);
+                    InitializeFolderContentsEx(front, false, targetVRef, targetDir);
+
+                    /* Trigger redraw */
+                    extern void PostEvent(UInt16 eventType, UInt32 message);
+                    PostEvent(updateEvt, (UInt32)front);
+                } else {
+                    DrawDesktop();
+                }
+            } else {
+                MENU_LOG_DEBUG("Failed to create folder '%s'\n", folderName);
             }
             break;
         }
