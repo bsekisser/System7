@@ -302,6 +302,9 @@ void WM_DrawWindowTitle(WindowPtr window, const Rect* titleRect) {
     WM_LOG_TRACE("*** CODE PATH A: WM_DrawWindowTitle in WindowParts.c ***\n");
     WM_DEBUG("WM_DrawWindowTitle: Drawing window title with Font Manager");
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock((Handle)window->titleHandle);
+
     /* Get title string */
     unsigned char* title = *(window->titleHandle);
     short titleLength = title[0];
@@ -332,6 +335,9 @@ void WM_DrawWindowTitle(WindowPtr window, const Rect* titleRect) {
         titleStr[titleLength] = '\0';
         WM_DEBUG("WM_DrawWindowTitle: Drew title \"%s\" at (%d, %d)", titleStr, centerX, centerY);
     }
+
+    /* Unlock handle after use */
+    HUnlock((Handle)window->titleHandle);
 }
 
 void WM_DrawWindowCloseBox(WindowPtr window, WindowPartState state) {

@@ -658,6 +658,8 @@ static void DrawWindowFrame(WindowPtr window) {
                      window->titleHandle, window->titleHandle ? *window->titleHandle : NULL);
 
         if (window->titleHandle && *window->titleHandle) {
+            /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+            HLock((Handle)window->titleHandle);
             unsigned char* titleStr = (unsigned char*)*window->titleHandle;
             unsigned char titleLen = titleStr[0];
 
@@ -741,6 +743,8 @@ static void DrawWindowFrame(WindowPtr window) {
             } else {
                 WM_LOG_TRACE("TITLE_DRAW: titleLen %d out of range\n", titleLen);
             }
+            /* Unlock handle after use */
+            HUnlock((Handle)window->titleHandle);
         } else {
             WM_LOG_TRACE("TITLE_DRAW: No titleHandle or empty\n");
         }
