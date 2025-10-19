@@ -454,14 +454,22 @@ static void HandleFileMenu(short item)
         case kFindItem: {
             MENU_LOG_INFO("File > Find...\n");
             /* Show Find dialog to search for files */
-            MENU_LOG_DEBUG("Find dialog not implemented\n");
+            extern OSErr ShowFind(void);
+            OSErr err = ShowFind();
+            if (err != noErr) {
+                MENU_LOG_DEBUG("ShowFind failed with error %d\n", err);
+            }
             break;
         }
 
         case kFindAgainItem: {
             MENU_LOG_INFO("File > Find Again\n");
             /* Repeat the last find operation */
-            MENU_LOG_DEBUG("Find Again not implemented\n");
+            extern OSErr FindAgain(void);
+            OSErr err = FindAgain();
+            if (err != noErr) {
+                MENU_LOG_DEBUG("FindAgain failed with error %d\n", err);
+            }
             break;
         }
 

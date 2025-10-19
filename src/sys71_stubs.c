@@ -879,13 +879,7 @@ OSErr HandleGetInfo(void) {
     return noErr;
 }
 
-OSErr ShowFind(void) {
-    return noErr;
-}
-
-OSErr FindAgain(void) {
-    return noErr;
-}
+/* ShowFind and FindAgain implemented in src/Finder/Find.c */
 
 OSErr ShowAboutFinder(void) {
     return noErr;
@@ -927,6 +921,7 @@ OSErr CloseFinderWindow(WindowPtr window) {
     /* Try to close special windows first */
     extern void AboutWindow_CloseIf(WindowPtr w);
     extern void GetInfo_CloseIf(WindowPtr w);
+    extern void Find_CloseIf(WindowPtr w);
     extern void CleanupFolderWindow(WindowPtr w);
     extern Boolean IsFolderWindow(WindowPtr w);
 
@@ -935,6 +930,9 @@ OSErr CloseFinderWindow(WindowPtr window) {
 
     /* Check Get Info window */
     GetInfo_CloseIf(window);
+
+    /* Check Find window */
+    Find_CloseIf(window);
 
     /* Check folder window */
     if (IsFolderWindow(window)) {
@@ -968,6 +966,7 @@ void DoUpdate(WindowPtr window) {
     /* Route to appropriate update handler based on window type */
     extern Boolean AboutWindow_HandleUpdate(WindowPtr w);
     extern Boolean GetInfo_HandleUpdate(WindowPtr w);
+    extern Boolean Find_HandleUpdate(WindowPtr w);
     extern void FolderWindow_Draw(WindowPtr w);
     extern Boolean IsFolderWindow(WindowPtr w);
 
@@ -978,6 +977,11 @@ void DoUpdate(WindowPtr window) {
 
     /* Try Get Info window */
     if (GetInfo_HandleUpdate(window)) {
+        return;
+    }
+
+    /* Try Find window */
+    if (Find_HandleUpdate(window)) {
         return;
     }
 
