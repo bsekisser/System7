@@ -45,6 +45,8 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
         return -1;
     }
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock(ditlHandle);
     p = (unsigned char*)*ditlHandle;
 
     /* Read item count (stored as count-1 in resource) */
@@ -54,6 +56,7 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
 
     if (count < 0 || count > 256) {
         // DIALOG_LOG_DEBUG("Dialog: ParseDITL - invalid item count %d\n", count);
+        HUnlock(ditlHandle);
         return -1;
     }
 
@@ -64,6 +67,7 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
     itemArray = (DialogItemEx*)malloc(count * sizeof(DialogItemEx));
     if (!itemArray) {
         // DIALOG_LOG_DEBUG("Dialog: ParseDITL - malloc failed\n");
+        HUnlock(ditlHandle);
         return -108;  /* memFullErr */
     }
 
@@ -144,6 +148,7 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
     }
 
     *items = itemArray;
+    HUnlock(ditlHandle);
     return 0;  /* noErr */
 }
 
