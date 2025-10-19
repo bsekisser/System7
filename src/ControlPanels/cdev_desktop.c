@@ -212,14 +212,9 @@ Boolean DesktopPatterns_HandleEvent(EventRecord *event) {
                             if (TrackControl(control, where, NULL)) {
                                 serial_puts("[CDEV-EVT] Control tracked successfully\n");
                                 if (control == gOKButton) {
-                                    serial_puts("[CDEV-EVT] OK button clicked\n");
                                     /* Save and apply the selected pattern */
-                                    serial_puts("[CDEV-EVT] Calling ApplySelectedPattern\n");
                                     ApplySelectedPattern();
-                                    serial_puts("[CDEV-EVT] ApplySelectedPattern returned\n");
-                                    serial_puts("[CDEV-EVT] Calling CloseDesktopCdev\n");
                                     CloseDesktopCdev();
-                                    serial_puts("[CDEV-EVT] CloseDesktopCdev returned\n");
                                 } else if (control == gCancelButton) {
                                     serial_puts("[CDEV-EVT] Cancel button clicked\n");
                                     /* Restore original pattern and close */
@@ -300,7 +295,6 @@ static void DrawPatternCell(int col, int row, int16_t patID, bool selected) {
     cellRect.right = cellRect.left + CELL_W;
     cellRect.bottom = cellRect.top + CELL_H;
 
-    serial_puts("[DC] Frame\n");
     /* Draw border */
     if (selected) {
         /* Highlight selected pattern */
@@ -311,24 +305,19 @@ static void DrawPatternCell(int col, int row, int16_t patID, bool selected) {
         FrameRect(&cellRect);
     }
 
-    serial_puts("[DC] Inset\n");
     /* Create interior rect for fill - don't modify the original */
     Rect fillRect = cellRect;
     InsetRect(&fillRect, 1, 1);
 
-    serial_puts("[DC] Load\n");
     /* Fill with pattern */
     Pattern pat;
     if (LoadPATResource(patID, &pat)) {
-        serial_puts("[DC] Fill\n");
         FillRect(&fillRect, &pat);
     } else {
         /* Fallback: lightly shade missing pattern - pattern load failed */
-        serial_puts("[DC] Fallback\n");
         Pattern fallback = qd.ltGray;
         FillRect(&fillRect, &fallback);
     }
-    serial_puts("[DC] Done\n");
 }
 
 /*
@@ -362,9 +351,7 @@ static void DrawPatternGrid(void) {
 
     for (int row = 0; row < GRID_ROWS; row++) {
         for (int col = 0; col < GRID_COLS; col++) {
-            serial_puts("[CDEV-GRID] Drawing cell\n");
             DrawPatternCell(col, row, patID, (patID == gSelectedPatID));
-            serial_puts("[CDEV-GRID] Cell drawn OK\n");
             patID++;
         }
     }
@@ -401,30 +388,23 @@ static int16_t GetPatternIDAtPosition(Point pt) {
  * ApplySelectedPattern - Apply and save the selected pattern
  */
 static void ApplySelectedPattern(void) {
-    serial_puts("[CDEV] ApplySelectedPattern start\n");
     if (gSelectedPatID == 0) {
-        serial_puts("[CDEV] Invalid patID, returning\n");
         return;
     }
 
     /* Update the preference */
-    serial_puts("[CDEV] Creating pref\n");
     DesktopPref pref = gOriginalPref;
     pref.usePixPat = false;
     pref.patID = gSelectedPatID;
 
     /* Save to PRAM - this persists the user's choice */
-    serial_puts("[CDEV] Saving preference\n");
     PM_SaveDesktopPref(&pref);
-    serial_puts("[CDEV] Preference saved\n");
     gOriginalPref = pref;
 
     /* Don't apply pattern here - it's already being shown as preview on the desktop.
      * Just save the preference and close the window. The Finder will update the
      * desktop when it gets the notification. Applying here would try to set the
      * pattern on the applet window's port, which causes issues. */
-
-    serial_puts("[CDEV] ApplySelectedPattern complete\n");
 }
 
 /*

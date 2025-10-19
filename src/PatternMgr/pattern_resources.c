@@ -38,17 +38,11 @@ extern const uint8_t* GetBuiltInPatternData(int16_t patternID);
 bool LoadPATResource(int16_t id, Pattern *outPat) {
     if (!outPat) return false;
 
-    extern void serial_puts(const char* str);
-    serial_puts("[LPR] GetResource\n");
-
     /* First try to get from resource manager */
     Handle h = GetResource(kPatternResourceType, id);
 
-    serial_puts("[LPR] GetResource done\n");
-
     if (!h) {
         /* Fall back to built-in patterns */
-        serial_puts("[LPR] Using built-in\n");
         const uint8_t* builtInData = GetBuiltInPatternData(id);
         if (builtInData) {
             memset(outPat, 0, sizeof(*outPat));
@@ -60,35 +54,29 @@ bool LoadPATResource(int16_t id, Pattern *outPat) {
     }
 
     /* Handle was found - extract pattern data carefully */
-    serial_puts("[LPR] HLock\n");
     HLock(h);
 
     /* Verify handle is still valid */
     if (!*h) {
-        serial_puts("[LPR] Invalid handle\n");
         HUnlock(h);
         /* DON'T call ReleaseResource - Resource Manager owns this handle */
         return false;
     }
 
-    serial_puts("[LPR] Get size\n");
     const uint8_t *p = (const uint8_t *)*h;
     Size sz = GetHandleSize(h);
 
     /* Ensure we have at least 8 bytes */
     if (sz < 8) {
-        serial_puts("[LPR] Size too small\n");
         HUnlock(h);
         /* DON'T call ReleaseResource - Resource Manager owns this handle */
         return false;
     }
 
     /* Copy exactly 8 bytes - use first 8 bytes if larger */
-    serial_puts("[LPR] Copying\n");
     memset(outPat, 0, sizeof(*outPat));
     memcpy(outPat->pat, p, 8);
 
-    serial_puts("[LPR] Unlock\n");
     HUnlock(h);
 
     /* DON'T call ReleaseResource - The Resource Manager manages resource lifetimes
@@ -96,7 +84,6 @@ bool LoadPATResource(int16_t id, Pattern *outPat) {
      * can corrupt the resource cache state when the same resource is accessed
      * multiple times (as happens when redrawing the pattern grid). */
 
-    serial_puts("[LPR] Done\n");
     return true;
 }
 
