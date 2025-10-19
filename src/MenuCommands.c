@@ -787,7 +787,88 @@ void DuplicateSelectedItems(WindowPtr w) {
 }
 
 void MakeAliasOfSelectedItems(WindowPtr w) {
-    MENU_LOG_DEBUG("[STUB] MakeAliasOfSelectedItems called\n");
+    MENU_LOG_DEBUG("MakeAliasOfSelectedItems called\n");
+
+    if (!w) {
+        /* Get front window if not specified */
+        extern WindowPtr FrontWindow(void);
+        w = FrontWindow();
+    }
+
+    if (!w) {
+        MENU_LOG_DEBUG("MakeAliasOfSelectedItems: No window\n");
+        return;
+    }
+
+    /* Check if it's a folder window */
+    extern Boolean IsFolderWindow(WindowPtr w);
+    if (!IsFolderWindow(w)) {
+        MENU_LOG_DEBUG("MakeAliasOfSelectedItems: Window is not a folder window\n");
+        return;
+    }
+
+    /* Get selected items as FSSpec array */
+    extern short FolderWindow_GetSelectedAsSpecs(WindowPtr w, FSSpec** outSpecs);
+    FSSpec* specs = NULL;
+    short count = FolderWindow_GetSelectedAsSpecs(w, &specs);
+
+    if (count == 0 || !specs) {
+        MENU_LOG_DEBUG("MakeAliasOfSelectedItems: No items selected\n");
+        return;
+    }
+
+    MENU_LOG_DEBUG("MakeAliasOfSelectedItems: Creating aliases for %d items\n", count);
+
+    /* Get current folder location */
+    extern VRefNum FolderWindow_GetVRef(WindowPtr w);
+    extern DirID FolderWindow_GetCurrentDir(WindowPtr w);
+    VRefNum vref = FolderWindow_GetVRef(w);
+    DirID dirID = FolderWindow_GetCurrentDir(w);
+
+    /* Create alias for each selected item */
+    for (short i = 0; i < count; i++) {
+        /* Build alias file name: "<original name> alias" */
+        char aliasName[256];
+        snprintf(aliasName, sizeof(aliasName), "%s alias", specs[i].name);
+
+        /* Create FSSpec for the alias file in the same folder */
+        FSSpec aliasSpec;
+
+        /* Convert C string to Pascal string for FSMakeFSSpec */
+        unsigned char pascalName[256];
+        pascalName[0] = (unsigned char)strlen(aliasName);
+        strcpy((char*)&pascalName[1], aliasName);
+
+        OSErr err = FSMakeFSSpec(vref, dirID, pascalName, &aliasSpec);
+        if (err != noErr && err != fnfErr) {
+            /* FSMakeFSSpec returns fnfErr if file doesn't exist, which is expected */
+            MENU_LOG_DEBUG("MakeAliasOfSelectedItems: FSMakeFSSpec failed with error %d for item %d\n", err, i);
+            continue;
+        }
+
+        /* Create the alias */
+        extern OSErr CreateAlias(FSSpec *target, FSSpec *aliasFile);
+        err = CreateAlias(&specs[i], &aliasSpec);
+
+        if (err == noErr) {
+            MENU_LOG_DEBUG("MakeAliasOfSelectedItems: Created alias '%s' for '%s'\n",
+                         aliasName, specs[i].name);
+        } else {
+            MENU_LOG_DEBUG("MakeAliasOfSelectedItems: CreateAlias failed with error %d for item %d\n", err, i);
+        }
+    }
+
+    /* Free the specs array */
+    free(specs);
+
+    /* Reload the folder to show the new aliases */
+    extern void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirID dirID);
+    InitializeFolderContentsEx(w, false, vref, dirID);
+
+    /* Trigger redraw */
+    PostEvent(updateEvt, (UInt32)w);
+
+    MENU_LOG_DEBUG("MakeAliasOfSelectedItems: Complete\n");
 }
 
 void PutAwaySelectedItems(WindowPtr w) {
