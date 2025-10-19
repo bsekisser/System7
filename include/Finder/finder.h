@@ -111,6 +111,7 @@ WindowPtr FolderWindow_OpenFolder(VRefNum vref, DirID dirID, ConstStr255Param ti
 Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleClick);
 void FolderWindow_Draw(WindowPtr w);
 Boolean IsFolderWindow(WindowPtr w);
+void FolderWindow_SelectAll(WindowPtr w);
 void FolderWindowProc(WindowPtr window, short message, long param);
 void CleanupFolderWindow(WindowPtr w);
 

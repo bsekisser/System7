@@ -76,7 +76,8 @@ typedef struct FolderItem {
 typedef struct FolderWindowState {
     FolderItem* items;     /* Array of items in this folder */
     short itemCount;       /* Number of items */
-    short selectedIndex;   /* Currently selected item (-1 = none) */
+    short selectedIndex;   /* Currently selected item (-1 = none) - primary selection for keyboard navigation */
+    Boolean* selectedItems; /* Array of selection flags (true = selected) for multi-select */
     Boolean isDragging;    /* Currently dragging an item */
     UInt32 lastClickTime;  /* For double-click detection */
     Point lastClickPos;    /* Last click position */
@@ -276,6 +277,7 @@ FolderWindowState* GetFolderState(WindowPtr w) {
             gFolderWindows[i].state.items = NULL;
             gFolderWindows[i].state.itemCount = 0;
             gFolderWindows[i].state.selectedIndex = -1;
+            gFolderWindows[i].state.selectedItems = NULL;
             gFolderWindows[i].state.isDragging = false;
             gFolderWindows[i].state.lastClickTime = 0;
             gFolderWindows[i].state.lastClickPos.h = 0;
@@ -325,6 +327,11 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
         free(state->items);
         state->items = NULL;
         state->itemCount = 0;
+    }
+
+    if (state->selectedItems) {
+        free(state->selectedItems);
+        state->selectedItems = NULL;
     }
 
     if (isTrash) {
@@ -386,6 +393,14 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
             int row = i / maxCols;
             state->items[i].position.h = startX + (col * colSpacing);
             state->items[i].position.v = startY + (row * rowHeight);
+        }
+
+        /* Allocate selection array */
+        state->selectedItems = (Boolean*)malloc(sizeof(Boolean) * state->itemCount);
+        if (state->selectedItems) {
+            for (int i = 0; i < state->itemCount; i++) {
+                state->selectedItems[i] = false;
+            }
         }
 
         FINDER_LOG_DEBUG("InitializeFolderContentsEx: populated Applications folder with %d items\n",
@@ -473,6 +488,14 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
             state->items[i].position.v = startY + (row * rowHeight);
         }
 
+        /* Allocate selection array */
+        state->selectedItems = (Boolean*)malloc(sizeof(Boolean) * state->itemCount);
+        if (state->selectedItems) {
+            for (int i = 0; i < state->itemCount; i++) {
+                state->selectedItems[i] = false;
+            }
+        }
+
         FINDER_LOG_DEBUG("InitializeFolderContentsEx: populated Control Panels folder with %d items\n",
                          state->itemCount);
         return;
@@ -558,6 +581,14 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
                          state->items[i].isFolder ? "DIR" : "FILE",
                          state->items[i].fileID,
                          state->items[i].position.h, state->items[i].position.v);
+        }
+
+        /* Allocate selection array */
+        state->selectedItems = (Boolean*)malloc(sizeof(Boolean) * state->itemCount);
+        if (state->selectedItems) {
+            for (int i = 0; i < state->itemCount; i++) {
+                state->selectedItems[i] = false;
+            }
         }
 
         FINDER_LOG_DEBUG("FW: Initialized %d items from VFS\n", count);
@@ -1052,6 +1083,13 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
         state->lastClickIndex = hitIndex;
         state->lastClickTime = currentTime;
 
+        /* Update multi-selection array */
+        if (state->selectedItems) {
+            for (short i = 0; i < state->itemCount; i++) {
+                state->selectedItems[i] = (i == hitIndex);
+            }
+        }
+
         if (oldSel != hitIndex) {
             PostEvent(updateEvt, (UInt32)w);
         }
@@ -1068,6 +1106,13 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
             state->selectedIndex = hitIndex;
             state->lastClickIndex = hitIndex;
             state->lastClickTime = currentTime;
+
+            /* Update multi-selection array */
+            if (state->selectedItems) {
+                for (short i = 0; i < state->itemCount; i++) {
+                    state->selectedItems[i] = (i == hitIndex);
+                }
+            }
 
             FINDER_LOG_DEBUG("FW: select %d -> %d, SET lastClickIndex=%d, lastClickTime=%lu\n",
                          oldSel, hitIndex, hitIndex, (unsigned long)currentTime);
@@ -1138,7 +1183,8 @@ void FolderWindow_Draw(WindowPtr w) {
         bool iconSystemReady = FolderWindow_EnsureIconSystemInitialized();
 
         for (short i = 0; i < state->itemCount; i++) {
-            Boolean selected = (i == state->selectedIndex);
+            /* Check selection from array if available, otherwise fall back to selectedIndex */
+            Boolean selected = (state->selectedItems && state->selectedItems[i]) || (i == state->selectedIndex);
             IconHandle iconHandle = {0};
             bool resolved = false;
 
@@ -1186,6 +1232,27 @@ Boolean IsFolderWindow(WindowPtr w) {
     if (!w) return false;
     /* Use lowercase hex to match runtime exactly */
     return (w->refCon == 0x4449534b || w->refCon == 0x54525348);  /* 'DISK' or 'TRSH' */
+}
+
+/* Select all items in a folder window */
+void FolderWindow_SelectAll(WindowPtr w) {
+    if (!w || !IsFolderWindow(w)) return;
+
+    FolderWindowState* state = GetFolderState(w);
+    if (!state || !state->selectedItems) return;
+
+    /* Select all items */
+    for (short i = 0; i < state->itemCount; i++) {
+        state->selectedItems[i] = true;
+    }
+
+    /* Update primary selection to first item for keyboard navigation */
+    if (state->itemCount > 0) {
+        state->selectedIndex = 0;
+    }
+
+    /* Trigger redraw */
+    PostEvent(updateEvt, (UInt32)w);
 }
 
 /* Update window proc for folder windows */
@@ -1262,6 +1329,12 @@ FINDER_LOG_DEBUG("CleanupFolderWindow: cleaning up window 0x%08x\n", (unsigned i
                 FINDER_LOG_DEBUG("CleanupFolderWindow: calling free()\n");
                 free(gFolderWindows[i].state.items);
                 FINDER_LOG_DEBUG("CleanupFolderWindow: free() returned\n");
+            }
+
+            /* Free the selection array if allocated */
+            if (gFolderWindows[i].state.selectedItems) {
+                FINDER_LOG_DEBUG("CleanupFolderWindow: freeing selectedItems\n");
+                free(gFolderWindows[i].state.selectedItems);
             }
 
             /* Clear the slot */
