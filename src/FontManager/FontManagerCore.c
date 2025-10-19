@@ -8,6 +8,7 @@
 
 #include "FontManager/FontManager.h"
 #include "FontManager/FontTypes.h"
+#include "QuickDraw/ColorQuickDraw.h"
 #include "QuickDraw/QuickDraw.h"
 #include "SystemTypes.h"
 #include "chicago_font.h"

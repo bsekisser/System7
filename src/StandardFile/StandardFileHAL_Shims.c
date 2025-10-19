@@ -18,6 +18,7 @@
 #include "FileMgr/file_manager.h"
 #include "DeskManager/DeskManager.h"
 #include "ListManager/ListManager.h"
+#include "ToolboxCompat.h"
 
 /* Debug logging */
 #ifdef SF_HAL_DEBUG

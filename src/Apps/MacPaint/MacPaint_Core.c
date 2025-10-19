@@ -29,6 +29,7 @@
 #include "Finder/finder.h"
 #include "System71StdLib.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "WindowManager/WindowFunctions.h"
 #include <string.h>
 
 /*

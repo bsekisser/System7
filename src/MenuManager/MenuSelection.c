@@ -884,7 +884,7 @@ static void CleanupTrackingState(MenuTrackInfo* state)
     /* Clean up any allocated resources */
     if (state->savedRegion != NULL) {
         extern void DisposeRgn(RgnHandle rgn);
-        DisposeRgn(state->savedRegion);
+        DisposeRgn((RgnHandle)state->savedRegion);
         state->savedRegion = NULL;
     }
 
