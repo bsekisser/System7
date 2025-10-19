@@ -297,6 +297,12 @@ void ProcessModernInput(void)
     static int btnChangeCount = 0;
     if (currentButtonState != g_modernInput.lastButtonState) {
         btnChangeCount++;
+        extern void serial_puts(const char* str);
+        char msg[96];
+        sprintf(msg, "[MI-BTN] Button change #%d: 0x%02x->0x%02x (down=%d->%d)\n",
+                btnChangeCount, g_modernInput.lastButtonState, currentButtonState,
+                (g_modernInput.lastButtonState & 1), (currentButtonState & 1));
+        serial_puts(msg);
         EVT_LOG_TRACE("[MI] Button change #%d: curr=%d, last=%d\n",
                      btnChangeCount, currentButtonState, g_modernInput.lastButtonState);
 

@@ -411,30 +411,30 @@ typedef struct {
     SystemLogLevel level;
 } SysLogTag;
 
-static SystemLogLevel g_globalLogLevel = kLogLevelDebug;
+static SystemLogLevel g_globalLogLevel = kLogLevelWarn;
 static SystemLogLevel g_moduleLevels[kLogModuleCount] = {
-    [kLogModuleGeneral] = kLogLevelInfo,
-    [kLogModuleDesktop] = kLogLevelDebug,
-    [kLogModuleEvent] = kLogLevelDebug,
-    [kLogModuleFinder] = kLogLevelDebug,
-    [kLogModuleFileSystem] = kLogLevelDebug,
-    [kLogModuleWindow] = kLogLevelDebug,
-    [kLogModuleMenu] = kLogLevelDebug,
-    [kLogModuleDialog] = kLogLevelDebug,
-    [kLogModuleControl] = kLogLevelDebug,
-    [kLogModuleFont] = kLogLevelDebug,
-    [kLogModuleSound] = kLogLevelInfo,
-    [kLogModuleResource] = kLogLevelDebug,
-    [kLogModuleStandardFile] = kLogLevelDebug,
-    [kLogModuleListManager] = kLogLevelDebug,
-    [kLogModuleSystem] = kLogLevelInfo,
-    [kLogModuleTextEdit] = kLogLevelDebug,
-    [kLogModulePlatform] = kLogLevelDebug,
-    [kLogModuleScrap] = kLogLevelDebug,
-    [kLogModuleMemory] = kLogLevelInfo,
-    [kLogModuleProcess] = kLogLevelInfo,
-    [kLogModuleSegmentLoader] = kLogLevelDebug,
-    [kLogModuleCPU] = kLogLevelInfo
+    [kLogModuleGeneral] = kLogLevelWarn,
+    [kLogModuleDesktop] = kLogLevelWarn,
+    [kLogModuleEvent] = kLogLevelWarn,
+    [kLogModuleFinder] = kLogLevelWarn,
+    [kLogModuleFileSystem] = kLogLevelWarn,
+    [kLogModuleWindow] = kLogLevelWarn,
+    [kLogModuleMenu] = kLogLevelWarn,
+    [kLogModuleDialog] = kLogLevelWarn,
+    [kLogModuleControl] = kLogLevelWarn,
+    [kLogModuleFont] = kLogLevelWarn,
+    [kLogModuleSound] = kLogLevelWarn,
+    [kLogModuleResource] = kLogLevelWarn,
+    [kLogModuleStandardFile] = kLogLevelWarn,
+    [kLogModuleListManager] = kLogLevelWarn,
+    [kLogModuleSystem] = kLogLevelWarn,
+    [kLogModuleTextEdit] = kLogLevelWarn,
+    [kLogModulePlatform] = kLogLevelWarn,
+    [kLogModuleScrap] = kLogLevelWarn,
+    [kLogModuleMemory] = kLogLevelWarn,
+    [kLogModuleProcess] = kLogLevelWarn,
+    [kLogModuleSegmentLoader] = kLogLevelWarn,
+    [kLogModuleCPU] = kLogLevelWarn
 };
 
 static const SysLogTag kLogTagTable[] = {

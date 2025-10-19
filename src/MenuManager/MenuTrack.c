@@ -463,22 +463,10 @@ Boolean IsMenuTrackingNew(void) {
 /* TrackMenu - Full implementation with mouse tracking loop */
 __attribute__((optimize("O0")))
 long TrackMenu(short menuID, Point *startPt) {
-    /* Static reentrancy guard */
-    static Boolean s_inTrackMenu = false;
-
-    /* Prevent reentrancy */
-    if (s_inTrackMenu) {
-        serial_puts("TrackMenu: Already tracking, preventing reentrancy\n");
-        return 0;
-    }
-
     /* NULL check to prevent crash */
     if (!startPt) {
         return 0;
     }
-
-    /* Set reentrancy flag */
-    s_inTrackMenu = true;
 
     /* Declare all variables at function start */
     GrafPtr savePort;
@@ -503,7 +491,7 @@ long TrackMenu(short menuID, Point *startPt) {
     serial_puts("TrackMenu: GetMenuHandle returned\n");
     if (!theMenu) {
         if (savePort) SetPort(savePort);
-        s_inTrackMenu = false;  /* Clear reentrancy flag */
+        // s_inTrackMenu cleared
         return 0;
     }
 
@@ -512,7 +500,7 @@ long TrackMenu(short menuID, Point *startPt) {
     if (menuPtr < 0x1000 || menuPtr > 0x40000000) {
         serial_puts("TrackMenu: Menu handle looks invalid (bad address range)\n");
         if (savePort) SetPort(savePort);
-        s_inTrackMenu = false;  /* Clear reentrancy flag */
+        // s_inTrackMenu cleared
         return 0;
     }
     serial_puts("TrackMenu: Menu handle address looks reasonable\n");
@@ -574,7 +562,7 @@ long TrackMenu(short menuID, Point *startPt) {
     if (menuRect.right <= menuRect.left || menuRect.bottom <= menuRect.top) {
         serial_puts("TrackMenu: Invalid rect after clipping, aborting\n");
         if (savePort) SetPort(savePort);
-        s_inTrackMenu = false;  /* Clear reentrancy flag */
+        // s_inTrackMenu cleared
         return 0;
     }
 
@@ -679,14 +667,41 @@ long TrackMenu(short menuID, Point *startPt) {
                     }
 
                     if (clickedItem > 0) {
-                        result = ((long)menuID << 16) | clickedItem;
-                        MENU_LOG_TRACE("TrackMenu: Item %d selected by click\n", clickedItem);
+                        /* Check if this item has a submenu */
+                        short submenuID = 0;
+                        GetItemSubmenu(theMenu, clickedItem, &submenuID);
 
-                        /* Show visual feedback - keep selected item highlighted briefly */
-                        volatile int feedbackDelay = 0;
-                        for (feedbackDelay = 0; feedbackDelay < 200000; feedbackDelay++) {
-                            SystemTask();
-                            EventPumpYield();
+                        char itemText[64];
+                        GetItemText(theMenu, clickedItem, itemText);
+
+                        char debugBuf[128];
+                        snprintf(debugBuf, sizeof(debugBuf),
+                                "[TM] Item %d (%s) submenuID=%d\n",
+                                clickedItem, itemText, submenuID);
+                        serial_puts(debugBuf);
+
+                        if (submenuID != 0) {
+                            /* This item has a submenu - open it instead of returning */
+                            MENU_LOG_TRACE("TrackMenu: Item %d has submenu %d, opening it\n", clickedItem, submenuID);
+
+                            /* Calculate submenu position to the right of current menu */
+                            Point submenuPt;
+                            submenuPt.h = left + menuWidth;  /* Open to the right */
+                            submenuPt.v = top + 2 + (clickedItem - 1) * lineHeight;  /* Align with item */
+
+                            /* Track the submenu - it will return the final selection */
+                            result = TrackMenu(submenuID, &submenuPt);
+                        } else {
+                            /* No submenu - this is the final selection */
+                            result = ((long)menuID << 16) | clickedItem;
+                            MENU_LOG_TRACE("TrackMenu: Item %d selected by click\n", clickedItem);
+
+                            /* Show visual feedback - keep selected item highlighted briefly */
+                            volatile int feedbackDelay = 0;
+                            for (feedbackDelay = 0; feedbackDelay < 200000; feedbackDelay++) {
+                                SystemTask();
+                                EventPumpYield();
+                            }
                         }
                     }
                     tracking = false;
@@ -739,7 +754,7 @@ long TrackMenu(short menuID, Point *startPt) {
     InvalidateCursor();
 
     /* Clear reentrancy flag before returning */
-    s_inTrackMenu = false;
+        // s_inTrackMenu cleared
 
     return result;
 }

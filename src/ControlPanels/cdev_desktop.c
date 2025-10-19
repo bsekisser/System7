@@ -144,28 +144,32 @@ void OpenDesktopCdev(void) {
  * CloseDesktopCdev - Close the control panel
  */
 void CloseDesktopCdev(void) {
-    serial_puts("[CDEV] CloseDesktopCdev start\n");
+    serial_puts("[CDC] Start\n");
     if (gDesktopCdevWin) {
-        serial_puts("[CDEV] Restoring port\n");
+        serial_puts("[CDC] Restoring port\n");
         if (gDesktopPrevPort) {
             SetPort(gDesktopPrevPort);
             gDesktopPrevPort = NULL;
         }
-        serial_puts("[CDEV] Disposing window\n");
+        serial_puts("[CDC] About to dispose window\n");
         DisposeWindow(gDesktopCdevWin);
+        serial_puts("[CDC] Window disposed\n");
         gDesktopCdevWin = NULL;
         gOKButton = NULL;
         gCancelButton = NULL;
 
         /* The control panel is closing, clear out any dirty Color Manager state */
-        serial_puts("[CDEV] Cleaning up ColorManager\n");
+        serial_puts("[CDC] Cleaning up ColorManager\n");
         if (ColorManager_IsAvailable()) {
+            serial_puts("[CDC] CM available, setting background\n");
             ColorManager_SetBackground(&gOriginalColor);
+            serial_puts("[CDC] CM background set\n");
             ColorManager_CommitQuickDraw();
+            serial_puts("[CDC] CM committed\n");
             /* ColorManager_Shutdown(); */ /* DISABLED: Testing if this causes freeze */
         }
     }
-    serial_puts("[CDEV] CloseDesktopCdev complete\n");
+    serial_puts("[CDC] Complete\n");
 }
 
 /*
@@ -212,9 +216,14 @@ Boolean DesktopPatterns_HandleEvent(EventRecord *event) {
                             if (TrackControl(control, where, NULL)) {
                                 serial_puts("[CDEV-EVT] Control tracked successfully\n");
                                 if (control == gOKButton) {
+                                    serial_puts("[OK] Button tracked\n");
                                     /* Save and apply the selected pattern */
+                                    serial_puts("[OK] Calling ApplySelectedPattern\n");
                                     ApplySelectedPattern();
+                                    serial_puts("[OK] ApplySelectedPattern done\n");
+                                    serial_puts("[OK] Calling CloseDesktopCdev\n");
                                     CloseDesktopCdev();
+                                    serial_puts("[OK] CloseDesktopCdev done\n");
                                 } else if (control == gCancelButton) {
                                     serial_puts("[CDEV-EVT] Cancel button clicked\n");
                                     /* Restore original pattern and close */
@@ -388,19 +397,25 @@ static int16_t GetPatternIDAtPosition(Point pt) {
  * ApplySelectedPattern - Apply and save the selected pattern
  */
 static void ApplySelectedPattern(void) {
+    serial_puts("[ASP] Start\n");
     if (gSelectedPatID == 0) {
+        serial_puts("[ASP] Invalid ID, returning\n");
         return;
     }
 
     /* Update the preference */
+    serial_puts("[ASP] Creating pref\n");
     DesktopPref pref = gOriginalPref;
     pref.usePixPat = false;
     pref.patID = gSelectedPatID;
 
     /* Save to PRAM - this persists the user's choice */
+    serial_puts("[ASP] About to save pref\n");
     PM_SaveDesktopPref(&pref);
+    serial_puts("[ASP] Pref saved\n");
     gOriginalPref = pref;
 
+    serial_puts("[ASP] Done\n");
     /* Don't apply pattern here - it's already being shown as preview on the desktop.
      * Just save the preference and close the window. The Finder will update the
      * desktop when it gets the notification. Applying here would try to set the

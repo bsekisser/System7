@@ -107,7 +107,7 @@ void InitDialogs(ResumeProcPtr resumeProc)
 
     gDialogManagerInitialized = true;
 
-    DIALOG_LOG_DEBUG("Dialog Manager initialized successfully\n");
+    // DIALOG_LOG_DEBUG("Dialog Manager initialized successfully\n");
 }
 
 /*
@@ -277,8 +277,6 @@ void CloseDialog(DialogPtr theDialog)
     if (IsModalDialog(theDialog)) {
         EndModalDialog(theDialog);
     }
-
-    printf("Closed dialog at %p\n", (void*)theDialog);
 }
 
 /*
@@ -289,8 +287,6 @@ void DisposDialog(DialogPtr theDialog)
     if (!theDialog || ValidateDialogPtr(theDialog) != 0) {
         return;
     }
-
-    printf("Disposing dialog at %p\n", (void*)theDialog);
 
     /* Clear keyboard focus before disposal (defensive, also done in DisposeWindow) */
     DM_ClearFocusForWindow((WindowPtr)theDialog);
@@ -376,7 +372,7 @@ void UpdateDialog(DialogPtr theDialog, RgnHandle updateRgn)
     /* Restore port */
     SetPort(savePort);
 
-    DIALOG_LOG_DEBUG("Dialog: Updated dialog %p\n", (void*)theDialog);
+    // DIALOG_LOG_DEBUG("Dialog: Updated dialog %p\n", (void*)theDialog);
 }
 
 /*

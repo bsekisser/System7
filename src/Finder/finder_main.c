@@ -42,7 +42,7 @@ extern QDGlobals qd;  /* QuickDraw globals from main.c */
 /* Global Variables */
 static Boolean gFinderInitialized = false;
 static Str255 gFinderVersion = "\033Macintosh Finder Version 7.1";
-static MenuHandle gAppleMenu, gFileMenu, gEditMenu, gViewMenu, gLabelMenu, gSpecialMenu;
+static MenuHandle gAppleMenu, gFileMenu, gEditMenu, gViewMenu, gLabelMenu, gSpecialMenu, gControlPanelsMenu;
 
 /* Forward Declarations */
 OSErr InitializeFinder(void);  /* Made public for kernel integration */
@@ -190,14 +190,24 @@ static OSErr SetupMenus(void)
     gAppleMenu = NewMenu(128, appleTitle);
     AppendMenu(gAppleMenu, "\025About This Macintosh");
     AppendMenu(gAppleMenu, "\002(-");
-    AppendMenu(gAppleMenu, "\023Desktop Patterns...");
-    AppendMenu(gAppleMenu, "\015Date & Time...");
-    AppendMenu(gAppleMenu, "\007Sound...");
-    AppendMenu(gAppleMenu, "\007Mouse...");
-    AppendMenu(gAppleMenu, "\013Keyboard...");
-    AppendMenu(gAppleMenu, "\016Control Strip...");
+    AppendMenu(gAppleMenu, "\020Control Panels>");
+    AppendMenu(gAppleMenu, "\007Notepad");
     AppendMenu(gAppleMenu, "\002(-");
     AddResMenu(gAppleMenu, 'DRVR');
+
+    /* Control Panels submenu - ID 134 */
+    static unsigned char cpTitle[] = {14, 'C', 'o', 'n', 't', 'r', 'o', 'l', ' ', 'P', 'a', 'n', 'e', 'l', 's'};
+    gControlPanelsMenu = NewMenu(134, cpTitle);
+    AppendMenu(gControlPanelsMenu, "\023Desktop Patterns...");
+    AppendMenu(gControlPanelsMenu, "\015Date & Time...");
+    AppendMenu(gControlPanelsMenu, "\007Sound...");
+    AppendMenu(gControlPanelsMenu, "\007Mouse...");
+    AppendMenu(gControlPanelsMenu, "\013Keyboard...");
+    AppendMenu(gControlPanelsMenu, "\016Control Strip...");
+
+    /* Connect Control Panels submenu to Apple menu item 3 (Control Panels>) */
+    /* Note: Do NOT insert into menu bar - keep as submenu only */
+    SetItemSubmenu(gAppleMenu, 3, 134);
 
     /* File Menu - Finder specific (System 7.1) */
     static unsigned char fileTitle[] = {4, 'F', 'i', 'l', 'e'};  /* Pascal string: "File" */

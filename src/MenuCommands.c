@@ -15,6 +15,7 @@
 #include "ControlPanels/Keyboard.h"
 #include "ControlPanels/ControlStrip.h"
 #include "Datetime/datetime_cdev.h"
+#include "DeskManager/Notepad.h"
 #include "Platform/Halt.h"
 #include "Platform/include/io.h"
 
@@ -102,6 +103,7 @@ static void HandleEditMenu(short item);
 static void HandleViewMenu(short item);
 static void HandleLabelMenu(short item);
 static void HandleSpecialMenu(short item);
+static void HandleControlPanelsMenu(short item);
 
 /* Main menu command dispatcher */
 void DoMenuCommand(short menuID, short item)
@@ -131,6 +133,10 @@ void DoMenuCommand(short menuID, short item)
 
         case kSpecialMenuID:
             HandleSpecialMenu(item);
+            break;
+
+        case 134:  /* Control Panels submenu */
+            HandleControlPanelsMenu(item);
             break;
 
         default:
@@ -238,12 +244,72 @@ static void HandleAppleMenu(short item)
         return;
     }
 
+    if (strcmp(itemName, "Notepad") == 0) {
+        MENU_LOG_DEBUG("Apple Menu > Notepad\n");
+        serial_puts("[MENU] Opening Notepad...\n");
+        /* Open Notepad desk accessory */
+        WindowPtr notepadWin;
+        OSErr err = Notepad_Open(&notepadWin);
+        char buf[80];
+        snprintf(buf, sizeof(buf), "[MENU] Notepad_Open returned %d, window=%p\n", err, (void*)notepadWin);
+        serial_puts(buf);
+        return;
+    }
+
     if (strcmp(itemName, "-") == 0) {
         /* Separator */
         return;
     }
 
     MENU_LOG_WARN("Unknown Apple menu item: '%s' (index %d)\n", itemName, item);
+}
+
+/* Control Panels Menu Handler */
+static void HandleControlPanelsMenu(short item)
+{
+    char itemName[256];
+    if (!GetMenuItemCString(134, item, itemName, sizeof(itemName))) {
+        MENU_LOG_WARN("Control Panels Menu: unable to resolve item %d\n", item);
+        return;
+    }
+
+    if (strcmp(itemName, "Desktop Patterns...") == 0) {
+        MENU_LOG_DEBUG("Control Panels > Desktop Patterns...\n");
+        OpenDesktopCdev();
+        return;
+    }
+
+    if (strcmp(itemName, "Date & Time...") == 0) {
+        MENU_LOG_DEBUG("Control Panels > Date & Time...\n");
+        DateTimePanel_Open();
+        return;
+    }
+
+    if (strcmp(itemName, "Sound...") == 0) {
+        MENU_LOG_DEBUG("Control Panels > Sound...\n");
+        SoundPanel_Open();
+        return;
+    }
+
+    if (strcmp(itemName, "Mouse...") == 0) {
+        MENU_LOG_DEBUG("Control Panels > Mouse...\n");
+        MousePanel_Open();
+        return;
+    }
+
+    if (strcmp(itemName, "Keyboard...") == 0) {
+        MENU_LOG_DEBUG("Control Panels > Keyboard...\n");
+        KeyboardPanel_Open();
+        return;
+    }
+
+    if (strcmp(itemName, "Control Strip...") == 0) {
+        MENU_LOG_DEBUG("Control Panels > Control Strip...\n");
+        ControlStrip_Toggle();
+        return;
+    }
+
+    MENU_LOG_WARN("Unknown Control Panels menu item: '%s' (index %d)\n", itemName, item);
 }
 
 /* File Menu Handler - Finder specific */

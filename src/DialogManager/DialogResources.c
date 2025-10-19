@@ -70,7 +70,7 @@ void InitDialogResources(void)
     gResourceState.resourcePath[0] = '\0';
     strcpy(gResourceState.languageCode, "en");
 
-    printf("Dialog resource subsystem initialized\n");
+    // printf("Dialog resource subsystem initialized\n");
 }
 
 /*
@@ -88,14 +88,14 @@ OSErr LoadDialogTemplate(SInt16 dialogID, DialogTemplate** template)
     *template = NULL;
 
     if (!gResourceState.initialized) {
-        printf("Error: Dialog resource subsystem not initialized\n");
+        // printf("Error: Dialog resource subsystem not initialized\n");
         return -1; /* resNotFound */
     }
 
     /* Load DLOG resource */
     resourceHandle = GetResource(kDialogResourceType, dialogID);
     if (!resourceHandle) {
-        printf("Error: DLOG resource %d not found\n", dialogID);
+        // printf("Error: DLOG resource %d not found\n", dialogID);
         return -192; /* resNotFound */
     }
 
@@ -108,11 +108,11 @@ OSErr LoadDialogTemplate(SInt16 dialogID, DialogTemplate** template)
     ReleaseResource(resourceHandle);
 
     if (err != noErr) {
-        printf("Error: Failed to parse DLOG resource %d (error %d)\n", dialogID, err);
+        // printf("Error: Failed to parse DLOG resource %d (error %d)\n", dialogID, err);
         return err;
     }
 
-    printf("Loaded DLOG resource %d successfully\n", dialogID);
+    // printf("Loaded DLOG resource %d successfully\n", dialogID);
     return noErr;
 }
 
@@ -131,14 +131,14 @@ OSErr LoadDialogItemList(SInt16 itemListID, Handle* itemList)
     *itemList = NULL;
 
     if (!gResourceState.initialized) {
-        printf("Error: Dialog resource subsystem not initialized\n");
+        // printf("Error: Dialog resource subsystem not initialized\n");
         return -1; /* resNotFound */
     }
 
     /* Load DITL resource */
     resourceHandle = GetResource(kDialogItemResourceType, itemListID);
     if (!resourceHandle) {
-        printf("Error: DITL resource %d not found\n", itemListID);
+        // printf("Error: DITL resource %d not found\n", itemListID);
         return -192; /* resNotFound */
     }
 
@@ -151,11 +151,11 @@ OSErr LoadDialogItemList(SInt16 itemListID, Handle* itemList)
     ReleaseResource(resourceHandle);
 
     if (err != noErr) {
-        printf("Error: Failed to parse DITL resource %d (error %d)\n", itemListID, err);
+        // printf("Error: Failed to parse DITL resource %d (error %d)\n", itemListID, err);
         return err;
     }
 
-    printf("Loaded DITL resource %d successfully\n", itemListID);
+    // printf("Loaded DITL resource %d successfully\n", itemListID);
     return noErr;
 }
 
@@ -174,14 +174,14 @@ OSErr LoadAlertTemplate(SInt16 alertID, AlertTemplate** template)
     *template = NULL;
 
     if (!gResourceState.initialized) {
-        printf("Error: Dialog resource subsystem not initialized\n");
+        // printf("Error: Dialog resource subsystem not initialized\n");
         return -1; /* resNotFound */
     }
 
     /* Load ALRT resource */
     resourceHandle = GetResource(kAlertResourceType, alertID);
     if (!resourceHandle) {
-        printf("Error: ALRT resource %d not found\n", alertID);
+        // printf("Error: ALRT resource %d not found\n", alertID);
         return -192; /* resNotFound */
     }
 
@@ -194,11 +194,11 @@ OSErr LoadAlertTemplate(SInt16 alertID, AlertTemplate** template)
     ReleaseResource(resourceHandle);
 
     if (err != noErr) {
-        printf("Error: Failed to parse ALRT resource %d (error %d)\n", alertID, err);
+        // printf("Error: Failed to parse ALRT resource %d (error %d)\n", alertID, err);
         return err;
     }
 
-    printf("Loaded ALRT resource %d successfully\n", alertID);
+    // printf("Loaded ALRT resource %d successfully\n", alertID);
     return noErr;
 }
 
@@ -245,7 +245,7 @@ void CleanupDialogResources(void)
     }
 
     gResourceState.initialized = false;
-    printf("Dialog resource subsystem cleaned up\n");
+    // printf("Dialog resource subsystem cleaned up\n");
 }
 
 /*
@@ -293,7 +293,7 @@ static OSErr ParseDLOGResourceData(const UInt8* data, SInt32 dataSize, DialogTem
 
     *template = tpl;
 
-    printf("Parsed DLOG: bounds=(%d,%d,%d,%d) procID=%d itemsID=%d title='%.*s'\n",
+    // printf("Parsed DLOG: bounds=(%d,%d,%d,%d) procID=%d itemsID=%d title='%.*s'\n",
            tpl->boundsRect.top, tpl->boundsRect.left,
            tpl->boundsRect.bottom, tpl->boundsRect.right,
            tpl->procID, tpl->itemsID,
@@ -326,7 +326,7 @@ static OSErr ParseDITLResourceData(const UInt8* data, SInt32 dataSize, Handle* i
     /* Read item count (stored as count-1 in resource) */
     itemCount = ReadSInt16BE(&dataPtr) + 1;
 
-    printf("DITL has %d items\n", itemCount);
+    // printf("DITL has %d items\n", itemCount);
 
     /* Allocate handle for item list */
     /* We'll store the raw DITL data for now */
@@ -347,7 +347,7 @@ static OSErr ParseDITLResourceData(const UInt8* data, SInt32 dataSize, Handle* i
 
     *itemList = list;
 
-    printf("Parsed DITL: %d items, %ld bytes\n", itemCount, (long)dataSize);
+    // printf("Parsed DITL: %d items, %ld bytes\n", itemCount, (long)dataSize);
 
     return noErr;
 }
@@ -383,7 +383,7 @@ static OSErr ParseALRTResourceData(const UInt8* data, SInt32 dataSize, AlertTemp
 
     *template = tpl;
 
-    printf("Parsed ALRT: bounds=(%d,%d,%d,%d) itemsID=%d\n",
+    // printf("Parsed ALRT: bounds=(%d,%d,%d,%d) itemsID=%d\n",
            tpl->boundsRect.top, tpl->boundsRect.left,
            tpl->boundsRect.bottom, tpl->boundsRect.right,
            tpl->itemsID);
@@ -521,12 +521,12 @@ void SetDialogResourceCaching(Boolean enabled)
 
 void FlushDialogResourceCache(void)
 {
-    printf("FlushDialogResourceCache\n");
+    // printf("FlushDialogResourceCache\n");
 }
 
 void PreloadDialogResources(const SInt16* resourceIDs, SInt16 count)
 {
-    printf("PreloadDialogResources: %d resources\n", count);
+    // printf("PreloadDialogResources: %d resources\n", count);
 }
 
 void SetDialogResourceLanguage(const char* languageCode)
@@ -548,25 +548,25 @@ void GetDialogResourceLanguage(char* languageCode, size_t codeSize)
 void DumpDialogTemplate(const DialogTemplate* template)
 {
     if (!template) {
-        printf("DumpDialogTemplate: NULL template\n");
+        // printf("DumpDialogTemplate: NULL template\n");
         return;
     }
 
-    printf("Dialog Template:\n");
-    printf("  Bounds: (%d, %d, %d, %d)\n",
+    // printf("Dialog Template:\n");
+    // printf("  Bounds: (%d, %d, %d, %d)\n",
            template->boundsRect.top, template->boundsRect.left,
            template->boundsRect.bottom, template->boundsRect.right);
-    printf("  ProcID: %d\n", template->procID);
-    printf("  Visible: %d\n", template->visible);
-    printf("  GoAway: %d\n", template->goAwayFlag);
-    printf("  RefCon: %ld\n", (long)template->refCon);
-    printf("  ItemsID: %d\n", template->itemsID);
-    printf("  Title: '%.*s'\n", template->title[0], &template->title[1]);
+    // printf("  ProcID: %d\n", template->procID);
+    // printf("  Visible: %d\n", template->visible);
+    // printf("  GoAway: %d\n", template->goAwayFlag);
+    // printf("  RefCon: %ld\n", (long)template->refCon);
+    // printf("  ItemsID: %d\n", template->itemsID);
+    // printf("  Title: '%.*s'\n", template->title[0], &template->title[1]);
 }
 
 void DumpDialogItemList(Handle itemList)
 {
-    printf("DumpDialogItemList\n");
+    // printf("DumpDialogItemList\n");
 }
 
 OSErr ParseDLOGResource(Handle resourceData, DialogTemplate** template)

@@ -349,6 +349,9 @@ static void process_keyboard_scancode(uint8_t scancode)
 
 /* Process mouse packet */
 static void process_mouse_packet(void) {
+    extern void serial_puts(const char* str);
+    char msg[128];
+
     uint8_t status = g_mouseState.packet[0];
 
     /* Enable to see actual PS/2 packets */
@@ -395,6 +398,10 @@ static void process_mouse_packet(void) {
     /* Check button state changes */
     uint8_t new_buttons = status & 0x07;
     if (new_buttons != g_mouseState.buttons) {
+        /* Log button state changes */
+        sprintf(msg, "[PS2-PKT] Button change: 0x%02x -> 0x%02x (packet[0]=0x%02x)\n",
+                g_mouseState.buttons, new_buttons, status);
+        serial_puts(msg);
         /* Update button state only - let ModernInput handle event posting */
         g_mouseState.buttons = new_buttons;
     }
@@ -639,19 +646,24 @@ Boolean InitPS2Controller(void) {
 
 /* Poll for PS/2 input (call this regularly) */
 void PollPS2Input(void) {
+    extern void serial_puts(const char* str);
     if (!g_ps2Initialized) return;
 
     static int mouse_byte_count = 0;
     static int call_count = 0;
+    static int packet_count = 0;
 
     /* First call notification */
     if (call_count == 0) {
         PLATFORM_LOG_DEBUG("PS2: PollPS2Input first call!\n");
     }
 
-    /* Light heartbeat to confirm scheduling */
-    if ((++call_count % 10000) == 0) {
-        /* PLATFORM_LOG_DEBUG("PS2: PollPS2Input called %d times\n", call_count); */
+    /* Log every 1000th call to show polling is happening */
+    if ((++call_count % 1000) == 0) {
+        char msg[80];
+        sprintf(msg, "[PS2-POLL] Call #%d, packets=%d, mouse_bytes=%d, buttons=0x%02x\n",
+                call_count, packet_count, mouse_byte_count, g_mouseState.buttons);
+        serial_puts(msg);
     }
 
     /* Drain the controller completely this tick */
@@ -682,6 +694,7 @@ void PollPS2Input(void) {
             g_mouseState.packet[g_mouseState.packet_index++] = data;
 
             if (g_mouseState.packet_index >= 3) {
+                packet_count++;
                 process_mouse_packet(); /* resets packet_index to 0 */
             }
         } else {

@@ -107,7 +107,7 @@ Boolean DialogSelect(const EventRecord* evt, DialogPtr* which, SInt16* itemHit)
             return false;
         }
 
-        DIALOG_LOG_DEBUG("Dialog: DialogSelect hit item %d\n", hit);
+        // DIALOG_LOG_DEBUG("Dialog: DialogSelect hit item %d\n", hit);
 
         /* Track push button - press feedback then release to commit */
         if (DialogItemIsPushButton(dlg, hit)) {

@@ -340,6 +340,7 @@ C_SOURCES = src/main.c \
             src/DeskManager/SystemMenu.c \
             src/DeskManager/DAPreferences.c \
             src/DeskManager/KeyCaps.c \
+            src/DeskManager/Notepad.c \
             src/DialogManager/DialogManagerCore.c \
             src/DialogManager/DialogManagerStubs.c \
             src/DialogManager/ModalDialogs.c \

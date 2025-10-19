@@ -199,7 +199,7 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
     Boolean lastInPart = true;
     Point currentPt = thePt;
     int loopCount = 0;
-    const int MAX_TRACKING_ITERATIONS = 5000;  /* Timeout after ~5 seconds at 1ms per iteration */
+    const int MAX_TRACKING_ITERATIONS = 500;  /* Timeout after ~500ms at 1ms per iteration */
 
     extern void serial_puts(const char* str);
     serial_puts("[TB] Entering tracking loop\n");

@@ -46,7 +46,7 @@ void GlobalToLocalDialog(DialogPtr theDialog, Point* pt) {
     /* In full implementation, would subtract window origin */
 
     /* For now, just log the conversion */
-    DIALOG_LOG_DEBUG("Dialog: GlobalToLocal (%d,%d)\n", pt->h, pt->v);
+    // DIALOG_LOG_DEBUG("Dialog: GlobalToLocal (%d,%d)\n", pt->h, pt->v);
 }
 
 /* Hit test dialog - returns item number or 0 */
@@ -60,8 +60,7 @@ SInt16 DialogHitTest(DialogPtr theDialog, Point localPt) {
     /* Use FindDialogItem which already does hit testing */
     itemNo = FindDialogItem(theDialog, localPt);
 
-    DIALOG_LOG_DEBUG("Dialog: HitTest at (%d,%d) -> item %d\n",
-                 localPt.h, localPt.v, itemNo);
+    // DIALOG_LOG_DEBUG("Dialog: HitTest at (%d,%d) -> item %d\n", localPt.h, localPt.v, itemNo);
 
     return itemNo;
 }
@@ -128,7 +127,7 @@ void DialogTrackButton(DialogPtr theDialog, SInt16 itemNo, Point startPt,
 
     GetDialogItem(theDialog, itemNo, &itemType, &itemHandle, &itemBounds);
 
-    DIALOG_LOG_DEBUG("Dialog: Tracking button item %d\n", itemNo);
+    // DIALOG_LOG_DEBUG("Dialog: Tracking button item %d\n", itemNo);
 
     /* Highlight button on press */
     if (autoHilite) {
@@ -154,8 +153,6 @@ void DialogTrackButton(DialogPtr theDialog, SInt16 itemNo, Point startPt,
         InvertRect(&itemBounds);
     }
 
-    DIALOG_LOG_DEBUG("Dialog: Button %d released %s\n", itemNo,
-                 inside ? "inside" : "outside");
 }
 
 /* Toggle checkbox state */
@@ -164,7 +161,7 @@ void ToggleDialogCheckbox(DialogPtr theDialog, SInt16 itemNo) {
     extern DialogItemEx* GetDialogItemEx(DialogPtr theDialog, SInt16 itemNo);
     /* For now, use a simple approach via the cache */
 
-    DIALOG_LOG_DEBUG("Dialog: Toggle checkbox %d\n", itemNo);
+    // DIALOG_LOG_DEBUG("Dialog: Toggle checkbox %d\n", itemNo);
 
     /* The actual state is stored in the item's refCon */
     /* We'll need to access the DialogItemEx to toggle it */
@@ -187,7 +184,7 @@ void SelectRadioInGroup(DialogPtr theDialog, SInt16 itemNo) {
         return;
     }
 
-    DIALOG_LOG_DEBUG("Dialog: Select radio %d in group\n", itemNo);
+    // DIALOG_LOG_DEBUG("Dialog: Select radio %d in group\n", itemNo);
 
     /* Find all radio buttons and deselect them */
     /* In full implementation, would check group ID */
@@ -216,7 +213,7 @@ void SetDialogEditFocus(DialogPtr theDialog, SInt16 itemNo) {
     gFocusDialog = theDialog;
     gFocusItemNo = itemNo;
 
-    DIALOG_LOG_DEBUG("Dialog: Set edit focus to item %d\n", itemNo);
+    // DIALOG_LOG_DEBUG("Dialog: Set edit focus to item %d\n", itemNo);
 }
 
 /* Check if dialog has edit focus */
@@ -240,7 +237,7 @@ Boolean DialogEditKey(DialogPtr theDialog, char ch) {
 
     /* For now, just log key presses */
     /* Full implementation would modify the text data */
-    DIALOG_LOG_DEBUG("Dialog: Edit key '%c' in item %d\n", ch, gFocusItemNo);
+    // DIALOG_LOG_DEBUG("Dialog: Edit key '%c' in item %d\n", ch, gFocusItemNo);
 
     return true;
 }
@@ -291,5 +288,5 @@ void CenterDialogOnScreen(DialogPtr theDialog) {
     newTop = (screenHeight - dialogHeight) / 3;  /* Slightly above center */
 
     /* Move dialog (would call MoveWindow in full implementation) */
-    DIALOG_LOG_DEBUG("Dialog: Centered at (%d,%d)\n", newLeft, newTop);
+    // DIALOG_LOG_DEBUG("Dialog: Centered at (%d,%d)\n", newLeft, newTop);
 }

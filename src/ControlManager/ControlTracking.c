@@ -105,8 +105,13 @@ SInt16 TrackControl(ControlHandle theControl, Point thePoint,
         actionTime = TickCount();
     }
 
-    /* Track until mouse up */
-    while (StillDown()) {
+    /* Track until mouse up - with safety timeout */
+    int trackLoopCount = 0;
+    const int MAX_TRACK_ITERATIONS = 5000;  /* Safety limit (~5 seconds at 1ms per iteration) */
+    extern void serial_puts(const char* str);
+
+    while (StillDown() && trackLoopCount < MAX_TRACK_ITERATIONS) {
+        trackLoopCount++;
         GetMouse(&currentPt);
         currentPart = TestControl(theControl, currentPt);
 
@@ -134,6 +139,11 @@ SInt16 TrackControl(ControlHandle theControl, Point thePoint,
         if (partCode == inThumb) {
             _CallControlDefProc(theControl, thumbCntl, *(SInt32 *)&currentPt);
         }
+    }
+
+    /* Log if we hit the timeout */
+    if (trackLoopCount >= MAX_TRACK_ITERATIONS) {
+        serial_puts("[CTRL-TRACK] WARNING: TrackControl timeout - exceeded max iterations\n");
     }
 
     /* Clear highlighting */

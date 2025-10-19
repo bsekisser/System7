@@ -209,7 +209,7 @@ void GetDialogItemText(Handle item, Str255 text) {
             text[i+1] = textData[i+1];
         }
 
-        DIALOG_LOG_DEBUG("GetDialogItemText: Retrieved %d chars\n", len);
+        // DIALOG_LOG_DEBUG("GetDialogItemText: Retrieved %d chars\n", len);
     } else {
         /* No text data */
         text[0] = 0;
@@ -246,9 +246,9 @@ void SetDialogItemText(Handle item, const Str255 text) {
             textData[i+1] = text[i+1];
         }
 
-        DIALOG_LOG_DEBUG("SetDialogItemText: Set %d chars\n", len);
+        // DIALOG_LOG_DEBUG("SetDialogItemText: Set %d chars\n", len);
     } else {
-        DIALOG_LOG_DEBUG("SetDialogItemText: Failed to resize handle\n");
+        // DIALOG_LOG_DEBUG("SetDialogItemText: Failed to resize handle\n");
     }
 }
 
@@ -287,7 +287,7 @@ SInt16 FindDialogItem(DialogPtr theDialog, Point thePt) {
         /* Check if point is in this item's rect */
         if (thePt.h >= itemRect->left && thePt.h < itemRect->right &&
             thePt.v >= itemRect->top && thePt.v < itemRect->bottom) {
-            DIALOG_LOG_DEBUG("FindDialogItem: Hit item %d at (%d,%d)\n", i, thePt.h, thePt.v);
+            // DIALOG_LOG_DEBUG("FindDialogItem: Hit item %d at (%d,%d)\n", i, thePt.h, thePt.v);
             return i;
         }
 

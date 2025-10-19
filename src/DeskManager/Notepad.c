@@ -150,7 +150,8 @@ OSErr Notepad_Open(WindowPtr *window) {
 
     /* Create window */
     SetRect(&windowBounds, 100, 50, 500, 350);
-    gNotepad->window = NewWindow(NULL, &windowBounds, "\pNote Pad",
+    static unsigned char notepadTitle[] = {8, 'N', 'o', 't', 'e', 'P', 'a', 'd', '\0'};
+    gNotepad->window = NewWindow(NULL, &windowBounds, (ConstStr255Param)notepadTitle,
                                 true, documentProc, (WindowPtr)-1L,
                                 true, 0);
 
@@ -177,8 +178,12 @@ OSErr Notepad_Open(WindowPtr *window) {
     /* Load first page */
     Notepad_LoadPage(gNotepad, 0);
 
-    /* Update display */
+    /* Update display and show window */
     Notepad_UpdatePageDisplay(gNotepad);
+    ShowWindow(gNotepad->window);
+
+    /* Draw initial content */
+    Notepad_Draw();
 
     *window = gNotepad->window;
     return noErr;
@@ -287,6 +292,12 @@ void Notepad_HandleEvent(EventRecord *event) {
                     /* Regular key - pass to TextEdit */
                     TEKey(key, gNotepad->teRecord);
                     gNotepad->isDirty = true;
+
+                    /* Redraw the text immediately */
+                    if (gNotepad->window && gNotepad->teRecord) {
+                        SetPort((GrafPtr)gNotepad->window);
+                        TEUpdate(&(**gNotepad->teRecord).viewRect, gNotepad->teRecord);
+                    }
                 }
             }
             break;
@@ -462,7 +473,9 @@ static void Notepad_UpdatePageDisplay(NotePadGlobals *notepad) {
  */
 static void Notepad_DrawPageIndicator(NotePadGlobals *notepad) {
     Rect indicatorRect;
-    char pageText[32];
+    unsigned char pageText[32];
+    unsigned char *ptr;
+    int len;
 
     SetPort((GrafPtr)notepad->window);
 
@@ -474,22 +487,23 @@ static void Notepad_DrawPageIndicator(NotePadGlobals *notepad) {
     MoveTo(0, 35);
     LineTo(400, 35);
 
-    /* Draw page number */
-    sprintf(pageText, "Page %d of %d", notepad->currentPage + 1, NOTEPAD_MAX_PAGES);
+    /* Draw page number as Pascal string */
+    len = sprintf((char*)pageText + 1, "Page %d of %d", notepad->currentPage + 1, NOTEPAD_MAX_PAGES);
+    pageText[0] = len;  /* Pascal string length prefix */
     MoveTo(170, 20);
-    DrawText(pageText, 0, strlen(pageText));
+    DrawString((ConstStr255Param)pageText);
 
     /* Draw navigation arrows if applicable */
     if (notepad->currentPage > 0) {
         /* Previous arrow */
         MoveTo(20, 20);
-        DrawString("\p◀");
+        DrawString("\p<");  /* Simple < instead of unicode arrow */
     }
 
     if (notepad->currentPage < NOTEPAD_MAX_PAGES - 1) {
         /* Next arrow */
         MoveTo(360, 20);
-        DrawString("\p▶");
+        DrawString("\p>");  /* Simple > instead of unicode arrow */
     }
 }
 

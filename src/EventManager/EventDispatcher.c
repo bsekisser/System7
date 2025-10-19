@@ -138,6 +138,14 @@ Boolean DispatchEvent(EventRecord* event)
         return true;
     }
 
+    /* Notepad event handling */
+    extern void Notepad_HandleEvent(EventRecord *event);
+    extern WindowPtr Notepad_GetWindow(void);
+    if (Notepad_GetWindow() != NULL) {
+        Notepad_HandleEvent(event);
+        return true;
+    }
+
     switch (event->what) {
         case nullEvent:
             return HandleNullEvent(event);
