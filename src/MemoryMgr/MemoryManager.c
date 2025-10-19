@@ -877,6 +877,10 @@ void* NewPtr(u32 byteCount) {
     }
 #endif
 
+    /* CRITICAL FIX: Zero allocated memory to prevent garbage data corruption
+     * Without this, old data appears in desktop icons and window titles */
+    memset(result, 0, byteCount);
+
     return result;
 }
 
@@ -1092,6 +1096,10 @@ Handle NewHandle(u32 byteCount) {
     *mp = (u8*)b + BLKHDR_SZ;    /* Master pointer points to data */
     z->bytesUsed += b->size;
     z->bytesFree -= b->size;
+
+    /* CRITICAL FIX: Zero allocated memory to prevent garbage data corruption
+     * Without this, old data (like format strings) appears in window titles and corrupts desktop icons */
+    memset(*mp, 0, byteCount);
 
     return (Handle)mp;
 }
