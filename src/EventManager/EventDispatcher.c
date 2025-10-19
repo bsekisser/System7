@@ -291,35 +291,17 @@ Boolean HandleMouseDown(EventRecord* event)
             }
 
             /* Window is already front - handle click in content */
-            EVT_LOG_DEBUG("HandleMouseDown: Window already front, checking type\n");
+            EVT_LOG_DEBUG("HandleMouseDown: Window already front, handling content click\n");
 
-            /* Check if this is a folder window and route to folder window handler */
-            extern Boolean IsFolderWindow(WindowPtr w);
-            extern Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleClick);
+            /* Route to centralized content click handler */
+            extern OSErr HandleContentClick(WindowPtr window, EventRecord* event);
 
-            EVT_LOG_DEBUG("HandleMouseDown: Calling IsFolderWindow with window=0x%08x, refCon=0x%08x\n",
+            EVT_LOG_DEBUG("HandleMouseDown: Calling HandleContentClick for window=0x%08x, refCon=0x%08x\n",
                          (unsigned int)whichWindow, (unsigned int)whichWindow->refCon);
-            Boolean isFolderWin = IsFolderWindow(whichWindow);
-            EVT_LOG_DEBUG("HandleMouseDown: IsFolderWindow returned %d\n", isFolderWin);
-            if (isFolderWin) {
-                EVT_LOG_DEBUG("HandleMouseDown: Folder window detected, processing click\n");
-                /* Extract double-click flag from event message (same as desktop) */
-                UInt16 clickCount = (event->message >> 16) & 0xFFFF;
-                Boolean doubleClick = (clickCount >= 2);
 
-                EVT_LOG_DEBUG("HandleMouseDown: clickCount=%d, doubleClick=%d\n", clickCount, doubleClick);
+            OSErr err = HandleContentClick(whichWindow, event);
 
-                EVT_LOG_DEBUG("HandleMouseDown: Calling HandleFolderWindowClick...\n");
-                Boolean handled = HandleFolderWindowClick(whichWindow, event, doubleClick);
-                EVT_LOG_DEBUG("HandleMouseDown: HandleFolderWindowClick returned %d\n", handled);
-                if (handled) {
-                    return true;
-                }
-            } else {
-                /* Pass click to window content handler */
-                /* Application would handle this */
-                EVT_LOG_DEBUG("Click in content of window 0x%08x\n", (unsigned int)whichWindow);
-            }
+            EVT_LOG_DEBUG("HandleMouseDown: HandleContentClick returned %d\n", (int)err);
             return true;
         }
 

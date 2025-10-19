@@ -840,6 +840,26 @@ OSErr ShowAboutFinder(void) {
 }
 
 OSErr HandleContentClick(WindowPtr window, EventRecord* event) {
+    if (!window || !event) {
+        return paramErr;
+    }
+
+    /* Check if this is a folder window */
+    extern Boolean IsFolderWindow(WindowPtr w);
+    extern Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleClick);
+
+    if (IsFolderWindow(window)) {
+        /* Extract double-click flag from event message */
+        UInt16 clickCount = (event->message >> 16) & 0xFFFF;
+        Boolean doubleClick = (clickCount >= 2);
+
+        /* Delegate to folder window handler */
+        HandleFolderWindowClick(window, event, doubleClick);
+        return noErr;
+    }
+
+    /* For now, other window types (applications, control panels) handle their own clicks
+     * through their event loops or will be implemented as needed */
     return noErr;
 }
 
