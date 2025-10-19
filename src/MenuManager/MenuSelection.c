@@ -583,7 +583,9 @@ Boolean FindMenuCommand(short cmdChar, unsigned long modifiers, MenuCmdSearch* s
         return false;
     }
 
-    menuBar = (MenuBarList*)menuBarHandle;
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock(menuBarHandle);
+    menuBar = (MenuBarList*)*menuBarHandle;
 
     /* Convert command key to lowercase for comparison (our storage is lowercase) */
     searchChar = cmdChar;
@@ -611,11 +613,15 @@ Boolean FindMenuCommand(short cmdChar, unsigned long modifiers, MenuCmdSearch* s
                 search->foundItem = i;
                 search->enabled = CheckMenuItemEnabled(theMenu, i);
 
+                /* Unlock handle before returning */
+                HUnlock(menuBarHandle);
                 return true;
             }
         }
     }
 
+    /* Unlock handle before returning */
+    HUnlock(menuBarHandle);
     return false;
 }
 

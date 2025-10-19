@@ -160,8 +160,11 @@ MenuHandle ParseMENUResource(Handle resourceHandle)
         return NULL;
     }
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock(resourceHandle);
     uint8_t* data = (uint8_t*)*resourceHandle;
     if (!data) {
+        HUnlock(resourceHandle);
         return NULL;
     }
 
@@ -191,6 +194,7 @@ MenuHandle ParseMENUResource(Handle resourceHandle)
     MenuHandle theMenu = NewMenu(menuID, titlePascal);
     if (!theMenu) {
         MENU_LOG_ERROR("ParseMENUResource: NewMenu failed for ID %d\n", menuID);
+        HUnlock(resourceHandle);
         return NULL;
     }
 
@@ -269,6 +273,9 @@ MenuHandle ParseMENUResource(Handle resourceHandle)
     MENU_LOG_DEBUG("ParseMENUResource: Parsed menu ID=%d, title len=%d, items=%d\n",
                    menuID, titleLen, itemCount);
 
+    /* Unlock handle before returning */
+    HUnlock(resourceHandle);
+
     return theMenu;
 }
 
@@ -286,8 +293,11 @@ short* ParseMBARResource(Handle resourceHandle, short* outMenuCount)
         return NULL;
     }
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock(resourceHandle);
     uint8_t* data = (uint8_t*)*resourceHandle;
     if (!data) {
+        HUnlock(resourceHandle);
         return NULL;
     }
 
@@ -296,12 +306,14 @@ short* ParseMBARResource(Handle resourceHandle, short* outMenuCount)
 
     if (count <= 0 || count > 32) {
         MENU_LOG_ERROR("ParseMBARResource: Invalid menu count %d\n", count);
+        HUnlock(resourceHandle);
         return NULL;
     }
 
     /* Allocate array for menu IDs */
     short* menuIDs = (short*)malloc(count * sizeof(short));
     if (!menuIDs) {
+        HUnlock(resourceHandle);
         return NULL;
     }
 
@@ -313,6 +325,10 @@ short* ParseMBARResource(Handle resourceHandle, short* outMenuCount)
     }
 
     *outMenuCount = count;
+
+    /* Unlock handle before returning */
+    HUnlock(resourceHandle);
+
     return menuIDs;
 }
 

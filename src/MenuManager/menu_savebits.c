@@ -54,6 +54,8 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
         return NULL;
     }
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock((Handle)bitsHandle);
     SavedBitsPtr savedBits = *bitsHandle;
 
     /* Store bounds and mode */
@@ -66,6 +68,7 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
     /* Allocate memory for pixel data */
     savedBits->bitsData = malloc(savedBits->dataSize);
     if (!savedBits->bitsData) {
+        HUnlock((Handle)bitsHandle);
         DisposeHandle((Handle)bitsHandle);
         return NULL;
     }
@@ -92,6 +95,9 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
 
     savedBits->valid = true;
 
+    /* Unlock handle before returning */
+    HUnlock((Handle)bitsHandle);
+
     return (Handle)bitsHandle;
 }
 
@@ -103,9 +109,12 @@ OSErr RestoreBits(Handle bitsHandle) {
         return paramErr;
     }
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock(bitsHandle);
     SavedBitsPtr savedBits = (SavedBitsPtr)*bitsHandle;
 
     if (!savedBits->valid || !savedBits->bitsData) {
+        HUnlock(bitsHandle);
         return paramErr;
     }
 
@@ -131,6 +140,9 @@ OSErr RestoreBits(Handle bitsHandle) {
         }
     }
 
+    /* Unlock handle after use */
+    HUnlock(bitsHandle);
+
     return noErr;
 }
 
@@ -142,6 +154,8 @@ OSErr DiscardBits(Handle bitsHandle) {
         return paramErr;
     }
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock(bitsHandle);
     SavedBitsPtr savedBits = (SavedBitsPtr)*bitsHandle;
 
     /* Free pixel data if allocated */
@@ -152,6 +166,9 @@ OSErr DiscardBits(Handle bitsHandle) {
 
     /* Mark as invalid */
     savedBits->valid = false;
+
+    /* Unlock handle before disposing */
+    HUnlock(bitsHandle);
 
     /* Dispose the handle */
     DisposeHandle(bitsHandle);
