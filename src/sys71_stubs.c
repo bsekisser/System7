@@ -546,9 +546,71 @@ short FindWindow(Point thePt, WindowPtr *window) {
         return inMenuBar;
     }
 
-    /* TODO: Check for actual window hits when window manager is fully implemented */
+    /* Search through visible windows from front to back */
+    extern WindowPtr FrontWindow(void);
+    extern WindowPtr GetNextWindow(WindowPtr theWindow);
 
-    /* Default to desktop */
+    WindowPtr currentWindow = FrontWindow();
+
+    while (currentWindow) {
+        if (!currentWindow->visible) {
+            currentWindow = GetNextWindow(currentWindow);
+            continue;
+        }
+
+        /* Get the window structure region (frame + title bar) */
+        if (currentWindow->strucRgn) {
+            /* Use Point-in-Region test */
+            extern Boolean PtInRgn(Point pt, RgnHandle rgn);
+            if (PtInRgn(thePt, currentWindow->strucRgn)) {
+                *window = currentWindow;
+
+                /* Determine which part of the window was hit */
+                Rect frame = currentWindow->port.portRect;
+
+                /* Title bar area: top to top+20 */
+                if (thePt.v >= frame.top && thePt.v < frame.top + 20) {
+                    /* Check for close box (top-left) */
+                    if (thePt.h >= frame.left + 4 && thePt.h < frame.left + 18 &&
+                        thePt.v >= frame.top + 4 && thePt.v < frame.top + 18) {
+                        return inGoAway;
+                    }
+
+                    /* Check for zoom box (top-right) */
+                    if (currentWindow->spareFlag) {  /* spareFlag indicates zoom enabled */
+                        if (thePt.h >= frame.right - 20 && thePt.h < frame.right - 4 &&
+                            thePt.v >= frame.top + 4 && thePt.v < frame.top + 16) {
+                            return inZoomIn;  /* Could be inZoomOut if at other position */
+                        }
+                    }
+
+                    /* Otherwise it's the drag area (title bar) */
+                    return inDrag;
+                }
+
+                /* Grow box area: bottom-right corner 16x16 */
+                if (currentWindow->windowKind >= 0) {  /* Document windows have grow box */
+                    if (thePt.h >= frame.right - 16 && thePt.h <= frame.right &&
+                        thePt.v >= frame.bottom - 16 && thePt.v <= frame.bottom) {
+                        return inGrow;
+                    }
+                }
+
+                /* Content area: everything else inside the window */
+                if (thePt.h > frame.left && thePt.h < frame.right &&
+                    thePt.v > frame.top + 20 && thePt.v < frame.bottom) {
+                    return inContent;
+                }
+
+                /* Must be in frame/structure area but not specifically recognized */
+                return inContent;
+            }
+        }
+
+        currentWindow = GetNextWindow(currentWindow);
+    }
+
+    /* No window hit, check desktop */
     return inDesk;
 }
 #endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
