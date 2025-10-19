@@ -86,6 +86,8 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
         return memFullErr;
     }
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock((Handle)pmHandle);
     PixMapPtr pm = *pmHandle;
 
     /* Calculate rowBytes (must be even, with high bit set for PixMap) */
@@ -131,6 +133,9 @@ OSErr NewGWorld(GWorldPtr *offscreenGWorld, SInt16 pixelDepth,
 
     /* Attach PixMap to port */
     gworld->portPixMap = pmHandle;
+
+    /* Unlock pmHandle now that we're done initializing it */
+    HUnlock((Handle)pmHandle);
 
     serial_logf((SystemLogModule)3, (SystemLogLevel)2, "[GWORLD] NewGWorld: GWorld created successfully at %p, buffer=%p\n",
                gworld, pixelBuffer);

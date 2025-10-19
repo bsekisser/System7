@@ -762,6 +762,9 @@ PolyHandle ClosePoly(void) {
         return NULL;
     }
 
+    /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
+    HLock((Handle)poly);
+
     /* Fill in polygon data */
     Polygon *polyPtr = *poly;
     polyPtr->polySize = polySize;
@@ -772,6 +775,7 @@ PolyHandle ClosePoly(void) {
         polyPtr->polyPoints[i] = g_polyPoints[i];
     }
 
+    HUnlock((Handle)poly);
     return poly;
 }
 
