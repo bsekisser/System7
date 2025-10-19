@@ -801,15 +801,25 @@ static OSErr AllocateDesktopIcons(void)
         gDesktopIconStaticInUse = false;
     }
 
-    /* Initialize trash as the first desktop item */
-    gDesktopIcons[0].type = kDesktopItemTrash;
-    gDesktopIcons[0].iconID = 0xFFFFFFFF;
-    gDesktopIcons[0].position.h = fb_width - 100;
-    gDesktopIcons[0].position.v = fb_height - 80;
-    strcpy(gDesktopIcons[0].name, "Trash");
-    gDesktopIcons[0].movable = false;  /* Trash stays in place */
-    gDesktopIconCount = 1;  /* Start with trash */
-    gVolumeIconVisible = true;  /* Ensure trash renders even if volume add fails */
+    /* Initialize Finder icon as the first desktop item */
+    gDesktopIcons[0].type = kDesktopItemApplication;
+    gDesktopIcons[0].iconID = 0xFFFFFFFE;
+    gDesktopIcons[0].position.h = kDesktopMargin;
+    gDesktopIcons[0].position.v = kDesktopMargin + 40;
+    strcpy(gDesktopIcons[0].name, "Finder");
+    gDesktopIcons[0].movable = false;  /* Finder stays in place */
+    gDesktopIcons[0].data.file.fileType = 'FNDR';
+    gDesktopIcons[0].data.file.creator = 'MACS';
+
+    /* Initialize trash as the second desktop item */
+    gDesktopIcons[1].type = kDesktopItemTrash;
+    gDesktopIcons[1].iconID = 0xFFFFFFFF;
+    gDesktopIcons[1].position.h = fb_width - 100;
+    gDesktopIcons[1].position.v = fb_height - 80;
+    strcpy(gDesktopIcons[1].name, "Trash");
+    gDesktopIcons[1].movable = false;  /* Trash stays in place */
+    gDesktopIconCount = 2;  /* Start with Finder and Trash */
+    gVolumeIconVisible = true;  /* Ensure icons render */
 
     {
         char msg[96];
