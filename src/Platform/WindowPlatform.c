@@ -42,28 +42,24 @@ Boolean Platform_InitializeWindowPort(WindowPtr window) {
     /* Set PixMap flag (bit 15) to indicate 32-bit PixMap, not 1-bit BitMap */
     window->port.portBits.rowBytes = (fb_width * 4) | 0x8000;
 
-    /* CRITICAL: Set portBits.bounds to map local (0,0) to global content position
-     * This is the canonical QuickDraw way - local coords in the window port
-     * automatically map to the right global pixels */
-    const short kBorder = 1, kTitle = 20, kSeparator = 1;
-
-    if (window->strucRgn && *window->strucRgn) {
-        Rect gFrame = (*window->strucRgn)->rgnBBox;
-
-        /* Global top-left of CONTENT area */
-        short gx = gFrame.left + kBorder;
-        short gy = gFrame.top + kTitle + kSeparator;
-
-        /* Local size for content (already correctly set in portRect by InitializeWindowRecord) */
-        short w = window->port.portRect.right;
-        short h = window->port.portRect.bottom;
-
-        /* This mapping makes local (0,0) → global (gx,gy) */
-        SetRect(&window->port.portBits.bounds, gx, gy, gx + w, gy + h);
-    } else {
-        /* Fallback if strucRgn not set yet */
-        SetRect(&window->port.portBits.bounds, 0, 0, fb_width, fb_height);
-    }
+    /* CRITICAL: DO NOT set portBits.bounds here!
+     *
+     * portBits.bounds is already correctly set by InitializeWindowRecord (WindowManagerCore.c:832-836)
+     * to the window's content area in GLOBAL screen coordinates.
+     *
+     * BUG: Previous code read from strucRgn to calculate portBits.bounds, creating circular dependency:
+     * - InitializeWindowRecord sets portBits.bounds from clampedBounds ✓
+     * - Platform_InitializeWindowPort overwrites it by reading from strucRgn ✗
+     * - Later, Platform_GetWindowFrameRect/ContentRect read from portBits.bounds
+     * - WM_CalculateStandardWindowRegions uses those to SET strucRgn (circular!)
+     *
+     * This caused:
+     * - contRgn covering entire screen instead of window content
+     * - Window content rendering at wrong global position
+     * - Desktop pattern being erased by oversized contRgn
+     *
+     * FIX: Trust that portBits.bounds was already set correctly. Don't touch it.
+     */
 
     /* Regions already initialized by InitializeWindowRecord - don't overwrite */
     /* InitializeWindowRecord sets portRect to local coordinates (0,0,width,height) */
@@ -428,12 +424,14 @@ void Platform_GetWindowTitleBarRect(WindowPtr window, Rect* rect) {
 
 void Platform_GetWindowContentRect(WindowPtr window, Rect* rect) {
     if (!window || !rect) return;
-    if (!window->strucRgn || !*window->strucRgn) return;
 
-    /* Content area in global coords - just below title bar */
-    *rect = (*window->strucRgn)->rgnBBox;
-    rect->top += 21;    /* Skip title bar (20) and separator (1) */
-    /* No need to inset left/right/bottom - frame is drawn inside bounds */
+    /* CRITICAL FIX: Content rect IS portBits.bounds (in global coordinates)
+     *
+     * BUG: Previous code calculated from strucRgn (circular dependency)
+     *
+     * CORRECT: portBits.bounds already contains the content area in global coords
+     * No calculation needed - just return it directly! */
+    *rect = window->port.portBits.bounds;
 }
 
 void Platform_GetWindowCloseBoxRect(WindowPtr window, Rect* rect) {
@@ -461,15 +459,28 @@ void Platform_GetWindowZoomBoxRect(WindowPtr window, Rect* rect) {
 void Platform_GetWindowFrameRect(WindowPtr window, Rect* rect) {
     if (!window || !rect) return;
 
-    /* CRITICAL: Frame rect must be in GLOBAL screen coordinates, not local port coordinates!
-     * portRect is ALWAYS in LOCAL coordinates (0,0,width,height)
-     * strucRgn contains the GLOBAL screen position */
-    if (window->strucRgn && *window->strucRgn) {
-        *rect = (*window->strucRgn)->rgnBBox;
-    } else {
-        /* Fallback: if strucRgn not set, use portRect but this is wrong! */
-        *rect = window->port.portRect;
-    }
+    /* CRITICAL FIX: Calculate frame rect from portBits.bounds, NOT from strucRgn!
+     *
+     * BUG: Previous code read from strucRgn to set strucRgn (circular dependency)
+     * If strucRgn was wrong (e.g., full screen), it stayed wrong forever.
+     *
+     * CORRECT APPROACH:
+     * portBits.bounds = content area in GLOBAL screen coordinates
+     * Frame rect = portBits.bounds EXPANDED to include title bar and borders
+     */
+
+    /* Get content area from portBits.bounds (global coords) */
+    Rect contentRect = window->port.portBits.bounds;
+
+    /* Expand to include chrome:
+     * - Title bar: 20px above content + 1px separator
+     * - Left border: 1px
+     * - Right border: 2px (for 3D effect)
+     * - Bottom border: 1px */
+    rect->left = contentRect.left - 1;              /* Left border */
+    rect->top = contentRect.top - 21;               /* Title bar (20) + separator (1) */
+    rect->right = contentRect.right + 2;            /* Right border + 3D */
+    rect->bottom = contentRect.bottom + 1;          /* Bottom border */
 }
 
 /* Window highlighting */
