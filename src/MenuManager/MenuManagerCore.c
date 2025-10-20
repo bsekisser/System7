@@ -559,9 +559,28 @@ void DrawMenuBar(void)
 
                         /* Draw title from menu data */
                         extern void serial_puts(const char* str);
-                        serial_puts("[DRAWBAR] Normal text being drawn via DrawText\n");
-                        DrawText((char*)&(**menu).menuData[1], 0, titleLen);
-                        menuWidth = StringWidth((ConstStr255Param)(**menu).menuData) + 20;
+
+                        /* CRITICAL FIX: Use DrawString (FontManager) instead of DrawText (QuickDraw)
+                         * to ensure consistent rendering path. Both DrawMenuBar and DrawMenuTitle
+                         * must use the SAME text rendering function to avoid position mismatches. */
+                        serial_puts("[DRAWBAR] Normal text being drawn via DrawString (FontManager)\n");
+
+                        /* Create Pascal string for DrawString */
+                        unsigned char pascalStr[256];
+                        pascalStr[0] = titleLen;
+                        memcpy(&pascalStr[1], &(**menu).menuData[1], titleLen);
+                        DrawString((ConstStr255Param)pascalStr);
+
+                        /* CRITICAL FIX: Calculate menuWidth from ACTUAL drawn text (titleLen chars)
+                         * not from the entire menu data. The previous code was measuring the entire
+                         * menu's internal data structure which includes items and other data,
+                         * causing menuWidth to be WRONG, leading to cumulative text offset.
+                         *
+                         * Instead, use the PRECOMPUTED width from UpdateMenuBarLayout which is
+                         * already correct. UpdateMenuBarLayout called MeasureMenuTitleWidth which
+                         * computed the actual text width of just the title. */
+                        menuWidth = menuBar->menus[i].menuWidth;
+
                         memcpy(titleText, &(**menu).menuData[1], titleLen);
                         titleText[titleLen] = '\0';
 
