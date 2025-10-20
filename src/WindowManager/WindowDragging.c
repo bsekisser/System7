@@ -199,12 +199,27 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
         Platform_OffsetRgn(theWindow->updateRgn, deltaH, deltaV);
     }
 
-    /* CRITICAL: Update portBits.bounds to match new global position!
-     * portBits.bounds defines where local coords map to global screen coords */
-    theWindow->port.portBits.bounds.left += deltaH;
-    theWindow->port.portBits.bounds.top += deltaV;
-    theWindow->port.portBits.bounds.right += deltaH;
-    theWindow->port.portBits.bounds.bottom += deltaV;
+    /* CRITICAL: Update portBits.baseAddr for Direct Framebuffer approach
+     *
+     * When using Direct Framebuffer coordinates (baseAddr = framebuffer + offset),
+     * baseAddr must be updated whenever the window moves to point to the new position.
+     *
+     * Calculate new framebuffer offset based on new content position.
+     */
+    if (theWindow->contRgn && *(theWindow->contRgn)) {
+        Rect newContentRect = (*(theWindow->contRgn))->rgnBBox;
+
+        extern void* framebuffer;
+        extern uint32_t fb_pitch;
+        uint32_t bytes_per_pixel = 4;
+        uint32_t fbOffset = newContentRect.top * fb_pitch + newContentRect.left * bytes_per_pixel;
+
+        theWindow->port.portBits.baseAddr = (Ptr)((char*)framebuffer + fbOffset);
+    }
+
+    /* NOTE: Do NOT modify portBits.bounds - it must stay (0,0,width,height)!
+     * With Direct Framebuffer approach, portBits.bounds is always in LOCAL coordinates.
+     * Only baseAddr needs to be updated to point to the new window position. */
 
     /* Move native platform window using new global position from strucRgn */
     if (theWindow->strucRgn && *(theWindow->strucRgn)) {
