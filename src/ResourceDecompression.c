@@ -187,8 +187,8 @@ VarTable* VarTable_Create(size_t ratio, size_t unpackedSize) {
     /* Calculate table size based on ratio */
     size_t tableSize = ((unpackedSize * (ratio + 1)) >> 8) + sizeof(VarTableEntry);
 
-    table->entries = (VarTableEntry*)calloc(tableSize / sizeof(VarTableEntry), sizeof(VarTableEntry));
-    table->data = (UInt8*)calloc(tableSize, 1);
+    table->entries = (VarTableEntry*)NewPtrClear((tableSize / sizeof(VarTableEntry)) * (sizeof(VarTableEntry)));
+    table->data = (UInt8*)NewPtrClear((tableSize) * (1));
     table->allocSize = tableSize;
 
     if (!table->entries || !table->data) {

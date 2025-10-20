@@ -791,7 +791,7 @@ static OSErr AllocateDesktopIcons(void)
     gDesktopIcons = (DesktopItem*)NewPtr(sizeof(DesktopItem) * kMaxDesktopIcons);
     if (gDesktopIcons == NULL) {
         serial_puts("Desktop: NewPtr failed, falling back to calloc\n");
-        gDesktopIcons = (DesktopItem*)calloc(kMaxDesktopIcons, sizeof(DesktopItem));
+        gDesktopIcons = (DesktopItem*)NewPtrClear((kMaxDesktopIcons) * (sizeof(DesktopItem)));
         if (gDesktopIcons == NULL) {
             serial_puts("Desktop: calloc failed, using static storage\n");
             gDesktopIcons = gDesktopIconStatic;

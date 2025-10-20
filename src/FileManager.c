@@ -66,7 +66,7 @@ OSErr FM_Initialize(void)
 
     /* Allocate FCB array */
     g_FSGlobals.fcbCount = MAX_FCBS;
-    g_FSGlobals.fcbArray = (FCB*)calloc(g_FSGlobals.fcbCount, sizeof(FCB));
+    g_FSGlobals.fcbArray = (FCB*)NewPtrClear((g_FSGlobals.fcbCount) * (sizeof(FCB)));
     if (!g_FSGlobals.fcbArray) {
         FS_UnlockGlobal();
         return memFullErr;
@@ -81,7 +81,7 @@ OSErr FM_Initialize(void)
 
     /* Allocate WDCB array */
     g_FSGlobals.wdcbCount = MAX_WDCBS;
-    g_FSGlobals.wdcbArray = (WDCB*)calloc(g_FSGlobals.wdcbCount, sizeof(WDCB));
+    g_FSGlobals.wdcbArray = (WDCB*)NewPtrClear((g_FSGlobals.wdcbCount) * (sizeof(WDCB)));
     if (!g_FSGlobals.wdcbArray) {
         DisposePtr((Ptr)g_FSGlobals.fcbArray);
         FS_UnlockGlobal();

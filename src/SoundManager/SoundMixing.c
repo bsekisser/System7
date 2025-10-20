@@ -167,7 +167,7 @@ OSErr MixerInit(MixerPtr* mixer, UInt16 numChannels, UInt32 sampleRate)
     (extMixer)->cpuLoad = 0;
 
     /* Allocate channel arrays */
-    extMixer->extChannels = (ExtendedMixerChannel*)calloc(numChannels, sizeof(ExtendedMixerChannel));
+    extMixer->extChannels = (ExtendedMixerChannel*)NewPtrClear((numChannels) * (sizeof(ExtendedMixerChannel)));
     if (extMixer->extChannels == NULL) {
         DisposePtr((Ptr)extMixer);
         return memFullErr;
@@ -186,7 +186,7 @@ OSErr MixerInit(MixerPtr* mixer, UInt16 numChannels, UInt32 sampleRate)
 
         /* Allocate temp buffer */
         chan->tempBufferSize = 2048;
-        chan->tempBuffer = (float*)calloc(chan->tempBufferSize, sizeof(float));
+        chan->tempBuffer = (float*)NewPtrClear((chan->tempBufferSize) * (sizeof(float)));
         if (chan->tempBuffer == NULL) {
             /* Cleanup on failure */
             for (int j = 0; j < i; j++) {
@@ -213,8 +213,8 @@ OSErr MixerInit(MixerPtr* mixer, UInt16 numChannels, UInt32 sampleRate)
     }
 
     /* Allocate processing buffers */
-    extMixer->floatMixBuffer = (float*)calloc((extMixer)->bufferFrames * 2, sizeof(float));
-    extMixer->tempOutputBuffer = (SInt16*)calloc((extMixer)->bufferFrames * 2, sizeof(SInt16));
+    extMixer->floatMixBuffer = (float*)NewPtrClear(((extMixer)->bufferFrames * 2) * (sizeof(float)));
+    extMixer->tempOutputBuffer = (SInt16*)NewPtrClear(((extMixer)->bufferFrames * 2) * (sizeof(SInt16)));
     (extMixer)->mixBuffer = extMixer->tempOutputBuffer;
 
     if (extMixer->floatMixBuffer == NULL || extMixer->tempOutputBuffer == NULL) {
@@ -643,7 +643,7 @@ static float ProcessBiquadFilter(BiquadFilter* filter, float input)
 static void InitializeReverb(ReverbProcessor* reverb, UInt32 sampleRate)
 {
     reverb->bufferSize = (sampleRate * MAX_REVERB_DELAY) / 44100;
-    reverb->delayBuffer = (float*)calloc(reverb->bufferSize, sizeof(float));
+    reverb->delayBuffer = (float*)NewPtrClear((reverb->bufferSize) * (sizeof(float)));
     reverb->writeIndex = 0;
     reverb->feedback = 0.3f;
     reverb->wetLevel = 0.2f;
@@ -690,7 +690,7 @@ static void InitializeEcho(EchoProcessor* echo, UInt32 delayMs, UInt32 sampleRat
 {
     echo->delayTime = (delayMs * sampleRate) / 1000;
     echo->bufferSize = echo->delayTime * 2; /* Double buffer for safety */
-    echo->delayBuffer = (float*)calloc(echo->bufferSize, sizeof(float));
+    echo->delayBuffer = (float*)NewPtrClear((echo->bufferSize) * (sizeof(float)));
     echo->writeIndex = 0;
     echo->readIndex = 0;
     echo->feedback = 0.4f;

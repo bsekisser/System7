@@ -733,7 +733,7 @@ OSErr BTree_Open(VCB* vcb, UInt32 fileID, BTCB** btcb)
     newBTCB->btcFree = 50;
 
     /* Allocate cache for nodes */
-    newBTCB->btcCache = calloc(10, BTREE_NODE_SIZE);
+    newBTCB->btcCache = NewPtrClear((10) * (BTREE_NODE_SIZE));
     if (!newBTCB->btcCache) {
         DisposePtr((Ptr)newBTCB);
         return memFullErr;

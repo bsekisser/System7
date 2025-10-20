@@ -64,7 +64,7 @@ OSErr AEStartRecording(const char* scriptName) {
     }
 
     /* Initialize recording session */
-    g_recordingSession.events = calloc(MAX_RECORDED_EVENTS, sizeof(RecordedEvent));
+    g_recordingSession.events = NewPtrClear((MAX_RECORDED_EVENTS) * (sizeof(RecordedEvent)));
     if (!g_recordingSession.events) {
         pthread_mutex_unlock(&g_recordingMutex);
         return memFullErr;
@@ -396,7 +396,7 @@ OSErr AELoadRecording(const char* filePath) {
     fread(&g_recordingSession.endTime, sizeof(time_t), 1, file);
 
     /* Allocate events */
-    g_recordingSession.events = calloc(eventCount, sizeof(RecordedEvent));
+    g_recordingSession.events = NewPtrClear((eventCount) * (sizeof(RecordedEvent)));
     if (!g_recordingSession.events) {
         fclose(file);
         pthread_mutex_unlock(&g_recordingMutex);

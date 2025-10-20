@@ -238,7 +238,7 @@ static OSErr ParseSoundListResource(SndListResource* resource, SndCommand** comm
     *numCommands = resource->numCommands;
 
     if (*numCommands > 0) {
-        *commands = (SndCommand*)calloc(*numCommands, sizeof(SndCommand));
+        *commands = (SndCommand*)NewPtrClear((*numCommands) * (sizeof(SndCommand)));
         if (*commands == NULL) {
             return memFullErr;
         }

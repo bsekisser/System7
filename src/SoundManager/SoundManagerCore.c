@@ -242,7 +242,7 @@ OSErr SndNewChannel(SndChannelPtr* chan, SInt16 synth, SInt32 init, SndCallBackP
     newChan->userRoutine = userRoutine;
 
     /* Allocate command queue */
-    newChan->queue = (SndCommand*)calloc(newChan->queueSize, sizeof(SndCommand));
+    newChan->queue = (SndCommand*)NewPtrClear((newChan->queueSize) * (sizeof(SndCommand)));
     if (newChan->queue == NULL) {
         DisposePtr((Ptr)newChan);
         return memFullErr;

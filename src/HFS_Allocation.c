@@ -630,7 +630,7 @@ OSErr Cache_Init(UInt32 cacheSize)
     }
 
     /* Allocate cache buffers */
-    buffers = (CacheBuffer*)calloc(numBuffers, sizeof(CacheBuffer));
+    buffers = (CacheBuffer*)NewPtrClear((numBuffers) * (sizeof(CacheBuffer)));
     if (!buffers) {
         return memFullErr;
     }
@@ -643,7 +643,7 @@ OSErr Cache_Init(UInt32 cacheSize)
 
     /* Allocate hash table */
     hashSize = numBuffers * 2;  /* Make hash table 2x buffer count */
-    g_FSGlobals.cacheHash = (CacheBuffer**)calloc(hashSize, sizeof(CacheBuffer*));
+    g_FSGlobals.cacheHash = (CacheBuffer**)NewPtrClear((hashSize) * (sizeof(CacheBuffer*)));
     if (!g_FSGlobals.cacheHash) {
         DisposePtr((Ptr)buffers);
         return memFullErr;

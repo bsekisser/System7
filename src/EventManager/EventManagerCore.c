@@ -341,7 +341,7 @@ SInt16 InitEvents(SInt16 numEvents)
         numEvents = kMaxEventQueueSize;
     }
 
-    g_eventBuffer = (EvQEl*)calloc(numEvents, sizeof(EvQEl));
+    g_eventBuffer = (EvQEl*)NewPtrClear((numEvents) * (sizeof(EvQEl)));
     if (!g_eventBuffer) {
         return -1; /* Memory error */
     }

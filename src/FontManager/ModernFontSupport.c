@@ -589,7 +589,7 @@ OSErr InitializeFontDirectory(void)
     }
 
     gFontDirectory->capacity = 256; /* Initial capacity */
-    gFontDirectory->entries = (FontDirectoryEntry *)calloc(gFontDirectory->capacity, sizeof(FontDirectoryEntry));
+    gFontDirectory->entries = (FontDirectoryEntry *)NewPtrClear((gFontDirectory->capacity) * (sizeof(FontDirectoryEntry)));
     if (gFontDirectory->entries == NULL) {
         DisposePtr((Ptr)gFontDirectory);
         gFontDirectory = NULL;
@@ -617,7 +617,7 @@ static OSErr InitializeModernFontCache(void)
 
     gModernFontCache->capacity = 64; /* Initial capacity */
     gModernFontCache->maxSize = 16 * 1024 * 1024; /* 16MB max cache */
-    gModernFontCache->fonts = (ModernFont **)calloc(gModernFontCache->capacity, sizeof(ModernFont *));
+    gModernFontCache->fonts = (ModernFont **)NewPtrClear((gModernFontCache->capacity) * (sizeof(ModernFont *)));
     if (gModernFontCache->fonts == NULL) {
         DisposePtr((Ptr)gModernFontCache);
         gModernFontCache = NULL;
