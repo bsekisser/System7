@@ -37,33 +37,19 @@ Boolean Platform_HasColorQuickDraw(void) {
 Boolean Platform_InitializeWindowPort(WindowPtr window) {
     if (!window) return false;
 
-    /* Initialize the GrafPort part of the window */
-    window->port.portBits.baseAddr = (Ptr)framebuffer;
-    /* Set PixMap flag (bit 15) to indicate 32-bit PixMap, not 1-bit BitMap */
-    window->port.portBits.rowBytes = (fb_width * 4) | 0x8000;
-
-    /* CRITICAL: DO NOT set portBits.bounds here!
+    /* CRITICAL: DO NOT overwrite portBits.baseAddr or portBits.bounds!
      *
-     * portBits.bounds is already correctly set by InitializeWindowRecord (WindowManagerCore.c:832-836)
-     * to the window's content area in GLOBAL screen coordinates.
+     * InitializeWindowRecord has already set up portBits correctly using the
+     * "Direct Framebuffer" approach:
+     * - portBits.baseAddr = framebuffer + offset to window's content area
+     * - portBits.bounds = (0, 0, width, height) [LOCAL coordinates]
+     * - portBits.rowBytes = set correctly
      *
-     * BUG: Previous code read from strucRgn to calculate portBits.bounds, creating circular dependency:
-     * - InitializeWindowRecord sets portBits.bounds from clampedBounds ✓
-     * - Platform_InitializeWindowPort overwrites it by reading from strucRgn ✗
-     * - Later, Platform_GetWindowFrameRect/ContentRect read from portBits.bounds
-     * - WM_CalculateStandardWindowRegions uses those to SET strucRgn (circular!)
+     * If we overwrite baseAddr here, we break the coordinate system and cause
+     * window content to render at the wrong screen position!
      *
-     * This caused:
-     * - contRgn covering entire screen instead of window content
-     * - Window content rendering at wrong global position
-     * - Desktop pattern being erased by oversized contRgn
-     *
-     * FIX: Trust that portBits.bounds was already set correctly. Don't touch it.
+     * FIX: Don't touch portBits at all - it's already correctly initialized.
      */
-
-    /* Regions already initialized by InitializeWindowRecord - don't overwrite */
-    /* InitializeWindowRecord sets portRect to local coordinates (0,0,width,height) */
-    /* and strucRgn/contRgn to global bounds - these are already correct */
 
     /* Initialize clipping regions */
     if (!window->port.clipRgn) {
@@ -408,25 +394,31 @@ void Platform_GetWindowTitleBarRect(WindowPtr window, Rect* rect) {
 void Platform_GetWindowContentRect(WindowPtr window, Rect* rect) {
     if (!window || !rect) return;
 
-    /* CRITICAL FIX: Content rect IS portBits.bounds (in global coordinates)
+    /* CRITICAL: Calculate content rect from structure region
      *
-     * BUG: Previous code calculated from strucRgn (circular dependency)
+     * Now that we use Direct Framebuffer approach, portBits.bounds is LOCAL (0,0,w,h).
+     * We need to return GLOBAL coordinates for region calculations.
      *
-     * CORRECT: portBits.bounds already contains the content area in global coords
-     * No calculation needed - just return it directly! */
-    *rect = window->port.portBits.bounds;
-
-    /* DEBUG: Log suspicious full-screen bounds */
-    extern void serial_puts(const char* str);
-    extern int sprintf(char* buf, const char* fmt, ...);
-    static int log_count = 0;
-    if (log_count < 20 && rect->left == 0 && rect->top == 20 && rect->right >= 799) {
-        char dbgbuf[256];
-        sprintf(dbgbuf, "[CONTENTRGN] SUSPICIOUS portBits.bounds=(0,20,%d,%d) refCon=0x%08x\n",
-                rect->right, rect->bottom, (unsigned int)window->refCon);
-        serial_puts(dbgbuf);
-        log_count++;
+     * strucRgn contains the full window frame in global coords.
+     * Content rect = strucRgn minus chrome (title bar + borders).
+     */
+    if (!window->strucRgn || !*(window->strucRgn)) {
+        SetRect(rect, 0, 0, 0, 0);
+        return;
     }
+
+    Rect strucRect = (**(window->strucRgn)).rgnBBox;
+
+    /* Chrome dimensions */
+    const SInt16 kBorder = 1;
+    const SInt16 kTitleBar = 20;
+    const SInt16 kSeparator = 1;
+
+    /* Content is inside the frame */
+    rect->left = strucRect.left + kBorder;
+    rect->top = strucRect.top + kTitleBar + kSeparator;
+    rect->right = strucRect.right - (kBorder + 1);  /* Right border is 2px */
+    rect->bottom = strucRect.bottom - kBorder;
 }
 
 void Platform_GetWindowCloseBoxRect(WindowPtr window, Rect* rect) {
@@ -454,28 +446,18 @@ void Platform_GetWindowZoomBoxRect(WindowPtr window, Rect* rect) {
 void Platform_GetWindowFrameRect(WindowPtr window, Rect* rect) {
     if (!window || !rect) return;
 
-    /* CRITICAL FIX: Calculate frame rect from portBits.bounds, NOT from strucRgn!
+    /* CRITICAL: Return structure region directly
      *
-     * BUG: Previous code read from strucRgn to set strucRgn (circular dependency)
-     * If strucRgn was wrong (e.g., full screen), it stayed wrong forever.
-     *
-     * CORRECT APPROACH:
-     * portBits.bounds = content area in GLOBAL screen coordinates
-     * Frame rect = portBits.bounds EXPANDED to include title bar and borders
+     * Now that we use Direct Framebuffer approach, portBits.bounds is LOCAL (0,0,w,h).
+     * strucRgn contains the full window frame in GLOBAL coordinates, which is exactly
+     * what we need to return here.
      */
+    if (!window->strucRgn || !*(window->strucRgn)) {
+        SetRect(rect, 0, 0, 0, 0);
+        return;
+    }
 
-    /* Get content area from portBits.bounds (global coords) */
-    Rect contentRect = window->port.portBits.bounds;
-
-    /* Expand to include chrome:
-     * - Title bar: 20px above content + 1px separator
-     * - Left border: 1px
-     * - Right border: 2px (for 3D effect)
-     * - Bottom border: 1px */
-    rect->left = contentRect.left - 1;              /* Left border */
-    rect->top = contentRect.top - 21;               /* Title bar (20) + separator (1) */
-    rect->right = contentRect.right + 2;            /* Right border + 3D */
-    rect->bottom = contentRect.bottom + 1;          /* Bottom border */
+    *rect = (**(window->strucRgn)).rgnBBox;
 }
 
 /* Window highlighting */

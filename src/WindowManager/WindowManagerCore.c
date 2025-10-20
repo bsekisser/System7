@@ -826,34 +826,59 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
                  window->port.portRect.right, window->port.portRect.bottom,
                  contentWidth, contentHeight);
 
-    /* CRITICAL: portBits.bounds defines where local coords map to global screen coords!
-     * This is the AUTHORITATIVE setting - Platform_InitializeWindowPort must NOT overwrite it! */
-    SetRect(&window->port.portBits.bounds,
-            clampedBounds.left + kBorder,
-            clampedBounds.top + kTitleBar + kSeparator,
-            clampedBounds.left + kBorder + contentWidth,
-            clampedBounds.top + kTitleBar + kSeparator + contentHeight);
+    /* CRITICAL FIX: Use "Direct Framebuffer" coordinate approach
+     *
+     * There are two ways to set up window coordinates:
+     *
+     * 1. GLOBAL COORDS (BROKEN with current drawing code):
+     *    - portBits.baseAddr = start of full framebuffer
+     *    - portBits.bounds = window position in global screen coords
+     *    - Drawing subtracts bounds to get local position, but then indexes
+     *      into baseAddr using that local position, drawing at WRONG location!
+     *
+     * 2. DIRECT FRAMEBUFFER (CORRECT - used by About This Mac):
+     *    - portBits.baseAddr = framebuffer + offset to window's content area
+     *    - portBits.bounds = (0, 0, width, height)
+     *    - Drawing works correctly because baseAddr already includes window offset
+     *
+     * We use approach #2 for consistency with QDPlatform_DrawGlyphBitmap.
+     */
 
-    /* DEBUG: Log portBits.bounds initialization */
+    /* Calculate window's content position in global screen coordinates */
+    extern void* framebuffer;
+    extern uint32_t fb_width;
+    extern uint32_t fb_pitch;
+
+    SInt16 contentLeft = clampedBounds.left + kBorder;
+    SInt16 contentTop = clampedBounds.top + kTitleBar + kSeparator;
+
+    /* Calculate framebuffer offset to window's content area */
+    uint32_t bytes_per_pixel = 4;
+    uint32_t fbOffset = contentTop * fb_pitch + contentLeft * bytes_per_pixel;
+
+    /* Set baseAddr to window's position in framebuffer (Direct approach) */
+    window->port.portBits.baseAddr = (Ptr)((char*)framebuffer + fbOffset);
+
+    /* Set bounds to LOCAL coordinates (0,0,width,height) for Direct approach */
+    SetRect(&window->port.portBits.bounds, 0, 0, contentWidth, contentHeight);
+
+    /* Set PixMap flag (bit 15) to indicate 32-bit PixMap, not 1-bit BitMap */
+    window->port.portBits.rowBytes = (fb_width * 4) | 0x8000;
+
+    /* DEBUG: Log portBits initialization */
     extern void serial_puts(const char* str);
     extern int sprintf(char* buf, const char* fmt, ...);
     static int init_log = 0;
     if (init_log < 20) {
         char dbgbuf[256];
-        sprintf(dbgbuf, "[INITWIN] portBits.bounds=(%d,%d,%d,%d) refCon=0x%08x\n",
+        sprintf(dbgbuf, "[INITWIN] contentPos=(%d,%d) portBits.bounds=(%d,%d,%d,%d) fbOffset=%u refCon=0x%08x\n",
+                contentLeft, contentTop,
                 window->port.portBits.bounds.left, window->port.portBits.bounds.top,
                 window->port.portBits.bounds.right, window->port.portBits.bounds.bottom,
-                (unsigned int)window->refCon);
+                fbOffset, (unsigned int)window->refCon);
         serial_puts(dbgbuf);
         init_log++;
     }
-
-    /* Initialize portBits to point to screen framebuffer */
-    extern void* framebuffer;
-    extern uint32_t fb_width;
-    window->port.portBits.baseAddr = (Ptr)framebuffer;
-    /* Set PixMap flag (bit 15) to indicate 32-bit PixMap, not 1-bit BitMap */
-    window->port.portBits.rowBytes = (fb_width * 4) | 0x8000;
 
 
     /* Initialize strucRgn with global bounds */
