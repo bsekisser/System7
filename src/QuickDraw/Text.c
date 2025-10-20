@@ -33,17 +33,24 @@ void Move(SInt16 h, SInt16 v) {
     if (g_currentPort == NULL) return;
     g_penPosition.h += h;
     g_penPosition.v += v;
+    /* Also update port's pen location for drawing operations */
+    g_currentPort->pnLoc.h += h;
+    g_currentPort->pnLoc.v += v;
 }
 
 void MoveTo(SInt16 h, SInt16 v) {
     if (g_currentPort == NULL) return;
     g_penPosition.h = h;
     g_penPosition.v = v;
+    /* Also update port's pen location for drawing operations */
+    g_currentPort->pnLoc.h = h;
+    g_currentPort->pnLoc.v = v;
 }
 
 void GetPen(Point *pt) {
-    if (pt == NULL) return;
-    *pt = g_penPosition;
+    if (pt == NULL || g_currentPort == NULL) return;
+    /* Return the port's pen location (canonical source) */
+    *pt = g_currentPort->pnLoc;
 }
 
 // Text measurement functions
@@ -149,6 +156,7 @@ void DrawChar(SInt16 ch) {
 
     /* Advance pen position in local coordinates */
     g_currentPort->pnLoc.h += width;
+    g_penPosition.h += width;  /* Keep global pen position in sync */
 }
 
 void DrawString(ConstStr255Param s) {
