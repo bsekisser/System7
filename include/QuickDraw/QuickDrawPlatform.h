@@ -78,6 +78,12 @@ void QDPlatform_FillPoly(GrafPtr port, PolyHandle poly, const Pattern* pat,
 SInt16 QDPlatform_DrawGlyph(struct FontStrike *strike, UInt8 ch, SInt16 x, SInt16 y,
                             GrafPtr port, UInt32 color);
 
+/* Glyph bitmap rendering */
+void QDPlatform_DrawGlyphBitmap(GrafPtr port, Point pen,
+                                const uint8_t *bitmap,
+                                SInt16 width, SInt16 height,
+                                const Pattern *pattern, SInt16 mode);
+
 #ifdef __cplusplus
 }
 #endif

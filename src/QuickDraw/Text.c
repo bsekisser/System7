@@ -1,6 +1,7 @@
 #include "../../include/SystemTypes.h"
 #include "QuickDraw/QuickDrawInternal.h"
 #include "../../include/QuickDraw/QuickDraw.h"
+#include "../../include/QuickDraw/QuickDrawPlatform.h"
 #include "../../include/chicago_font.h"
 #include <stddef.h>
 
@@ -136,11 +137,6 @@ void DrawChar(SInt16 ch) {
             }
 
             /* Draw the glyph using platform drawing */
-            extern void QDPlatform_DrawGlyphBitmap(GrafPtr port, Point pen,
-                                                  const uint8_t *bitmap,
-                                                  SInt16 width, SInt16 height,
-                                                  const Pattern *pattern, SInt16 mode);
-
             QDPlatform_DrawGlyphBitmap(g_currentPort, penGlobal, glyph_bitmap,
                                       info->bit_width, CHICAGO_HEIGHT,
                                       &g_currentPort->pnPat, g_currentPort->pnMode);
