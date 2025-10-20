@@ -23,7 +23,7 @@ bool IconRes_MapTypeCreatorToIcon(uint32_t type, uint32_t creator, int16_t* outR
 
     /* Finder application */
     if (creator == 'MACS' || type == 'FNDR') {
-        *outRsrcID = 1; /* Finder application icon (finder_icon_1 - smiling Mac face) */
+        *outRsrcID = 999; /* Finder application icon (custom icon from finder.png) */
         return true;
     }
 

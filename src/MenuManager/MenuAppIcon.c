@@ -101,11 +101,11 @@ short MenuAppIcon_Draw(GrafPtr port, short left, short top, Boolean highlighted)
     static Boolean sFinderAvailable = false;
 
     if (!sFinderLoaded) {
-        /* Load the Finder application icon (smiling Mac face)
-         * finder_icon_1 (ID 1) is the classic Finder icon */
-        sFinderAvailable = IconGen_FindByID(1, &sFinderIcon);
+        /* Load the Finder application icon (custom Finder icon)
+         * ID 999 is the custom Finder icon from finder.png */
+        sFinderAvailable = IconGen_FindByID(999, &sFinderIcon);
         if (sFinderAvailable) {
-            serial_puts("MenuAppIcon: loaded Finder icon (smiling Mac)\n");
+            serial_puts("MenuAppIcon: loaded custom Finder icon\n");
         } else {
             serial_puts("MenuAppIcon: failed to load Finder icon, using fallback glyph\n");
         }
