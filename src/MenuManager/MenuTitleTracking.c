@@ -43,7 +43,36 @@ void InitMenuTitleTracking(void)
 /* Add a menu title to tracking */
 void AddMenuTitle(short menuID, short left, short width, const char* title)
 {
+    extern void serial_printf(const char* fmt, ...);
+
+    /* CRITICAL FIX: Check if this menuID already exists
+     * If it does, UPDATE the existing entry instead of creating a duplicate.
+     * This prevents multiple titleRect entries for the same menu which causes
+     * duplicate inversions when highlighting menus. */
+    for (int i = 0; i < gMenuTitleCount; i++) {
+        if (gMenuTitles[i].menuID == menuID) {
+            /* Update existing entry */
+            gMenuTitles[i].titleRect.left = left;
+            gMenuTitles[i].titleRect.right = left + width;
+            gMenuTitles[i].titleRect.top = 0;
+            gMenuTitles[i].titleRect.bottom = 20;
+
+            if (title) {
+                strncpy(gMenuTitles[i].titleText, title, 255);
+                gMenuTitles[i].titleText[255] = '\0';
+            }
+
+            serial_printf("[ADDTITLE-UPDATE] ID=%d, titleRect=(%d,%d,%d,20), title='%s'\n",
+                          menuID, left, left+width, title ? title : "");
+            MENU_LOG_TRACE("Updated menu title: ID=%d, left=%d, width=%d, title='%s'\n",
+                          menuID, left, width, title ? title : "");
+            return;
+        }
+    }
+
+    /* No existing entry - create new one */
     if (gMenuTitleCount >= MAX_MENU_TITLES) {
+        serial_printf("[ADDTITLE] ERROR: Max menu titles reached (%d)\n", MAX_MENU_TITLES);
         return;
     }
 
@@ -61,8 +90,7 @@ void AddMenuTitle(short menuID, short left, short width, const char* title)
 
     gMenuTitleCount++;
 
-    extern void serial_printf(const char* fmt, ...);
-    serial_printf("[ADDTITLE] ID=%d, titleRect=(%d,%d,%d,20), title='%s'\n",
+    serial_printf("[ADDTITLE-NEW] ID=%d, titleRect=(%d,%d,%d,20), title='%s'\n",
                   menuID, left, left+width, title ? title : "");
     MENU_LOG_TRACE("Added menu title: ID=%d, left=%d, width=%d, title='%s'\n",
                   menuID, left, width, title ? title : "");
