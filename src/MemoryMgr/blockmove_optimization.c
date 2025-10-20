@@ -55,7 +55,7 @@ static ProcessorType g_processorType = CPU_68020;
  * 2. Jump to appropriate processor-specific routine
  * 3. Handle cache coherency
  */
-OSErr high_level_block_move(Ptr src, Ptr dst, Size count) {
+static OSErr high_level_block_move(Ptr src, Ptr dst, Size count) {
     if (!src || !dst || count <= 0) {
         return noErr;  /* Nothing to copy */
     }
@@ -386,11 +386,11 @@ static void cache_flush_if_needed(Size bytesCopied) {
 /*
  * Processor Type Detection and Setup
  */
-void set_processor_type(ProcessorType processorType) {
+static void set_processor_type(ProcessorType processorType) {
     g_processorType = processorType;
 }
 
-ProcessorType get_processor_type(void) {
+static ProcessorType get_processor_type(void) {
     return g_processorType;
 }
 
@@ -408,7 +408,7 @@ typedef struct BlockMoveStats {
 
 static BlockMoveStats g_blockMoveStats = {0};
 
-void update_blockmove_statistics(Size bytesCopied, Boolean wasOverlap) {
+static void update_blockmove_statistics(Size bytesCopied, Boolean wasOverlap) {
     g_blockMoveStats.totalCalls++;
 
     if (bytesCopied <= 31) {
@@ -424,6 +424,6 @@ void update_blockmove_statistics(Size bytesCopied, Boolean wasOverlap) {
     }
 }
 
-const BlockMoveStats* get_blockmove_statistics(void) {
+static const BlockMoveStats* get_blockmove_statistics(void) {
     return &g_blockMoveStats;
 }

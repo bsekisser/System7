@@ -389,7 +389,7 @@ static void update_free_space_accounting(ZonePtr zone, Size deltaBytes) {
  * Compact Memory with Purging
  * High-level compaction that includes purging of purgeable blocks
  */
-OSErr compact_memory_with_purging(ZonePtr zone, Size bytesNeeded) {
+static OSErr compact_memory_with_purging(ZonePtr zone, Size bytesNeeded) {
     if (!zone) {
         return memWZErr;
     }
@@ -436,7 +436,7 @@ OSErr compact_memory_with_purging(ZonePtr zone, Size bytesNeeded) {
  * Purge Memory Zone
  * Purge all purgeable blocks in a zone
  */
-OSErr purge_memory_zone(ZonePtr zone) {
+static OSErr purge_memory_zone(ZonePtr zone) {
     if (!zone) {
         return memWZErr;
     }

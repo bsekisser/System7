@@ -269,7 +269,7 @@ void SystemMenu_SetItemChecked(SInt16 itemID, Boolean checked)
 /*
  * Get menu item count
  */
-SInt16 SystemMenu_GetItemCount(void)
+static SInt16 SystemMenu_GetItemCount(void)
 {
     return g_systemMenuInitialized ? g_systemMenu.itemCount : 0;
 }
@@ -277,7 +277,7 @@ SInt16 SystemMenu_GetItemCount(void)
 /*
  * Get menu item by index
  */
-const MenuItem *SystemMenu_GetItem(SInt16 index)
+static const MenuItem *SystemMenu_GetItem(SInt16 index)
 {
     if (!g_systemMenuInitialized || index < 0) {
         return NULL;
@@ -294,7 +294,7 @@ const MenuItem *SystemMenu_GetItem(SInt16 index)
 /*
  * Check if menu is enabled
  */
-Boolean SystemMenu_IsEnabled(void)
+static Boolean SystemMenu_IsEnabled(void)
 {
     return g_systemMenuInitialized ? g_systemMenu.menuEnabled : false;
 }
@@ -302,7 +302,7 @@ Boolean SystemMenu_IsEnabled(void)
 /*
  * Set menu enabled state
  */
-void SystemMenu_SetEnabled(Boolean enabled)
+static void SystemMenu_SetEnabled(Boolean enabled)
 {
     if (g_systemMenuInitialized) {
         g_systemMenu.menuEnabled = enabled;
