@@ -24,6 +24,7 @@
 #include "../include/MenuManager/MenuTypes.h"
 #include "../include/MenuManager/MenuLogging.h"
 #include "../include/WindowManager/WindowManager.h"
+#include "../include/FontManager/FontManager.h"
 #include "MenuManager/MenuAppleIcon.h"
 #include "MenuManager/MenuAppIcon.h"
 
@@ -467,6 +468,11 @@ void DrawMenuBar(void)
     PenNormal();
     ClipRect(&menuBarRect);
     FillRect(&menuBarRect, &qd.white);  /* White background */
+
+    /* Set proper font for menu bar text */
+    TextFont(0);   /* System font (Chicago) */
+    TextSize(12);  /* Standard menu bar size */
+    TextFace(0);   /* Plain text */
 
     /* Draw bottom line */
     MoveTo(0, 19);
