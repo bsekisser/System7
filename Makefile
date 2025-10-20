@@ -366,6 +366,7 @@ C_SOURCES = src/main.c \
             src/EventManager/EventDispatcher.c \
             src/EventManager/MouseEvents.c \
             src/EventManager/KeyboardEvents.c \
+            src/EventManager/AppSwitcher.c \
             src/EventManager/SystemEvents.c \
             src/ProcessMgr/ProcessManager.c \
             src/CPU/CPUBackend.c \

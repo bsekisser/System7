@@ -172,6 +172,11 @@ OSErr MultiFinder_Init(void);
 OSErr MultiFinder_ConfigureProcess(ProcessSerialNumber* psn, ProcessMode mode);
 Boolean MultiFinder_IsActive(void);
 
+/* Application Switcher Integration */
+ProcessSerialNumber ProcessManager_GetFrontProcess(void);
+OSErr ProcessManager_SetFrontProcess(ProcessSerialNumber psn);
+ProcessQueue* ProcessManager_GetProcessQueue(void);
+
 /*
  * Global Process Manager Variables
 

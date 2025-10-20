@@ -37,6 +37,7 @@
 #include "CPU/M68KInterp.h"
 #include "EventManager/EventManager.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "EventManager/AppSwitcher.h"
 /* #include <Traps.h> - not available */
 /* #include <ToolUtils.h> - not available */
 
@@ -436,6 +437,53 @@ OSErr Process_Cleanup(ProcessSerialNumber* psn)
     gProcessQueue->queueSize--;
 
     return noErr;
+}
+
+/**
+ * Get front process - used by AppSwitcher
+ */
+ProcessSerialNumber ProcessManager_GetFrontProcess(void) {
+    ProcessSerialNumber psn = {0, 0};
+
+    if (!gCurrentProcess) {
+        return psn;
+    }
+
+    return gCurrentProcess->processID;
+}
+
+/**
+ * Set front process - bring app to front (used by AppSwitcher)
+ */
+OSErr ProcessManager_SetFrontProcess(ProcessSerialNumber psn) {
+    /* TODO: Implement full process switching */
+    /* For now, just find the process and mark it as current */
+    if (!gProcessQueue) return noErr;
+
+    ProcessControlBlock* process = gProcessQueue->queueHead;
+    while (process) {
+        if (process->processID.highLongOfPSN == psn.highLongOfPSN &&
+            process->processID.lowLongOfPSN == psn.lowLongOfPSN) {
+            gCurrentProcess = process;
+            serial_printf("[ProcessManager] Set front process: signature=%c%c%c%c\n",
+                         (process->processSignature >> 24) & 0xFF,
+                         (process->processSignature >> 16) & 0xFF,
+                         (process->processSignature >> 8) & 0xFF,
+                         process->processSignature & 0xFF);
+            return noErr;
+        }
+        process = process->processNextProcess;
+    }
+
+    return noErr;  /* Return noErr even if not found */
+}
+
+/**
+ * Get the process queue for app switcher
+ * Internal function for AppSwitcher to access process list
+ */
+ProcessQueue* ProcessManager_GetProcessQueue(void) {
+    return gProcessQueue;
 }
 
 /*

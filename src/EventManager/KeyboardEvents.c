@@ -24,6 +24,7 @@
 #include "EventManager/EventManager.h"
 #include "EventManager/EventStructs.h"
 #include "EventManager/EventLogging.h"
+#include "EventManager/AppSwitcher.h"
 /* ctype.h not available in kernel - use simple implementations */
 static inline int islower(int c) { return c >= 'a' && c <= 'z'; }
 static inline int isupper(int c) { return c >= 'A' && c <= 'Z'; }
@@ -502,6 +503,19 @@ SInt16 ProcessRawKeyboardEvent(UInt16 scanCode, Boolean isKeyDown,
             g_deadKeyState.deadKeyType = kDeadKeyNone;
         }
 
+        /* Check for Command-Tab application switcher */
+        if (scanCode == 0x30 && (modifiers & cmdKey)) { /* Tab key with Command */
+            if (modifiers & shiftKey) {
+                /* Shift-Command-Tab: cycle backward */
+                AppSwitcher_CycleBackward();
+            } else {
+                /* Command-Tab: cycle forward */
+                AppSwitcher_CycleForward();
+            }
+            /* Don't post the normal Tab event when Command is held */
+            return eventsGenerated;
+        }
+
         /* Generate key down event */
         SInt32 message = charCode | (scanCode << 8);
         PostEvent(keyDown, message);
@@ -519,6 +533,13 @@ SInt16 ProcessRawKeyboardEvent(UInt16 scanCode, Boolean isKeyDown,
 
     } else {
         /* Key released */
+
+        /* Check for Tab key release when command-tab switcher is active */
+        if (scanCode == 0x30 && AppSwitcher_IsActive()) {
+            AppSwitcher_HandleKeyUp();
+            /* Don't post normal Tab keyUp event */
+            return eventsGenerated;
+        }
 
         /* Stop auto-repeat if this was the repeating key */
         if (g_autoRepeatState.active && g_autoRepeatState.keyCode == scanCode) {
