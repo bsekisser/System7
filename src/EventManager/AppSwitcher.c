@@ -13,6 +13,7 @@
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "Finder/Icon/icon_port.h"
+#include "MemoryMgr/MemoryManager.h"
 #include "System71StdLib.h"
 #include <string.h>
 #include <stdlib.h>
@@ -325,63 +326,134 @@ void AppSwitcher_HandleKeyUp(void) {
 void AppSwitcher_Draw(void) {
     if (!gSwitcherVisible || !gSwitcherInitialized) return;
 
-    GrafPtr currentPort;
-    GetPort(&currentPort);
-
     Rect windowBounds = gSwitcherState.windowBounds;
 
-    /* Draw background */
-    RGBColor bgColor = {0xAAAA, 0xAAAA, 0xAAAA};  /* Gray */
-    RGBColor borderColor = {0x0000, 0x0000, 0x0000};  /* Black */
-
-    RGBForeColor(&bgColor);
+    /* Draw window background with light gray fill */
+    ForeColor(0xCCCCCC);  /* Light gray */
     PaintRect(&windowBounds);
 
-    /* Draw border */
-    RGBForeColor(&borderColor);
+    /* Draw window border - thick black frame */
+    ForeColor(0x000000);  /* Black */
     FrameRect(&windowBounds);
 
-    /* Draw title */
-    RGBColor textColor = {0x0000, 0x0000, 0x0000};
-    RGBForeColor(&textColor);
+    /* Draw inner border for 3D effect */
+    Rect innerBorder = windowBounds;
+    InsetRect(&innerBorder, 1, 1);
+    FrameRect(&innerBorder);
+
+    /* Draw title bar background */
+    Rect titleBar = windowBounds;
+    titleBar.bottom = titleBar.top + 25;
+    ForeColor(0x666666);  /* Dark gray */
+    PaintRect(&titleBar);
+
+    /* Draw title text */
+    ForeColor(0xFFFFFF);  /* White */
+    MoveTo(windowBounds.left + 8, windowBounds.top + 18);
 
     Str255 title;
     title[0] = 19;  /* Length */
     BlockMoveData("Application Switcher", title + 1, 19);
-    Point titlePos = {windowBounds.top + 10, windowBounds.left + 10};
-    MoveTo(titlePos.h, titlePos.v);
     DrawString(title);
 
-    /* Draw app icons and names */
+    /* Draw content area background */
+    Rect contentArea = windowBounds;
+    contentArea.top = titleBar.bottom + 1;
+    contentArea.left += 10;
+    contentArea.right -= 10;
+    contentArea.bottom -= 10;
+
+    ForeColor(0xCCCCCC);  /* Light gray */
+    PaintRect(&contentArea);
+
+    /* Draw grid of app icons and names */
+    SInt16 col = 0, row = 0;
+    const SInt16 maxCols = 3;
+    const SInt16 itemWidth = 80;
+    const SInt16 itemHeight = 90;
+    const SInt16 startX = contentArea.left + 10;
+    const SInt16 startY = contentArea.top + 10;
+
     for (SInt16 i = 0; i < gSwitcherState.appCount; i++) {
-        Rect iconRect = GetAppIconRect(i, &windowBounds);
         SwitchableApp* app = &gSwitcherState.apps[i];
 
-        /* Highlight current selection */
-        if (i == gSwitcherState.currentIndex) {
-            RGBColor highlightColor = {0xFFFF, 0xFFFF, 0x0000};  /* Yellow */
-            RGBForeColor(&highlightColor);
-            FrameRect(&iconRect);
-        }
+        /* Calculate position */
+        SInt16 x = startX + (col * itemWidth);
+        SInt16 y = startY + (row * itemHeight);
 
-        /* Draw icon */
-        if (app->icon.large.argb32 && app->icon.large.w > 0) {
-            /* Draw app icon - simplified version */
-            /* In full implementation, would use IconPort_WritePixel or similar */
-            RGBColor iconBgColor = {0xFFFF, 0xFFFF, 0xFFFF};
-            RGBForeColor(&iconBgColor);
-            PaintRect(&iconRect);
+        /* Icon rectangle */
+        Rect iconRect;
+        iconRect.left = x;
+        iconRect.top = y;
+        iconRect.right = x + 32;
+        iconRect.bottom = y + 32;
+
+        /* Draw icon background as white box */
+        ForeColor(0xFFFFFF);  /* White */
+        PaintRect(&iconRect);
+
+        /* Draw icon border */
+        ForeColor(0x000000);  /* Black */
+        FrameRect(&iconRect);
+
+        /* Draw generic icon (placeholder) */
+        Rect iconInner = iconRect;
+        InsetRect(&iconInner, 4, 4);
+        ForeColor(0xCCCCCC);  /* Light gray */
+        PaintRect(&iconInner);
+
+        /* Highlight current selection with thick border */
+        if (i == gSwitcherState.currentIndex) {
+            ForeColor(0x000000);  /* Black */
+            FrameRect(&iconRect);
+            Rect highlightRect = iconRect;
+            InsetRect(&highlightRect, -2, -2);
+            FrameRect(&highlightRect);
         }
 
         /* Draw app name below icon */
-        Rect nameRect = iconRect;
-        nameRect.top = iconRect.bottom + 5;
-        nameRect.bottom = nameRect.top + 16;
+        SInt16 nameY = iconRect.bottom + 6;
+        MoveTo(x, nameY);
 
-        MoveTo(nameRect.left, nameRect.top);
-        RGBForeColor(&textColor);
-        DrawString(app->appName);
+        ForeColor(0x000000);  /* Black */
+
+        /* Draw app name (truncate if needed) */
+        Str255 displayName;
+        BlockMoveData(app->appName, displayName, sizeof(Str255));
+        if (displayName[0] > 10) {
+            displayName[0] = 10;  /* Truncate to 10 chars */
+        }
+        DrawString(displayName);
+
+        /* Move to next position */
+        col++;
+        if (col >= maxCols) {
+            col = 0;
+            row++;
+        }
+
+        /* Stop if we're off the bottom */
+        if (startY + ((row + 1) * itemHeight) > contentArea.bottom) {
+            break;
+        }
     }
+
+    /* Draw status text at bottom */
+    Rect statusArea = windowBounds;
+    statusArea.top = statusArea.bottom - 20;
+    statusArea.left += 10;
+    statusArea.right -= 10;
+
+    ForeColor(0x666666);  /* Dark gray */
+    PaintRect(&statusArea);
+
+    ForeColor(0xFFFFFF);  /* White */
+    MoveTo(statusArea.left + 5, statusArea.top + 14);
+
+    Str255 status;
+    status[0] = 21;  /* Length */
+    BlockMoveData("Release Tab to switch", status + 1, 21);
+    DrawString(status);
 }
 
 /*---------------------------------------------------------------------------

@@ -1033,6 +1033,11 @@ static void init_system71(void) {
     InitEventDispatcher();
     serial_puts("  Event Dispatcher initialized\n");
 
+    /* Application Switcher */
+    extern OSErr AppSwitcher_Init(void);
+    AppSwitcher_Init();
+    serial_puts("  Application Switcher initialized\n");
+
     /* Process Manager - for application launching */
     extern OSErr ProcessManager_Initialize(void);
     if (ProcessManager_Initialize() == noErr) {
