@@ -516,7 +516,7 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     TextSize(11);
     TextFace(0);            /* normal */
     ToPStr(ver_buf, ver);
-    CenterPStringInRect(ver, &w->port.portRect, w->port.portRect.top + 40);
+    CenterPStringInRect(ver, &contentRect, contentRect.top + 40);
 
 #if defined(__powerpc__) || defined(__powerpc64__)
     long memPtrLong = 0;
@@ -541,12 +541,12 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
             TextSize(10);
             TextFace(0);
             ToPStr(map_buf, extra);
-            CenterPStringInRect(extra, &w->port.portRect, w->port.portRect.top + 60);
+            CenterPStringInRect(extra, &contentRect, contentRect.top + 60);
 
             char count_buf[40];
             sprintf(count_buf, "Firmware ranges: %u", range_count);
             ToPStr(count_buf, extra);
-            CenterPStringInRect(extra, &w->port.portRect, w->port.portRect.top + 72);
+            CenterPStringInRect(extra, &contentRect, contentRect.top + 72);
         }
     }
 #endif
@@ -556,7 +556,7 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
         Str255 model_pstr;
         TextSize(10);
         ToPStr(model_string, model_pstr);
-        CenterPStringInRect(model_pstr, &w->port.portRect, w->port.portRect.top + 53);
+        CenterPStringInRect(model_pstr, &contentRect, contentRect.top + 53);
     }
 
     /* Get current memory statistics */
@@ -568,9 +568,9 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     TextFace(0);           /* normal */
 
     /* Memory box */
-    box.top    = w->port.portRect.top  + 60;
-    box.left   = w->port.portRect.left + 20;
-    box.right  = w->port.portRect.right - 20;
+    box.top    = contentRect.top  + 60;
+    box.left   = contentRect.left + 20;
+    box.right  = contentRect.right - 20;
     box.bottom = box.top + 152;
     FrameRect(&box);
 
