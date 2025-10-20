@@ -1201,13 +1201,15 @@ void QDPlatform_DrawGlyphBitmap(GrafPtr port, Point pen,
     SInt16 destY = pen.v - destBits->bounds.top;
 
     /* Debug first few calls */
-    if (call_count < 3) {
+    if (call_count < 30) {
         extern void serial_printf(const char* fmt, ...);
-        serial_printf("[GLYPH] pen=(%d,%d) bounds=(%d,%d,%d,%d) dest=(%d,%d) baseAddr=%p\n",
+        extern void* framebuffer;
+        long baseOffset = (char*)destBits->baseAddr - (char*)framebuffer;
+        serial_printf("[GLYPH] pen=(%d,%d) bounds=(%d,%d,%d,%d) dest=(%d,%d) fbOffset=%ld\n",
                      pen.h, pen.v,
                      destBits->bounds.left, destBits->bounds.top,
                      destBits->bounds.right, destBits->bounds.bottom,
-                     destX, destY, destBits->baseAddr);
+                     destX, destY, baseOffset);
         call_count++;
     }
 

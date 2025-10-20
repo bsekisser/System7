@@ -491,8 +491,24 @@ void BeginUpdate(WindowPtr theWindow) {
     Platform_SetUpdatePort(savePort);
 
     /* NOTE: portBits.bounds should already be set correctly to GLOBAL coordinates
-     * by Platform_InitializeWindowPort during window creation. DO NOT overwrite it here!
+     * by InitializeWindowRecord during window creation. DO NOT overwrite it here!
      * portBits.bounds maps local coords to global screen position. */
+
+    /* DEBUG: Log portBits.bounds for control panel windows */
+    extern void serial_puts(const char* str);
+    extern int sprintf(char* buf, const char* fmt, ...);
+    static int beginupd_log = 0;
+    if (beginupd_log < 20) {
+        char dbgbuf[256];
+        sprintf(dbgbuf, "[BEGINUPD] refCon=0x%08x portBits.bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
+                (unsigned int)theWindow->refCon,
+                theWindow->port.portBits.bounds.left, theWindow->port.portBits.bounds.top,
+                theWindow->port.portBits.bounds.right, theWindow->port.portBits.bounds.bottom,
+                theWindow->port.portRect.left, theWindow->port.portRect.top,
+                theWindow->port.portRect.right, theWindow->port.portRect.bottom);
+        serial_puts(dbgbuf);
+        beginupd_log++;
+    }
 
     /* If window has offscreen GWorld, swap portBits to point to GWorld buffer */
     if (theWindow->offscreenGWorld) {
