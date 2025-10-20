@@ -528,7 +528,16 @@ void DrawMenuBar(void)
 
                     /* Draw Apple glyph even when the menu title is blank */
                     if (mptr->menuID == 128) {
-                        menuWidth = MenuAppleIcon_Draw(qd.thePort, x, 0, false);
+                        menuWidth = 24;  /* Standard icon width */
+                        /* Skip drawing if highlighted - same as text menus */
+                        if (!(gMenuMgrState && gMenuMgrState->hiliteMenu == mptr->menuID)) {
+                            menuWidth = MenuAppleIcon_Draw(qd.thePort, x, 0, false);
+                            extern void serial_puts(const char* str);
+                            serial_puts("[DRAWBAR] Drew Apple icon\n");
+                        } else {
+                            extern void serial_puts(const char* str);
+                            serial_puts("[DRAWBAR] SKIPPING Apple icon (highlighted)\n");
+                        }
                         AddMenuTitle(mptr->menuID, x, menuWidth, "Apple");
                         x += menuWidth;
                         continue;
@@ -536,7 +545,16 @@ void DrawMenuBar(void)
 
                     /* Draw Finder application icon regardless of title length */
                     if (mptr->menuID == (short)kApplicationMenuID) {
-                        menuWidth = MenuAppIcon_Draw(qd.thePort, x, 0, false);
+                        menuWidth = 24;  /* Standard icon width */
+                        /* Skip drawing if highlighted - same as text menus */
+                        if (!(gMenuMgrState && gMenuMgrState->hiliteMenu == mptr->menuID)) {
+                            menuWidth = MenuAppIcon_Draw(qd.thePort, x, 0, false);
+                            extern void serial_puts(const char* str);
+                            serial_puts("[DRAWBAR] Drew Finder icon\n");
+                        } else {
+                            extern void serial_puts(const char* str);
+                            serial_puts("[DRAWBAR] SKIPPING Finder icon (highlighted)\n");
+                        }
                         AddMenuTitle(mptr->menuID, x, menuWidth, "Application");
                         x += menuWidth;
                         continue;
@@ -622,11 +640,8 @@ void DrawMenuBar(void)
         (void)MenuAppleIcon_Draw(qd.thePort, x, 0, false);
     }
 
-    /* Draw Finder icon at top-right of menu bar */
-    {
-        short finderIconX = qd.screenBits.bounds.right - 32;  /* Position at right edge with padding */
-        MenuAppIcon_Draw(qd.thePort, finderIconX, 0, false);
-    }
+    /* NOTE: Finder icon is drawn as part of the menu list loop above (Application menu).
+     * Do NOT draw it again here - that was causing a double-draw artifact. */
 
     QD_DrawCRTBezel();
 
