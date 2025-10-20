@@ -228,7 +228,10 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
      *
      * Use FillRect with white to erase, which goes through QuickDraw's
      * coordinate system and respects the port's clipping region. */
+    extern void serial_puts(const char* str);
+    serial_puts("[DRAW-TITLE] About to call FillRect\n");
     FillRect(titleRect, &qd.white);
+    serial_puts("[DRAW-TITLE] FillRect returned\n");
 
     /* Set drawing colors based on hilite state */
     if (hilited) {
@@ -236,7 +239,9 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
          * We already erased the expanded region above to prevent ghost pixels,
          * but InvertRect must use the original titleRect to ensure text is
          * positioned correctly within the inverted area */
+        serial_puts("[DRAW-TITLE] About to call InvertRect\n");
         InvertRect(titleRect);
+        serial_puts("[DRAW-TITLE] InvertRect returned\n");
 
         MENU_LOG_TRACE("Drew highlighted menu title: %.*s\n", titleLen, &titleText[1]);
     } else {
@@ -265,6 +270,17 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
              g_currentPort->pnLoc.h, g_currentPort->pnLoc.v);
     serial_puts(pnLocBuf);
     serial_puts("[MENU] DrawMenuItemTextInternal returned\n");
+
+    /* Check what InvertRect actually did */
+    if (hilited) {
+        extern void QD_GetLastInvertRect(short* left, short* right);
+        short invLeft, invRight;
+        QD_GetLastInvertRect(&invLeft, &invRight);
+        static char invBuf[256];
+        snprintf(invBuf, sizeof(invBuf), "[MENU-INVERT-ACTUAL] left=%d right=%d titleRect.left=%d width=%d\n",
+                 invLeft, invRight, titleRect->left, titleRect->right - titleRect->left);
+        serial_puts(invBuf);
+    }
 
     /* Restore original port */
     if (savePort) {

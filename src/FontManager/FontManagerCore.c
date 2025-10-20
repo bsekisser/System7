@@ -77,6 +77,14 @@ void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color) {
     if (ch < 32 || ch > 126) return;
 
     ChicagoCharInfo info = chicago_ascii[ch - 32];
+
+    /* Log menu title character positions */
+    if (y < 20) {
+        extern void serial_printf(const char* fmt, ...);
+        serial_printf("[DRAWCHAR-POS] ch='%c' x_before=%d left_offset=%d x_after=%d y=%d\n",
+                      ch, x, info.left_offset, x + info.left_offset, y);
+    }
+
     x += info.left_offset;
 
     Ptr destBase = NULL;
@@ -516,8 +524,17 @@ void QD_LocalToPixel(short localX, short localY, short* pixelX, short* pixelY) {
 
     /* Convert from QuickDraw coordinates to framebuffer pixels */
     /* Account for the port's origin */
+    static int l2p_count = 0;
     *pixelX = localX - g_currentPort->portRect.left + g_currentPort->portBits.bounds.left;
     *pixelY = localY - g_currentPort->portRect.top + g_currentPort->portBits.bounds.top;
+
+    if (l2p_count < 20) {
+        extern void serial_printf(const char* fmt, ...);
+        serial_printf("[L2P] local=(%d,%d) pixel=(%d,%d) portRect.left=%d portBits.bounds.left=%d\n",
+                      localX, localY, *pixelX, *pixelY,
+                      g_currentPort->portRect.left, g_currentPort->portBits.bounds.left);
+        l2p_count++;
+    }
 }
 
 /* ============================================================================
@@ -526,13 +543,16 @@ void QD_LocalToPixel(short localX, short localY, short* pixelX, short* pixelY) {
 
 /*
  * DrawChar - Draw a single character at the current pen location
+ * NOTE: This shadows the QuickDraw/Text.c version to ensure menu title text
+ * is drawn via direct framebuffer rendering instead of glyph extraction
  */
 void DrawChar(short ch) {
     extern void serial_printf(const char* fmt, ...);
     static int char_count = 0;
 
-    if (char_count < 15) {
-        serial_printf("[DRAWCHAR-FM] ch='%c' pnLoc=(%d,%d)\n",
+    /* Log to verify THIS DrawChar (from FontManagerCore) is being called */
+    if (char_count < 200) {
+        serial_printf("[DRAWCHAR-FM] FONTMGR VERSION ch='%c' pnLoc=(%d,%d)\n",
                      (ch >= 32 && ch < 127) ? ch : '?',
                      g_currentPort ? g_currentPort->pnLoc.h : -1,
                      g_currentPort ? g_currentPort->pnLoc.v : -1);

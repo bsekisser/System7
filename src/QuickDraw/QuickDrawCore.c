@@ -594,10 +594,26 @@ void EraseRect(const Rect *r) {
     QD_LOG_TRACE("EraseRect DrawPrimitive returned\n");
 }
 
+/* Global to track last InvertRect call for menu titles */
+static short g_lastInvertLeft = -1;
+static short g_lastInvertRight = -1;
+
+/* Helper to get last invert rect - for debugging menu offset */
+void QD_GetLastInvertRect(short* left, short* right) {
+    if (left) *left = g_lastInvertLeft;
+    if (right) *right = g_lastInvertRight;
+}
+
 void InvertRect(const Rect *r) {
     assert(g_currentPort != NULL);
     assert(r != NULL);
     if (EmptyRect(r)) return;
+
+    /* Track menu title inversions (top near 0) */
+    if (r->top == 0) {
+        g_lastInvertLeft = r->left;
+        g_lastInvertRight = r->right;
+    }
 
     PictureRecordInvertRect(r);
     DrawPrimitive(invert, r, 0, NULL, 0, 0);
@@ -608,6 +624,11 @@ void FillRect(const Rect *r, ConstPatternParam pat) {
     assert(r != NULL);
     assert(pat != NULL);
     if (EmptyRect(r)) return;
+
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("[FILLRECT] rect=(%d,%d,%d,%d) portBits.bounds.left=%d\n",
+                  r->left, r->top, r->right, r->bottom,
+                  g_currentPort->portBits.bounds.left);
 
     DrawPrimitive(fill, r, 0, pat, 0, 0);
 }
