@@ -186,6 +186,15 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
         SetPort(qd.thePort);  /* WMgrPort */
     }
 
+    /* CRITICAL FIX: Reset pnLoc before drawing
+     * pnLoc may be left in a bad state (e.g., 321,146) from previous dropdown menu
+     * drawing or other operations. This causes text to be drawn at wrong position.
+     * Reset to (0,0) to ensure DrawChar positioning is correct. */
+    if (qd.thePort) {
+        qd.thePort->pnLoc.h = 0;
+        qd.thePort->pnLoc.v = 0;
+    }
+
     /* Get menu title */
     short titleLen = (*(MenuInfo**)theMenu)->menuData[0];
     if (titleLen > 255) titleLen = 255;
@@ -237,12 +246,24 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
 
     /* Draw the title text */
     extern void serial_puts(const char* str);
+    extern GrafPtr g_currentPort;
+    static char pnLocBuf[256];
+    extern int snprintf(char*, size_t, const char*, ...);
+
+    snprintf(pnLocBuf, sizeof(pnLocBuf), "[MENU-PNLOC-BEFORE] pnLoc=(%d,%d) titleRect.left=%d\n",
+             g_currentPort->pnLoc.h, g_currentPort->pnLoc.v, titleRect->left);
+    serial_puts(pnLocBuf);
+
     if (hilited) {
         serial_puts("[MENU] Drawing HIGHLIGHTED menu title, calling DrawMenuItemTextInternal\n");
     } else {
         serial_puts("[MENU] Drawing NORMAL menu title, calling DrawMenuItemTextInternal\n");
     }
     DrawMenuItemTextInternal(&textRect, titleText, normal, true, hilited, true);  /* true = isMenuTitle */
+
+    snprintf(pnLocBuf, sizeof(pnLocBuf), "[MENU-PNLOC-AFTER] pnLoc=(%d,%d)\n",
+             g_currentPort->pnLoc.h, g_currentPort->pnLoc.v);
+    serial_puts(pnLocBuf);
     serial_puts("[MENU] DrawMenuItemTextInternal returned\n");
 
     /* Restore original port */
@@ -1015,9 +1036,22 @@ static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param item
     /* Move to drawing position */
     if (selected) {
         extern void serial_puts(const char* str);
-        serial_puts("[HILITE-TEXT] About to call MoveTo for highlighted text\n");
+        static char moveBuf[256];
+        extern int snprintf(char*, size_t, const char*, ...);
+        snprintf(moveBuf, sizeof(moveBuf), "[HILITE-TEXT] About to MoveTo(%d,%d), itemRect.left=%d+4 padding\n",
+                 textX, textY, itemRect->left);
+        serial_puts(moveBuf);
     }
     MoveTo(textX, textY);
+    if (selected) {
+        extern void serial_puts(const char* str);
+        extern GrafPtr g_currentPort;
+        static char afterMoveBuf[256];
+        extern int snprintf(char*, size_t, const char*, ...);
+        snprintf(afterMoveBuf, sizeof(afterMoveBuf), "[HILITE-TEXT] After MoveTo, pnLoc=(%d,%d)\n",
+                 g_currentPort->pnLoc.h, g_currentPort->pnLoc.v);
+        serial_puts(afterMoveBuf);
+    }
     if (selected) {
         extern void serial_puts(const char* str);
         serial_puts("[HILITE-TEXT] MoveTo completed\n");
