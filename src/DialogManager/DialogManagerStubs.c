@@ -14,6 +14,15 @@
 
 /* DialogItemInternal is now defined in DialogManagerStateExt.h */
 
+/* Forward declarations for stub functions with simplified signatures */
+OSErr LoadDialogTemplate(SInt16 resID, Handle* templateH);
+OSErr LoadDialogItemList(SInt16 resID, Handle* itemListH);
+void DisposeDialogTemplate(Handle templateH);
+void DisposeDialogItemList(Handle itemListH);
+OSErr LoadAlertTemplate(SInt16 resID, Handle* alertH);
+void DisposeAlertTemplate(Handle alertH);
+void InitDialogResources(void);
+
 /* Get dialog item pointer stub */
 DialogItemInternal* GetDialogItemPtr(DialogPtr theDialog, SInt16 itemNo) {
     /* Stub implementation */

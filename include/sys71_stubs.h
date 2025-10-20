@@ -83,9 +83,13 @@ double cos(double x);
 double sin(double x);
 long long __divdi3(long long a, long long b);
 
+/* POSIX */
+int sched_yield(void);
+
 /* QuickDraw */
 typedef void (*DeskHookProc)(RgnHandle invalidRgn);
 void SetDeskHook(DeskHookProc proc);
+void WM_Update(void);
 /* Moved to FontManagerCore.c
 void TextSize(short size);
 void TextFont(short font);

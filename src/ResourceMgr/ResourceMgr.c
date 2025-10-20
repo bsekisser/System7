@@ -6,6 +6,7 @@
 
 #include "SystemTypes.h"
 #include "ResourceMgr/ResourceMgr.h"
+#include "ResourceMgr/resource_manager.h"
 #include "ResourceMgr/ResourceMgrPriv.h"
 #include "ResourceMgr/ResourceLogging.h"
 #include "System71StdLib.h"
@@ -941,7 +942,7 @@ void SetResLoad(Boolean load) {
 }
 
 /* Open resource file (stub) */
-SInt16 OpenResFile(const unsigned char* fileName) {
+SInt16 OpenResFile(ConstStr255Param fileName) {
     (void)fileName;
     gResMgr.resError = resFNotFound;
     return -1;

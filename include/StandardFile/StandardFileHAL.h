@@ -37,6 +37,7 @@ short StandardFile_HAL_GetSelectedFile(DialogPtr dialog);
 /* Save Dialog Name Field */
 void StandardFile_HAL_SetSaveFileName(DialogPtr dialog, ConstStr255Param name);
 void StandardFile_HAL_GetSaveFileName(DialogPtr dialog, Str255 name);
+const FSSpec* StandardFile_HAL_GetSelectedFileSpec(void);
 
 /* User Confirmations */
 Boolean StandardFile_HAL_ConfirmReplace(ConstStr255Param fileName);

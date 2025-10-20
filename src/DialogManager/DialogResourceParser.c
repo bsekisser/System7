@@ -15,6 +15,7 @@
 #include "DialogManager/DialogManager.h"
 #include "DialogManager/DialogTypes.h"
 #include "DialogManager/DialogManagerInternal.h"
+#include "DialogManager/DialogResourceParser.h"
 #include "DialogManager/DialogLogging.h"
 
 /* DITL resource format (System 7.1):

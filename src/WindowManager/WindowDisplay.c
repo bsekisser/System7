@@ -9,6 +9,7 @@
 #include "WindowManager/WMLogging.h"
 #include "EventManager/EventManager.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "sys71_stubs.h"
 
 /* Color constants */
 #define blackColor 33
@@ -1419,7 +1420,7 @@ void SetDeskHook(DeskHookProc proc) {
 }
 
 /* Mark display as needing update when windows change */
-void WM_InvalidateDisplay(void) {
+static void WM_InvalidateDisplay(void) {
     gDisplayDirty = true;
 }
 

@@ -61,6 +61,11 @@ typedef enum {
  */
 OSErr MacPaint_Initialize(void);
 void MacPaint_Shutdown(void);
+int MacPaintMain(int argc, char **argv);
+void MacPaint_Update(void);
+OSErr MacPaint_LoadResources(void);
+OSErr MacPaint_PromptSave(void);
+void MacPaint_CheckMemory(void);
 
 /*
  * Tool Operations
@@ -98,6 +103,9 @@ void MacPaint_ToolOval(int x, int y, int down);
 void MacPaint_ToolFill(int x, int y, int down);
 void MacPaint_ToolSpray(int x, int y, int down);
 void MacPaint_ToolRectSelect(int x, int y, int down);
+void MacPaint_ToolText(int x, int y, int down);
+void MacPaint_RenderTextAtPosition(const char *text, int x, int y);
+void MacPaint_GetToolState(int *isDrawing, int *startX, int *startY, int *currentX, int *currentY);
 
 /*
  * Document Operations
@@ -161,6 +169,10 @@ void MacPaint_SetFatBitsMode(int enabled, int zoomFactor);
 int MacPaint_IsFatBitsMode(void);
 void MacPaint_FullWindowUpdate(void);
 void MacPaint_GetRenderStats(int *pixelsRendered, int *updateTime);
+void MacPaint_ToggleGridDisplay(void);
+void MacPaint_SetGridSpacing(int spacing);
+void MacPaint_UpdateSelectionDisplay(const Rect *rect);
+void MacPaint_AnimateSelection(void);
 
 /*
  * Window Binding
@@ -184,6 +196,20 @@ void MacPaint_SetMenuState(int gridShown, int fatBitsActive,
 void MacPaint_SetClipboardState(int hasContent);
 const char* MacPaint_GetWindowTitle(void);
 int MacPaint_IsMenuItemAvailable(int menuID, int menuItem);
+
+/* Aids Menu Operations */
+void MacPaint_AidsToggleGrid(void);
+void MacPaint_AidsToggleFatBits(void);
+void MacPaint_AidsPatternEditor(void);
+void MacPaint_AidsBrushEditor(void);
+void MacPaint_AidsHelp(void);
+
+/* Font and Style Menu Operations */
+void MacPaint_FontSelect(int menuItem);
+void MacPaint_StyleToggleBold(void);
+void MacPaint_StyleToggleItalic(void);
+void MacPaint_StyleToggleUnderline(void);
+void MacPaint_StylePlain(void);
 
 /*
  * File Menu Operations

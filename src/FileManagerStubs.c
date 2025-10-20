@@ -13,6 +13,9 @@
 #include <string.h>
 #include "FS/FSLogging.h"
 
+/* Forward declaration for POSIX stub */
+int sched_yield(void);
+
 /* ============================================================================
  * Global variables
  * ============================================================================ */
@@ -350,7 +353,7 @@ OSErr IO_WriteBlocks(VCB* vcb, UInt32 startBlock, UInt32 blockCount, const void*
     return ioErr;
 }
 
-OSErr IO_Format(UInt16 drvNum, const UInt8* volName, UInt32 volSize) {
+static OSErr IO_Format(UInt16 drvNum, const UInt8* volName, UInt32 volSize) {
     FS_LOG_DEBUG("IO_Format stub: drvNum=%d\n", drvNum);
     return noErr;
 }
@@ -383,13 +386,13 @@ time_t time(time_t* t) {
 }
 
 /* Utility Functions */
-OSErr FS_CompareNames(const UInt8* name1, const UInt8* name2, Boolean* equal) {
+static OSErr FS_CompareNames(const UInt8* name1, const UInt8* name2, Boolean* equal) {
     FS_LOG_DEBUG("FS_CompareNames stub\n");
     *equal = false;
     return noErr;
 }
 
-OSErr FS_CopyName(const UInt8* src, UInt8* dst, UInt8 maxLen) {
+static OSErr FS_CopyName(const UInt8* src, UInt8* dst, UInt8 maxLen) {
     FS_LOG_DEBUG("FS_CopyName stub\n");
     if (src && dst) {
         UInt8 len = src[0];
@@ -399,12 +402,12 @@ OSErr FS_CopyName(const UInt8* src, UInt8* dst, UInt8 maxLen) {
     return noErr;
 }
 
-UInt32 FS_GetTime(void) {
+static UInt32 FS_GetTime(void) {
     FS_LOG_DEBUG("FS_GetTime stub\n");
     return 0;
 }
 
-OSErr FS_ValidateName(const UInt8* name) {
+static OSErr FS_ValidateName(const UInt8* name) {
     FS_LOG_DEBUG("FS_ValidateName stub\n");
     if (!name || name[0] == 0 || name[0] > 31) {
         return bdNamErr;
