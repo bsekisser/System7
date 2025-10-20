@@ -130,12 +130,27 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
 
     /* CRITICAL: Fill content region with white background BEFORE drawing chrome
      * This prevents garbage/dotted patterns from appearing in the window content area
-     * The application will draw over this white background when handling update events */
+     * The application will draw over this white background when handling update events
+     *
+     * EXCEPTION: Skip filling windows with refCon=0 (desktop background window)
+     * as filling it with white would erase desktop icons */
+    extern void serial_puts(const char* str);
+    static char dbgbuf[128];
+    static int fill_log = 0;
+
     if (window->contRgn && *(window->contRgn)) {
-        WM_LOG_TRACE("PaintOne: Filling content region with white\n");
-        extern void FillRgn(RgnHandle rgn, const Pattern* pat);
-        extern QDGlobals qd;
-        FillRgn(window->contRgn, &qd.white);
+        if (fill_log < 10) {
+            sprintf(dbgbuf, "[PAINTONE] Window refCon=0x%08x, will fill=%d\n",
+                   (unsigned int)window->refCon, (window->refCon != 0));
+            serial_puts(dbgbuf);
+            fill_log++;
+        }
+
+        if (window->refCon != 0) {
+            extern void FillRgn(RgnHandle rgn, const Pattern* pat);
+            extern QDGlobals qd;
+            FillRgn(window->contRgn, &qd.white);
+        }
     }
 
     /* NOW draw chrome on top of backfill */
@@ -959,9 +974,12 @@ void ShowWindow(WindowPtr window) {
     CalcVis(window);
 
     /* Paint the window */
+    extern void serial_puts(const char* str);
+    serial_puts("[SHOWWIN] About to call PaintOne for chrome\n");
     WM_LOG_TRACE("ShowWindow: About to call PaintOne\n");
     PaintOne(window, NULL);
     WM_LOG_TRACE("ShowWindow: PaintOne returned\n");
+    serial_puts("[SHOWWIN] PaintOne returned, chrome should be visible\n");
 
     /* Invalidate content region to generate update event for application to draw content */
     if (window->contRgn) {
@@ -991,11 +1009,14 @@ void ShowWindow(WindowPtr window) {
     }
 
     /* Recalculate regions for windows behind */
+    serial_puts("[SHOWWIN] About to CalcVisBehind\n");
     CalcVisBehind(window->nextWindow, window->strucRgn);
+    serial_puts("[SHOWWIN] CalcVisBehind returned\n");
 
     /* Don't call PaintBehind here - background windows are already painted.
      * Calling PaintBehind would cause background windows to paint over the front window. */
 
+    serial_puts("[SHOWWIN] EXIT - window should be fully visible now\n");
     WM_LOG_TRACE("ShowWindow: EXIT\n");
 }
 
@@ -1433,9 +1454,17 @@ static void WM_InvalidateDisplay(void) {
 /* Window Manager update pipeline functions */
 /* WM_Update is needed by main.c even when other stubs are disabled */
 void WM_Update(void) {
+    /* DISABLE throttling to ensure immediate updates */
+    extern void serial_puts(const char* str);
+    static int update_count = 0;
+    if (update_count < 3) {
+        serial_puts("[WMUPDATE] WM_Update called\n");
+        update_count++;
+    }
+
     /* Throttle updates to reduce flashing - only update periodically */
     gUpdateThrottle++;
-    if (gUpdateThrottle < 5) {  /* Update every 5 frames instead of every frame */
+    if (gUpdateThrottle < 1) {  /* Update every frame for testing */
         return;
     }
     gUpdateThrottle = 0;
@@ -1481,7 +1510,17 @@ void WM_Update(void) {
             qd.screenBits.bounds.bottom);
     FillRect(&desktopRect, &qd.gray);  /* Gray desktop pattern */
 
-    /* 2. Draw all visible windows before menu bar */
+    /* 2. Call DeskHook BEFORE windows to draw desktop icons behind windows */
+    if (g_deskHook) {
+        /* Create a region for the desktop */
+        RgnHandle desktopRgn = NewRgn();
+        extern void RectRgn(RgnHandle rgn, const Rect* r);
+        RectRgn(desktopRgn, &desktopRect);
+        g_deskHook(desktopRgn);
+        DisposeRgn(desktopRgn);
+    }
+
+    /* 3. Draw all visible windows on top of desktop icons */
     /* Use Window Manager's PaintOne to properly render windows */
     {
         extern WindowPtr FrontWindow(void);
@@ -1514,16 +1553,6 @@ void WM_Update(void) {
                 DisposePtr((Ptr)windowStack);
             }
         }
-    }
-
-    /* 3. Call DeskHook if registered for icons */
-    if (g_deskHook) {
-        /* Create a region for the desktop */
-        RgnHandle desktopRgn = NewRgn();
-        extern void RectRgn(RgnHandle rgn, const Rect* r);
-        RectRgn(desktopRgn, &desktopRect);
-        g_deskHook(desktopRgn);
-        DisposeRgn(desktopRgn);
     }
 
     /* Draw menu bar LAST to ensure clean pen position */

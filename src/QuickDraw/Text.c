@@ -96,10 +96,18 @@ SInt16 TextWidth(const void *textBuf, SInt16 firstByte, SInt16 byteCount) {
 
 // Text drawing functions
 void DrawChar(SInt16 ch) {
+    static int draw_count = 0;
+
     if (g_currentPort == NULL) return;
 
     /* Get current pen location in local coordinates */
     Point penLocal = g_currentPort->pnLoc;
+
+    if (draw_count < 5) {
+        extern void serial_puts(const char* str);
+        serial_puts("[CHAR] DrawChar called\n");
+        draw_count++;
+    }
 
     /* Default width for non-printable characters */
     SInt16 width = CharWidth(ch);
@@ -149,7 +157,15 @@ void DrawChar(SInt16 ch) {
 }
 
 void DrawString(ConstStr255Param s) {
-    if (g_currentPort == NULL || s == NULL) return;
+    extern void serial_puts(const char* str);
+    serial_puts("[DRAWSTR] DrawString called\n");
+
+    if (g_currentPort == NULL || s == NULL) {
+        serial_puts("[DRAWSTR] Early return - null port or string\n");
+        return;
+    }
+
+    serial_puts("[DRAWSTR] About to draw characters\n");
 
     for (int i = 1; i <= s[0]; i++) {
         DrawChar(s[i]);

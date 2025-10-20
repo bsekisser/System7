@@ -345,6 +345,22 @@ static void Desktop_DrawIconsCommon(RgnHandle clip)
         int topY = screenPos.v;
         int labelOffset = Desktop_LabelOffsetForItem(&gDesktopIcons[i]);
 
+        /* Debug icon names */
+        extern void serial_puts(const char* str);
+        static int icon_debug = 0;
+        static char icdbg[256];
+        if (icon_debug < 5) {
+            int namelen = gDesktopIcons[i].name[0];
+            sprintf(icdbg, "[ICON] Drawing icon %d: namelen=%d pos=(%d,%d) type=%d\n",
+                   i, namelen, screenPos.h, screenPos.v, gDesktopIcons[i].type);
+            serial_puts(icdbg);
+            if (namelen > 0 && namelen < 64) {
+                sprintf(icdbg, "[ICON]   name='%.*s'\n", namelen, &gDesktopIcons[i].name[1]);
+                serial_puts(icdbg);
+            }
+            icon_debug++;
+        }
+
         Icon_DrawWithLabelOffset(&handle,
                                  gDesktopIcons[i].name,
                                  centerX,

@@ -1000,8 +1000,31 @@ void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
                 QDPlatform_SetPixel(x, y, color);
             }
         }
+    } else if (mode == fill && pat) {
+        /* Fill region with pattern */
+        /* Clamp to screen bounds */
+        int left = (r->left < 0) ? 0 : r->left;
+        int top = (r->top < 0) ? 0 : r->top;
+        int right = (r->right > fb_width) ? fb_width : r->right;
+        int bottom = (r->bottom > fb_height) ? fb_height : r->bottom;
+
+        for (int y = top; y < bottom; y++) {
+            for (int x = left; x < right; x++) {
+                /* Use screen position for pattern tiling (8x8 repeat) */
+                int patY = y % 8;
+                int patX = x % 8;
+                uint8_t patByte = pat->pat[patY];
+                bool bit = (patByte >> (7 - patX)) & 1;
+                /* Pattern: 0=white, 1=black */
+                uint32_t color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
+
+                /* Write directly to framebuffer */
+                uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
+                *pixel = color;
+            }
+        }
     }
-    /* frame, invert, fill modes not yet implemented */
+    /* frame, invert modes not yet implemented */
 }
 
 /* ============================================================================
@@ -1161,6 +1184,8 @@ void QDPlatform_DrawGlyphBitmap(GrafPtr port, Point pen,
                          const uint8_t *bitmap,
                          SInt16 width, SInt16 height,
                          const Pattern *pattern, SInt16 mode) {
+    static int call_count = 0;
+
     if (!port || !bitmap || width <= 0 || height <= 0) {
         return;
     }
@@ -1174,6 +1199,17 @@ void QDPlatform_DrawGlyphBitmap(GrafPtr port, Point pen,
     /* Convert global pen position to bitmap coordinates */
     SInt16 destX = pen.h - destBits->bounds.left;
     SInt16 destY = pen.v - destBits->bounds.top;
+
+    /* Debug first few calls */
+    if (call_count < 3) {
+        extern void serial_printf(const char* fmt, ...);
+        serial_printf("[GLYPH] pen=(%d,%d) bounds=(%d,%d,%d,%d) dest=(%d,%d) baseAddr=%p\n",
+                     pen.h, pen.v,
+                     destBits->bounds.left, destBits->bounds.top,
+                     destBits->bounds.right, destBits->bounds.bottom,
+                     destX, destY, destBits->baseAddr);
+        call_count++;
+    }
 
     /* Get bitmap dimensions */
     SInt16 destWidth = destBits->bounds.right - destBits->bounds.left;

@@ -421,14 +421,27 @@ void UpdateMenuTrackingNew(Point mousePt) {
 
 /* End menu tracking and return selection */
 long EndMenuTrackingNew(void) {
-    if (!g_menuTrackState.isTracking) return 0;
+    extern void serial_printf(const char* fmt, ...);
+    serial_printf("*** EndMenuTrackingNew: CALLED\n");
+    serial_printf("***   isTracking=%d\n", g_menuTrackState.isTracking);
+    serial_printf("***   menuID=%d\n", g_menuTrackState.menuID);
+    serial_printf("***   highlightedItem=%d\n", g_menuTrackState.highlightedItem);
+
+    if (!g_menuTrackState.isTracking) {
+        serial_printf("***   Returning 0 (not tracking)\n");
+        return 0;
+    }
 
     long result = 0;
     if (g_menuTrackState.highlightedItem > 0) {
         /* Pack menuID in high word, item in low word */
         result = ((long)g_menuTrackState.menuID << 16) | g_menuTrackState.highlightedItem;
+        serial_printf("***   Returning menuChoice=0x%lx (menu=%d, item=%d)\n",
+                     result, g_menuTrackState.menuID, g_menuTrackState.highlightedItem);
         MENU_LOG_TRACE("EndMenuTracking: Selected item %d from menu %d\n",
                      g_menuTrackState.highlightedItem, g_menuTrackState.menuID);
+    } else {
+        serial_printf("***   Returning 0 (no item highlighted)\n");
     }
 
     /* Clear tracking state */

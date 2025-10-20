@@ -1,4 +1,0 @@
-Analyzing malloc/free/calloc/realloc usage...
-
-/home/k/iteration2/analyze_malloc.sh: line 33: 0
-0: syntax error in expression (error token is "0")
