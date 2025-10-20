@@ -12,7 +12,7 @@
 #define CHICAGO_ROW_WORDS 70
 #define CHICAGO_ROW_BYTES 140
 
-typedef struct {
+typedef struct __attribute__((packed)) {
     uint16_t bit_start;   /* Start bit offset in strike */
     uint16_t bit_width;   /* Width in bits (ink width) */
     int8_t left_offset;   /* Left side bearing */
@@ -22,8 +22,12 @@ typedef struct {
 /* Strike bitmap data (defined in chicago_font_data.c) */
 extern const uint8_t chicago_bitmap[2100];
 
-/* Character info for ASCII printable (0x20 to 0x7E) */
-static const ChicagoCharInfo chicago_ascii[] = {
+/* Character info for ASCII printable (0x20 to 0x7E) - defined in chicago_font_data.c */
+extern const ChicagoCharInfo chicago_ascii[95];
+
+#ifdef CHICAGO_FONT_DATA_IMPL
+/* Character info data - only included once in chicago_font_data.c */
+const ChicagoCharInfo chicago_ascii[95] = {
     {   43,  0,   0,   4 },  /* ' ' */
     {   43,  2,   0,   3 },  /* '!' */
     {   45,  3,   0,   4 },  /* '"' */
@@ -120,5 +124,6 @@ static const ChicagoCharInfo chicago_ascii[] = {
     {  540,  3,   1,   8 },  /* '}' */
     {  543,  6,   1,   8 },  /* '~' */
 };
+#endif /* CHICAGO_FONT_DATA_IMPL */
 
 #endif /* CHICAGO_FONT_H */

@@ -1,3 +1,7 @@
+/* Chicago font data - bitmap and character metrics */
+#define CHICAGO_FONT_DATA_IMPL
+#include "../include/chicago_font.h"
+
 /* Chicago font strike bitmap - 2100 bytes */
 const unsigned char chicago_bitmap[2100] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
