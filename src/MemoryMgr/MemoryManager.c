@@ -1,4 +1,8 @@
 /* Classic Mac Memory Manager Implementation */
+
+/* This file implements the Memory Manager itself and needs malloc/free */
+#define MEMORY_MANAGER_INTERNAL
+
 #include "../../include/MemoryMgr/MemoryManager.h"
 #include <string.h>
 #include <stdint.h>
