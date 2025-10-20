@@ -404,34 +404,41 @@ void AppSwitcher_Draw(void) {
         ForeColor(0x000000);  /* Black */
         FrameRect(&iconRect);
 
-        /* Try to render actual app icon if available */
+        /* Try to render actual app icon if available (loaded on-demand) */
         Boolean iconRendered = false;
-        if (app->icon.large.argb32 && app->icon.large.w >= 16 && app->icon.large.h >= 16) {
-            /* Render a small version of the icon (16x16 from top-left of 32x32) */
-            Rect innerRect = iconRect;
-            InsetRect(&innerRect, 2, 2);  /* Leave border */
+        if (app->iconID > 0) {
+            /* Load icon on-demand (temporary, not persistent) */
+            extern bool IconGen_FindByID(int16_t id, IconFamily* out);
+            IconFamily tempIcon = {0};
 
-            /* Simple pixel blit from icon data */
-            for (SInt16 iy = 0; iy < 16 && (iy + innerRect.top) < innerRect.bottom; iy++) {
-                for (SInt16 ix = 0; ix < 16 && (ix + innerRect.left) < innerRect.right; ix++) {
-                    UInt32 pixel = app->icon.large.argb32[iy * app->icon.large.w + ix];
-                    UInt8 alpha = (pixel >> 24) & 0xFF;
+            if (IconGen_FindByID(app->iconID, &tempIcon) &&
+                tempIcon.large.argb32 && tempIcon.large.w >= 16 && tempIcon.large.h >= 16) {
+                /* Render a small version of the icon (16x16 from top-left of 32x32) */
+                Rect innerRect = iconRect;
+                InsetRect(&innerRect, 2, 2);  /* Leave border */
 
-                    /* Only draw if not fully transparent */
-                    if (alpha > 0x80) {
-                        UInt8 r = (pixel >> 16) & 0xFF;
-                        UInt8 g = (pixel >> 8) & 0xFF;
-                        UInt8 b = pixel & 0xFF;
-                        UInt32 color = (r << 16) | (g << 8) | b;
-                        ForeColor(color);
+                /* Simple pixel blit from icon data */
+                for (SInt16 iy = 0; iy < 16 && (iy + innerRect.top) < innerRect.bottom; iy++) {
+                    for (SInt16 ix = 0; ix < 16 && (ix + innerRect.left) < innerRect.right; ix++) {
+                        UInt32 pixel = tempIcon.large.argb32[iy * tempIcon.large.w + ix];
+                        UInt8 alpha = (pixel >> 24) & 0xFF;
 
-                        /* Draw single pixel using pen */
-                        MoveTo(innerRect.left + ix, innerRect.top + iy);
-                        LineTo(innerRect.left + ix + 1, innerRect.top + iy);
+                        /* Only draw if not fully transparent */
+                        if (alpha > 0x80) {
+                            UInt8 r = (pixel >> 16) & 0xFF;
+                            UInt8 g = (pixel >> 8) & 0xFF;
+                            UInt8 b = pixel & 0xFF;
+                            UInt32 color = (r << 16) | (g << 8) | b;
+                            ForeColor(color);
+
+                            /* Draw single pixel using pen */
+                            MoveTo(innerRect.left + ix, innerRect.top + iy);
+                            LineTo(innerRect.left + ix + 1, innerRect.top + iy);
+                        }
                     }
                 }
+                iconRendered = true;
             }
-            iconRendered = true;
         }
 
         /* Draw fallback generic icon if no actual icon */
@@ -555,11 +562,8 @@ OSErr AppSwitcher_UpdateAppList(void) {
         }
         BlockMoveData(name, app->appName, name[0] + 1);
 
-        /* Try to load app icon */
-        if (iconID > 0) {
-            extern bool IconGen_FindByID(int16_t id, IconFamily* out);
-            IconGen_FindByID(iconID, &app->icon);
-        }
+        /* Store icon ID for on-demand loading (NOT persistent storage) */
+        app->iconID = iconID;  /* Just store ID, load icon when drawing */
 
         app->isHidden = (process->processState == kProcessBackground);
         app->isSystemProcess = false;

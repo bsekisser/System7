@@ -27,7 +27,7 @@ typedef struct {
     ProcessSerialNumber psn;           /**< Process serial number */
     Str255 appName;                    /**< Application name */
     OSType signature;                  /**< Application signature */
-    IconFamily icon;                   /**< Application icon */
+    SInt16 iconID;                     /**< Icon resource ID (loaded on-demand) */
     Boolean isHidden;                  /**< True if app is hidden */
     Boolean isSystemProcess;           /**< True if system process */
 } SwitchableApp;
