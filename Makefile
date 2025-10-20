@@ -280,6 +280,7 @@ C_SOURCES = src/main.c \
             src/MenuManager/MenuSelection.c \
             src/MenuManager/MenuDisplay.c \
             src/MenuManager/menu_savebits.c \
+            src/MenuManager/MenuBitsPool.c \
             src/MenuManager/MenuTitleTracking.c \
             src/MenuManager/MenuTrack.c \
             src/MenuManager/MenuAppleIcon.c \

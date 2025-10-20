@@ -954,6 +954,11 @@ static void init_system71(void) {
     InitMenus();
     serial_puts("  Menu Manager initialized\n");
 
+    /* Menu Bits Pool - prevents heap fragmentation from menu operations */
+    extern OSErr MenuBitsPool_Init(SInt16 numBuffers, SInt32 bufferSize);
+    MenuBitsPool_Init(4, 160 * 1024);  /* 4 buffers × 160KB = 640KB pool */
+    serial_puts("  Menu Bits Pool initialized (4 × 160KB buffers)\n");
+
     /* Startup Screen - show "Welcome to Macintosh" */
     extern OSErr InitStartupScreen(const void* config);
     extern OSErr ShowWelcomeScreen(void);

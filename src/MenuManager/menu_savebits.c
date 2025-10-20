@@ -5,6 +5,8 @@
  * menu_savebits.c - Menu Manager Screen Bits Save/Restore
  *
  * Implementation of screen bits save/restore functions based on
+ * Uses MenuBitsPool to prevent heap fragmentation from repeated
+ * allocation/deallocation of large menu background buffers.
  *
  * RE-AGENT-BANNER: Extracted from Mac OS System 7.1 SaveRestoreBits trap
  */
@@ -14,6 +16,7 @@
 
 #include "MenuManager/menu_private.h"
 #include "MenuManager/MenuDisplay.h"
+#include "MenuManager/MenuBitsPool.h"
 #include "MemoryMgr/MemoryManager.h"
 
 
@@ -24,6 +27,7 @@ typedef struct {
     void *bitsData;     /* Saved pixel data */
     SInt32 dataSize;   /* Size of saved data */
     Boolean valid;      /* Handle is valid */
+    Boolean fromPool;   /* Buffer came from pool (not dynamically allocated) */
 } SavedBitsRec, *SavedBitsPtr, **SavedBitsHandle;
 
 /* External framebuffer access */
@@ -34,6 +38,10 @@ extern uint32_t fb_pitch;
 
 /*
  * SaveBits - Save screen bits for menu display
+ *
+ * INTEGRATED WITH MENU BITS POOL:
+ * Tries to allocate from pool first to prevent heap fragmentation.
+ * Falls back to dynamic allocation if pool unavailable.
  */
 Handle SaveBits(const Rect *bounds, SInt16 mode) {
     extern void serial_puts(const char* str);
@@ -59,7 +67,57 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
     snprintf(buf, sizeof(buf), "[SAVEBITS] SaveBits: Allocating for %dx%d rect\n", width, height);
     serial_puts(buf);
 
-    /* Allocate handle for saved bits record */
+    /*
+     * TRY POOL FIRST - This prevents heap fragmentation!
+     * If pool has available buffer, use it instead of dynamic allocation
+     */
+    Handle poolBits = MenuBitsPool_Allocate(bounds);
+    if (poolBits) {
+        serial_puts("[SAVEBITS] SaveBits: Using pooled buffer\n");
+        HLock(poolBits);
+        SavedBitsPtr savedBits = *((SavedBitsHandle)poolBits);
+
+        savedBits->mode = mode;
+        savedBits->valid = false;
+        savedBits->fromPool = true;  /* Mark as from pool */
+
+        /* Copy pixels from framebuffer to pool buffer */
+        {
+            uint32_t* fb = (uint32_t*)framebuffer;
+            uint32_t* savePtr = (uint32_t*)savedBits->bitsData;
+            int pitch = fb_pitch / 4;
+            int y, x;
+            int bufferIndex = 0;
+
+            for (y = 0; y < height; y++) {
+                int screenY = bounds->top + y;
+                if (screenY < 0 || screenY >= (int)fb_height) {
+                    for (x = 0; x < width; x++) {
+                        savePtr[bufferIndex++] = 0xFF000000;
+                    }
+                    continue;
+                }
+
+                for (x = 0; x < width; x++) {
+                    int screenX = bounds->left + x;
+                    if (screenX < 0 || screenX >= (int)fb_width) {
+                        savePtr[bufferIndex++] = 0xFF000000;
+                    } else {
+                        savePtr[bufferIndex++] = fb[screenY * pitch + screenX];
+                    }
+                }
+            }
+        }
+
+        savedBits->valid = true;
+        HUnlock(poolBits);
+        serial_puts("[SAVEBITS] SaveBits: Pooled buffer ready\n");
+        return poolBits;
+    }
+
+    serial_puts("[SAVEBITS] SaveBits: Pool unavailable, using dynamic allocation\n");
+
+    /* FALLBACK: Allocate handle for saved bits record */
     SavedBitsHandle bitsHandle = (SavedBitsHandle)NewHandle(sizeof(SavedBitsRec));
     if (!bitsHandle) {
         serial_puts("[SAVEBITS] SaveBits: NewHandle failed for SavedBitsRec\n");
@@ -77,6 +135,7 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
     /* Store bounds and mode */
     savedBits->bounds = *bounds;
     savedBits->mode = mode;
+    savedBits->fromPool = false;  /* Mark as NOT from pool */
 
     /* Calculate data size (32 bits per pixel = 4 bytes) */
     savedBits->dataSize = width * height * 4;
@@ -209,6 +268,10 @@ OSErr RestoreBits(Handle bitsHandle) {
 
 /*
  * DiscardBits - Discard saved screen bits without restoring
+ *
+ * UPDATED FOR POOL INTEGRATION:
+ * Checks if buffer is from pool and returns it to pool if so.
+ * Otherwise uses normal disposal for dynamically allocated buffers.
  */
 OSErr DiscardBits(Handle bitsHandle) {
     extern void serial_puts(const char* str);
@@ -230,9 +293,22 @@ OSErr DiscardBits(Handle bitsHandle) {
     HLock(bitsHandle);
     SavedBitsPtr savedBits = (SavedBitsPtr)*bitsHandle;
 
-    snprintf(buf, sizeof(buf), "[SAVEBITS] DiscardBits: savedBits=%p valid=%d bitsData=%p dataSize=%d\n",
-            savedBits, savedBits->valid, savedBits->bitsData, savedBits->dataSize);
+    snprintf(buf, sizeof(buf), "[SAVEBITS] DiscardBits: savedBits=%p valid=%d fromPool=%d bitsData=%p\n",
+            savedBits, savedBits->valid, savedBits->fromPool, savedBits->bitsData);
     serial_puts(buf);
+
+    /* CHECK IF FROM POOL */
+    if (savedBits->fromPool) {
+        /* Return to pool - much simpler cleanup */
+        serial_puts("[SAVEBITS] DiscardBits: Returning buffer to pool\n");
+        HUnlock(bitsHandle);
+        OSErr err = MenuBitsPool_Free(bitsHandle);
+        serial_puts("[SAVEBITS] DiscardBits: MenuBitsPool_Free completed\n");
+        return err;
+    }
+
+    /* FALLBACK: Handle dynamically allocated buffer */
+    serial_puts("[SAVEBITS] DiscardBits: Disposing dynamic allocation\n");
 
     /* Validate bitsData pointer before freeing */
     if (savedBits->bitsData) {
