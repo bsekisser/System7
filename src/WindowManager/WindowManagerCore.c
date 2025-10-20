@@ -827,13 +827,26 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
                  contentWidth, contentHeight);
 
     /* CRITICAL: portBits.bounds defines where local coords map to global screen coords!
-     * NOTE: This will be overwritten by Platform_InitializeWindowPort which calculates
-     * the correct mapping from strucRgn. Setting initial values here for reference. */
+     * This is the AUTHORITATIVE setting - Platform_InitializeWindowPort must NOT overwrite it! */
     SetRect(&window->port.portBits.bounds,
             clampedBounds.left + kBorder,
             clampedBounds.top + kTitleBar + kSeparator,
             clampedBounds.left + kBorder + contentWidth,
             clampedBounds.top + kTitleBar + kSeparator + contentHeight);
+
+    /* DEBUG: Log portBits.bounds initialization */
+    extern void serial_puts(const char* str);
+    extern int sprintf(char* buf, const char* fmt, ...);
+    static int init_log = 0;
+    if (init_log < 20) {
+        char dbgbuf[256];
+        sprintf(dbgbuf, "[INITWIN] portBits.bounds=(%d,%d,%d,%d) refCon=0x%08x\n",
+                window->port.portBits.bounds.left, window->port.portBits.bounds.top,
+                window->port.portBits.bounds.right, window->port.portBits.bounds.bottom,
+                (unsigned int)window->refCon);
+        serial_puts(dbgbuf);
+        init_log++;
+    }
 
     /* Initialize portBits to point to screen framebuffer */
     extern void* framebuffer;

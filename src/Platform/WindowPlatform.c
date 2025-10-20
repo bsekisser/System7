@@ -83,37 +83,20 @@ Boolean Platform_InitializeWindowPort(WindowPtr window) {
 void Platform_CalculateWindowRegions(WindowPtr window) {
     if (!window) return;
 
-    /* CRITICAL: Always recalculate regions when called, especially during resize
-     * We preserve the window's TOP-LEFT position and apply the new size from portRect
-     * This ensures strucRgn (global coords) stays synchronized with portRect (local size) */
-
-    short newWidth = window->port.portRect.right - window->port.portRect.left;
-    short newHeight = window->port.portRect.bottom - window->port.portRect.top;
-
-    /* Get current window position from strucRgn if it exists */
-    short windowLeft = 0;
-    short windowTop = 0;
-
-    if (window->strucRgn && *window->strucRgn) {
-        /* Preserve current window position (top-left corner) */
-        windowLeft = (*window->strucRgn)->rgnBBox.left;
-        windowTop = (*window->strucRgn)->rgnBBox.top;
-    }
-
-    /* Calculate new structure region with preserved position and new size */
-    Rect newStrucBounds;
-    SetRect(&newStrucBounds, windowLeft, windowTop,
-            windowLeft + newWidth, windowTop + newHeight);
-
-    /* Update structure region to new bounds */
-    if (window->strucRgn) {
-        RectRgn(window->strucRgn, &newStrucBounds);
-    }
-
-    /* Update content region (typically same as structure region for simple windows) */
-    if (window->contRgn) {
-        RectRgn(window->contRgn, &newStrucBounds);
-    }
+    /* CRITICAL FIX: Use the standard region calculation that properly handles chrome
+     *
+     * BUG: Previous code set contRgn = strucRgn (full window including frame)
+     * This caused contRgn to cover areas outside the actual content, including
+     * title bar and borders, leading to (0,20,800,600) full-screen regions.
+     *
+     * FIX: Use WM_CalculateStandardWindowRegions which correctly calculates:
+     * - strucRgn from Platform_GetWindowFrameRect (portBits.bounds + chrome)
+     * - contRgn from Platform_GetWindowContentRect (portBits.bounds directly)
+     *
+     * This ensures contRgn excludes the title bar and borders.
+     */
+    extern void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode);
+    WM_CalculateStandardWindowRegions(window, 0);
 }
 
 /* Create native window (no-op for our framebuffer implementation) */
@@ -432,6 +415,18 @@ void Platform_GetWindowContentRect(WindowPtr window, Rect* rect) {
      * CORRECT: portBits.bounds already contains the content area in global coords
      * No calculation needed - just return it directly! */
     *rect = window->port.portBits.bounds;
+
+    /* DEBUG: Log suspicious full-screen bounds */
+    extern void serial_puts(const char* str);
+    extern int sprintf(char* buf, const char* fmt, ...);
+    static int log_count = 0;
+    if (log_count < 20 && rect->left == 0 && rect->top == 20 && rect->right >= 799) {
+        char dbgbuf[256];
+        sprintf(dbgbuf, "[CONTENTRGN] SUSPICIOUS portBits.bounds=(0,20,%d,%d) refCon=0x%08x\n",
+                rect->right, rect->bottom, (unsigned int)window->refCon);
+        serial_puts(dbgbuf);
+        log_count++;
+    }
 }
 
 void Platform_GetWindowCloseBoxRect(WindowPtr window, Rect* rect) {
