@@ -5,6 +5,7 @@
 #include "SystemInternal.h"
 
 #include <stdbool.h>
+#include <string.h>
 
 #if defined(__powerpc__) || defined(__powerpc64__)
 #include "Platform/PowerPC/OpenFirmware.h"
@@ -79,9 +80,8 @@ SInt16 LoWord(SInt32 x) {
 }
 
 void BlockMoveData(const void* srcPtr, void* destPtr, Size byteCount) {
-    unsigned char* d = destPtr;
-    const unsigned char* s = srcPtr;
-    while (byteCount--) *d++ = *s++;
+    /* Use memmove to handle overlapping memory regions correctly */
+    memmove(destPtr, srcPtr, byteCount);
 }
 
 /* String functions */
