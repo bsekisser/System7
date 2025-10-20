@@ -101,16 +101,17 @@ short MenuAppIcon_Draw(GrafPtr port, short left, short top, Boolean highlighted)
     static Boolean sFinderAvailable = false;
 
     if (!sFinderLoaded) {
-        /* Try to load the Macintosh application icon
-         * Try ID 3967 first (seems to be Finder-specific), then fall back to ID 0 */
+        /* Load the Finder application icon.
+         * Note: ICN# 128 (smiling Mac face) is not in the generated resources.
+         * Try the finder_icn series (ID 3967), then system icon -16489 */
         sFinderAvailable = IconGen_FindByID(3967, &sFinderIcon);
         if (!sFinderAvailable) {
-            sFinderAvailable = IconGen_FindByID(0, &sFinderIcon);
+            sFinderAvailable = IconGen_FindByID(-16489, &sFinderIcon);
         }
         if (sFinderAvailable) {
-            serial_puts("MenuAppIcon: loaded Finder icon (Macintosh)\n");
+            serial_puts("MenuAppIcon: loaded Finder icon\n");
         } else {
-            serial_puts("MenuAppIcon: failed to load Finder icon, using fallback glyph\n");
+            serial_puts("MenuAppIcon: using fallback glyph for Finder icon\n");
         }
         sFinderLoaded = true;
     }
