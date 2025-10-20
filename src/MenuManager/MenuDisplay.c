@@ -193,8 +193,33 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
 
         MENU_LOG_TRACE("Drew highlighted menu title: %.*s\n", titleLen, &titleText[1]);
     } else {
-        /* Normal state - erase with white background first to unhighlight */
-        EraseRect(titleRect);
+        /* Normal state - manually erase with white background to unhighlight
+         *
+         * CRITICAL: EraseRect doesn't work reliably in all cases, so manually fill
+         * the title rect with white pixels to ensure proper cleanup of highlighting.
+         */
+        extern void* framebuffer;
+        extern uint32_t fb_pitch;
+
+        if (framebuffer) {
+            uint32_t bytes_per_pixel = 4;
+            SInt16 width = titleRect->right - titleRect->left;
+            SInt16 height = titleRect->bottom - titleRect->top;
+
+            /* Fill title rect with white (0xFFFFFFFF = ARGB white) */
+            for (SInt16 y = 0; y < height; y++) {
+                SInt16 screenY = titleRect->top + y;
+                if (screenY >= 0 && screenY < 600) {  /* Bounds check */
+                    for (SInt16 x = 0; x < width; x++) {
+                        SInt16 screenX = titleRect->left + x;
+                        if (screenX >= 0 && screenX < 800) {  /* Bounds check */
+                            uint32_t offset = screenY * (fb_pitch / bytes_per_pixel) + screenX;
+                            ((uint32_t*)framebuffer)[offset] = 0xFFFFFFFF;
+                        }
+                    }
+                }
+            }
+        }
 
         /* Then draw the text normally */
         MENU_LOG_TRACE("Drew normal menu title: %.*s\n", titleLen, &titleText[1]);
