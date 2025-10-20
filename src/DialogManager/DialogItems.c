@@ -448,7 +448,7 @@ void AppendDITL(DialogPtr theDialog, Handle theHandle, DITLMethod method)
     }
 
     if (cache->items) {
-        BlockMove(cache->items, expandedItems, oldSize);
+        BlockMoveData(cache->items, expandedItems, oldSize);
         DisposePtr((Ptr)cache->items);
     }
 
@@ -520,7 +520,7 @@ void ShortenDITL(DialogPtr theDialog, SInt16 numberItems)
         if (newCount > 0) {
             DialogItemEx* shrunkItems = (DialogItemEx*)NewPtr(newCount * sizeof(DialogItemEx));
             if (shrunkItems) {
-                BlockMove(cache->items, shrunkItems, newCount * sizeof(DialogItemEx));
+                BlockMoveData(cache->items, shrunkItems, newCount * sizeof(DialogItemEx));
                 DisposePtr((Ptr)cache->items);
                 cache->items = shrunkItems;
             }

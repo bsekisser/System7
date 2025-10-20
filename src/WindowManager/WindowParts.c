@@ -28,6 +28,7 @@
 #include "QuickDraw/ColorQuickDraw.h"
 #include "FontManager/FontManager.h"
 #include "FontManager/FontTypes.h"
+#include "MemoryMgr/MemoryManager.h"
 #include <math.h>
 
 /* Color constants */

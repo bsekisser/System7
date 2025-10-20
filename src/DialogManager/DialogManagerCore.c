@@ -23,6 +23,7 @@
 #include "DialogManager/AlertDialogs.h"
 #include "DialogManager/DialogManagerStateExt.h"
 #include "DialogManager/dialog_manager_private.h"  /* For DialogMgrGlobals */
+#include "MemoryMgr/MemoryManager.h"
 #include <assert.h>
 #include "DialogManager/DialogLogging.h"
 

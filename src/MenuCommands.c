@@ -9,6 +9,7 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "MenuManager/MenuManager.h"
+#include "EventManager/EventManager.h"
 #include "Finder/AboutThisMac.h"
 #include "Finder/GetInfo.h"
 #include "Finder/finder.h"
@@ -1218,7 +1219,6 @@ void Finder_Paste(void) {
     DisposeHandle(scrapHandle);
 
     /* Refresh the folder window */
-    extern void PostEvent(UInt16 eventType, UInt32 message);
     PostEvent(updateEvt, (UInt32)frontWin);
 
     MENU_LOG_DEBUG("Finder_Paste: Paste operation complete\n");

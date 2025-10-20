@@ -28,6 +28,7 @@
 #include "MenuManager/MenuManager.h"
 #include "DialogManager/DialogTypes.h"
 #include "WindowManager/WindowTypes.h"
+#include "WindowManager/WindowManager.h"
 #include "FS/vfs.h"
 #include "StandardFile/StandardFile.h"
 #include "System71StdLib.h"

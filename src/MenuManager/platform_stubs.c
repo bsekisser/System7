@@ -8,6 +8,7 @@
 #include "SystemTypes.h"
 #include "MenuManager/MenuManager.h"
 #include "MenuManager/menu_private.h"
+#include "MemoryMgr/MemoryManager.h"
 #include <stdlib.h>
 #include <string.h>
 

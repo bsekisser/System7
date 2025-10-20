@@ -23,6 +23,7 @@
 #include "WindowManager/WindowManager.h"
 #include "EventManager/EventManager.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "SoundManager/SoundManager.h"
 
 /* External QuickDraw globals */
 extern QDGlobals qd;
@@ -413,7 +414,7 @@ static void Notepad_SaveCurrentPage(NotePadGlobals *notepad) {
         HLock(textHandle);
         HLock(notepad->pageData[notepad->currentPage]);
 
-        BlockMove(*textHandle, *notepad->pageData[notepad->currentPage], textLength);
+        BlockMoveData(*textHandle, *notepad->pageData[notepad->currentPage], textLength);
         (*notepad->pageData[notepad->currentPage])[textLength] = '\0';
 
         HUnlock(notepad->pageData[notepad->currentPage]);
