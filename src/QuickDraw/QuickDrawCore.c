@@ -597,6 +597,7 @@ void EraseRect(const Rect *r) {
 /* Global to track last InvertRect call for menu titles */
 static short g_lastInvertLeft = -1;
 static short g_lastInvertRight = -1;
+static int g_invertCallCount = 0;
 
 /* Helper to get last invert rect - for debugging menu offset */
 void QD_GetLastInvertRect(short* left, short* right) {
@@ -613,6 +614,11 @@ void InvertRect(const Rect *r) {
     if (r->top == 0) {
         g_lastInvertLeft = r->left;
         g_lastInvertRight = r->right;
+        g_invertCallCount++;
+
+        extern void serial_printf(const char* fmt, ...);
+        serial_printf("[INVERT-COUNT] Call #%d for rect(%d,%d,%d,%d)\n",
+                      g_invertCallCount, r->left, r->top, r->right, r->bottom);
     }
 
     PictureRecordInvertRect(r);
