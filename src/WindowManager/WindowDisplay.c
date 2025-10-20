@@ -1476,6 +1476,11 @@ static void WM_InvalidateDisplay(void) {
     gDisplayDirty = true;
 }
 
+/* Public function to mark display as dirty (used by AppSwitcher and others) */
+void WM_InvalidateDisplay_Public(void) {
+    gDisplayDirty = true;
+}
+
 /* Window Manager update pipeline functions */
 /* WM_Update is needed by main.c even when other stubs are disabled */
 void WM_Update(void) {
@@ -1584,6 +1589,13 @@ void WM_Update(void) {
     MoveTo(0, 0);  /* Reset pen position before drawing menu bar */
     extern void DrawMenuBar(void);
     DrawMenuBar();  /* Menu Manager draws the menu bar */
+
+    /* Draw application switcher overlay if active */
+    extern Boolean AppSwitcher_IsActive(void);
+    extern void AppSwitcher_Draw(void);
+    if (AppSwitcher_IsActive()) {
+        AppSwitcher_Draw();
+    }
 
     /* Mouse cursor is now drawn separately in main.c for better performance */
     /* Old cursor drawing code removed to prevent double cursor issue */

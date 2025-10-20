@@ -652,6 +652,14 @@ void SetWinColor(WindowPtr theWindow, WCTabHandle newColorTable);
  */
 void SetDeskCPat(PixPatHandle deskPixPat);
 
+/*
+ * WM_InvalidateDisplay_Public - Mark display as needing update
+ *
+ * Forces the window manager to redraw on the next update cycle.
+ * Used by overlays (like AppSwitcher) to trigger screen refresh.
+ */
+void WM_InvalidateDisplay_Public(void);
+
 /* ============================================================================
  * Window Manager Internal Functions (for platform implementations)
  * ============================================================================ */

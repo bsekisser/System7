@@ -202,6 +202,10 @@ Boolean AppSwitcher_ShowWindow(void) {
     gSwitcherState.isActive = true;
     gSwitcherState.activationTime = TickCount();
 
+    /* Mark display as needing update so WM_Update will render the switcher */
+    extern void WM_InvalidateDisplay_Public(void);
+    WM_InvalidateDisplay_Public();
+
     serial_printf("[AppSwitcher] Window shown with %d apps\n", gSwitcherState.appCount);
 
     return true;
@@ -216,6 +220,10 @@ void AppSwitcher_HideWindow(void) {
     gSwitcherVisible = false;
     gSwitcherState.isActive = false;
     gHideTimeout = 0;
+
+    /* Mark display as needing update so switcher gets erased */
+    extern void WM_InvalidateDisplay_Public(void);
+    WM_InvalidateDisplay_Public();
 
     serial_printf("[AppSwitcher] Window hidden\n");
 }
