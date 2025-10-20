@@ -167,7 +167,8 @@ short MenuAppIcon_Draw(GrafPtr port, short left, short top, Boolean highlighted)
             }
         }
 
-        DrawFinderGlyph16(iconLeft, iconTop, highlighted);
+        /* NOTE: Do NOT call DrawFinderGlyph16 here - that would overwrite the color icon
+         * with a monochrome version. The icon has already been rendered above. */
 
         SetPort(prev);
         return MENU_APP_ICON_WIDTH;
