@@ -202,7 +202,7 @@ MenuHandle ParseMENUResource(Handle resourceHandle)
 
     /* Parse menu items starting after title */
     uint8_t itemCount = data[0x0B + titleLen];
-    uint8_t itemOffset = 0x0C + titleLen;  /* Start of first item */
+    int itemOffset = 0x0C + titleLen;  /* Start of first item (int for bounds checking) */
 
     for (int i = 0; i < itemCount && itemOffset < 512; i++) {
         /* Each item is: length byte + text */

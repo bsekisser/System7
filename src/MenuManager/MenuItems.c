@@ -794,9 +794,8 @@ void InsertFontResMenu(MenuHandle theMenu, short afterItem, short scriptFilter) 
         GetResInfo(fontHandle, &fontID, &fontType, resName);
 
         if (resName[0] > 0) {
-            /* Convert C string to Pascal string */
-            fontName[0] = resName[0];
-            if (resName[0] > 255) fontName[0] = 255;  /* Limit to max Pascal string length */
+            /* Convert Pascal string: resName[0] is already limited to 255 by type */
+            fontName[0] = (unsigned char)resName[0];
             BlockMoveData(&resName[1], &fontName[1], fontName[0]);
 
             /* Insert the font name as a menu item */
