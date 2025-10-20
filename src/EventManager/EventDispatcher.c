@@ -314,10 +314,11 @@ Boolean HandleMouseDown(EventRecord* event)
                              (unsigned int)whichWindow);
 
                 /* Set up drag bounds (entire screen minus menu bar) */
+                extern QDGlobals qd;
                 dragBounds.top = 20;     /* Below menu bar */
-                dragBounds.left = 0;
-                dragBounds.bottom = 768;  /* Screen height */
-                dragBounds.right = 1024;  /* Screen width */
+                dragBounds.left = qd.screenBits.bounds.left;
+                dragBounds.bottom = qd.screenBits.bounds.bottom;
+                dragBounds.right = qd.screenBits.bounds.right;
 
                 EVT_LOG_DEBUG("HandleMouseDown: inDrag window=0x%08x bounds=(%d,%d,%d,%d)\n",
                              (unsigned int)whichWindow, dragBounds.top, dragBounds.left,

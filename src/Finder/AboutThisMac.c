@@ -15,6 +15,9 @@
 #include "Gestalt/Gestalt.h"
 #include "Platform/include/boot.h"
 
+/* For debug logging */
+extern void serial_printf(const char* fmt, ...);
+
 extern void DisposeGWorld(GWorldPtr offscreenGWorld);
 extern void* framebuffer;
 extern uint32_t fb_pitch;
@@ -108,13 +111,10 @@ typedef struct {
 
 /* --- String helpers (use QuickDraw widths, not char counts) --- */
 static void CenterPStringInRect(const Str255 s, const Rect* r, short baseline) {
-    FINDER_LOG_DEBUG("CenterPStringInRect: ENTRY, s[0]=%d\n", s[0]);
     short w = StringWidth((ConstStr255Param)s);
-    FINDER_LOG_DEBUG("CenterPStringInRect: StringWidth returned w=%d\n", w);
-    MoveTo(r->left + ((r->right - r->left) - w) / 2, baseline);
-    FINDER_LOG_DEBUG("CenterPStringInRect: About to call DrawString\n");
+    short x = r->left + ((r->right - r->left) - w) / 2;
+    MoveTo(x, baseline);
     DrawString((ConstStr255Param)s);
-    FINDER_LOG_DEBUG("CenterPStringInRect: DrawString returned\n");
 }
 
 static void RightAlignPStringAt(const Str255 s, short rightEdge, short baseline) {
@@ -342,6 +342,44 @@ static const char* GetSystemVersionString(void)
 }
 
 /*
+ * AboutWindow_UpdateFramebufferAddress - Recalculate baseAddr after window moves
+ */
+static void AboutWindow_UpdateFramebufferAddress(void) {
+    if (!sAboutWin) return;
+
+    /* Get current window content position in global coordinates */
+    Rect contentGlobal;
+    contentGlobal = sAboutWin->port.portBits.bounds;
+
+    /* Convert from local (0,0,w,h) back to global by using portRect and window position */
+    /* Actually, we need to get the window's structure rect and calculate content from that */
+    if (!sAboutWin->strucRgn) return;
+
+    Rect strucRect = (**(sAboutWin->strucRgn)).rgnBBox;
+
+    /* Content is inside the structure (account for title bar and borders) */
+    /* Title bar is typically 20 pixels, borders are 1 pixel */
+    SInt16 contentTop = strucRect.top + 20;  /* Below title bar */
+    SInt16 contentLeft = strucRect.left + 1;  /* Inside left border */
+
+    /* Clamp to screen bounds to prevent wrapping */
+    extern QDGlobals qd;
+    if (contentTop < 0) contentTop = 0;
+    if (contentLeft < 0) contentLeft = 0;
+    if (contentTop >= qd.screenBits.bounds.bottom) contentTop = qd.screenBits.bounds.bottom - 1;
+    if (contentLeft >= qd.screenBits.bounds.right) contentLeft = qd.screenBits.bounds.right - 1;
+
+    /* Recalculate framebuffer offset */
+    uint32_t bytes_per_pixel = 4;
+    uint32_t offset = contentTop * fb_pitch + contentLeft * bytes_per_pixel;
+
+    /* Update baseAddr to new window position */
+    sAboutWin->port.portBits.baseAddr = (Ptr)framebuffer + offset;
+
+    serial_puts("[ABOUT] Updated baseAddr after window move\n");
+}
+
+/*
  * AboutWindow_CreateIfNeeded - Create About window if not already open
  */
 static void AboutWindow_CreateIfNeeded(void)
@@ -349,7 +387,10 @@ static void AboutWindow_CreateIfNeeded(void)
     Rect bounds;
     unsigned char title[32];
 
+    serial_puts("[ABOUT] CreateIfNeeded: ENTRY\n");
+
     if (sAboutWin) {
+        serial_puts("[ABOUT] CreateIfNeeded: Window already exists, returning\n");
         FINDER_LOG_DEBUG("AboutThisMac: Window already exists at 0x%08x\n", (unsigned int)P2UL(sAboutWin));
         return;
     }
@@ -365,6 +406,8 @@ static void AboutWindow_CreateIfNeeded(void)
     title[0] = (unsigned char)strlen(titleText);
     strcpy((char*)&title[1], titleText);
 
+    serial_puts("[ABOUT] CreateIfNeeded: About to call NewWindow\n");
+
     sAboutWin = NewWindow(NULL, &bounds, title,
                          1,  /* visible */
                          movableDBoxProc,  /* Movable dialog box */
@@ -372,37 +415,60 @@ static void AboutWindow_CreateIfNeeded(void)
                          1,  /* Has close box */
                          kAboutRefCon);
 
+    serial_puts("[ABOUT] CreateIfNeeded: NewWindow returned\n");
+
     if (!sAboutWin) {
+        serial_puts("[ABOUT] CreateIfNeeded: FAILED - window is NULL\n");
         FINDER_LOG_DEBUG("AboutThisMac: FAILED to create window!\n");
         return;
     }
 
-    /* Disable double-buffering so text renders directly to framebuffer */
-    if (sAboutWin->offscreenGWorld) {
-        FINDER_LOG_DEBUG("AboutThisMac: Before dispose - bounds=(%d,%d,%d,%d)\n",
-                        sAboutWin->port.portBits.bounds.left,
-                        sAboutWin->port.portBits.bounds.top,
-                        sAboutWin->port.portBits.bounds.right,
-                        sAboutWin->port.portBits.bounds.bottom);
+    serial_puts("[ABOUT] CreateIfNeeded: Configuring direct framebuffer rendering\n");
 
+    /* Dispose of offscreenGWorld if it exists */
+    if (sAboutWin->offscreenGWorld) {
+        serial_puts("[ABOUT] Disposing offscreenGWorld\n");
         DisposeGWorld((GWorldPtr)sAboutWin->offscreenGWorld);
         sAboutWin->offscreenGWorld = NULL;
-        sAboutWin->port.portBits.baseAddr = (Ptr)framebuffer;
-        sAboutWin->port.portBits.rowBytes = (fb_pitch | 0x8000);
-
-        /* CRITICAL: Set bounds to full screen since baseAddr is now the full framebuffer
-         * QDPlatform_DrawGlyphBitmap does: destX = pen.h - bounds.left
-         * With full framebuffer, bounds must be (0, 0, width, height) */
-        SetRect(&sAboutWin->port.portBits.bounds, 0, 0, fb_width, fb_height);
-
-        FINDER_LOG_DEBUG("AboutThisMac: After SetRect - bounds=(%d,%d,%d,%d), fb=(%d,%d)\n",
-                        sAboutWin->port.portBits.bounds.left,
-                        sAboutWin->port.portBits.bounds.top,
-                        sAboutWin->port.portBits.bounds.right,
-                        sAboutWin->port.portBits.bounds.bottom,
-                        fb_width, fb_height);
     }
 
+    /* CRITICAL FIX: Configure direct framebuffer rendering
+     * Since baseAddr will point to window's position in framebuffer,
+     * bounds must be in local coordinates (0,0,width,height) NOT global coordinates.
+     * This prevents FM_DrawChicagoCharInternal from double-adjusting coordinates. */
+    Rect originalBounds = sAboutWin->port.portBits.bounds;
+    uint32_t bytes_per_pixel = 4;  /* ARGB32 */
+    uint32_t offset = originalBounds.top * fb_pitch + originalBounds.left * bytes_per_pixel;
+
+    serial_puts("[ABOUT] Configuring direct framebuffer rendering\n");
+
+    /* Set baseAddr to point to window's content area in framebuffer */
+    sAboutWin->port.portBits.baseAddr = (Ptr)framebuffer + offset;
+    sAboutWin->port.portBits.rowBytes = (fb_pitch | 0x8000);
+
+    /* Set bounds to LOCAL coordinates (0,0,width,height) since baseAddr is already offset
+     * This makes FM_DrawChicagoCharInternal treat it like an offscreen buffer at origin */
+    SInt16 width = originalBounds.right - originalBounds.left;
+    SInt16 height = originalBounds.bottom - originalBounds.top;
+
+    sAboutWin->port.portBits.bounds.left = 0;
+    sAboutWin->port.portBits.bounds.top = 0;
+    sAboutWin->port.portBits.bounds.right = width;
+    sAboutWin->port.portBits.bounds.bottom = height;
+
+    /* Ensure portRect also matches the content dimensions
+     * portRect should already be set correctly, but verify it matches */
+    if (sAboutWin->port.portRect.right != width || sAboutWin->port.portRect.bottom != height) {
+        serial_puts("[ABOUT] WARNING: portRect dimensions don't match, fixing\n");
+        sAboutWin->port.portRect.left = 0;
+        sAboutWin->port.portRect.top = 0;
+        sAboutWin->port.portRect.right = width;
+        sAboutWin->port.portRect.bottom = height;
+    }
+
+    serial_puts("[ABOUT] Direct framebuffer configured\n");
+
+    serial_puts("[ABOUT] CreateIfNeeded COMPLETE\n");
     FINDER_LOG_DEBUG("AboutThisMac: Created window at 0x%08x, refCon=0x%08X\n",
                      (unsigned int)P2UL(sAboutWin), (unsigned int)kAboutRefCon);
 }
@@ -414,17 +480,23 @@ static void AboutWindow_CreateIfNeeded(void)
  */
 void AboutWindow_ShowOrToggle(void)
 {
+    serial_puts("[ABOUT] ShowOrToggle: CALLED\n");
     FINDER_LOG_DEBUG("AboutThisMac: ShowOrToggle called\n");
 
     if (!sAboutWin) {
+        serial_puts("[ABOUT] ShowOrToggle: Creating new window\n");
         AboutWindow_CreateIfNeeded();
+    } else {
+        serial_puts("[ABOUT] ShowOrToggle: Window already exists\n");
     }
 
     if (!sAboutWin) {
+        serial_puts("[ABOUT] ShowOrToggle: FAILED - window is NULL\n");
         FINDER_LOG_DEBUG("AboutThisMac: Failed to create window\n");
         return;
     }
 
+    serial_puts("[ABOUT] ShowOrToggle: Bringing window to front\n");
     /* Bring to front and select */
     BringToFront(sAboutWin);
     SelectWindow(sAboutWin);
@@ -432,6 +504,7 @@ void AboutWindow_ShowOrToggle(void)
     /* Request update */
     PostEvent(updateEvt, (UInt32)sAboutWin);
 
+    serial_puts("[ABOUT] ShowOrToggle: Window shown successfully\n");
     FINDER_LOG_DEBUG("AboutThisMac: Window shown and brought to front\n");
 }
 
@@ -482,19 +555,26 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     GetPort(&savedPort);
     SetPort((GrafPtr)w);
 
-    FINDER_LOG_DEBUG("AboutThisMac: Before BeginUpdate - bounds=(%d,%d,%d,%d)\n",
-                    w->port.portBits.bounds.left,
-                    w->port.portBits.bounds.top,
-                    w->port.portBits.bounds.right,
-                    w->port.portBits.bounds.bottom);
+    serial_puts("[ABOUT] UPDATE: Before BeginUpdate\n");
+
+    /* Update baseAddr in case window was moved */
+    AboutWindow_UpdateFramebufferAddress();
 
     BeginUpdate(w);
 
-    FINDER_LOG_DEBUG("AboutThisMac: After BeginUpdate - bounds=(%d,%d,%d,%d)\n",
-                    w->port.portBits.bounds.left,
-                    w->port.portBits.bounds.top,
-                    w->port.portBits.bounds.right,
-                    w->port.portBits.bounds.bottom);
+    serial_puts("[ABOUT] UPDATE: After BeginUpdate\n");
+
+    /* Debug: log port configuration */
+    extern void serial_printf(const char* fmt, ...);
+    static int update_debug = 0;
+    if (update_debug < 1) {
+        serial_printf("[ABOUT-DEBUG] portRect=(%d,%d,%d,%d) portBits.bounds=(%d,%d,%d,%d)\n",
+                     w->port.portRect.left, w->port.portRect.top,
+                     w->port.portRect.right, w->port.portRect.bottom,
+                     w->port.portBits.bounds.left, w->port.portBits.bounds.top,
+                     w->port.portBits.bounds.right, w->port.portBits.bounds.bottom);
+        update_debug++;
+    }
 
     /* Optional throttle: only recompute stats every N ticks to reduce overhead */
     currentTicks = TickCount();
@@ -505,15 +585,15 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     }
     sLastUpdateTicks = currentTicks;
 
-    /* Get window content rect - use local coordinates (0,0) origin */
+    /* Get window content rect - use local coordinates (0,0) origin
+     * Use portRect which has the correct content dimensions */
     Rect contentRect;
     contentRect.top = 0;
     contentRect.left = 0;
-    contentRect.right = w->port.portBits.bounds.right - w->port.portBits.bounds.left;
-    contentRect.bottom = w->port.portBits.bounds.bottom - w->port.portBits.bounds.top;
+    contentRect.right = w->port.portRect.right;
+    contentRect.bottom = w->port.portRect.bottom;
 
-    FINDER_LOG_DEBUG("AboutThisMac: contentRect=(%d,%d,%d,%d)\n",
-                 contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
+    serial_puts("[ABOUT] Drawing content\n");
 
     /* Clear */
     EraseRect(&contentRect);
@@ -523,17 +603,18 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     const char *model_string = platform_get_model_string();
     const char *memory_gb = platform_format_memory_gb();
 
+    serial_puts("[ABOUT] About to draw title\n");
+
     /* Title: Platform name (detected at boot) - Chicago (System), 12pt, centered */
     Str255 title;
     TextFont(0);            /* System (Chicago) */
     TextSize(12);           /* Use 12pt to avoid scaling */
     TextFace(0);            /* normal */
-    FINDER_LOG_DEBUG("AboutThisMac: About to call ToPStr with platform: %s\n", platform_name);
     ToPStr(platform_name, title);
-    FINDER_LOG_DEBUG("AboutThisMac: ToPStr returned, title[0]=%d, about to center\n", title[0]);
-    FINDER_LOG_DEBUG("AboutThisMac: About to call CenterPStringInRect\n");
+
+    serial_puts("[ABOUT] Calling CenterPStringInRect\n");
     CenterPStringInRect(title, &contentRect, contentRect.top + 20);
-    FINDER_LOG_DEBUG("AboutThisMac: Title centered\n");
+    serial_puts("[ABOUT] Title drawn\n");
 
     /* Version and Memory: "System 7 - X GB" - Chicago 11, normal */
     Str255 ver;

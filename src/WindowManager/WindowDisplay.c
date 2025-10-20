@@ -128,9 +128,15 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     SetClip(fullClipWMgr);
     DisposeRgn(fullClipWMgr);
 
-    /* Window backfill is handled by chrome (title bar) and content drawing */
-    /* No need to fill the entire window structure here */
-    WM_LOG_TRACE("PaintOne: Skipping window backfill (handled by chrome+content)\n");
+    /* CRITICAL: Fill content region with white background BEFORE drawing chrome
+     * This prevents garbage/dotted patterns from appearing in the window content area
+     * The application will draw over this white background when handling update events */
+    if (window->contRgn && *(window->contRgn)) {
+        WM_LOG_TRACE("PaintOne: Filling content region with white\n");
+        extern void FillRgn(RgnHandle rgn, const Pattern* pat);
+        extern QDGlobals qd;
+        FillRgn(window->contRgn, &qd.white);
+    }
 
     /* NOW draw chrome on top of backfill */
     WM_LOG_TRACE("PaintOne: Drawing window chrome\n");

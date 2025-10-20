@@ -152,7 +152,10 @@ static void FM_ScaleCharBilinear(short srcX, short srcY, char ch,
 /*
  * FM_GetScaledCharWidth - Calculate character width at scaled size
  */
-short FM_GetScaledCharWidth(char ch, short targetSize) {
+short FM_GetScaledCharWidth(SInt16 fontNum, SInt16 fontSize, UInt8 ch) {
+    /* Currently only supports Chicago (fontNum is ignored) */
+    (void)fontNum;
+
     if (ch < 32 || ch > 126) return 0;
 
     ChicagoCharInfo info = chicago_ascii[ch - 32];
@@ -160,7 +163,7 @@ short FM_GetScaledCharWidth(char ch, short targetSize) {
     if (ch == ' ') baseWidth += 3;  /* Extra space width */
 
     /* Calculate scaling from Chicago 12 using fixed-point math */
-    short scale = FM_CalculateScaleFactor(12, targetSize);
+    short scale = FM_CalculateScaleFactor(12, fontSize);
     /* Apply scale (divide by 256 to convert from fixed-point, add 128 for rounding) */
     short scaledWidth = (short)((baseWidth * scale + 128) / 256);
 
@@ -178,7 +181,7 @@ short FM_GetScaledStringWidth(ConstStr255Param s, short targetSize) {
 
     short totalWidth = 0;
     for (int i = 1; i <= s[0]; i++) {
-        totalWidth += FM_GetScaledCharWidth(s[i], targetSize);
+        totalWidth += FM_GetScaledCharWidth(0, targetSize, s[i]);  /* fontNum=0 for Chicago */
     }
 
     FSC_LOG("GetScaledStringWidth: \"%.*s\" at %dpt = %d pixels\n",
@@ -233,7 +236,7 @@ void FM_DrawScaledString(ConstStr255Param s, short targetSize) {
         FM_SynthesizeSize(pen.h, pen.v, ch, targetSize, color);
 
         /* Advance pen by scaled width */
-        pen.h += FM_GetScaledCharWidth(ch, targetSize);
+        pen.h += FM_GetScaledCharWidth(0, targetSize, ch);
     }
 
     /* Update pen location */
@@ -418,7 +421,7 @@ void FM_DrawTextAtSize(const void* textBuf, short firstByte, short byteCount,
         FM_SynthesizeSize(pen.h, pen.v, ch, targetSize, color);
 
         /* Advance pen */
-        pen.h += FM_GetScaledCharWidth(ch, targetSize);
+        pen.h += FM_GetScaledCharWidth(0, targetSize, ch);
     }
 
     /* Update pen location */

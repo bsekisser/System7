@@ -71,6 +71,9 @@ static inline uint8_t get_bit(const uint8_t *row, int bitOff) {
  * This is the core drawing function used by all Font Manager rendering
  */
 void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color) {
+    static int debug_count = 0;
+    extern void serial_puts(const char* str);
+
     if (ch < 32 || ch > 126) return;
 
     ChicagoCharInfo info = chicago_ascii[ch - 32];
@@ -87,15 +90,23 @@ void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color) {
         destBase = g_currentPort->portBits.baseAddr;
         destRowBytes = g_currentPort->portBits.rowBytes & 0x3FFF;
 
-        if (destBase != (Ptr)framebuffer) {
-            /* Drawing into offscreen buffer (e.g., window GWorld) */
-            destWidth = g_currentPort->portRect.right - g_currentPort->portRect.left;
-            destHeight = g_currentPort->portRect.bottom - g_currentPort->portRect.top;
-            destXOrigin = g_currentPort->portBits.bounds.left;
-            destYOrigin = g_currentPort->portBits.bounds.top;
-        } else {
-            /* Drawing directly to framebuffer */
-            destRowBytes = fb_pitch;
+        /* For About window with direct framebuffer rendering:
+         * - baseAddr points to window position in framebuffer (framebuffer + offset)
+         * - bounds is (0,0,width,height) in local coordinates
+         * - We need destXOrigin=0, destYOrigin=0 since baseAddr is already offset
+         * This is the "direct framebuffer" case, which is actually correct! */
+
+        /* Use window dimensions from portRect */
+        destWidth = g_currentPort->portRect.right - g_currentPort->portRect.left;
+        destHeight = g_currentPort->portRect.bottom - g_currentPort->portRect.top;
+        destXOrigin = g_currentPort->portBits.bounds.left;  /* Should be 0 for offset baseAddr */
+        destYOrigin = g_currentPort->portBits.bounds.top;   /* Should be 0 for offset baseAddr */
+
+        if (debug_count < 3) {
+            extern void serial_printf(const char* fmt, ...);
+            serial_printf("[CHICAGO] x=%d y=%d destWidth=%d destHeight=%d destXOrigin=%d destYOrigin=%d\n",
+                         x, y, destWidth, destHeight, destXOrigin, destYOrigin);
+            debug_count++;
         }
     } else if (framebuffer) {
         destBase = (Ptr)framebuffer;
@@ -103,8 +114,14 @@ void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color) {
     }
 
     if (!destBase || destRowBytes <= 0 || destWidth <= 0 || destHeight <= 0) {
+        if (debug_count < 3) {
+            serial_puts("[CHICAGO] Invalid buffer parameters, returning\n");
+        }
         return;
     }
+
+    int pixels_drawn = 0;
+    int first_pixel_x = -1, first_pixel_y = -1;
 
     for (int row = 0; row < CHICAGO_HEIGHT; row++) {
         int destY = y + row - destYOrigin;
@@ -124,8 +141,18 @@ void FM_DrawChicagoCharInternal(short x, short y, char ch, uint32_t color) {
                 uint8_t* dstRow = (uint8_t*)destBase + destY * destRowBytes;
                 uint32_t* dstPixels = (uint32_t*)dstRow;
                 dstPixels[destX] = color;
+                if (first_pixel_x < 0) {
+                    first_pixel_x = destX;
+                    first_pixel_y = destY;
+                }
+                pixels_drawn++;
             }
         }
+    }
+
+    if (debug_count < 3 && pixels_drawn > 0) {
+        extern void serial_printf(const char* fmt, ...);
+        serial_printf("[CHICAGO] Drew %d pixels, first at (%d,%d)\n", pixels_drawn, first_pixel_x, first_pixel_y);
     }
 }
 
@@ -501,6 +528,14 @@ void QD_LocalToPixel(short localX, short localY, short* pixelX, short* pixelY) {
  * DrawChar - Draw a single character at the current pen location
  */
 void DrawChar(short ch) {
+    extern void serial_puts(const char* str);
+    static int char_count = 0;
+
+    if (char_count < 5) {
+        serial_puts("[DRAWCHAR-FM] DrawChar called\n");
+        char_count++;
+    }
+
     if (!g_currentPort) return;
 
     Style face = g_currentPort->txFace;
@@ -518,6 +553,18 @@ void DrawChar(short ch) {
         short px, py;
         QD_LocalToPixel(pen.h, pen.v - CHICAGO_ASCENT, &px, &py);
         UInt32 color = QDPlatform_MapQDColor(g_currentPort->fgColor);
+
+        static int coord_debug = 0;
+        if (coord_debug < 3) {
+            extern void serial_printf(const char* fmt, ...);
+            serial_printf("[DRAWCHAR] pen=(%d,%d) pixel=(%d,%d) bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
+                         pen.h, pen.v, px, py,
+                         g_currentPort->portBits.bounds.left, g_currentPort->portBits.bounds.top,
+                         g_currentPort->portBits.bounds.right, g_currentPort->portBits.bounds.bottom,
+                         g_currentPort->portRect.left, g_currentPort->portRect.top,
+                         g_currentPort->portRect.right, g_currentPort->portRect.bottom);
+            coord_debug++;
+        }
 
         /* Draw character with style synthesis */
         if (hasBold) {
@@ -578,7 +625,15 @@ void DrawChar(short ch) {
  * DrawString - Draw a Pascal string at the current pen location
  */
 void DrawString(ConstStr255Param s) {
-    if (!s || s[0] == 0 || !g_currentPort) return;
+    extern void serial_puts(const char* str);
+    serial_puts("[DRAWSTR-FM] DrawString called\n");
+
+    if (!s || s[0] == 0 || !g_currentPort) {
+        serial_puts("[DRAWSTR-FM] Early return\n");
+        return;
+    }
+
+    serial_puts("[DRAWSTR-FM] Drawing characters\n");
 
     unsigned char len = s[0];
     Style face = g_currentPort->txFace;

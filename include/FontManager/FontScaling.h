@@ -28,7 +28,7 @@ short FM_GetAvailableSizes(short fontID, short* sizes, short maxSizes);
 void FM_SynthesizeSize(short x, short y, char ch, short targetSize, uint32_t color);
 
 /* Width Calculations */
-short FM_GetScaledCharWidth(char ch, short targetSize);
+short FM_GetScaledCharWidth(SInt16 fontNum, SInt16 fontSize, UInt8 ch);
 short FM_GetScaledStringWidth(ConstStr255Param s, short targetSize);
 
 /* String Drawing */

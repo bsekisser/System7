@@ -276,10 +276,11 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     if (boundsRect) {
         dragBounds = *boundsRect;
     } else {
+        extern QDGlobals qd;
         dragBounds.top = 20;     /* menubar height */
-        dragBounds.left = 0;
-        dragBounds.bottom = 768;
-        dragBounds.right = 1024;
+        dragBounds.left = qd.screenBits.bounds.left;
+        dragBounds.bottom = qd.screenBits.bounds.bottom;
+        dragBounds.right = qd.screenBits.bounds.right;
     }
 
     /* Ensure callers cannot allow windows to overlap the menu bar */
