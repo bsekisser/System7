@@ -107,7 +107,7 @@ u32     CompactMem(u32 cbNeeded);
 void    PurgeMem(u32 cbNeeded);
 
 /* Memory utility functions */
-void    BlockMoveData(const void* srcPtr, void* destPtr, u32 byteCount);
+void    BlockMoveData(const void* srcPtr, void* destPtr, Size byteCount);
 SInt16  MemError(void);
 
 /* Standard C library interface */

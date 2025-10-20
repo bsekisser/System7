@@ -11,6 +11,7 @@
 #include "MenuManager/MenuManager.h"
 #include "Finder/AboutThisMac.h"
 #include "Finder/GetInfo.h"
+#include "Finder/finder.h"
 #include "FS/hfs_types.h"
 #include "ControlPanels/DesktopPatterns.h"
 #include "ControlPanels/Sound.h"

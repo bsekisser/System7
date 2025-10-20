@@ -15,6 +15,7 @@
 #include "FS/vfs.h"
 #include "FS/hfs_types.h"
 #include "Finder/FinderLogging.h"
+#include "Finder/finder.h"
 #include "EventManager/EventManager.h"
 
 /* Forward declarations */

@@ -97,4 +97,14 @@ int snprintf(char* str, size_t size, const char* format, ...)
 /* Pointer-to-unsigned-long helper to avoid %p format pitfalls */
 #define P2UL(p) ((unsigned long)(uintptr_t)(p))
 
+/* System utility functions */
+#include "SystemTypes.h"
+#ifndef HiWord
+SInt16 HiWord(SInt32 x);
+#endif
+#ifndef LoWord
+SInt16 LoWord(SInt32 x);
+#endif
+void BlockMoveData(const void* srcPtr, void* destPtr, Size byteCount);
+
 #endif /* SYSTEM71_STDLIB_H */

@@ -68,6 +68,29 @@
 
 /* Forward Declarations */
 
+/* Finder Event Handling */
+void HandleKeyDown(EventRecord* event);
+OSErr HandleContentClick(WindowPtr window, EventRecord* event);
+OSErr CloseFinderWindow(WindowPtr window);
+void DoUpdate(WindowPtr window);
+OSErr FindFolder(SInt16 vRefNum, OSType folderType, Boolean createFolder, SInt16* foundVRefNum, SInt32* foundDirID);
+
+/* Menu Commands */
+void DoMenuCommand(short menuID, short item);
+void OpenSelectedItems(void);
+void ShowGetInfoDialog(WindowPtr w);
+void DuplicateSelectedItems(WindowPtr w);
+void MakeAliasOfSelectedItems(WindowPtr w);
+void PutAwaySelectedItems(WindowPtr w);
+void Finder_Undo(void);
+void Finder_Cut(void);
+void Finder_Copy(void);
+void Finder_Paste(void);
+void Finder_Clear(void);
+void Finder_SelectAll(void);
+void SetWindowViewMode(WindowPtr w, short viewMode);
+void ApplyLabelToSelection(WindowPtr w, short labelIndex);
+
 /* Desktop Manager API - Evidence: "Clean Up Desktop", "Rebuilding the desktop file" */
 OSErr CleanUpDesktop(void);
 OSErr RebuildDesktopFile(short vRefNum);
@@ -123,6 +146,7 @@ void FolderWindow_CleanUp(WindowPtr w, Boolean selectedOnly);
 void FolderWindow_SortAndArrange(WindowPtr w, short sortType);
 void FolderWindowProc(WindowPtr window, short message, long param);
 void CleanupFolderWindow(WindowPtr w);
+void FolderWindow_SetLabelOnSelected(WindowPtr w, short labelIndex);
 
 /* Trash Folder API - Evidence: "Empty Trash", "The Trash cannot be emptied" */
 OSErr EmptyTrash(Boolean force);
@@ -147,6 +171,10 @@ OSErr ShowFind(void);
 OSErr FindAgain(void);
 OSErr FindOriginal(FSSpec *alias);
 OSErr FindItemsByCriteria(StringPtr criteria, FSSpec *results, short *count);
+void Find_CloseIf(WindowPtr w);
+Boolean Find_HandleUpdate(WindowPtr w);
+Boolean Find_IsFindWindow(WindowPtr w);
+Boolean Find_HandleKeyPress(WindowPtr w, char key);
 
 /* Alias Manager API - Evidence: alias resolution error strings */
 OSErr ResolveAlias(FSSpec *alias, FSSpec *target, Boolean *wasChanged);

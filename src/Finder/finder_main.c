@@ -744,9 +744,6 @@ void HandleKeyDown(EventRecord* event) {
     /* Check for command key shortcuts */
     if (event->modifiers & cmdKey) {
         extern long MenuKey(short ch);
-        extern void DoMenuCommand(short menuID, short item);
-        extern SInt16 HiWord(SInt32 x);
-        extern SInt16 LoWord(SInt32 x);
 
         /* Convert to uppercase for menu matching */
         char menuChar = charCode;
