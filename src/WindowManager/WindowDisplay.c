@@ -97,6 +97,9 @@ static void DrawWindowFrame(WindowPtr window);
 /* Internal helper to draw window controls */
 static void DrawWindowControls(WindowPtr window);
 
+/* Internal helper to mark display as dirty */
+static void WM_InvalidateDisplay(void);
+
 void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     WM_LOG_TRACE("PaintOne: ENTRY, window=%p, visible=%d\n", window, window ? window->visible : -1);
 
@@ -963,6 +966,9 @@ void ShowWindow(WindowPtr window) {
     WM_LOG_TRACE("ShowWindow: About to set visible=true\n");
 
     window->visible = true;
+
+    /* Mark display dirty to force full redraw including desktop pattern */
+    WM_InvalidateDisplay();
 
     /* Calculate window regions (structure and content) */
     WM_LOG_TRACE("ShowWindow: Calculating window regions\n");
