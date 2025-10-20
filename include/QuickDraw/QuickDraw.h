@@ -235,7 +235,10 @@ Boolean EqualRect(const Rect *rect1, const Rect *rect2);
 Boolean EmptyRect(const Rect *r);
 
 /* Text Drawing */
-void DrawChar(short ch);
+/* NOTE: QuickDraw's DrawChar is renamed to QD_DrawChar to avoid conflict with
+   FontManager's DrawChar. Use FontManager's DrawChar for menu titles which uses
+   direct framebuffer rendering. Use QD_DrawChar for general QuickDraw text. */
+void QD_DrawChar(short ch);
 void DrawString(ConstStr255Param s);
 void DrawText(const void* textBuf, short firstByte, short byteCount);
 

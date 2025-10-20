@@ -95,7 +95,9 @@ SInt16 TextWidth(const void *textBuf, SInt16 firstByte, SInt16 byteCount) {
 }
 
 // Text drawing functions
-void DrawChar(SInt16 ch) {
+// NOTE: Renamed to QD_DrawChar to avoid conflict with FontManager/FontManagerCore.c DrawChar
+// QuickDraw's version uses glyph extraction, while FontManager's uses direct framebuffer
+void QD_DrawChar(SInt16 ch) {
     static int draw_count = 0;
 
     if (g_currentPort == NULL) return;
@@ -177,7 +179,7 @@ void DrawString(ConstStr255Param s) {
     serial_puts("[DRAWSTR] About to draw characters\n");
 
     for (int i = 1; i <= s[0]; i++) {
-        DrawChar(s[i]);
+        QD_DrawChar(s[i]);
     }
 }
 
@@ -187,7 +189,7 @@ void DrawText(const void *textBuf, SInt16 firstByte, SInt16 byteCount) {
     const UInt8 *text = (const UInt8 *)textBuf;
 
     for (SInt16 i = firstByte; i < firstByte + byteCount && i < 255; i++) {
-        DrawChar(text[i]);
+        QD_DrawChar(text[i]);
     }
 }
 
