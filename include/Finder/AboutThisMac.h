@@ -14,12 +14,22 @@ extern "C" {
 #endif
 
 /*
- * AboutWindow_ShowOrToggle - Show About window or bring to front
+ * AboutWindow_ShowOrToggle - Request About window to be shown
  *
- * Called from Apple menu handler. Creates window if needed,
- * otherwise brings existing window to front.
+ * Called from Apple menu handler. DEFERRED: Sets a flag for the main event loop
+ * to create the window after event dispatch completes. This prevents event re-entry
+ * deadlock from NewWindow posting events during event dispatch.
  */
 void AboutWindow_ShowOrToggle(void);
+
+/*
+ * AboutWindow_ProcessPendingCreation - Actually create deferred About window
+ *
+ * Called from main event loop after event dispatch is complete.
+ * Processes any pending window creation request from AboutWindow_ShowOrToggle.
+ * Safe to call frequently (checks internal flag).
+ */
+void AboutWindow_ProcessPendingCreation(void);
 
 /*
  * AboutWindow_CloseIf - Close About window if it matches

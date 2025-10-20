@@ -95,6 +95,7 @@ extern QDGlobals qd;
 /* Static state - single instance only */
 static WindowPtr sAboutWin = NULL;
 static UInt32 sLastUpdateTicks = 0;
+static Boolean sPendingShowOrToggle = 0;  /* Deferred window creation to avoid event re-entry deadlock */
 
 /* Redraw throttle - only update stats every N ticks (avoid thrashing) */
 #define kAboutUpdateThrottle 30  /* ~0.5 seconds at 60 ticks/sec */
@@ -474,29 +475,31 @@ static void AboutWindow_CreateIfNeeded(void)
 }
 
 /*
- * AboutWindow_ShowOrToggle - Show About window or bring to front if open
+ * AboutWindow_ProcessPendingCreation - Actually create the About window
  *
- * Public API called from Apple menu handler.
+ * Called from main event loop after event dispatch is complete.
+ * This deferred approach prevents event re-entry deadlock.
  */
-void AboutWindow_ShowOrToggle(void)
+void AboutWindow_ProcessPendingCreation(void)
 {
-    serial_puts("[ABOUT] ShowOrToggle: CALLED\n");
-    FINDER_LOG_DEBUG("AboutThisMac: ShowOrToggle called\n");
+    if (!sPendingShowOrToggle) {
+        return;  /* Nothing to do */
+    }
+
+    serial_puts("[ABOUT] ProcessPending: Creating deferred window\n");
+    sPendingShowOrToggle = 0;
 
     if (!sAboutWin) {
-        serial_puts("[ABOUT] ShowOrToggle: Creating new window\n");
+        serial_puts("[ABOUT] ProcessPending: Calling AboutWindow_CreateIfNeeded\n");
         AboutWindow_CreateIfNeeded();
-    } else {
-        serial_puts("[ABOUT] ShowOrToggle: Window already exists\n");
     }
 
     if (!sAboutWin) {
-        serial_puts("[ABOUT] ShowOrToggle: FAILED - window is NULL\n");
-        FINDER_LOG_DEBUG("AboutThisMac: Failed to create window\n");
+        serial_puts("[ABOUT] ProcessPending: FAILED - window is NULL\n");
         return;
     }
 
-    serial_puts("[ABOUT] ShowOrToggle: Bringing window to front\n");
+    serial_puts("[ABOUT] ProcessPending: Bringing window to front\n");
     /* Bring to front and select */
     BringToFront(sAboutWin);
     SelectWindow(sAboutWin);
@@ -504,8 +507,35 @@ void AboutWindow_ShowOrToggle(void)
     /* Request update */
     PostEvent(updateEvt, (UInt32)sAboutWin);
 
-    serial_puts("[ABOUT] ShowOrToggle: Window shown successfully\n");
-    FINDER_LOG_DEBUG("AboutThisMac: Window shown and brought to front\n");
+    serial_puts("[ABOUT] ProcessPending: Window shown successfully\n");
+}
+
+/*
+ * AboutWindow_ShowOrToggle - Request About window to be shown
+ *
+ * Public API called from Apple menu handler.
+ * DEFERRED: Just sets a flag; actual window creation happens in main loop.
+ * This prevents event re-entry deadlock from NewWindow posting events.
+ */
+void AboutWindow_ShowOrToggle(void)
+{
+    serial_puts("[ABOUT] ShowOrToggle: CALLED (deferred)\n");
+    FINDER_LOG_DEBUG("AboutThisMac: ShowOrToggle called\n");
+
+    if (sAboutWin) {
+        /* Window already exists - bring to front immediately */
+        serial_puts("[ABOUT] ShowOrToggle: Window exists, bringing to front\n");
+        BringToFront(sAboutWin);
+        SelectWindow(sAboutWin);
+        PostEvent(updateEvt, (UInt32)sAboutWin);
+        FINDER_LOG_DEBUG("AboutThisMac: Window already shown\n");
+        return;
+    }
+
+    /* Request deferred creation (avoids event re-entry) */
+    serial_puts("[ABOUT] ShowOrToggle: Requesting deferred window creation\n");
+    sPendingShowOrToggle = 1;
+    FINDER_LOG_DEBUG("AboutThisMac: Deferred window creation requested\n");
 }
 
 /*

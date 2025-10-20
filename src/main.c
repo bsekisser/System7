@@ -1707,6 +1707,12 @@ void kernel_main(uint32_t magic, uint32_t* mb2_info) {
             SYSTEM_LOG_DEBUG("MAIN: About to call DispatchEvent(&evt) where evt.what=%d\n", evt.what);
             DispatchEvent(&evt);
             SYSTEM_LOG_DEBUG("MAIN: DispatchEvent returned\n");
+
+            /* Process any pending deferred window creation (About dialog, etc.)
+             * This must happen AFTER DispatchEvent completes to avoid event re-entry deadlock */
+            extern void AboutWindow_ProcessPendingCreation(void);
+            AboutWindow_ProcessPendingCreation();
+
             MemoryManager_CheckSuspectBlock("after_dispatch(coop)");
         } else {
             /* No events - yield to other processes */
