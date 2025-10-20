@@ -1012,8 +1012,15 @@ void ShowWindow(WindowPtr window) {
         GetPort(&savePort);
         SetPort((GrafPtr)window);
 
-        /* CRITICAL: Set clipRgn to contRgn to prevent content from overdrawing chrome! */
-        window->port.clipRgn = window->contRgn;
+        /* CRITICAL FIX: COPY contRgn to clipRgn, don't ALIAS the handles!
+         *
+         * BUG: Previous code did `clipRgn = contRgn` which made both handles point to
+         * the SAME region. Later code calling ClipRect(&qd.screenBits.bounds) would
+         * overwrite clipRgn, which accidentally overwrote contRgn to (0,0,800,600)!
+         *
+         * FIX: Use CopyRgn to copy region DATA, keeping handles separate.
+         * This prevents content from overdrawing chrome while preserving contRgn. */
+        CopyRgn(window->contRgn, window->port.clipRgn);
 
         InvalRgn(window->contRgn);
 

@@ -413,6 +413,20 @@ void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode) {
     Platform_GetWindowContentRect(window, &contentRect);
     Platform_SetRectRgn(window->contRgn, &contentRect);
 
+    /* DEBUG: Log when we set suspicious contRgn for DISK windows */
+    extern void serial_puts(const char* str);
+    extern int sprintf(char* buf, const char* fmt, ...);
+    static int calc_log = 0;
+    if (calc_log < 30 && window->refCon == 0x4449534b) {
+        char dbgbuf[256];
+        sprintf(dbgbuf, "[CALCSTD] DISK: contentRect=(%d,%d,%d,%d) portBits=(%d,%d,%d,%d)\n",
+                contentRect.left, contentRect.top, contentRect.right, contentRect.bottom,
+                window->port.portBits.bounds.left, window->port.portBits.bounds.top,
+                window->port.portBits.bounds.right, window->port.portBits.bounds.bottom);
+        serial_puts(dbgbuf);
+        calc_log++;
+    }
+
     WM_DEBUG("WM_CalculateStandardWindowRegions: Regions calculated");
 }
 
