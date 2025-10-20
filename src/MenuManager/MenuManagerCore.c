@@ -549,6 +549,22 @@ void DrawMenuBar(void)
 
                     /* Check if title is at wrong offset */
                     if (titleLen > 0 && titleLen <= 20) { /* More restrictive sanity check */
+                        /* CRITICAL FIX: Skip drawing if this menu is currently highlighted
+                         * DrawMenuBar should not redraw over a menu that HiliteMenu has inverted.
+                         * If we redraw now, we would erase the inverted highlight and leave
+                         * BOTH black text and inverted traces visible, creating the double-text
+                         * artifact the user sees.
+                         *
+                         * Check if this menu is the currently highlighted menu, and if so,
+                         * skip rendering it. HiliteMenuTitle has already properly handled it. */
+                        if (gMenuMgrState && gMenuMgrState->hiliteMenu == mptr->menuID) {
+                            /* This menu is currently highlighted - skip redrawing it */
+                            extern void serial_puts(const char* str);
+                            serial_puts("[DRAWBAR] SKIPPING highlighted menu\n");
+                            menuWidth = menuBar->menus[i].menuWidth;
+                            continue;
+                        }
+
                         /* Draw normal text title - moved 4px right and 1px down */
                         ForeColor(blackColor);  /* Ensure black text */
                         MoveTo(x + 4, 14);  /* Shifted right 4px and down 1px */
