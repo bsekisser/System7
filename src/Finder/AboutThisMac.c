@@ -473,18 +473,12 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     }
     sLastUpdateTicks = currentTicks;
 
-    /* Get window content rect - use local coordinates */
+    /* Get window content rect - use local coordinates (0,0) origin */
     Rect contentRect;
-    extern GrafPtr g_currentPort;
-    if (g_currentPort) {
-        contentRect = g_currentPort->portRect;
-    } else {
-        /* Fallback: use window dimensions from structure rect */
-        contentRect.top = 0;
-        contentRect.left = 0;
-        contentRect.right = w->port.portBits.bounds.right - w->port.portBits.bounds.left;
-        contentRect.bottom = w->port.portBits.bounds.bottom - w->port.portBits.bounds.top;
-    }
+    contentRect.top = 0;
+    contentRect.left = 0;
+    contentRect.right = w->port.portBits.bounds.right - w->port.portBits.bounds.left;
+    contentRect.bottom = w->port.portBits.bounds.bottom - w->port.portBits.bounds.top;
 
     FINDER_LOG_DEBUG("AboutThisMac: contentRect=(%d,%d,%d,%d)\n",
                  contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
