@@ -1027,8 +1027,6 @@ void ShowWindow(WindowPtr window) {
         /* WORKAROUND: Directly draw folder window content since update events may not flow yet */
         if (window->refCon == 0x4449534b || window->refCon == 0x54525348) {  /* 'DISK' or 'TRSH' */
             extern void FolderWindow_Draw(WindowPtr window);
-            WM_LOG_TRACE("ShowWindow: Drawing content for window %p, refCon=0x%08x\n",
-                         window, (unsigned int)window->refCon);
             FolderWindow_Draw(window);
         }
 

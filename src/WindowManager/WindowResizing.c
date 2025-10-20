@@ -138,8 +138,53 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
     (theWindow)->port.portRect.right = (theWindow)->port.portRect.left + w;
     (theWindow)->port.portRect.bottom = (theWindow)->port.portRect.top + h;
 
-    /* Recalculate window regions */
-    Platform_CalculateWindowRegions(theWindow);
+    /* CRITICAL: Update portBits.bounds for Direct Framebuffer approach
+     *
+     * With Direct Framebuffer, portBits.bounds must ALWAYS be (0,0,width,height).
+     * When window is resized, the LOCAL dimensions change, so update bounds. */
+    extern void SetRect(Rect* r, short left, short top, short right, short bottom);
+    SetRect(&(theWindow)->port.portBits.bounds, 0, 0, w, h);
+
+    /* CRITICAL: Directly update window regions for resize
+     *
+     * Problem: Platform_CalculateWindowRegions has circular dependency - it uses
+     * Platform_GetWindowFrameRect which returns the OLD strucRgn.
+     *
+     * Solution: During resize, window position doesn't change (grow box is bottom-right),
+     * so we can directly calculate new regions from old position + new dimensions.
+     */
+    if (oldStrucRgn && *(oldStrucRgn)) {
+        Rect oldStrucRect = (**oldStrucRgn).rgnBBox;
+
+        /* Chrome dimensions */
+        const SInt16 kBorder = 1;
+        const SInt16 kTitleBar = 20;
+        const SInt16 kSeparator = 1;
+        const SInt16 kRightBorder = 2;
+
+        /* Calculate old content position */
+        SInt16 contentLeft = oldStrucRect.left + kBorder;
+        SInt16 contentTop = oldStrucRect.top + kTitleBar + kSeparator;
+
+        /* Calculate new structure rect (frame) with new dimensions */
+        Rect newStrucRect;
+        newStrucRect.left = oldStrucRect.left;
+        newStrucRect.top = oldStrucRect.top;
+        newStrucRect.right = contentLeft + w + kRightBorder;
+        newStrucRect.bottom = contentTop + h + kBorder;
+
+        /* Calculate new content rect */
+        Rect newContRect;
+        newContRect.left = contentLeft;
+        newContRect.top = contentTop;
+        newContRect.right = contentLeft + w;
+        newContRect.bottom = contentTop + h;
+
+        /* Update regions */
+        extern void Platform_SetRectRgn(RgnHandle rgn, const Rect* rect);
+        Platform_SetRectRgn(theWindow->strucRgn, &newStrucRect);
+        Platform_SetRectRgn(theWindow->contRgn, &newContRect);
+    }
 
     /* Resize native platform window */
     Platform_SizeNativeWindow(theWindow, w, h);
@@ -385,10 +430,17 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
 
         serial_puts("[GW] Starting window redraw\n");
 
-        /* Use PaintBehind to repaint windows behind and including the resized window */
-        /* This ensures both the resized window and any desktop/windows behind it are redrawn */
-        serial_puts("[GW] Calling PaintBehind to repaint window and exposed areas\n");
-        PaintBehind(theWindow, NULL);
+        /* CRITICAL: Explicitly redraw window chrome (frame and title bar)
+         * PaintBehind doesn't necessarily repaint the chrome of the resized window itself */
+        extern void PaintOne(WindowPtr window, RgnHandle clobberedRgn);
+        serial_puts("[GW] Calling PaintOne to redraw window chrome\n");
+        PaintOne(theWindow, NULL);
+        serial_puts("[GW] PaintOne completed - chrome redrawn\n");
+
+        /* Use PaintBehind to repaint windows behind the resized window */
+        /* This ensures desktop/windows behind are redrawn for exposed areas */
+        serial_puts("[GW] Calling PaintBehind to repaint exposed areas behind window\n");
+        PaintBehind(theWindow->nextWindow, NULL);  /* Start with window BEHIND this one */
         serial_puts("[GW] PaintBehind completed\n");
 
         /* Also redraw folder content if applicable */

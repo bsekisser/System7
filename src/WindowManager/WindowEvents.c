@@ -562,7 +562,7 @@ void BeginUpdate(WindowPtr theWindow) {
         }
     }
 
-    /* Erase update region to window background for GWorld double-buffering */
+    /* Erase update region to window background */
     if (theWindow->offscreenGWorld) {
         /* Get GWorld bounds and erase to background */
         PixMapHandle pmHandle = GetGWorldPixMap((GWorldPtr)theWindow->offscreenGWorld);
@@ -584,6 +584,32 @@ void BeginUpdate(WindowPtr theWindow) {
             } else {
                 /* Fall back to EraseRect for non-32-bit modes */
                 EraseRect(&gwBounds);
+            }
+        }
+    } else {
+
+        /* CRITICAL FIX: Manually erase for direct framebuffer
+         *
+         * BUG: EraseRgn doesn't work correctly with Direct Framebuffer approach
+         * because updateRgn is in GLOBAL coords but port is set up for LOCAL coords.
+         *
+         * FIX: Manually fill the framebuffer with white pixels.
+         */
+        if (theWindow->port.portBits.baseAddr) {
+            extern uint32_t fb_pitch;
+            uint32_t bytes_per_pixel = 4;
+
+            /* Get window dimensions from portRect (LOCAL coords) */
+            Rect portRect = theWindow->port.portRect;
+            SInt16 width = portRect.right - portRect.left;
+            SInt16 height = portRect.bottom - portRect.top;
+
+            /* Fill with opaque white (0xFFFFFFFF = ARGB white) */
+            UInt32* pixels = (UInt32*)theWindow->port.portBits.baseAddr;
+            for (SInt16 y = 0; y < height; y++) {
+                for (SInt16 x = 0; x < width; x++) {
+                    pixels[y * (fb_pitch / bytes_per_pixel) + x] = 0xFFFFFFFF;
+                }
             }
         }
     }
