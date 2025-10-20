@@ -55,13 +55,25 @@ void GetPen(Point *pt) {
 
 // Text measurement functions
 SInt16 CharWidth(SInt16 ch) {
-    // Simple fixed-width approximation
     if (g_currentPort == NULL) return 0;
 
+    /* Use actual Chicago font metrics for printable ASCII */
+    if (ch >= 0x20 && ch <= 0x7E) {
+        typedef struct {
+            uint16_t bit_start;
+            uint16_t bit_width;
+            int8_t left_offset;
+            int8_t advance;
+        } ChicagoCharInfo;
+
+        extern const ChicagoCharInfo chicago_ascii[95];
+        const ChicagoCharInfo *info = &chicago_ascii[ch - 0x20];
+        return info->advance;
+    }
+
+    /* Fallback for non-printable characters */
     short fontSize = g_currentPort->txSize;
     if (fontSize == 0) fontSize = 12;
-
-    // Approximate character width
     return (fontSize * 2) / 3;
 }
 
@@ -95,7 +107,7 @@ void DrawChar(SInt16 ch) {
     /* Get current pen location in local coordinates */
     Point penLocal = g_currentPort->pnLoc;
 
-    /* Get character width and metrics */
+    /* Default width for non-printable characters */
     SInt16 width = CharWidth(ch);
 
     /* Render the glyph if it's a printable ASCII character */
@@ -117,6 +129,9 @@ void DrawChar(SInt16 ch) {
 
         /* Get glyph info */
         const ChicagoCharInfo *info = &chicago_ascii[ch - 0x20];
+
+        /* Use actual font metrics for advance width */
+        width = info->advance;
 
         if (info->bit_width > 0) {
             /* Convert pen position to global coordinates for platform drawing */
