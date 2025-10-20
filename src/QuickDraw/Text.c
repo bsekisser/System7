@@ -103,9 +103,13 @@ void DrawChar(SInt16 ch) {
     /* Get current pen location in local coordinates */
     Point penLocal = g_currentPort->pnLoc;
 
-    if (draw_count < 5) {
-        extern void serial_puts(const char* str);
-        serial_puts("[CHAR] DrawChar called\n");
+    if (draw_count < 10) {
+        extern void serial_printf(const char* fmt, ...);
+        serial_printf("[CHAR] ch='%c' penLocal=(%d,%d) bounds=(%d,%d,%d,%d)\n",
+                      (ch >= 32 && ch < 127) ? ch : '?',
+                      penLocal.h, penLocal.v,
+                      g_currentPort->portBits.bounds.left, g_currentPort->portBits.bounds.top,
+                      g_currentPort->portBits.bounds.right, g_currentPort->portBits.bounds.bottom);
         draw_count++;
     }
 
@@ -124,6 +128,11 @@ void DrawChar(SInt16 ch) {
             /* Convert pen position to global coordinates for platform drawing */
             Point penGlobal = penLocal;
             LocalToGlobal(&penGlobal);
+
+            if (draw_count < 10) {
+                extern void serial_printf(const char* fmt, ...);
+                serial_printf("[CHAR] After L2G: penGlobal=(%d,%d)\n", penGlobal.h, penGlobal.v);
+            }
 
             /* Extract glyph bitmap from strike */
             uint8_t glyph_bitmap[CHICAGO_HEIGHT * 16];  /* Max 16 bytes per row */

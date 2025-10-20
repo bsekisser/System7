@@ -555,9 +555,11 @@ void DrawMenuBar(void)
 
                         /* Use actual menu data for title, not hardcoded values */
                         /* This allows custom menus to display their own titles */
-                        MENU_LOG_DEBUG("DrawMenuBar: Drawing menu ID %d, title len=%d\n", mptr->menuID, titleLen);
+                        MENU_LOG_DEBUG("DrawMenuBar: Drawing menu ID %d, title len=%d at x=%d\n", mptr->menuID, titleLen, x + 4);
 
                         /* Draw title from menu data */
+                        extern void serial_puts(const char* str);
+                        serial_puts("[DRAWBAR] Normal text being drawn via DrawText\n");
                         DrawText((char*)&(**menu).menuData[1], 0, titleLen);
                         menuWidth = StringWidth((ConstStr255Param)(**menu).menuData) + 20;
                         memcpy(titleText, &(**menu).menuData[1], titleLen);

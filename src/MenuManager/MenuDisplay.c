@@ -74,7 +74,8 @@ static void SetupMenuDrawingColors(short menuID, short itemID);
 static void DrawMenuFrameInternal(const Rect* menuRect, Boolean selected);
 static void DrawMenuBackgroundInternal(const Rect* menuRect, short menuID);
 static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param itemText,
-                                   short textStyle, Boolean enabled, Boolean selected);
+                                   short textStyle, Boolean enabled, Boolean selected,
+                                   Boolean isMenuTitle);
 static void DrawMenuItemIconInternal(const Rect* iconRect, short iconID,
                                    Boolean enabled, Boolean selected);
 static void DrawMenuItemMarkInternal(const Rect* markRect, unsigned char markChar,
@@ -140,18 +141,20 @@ void HiliteMenuTitle(short menuID, Boolean hilite)
 {
     Rect titleRect;
 
+    extern void serial_puts(const char* str);
+    serial_puts("HiliteMenuTitle ENTRY\n");
+
     /* Get menu title rectangle using the tracking system */
     extern Boolean GetMenuTitleRectByID(short menuID, Rect* outRect);
-    if (GetMenuTitleRectByID(menuID, &titleRect)) {
+    Boolean gotRect = GetMenuTitleRectByID(menuID, &titleRect);
+
+    if (gotRect) {
+        serial_puts("HiliteMenuTitle: GetMenuTitleRectByID succeeded, calling DrawMenuTitle\n");
         /* Draw highlighted or normal title */
         DrawMenuTitle(menuID, &titleRect, hilite);
-
-        /* Debug output */
-        MENU_LOG_TRACE("HiliteMenuTitle: menuID=%d hilite=%d rect=(%d,%d,%d,%d)\n",
-                      menuID, hilite, titleRect.left, titleRect.top,
-                      titleRect.right, titleRect.bottom);
+        serial_puts("HiliteMenuTitle: DrawMenuTitle returned\n");
     } else {
-        MENU_LOG_TRACE("HiliteMenuTitle: GetMenuTitleRectByID failed for menuID=%d\n", menuID);
+        serial_puts("HiliteMenuTitle: GetMenuTitleRectByID FAILED\n");
     }
 }
 
@@ -163,6 +166,7 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
     MenuHandle theMenu;
     unsigned char titleText[256];
     Rect textRect;
+    GrafPtr savePort;
 
     if (titleRect == NULL) {
         return;
@@ -173,60 +177,91 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
         return;
     }
 
+    /* CRITICAL: Menu bar titles must be drawn in WMgrPort (screen port)
+     * titleRect is in screen/global coordinates, so we need WMgrPort which has
+     * portBits.bounds=(0,0,width,height) to avoid coordinate offset issues */
+    GetPort(&savePort);
+    extern GrafPtr g_WMgrPort;
+    extern QDGlobals qd;
+    if (qd.thePort) {
+        SetPort(qd.thePort);  /* WMgrPort */
+    }
+
     /* Get menu title */
     short titleLen = (*(MenuInfo**)theMenu)->menuData[0];
     if (titleLen > 255) titleLen = 255;
     titleText[0] = titleLen;
     memcpy(&titleText[1], &(*(MenuInfo**)theMenu)->menuData[1], titleLen);
 
-    /* Set up text rectangle */
+    /* Use titleRect directly - DrawMenuItemTextInternal will add its own padding */
     textRect = *titleRect;
-    textRect.left += 8;  /* Left margin */
-    textRect.right -= 8; /* Right margin */
-    textRect.top += 2;   /* Top margin */
-    textRect.bottom -= 2; /* Bottom margin */
 
-    /* Set drawing colors based on hilite state */
+    extern void serial_puts(const char* str);
     if (hilited) {
-        /* Highlighted state - invert the title rect */
-        InvertRect(titleRect);
-
-        MENU_LOG_TRACE("Drew highlighted menu title: %.*s\n", titleLen, &titleText[1]);
+        serial_puts("[DRAWTITLE] HIGHLIGHTED menu title\n");
     } else {
-        /* Normal state - manually erase with white background to unhighlight
-         *
-         * CRITICAL: EraseRect doesn't work reliably in all cases, so manually fill
-         * the title rect with white pixels to ensure proper cleanup of highlighting.
-         */
-        extern void* framebuffer;
-        extern uint32_t fb_pitch;
+        serial_puts("[DRAWTITLE] NORMAL menu title\n");
+    }
 
-        if (framebuffer) {
-            uint32_t bytes_per_pixel = 4;
-            SInt16 width = titleRect->right - titleRect->left;
-            SInt16 height = titleRect->bottom - titleRect->top;
+    /* Debug: Log coordinates being used */
+    static char debugBuf[256];
+    extern int snprintf(char*, size_t, const char*, ...);
+    snprintf(debugBuf, sizeof(debugBuf), "[DRAWTITLE] titleRect=(%d,%d,%d,%d) textRect=(%d,%d,%d,%d)\n",
+             titleRect->left, titleRect->top, titleRect->right, titleRect->bottom,
+             textRect.left, textRect.top, textRect.right, textRect.bottom);
+    serial_puts(debugBuf);
 
-            /* Fill title rect with white (0xFFFFFFFF = ARGB white) */
-            for (SInt16 y = 0; y < height; y++) {
-                SInt16 screenY = titleRect->top + y;
-                if (screenY >= 0 && screenY < 600) {  /* Bounds check */
-                    for (SInt16 x = 0; x < width; x++) {
-                        SInt16 screenX = titleRect->left + x;
-                        if (screenX >= 0 && screenX < 800) {  /* Bounds check */
-                            uint32_t offset = screenY * (fb_pitch / bytes_per_pixel) + screenX;
-                            ((uint32_t*)framebuffer)[offset] = 0xFFFFFFFF;
-                        }
+    /* CRITICAL: Always erase the title rect first to remove any old text
+     * This prevents InvertRect from inverting old text, which would create
+     * a "ghost" effect where inverted old text appears offset from new text. */
+    extern void* framebuffer;
+    extern uint32_t fb_pitch;
+
+    if (framebuffer) {
+        uint32_t bytes_per_pixel = 4;
+        SInt16 width = titleRect->right - titleRect->left;
+        SInt16 height = titleRect->bottom - titleRect->top;
+
+        /* Fill title rect with white (0xFFFFFFFF = ARGB white) */
+        for (SInt16 y = 0; y < height; y++) {
+            SInt16 screenY = titleRect->top + y;
+            if (screenY >= 0 && screenY < 600) {  /* Bounds check */
+                for (SInt16 x = 0; x < width; x++) {
+                    SInt16 screenX = titleRect->left + x;
+                    if (screenX >= 0 && screenX < 800) {  /* Bounds check */
+                        uint32_t offset = screenY * (fb_pitch / bytes_per_pixel) + screenX;
+                        ((uint32_t*)framebuffer)[offset] = 0xFFFFFFFF;
                     }
                 }
             }
         }
+    }
 
-        /* Then draw the text normally */
+    /* Set drawing colors based on hilite state */
+    if (hilited) {
+        /* Highlighted state - invert the title rect AFTER erasing old content */
+        InvertRect(titleRect);
+
+        MENU_LOG_TRACE("Drew highlighted menu title: %.*s\n", titleLen, &titleText[1]);
+    } else {
+        /* Normal state - already erased above */
         MENU_LOG_TRACE("Drew normal menu title: %.*s\n", titleLen, &titleText[1]);
     }
 
     /* Draw the title text */
-    DrawMenuItemTextInternal(&textRect, titleText, normal, true, hilited);
+    extern void serial_puts(const char* str);
+    if (hilited) {
+        serial_puts("[MENU] Drawing HIGHLIGHTED menu title, calling DrawMenuItemTextInternal\n");
+    } else {
+        serial_puts("[MENU] Drawing NORMAL menu title, calling DrawMenuItemTextInternal\n");
+    }
+    DrawMenuItemTextInternal(&textRect, titleText, normal, true, hilited, true);  /* true = isMenuTitle */
+    serial_puts("[MENU] DrawMenuItemTextInternal returned\n");
+
+    /* Restore original port */
+    if (savePort) {
+        SetPort(savePort);
+    }
 }
 
 /*
@@ -291,10 +326,13 @@ void ShowMenu(MenuHandle theMenu, Point location, const MenuDrawInfo* drawInfo)
     /* Calculate menu rectangle */
     CalcMenuRect(theMenu, location, &menuRect);
 
-    /* Save screen bits under menu */
-    if (gCurrentSavedBits != NULL) {
-        DisposeMenuBits(gCurrentSavedBits);
+    /* CRITICAL: Hide any currently shown menu BEFORE showing new one
+     * Otherwise old menu stays visible when switching menus */
+    if (gCurrentlyShownMenu != NULL) {
+        HideMenu();
     }
+
+    /* Save screen bits under menu */
     gCurrentSavedBits = SaveMenuBits_Display(&menuRect);
 
     /* Draw the menu */
@@ -317,11 +355,36 @@ void HideMenu(void)
         return;
     }
 
-    /* Restore screen bits */
+    /* Restore screen bits OR manually erase if restore fails */
     if (gCurrentSavedBits != NULL) {
         RestoreMenuBits_Display(gCurrentSavedBits, &gCurrentMenuRect);
         DisposeMenuBits(gCurrentSavedBits);
         gCurrentSavedBits = NULL;
+    } else {
+        /* CRITICAL: Manually erase menu rect if SaveBits failed
+         * This happens when memory is low and SaveBits couldn't allocate */
+        extern void* framebuffer;
+        extern uint32_t fb_pitch;
+
+        if (framebuffer) {
+            uint32_t bytes_per_pixel = 4;
+            SInt16 width = gCurrentMenuRect.right - gCurrentMenuRect.left;
+            SInt16 height = gCurrentMenuRect.bottom - gCurrentMenuRect.top;
+
+            /* Fill menu rect with white (desktop color) */
+            for (SInt16 y = 0; y < height; y++) {
+                SInt16 screenY = gCurrentMenuRect.top + y;
+                if (screenY >= 0 && screenY < 600) {
+                    for (SInt16 x = 0; x < width; x++) {
+                        SInt16 screenX = gCurrentMenuRect.left + x;
+                        if (screenX >= 0 && screenX < 800) {
+                            uint32_t offset = screenY * (fb_pitch / bytes_per_pixel) + screenX;
+                            ((uint32_t*)framebuffer)[offset] = 0xFFFFFFFF;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /* MENU_LOG_TRACE("Hiding menu ID %d\n", (*(MenuInfo**)gCurrentlyShownMenu)->menuID); */
@@ -472,7 +535,7 @@ void DrawMenuItem(const MenuItemDrawInfo* drawInfo)
     }
 
     DrawMenuItemTextInternal(&textRect, drawInfo->itemText, drawInfo->textStyle,
-                           enabled, selected);
+                           enabled, selected, false);  /* false = not a menu title */
 
     if (drawInfo->itemFlags & kMenuItemHasCmdKey) {
         DrawMenuItemCmdKeyInternal(&cmdRect, drawInfo->cmdChar, enabled, selected);
@@ -489,7 +552,7 @@ void DrawMenuItemText(const Rect* itemRect, ConstStr255Param itemText,
         return;
     }
 
-    DrawMenuItemTextInternal(itemRect, itemText, textStyle, enabled, selected);
+    DrawMenuItemTextInternal(itemRect, itemText, textStyle, enabled, selected, false);  /* false = not a menu title */
 }
 
 /*
@@ -932,9 +995,12 @@ static void DrawMenuBackgroundInternal(const Rect* menuRect, short menuID)
 
 /*
  * DrawMenuItemTextInternal - Internal menu item text drawing
+ * isMenuTitle: If true, use rect directly (no padding). For menu bar titles.
+ *              If false, add padding. For dropdown menu items.
  */
 static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param itemText,
-                                   short textStyle, Boolean enabled, Boolean selected)
+                                   short textStyle, Boolean enabled, Boolean selected,
+                                   Boolean isMenuTitle)
 {
     /* MENU_LOG_TRACE("Drawing item text: %.*s (enabled=%s, selected=%s)\n",
            itemText[0], &itemText[1], enabled ? "Yes" : "No", selected ? "Yes" : "No"); */
@@ -944,27 +1010,39 @@ static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param item
     TextSize(12);
     TextFace(textStyle);  /* Apply style (bold, italic, etc.) */
 
-    /* Set text color based on enabled state */
-    if (!enabled) {
+    /* Set text color based on selected and enabled state */
+    if (selected) {
+        /* CRITICAL: When menu is highlighted (inverted background), draw WHITE text */
+        extern void serial_puts(const char* str);
+        serial_puts("[HILITE-TEXT] Drawing highlighted text - setting ForeColor WHITE\n");
+        ForeColor(whiteColor);  /* White text on black (inverted) background */
+    } else if (!enabled) {
         ForeColor(8);  /* Gray color for disabled items */
     }
 
     /* Calculate text position (left-aligned with padding) */
-    short textX = itemRect->left + 8;  /* 8 pixel left padding */
+    /* Always add 4 pixels for left padding - matches DrawMenuBar's MoveTo(x + 4, ...) */
+    short textX = itemRect->left + 4;
     short textY = itemRect->top + ((itemRect->bottom - itemRect->top) + 9) / 2; /* Vertically centered */
 
     /* Move to drawing position */
+    if (selected) {
+        extern void serial_puts(const char* str);
+        serial_puts("[HILITE-TEXT] About to call MoveTo for highlighted text\n");
+    }
     MoveTo(textX, textY);
+    if (selected) {
+        extern void serial_puts(const char* str);
+        serial_puts("[HILITE-TEXT] MoveTo completed\n");
+    }
 
     /* Draw the menu item text using Font Manager */
     DrawString(itemText);
 
     /* Restore black color if we changed it */
-    if (!enabled) {
+    if (selected || !enabled) {
         ForeColor(blackColor);  /* Restore to black */
     }
-
-    (void)selected;
 }
 
 /*

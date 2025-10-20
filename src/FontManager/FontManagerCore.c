@@ -528,11 +528,14 @@ void QD_LocalToPixel(short localX, short localY, short* pixelX, short* pixelY) {
  * DrawChar - Draw a single character at the current pen location
  */
 void DrawChar(short ch) {
-    extern void serial_puts(const char* str);
+    extern void serial_printf(const char* fmt, ...);
     static int char_count = 0;
 
-    if (char_count < 5) {
-        serial_puts("[DRAWCHAR-FM] DrawChar called\n");
+    if (char_count < 15) {
+        serial_printf("[DRAWCHAR-FM] ch='%c' pnLoc=(%d,%d)\n",
+                     (ch >= 32 && ch < 127) ? ch : '?',
+                     g_currentPort ? g_currentPort->pnLoc.h : -1,
+                     g_currentPort ? g_currentPort->pnLoc.v : -1);
         char_count++;
     }
 
@@ -555,9 +558,10 @@ void DrawChar(short ch) {
         UInt32 color = QDPlatform_MapQDColor(g_currentPort->fgColor);
 
         static int coord_debug = 0;
-        if (coord_debug < 3) {
+        if (coord_debug < 30) {
             extern void serial_printf(const char* fmt, ...);
-            serial_printf("[DRAWCHAR] pen=(%d,%d) pixel=(%d,%d) bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
+            serial_printf("[DRAWCHAR] ch='%c' pen=(%d,%d) pixel=(%d,%d) bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
+                         (ch >= 32 && ch < 127) ? ch : '?',
                          pen.h, pen.v, px, py,
                          g_currentPort->portBits.bounds.left, g_currentPort->portBits.bounds.top,
                          g_currentPort->portBits.bounds.right, g_currentPort->portBits.bounds.bottom,
