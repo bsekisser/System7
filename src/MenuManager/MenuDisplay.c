@@ -216,49 +216,16 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
      * This prevents InvertRect from inverting old text, which would create
      * a "ghost" effect where inverted old text appears offset from new text.
      *
-     * IMPORTANT: Expand erasure rectangle to cover character glyph rendering
-     * that extends beyond the titleRect boundaries (font metrics, ascenders, etc.)
-     * This prevents cumulative ghost pixels when menus are highlighted repeatedly. */
-    extern void* framebuffer;
-    extern uint32_t fb_pitch;
-
-    if (framebuffer) {
-        uint32_t bytes_per_pixel = 4;
-
-        /* Expand erasure rectangle to account for character glyph rendering
-         * that extends beyond titleRect boundaries due to font metrics.
-         *
-         * Vertical expansion: Characters can have ascenders (extend above) and
-         * descenders (extend below). Add 4 pixels on each side.
-         *
-         * Horizontal expansion: Characters can have slight kerning/spacing
-         * variations, anti-aliasing, and rendering artifacts. Add 2 pixels
-         * on each side for safety. */
-        SInt16 erasureLeft = titleRect->left - 2;      /* Extend left for anti-aliasing */
-        SInt16 erasureRight = titleRect->right + 2;    /* Extend right for anti-aliasing */
-        SInt16 erasureTop = titleRect->top - 4;        /* Extend up for ascenders */
-        SInt16 erasureBottom = titleRect->bottom + 4;  /* Extend down for descenders */
-        SInt16 erasureWidth = erasureRight - erasureLeft;
-        SInt16 erasureHeight = erasureBottom - erasureTop;
-
-        /* Fill expanded title rect with white (0xFFFFFFFF = ARGB white) */
-        for (SInt16 y = 0; y < erasureHeight; y++) {
-            SInt16 screenY = erasureTop + y;
-            if (screenY >= 0 && screenY < 600) {  /* Bounds check */
-                for (SInt16 x = 0; x < erasureWidth; x++) {
-                    SInt16 screenX = erasureLeft + x;
-                    if (screenX >= 0 && screenX < 800) {  /* Bounds check */
-                        uint32_t offset = screenY * (fb_pitch / bytes_per_pixel) + screenX;
-                        ((uint32_t*)framebuffer)[offset] = 0xFFFFFFFF;
-                    }
-                }
-            }
-        }
-    }
+     * Use FillRect with white to erase, which goes through QuickDraw's
+     * coordinate system and respects the port's clipping region. */
+    FillRect(titleRect, &qd.white);
 
     /* Set drawing colors based on hilite state */
     if (hilited) {
-        /* Highlighted state - invert the title rect AFTER erasing old content */
+        /* Highlighted state - invert the ORIGINAL titleRect (not expanded)
+         * We already erased the expanded region above to prevent ghost pixels,
+         * but InvertRect must use the original titleRect to ensure text is
+         * positioned correctly within the inverted area */
         InvertRect(titleRect);
 
         MENU_LOG_TRACE("Drew highlighted menu title: %.*s\n", titleLen, &titleText[1]);
