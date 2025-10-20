@@ -674,7 +674,7 @@ static void CalculateCheckboxRects(ControlHandle checkbox) {
 
     checkData = (CheckboxData *)*(*checkbox)->contrlData;
     bounds = (*checkbox)->contrlRect;
-    boxSize = checkData->isRadio ? RADIO_SIZE : CHECKBOX_SIZE;
+    boxSize = CHECKBOX_SIZE;  /* Same size for both (12 pixels) */
 
     /* Box rectangle (left side) */
     checkData->boxRect = bounds;

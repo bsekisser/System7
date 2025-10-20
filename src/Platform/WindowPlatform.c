@@ -497,11 +497,8 @@ void Platform_HighlightWindowPart(WindowPtr window, short partCode, Boolean high
     }
 
     if (hasRect) {
-        if (highlight) {
-            InvertRect(&partRect);
-        } else {
-            InvertRect(&partRect);  /* Invert again to unhighlight */
-        }
+        /* InvertRect toggles highlight state (XOR operation) */
+        InvertRect(&partRect);
     }
 
     SetPort(savePort);

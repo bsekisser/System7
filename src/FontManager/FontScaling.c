@@ -128,11 +128,8 @@ static void FM_ScaleCharNearestNeighbor(short srcX, short srcY, char ch,
         for (int rep = 0; rep < scaleInt; rep++) {
             FM_DrawChicagoCharInternal(srcX + rep, srcY, ch, color);
         }
-    } else if (scale < 256) {
-        /* Scaling down - skip pixels */
-        FM_DrawChicagoCharInternal(srcX, srcY, ch, color);
     } else {
-        /* No scaling needed */
+        /* scale <= 256: scaling down or no scaling - draw once */
         FM_DrawChicagoCharInternal(srcX, srcY, ch, color);
     }
 }

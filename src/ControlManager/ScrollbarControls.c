@@ -368,7 +368,7 @@ short TrackScrollbar(ControlHandle c, Point startLocal, short startPart,
 
         /* Determine timing based on part type */
         isPage = (startPart == inPageUp || startPart == inPageDown);
-        initialDelay = isPage ? PAGE_INITIAL_DELAY : ARROW_INITIAL_DELAY;
+        initialDelay = ARROW_INITIAL_DELAY;  /* Same value for both (8 ticks) */
         repeatRate = isPage ? PAGE_REPEAT_RATE : ARROW_REPEAT_RATE;
 
         data->initialDelay = true;

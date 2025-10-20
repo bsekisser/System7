@@ -311,7 +311,7 @@ static OSErr resize_handle_internal(Handle h, Size newSize, Boolean is32Bit) {
     }
 
     /* Validate and align new size */
-    Size minFree = is32Bit ? MIN_FREE_32BIT : MIN_FREE_24BIT;
+    Size minFree = MIN_FREE_24BIT;  /* Same value for both modes (12 bytes) */
     if (newSize < 0) {
         return memFullErr;
     }
