@@ -138,12 +138,28 @@ Boolean DispatchEvent(EventRecord* event)
         return true;
     }
 
-    /* Notepad event handling */
+    /* Notepad event handling - selective interception */
+    /* IMPORTANT: Allow menu bar clicks to bypass Notepad interception */
     extern void Notepad_HandleEvent(EventRecord *event);
     extern WindowPtr Notepad_GetWindow(void);
+    extern short FindWindow(Point thePoint, WindowPtr* theWindow);
+
     if (Notepad_GetWindow() != NULL) {
-        Notepad_HandleEvent(event);
-        return true;
+        /* For mouseDown events, check if click is on menu bar */
+        if (event->what == mouseDown) {
+            /* Menu bar is at v < 20 (pixel coordinates) */
+            if (event->where.v < 20) {
+                /* Let menu bar click through - don't intercept */
+            } else {
+                /* Non-menu bar click - let Notepad handle it */
+                Notepad_HandleEvent(event);
+                return true;
+            }
+        } else if (event->what != mouseUp && event->what != nullEvent) {
+            /* For non-mouse events (keyDown, keyUp, etc), let Notepad handle them */
+            Notepad_HandleEvent(event);
+            return true;
+        }
     }
 
     switch (event->what) {
