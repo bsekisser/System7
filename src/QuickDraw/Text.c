@@ -1,6 +1,7 @@
 #include "../../include/SystemTypes.h"
 #include "QuickDraw/QuickDrawInternal.h"
 #include "../../include/QuickDraw/QuickDraw.h"
+#include "../../include/chicago_font.h"
 #include <stddef.h>
 
 // Global current port
@@ -59,14 +60,6 @@ SInt16 CharWidth(SInt16 ch) {
 
     /* Use actual Chicago font metrics for printable ASCII */
     if (ch >= 0x20 && ch <= 0x7E) {
-        typedef struct {
-            uint16_t bit_start;
-            uint16_t bit_width;
-            int8_t left_offset;
-            int8_t advance;
-        } ChicagoCharInfo;
-
-        extern const ChicagoCharInfo chicago_ascii[95];
         const ChicagoCharInfo *info = &chicago_ascii[ch - 0x20];
         return info->advance;
     }
@@ -112,21 +105,6 @@ void DrawChar(SInt16 ch) {
 
     /* Render the glyph if it's a printable ASCII character */
     if (ch >= 0x20 && ch <= 0x7E) {
-        extern const uint8_t chicago_bitmap[2100];
-
-        #define CHICAGO_HEIGHT 15
-        #define CHICAGO_ROW_BYTES 140
-
-        /* Chicago font character info for ASCII printable (0x20 to 0x7E) */
-        typedef struct {
-            uint16_t bit_start;
-            uint16_t bit_width;
-            int8_t left_offset;
-            int8_t advance;
-        } ChicagoCharInfo;
-
-        extern const ChicagoCharInfo chicago_ascii[95];
-
         /* Get glyph info */
         const ChicagoCharInfo *info = &chicago_ascii[ch - 0x20];
 
