@@ -566,6 +566,14 @@ void DrawMenuBar(void)
                         titleText[titleLen] = '\0';
 
                         MENU_LOG_TRACE("DrawMenuBar: Drew title '%.*s' for menu ID %d\n", titleLen, titleText, mptr->menuID);
+
+                        /* Log the titleRect that will be recorded */
+                        static char buf[256];
+                        extern int snprintf(char*, size_t, const char*, ...);
+                        snprintf(buf, sizeof(buf), "[DRAWBAR] Recording AddMenuTitle: menuID=%d, left=%d, width=%d\n",
+                                 mptr->menuID, x, menuWidth);
+                        serial_puts(buf);
+
                         AddMenuTitle(mptr->menuID, x, menuWidth, titleText);
                         x += menuWidth;
                     }
