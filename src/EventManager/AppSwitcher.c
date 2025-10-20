@@ -396,11 +396,43 @@ void AppSwitcher_Draw(void) {
         ForeColor(0x000000);  /* Black */
         FrameRect(&iconRect);
 
-        /* Draw generic icon (placeholder) */
-        Rect iconInner = iconRect;
-        InsetRect(&iconInner, 4, 4);
-        ForeColor(0xCCCCCC);  /* Light gray */
-        PaintRect(&iconInner);
+        /* Try to render actual app icon if available */
+        Boolean iconRendered = false;
+        if (app->icon.large.argb32 && app->icon.large.w >= 16 && app->icon.large.h >= 16) {
+            /* Render a small version of the icon (16x16 from top-left of 32x32) */
+            Rect innerRect = iconRect;
+            InsetRect(&innerRect, 2, 2);  /* Leave border */
+
+            /* Simple pixel blit from icon data */
+            for (SInt16 iy = 0; iy < 16 && (iy + innerRect.top) < innerRect.bottom; iy++) {
+                for (SInt16 ix = 0; ix < 16 && (ix + innerRect.left) < innerRect.right; ix++) {
+                    UInt32 pixel = app->icon.large.argb32[iy * app->icon.large.w + ix];
+                    UInt8 alpha = (pixel >> 24) & 0xFF;
+
+                    /* Only draw if not fully transparent */
+                    if (alpha > 0x80) {
+                        UInt8 r = (pixel >> 16) & 0xFF;
+                        UInt8 g = (pixel >> 8) & 0xFF;
+                        UInt8 b = pixel & 0xFF;
+                        UInt32 color = (r << 16) | (g << 8) | b;
+                        ForeColor(color);
+
+                        /* Draw single pixel using pen */
+                        MoveTo(innerRect.left + ix, innerRect.top + iy);
+                        LineTo(innerRect.left + ix + 1, innerRect.top + iy);
+                    }
+                }
+            }
+            iconRendered = true;
+        }
+
+        /* Draw fallback generic icon if no actual icon */
+        if (!iconRendered) {
+            Rect iconInner = iconRect;
+            InsetRect(&iconInner, 4, 4);
+            ForeColor(0xCCCCCC);  /* Light gray */
+            PaintRect(&iconInner);
+        }
 
         /* Highlight current selection with thick border */
         if (i == gSwitcherState.currentIndex) {
@@ -494,12 +526,16 @@ OSErr AppSwitcher_UpdateAppList(void) {
         /* Get application name */
         Str255 name;
         name[0] = 0;
+        SInt16 iconID = 0;
+
         if (process->processSignature == 'FNDR') {
             name[0] = 6;
             BlockMoveData("Finder", name + 1, 6);
+            iconID = 999;  /* Custom Finder icon */
         } else if (process->processSignature == 'ttxt') {
             name[0] = 9;
             BlockMoveData("TeachText", name + 1, 9);
+            iconID = 130;  /* TeachText icon */
         } else {
             /* Generic app name from signature */
             name[0] = 4;
@@ -507,8 +543,15 @@ OSErr AppSwitcher_UpdateAppList(void) {
             name[2] = (process->processSignature >> 16) & 0xFF;
             name[3] = (process->processSignature >> 8) & 0xFF;
             name[4] = process->processSignature & 0xFF;
+            iconID = 128;  /* Generic app icon */
         }
         BlockMoveData(name, app->appName, name[0] + 1);
+
+        /* Try to load app icon */
+        if (iconID > 0) {
+            extern bool IconGen_FindByID(int16_t id, IconFamily* out);
+            IconGen_FindByID(iconID, &app->icon);
+        }
 
         app->isHidden = (process->processState == kProcessBackground);
         app->isSystemProcess = false;
