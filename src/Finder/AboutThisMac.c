@@ -379,6 +379,12 @@ static void AboutWindow_CreateIfNeeded(void)
 
     /* Disable double-buffering so text renders directly to framebuffer */
     if (sAboutWin->offscreenGWorld) {
+        FINDER_LOG_DEBUG("AboutThisMac: Before dispose - bounds=(%d,%d,%d,%d)\n",
+                        sAboutWin->port.portBits.bounds.left,
+                        sAboutWin->port.portBits.bounds.top,
+                        sAboutWin->port.portBits.bounds.right,
+                        sAboutWin->port.portBits.bounds.bottom);
+
         DisposeGWorld((GWorldPtr)sAboutWin->offscreenGWorld);
         sAboutWin->offscreenGWorld = NULL;
         sAboutWin->port.portBits.baseAddr = (Ptr)framebuffer;
@@ -388,6 +394,13 @@ static void AboutWindow_CreateIfNeeded(void)
          * QDPlatform_DrawGlyphBitmap does: destX = pen.h - bounds.left
          * With full framebuffer, bounds must be (0, 0, width, height) */
         SetRect(&sAboutWin->port.portBits.bounds, 0, 0, fb_width, fb_height);
+
+        FINDER_LOG_DEBUG("AboutThisMac: After SetRect - bounds=(%d,%d,%d,%d), fb=(%d,%d)\n",
+                        sAboutWin->port.portBits.bounds.left,
+                        sAboutWin->port.portBits.bounds.top,
+                        sAboutWin->port.portBits.bounds.right,
+                        sAboutWin->port.portBits.bounds.bottom,
+                        fb_width, fb_height);
     }
 
     FINDER_LOG_DEBUG("AboutThisMac: Created window at 0x%08x, refCon=0x%08X\n",
@@ -469,7 +482,19 @@ Boolean AboutWindow_HandleUpdate(WindowPtr w)
     GetPort(&savedPort);
     SetPort((GrafPtr)w);
 
+    FINDER_LOG_DEBUG("AboutThisMac: Before BeginUpdate - bounds=(%d,%d,%d,%d)\n",
+                    w->port.portBits.bounds.left,
+                    w->port.portBits.bounds.top,
+                    w->port.portBits.bounds.right,
+                    w->port.portBits.bounds.bottom);
+
     BeginUpdate(w);
+
+    FINDER_LOG_DEBUG("AboutThisMac: After BeginUpdate - bounds=(%d,%d,%d,%d)\n",
+                    w->port.portBits.bounds.left,
+                    w->port.portBits.bounds.top,
+                    w->port.portBits.bounds.right,
+                    w->port.portBits.bounds.bottom);
 
     /* Optional throttle: only recompute stats every N ticks to reduce overhead */
     currentTicks = TickCount();
