@@ -23,7 +23,7 @@ bool IconRes_MapTypeCreatorToIcon(uint32_t type, uint32_t creator, int16_t* outR
 
     /* Finder application */
     if (creator == 'MACS' || type == 'FNDR') {
-        *outRsrcID = 12500; /* Finder.icn */
+        *outRsrcID = 0; /* Finder application icon (Macintosh) */
         return true;
     }
 

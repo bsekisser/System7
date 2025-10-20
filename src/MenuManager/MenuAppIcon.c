@@ -101,11 +101,12 @@ short MenuAppIcon_Draw(GrafPtr port, short left, short top, Boolean highlighted)
     static Boolean sFinderAvailable = false;
 
     if (!sFinderLoaded) {
-        sFinderAvailable = IconGen_FindByID(12500, &sFinderIcon);
+        /* Try to load the Macintosh application icon (ID 0) */
+        sFinderAvailable = IconGen_FindByID(0, &sFinderIcon);
         if (sFinderAvailable) {
-            serial_puts("MenuAppIcon: loaded Finder icon\n");
+            serial_puts("MenuAppIcon: loaded Finder icon (Macintosh)\n");
         } else {
-            serial_puts("MenuAppIcon: failed to load Finder icon\n");
+            serial_puts("MenuAppIcon: failed to load Finder icon, trying fallback\n");
         }
         sFinderLoaded = true;
     }
