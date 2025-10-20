@@ -172,6 +172,27 @@ void IconLabel_Measure(const char* name, int* outWidth, int* outHeight) {
 
 /* Draw label with white background */
 void IconLabel_Draw(const char* name, int cx, int topY, bool selected) {
+    /* Debug icon label rendering */
+    extern void serial_puts(const char* str);
+    static int label_debug = 0;
+    static char ldbg[256];
+
+    if (!name) {
+        if (label_debug < 5) {
+            serial_puts("[LABEL] NULL name passed to IconLabel_Draw\n");
+            label_debug++;
+        }
+        return;
+    }
+
+    int len = strlen(name);
+    if (label_debug < 5) {
+        sprintf(ldbg, "[LABEL] Drawing label: name='%s' len=%d cx=%d topY=%d sel=%d\n",
+               name, len, cx, topY, selected);
+        serial_puts(ldbg);
+        label_debug++;
+    }
+
     int textWidth, textHeight;
     IconLabel_Measure(name, &textWidth, &textHeight);
 
@@ -188,7 +209,6 @@ void IconLabel_Draw(const char* name, int cx, int topY, bool selected) {
 
     /* Draw text using direct bitmap rendering */
     int currentX = textX;
-    int len = strlen(name);
 
     for (int i = 0; i < len; i++) {
         char ch = name[i];

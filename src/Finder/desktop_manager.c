@@ -345,19 +345,15 @@ static void Desktop_DrawIconsCommon(RgnHandle clip)
         int topY = screenPos.v;
         int labelOffset = Desktop_LabelOffsetForItem(&gDesktopIcons[i]);
 
-        /* Debug icon names */
+        /* Debug icon names - C string, not Pascal */
         extern void serial_puts(const char* str);
         static int icon_debug = 0;
         static char icdbg[256];
         if (icon_debug < 5) {
-            int namelen = gDesktopIcons[i].name[0];
-            sprintf(icdbg, "[ICON] Drawing icon %d: namelen=%d pos=(%d,%d) type=%d\n",
-                   i, namelen, screenPos.h, screenPos.v, gDesktopIcons[i].type);
+            int namelen = strlen(gDesktopIcons[i].name);
+            sprintf(icdbg, "[ICON] Icon %d: name='%s' len=%d pos=(%d,%d) type=%d\n",
+                   i, gDesktopIcons[i].name, namelen, screenPos.h, screenPos.v, gDesktopIcons[i].type);
             serial_puts(icdbg);
-            if (namelen > 0 && namelen < 64) {
-                sprintf(icdbg, "[ICON]   name='%.*s'\n", namelen, &gDesktopIcons[i].name[1]);
-                serial_puts(icdbg);
-            }
             icon_debug++;
         }
 
@@ -505,18 +501,70 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
 /* ArrangeDesktopIcons - Arrange desktop icons in a grid */
 void ArrangeDesktopIcons(void)
 {
+    extern void serial_puts(const char* str);
+    static char dbg[128];
+
     const int gridSpacing = 80;  /* Spacing between icons */
     const int startX = 700;       /* Start from right side */
     const int startY = 50;        /* Start below menu bar */
     int currentX = startX;
     int currentY = startY;
 
+    sprintf(dbg, "[ARRANGE] ArrangeDesktopIcons called, count=%d\n", gDesktopIconCount);
+    serial_puts(dbg);
+    sprintf(dbg, "[ARRANGE] gDesktopIcons pointer = 0x%08X\n", (unsigned int)(uintptr_t)gDesktopIcons);
+    serial_puts(dbg);
+    sprintf(dbg, "[ARRANGE] gDesktopIconStatic pointer = 0x%08X\n", (unsigned int)(uintptr_t)gDesktopIconStatic);
+    serial_puts(dbg);
+    sprintf(dbg, "[ARRANGE] Using static storage? %d\n", gDesktopIconStaticInUse);
+    serial_puts(dbg);
+
+    /* Memory dump of icon 0 to check for corruption */
+    serial_puts("[ARRANGE] Icon 0 memory dump (first 96 bytes):\n");
+    unsigned char* ptr = (unsigned char*)&gDesktopIcons[0];
+    for (int i = 0; i < 96; i++) {
+        sprintf(dbg, "%02X ", ptr[i]);
+        serial_puts(dbg);
+        if ((i + 1) % 16 == 0) serial_puts("\n");
+    }
+    serial_puts("\n");
+
     FINDER_LOG_DEBUG("ArrangeDesktopIcons: Arranging %d icons\n", gDesktopIconCount);
 
     /* Arrange icons in a vertical column from top-right */
     for (int i = 0; i < gDesktopIconCount; i++) {
+        /* Safe logging - validate name field first */
+        sprintf(dbg, "[ARRANGE] Icon %d: type=%d iconID=0x%08X\n",
+               i, (int)gDesktopIcons[i].type, (unsigned int)gDesktopIcons[i].iconID);
+        serial_puts(dbg);
+
+        sprintf(dbg, "[ARRANGE] Icon %d: BEFORE pos=(%d,%d)\n",
+               i, gDesktopIcons[i].position.h, gDesktopIcons[i].position.v);
+        serial_puts(dbg);
+
+        /* Print name byte-by-byte to debug corruption */
+        serial_puts("[ARRANGE] Icon name bytes: ");
+        for (int j = 0; j < 16 && gDesktopIcons[i].name[j] != '\0'; j++) {
+            sprintf(dbg, "%02X ", (unsigned char)gDesktopIcons[i].name[j]);
+            serial_puts(dbg);
+        }
+        serial_puts("\n");
+
+        /* Print name as string with length limit */
+        {
+            char nameBuf[65];
+            memcpy(nameBuf, gDesktopIcons[i].name, 64);
+            nameBuf[64] = '\0';
+            sprintf(dbg, "[ARRANGE] Icon %d: name='%s' (first 64 chars)\n", i, nameBuf);
+            serial_puts(dbg);
+        }
+
         gDesktopIcons[i].position.h = currentX;
         gDesktopIcons[i].position.v = currentY;
+
+        sprintf(dbg, "[ARRANGE] Icon %d: AFTER arrange pos=(%d,%d)\n",
+               i, currentX, currentY);
+        serial_puts(dbg);
 
         currentY += gridSpacing;
 
@@ -803,10 +851,10 @@ static OSErr AllocateDesktopIcons(void)
         return noErr; /* Already allocated */
     }
 
-    serial_puts("Desktop: AllocateDesktopIcons allocating with NewPtr\n");
-    gDesktopIcons = (DesktopItem*)NewPtr(sizeof(DesktopItem) * kMaxDesktopIcons);
+    serial_puts("Desktop: AllocateDesktopIcons allocating with NewPtrClear (zeroed)\n");
+    gDesktopIcons = (DesktopItem*)NewPtrClear(sizeof(DesktopItem) * kMaxDesktopIcons);
     if (gDesktopIcons == NULL) {
-        serial_puts("Desktop: NewPtr failed, falling back to calloc\n");
+        serial_puts("Desktop: NewPtrClear failed, trying again\n");
         gDesktopIcons = (DesktopItem*)NewPtrClear((kMaxDesktopIcons) * (sizeof(DesktopItem)));
         if (gDesktopIcons == NULL) {
             serial_puts("Desktop: calloc failed, using static storage\n");
@@ -827,6 +875,26 @@ static OSErr AllocateDesktopIcons(void)
     gDesktopIcons[0].movable = false;  /* Trash stays in place */
     gDesktopIconCount = 1;  /* Start with trash */
     gVolumeIconVisible = true;  /* Ensure trash renders even if volume add fails */
+
+    {
+        extern void serial_puts(const char* str);
+        static char dbg[128];
+        sprintf(dbg, "[DESKTOP_INIT] gDesktopIcons allocated at 0x%08X\n", (unsigned int)(uintptr_t)gDesktopIcons);
+        serial_puts(dbg);
+        sprintf(dbg, "[DESKTOP_INIT] Created Trash icon: name='%s' pos=(%d,%d)\n",
+               gDesktopIcons[0].name, gDesktopIcons[0].position.h, gDesktopIcons[0].position.v);
+        serial_puts(dbg);
+
+        /* Memory dump of icon 0 to verify data */
+        serial_puts("[DESKTOP_INIT] Icon 0 memory dump (first 96 bytes):\n");
+        unsigned char* ptr = (unsigned char*)&gDesktopIcons[0];
+        for (int i = 0; i < 96; i++) {
+            sprintf(dbg, "%02X ", ptr[i]);
+            serial_puts(dbg);
+            if ((i + 1) % 16 == 0) serial_puts("\n");
+        }
+        serial_puts("\n");
+    }
 
     {
         char msg[96];
@@ -1562,6 +1630,17 @@ OSErr InitializeVolumeIcon(void)
         FINDER_LOG_DEBUG("InitializeVolumeIcon: Added volume icon at index %d, pos=(%d,%d)\n",
                       gDesktopIconCount, fb_width - 100, 60);
 
+        {
+            extern void serial_puts(const char* str);
+            static char dbg[128];
+            sprintf(dbg, "[DESKTOP_INIT] Added boot volume icon: name='%s' pos=(%d,%d) index=%d\n",
+                   gDesktopIcons[gDesktopIconCount].name,
+                   gDesktopIcons[gDesktopIconCount].position.h,
+                   gDesktopIcons[gDesktopIconCount].position.v,
+                   gDesktopIconCount);
+            serial_puts(dbg);
+        }
+
         gDesktopIconCount++;
         gVolumeIconVisible = true;
 
@@ -1616,6 +1695,14 @@ OSErr Desktop_AddVolumeIcon(const char* name, VRefNum vref) {
 
     FINDER_LOG_DEBUG("Desktop_AddVolumeIcon: Added '%s' (vRef %d) at index %d, pos=(%d,%d)\n",
                   name, vref, gDesktopIconCount, item->position.h, item->position.v);
+
+    {
+        extern void serial_puts(const char* str);
+        static char dbg[128];
+        sprintf(dbg, "[DESKTOP_INIT] Added volume icon: name='%s' pos=(%d,%d) index=%d\n",
+               item->name, item->position.h, item->position.v, gDesktopIconCount);
+        serial_puts(dbg);
+    }
 
     gDesktopIconCount++;
 
