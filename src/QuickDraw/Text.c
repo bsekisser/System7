@@ -42,6 +42,15 @@ void Move(SInt16 h, SInt16 v) {
 
 void MoveTo(SInt16 h, SInt16 v) {
     if (g_currentPort == NULL) return;
+
+    /* DEBUG */
+    static int moveto_count = 0;
+    extern void serial_log(const char* fmt, ...);
+    if (moveto_count < 5) {
+        serial_log("MoveTo: Setting pen to (%d,%d)\n", h, v);
+        moveto_count++;
+    }
+
     g_penPosition.h = h;
     g_penPosition.v = v;
     /* Also update port's pen location for drawing operations */
@@ -104,6 +113,10 @@ void DrawChar(SInt16 ch) {
     /* Default width for non-printable characters */
     SInt16 width = CharWidth(ch);
 
+    /* DEBUG */
+    static int debug_count = 0;
+    extern void serial_log(const char* fmt, ...);
+
     /* Render the glyph if it's a printable ASCII character */
     if (ch >= 0x20 && ch <= 0x7E) {
         /* Get glyph info */
@@ -112,10 +125,21 @@ void DrawChar(SInt16 ch) {
         /* Use actual font metrics for advance width */
         width = info->advance;
 
+        if (debug_count < 10) {
+            serial_log("DrawChar[%d]: ch='%c' penLocal=(%d,%d) advance=%d\n",
+                      debug_count, ch, penLocal.h, penLocal.v, width);
+            debug_count++;
+        }
+
         if (info->bit_width > 0) {
             /* Convert pen position to global coordinates for platform drawing */
             Point penGlobal = penLocal;
             LocalToGlobal(&penGlobal);
+
+            if (debug_count <= 10) {
+                serial_log("  After LocalToGlobal: penGlobal=(%d,%d)\n",
+                          penGlobal.h, penGlobal.v);
+            }
 
             /* Extract glyph bitmap from strike */
             uint8_t glyph_bitmap[CHICAGO_HEIGHT * 16];  /* Max 16 bytes per row */
@@ -144,8 +168,14 @@ void DrawChar(SInt16 ch) {
     }
 
     /* Advance pen position in local coordinates */
+    SInt16 oldH = g_currentPort->pnLoc.h;
     g_currentPort->pnLoc.h += width;
     g_penPosition.h += width;  /* Keep global pen position in sync */
+
+    if (debug_count <= 10) {
+        serial_log("  After advance: pnLoc.h %d -> %d (advanced by %d)\n",
+                  oldH, g_currentPort->pnLoc.h, width);
+    }
 }
 
 void DrawString(ConstStr255Param s) {
