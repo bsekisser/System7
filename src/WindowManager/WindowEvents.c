@@ -490,6 +490,19 @@ void BeginUpdate(WindowPtr theWindow) {
     GrafPtr savePort = Platform_GetCurrentPort();
     Platform_SetUpdatePort(savePort);
 
+    /* CRITICAL FIX: Set portBits.bounds to LOCAL coordinates for proper rendering
+     * portBits.bounds must be (0,0,width,height) so drawing code uses local coordinates
+     * This fixes control panel and other window content being offset from window position
+     * Same fix as About This Mac (AboutWindow_UpdateFramebufferAddress) */
+    Rect portRect = theWindow->port.portRect;
+    int width = portRect.right - portRect.left;
+    int height = portRect.bottom - portRect.top;
+
+    theWindow->port.portBits.bounds.left = 0;
+    theWindow->port.portBits.bounds.top = 0;
+    theWindow->port.portBits.bounds.right = width;
+    theWindow->port.portBits.bounds.bottom = height;
+
     /* If window has offscreen GWorld, swap portBits to point to GWorld buffer */
     if (theWindow->offscreenGWorld) {
         /* Get GWorld PixMap */
