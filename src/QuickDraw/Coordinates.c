@@ -67,7 +67,11 @@ void LocalToGlobal(Point *pt) {
     assert(pt != NULL);
 
     if (g_currentPort) {
-        /* Convert from local (port) coordinates to global (screen) coordinates */
+        /* With Direct Framebuffer approach, portBits.bounds is (0,0,w,h)
+         * so this is effectively a no-op, which is correct for drawing code.
+         *
+         * For actual coordinate conversion (e.g., click detection), use
+         * LocalToGlobalWindow() instead which uses contRgn. */
         pt->h += g_currentPort->portBits.bounds.left;
         pt->v += g_currentPort->portBits.bounds.top;
     }
@@ -78,9 +82,37 @@ void GlobalToLocal(Point *pt) {
     assert(pt != NULL);
 
     if (g_currentPort) {
-        /* Convert from global (screen) coordinates to local (port) coordinates */
+        /* With Direct Framebuffer approach, portBits.bounds is (0,0,w,h)
+         * so this is effectively a no-op, which is correct for drawing code.
+         *
+         * For actual coordinate conversion (e.g., click detection), use
+         * GlobalToLocalWindow() instead which uses contRgn. */
         pt->h -= g_currentPort->portBits.bounds.left;
         pt->v -= g_currentPort->portBits.bounds.top;
+    }
+}
+
+/* Window-specific coordinate conversion using contRgn
+ * Use this for click detection and other cases where you need ACTUAL conversion */
+void GlobalToLocalWindow(WindowPtr window, Point *pt) {
+    if (!window || !pt) return;
+
+    /* Use window's content region to get actual global position */
+    if (window->contRgn && *(window->contRgn)) {
+        Rect contentGlobal = (*(window->contRgn))->rgnBBox;
+        pt->h -= contentGlobal.left;
+        pt->v -= contentGlobal.top;
+    }
+}
+
+void LocalToGlobalWindow(WindowPtr window, Point *pt) {
+    if (!window || !pt) return;
+
+    /* Use window's content region to get actual global position */
+    if (window->contRgn && *(window->contRgn)) {
+        Rect contentGlobal = (*(window->contRgn))->rgnBBox;
+        pt->h += contentGlobal.left;
+        pt->v += contentGlobal.top;
     }
 }
 

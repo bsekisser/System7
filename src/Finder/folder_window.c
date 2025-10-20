@@ -909,12 +909,18 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
     FolderWindowState* state = GetFolderState(w);
     if (!state) return false;
 
-    /* Convert global mouse to local window coordinates */
-    Point localPt = ev->where;
+    /* Convert global mouse to local window coordinates
+     *
+     * CRITICAL: With Direct Framebuffer approach, GlobalToLocal is a no-op.
+     * Use GlobalToLocalWindow which uses contRgn for actual conversion.
+     */
+    Point localPt = ev->where;  /* Start with global coords */
+    extern void GlobalToLocalWindow(WindowPtr window, Point *pt);
+    GlobalToLocalWindow(w, &localPt);
+
     GrafPtr savePort;
     GetPort(&savePort);
     SetPort((GrafPtr)w);
-    GlobalToLocal(&localPt);
 
     FINDER_LOG_DEBUG("FW: down at (global %d,%d) local (%d,%d) dbl=%d\n",
                  ev->where.h, ev->where.v, localPt.h, localPt.v, isDoubleClick);
