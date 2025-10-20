@@ -142,9 +142,12 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     static int fill_log = 0;
 
     if (window->contRgn && *(window->contRgn)) {
+        Region* rgn = *(window->contRgn);
         if (fill_log < 10) {
-            sprintf(dbgbuf, "[PAINTONE] Window refCon=0x%08x, will fill=%d\n",
-                   (unsigned int)window->refCon, (window->refCon != 0));
+            sprintf(dbgbuf, "[PAINTONE] refCon=0x%08x fill=%d contRgn bbox=(%d,%d,%d,%d)\n",
+                   (unsigned int)window->refCon, (window->refCon != 0),
+                   rgn->rgnBBox.left, rgn->rgnBBox.top,
+                   rgn->rgnBBox.right, rgn->rgnBBox.bottom);
             serial_puts(dbgbuf);
             fill_log++;
         }
