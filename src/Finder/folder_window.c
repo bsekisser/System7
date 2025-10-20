@@ -15,6 +15,7 @@
 
 #include "SystemTypes.h"
 #include "MemoryMgr/MemoryManager.h"
+#include "ToolboxCompat.h"
 #include "WindowManager/WindowManager.h"
 #include "QuickDraw/QuickDraw.h"
 #include "Finder/Icon/icon_types.h"

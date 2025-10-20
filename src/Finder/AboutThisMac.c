@@ -179,6 +179,7 @@ static void GetMemorySnapshot(MemSnapshot* m)
 {
     Size grow = 0;
     UInt32 freeBytes = 0;
+    (void)freeBytes;  /* Reserved for future use */
     UInt32 totalBytes = 0;
 
     if (!m) return;

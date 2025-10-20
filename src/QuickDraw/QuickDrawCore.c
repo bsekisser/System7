@@ -914,6 +914,7 @@ static void DrawPrimitive(GrafVerb verb, const Rect *shape, int shapeType,
         CGrafPtr cport = (CGrafPtr)g_currentPort;
         if (cport->portPixMap && *cport->portPixMap) {
             PixMapPtr pm = *cport->portPixMap;
+            (void)pm;  /* Reserved for future use */
             /* For GWorld, bounds are local - no offset needed */
             QD_LOG_TRACE("DrawPrimitive COLOR PORT: rect stays local (%d,%d,%d,%d)\n",
                         globalRect.left, globalRect.top, globalRect.right, globalRect.bottom);

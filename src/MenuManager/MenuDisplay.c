@@ -1,5 +1,7 @@
 /* #include "SystemTypes.h" */
+#include "MemoryMgr/MemoryManager.h"
 #include "MenuManager/menu_private.h"
+#include "MemoryMgr/MemoryManager.h"
 #include <string.h>
 /*
  * MenuDisplay.c - Menu Drawing and Visual Management

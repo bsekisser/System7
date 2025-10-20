@@ -51,7 +51,8 @@ typedef struct {
 static RegionRecorder g_regionRecorder = {false, NULL, {0,0,0,0}, NULL, 0, 0};
 static QDErr g_lastRegionError = 0;
 
-/* Forward declarations */
+/* Forward declarations - Commented out: not yet implemented */
+#if 0
 static void CompactRegionData(RgnHandle rgn);
 static Boolean AddScanLineToRegion(RgnHandle rgn, SInt16 y, SInt16 *coords, SInt16 coordCount);
 static void UpdateRegionBounds(RgnHandle rgn);
@@ -63,6 +64,7 @@ static Boolean DifferenceScanLines(SInt16 *line1, SInt16 count1, SInt16 *line2, 
                                SInt16 *result, SInt16 *resultCount);
 static Boolean XorScanLines(SInt16 *line1, SInt16 count1, SInt16 *line2, SInt16 count2,
                         SInt16 *result, SInt16 *resultCount);
+#endif
 
 static void region_log_hex(uint32_t value, int digits) {
     static const char hex[] = "0123456789ABCDEF";
@@ -178,6 +180,7 @@ void DisposeRgn(RgnHandle rgn) {
     DisposePtr((Ptr)rgn);
 }
 
+#if 0  /* Unused function */
 static RgnHandle DuplicateRgn(RgnHandle srcRgn) {
     if (!srcRgn || !*srcRgn) return NULL;
 
@@ -187,6 +190,7 @@ static RgnHandle DuplicateRgn(RgnHandle srcRgn) {
     CopyRgn(srcRgn, newRgn);
     return newRgn;
 }
+#endif
 
 void SetEmptyRgn(RgnHandle rgn) {
     assert(rgn != NULL && *rgn != NULL);
@@ -772,6 +776,7 @@ Boolean ClipLineToRegion(Point *pt1, Point *pt2, RgnHandle clipRgn) {
     /* Simple implementation - clip to bounding box */
     Region *region = *clipRgn;
     Rect clipRect = region->rgnBBox;
+    (void)clipRect;  /* Reserved for future use */
 
     /* Use Cohen-Sutherland line clipping algorithm */
     /* This is a simplified implementation */
@@ -791,6 +796,7 @@ Boolean ClipRectToRegion(Rect *rect, RgnHandle clipRgn, Rect *clippedRect) {
  * REGION HIT TESTING
  * ================================================================ */
 
+#if 0  /* Unused function */
 static HitTestResult HitTestRegion(Point pt, RgnHandle rgn) {
     if (PtInRgn(pt, rgn)) {
         return kHitTestHit;
@@ -815,10 +821,13 @@ static Point FindClosestPointOnRegion(Point pt, RgnHandle rgn) {
 
     return closest;
 }
+#endif
 
+#if 0  /* Unused function */
 static SInt16 DistanceToRegion(Point pt, RgnHandle rgn) {
     Point closest = FindClosestPointOnRegion(pt, rgn);
     SInt16 dx = pt.h - closest.h;
     SInt16 dv = pt.v - closest.v;
     return (SInt16)sqrt(dx * dx + dv * dv);
 }
+#endif

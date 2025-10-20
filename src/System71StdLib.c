@@ -800,6 +800,10 @@ static int vsnprintf(char* str, size_t size, const char* format, va_list args) {
                 p++;
             }
 
+            /* Suppress unused variable warnings - these are placeholders for future implementation */
+            (void)leftAlign;
+            (void)zeroPad;
+
             /* Parse width */
             while (*p >= '0' && *p <= '9') {
                 width = width * 10 + (*p - '0');
