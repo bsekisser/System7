@@ -133,39 +133,23 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
      * The application will draw over this white background when handling update events
      *
      * EXCEPTION: Skip filling windows with refCon=0 (desktop background window)
-     * as filling it with white would erase desktop icons
-     *
-     * FIX: Clip fill to visible content area to prevent covering desktop pattern
-     * Use intersection of contRgn and visRgn to avoid filling beyond window bounds */
+     * as filling it with white would erase desktop icons */
     extern void serial_puts(const char* str);
     static char dbgbuf[128];
     static int fill_log = 0;
 
-    if (window->contRgn && *(window->contRgn) && window->refCon != 0) {
+    if (window->contRgn && *(window->contRgn)) {
         if (fill_log < 10) {
-            sprintf(dbgbuf, "[PAINTONE] Window refCon=0x%08x, filling visible content\n",
-                   (unsigned int)window->refCon);
+            sprintf(dbgbuf, "[PAINTONE] Window refCon=0x%08x, will fill=%d\n",
+                   (unsigned int)window->refCon, (window->refCon != 0));
             serial_puts(dbgbuf);
             fill_log++;
         }
 
-        /* Create clipped fill region: intersection of content and visible regions */
-        RgnHandle fillRgn = NewRgn();
-        if (fillRgn) {
-            if (window->visRgn && *(window->visRgn)) {
-                /* Intersect content with visible to clip to actual visible area */
-                extern void SectRgn(RgnHandle srcA, RgnHandle srcB, RgnHandle dst);
-                SectRgn(window->contRgn, window->visRgn, fillRgn);
-            } else {
-                /* No visRgn, just use contRgn */
-                CopyRgn(window->contRgn, fillRgn);
-            }
-
-            /* Fill only the clipped visible content area */
+        if (window->refCon != 0) {
             extern void FillRgn(RgnHandle rgn, const Pattern* pat);
             extern QDGlobals qd;
-            FillRgn(fillRgn, &qd.white);
-            DisposeRgn(fillRgn);
+            FillRgn(window->contRgn, &qd.white);
         }
     }
 
