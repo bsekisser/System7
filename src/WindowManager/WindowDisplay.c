@@ -973,6 +973,23 @@ void ShowWindow(WindowPtr window) {
     WM_LOG_TRACE("ShowWindow: About to call CalcVis\n");
     CalcVis(window);
 
+    /* CRITICAL: Redraw desktop icons BEFORE painting window to ensure icons appear behind window */
+    extern DeskHookProc g_deskHook;
+    if (g_deskHook && window->strucRgn) {
+        extern void serial_puts(const char* str);
+        serial_puts("[SHOWWIN] Redrawing desktop icons before window\n");
+
+        /* Create region for area under window */
+        extern RgnHandle NewRgn(void);
+        extern void DisposeRgn(RgnHandle rgn);
+        RgnHandle windowRgn = NewRgn();
+        if (windowRgn) {
+            CopyRgn(window->strucRgn, windowRgn);
+            g_deskHook(windowRgn);  /* Redraw desktop icons in this region */
+            DisposeRgn(windowRgn);
+        }
+    }
+
     /* Paint the window */
     extern void serial_puts(const char* str);
     serial_puts("[SHOWWIN] About to call PaintOne for chrome\n");
