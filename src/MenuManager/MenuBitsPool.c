@@ -32,8 +32,8 @@ typedef struct {
 /* Pool entry - tracks a preallocated buffer */
 typedef struct {
     void* pixelBuffer;      /* Preallocated pixel data (fixed size) */
-    SavedBitsRec record;    /* Metadata record */
     Boolean inUse;          /* Currently borrowed */
+    Handle owningHandle;    /* Handle that owns this buffer (for cleanup tracking) */
 } PoolEntry;
 
 /* Global pool state */
@@ -102,12 +102,9 @@ OSErr MenuBitsPool_Init(SInt16 numBuffers, SInt32 bufferSize) {
             return memFullErr;
         }
 
-        /* Initialize record */
-        entry->record.bitsData = entry->pixelBuffer;
-        entry->record.dataSize = bufferSize;
-        entry->record.valid = false;
-        entry->record.fromPool = true;
+        /* Initialize entry */
         entry->inUse = false;
+        entry->owningHandle = NULL;
 
         serial_printf("[MBPOOL] Buffer %d allocated: %p\n", i, entry->pixelBuffer);
     }
@@ -154,10 +151,46 @@ OSErr MenuBitsPool_Shutdown(void) {
  *---------------------------------------------------------------------------*/
 
 /**
- * Allocate a buffer from the pool
+ * Get pointer to available pool buffer (internal use)
+ * Returns pointer to pixel buffer or NULL if none available
+ */
+static void* MenuBitsPool_GetBuffer(SInt16* outIndex) {
+    extern void serial_printf(const char* fmt, ...);
+
+    if (!gMenuBitsPool.initialized) {
+        return NULL;
+    }
+
+    /* Find first available buffer */
+    for (SInt16 i = 0; i < gMenuBitsPool.numEntries; i++) {
+        PoolEntry* entry = &gMenuBitsPool.entries[i];
+
+        if (!entry->inUse) {
+            /* Found available buffer - mark as in use */
+            entry->inUse = true;
+            entry->owningHandle = NULL;  /* Will be set by SaveBits */
+
+            if (outIndex) {
+                *outIndex = i;
+            }
+
+            serial_printf("[MBPOOL] Got buffer %d at %p\n", i, entry->pixelBuffer);
+            return entry->pixelBuffer;
+        }
+    }
+
+    /* No available buffers */
+    serial_printf("[MBPOOL] No available buffers (all %d in use)\n", gMenuBitsPool.numEntries);
+    return NULL;
+}
+
+/**
+ * Allocate a buffer from the pool (returns pixel buffer pointer, not a handle)
+ * Caller must create SavedBitsRec with NewHandle, with bitsData pointing to returned buffer
  */
 Handle MenuBitsPool_Allocate(const Rect* bounds) {
     extern void serial_printf(const char* fmt, ...);
+    SInt16 poolIndex = -1;
 
     if (!gMenuBitsPool.initialized) {
         serial_printf("[MBPOOL] Pool not initialized\n");
@@ -169,39 +202,39 @@ Handle MenuBitsPool_Allocate(const Rect* bounds) {
         return NULL;
     }
 
-    /* Find first available buffer */
-    for (SInt16 i = 0; i < gMenuBitsPool.numEntries; i++) {
-        PoolEntry* entry = &gMenuBitsPool.entries[i];
-
-        if (!entry->inUse) {
-            /* Found available buffer - mark as in use */
-            entry->inUse = true;
-            entry->record.bounds = *bounds;
-            entry->record.valid = false;  /* Will be set to true after data is copied */
-            entry->record.mode = 0;
-
-            serial_printf("[MBPOOL] Allocated buffer %d at %p\n", i, &entry->record);
-
-            /* Return a handle to the record */
-            /* Since this is a static buffer, we create a temporary handle */
-            SavedBitsHandle handle = (SavedBitsHandle)NewHandle(sizeof(SavedBitsPtr));
-            if (!handle) {
-                entry->inUse = false;
-                serial_printf("[MBPOOL] Failed to allocate handle for pool entry\n");
-                return NULL;
-            }
-
-            HLock((Handle)handle);
-            *handle = &entry->record;
-            HUnlock((Handle)handle);
-
-            return (Handle)handle;
-        }
+    /* Get a pool buffer */
+    void* pixelBuffer = MenuBitsPool_GetBuffer(&poolIndex);
+    if (!pixelBuffer) {
+        serial_printf("[MBPOOL] No pool buffers available\n");
+        return NULL;
     }
 
-    /* No available buffers */
-    serial_printf("[MBPOOL] No available buffers (all %d in use)\n", gMenuBitsPool.numEntries);
-    return NULL;
+    /* Create a proper SavedBitsRec handle in the heap */
+    SavedBitsHandle handle = (SavedBitsHandle)NewHandle(sizeof(SavedBitsRec));
+    if (!handle) {
+        serial_printf("[MBPOOL] Failed to allocate SavedBitsRec handle\n");
+        gMenuBitsPool.entries[poolIndex].inUse = false;
+        return NULL;
+    }
+
+    HLock((Handle)handle);
+    SavedBitsPtr record = *handle;
+
+    /* Initialize the record to point to pool buffer */
+    record->bounds = *bounds;
+    record->mode = 0;
+    record->bitsData = pixelBuffer;
+    record->dataSize = gMenuBitsPool.bufferSize;
+    record->valid = false;  /* Will be set after data copied */
+    record->fromPool = true;  /* Mark as from pool */
+
+    /* Store pool index in the pool entry for later recovery */
+    gMenuBitsPool.entries[poolIndex].owningHandle = (Handle)handle;
+
+    HUnlock((Handle)handle);
+
+    serial_printf("[MBPOOL] Allocated pool buffer %d, handle=%p\n", poolIndex, handle);
+    return (Handle)handle;
 }
 
 /**
@@ -215,18 +248,17 @@ OSErr MenuBitsPool_Free(Handle poolHandle) {
     }
 
     HLock(poolHandle);
-    SavedBitsHandle handle = (SavedBitsHandle)poolHandle;
-    SavedBitsPtr record = *handle;
+    SavedBitsPtr record = (SavedBitsPtr)*((SavedBitsHandle)poolHandle);
 
-    /* Find the pool entry that owns this record */
+    /* Find the pool entry that owns this handle */
     Boolean found = false;
     for (SInt16 i = 0; i < gMenuBitsPool.numEntries; i++) {
         PoolEntry* entry = &gMenuBitsPool.entries[i];
 
-        if (&entry->record == record && entry->inUse) {
-            /* Found it - mark as available */
+        if (entry->owningHandle == poolHandle && entry->inUse && record->fromPool) {
+            /* Found it - mark buffer as available (but don't free pixel data) */
             entry->inUse = false;
-            entry->record.valid = false;
+            entry->owningHandle = NULL;
 
             serial_printf("[MBPOOL] Freed buffer %d\n", i);
             found = true;
@@ -235,6 +267,8 @@ OSErr MenuBitsPool_Free(Handle poolHandle) {
     }
 
     HUnlock(poolHandle);
+
+    /* Dispose the SavedBitsRec handle (proper heap management) */
     DisposeHandle(poolHandle);
 
     if (!found) {
