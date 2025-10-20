@@ -549,66 +549,60 @@ void DrawMenuBar(void)
 
                     /* Check if title is at wrong offset */
                     if (titleLen > 0 && titleLen <= 20) { /* More restrictive sanity check */
-                        /* CRITICAL FIX: Skip drawing if this menu is currently highlighted
-                         * DrawMenuBar should not redraw over a menu that HiliteMenu has inverted.
-                         * If we redraw now, we would erase the inverted highlight and leave
-                         * BOTH black text and inverted traces visible, creating the double-text
-                         * artifact the user sees.
-                         *
-                         * Check if this menu is the currently highlighted menu, and if so,
-                         * skip rendering it. HiliteMenuTitle has already properly handled it. */
-                        if (gMenuMgrState && gMenuMgrState->hiliteMenu == mptr->menuID) {
-                            /* This menu is currently highlighted - skip redrawing it */
-                            extern void serial_puts(const char* str);
-                            serial_puts("[DRAWBAR] SKIPPING highlighted menu\n");
-                            menuWidth = menuBar->menus[i].menuWidth;
-                            continue;
-                        }
-
-                        /* Draw normal text title - moved 4px right and 1px down */
-                        ForeColor(blackColor);  /* Ensure black text */
-                        MoveTo(x + 4, 14);  /* Shifted right 4px and down 1px */
-
-                        /* Use actual menu data for title, not hardcoded values */
-                        /* This allows custom menus to display their own titles */
-                        MENU_LOG_DEBUG("DrawMenuBar: Drawing menu ID %d, title len=%d at x=%d\n", mptr->menuID, titleLen, x + 4);
-
-                        /* Draw title from menu data */
-                        extern void serial_puts(const char* str);
-
-                        /* CRITICAL FIX: Use DrawString (FontManager) instead of DrawText (QuickDraw)
-                         * to ensure consistent rendering path. Both DrawMenuBar and DrawMenuTitle
-                         * must use the SAME text rendering function to avoid position mismatches. */
-                        serial_puts("[DRAWBAR] Normal text being drawn via DrawString (FontManager)\n");
-
-                        /* Create Pascal string for DrawString */
-                        unsigned char pascalStr[256];
-                        pascalStr[0] = titleLen;
-                        memcpy(&pascalStr[1], &(**menu).menuData[1], titleLen);
-                        DrawString((ConstStr255Param)pascalStr);
-
-                        /* CRITICAL FIX: Calculate menuWidth from ACTUAL drawn text (titleLen chars)
-                         * not from the entire menu data. The previous code was measuring the entire
-                         * menu's internal data structure which includes items and other data,
-                         * causing menuWidth to be WRONG, leading to cumulative text offset.
-                         *
-                         * Instead, use the PRECOMPUTED width from UpdateMenuBarLayout which is
-                         * already correct. UpdateMenuBarLayout called MeasureMenuTitleWidth which
-                         * computed the actual text width of just the title. */
+                        /* Get precomputed menuWidth from layout */
                         menuWidth = menuBar->menus[i].menuWidth;
-
                         memcpy(titleText, &(**menu).menuData[1], titleLen);
                         titleText[titleLen] = '\0';
 
-                        MENU_LOG_TRACE("DrawMenuBar: Drew title '%.*s' for menu ID %d\n", titleLen, titleText, mptr->menuID);
+                        /* CRITICAL FIX: Skip TEXT DRAWING (but not tracking!) if highlighted
+                         * DrawMenuBar should not redraw over a menu that HiliteMenu has inverted.
+                         * If we redraw now, we would erase the inverted highlight and leave
+                         * BOTH black text and inverted traces visible, creating the double-text
+                         * artifact.
+                         *
+                         * HOWEVER, we MUST still call AddMenuTitle to update the titleRect tracking,
+                         * otherwise the titleRect becomes invalid and the menu can't be opened again.
+                         * So we skip ONLY the text rendering, not the tracking update. */
+                        Boolean isHighlighted = (gMenuMgrState && gMenuMgrState->hiliteMenu == mptr->menuID);
 
-                        /* Log the titleRect that will be recorded */
-                        static char buf[256];
-                        extern int snprintf(char*, size_t, const char*, ...);
-                        snprintf(buf, sizeof(buf), "[DRAWBAR] Recording AddMenuTitle: menuID=%d, left=%d, right=%d, width=%d (x=%d+4 for text)\n",
-                                 mptr->menuID, x, x+menuWidth, menuWidth, x);
-                        serial_puts(buf);
+                        if (!isHighlighted) {
+                            /* Draw normal text title - moved 4px right and 1px down */
+                            ForeColor(blackColor);  /* Ensure black text */
+                            MoveTo(x + 4, 14);  /* Shifted right 4px and down 1px */
 
+                            /* Use actual menu data for title, not hardcoded values */
+                            /* This allows custom menus to display their own titles */
+                            MENU_LOG_DEBUG("DrawMenuBar: Drawing menu ID %d, title len=%d at x=%d\n", mptr->menuID, titleLen, x + 4);
+
+                            /* Draw title from menu data */
+                            extern void serial_puts(const char* str);
+
+                            /* CRITICAL FIX: Use DrawString (FontManager) instead of DrawText (QuickDraw)
+                             * to ensure consistent rendering path. Both DrawMenuBar and DrawMenuTitle
+                             * must use the SAME text rendering function to avoid position mismatches. */
+                            serial_puts("[DRAWBAR] Normal text being drawn via DrawString (FontManager)\n");
+
+                            /* Create Pascal string for DrawString */
+                            unsigned char pascalStr[256];
+                            pascalStr[0] = titleLen;
+                            memcpy(&pascalStr[1], &(**menu).menuData[1], titleLen);
+                            DrawString((ConstStr255Param)pascalStr);
+
+                            MENU_LOG_TRACE("DrawMenuBar: Drew title '%.*s' for menu ID %d\n", titleLen, titleText, mptr->menuID);
+
+                            /* Log the titleRect that will be recorded */
+                            static char buf[256];
+                            extern int snprintf(char*, size_t, const char*, ...);
+                            snprintf(buf, sizeof(buf), "[DRAWBAR] Recording AddMenuTitle: menuID=%d, left=%d, right=%d, width=%d (x=%d+4 for text)\n",
+                                     mptr->menuID, x, x+menuWidth, menuWidth, x);
+                            serial_puts(buf);
+                        } else {
+                            extern void serial_puts(const char* str);
+                            serial_puts("[DRAWBAR] SKIPPING text for highlighted menu, but updating tracking\n");
+                        }
+
+                        /* ALWAYS update titleRect tracking, even if menu is highlighted
+                         * This ensures the titleRect stays valid and the menu can be opened again */
                         AddMenuTitle(mptr->menuID, x, menuWidth, titleText);
                         x += menuWidth;
                     }
