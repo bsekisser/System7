@@ -18,6 +18,8 @@
 extern void DisposeGWorld(GWorldPtr offscreenGWorld);
 extern void* framebuffer;
 extern uint32_t fb_pitch;
+extern uint32_t fb_width;
+extern uint32_t fb_height;
 
 /* External QuickDraw & Window Manager APIs */
 extern void GetPort(GrafPtr* port);
@@ -377,16 +379,15 @@ static void AboutWindow_CreateIfNeeded(void)
 
     /* Disable double-buffering so text renders directly to framebuffer */
     if (sAboutWin->offscreenGWorld) {
-        /* Save the portBits.bounds before disposing GWorld */
-        Rect savedBounds = sAboutWin->port.portBits.bounds;
-
         DisposeGWorld((GWorldPtr)sAboutWin->offscreenGWorld);
         sAboutWin->offscreenGWorld = NULL;
         sAboutWin->port.portBits.baseAddr = (Ptr)framebuffer;
         sAboutWin->port.portBits.rowBytes = (fb_pitch | 0x8000);
 
-        /* CRITICAL: Restore bounds so LocalToGlobal works correctly */
-        sAboutWin->port.portBits.bounds = savedBounds;
+        /* CRITICAL: Set bounds to full screen since baseAddr is now the full framebuffer
+         * QDPlatform_DrawGlyphBitmap does: destX = pen.h - bounds.left
+         * With full framebuffer, bounds must be (0, 0, width, height) */
+        SetRect(&sAboutWin->port.portBits.bounds, 0, 0, fb_width, fb_height);
     }
 
     FINDER_LOG_DEBUG("AboutThisMac: Created window at 0x%08x, refCon=0x%08X\n",
