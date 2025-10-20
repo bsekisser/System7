@@ -377,10 +377,16 @@ static void AboutWindow_CreateIfNeeded(void)
 
     /* Disable double-buffering so text renders directly to framebuffer */
     if (sAboutWin->offscreenGWorld) {
+        /* Save the portBits.bounds before disposing GWorld */
+        Rect savedBounds = sAboutWin->port.portBits.bounds;
+
         DisposeGWorld((GWorldPtr)sAboutWin->offscreenGWorld);
         sAboutWin->offscreenGWorld = NULL;
         sAboutWin->port.portBits.baseAddr = (Ptr)framebuffer;
         sAboutWin->port.portBits.rowBytes = (fb_pitch | 0x8000);
+
+        /* CRITICAL: Restore bounds so LocalToGlobal works correctly */
+        sAboutWin->port.portBits.bounds = savedBounds;
     }
 
     FINDER_LOG_DEBUG("AboutThisMac: Created window at 0x%08x, refCon=0x%08X\n",
