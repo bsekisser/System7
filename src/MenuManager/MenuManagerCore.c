@@ -570,8 +570,8 @@ void DrawMenuBar(void)
                         /* Log the titleRect that will be recorded */
                         static char buf[256];
                         extern int snprintf(char*, size_t, const char*, ...);
-                        snprintf(buf, sizeof(buf), "[DRAWBAR] Recording AddMenuTitle: menuID=%d, left=%d, width=%d\n",
-                                 mptr->menuID, x, menuWidth);
+                        snprintf(buf, sizeof(buf), "[DRAWBAR] Recording AddMenuTitle: menuID=%d, left=%d, right=%d, width=%d (x=%d+4 for text)\n",
+                                 mptr->menuID, x, x+menuWidth, menuWidth, x);
                         serial_puts(buf);
 
                         AddMenuTitle(mptr->menuID, x, menuWidth, titleText);

@@ -206,10 +206,11 @@ void DrawMenuTitle(short menuID, const Rect* titleRect, Boolean hilited)
     static char debugBuf[256];
     extern int snprintf(char*, size_t, const char*, ...);
     extern GrafPtr g_currentPort;
-    snprintf(debugBuf, sizeof(debugBuf), "[DRAWTITLE] titleRect=(%d,%d,%d,%d) bounds=(%d,%d,%d,%d)\n",
+    snprintf(debugBuf, sizeof(debugBuf), "[DRAWTITLE] titleRect=(%d,%d,%d,%d) bounds=(%d,%d,%d,%d) width=%d\n",
              titleRect->left, titleRect->top, titleRect->right, titleRect->bottom,
              g_currentPort->portBits.bounds.left, g_currentPort->portBits.bounds.top,
-             g_currentPort->portBits.bounds.right, g_currentPort->portBits.bounds.bottom);
+             g_currentPort->portBits.bounds.right, g_currentPort->portBits.bounds.bottom,
+             titleRect->right - titleRect->left);
     serial_puts(debugBuf);
 
     /* CRITICAL: Always erase the title rect first to remove any old text
