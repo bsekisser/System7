@@ -851,20 +851,12 @@ static OSErr AllocateDesktopIcons(void)
         return noErr; /* Already allocated */
     }
 
-    serial_puts("Desktop: AllocateDesktopIcons allocating with NewPtrClear (zeroed)\n");
-    gDesktopIcons = (DesktopItem*)NewPtrClear(sizeof(DesktopItem) * kMaxDesktopIcons);
-    if (gDesktopIcons == NULL) {
-        serial_puts("Desktop: NewPtrClear failed, trying again\n");
-        gDesktopIcons = (DesktopItem*)NewPtrClear((kMaxDesktopIcons) * (sizeof(DesktopItem)));
-        if (gDesktopIcons == NULL) {
-            serial_puts("Desktop: calloc failed, using static storage\n");
-            gDesktopIcons = gDesktopIconStatic;
-            memset(gDesktopIcons, 0, sizeof(gDesktopIconStatic));
-            gDesktopIconStaticInUse = true;
-        }
-    } else {
-        gDesktopIconStaticInUse = false;
-    }
+    /* DEFENSIVE: Use static storage to avoid heap corruption issue
+     * TODO: Fix root cause of heap being overwritten with x86 code (8B 87 5D 88) */
+    serial_puts("Desktop: AllocateDesktopIcons using static storage (heap corruption workaround)\n");
+    gDesktopIcons = gDesktopIconStatic;
+    memset(gDesktopIcons, 0, sizeof(gDesktopIconStatic));
+    gDesktopIconStaticInUse = true;
 
     /* Initialize trash as the first desktop item */
     gDesktopIcons[0].type = kDesktopItemTrash;
