@@ -128,7 +128,7 @@ static const IconEntry trash_icons[] = {
 };
 
 // Helper function to get icon by ID
-const IconFamily* GetTrashIcon(int16_t id) {
+static const IconFamily* GetTrashIcon(int16_t id) {
     for (int i = 0; trash_icons[i].name != NULL; i++) {
         if (trash_icons[i].id == id) {
             return trash_icons[i].family;

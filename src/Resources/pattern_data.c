@@ -8,6 +8,7 @@
  */
 
 #include "SystemTypes.h"
+#include "PatternMgr/pattern_resources.h"
 
 /* Classic Mac desktop patterns (8x8 bitmaps, 1 bit per pixel) */
 /* Each byte represents one row, bit 7 is leftmost pixel */

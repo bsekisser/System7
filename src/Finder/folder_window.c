@@ -33,11 +33,9 @@
 #include "ControlPanels/Keyboard.h"
 #include "ControlPanels/ControlStrip.h"
 #include "Datetime/datetime_cdev.h"
-extern void DrawString(const unsigned char* str);
 extern void MoveTo(short h, short v);
 extern void LineTo(short h, short v);
 extern void FrameRect(const Rect* r);
-extern void DrawText(const void* textBuf, short firstByte, short byteCount);
 extern void ClipRect(const Rect* r);
 extern void EraseRect(const Rect* r);
 extern void GlobalToLocal(Point* pt);

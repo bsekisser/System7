@@ -28,7 +28,6 @@ extern void EraseRect(const Rect* r);
 extern void FrameRect(const Rect* r);
 extern void InvertRect(const Rect* r);
 extern void MoveTo(short h, short v);
-extern void DrawString(const unsigned char* s);
 extern void FillRect(const Rect* r, const Pattern* pat);
 extern RgnHandle NewRgn(void);
 extern void DisposeRgn(RgnHandle rgn);

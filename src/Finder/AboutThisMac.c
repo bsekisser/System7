@@ -30,7 +30,6 @@ extern void PaintRect(const Rect* r);
 extern void InsetRect(Rect* r, short dh, short dv);
 extern void MoveTo(short h, short v);
 extern void LineTo(short h, short v);
-extern void DrawString(const unsigned char* s);
 extern void TextFont(short font);
 extern void TextSize(short size);
 extern void TextFace(short face);

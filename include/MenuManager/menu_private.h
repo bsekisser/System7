@@ -160,6 +160,7 @@ Boolean Platform_IsMenuVisible(void* theMenu);
 void Platform_MenuFeedback(short feedbackType, short menuID, short item);
 void Platform_HiliteMenuItem(void* theMenu, short item, Boolean hilite);
 Handle Platform_SaveScreenBits(const Rect* rect);
+void* Platform_SaveScreenBits_Impl(const Rect* rect);
 
 #ifdef __cplusplus
 }

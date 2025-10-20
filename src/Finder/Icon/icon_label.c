@@ -132,7 +132,7 @@ static void FillRectLocal(int left, int top, int right, int bottom, uint32_t col
 }
 
 /* Draw character using direct bitmap rendering (perfected from HD icon) */
-static void DrawChar(char ch, int x, int y, uint32_t color) {
+static void DrawCharBitmap(char ch, int x, int y, uint32_t color) {
     if (ch < 32 || ch > 126) return;
 
     ChicagoCharInfo info = chicago_ascii[ch - 32];
@@ -194,7 +194,7 @@ void IconLabel_Draw(const char* name, int cx, int topY, bool selected) {
         char ch = name[i];
         if (ch >= 32 && ch <= 126) {
             ChicagoCharInfo info = chicago_ascii[ch - 32];
-            DrawChar(ch, currentX, topY - textHeight + 3, fgColor);
+            DrawCharBitmap(ch, currentX, topY - textHeight + 3, fgColor);
             currentX += info.bit_width + 1;
             if (ch == ' ') currentX += 3;  /* Extra space between words */
         }

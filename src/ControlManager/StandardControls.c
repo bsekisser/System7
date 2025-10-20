@@ -31,7 +31,7 @@
 
 // #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
-/* StandardControls.h local */
+#include "ControlManager/StandardControls.h"
 #include "ControlManager/ControlManager.h"
 /* ControlDrawing.h not needed */
 #include "ControlManager/ControlTypes.h"

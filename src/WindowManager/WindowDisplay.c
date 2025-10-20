@@ -14,7 +14,6 @@
 #define blackColor 33
 
 /* External functions */
-extern void DrawString(const unsigned char* str);
 extern void LineTo(short h, short v);
 extern void MoveTo(short h, short v);
 extern void FrameRect(const Rect* r);

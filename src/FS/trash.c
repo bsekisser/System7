@@ -181,7 +181,7 @@ bool Trash_OpenDesktopWindow(void) {
 }
 
 /* Get appropriate icon for current trash state */
-const void* Trash_CurrentIcon(void) {
+static const void* Trash_CurrentIcon(void) {
     /* Will be linked to icon system */
     extern const void* IconSys_TrashEmpty(void);
     extern const void* IconSys_TrashFull(void);

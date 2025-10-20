@@ -30,6 +30,9 @@ Handle LoadPPATResource(int16_t id);
 /* Decode PPAT8 format into RGBA pixels */
 bool DecodePPAT8(const uint8_t* p, size_t n, uint32_t outRGBA[64]);
 
+/* Get built-in pattern data by ID */
+const uint8_t* GetBuiltInPatternData(int16_t patternID);
+
 #ifdef __cplusplus
 }
 #endif

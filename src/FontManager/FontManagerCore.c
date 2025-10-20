@@ -1,11 +1,11 @@
 /*
-#include "FontManager/FontInternal.h"
  * FontManagerCore.c - Core Font Manager Implementation
  *
  * System 7.1-compatible Font Manager with bitmap font support
  * Integrates with existing Chicago font implementation
  */
 
+#include "FontManager/FontInternal.h"
 #include "FontManager/FontManager.h"
 #include "FontManager/FontTypes.h"
 #include "QuickDraw/ColorQuickDraw.h"
@@ -377,8 +377,7 @@ short CharWidth(short ch) {
         /* Check if we need scaling for different size */
         if (g_currentPort && g_currentPort->txSize != 12) {
             /* Use scaled width for non-12pt sizes */
-            extern short FM_GetScaledCharWidth(char ch, short targetSize);
-            short scaledWidth = FM_GetScaledCharWidth(ch, g_currentPort->txSize);
+            short scaledWidth = FM_GetScaledCharWidth(g_currentPort->txFont, g_currentPort->txSize, ch);
 
             /* Apply style on top of scaling if needed */
             if (g_currentPort->txFace != normal) {
@@ -471,7 +470,6 @@ void FM_DrawRun(const unsigned char* bytes, short len, Point baseline) {
 
     /* Draw each character */
     for (short i = 0; i < len; i++) {
-        extern void DrawChar(short ch);
         DrawChar(bytes[i]);
     }
 

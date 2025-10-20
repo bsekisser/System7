@@ -234,6 +234,11 @@ void UnionRect(const Rect *src1, const Rect *src2, Rect *dstRect);
 Boolean EqualRect(const Rect *rect1, const Rect *rect2);
 Boolean EmptyRect(const Rect *r);
 
+/* Text Drawing */
+void DrawChar(short ch);
+void DrawString(ConstStr255Param s);
+void DrawText(const void* textBuf, short firstByte, short byteCount);
+
 /* Cursor Management */
 void InitCursor(void);
 void SetCursor(const Cursor *crsr);

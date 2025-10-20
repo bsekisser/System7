@@ -35,7 +35,6 @@ extern void PenNormal(void);
 extern void TextFont(SInt16 font);
 extern void TextSize(SInt16 size);
 extern void TextFace(Style face);
-extern void DrawString(const unsigned char* s);
 extern SInt16 StringWidth(const unsigned char* s);
 
 /* External Window Manager dependencies */
