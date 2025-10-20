@@ -666,17 +666,15 @@ WindowManagerState* GetWindowManagerState(void) {
  * ============================================================================ */
 
 static void InitializeWMgrPort(void) {
-    /* Allocate Window Manager port */
-    g_wmState.wMgrPort = (WMgrPort*)NewPtrClear(sizeof(WMgrPort));
-    if (g_wmState.wMgrPort == NULL) {
-        #ifdef DEBUG_WINDOW_MANAGER
-        printf("InitializeWMgrPort: Failed to allocate WMgrPort\n");
-        #endif
-        return;
-    }
+    /* DEFENSIVE FIX: Use embedded port instead of heap allocation
+     * Previous code allocated wMgrPort on heap but only used g_wmState.port
+     * This matches desktop icons fix - avoid heap conflicts with regions */
 
-    /* Initialize the base graphics port */
+    /* Initialize the embedded graphics port */
     Platform_InitializePort(&g_wmState.port);
+
+    /* Point wMgrPort to embedded port (no heap allocation needed) */
+    g_wmState.wMgrPort = &g_wmState.port;
 
     /* Set Window Manager specific fields */
     g_wmState.windowList = NULL;
@@ -693,10 +691,10 @@ static void InitializeWMgrPort(void) {
 
     /* Initialize Color Window Manager port if available */
     if (g_wmState.colorQDAvailable) {
-        g_wmState.wMgrCPort = (CGrafPtr)NewPtrClear(sizeof(CGrafPort));
-        if (g_wmState.wMgrCPort) {
-            Platform_InitializeColorPort(g_wmState.wMgrCPort);
-        }
+        /* DEFENSIVE FIX: Use embedded cPort instead of heap allocation */
+        memset(&g_wmState.cPort, 0, sizeof(CGrafPort));
+        Platform_InitializeColorPort(&g_wmState.cPort);
+        g_wmState.wMgrCPort = &g_wmState.cPort;
     }
 }
 

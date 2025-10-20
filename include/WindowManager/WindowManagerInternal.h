@@ -400,8 +400,8 @@ void WM_Assert(Boolean condition, const char* message);
 
 /* Window Manager State - Full definition for internal use */
 struct WindowManagerState {
-    WMgrPort*       wMgrPort;          /* Window Manager graphics port */
-    CGrafPort*      wMgrCPort;         /* Window Manager color port */
+    WMgrPort*       wMgrPort;          /* Window Manager graphics port (points to embedded port) */
+    CGrafPort*      wMgrCPort;         /* Window Manager color port (points to embedded cPort) */
     WindowPtr       windowList;        /* Head of window list */
     WindowPtr       activeWindow;      /* Currently active window */
     AuxWinHandle    auxWinHead;        /* Auxiliary window list */
@@ -411,7 +411,8 @@ struct WindowManagerState {
     Boolean         colorQDAvailable;  /* Color QuickDraw available */
     Boolean         initialized;       /* Window Manager initialized */
     void*           platformData;      /* Platform-specific data */
-    GrafPort        port;             /* Embedded GrafPort */
+    GrafPort        port;              /* Embedded GrafPort (static storage - avoids heap conflicts) */
+    CGrafPort       cPort;             /* Embedded CGrafPort (static storage - avoids heap conflicts) */
     WindowPtr       ghostWindow;       /* Ghost window for dragging */
     short           menuBarHeight;     /* Menu bar height */
     RgnHandle       grayRgn;           /* Desktop gray region */
