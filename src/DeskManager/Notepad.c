@@ -475,7 +475,6 @@ static void Notepad_UpdatePageDisplay(NotePadGlobals *notepad) {
 static void Notepad_DrawPageIndicator(NotePadGlobals *notepad) {
     Rect indicatorRect;
     unsigned char pageText[32];
-    unsigned char *ptr;
     int len;
 
     SetPort((GrafPtr)notepad->window);

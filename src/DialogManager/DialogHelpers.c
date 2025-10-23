@@ -274,7 +274,6 @@ void CenterDialogOnScreen(DialogPtr theDialog) {
     SInt16 screenWidth = 640;   /* Classic Mac screen */
     SInt16 screenHeight = 480;
     SInt16 dialogWidth, dialogHeight;
-    SInt16 newLeft, newTop;
 
     if (!theDialog) return;
 
@@ -284,8 +283,8 @@ void CenterDialogOnScreen(DialogPtr theDialog) {
     dialogWidth = dialogBounds.right - dialogBounds.left;
     dialogHeight = dialogBounds.bottom - dialogBounds.top;
 
-    newLeft = (screenWidth - dialogWidth) / 2;
-    newTop = (screenHeight - dialogHeight) / 3;  /* Slightly above center */
+    SInt16 newLeft = (screenWidth - dialogWidth) / 2;
+    SInt16 newTop = (screenHeight - dialogHeight) / 3;  /* Slightly above center */
 
     /* Move dialog (would call MoveWindow in full implementation) */
     // DIALOG_LOG_DEBUG("Dialog: Centered at (%d,%d)\n", newLeft, newTop);

@@ -385,7 +385,6 @@ ControlHandle DM_FindCancelButton(WindowPtr dialog) {
 void DM_ActivatePushButton(ControlHandle button) {
     UInt32 finalTicks;
     Rect innerRect;
-    SInt16 oldMode;
 
     if (!button || !IsButtonControl(button)) {
         return;

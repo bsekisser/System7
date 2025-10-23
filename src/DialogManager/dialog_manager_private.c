@@ -22,9 +22,6 @@
 /* Private global state access - evidence from DialogMgrGlobals */
 extern DialogMgrGlobals* GetDialogManagerGlobals(void);
 
-/* Saved menu state during modal operations */
-static void* gSavedMenuState = NULL;
-
 /*
  * GetFrontWindowModalClass - Get modal class of front window
  */
