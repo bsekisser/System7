@@ -711,7 +711,7 @@ void Platform_SizeNativeWindow(WindowPtr window, short width, short height) {
 }
 
 /* Drag feedback */
-void Platform_ShowDragOutline(Rect* rect) {
+void Platform_ShowDragOutline(const Rect* rect) {
     /* Draw drag outline */
     GrafPtr savePort;
     GetPort(&savePort);
@@ -722,54 +722,54 @@ void Platform_ShowDragOutline(Rect* rect) {
     /* Use XOR mode for drag outline */
     /* patXor = 10, patCopy = 8 in QuickDraw */
     PenMode(10);  /* patXor */
-    FrameRect(rect);
+    FrameRect((Rect*)rect);
     PenMode(8);   /* patCopy */
 
     SetPort(savePort);
 }
 
-void Platform_HideDragOutline(Rect* rect) {
+void Platform_HideDragOutline(const Rect* rect) {
     /* Erase drag outline by drawing again in XOR mode */
     Platform_ShowDragOutline(rect);
 }
 
-void Platform_UpdateDragOutline(Rect* oldRect, Rect* newRect) {
+void Platform_UpdateDragOutline(const Rect* oldRect, const Rect* newRect) {
     if (oldRect) Platform_HideDragOutline(oldRect);
     if (newRect) Platform_ShowDragOutline(newRect);
 }
 
-void Platform_ShowDragRect(Rect* rect) {
+void Platform_ShowDragRect(const Rect* rect) {
     Platform_ShowDragOutline(rect);
 }
 
-void Platform_HideDragRect(Rect* rect) {
+void Platform_HideDragRect(const Rect* rect) {
     Platform_HideDragOutline(rect);
 }
 
-void Platform_UpdateDragRect(Rect* oldRect, Rect* newRect) {
+void Platform_UpdateDragRect(const Rect* oldRect, const Rect* newRect) {
     Platform_UpdateDragOutline(oldRect, newRect);
 }
 
 /* Size feedback */
-void Platform_ShowSizeFeedback(Rect* rect) {
+void Platform_ShowSizeFeedback(const Rect* rect) {
     Platform_ShowDragOutline(rect);
 }
 
-void Platform_HideSizeFeedback(Rect* rect) {
+void Platform_HideSizeFeedback(const Rect* rect) {
     Platform_HideDragOutline(rect);
 }
 
-void Platform_UpdateSizeFeedback(Rect* oldRect, Rect* newRect) {
+void Platform_UpdateSizeFeedback(const Rect* oldRect, const Rect* newRect) {
     Platform_UpdateDragOutline(oldRect, newRect);
 }
 
 /* Zoom animation */
 void Platform_ShowZoomFrame(const Rect* rect) {
-    Platform_ShowDragOutline((Rect*)rect);
+    Platform_ShowDragOutline(rect);
 }
 
 void Platform_HideZoomFrame(const Rect* rect) {
-    Platform_HideDragOutline((Rect*)rect);
+    Platform_HideDragOutline(rect);
 }
 
 /* Window state */

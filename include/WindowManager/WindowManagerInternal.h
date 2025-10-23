@@ -185,15 +185,15 @@ Boolean Platform_ProcessPendingEvents(void);
 /*
  * Window feedback and visual effects
  */
-void Platform_ShowDragOutline(Rect* rect);
-void Platform_HideDragOutline(Rect* rect);
-void Platform_UpdateDragOutline(Rect* oldRect, Rect* newRect);
-void Platform_ShowDragRect(Rect* rect);
-void Platform_HideDragRect(Rect* rect);
-void Platform_UpdateDragRect(Rect* oldRect, Rect* newRect);
-void Platform_ShowSizeFeedback(Rect* rect);
-void Platform_HideSizeFeedback(Rect* rect);
-void Platform_UpdateSizeFeedback(Rect* oldRect, Rect* newRect);
+void Platform_ShowDragOutline(const Rect* rect);
+void Platform_HideDragOutline(const Rect* rect);
+void Platform_UpdateDragOutline(const Rect* oldRect, const Rect* newRect);
+void Platform_ShowDragRect(const Rect* rect);
+void Platform_HideDragRect(const Rect* rect);
+void Platform_UpdateDragRect(const Rect* oldRect, const Rect* newRect);
+void Platform_ShowSizeFeedback(const Rect* rect);
+void Platform_HideSizeFeedback(const Rect* rect);
+void Platform_UpdateSizeFeedback(const Rect* oldRect, const Rect* newRect);
 void Platform_ShowZoomFrame(const Rect* rect);
 void Platform_HideZoomFrame(const Rect* rect);
 void Platform_EnableWindow(WindowPtr window);
