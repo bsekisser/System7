@@ -283,9 +283,6 @@ void CenterDialogOnScreen(DialogPtr theDialog) {
     dialogWidth = dialogBounds.right - dialogBounds.left;
     dialogHeight = dialogBounds.bottom - dialogBounds.top;
 
-    SInt16 newLeft = (screenWidth - dialogWidth) / 2;
-    SInt16 newTop = (screenHeight - dialogHeight) / 3;  /* Slightly above center */
-
     /* Move dialog (would call MoveWindow in full implementation) */
-    // DIALOG_LOG_DEBUG("Dialog: Centered at (%d,%d)\n", newLeft, newTop);
+    /* Would center at ((screenWidth - dialogWidth) / 2, (screenHeight - dialogHeight) / 3) */
 }

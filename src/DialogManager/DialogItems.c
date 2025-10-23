@@ -54,10 +54,6 @@ static void DisposeDialogItemCache(DialogItemCache* cache);
 static OSErr ParseDialogItemList(Handle itemList, DialogItemEx** items, SInt16* itemCount);
 static DialogItemEx* GetDialogItemEx(DialogPtr theDialog, SInt16 itemNo);
 static Boolean ValidateItemNumber(DialogPtr theDialog, SInt16 itemNo);
-static void DrawButtonItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemEx* item);
-static void DrawTextItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemEx* item);
-static void DrawIconItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemEx* item);
-static void DrawUserItem(DialogPtr theDialog, SInt16 itemNo, const DialogItemEx* item);
 static void InvalidateItemRect(DialogPtr theDialog, const Rect* rect);
 
 /*

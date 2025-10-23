@@ -88,10 +88,6 @@ static struct {
 
 /* Function prototypes */
 Boolean ProcessModalEvent(DialogPtr theDialog, EventRecord* theEvent, SInt16* itemHit);
-static Boolean CallModalFilter(DialogPtr theDialog, EventRecord* theEvent, SInt16* itemHit);
-static void UpdateModalState(DialogPtr theDialog);
-static Boolean IsEventForDialog(DialogPtr theDialog, const EventRecord* theEvent);
-static void HandleModalTimeout(DialogPtr theDialog, SInt16* itemHit);
 static Boolean ProcessStandardModalKeys(DialogPtr theDialog, EventRecord* theEvent, SInt16* itemHit);
 static void FlashButtonInternal(DialogPtr theDialog, SInt16 itemNo);
 
