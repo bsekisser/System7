@@ -499,8 +499,7 @@ void FM_DrawRun(const unsigned char* bytes, short len, Point baseline) {
 
     if (!bytes || len <= 0 || !g_currentPort) return;
 
-    /* Save and set pen location */
-    Point savePen = g_currentPort->pnLoc;
+    /* Set pen location */
     g_currentPort->pnLoc = baseline;
 
     /* Draw each character */

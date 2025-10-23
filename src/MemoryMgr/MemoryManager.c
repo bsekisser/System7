@@ -970,7 +970,6 @@ void DisposePtr(void* p) {
 
     /* Coalesce and insert */
     serial_puts("[DISPOSE] Calling coalesce_forward\n");
-    BlockHeader* b_before_fwd = b;
     b = coalesce_forward(z, b);
     serial_puts("[DISPOSE] After coalesce_forward b=0x");
     mm_print_hex((u32)(uintptr_t)b);
@@ -985,7 +984,6 @@ void DisposePtr(void* p) {
     }
 
     serial_puts("[DISPOSE] Calling coalesce_backward\n");
-    BlockHeader* b_before_bwd = b;
     b = coalesce_backward(z, b);
     serial_puts("[DISPOSE] After coalesce_backward b=0x");
     mm_print_hex((u32)(uintptr_t)b);

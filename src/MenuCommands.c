@@ -552,17 +552,6 @@ static void HandleViewMenu(short item)
     extern void SetWindowViewMode(WindowPtr w, short viewMode);
     extern OSErr CleanUpWindow(WindowPtr w, short sortMode);
 
-    const char* viewNames[] = {
-        "by Icon",
-        "by Name",
-        "by Size",
-        "by Kind",
-        "by Label",
-        "by Date",
-        "Clean Up Window",
-        "Clean Up Selection"
-    };
-
     WindowPtr front = FrontWindow();
 
     switch (item) {
