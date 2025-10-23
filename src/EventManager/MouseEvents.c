@@ -125,14 +125,11 @@ static float g_mouseSensitivity = 1.0f;
 static Boolean g_leftHandedMouse = false;
 
 /* Double-click detection */
-static Point g_lastClickPos = {0, 0};
-static UInt32 g_lastClickTime = 0;
 static SInt16 g_clickCount = 0;
 
 /* Button state tracking */
 static SInt16 g_currentButtonState = 0;
 static SInt16 g_lastButtonState = 0;
-static UInt32 g_lastButtonChangeTime = 0;
 
 /* External references */
 extern void UpdateMouseState(Point newPos, UInt8 buttonState);

@@ -56,7 +56,6 @@ static Boolean g_keyboardInitialized = false;
 /* Keyboard layouts */
 static KeyboardLayout* g_keyboardLayouts = NULL;
 static KeyboardLayout* g_activeLayout = NULL;
-static SInt16 g_numLayouts = 0;
 
 /* Dead key state */
 static DeadKeyState g_deadKeyState = {0};

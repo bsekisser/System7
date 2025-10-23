@@ -495,8 +495,6 @@ static void RemoveUpdateRegion(UpdateRegion* regionToRemove)
  */
 SInt16 ProcessWindowActivation(WindowPtr window, Boolean isActivating)
 {
-    WindowPtr oldFrontWindow = g_frontWindow;
-
     if (isActivating) {
         g_frontWindow = window;
     } else {

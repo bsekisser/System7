@@ -31,7 +31,6 @@ static struct {
 
 /* Mouse and timing state */
 static Point g_mousePos = {100, 100};
-static UInt32 g_tickCount = 0;
 
 /* GetMouse is provided by PS2Controller.c */
 extern void GetMouse(Point* mouseLoc);
