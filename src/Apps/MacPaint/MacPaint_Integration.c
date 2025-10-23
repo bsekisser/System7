@@ -201,78 +201,78 @@ OSErr MacPaint_InitializeMenuBar(void)
     InitMenus();
 
     /* Create Apple menu (128) - will contain desk accessories */
-    menu = NewMenu(128, ""\024");  /* Special Apple character */
+    menu = NewMenu(128, "\p\024");  /* Special Apple character */
     if (menu) {
-        AppendMenu(menu, ""About MacPaint");
+        AppendMenu(menu, "\pAbout MacPaint");
         gMenuBar.fileMenu = menu;  /* Reuse for now */
         InsertMenu(menu, 0);
     }
 
     /* Create File menu (129) */
-    menu = NewMenu(129, ""File");
+    menu = NewMenu(129, "\pFile");
     if (menu) {
-        AppendMenu(menu, ""New");
-        AppendMenu(menu, ""Open");
-        AppendMenu(menu, ""Close");
-        AppendMenu(menu, ""-");
-        AppendMenu(menu, ""Save");
-        AppendMenu(menu, ""Save As...");
-        AppendMenu(menu, ""-");
-        AppendMenu(menu, ""Print");
-        AppendMenu(menu, ""-");
-        AppendMenu(menu, ""Quit");
+        AppendMenu(menu, "\pNew");
+        AppendMenu(menu, "\pOpen");
+        AppendMenu(menu, "\pClose");
+        AppendMenu(menu, "\p-");
+        AppendMenu(menu, "\pSave");
+        AppendMenu(menu, "\pSave As...");
+        AppendMenu(menu, "\p-");
+        AppendMenu(menu, "\pPrint");
+        AppendMenu(menu, "\p-");
+        AppendMenu(menu, "\pQuit");
         gMenuBar.fileMenu = menu;
         InsertMenu(menu, 0);
     }
 
     /* Create Edit menu (130) */
-    menu = NewMenu(130, ""Edit");
+    menu = NewMenu(130, "\pEdit");
     if (menu) {
-        AppendMenu(menu, ""Undo");
-        AppendMenu(menu, ""-");
-        AppendMenu(menu, ""Cut");
-        AppendMenu(menu, ""Copy");
-        AppendMenu(menu, ""Paste");
-        AppendMenu(menu, ""Clear");
-        AppendMenu(menu, ""-");
-        AppendMenu(menu, ""Select All");
-        AppendMenu(menu, ""Invert");
+        AppendMenu(menu, "\pUndo");
+        AppendMenu(menu, "\p-");
+        AppendMenu(menu, "\pCut");
+        AppendMenu(menu, "\pCopy");
+        AppendMenu(menu, "\pPaste");
+        AppendMenu(menu, "\pClear");
+        AppendMenu(menu, "\p-");
+        AppendMenu(menu, "\pSelect All");
+        AppendMenu(menu, "\pInvert");
         gMenuBar.editMenu = menu;
         InsertMenu(menu, 0);
     }
 
     /* Create Font menu (131) */
-    menu = NewMenu(131, ""Font");
+    menu = NewMenu(131, "\pFont");
     if (menu) {
-        AppendMenu(menu, ""Chicago");
-        AppendMenu(menu, ""Geneva");
-        AppendMenu(menu, ""New York");
+        AppendMenu(menu, "\pChicago");
+        AppendMenu(menu, "\pGeneva");
+        AppendMenu(menu, "\pNew York");
         gMenuBar.fontMenu = menu;
         InsertMenu(menu, 0);
     }
 
     /* Create Style menu (132) */
-    menu = NewMenu(132, ""Style");
+    menu = NewMenu(132, "\pStyle");
     if (menu) {
-        AppendMenu(menu, ""Bold");
-        AppendMenu(menu, ""Italic");
-        AppendMenu(menu, ""Underline");
-        AppendMenu(menu, ""-");
-        AppendMenu(menu, ""Plain");
+        AppendMenu(menu, "\pBold");
+        AppendMenu(menu, "\pItalic");
+        AppendMenu(menu, "\pUnderline");
+        AppendMenu(menu, "\p-");
+        AppendMenu(menu, "\pPlain");
         gMenuBar.styleMenu = menu;
         InsertMenu(menu, 0);
     }
 
     /* Create Aids menu (133) - Tools and options */
-    menu = NewMenu(133, ""Aids");
+    menu = NewMenu(133, "\pAids");
     if (menu) {
-        AppendMenu(menu, ""Grid");
-        AppendMenu(menu, ""Fat Bits");
-        AppendMenu(menu, ""-");
-        AppendMenu(menu, ""Pattern Editor");
-        AppendMenu(menu, ""Brush Editor");
-        AppendMenu(menu, ""-");
-        AppendMenu(menu, ""About");
+        AppendMenu(menu, "\pGrid");
+        AppendMenu(menu, "\pFat Bits");
+        AppendMenu(menu, "\p-");
+        AppendMenu(menu, "\pPattern Editor");
+        AppendMenu(menu, "\pBrush Editor");
+        AppendMenu(menu, "\p-");
+        AppendMenu(menu, "\pAbout");
         gMenuBar.aidsMenu = menu;
         InsertMenu(menu, 0);
     }
