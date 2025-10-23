@@ -349,8 +349,7 @@ static void AboutWindow_UpdateFramebufferAddress(void) {
     if (!sAboutWin) return;
 
     /* Get current window content position in global coordinates */
-    Rect contentGlobal;
-    contentGlobal = sAboutWin->port.portBits.bounds;
+    /* TODO: Use contentGlobal for framebuffer address calculation */
 
     /* Convert from local (0,0,w,h) back to global by using portRect and window position */
     /* Actually, we need to get the window's structure rect and calculate content from that */
