@@ -764,12 +764,12 @@ void Platform_UpdateSizeFeedback(Rect* oldRect, Rect* newRect) {
 }
 
 /* Zoom animation */
-void Platform_ShowZoomFrame(Rect* rect) {
-    Platform_ShowDragOutline(rect);
+void Platform_ShowZoomFrame(const Rect* rect) {
+    Platform_ShowDragOutline((Rect*)rect);
 }
 
-void Platform_HideZoomFrame(Rect* rect) {
-    Platform_HideDragOutline(rect);
+void Platform_HideZoomFrame(const Rect* rect) {
+    Platform_HideDragOutline((Rect*)rect);
 }
 
 /* Window state */

@@ -125,7 +125,7 @@ typedef struct DAInterface {
 /* DA Function Pointers */
 typedef int (*DAOpenProc)(DeskAccessory *da);
 typedef void (*DACloseProc)(DeskAccessory *da);
-typedef int (*DAEventProc)(DeskAccessory *da, EventRecord *event);
+typedef int (*DAEventProc)(DeskAccessory *da, const EventRecord *event);
 typedef void (*DAIdleProc)(DeskAccessory *da);
 typedef void (*DAActivateProc)(DeskAccessory *da, Boolean active);
 typedef void (*DAUpdateProc)(DeskAccessory *da);

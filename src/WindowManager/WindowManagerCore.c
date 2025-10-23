@@ -40,26 +40,26 @@
 
 /* Single global instance of Window Manager state */
 static WindowManagerState g_wmState = {
-    NULL,       /* wMgrPort */
-    NULL,       /* wMgrCPort */
-    NULL,       /* windowList */
-    NULL,       /* activeWindow */
-    NULL,       /* auxWinHead */
-    {0},        /* desktopPattern */
-    NULL,       /* desktopPixPat */
-    1000,       /* nextWindowID */
-    false,      /* colorQDAvailable */
-    false,      /* initialized */
-    NULL,       /* platformData */
-    {0},        /* port */
-    {0},        /* cPort */
-    NULL,       /* ghostWindow */
-    20,         /* menuBarHeight */
-    NULL,       /* grayRgn */
-    {0},        /* deskPattern */
-    false,      /* isDragging */
-    {0, 0},     /* dragOffset */
-    false       /* isGrowing */
+    .wMgrPort = NULL,
+    .wMgrCPort = NULL,
+    .windowList = NULL,
+    .activeWindow = NULL,
+    .auxWinHead = NULL,
+    .desktopPattern = {0},
+    .desktopPixPat = NULL,
+    .nextWindowID = 1000,
+    .colorQDAvailable = false,
+    .initialized = false,
+    .platformData = NULL,
+    .port = {0},
+    .cPort = {0},
+    .ghostWindow = NULL,
+    .menuBarHeight = 20,
+    .grayRgn = NULL,
+    .deskPattern = {0},
+    .isDragging = false,
+    .dragOffset = {0, 0},
+    .isGrowing = false
 };
 
 /* Focus suspend/restore for window activation */

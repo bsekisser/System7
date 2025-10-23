@@ -35,7 +35,16 @@ typedef struct {
     int selectionMarching;     /* Marching ants animation */
 } RenderState;
 
-static RenderState gRenderState = {0, 16, 0xCCCCCCCC, 0, 2, 0};
+static RenderState gRenderState = {
+    .showGrid = 0,
+    .gridSpacing = 16,
+    .gridColor = 0xCCCCCCCC,
+    .fatBitsMode = 0,
+    .fatBitsZoom = 2,
+    .showSelectionRect = 0,
+    .selectionRect = {0, 0, 0, 0},
+    .selectionMarching = 0
+};
 
 /* External state from MacPaint modules */
 extern BitMap gPaintBuffer;
@@ -55,7 +64,14 @@ typedef struct {
     int statusDirty;        /* Status bar needs redraw */
 } InvalidationState;
 
-static InvalidationState gInvalidState = {{0}};
+static InvalidationState gInvalidState = {
+    .paintRect = {0, 0, 0, 0},
+    .toolboxRect = {0, 0, 0, 0},
+    .statusRect = {0, 0, 0, 0},
+    .paintDirty = 0,
+    .toolboxDirty = 0,
+    .statusDirty = 0
+};
 
 /**
  * MacPaint_UpdateInvalidationRects - Update cached rectangle positions

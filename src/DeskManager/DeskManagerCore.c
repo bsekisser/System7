@@ -190,7 +190,7 @@ Boolean SystemEvent(const EventRecord *event)
 
     /* Route event to active DA */
     if (g_deskMgr.activeDA && g_deskMgr.activeDA->event) {
-        int result = g_deskMgr.activeDA->event(g_deskMgr.activeDA, (EventRecord *)event);
+        int result = g_deskMgr.activeDA->event(g_deskMgr.activeDA, event);
         return (result == 0);
     }
 
@@ -215,7 +215,7 @@ void SystemClick(const EventRecord *event, WindowRecord *window)
 
             /* Send event to DA */
             if (da->event) {
-                da->event(da, (EventRecord *)event);
+                da->event(da, event);
             }
             return;
         }

@@ -61,7 +61,7 @@ typedef enum {
  */
 OSErr MacPaint_Initialize(void);
 void MacPaint_Shutdown(void);
-int MacPaintMain(int argc, char **argv);
+int MacPaintMain(int argc, const char **argv);
 void MacPaint_Update(void);
 OSErr MacPaint_LoadResources(void);
 OSErr MacPaint_PromptSave(void);
