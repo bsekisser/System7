@@ -751,8 +751,8 @@ int MacPaint_PromptSaveChanges(void)
     DialogPtr dialog;
     SInt16 itemHit = 0;
     Rect bounds;
-    const unsigned char *title = (const unsigned char *)"\p" "Save Document?";
-    const unsigned char *message = (const unsigned char *)"\p" "Save changes to \042Untitled\042 before closing?";
+    const unsigned char *title = (const unsigned char *)"Save Document?";
+    const unsigned char *message = (const unsigned char *)"Save changes to \042Untitled\042 before closing?";
 
     if (!MacPaint_IsDocumentDirty()) {
         return 0;  /* No changes, don't need to save */
