@@ -449,7 +449,6 @@ void MacPaint_AidsHelp(void)
  */
 void MacPaint_FontSelect(int menuItem)
 {
-    int fontID = MENU_FONT + menuItem;
     /* TODO: Set current font for text tool
      * Update menu checkmark
      */

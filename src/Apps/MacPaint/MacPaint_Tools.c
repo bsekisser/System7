@@ -119,7 +119,7 @@ void MacPaint_DrawOvalAlgo(int cx, int cy, int rx, int ry, int filled, int mode)
     if (rx <= 0 || ry <= 0) return;
 
     /* For circles, both radii are equal */
-    int dx, dy, d, x, y;
+    int d, x, y;
 
     if (rx == ry) {
         /* Circle - use simple midpoint algorithm */

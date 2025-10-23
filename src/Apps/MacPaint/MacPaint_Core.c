@@ -83,8 +83,6 @@ extern void MacPaint_BlitRectangle(BitMap *src, BitMap *dst, Rect *srcRect, Rect
 OSErr MacPaint_Initialize(void)
 {
     int i;
-    Size bufferSize;
-    OSErr err;
 
     /* Initialize global state */
     gCurrentTool = TOOL_PENCIL;

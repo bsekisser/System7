@@ -48,11 +48,12 @@ OSErr SubtractWideTime(UnsignedWide a, UnsignedWide b, UnsignedWide *out) {
 
 OSErr MicrosecondDelay(UInt32 microseconds) {
     if (microseconds == 0) return noErr;
-    
-    UnsignedWide start, now, target;
+
+    UnsignedWide start, now;
     Microseconds(&start);
-    
+
     uint64_t targetUs = ((uint64_t)start.hi << 32 | start.lo) + microseconds;
+    UnsignedWide target;
     target.hi = (UInt32)(targetUs >> 32);
     target.lo = (UInt32)(targetUs & 0xFFFFFFFF);
     

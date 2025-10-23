@@ -51,7 +51,6 @@ OSErr BTOpen(FCB* fcb, void* btcb_ptr) {
     BTCB* btcb = (BTCB*)btcb_ptr;
     BTNode* header_node = NULL;
     BTHeader* header = NULL;
-    OSErr result = noErr;
 
     if (fcb == NULL || btcb == NULL) return paramErr;
 

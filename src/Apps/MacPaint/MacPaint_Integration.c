@@ -169,7 +169,6 @@ void MacPaint_UpdateWindowTitle(void)
         return;
     }
 
-    const char *title = MacPaint_GetWindowTitle();
     /* TODO: Use WindowManager to set window title
      * SetWTitle(gDocWindow.window, (ConstStr255Param)title);
      */
