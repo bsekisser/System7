@@ -372,7 +372,6 @@ static OSErr M68K_WriteJumpTableSlot(CPUAddressSpace as, CPUAddr slotAddr,
                                      CPUAddr target)
 {
     M68KAddressSpace* mas = (M68KAddressSpace*)as;
-    UInt8* slot;
 
     if (!mas || slotAddr >= M68K_MAX_ADDR) {
         return paramErr;
@@ -397,7 +396,6 @@ static OSErr M68K_MakeLazyJTStub(CPUAddressSpace as, CPUAddr slotAddr,
                                  SInt16 segID, SInt16 entryIndex)
 {
     M68KAddressSpace* mas = (M68KAddressSpace*)as;
-    UInt8* slot;
 
     if (!mas || slotAddr >= M68K_MAX_ADDR) {
         return paramErr;

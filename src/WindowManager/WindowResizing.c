@@ -298,7 +298,6 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
     serial_puts("[GW] Entering main loop\n");
     Boolean resizeContinues = true;
     Point currentPt = startPt;
-    long lastSize = 0;
 
     /* Track outline for XOR visual feedback */
     Rect outlineRect = originalBounds;

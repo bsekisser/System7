@@ -211,9 +211,6 @@ void WM_RecalculateWindowOrder(void) {
 }
 
 static void Local_UpdatePlatformWindowOrder(void) {
-    WindowManagerState* wmState = GetWindowManagerState();
-    WindowPtr current = wmState->windowList;
-
     WM_DEBUG("WM_UpdatePlatformWindowOrder: Updating platform window order");
 
     /* Update native window stacking order */

@@ -260,9 +260,6 @@ void WM_DrawWindowBorder(WindowPtr window) {
 void WM_DrawDialogBorder(WindowPtr window) {
     if (window == NULL) return;
 
-    /* Get content rectangle for dialog border */
-    Rect contentRect = window->port.portRect;
-
     /* Dialogs have a simpler 3D-style border */
     /* TODO: Implement actual dialog border drawing when graphics system is available */
     WM_DEBUG("WM_DrawDialogBorder: Drawing dialog border");
@@ -366,12 +363,10 @@ void WM_DrawWindowZoomBox(WindowPtr window, WindowPartState state) {
     Platform_GetWindowZoomBoxRect(window, &zoomRect);
 
     /* Draw zoom box based on state and zoom direction */
-    Boolean isZoomed = WM_WindowIsZoomed(window);
 
     /* TODO: Implement actual zoom box drawing when graphics system is available */
 
-    WM_DEBUG("WM_DrawWindowZoomBox: Zoom box drawn, zoomed = %s",
-             isZoomed ? "true" : "false");
+    WM_DEBUG("WM_DrawWindowZoomBox: Zoom box drawn");
 }
 
 void WM_DrawGrowIcon(WindowPtr window) {
