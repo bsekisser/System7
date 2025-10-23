@@ -434,21 +434,21 @@ void Platform_HighlightWindowPart(WindowPtr window, short part, Boolean highligh
  *
  * Displays a gray outline of the rectangle being dragged.
  */
-void Platform_ShowDragOutline(Rect* rect);
+void Platform_ShowDragOutline(const Rect* rect);
 
 /*
  * Platform_UpdateDragOutline - Update drag outline
  *
  * Updates the position of the drag outline from oldRect to newRect.
  */
-void Platform_UpdateDragOutline(Rect* oldRect, Rect* newRect);
+void Platform_UpdateDragOutline(const Rect* oldRect, const Rect* newRect);
 
 /*
  * Platform_HideDragOutline - Hide drag outline
  *
  * Removes the drag outline from the display.
  */
-void Platform_HideDragOutline(Rect* rect);
+void Platform_HideDragOutline(const Rect* rect);
 
 /* ============================================================================
  * Event System Integration
