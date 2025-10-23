@@ -99,14 +99,6 @@ static void WriteRect(const Rect *r) {
 }
 
 /* Helper: Write pattern to picture data */
-static void WritePattern(ConstPatternParam pat) {
-    if (!pat) {
-        for (int i = 0; i < 8; i++) WriteByte(0);
-    } else {
-        for (int i = 0; i < 8; i++) WriteByte(pat->pat[i]);
-    }
-}
-
 /*
  * OpenPicture - Begin picture recording
  */

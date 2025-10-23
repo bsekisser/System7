@@ -31,7 +31,6 @@
 #define MENU_LOG_INFO(fmt, ...)  serial_logf(kLogModuleMenu, kLogLevelInfo, fmt, ##__VA_ARGS__)
 
 /* Forward declarations */
-static void ShowAboutBox(void);
 static void perform_power_off(void);
 
 /* Menu IDs - Standard System 7.1 */
@@ -154,26 +153,6 @@ void DoMenuCommand(short menuID, short item)
 
     /* Clear menu highlighting after command */
     HiliteMenu(0);
-}
-
-/* Show About Box */
-static void ShowAboutBox(void)
-{
-    MENU_LOG_INFO("\n");
-    MENU_LOG_INFO("========================================\n");
-    MENU_LOG_INFO("           System 7 Reimplementation   \n");
-    MENU_LOG_INFO("========================================\n");
-    MENU_LOG_INFO("Version: 7.1.0\n");
-    MENU_LOG_INFO("Build: Clean room reimplementation\n");
-    MENU_LOG_INFO("\n");
-    MENU_LOG_INFO("A compatible implementation of classic\n");
-    MENU_LOG_INFO("Macintosh system software\n");
-    MENU_LOG_INFO("\n");
-    MENU_LOG_INFO("Open source portable implementation\n");
-    MENU_LOG_INFO("========================================\n\n");
-
-    /* Would show a proper dialog box with this information */
-    /* For now just output to serial console */
 }
 
 /* Apple Menu Handler */

@@ -54,34 +54,6 @@ static const unsigned char gFinderMenuImage16[32] = {
 
 extern UInt32 pack_color(uint8_t r, uint8_t g, uint8_t b);
 
-static void DrawFinderGlyph16(int left, int top, Boolean highlighted) {
-    const uint32_t black = pack_color(0, 0, 0);
-    const uint32_t white = pack_color(255, 255, 255);
-
-    for (int y = 0; y < 16; y++) {
-        unsigned short maskRow = (unsigned short)((gFinderMenuMask16[y * 2] << 8) |
-                                                 gFinderMenuMask16[y * 2 + 1]);
-        unsigned short imgRow = (unsigned short)((gFinderMenuImage16[y * 2] << 8) |
-                                                gFinderMenuImage16[y * 2 + 1]);
-
-        for (int x = 0; x < 16; x++) {
-            if (maskRow & (1u << (15 - x))) {
-                uint32_t color = (imgRow & (1u << (15 - x))) ? black : white;
-                if (highlighted) {
-                    uint8_t r = (color >> 16) & 0xFF;
-                    uint8_t g = (color >> 8) & 0xFF;
-                    uint8_t b = color & 0xFF;
-                    r = (r + 0x00) / 2;
-                    g = (g + 0x00) / 2;
-                    b = (b + 0x80) / 2;
-                    color = 0xFF000000 | (r << 16) | (g << 8) | b;
-                }
-                IconPort_WritePixel(left + x, top + y, color);
-            }
-        }
-    }
-}
-
 /* application_icon_16 is 16x16, 1-bit, 2 bytes per row */
 short MenuAppIcon_Draw(GrafPtr port, short left, short top, Boolean highlighted)
 {

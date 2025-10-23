@@ -222,13 +222,6 @@ void QDPlatform_UnlockFramebuffer(PlatformFramebuffer* fb) {
 #define inb_vga(port) hal_inb(port)
 
 /* Wait for VGA vertical retrace (vsync) to ensure screen update */
-static void vga_wait_vsync(void) {
-    /* Wait for any current retrace to end */
-    while (inb_vga(VGA_INPUT_STATUS_1) & VGA_VRETRACE_BIT);
-    /* Wait for next retrace to begin */
-    while (!(inb_vga(VGA_INPUT_STATUS_1) & VGA_VRETRACE_BIT));
-}
-
 /* Update screen region */
 void QDPlatform_UpdateScreen(SInt32 left, SInt32 top, SInt32 right, SInt32 bottom) {
     /* Minimal delay to allow QEMU display refresh - faster than full vsync */

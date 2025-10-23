@@ -169,7 +169,6 @@ static void FormatKB_PStr(UInt32 bytes, Str255 outP) {
 /* Forward declarations */
 static void AboutWindow_CreateIfNeeded(void);
 static void GetMemorySnapshot(MemSnapshot* m);
-static const char* GetSystemVersionString(void);
 
 /*
  * GetMemorySnapshot - Gather memory statistics
@@ -293,54 +292,6 @@ static void FormatKBWithCommas(UInt32 bytes, char* buf, size_t bufSize)
  * Calculates colon position for proper alignment and separation of
  * label and value. Label width determines where colon is drawn.
  */
-static void DrawLabeledValue(short x, short y, const char* label, UInt32 bytes)
-{
-    char valueStr[32];
-    unsigned char pstr[64];
-    unsigned char colonStr[2];
-    short labelLen;
-    short colonWidth;
-
-    /* Draw label */
-    pstr[0] = (unsigned char)strlen(label);
-    memcpy(&pstr[1], label, pstr[0]);
-    MoveTo(x, y);
-    DrawString(pstr);
-
-    /* Calculate position for colon (after label) */
-    labelLen = StringWidth((ConstStr255Param)pstr);
-
-    /* Draw colon separator */
-    colonStr[0] = 1;
-    colonStr[1] = ':';
-    colonWidth = StringWidth((ConstStr255Param)colonStr);
-    MoveTo(x + labelLen, y);
-    DrawString(colonStr);
-
-    /* Format and draw value (after colon with spacing) */
-    FormatKBWithCommas(bytes, valueStr, sizeof(valueStr));
-    pstr[0] = (unsigned char)strlen(valueStr);
-    memcpy(&pstr[1], valueStr, pstr[0]);
-
-    MoveTo(x + labelLen + colonWidth + 4, y);
-    DrawString(pstr);
-}
-
-/*
- * GetSystemVersionString - Return version string
- *
- * Returns build version if available, otherwise "System 7.1"
- * Version can be set at build time via SYSTEM_BUILD_VERSION define
- */
-static const char* GetSystemVersionString(void)
-{
-    /* Allow build system to inject version via -DSYSTEM_BUILD_VERSION=... */
-    #ifdef SYSTEM_BUILD_VERSION
-        return SYSTEM_BUILD_VERSION;
-    #else
-        return "System 7.1";
-    #endif
-}
 
 /*
  * AboutWindow_UpdateFramebufferAddress - Recalculate baseAddr after window moves
