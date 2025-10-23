@@ -693,9 +693,8 @@ OSErr MacPaint_ExecuteMenuCommand(int menuID, int itemID)
  */
 OSErr MacPaint_LoadApplicationResources(void)
 {
-    OSErr err;
-
     /* TODO: Load resources from application file
+     * OSErr err;
      * - Menus (MENU resources)
      * - Dialogs (DLOG resources)
      * - Icons (ICON resources)

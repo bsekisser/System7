@@ -61,7 +61,7 @@ typedef struct {
     int updateRect;             /* Rect that needs updating */
 } EventLoopState;
 
-static EventLoopState gEventState = {1, 0, 0, 0, 0, 0, 0};
+static EventLoopState gEventState = {1, 0, 0, 0, 0, 0, 0, 0};
 
 /* External state from MacPaint modules */
 extern WindowPtr gPaintWindow;
@@ -663,10 +663,12 @@ void MacPaint_RunEventLoop(void)
                 }
                 break;
 
+            /* Note: kEventQuitEvent not valid in classic Mac OS event model
             case kEventQuitEvent:
-                /* Quit event from system */
+                // Quit event from system
                 gEventState.running = 0;
                 break;
+            */
 
             case kEventNullEvent:
                 /* No event, but we got control back from WaitNextEvent */
