@@ -212,6 +212,9 @@ extern void M68K_Op_NOP(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_EXT(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_SWAP(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_BTST(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_BSET(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_BCLR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_BCHG(M68KAddressSpace* as, UInt16 opcode);
 
 /* Shift operations */
 extern void M68K_Op_LSL(M68KAddressSpace* as, UInt16 opcode);
@@ -219,9 +222,18 @@ extern void M68K_Op_LSR(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_ASL(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_ASR(M68KAddressSpace* as, UInt16 opcode);
 
-/* Multiply operations */
+/* Rotate operations */
+extern void M68K_Op_ROL(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_ROR(M68KAddressSpace* as, UInt16 opcode);
+
+/* Multiply/Divide operations */
 extern void M68K_Op_MULU(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_MULS(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_DIVU(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_DIVS(M68KAddressSpace* as, UInt16 opcode);
+
+/* Negate operations */
+extern void M68K_Op_NEG(M68KAddressSpace* as, UInt16 opcode);
 
 /* Multi-register operations */
 extern void M68K_Op_MOVEM(M68KAddressSpace* as, UInt16 opcode);

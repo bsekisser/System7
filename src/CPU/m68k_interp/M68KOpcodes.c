@@ -1676,3 +1676,383 @@ void M68K_Op_BTST(M68KAddressSpace* as, UInt16 opcode)
 
     /* BTST does not affect other flags */
 }
+
+/*
+ * BSET - Bit set
+ * Encoding: 0000 rrr1 11xx xrrr (register form) or 0000 1000 11xx xrrr (immediate form)
+ * Format: BSET Dn, <ea>  or  BSET #<data>, <ea>
+ */
+void M68K_Op_BSET(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 bit_num_reg = (opcode >> 9) & 7;
+    UInt8 mode = (opcode >> 3) & 7;
+    UInt8 reg = opcode & 7;
+    UInt32 bit_num, value;
+    M68KSize size;
+
+    /* Determine bit number */
+    if ((opcode & 0x0100) == 0x0100) {
+        bit_num = as->regs.d[bit_num_reg];
+    } else {
+        bit_num = M68K_Fetch16(as) & 0xFF;
+    }
+
+    /* Determine size */
+    if (mode == MODE_Dn) {
+        size = SIZE_LONG;
+        bit_num &= 31;
+    } else {
+        size = SIZE_BYTE;
+        bit_num &= 7;
+    }
+
+    /* Read operand */
+    value = M68K_EA_Read(as, mode, reg, size);
+
+    /* Test old bit value (Z flag) */
+    if (value & (1 << bit_num)) {
+        M68K_ClearFlag(as, CCR_Z);
+    } else {
+        M68K_SetFlag(as, CCR_Z);
+    }
+
+    /* Set bit */
+    value |= (1 << bit_num);
+
+    /* Write back */
+    M68K_EA_Write(as, mode, reg, size, value);
+}
+
+/*
+ * BCLR - Bit clear
+ * Encoding: 0000 rrr1 10xx xrrr (register form) or 0000 1000 10xx xrrr (immediate form)
+ * Format: BCLR Dn, <ea>  or  BCLR #<data>, <ea>
+ */
+void M68K_Op_BCLR(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 bit_num_reg = (opcode >> 9) & 7;
+    UInt8 mode = (opcode >> 3) & 7;
+    UInt8 reg = opcode & 7;
+    UInt32 bit_num, value;
+    M68KSize size;
+
+    /* Determine bit number */
+    if ((opcode & 0x0100) == 0x0100) {
+        bit_num = as->regs.d[bit_num_reg];
+    } else {
+        bit_num = M68K_Fetch16(as) & 0xFF;
+    }
+
+    /* Determine size */
+    if (mode == MODE_Dn) {
+        size = SIZE_LONG;
+        bit_num &= 31;
+    } else {
+        size = SIZE_BYTE;
+        bit_num &= 7;
+    }
+
+    /* Read operand */
+    value = M68K_EA_Read(as, mode, reg, size);
+
+    /* Test old bit value (Z flag) */
+    if (value & (1 << bit_num)) {
+        M68K_ClearFlag(as, CCR_Z);
+    } else {
+        M68K_SetFlag(as, CCR_Z);
+    }
+
+    /* Clear bit */
+    value &= ~(1 << bit_num);
+
+    /* Write back */
+    M68K_EA_Write(as, mode, reg, size, value);
+}
+
+/*
+ * BCHG - Bit change (toggle)
+ * Encoding: 0000 rrr1 01xx xrrr (register form) or 0000 1000 01xx xrrr (immediate form)
+ * Format: BCHG Dn, <ea>  or  BCHG #<data>, <ea>
+ */
+void M68K_Op_BCHG(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 bit_num_reg = (opcode >> 9) & 7;
+    UInt8 mode = (opcode >> 3) & 7;
+    UInt8 reg = opcode & 7;
+    UInt32 bit_num, value;
+    M68KSize size;
+
+    /* Determine bit number */
+    if ((opcode & 0x0100) == 0x0100) {
+        bit_num = as->regs.d[bit_num_reg];
+    } else {
+        bit_num = M68K_Fetch16(as) & 0xFF;
+    }
+
+    /* Determine size */
+    if (mode == MODE_Dn) {
+        size = SIZE_LONG;
+        bit_num &= 31;
+    } else {
+        size = SIZE_BYTE;
+        bit_num &= 7;
+    }
+
+    /* Read operand */
+    value = M68K_EA_Read(as, mode, reg, size);
+
+    /* Test old bit value (Z flag) */
+    if (value & (1 << bit_num)) {
+        M68K_ClearFlag(as, CCR_Z);
+    } else {
+        M68K_SetFlag(as, CCR_Z);
+    }
+
+    /* Toggle bit */
+    value ^= (1 << bit_num);
+
+    /* Write back */
+    M68K_EA_Write(as, mode, reg, size, value);
+}
+
+/*
+ * DIVU - Unsigned divide
+ * Encoding: 1000 rrr0 11xx xrrr
+ * Format: DIVU <ea>, Dn  (32÷16 -> 16r:16q)
+ */
+void M68K_Op_DIVU(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 reg = (opcode >> 9) & 7;
+    UInt8 ea_mode = (opcode >> 3) & 7;
+    UInt8 ea_reg = opcode & 7;
+    UInt32 dividend, divisor, quotient, remainder;
+
+    /* Read divisor (word) */
+    divisor = M68K_EA_Read(as, ea_mode, ea_reg, SIZE_WORD) & 0xFFFF;
+
+    /* Check for divide by zero */
+    if (divisor == 0) {
+        M68K_Fault(as, "Division by zero");
+        return;
+    }
+
+    /* Read dividend (long) */
+    dividend = as->regs.d[reg];
+
+    /* Unsigned divide */
+    quotient = dividend / divisor;
+    remainder = dividend % divisor;
+
+    /* Check for overflow (quotient doesn't fit in 16 bits) */
+    if (quotient > 0xFFFF) {
+        M68K_SetFlag(as, CCR_V);
+        /* Result undefined on overflow, don't update Dn */
+        return;
+    }
+
+    /* Pack result: high word = remainder, low word = quotient */
+    as->regs.d[reg] = ((remainder & 0xFFFF) << 16) | (quotient & 0xFFFF);
+
+    /* Set flags */
+    M68K_SetNZ(as, quotient, SIZE_WORD);
+    M68K_ClearFlag(as, CCR_V | CCR_C);
+}
+
+/*
+ * DIVS - Signed divide
+ * Encoding: 1000 rrr1 11xx xrrr
+ * Format: DIVS <ea>, Dn  (32÷16 -> 16r:16q)
+ */
+void M68K_Op_DIVS(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 reg = (opcode >> 9) & 7;
+    UInt8 ea_mode = (opcode >> 3) & 7;
+    UInt8 ea_reg = opcode & 7;
+    SInt32 dividend, divisor, quotient, remainder;
+
+    /* Read divisor (word, sign-extended) */
+    divisor = SIGN_EXTEND_WORD(M68K_EA_Read(as, ea_mode, ea_reg, SIZE_WORD));
+
+    /* Check for divide by zero */
+    if (divisor == 0) {
+        M68K_Fault(as, "Division by zero");
+        return;
+    }
+
+    /* Read dividend (long) */
+    dividend = (SInt32)as->regs.d[reg];
+
+    /* Signed divide */
+    quotient = dividend / divisor;
+    remainder = dividend % divisor;
+
+    /* Check for overflow (quotient doesn't fit in 16 bits) */
+    if (quotient < -32768 || quotient > 32767) {
+        M68K_SetFlag(as, CCR_V);
+        /* Result undefined on overflow */
+        return;
+    }
+
+    /* Pack result: high word = remainder, low word = quotient */
+    as->regs.d[reg] = ((remainder & 0xFFFF) << 16) | (quotient & 0xFFFF);
+
+    /* Set flags */
+    M68K_SetNZ(as, quotient & 0xFFFF, SIZE_WORD);
+    M68K_ClearFlag(as, CCR_V | CCR_C);
+}
+
+/*
+ * ROL - Rotate left
+ * Encoding: 1110 cccD ss01 1rrr
+ * Format: ROL Dx, Dy  or  ROL #<data>, Dy
+ */
+void M68K_Op_ROL(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 count_reg = (opcode >> 9) & 7;
+    UInt8 dir = (opcode >> 8) & 1;
+    UInt8 size = (opcode >> 6) & 3;
+    UInt8 data_reg = opcode & 7;
+    UInt32 value, result, count;
+    UInt32 mask = SIZE_MASK(size);
+    UInt8 bit_width = SIZE_BYTES(size) * 8;
+
+    /* Get rotate count */
+    if (dir) {
+        count = as->regs.d[count_reg] & 0x3F;
+    } else {
+        count = count_reg ? count_reg : 8;
+    }
+
+    /* Read operand */
+    value = as->regs.d[data_reg] & mask;
+
+    /* Perform rotation */
+    if (count == 0) {
+        result = value;
+        M68K_ClearFlag(as, CCR_C);
+    } else {
+        count = count % bit_width;  /* Normalize count */
+        if (count == 0) {
+            result = value;
+            /* C flag gets MSB */
+            if (value & (1 << (bit_width - 1))) {
+                M68K_SetFlag(as, CCR_C);
+            } else {
+                M68K_ClearFlag(as, CCR_C);
+            }
+        } else {
+            result = ((value << count) | (value >> (bit_width - count))) & mask;
+            /* C flag gets last bit rotated out (which is now LSB) */
+            if (result & 1) {
+                M68K_SetFlag(as, CCR_C);
+            } else {
+                M68K_ClearFlag(as, CCR_C);
+            }
+        }
+    }
+
+    /* Write result */
+    as->regs.d[data_reg] = (as->regs.d[data_reg] & ~mask) | result;
+
+    /* Set flags */
+    M68K_SetNZ(as, result, size);
+    M68K_ClearFlag(as, CCR_V);
+}
+
+/*
+ * ROR - Rotate right
+ * Encoding: 1110 cccD ss01 0rrr
+ * Format: ROR Dx, Dy  or  ROR #<data>, Dy
+ */
+void M68K_Op_ROR(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 count_reg = (opcode >> 9) & 7;
+    UInt8 dir = (opcode >> 8) & 1;
+    UInt8 size = (opcode >> 6) & 3;
+    UInt8 data_reg = opcode & 7;
+    UInt32 value, result, count;
+    UInt32 mask = SIZE_MASK(size);
+    UInt8 bit_width = SIZE_BYTES(size) * 8;
+
+    /* Get rotate count */
+    if (dir) {
+        count = as->regs.d[count_reg] & 0x3F;
+    } else {
+        count = count_reg ? count_reg : 8;
+    }
+
+    /* Read operand */
+    value = as->regs.d[data_reg] & mask;
+
+    /* Perform rotation */
+    if (count == 0) {
+        result = value;
+        M68K_ClearFlag(as, CCR_C);
+    } else {
+        count = count % bit_width;  /* Normalize count */
+        if (count == 0) {
+            result = value;
+            /* C flag gets LSB */
+            if (value & 1) {
+                M68K_SetFlag(as, CCR_C);
+            } else {
+                M68K_ClearFlag(as, CCR_C);
+            }
+        } else {
+            result = ((value >> count) | (value << (bit_width - count))) & mask;
+            /* C flag gets last bit rotated out (which is now MSB) */
+            if (result & (1 << (bit_width - 1))) {
+                M68K_SetFlag(as, CCR_C);
+            } else {
+                M68K_ClearFlag(as, CCR_C);
+            }
+        }
+    }
+
+    /* Write result */
+    as->regs.d[data_reg] = (as->regs.d[data_reg] & ~mask) | result;
+
+    /* Set flags */
+    M68K_SetNZ(as, result, size);
+    M68K_ClearFlag(as, CCR_V);
+}
+
+/*
+ * NEG - Negate
+ * Encoding: 0100 0100 ssxx xrrr
+ * Format: NEG <ea>
+ */
+void M68K_Op_NEG(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 size = (opcode >> 6) & 3;
+    UInt8 mode = (opcode >> 3) & 7;
+    UInt8 reg = opcode & 7;
+    UInt32 value, result;
+    UInt32 mask = SIZE_MASK(size);
+
+    /* Read operand */
+    value = M68K_EA_Read(as, mode, reg, size);
+
+    /* Negate (0 - value) */
+    result = (0 - value) & mask;
+
+    /* Write result */
+    M68K_EA_Write(as, mode, reg, size, result);
+
+    /* Set flags */
+    M68K_SetNZ(as, result, size);
+
+    /* C and X set if result is non-zero */
+    if (result != 0) {
+        M68K_SetFlag(as, CCR_C | CCR_X);
+    } else {
+        M68K_ClearFlag(as, CCR_C | CCR_X);
+    }
+
+    /* V set if overflow occurred (value was 0x80... for the size) */
+    if (value == SIZE_SIGN_BIT(size)) {
+        M68K_SetFlag(as, CCR_V);
+    } else {
+        M68K_ClearFlag(as, CCR_V);
+    }
+}
