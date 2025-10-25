@@ -730,6 +730,20 @@ extern void M68K_Op_SBCD(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_NBCD(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_MOVEP(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_CMPM(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_ILLEGAL(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_RESET(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_TRAPV(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_RTR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_ANDI_CCR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_ANDI_SR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_ORI_CCR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_ORI_SR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_EORI_CCR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_EORI_SR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_MOVE_CCR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_MOVE_SR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_MOVE_FROM_SR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_MOVE_USP(M68KAddressSpace* as, UInt16 opcode);
 extern UInt16 M68K_Fetch16(M68KAddressSpace* as);
 extern void M68K_Fault(M68KAddressSpace* as, const char* reason);
 
@@ -790,9 +804,27 @@ OSErr M68K_Step(M68KAddressSpace* as)
         } else if ((opcode & 0xFF00) == 0x0200) {
             /* ANDI - AND immediate */
             M68K_Op_ANDI(as, opcode);
+        } else if ((opcode & 0xFFFF) == 0x003C) {
+            /* ORI to CCR */
+            M68K_Op_ORI_CCR(as, opcode);
+        } else if ((opcode & 0xFFFF) == 0x007C) {
+            /* ORI to SR */
+            M68K_Op_ORI_SR(as, opcode);
         } else if ((opcode & 0xFF00) == 0x0000) {
             /* ORI - OR immediate */
             M68K_Op_ORI(as, opcode);
+        } else if ((opcode & 0xFFFF) == 0x023C) {
+            /* ANDI to CCR */
+            M68K_Op_ANDI_CCR(as, opcode);
+        } else if ((opcode & 0xFFFF) == 0x027C) {
+            /* ANDI to SR */
+            M68K_Op_ANDI_SR(as, opcode);
+        } else if ((opcode & 0xFFFF) == 0x0A3C) {
+            /* EORI to CCR */
+            M68K_Op_EORI_CCR(as, opcode);
+        } else if ((opcode & 0xFFFF) == 0x0A7C) {
+            /* EORI to SR */
+            M68K_Op_EORI_SR(as, opcode);
         } else if ((opcode & 0xFF00) == 0x0A00) {
             /* EORI - EOR immediate */
             M68K_Op_EORI(as, opcode);
@@ -883,6 +915,30 @@ OSErr M68K_Step(M68KAddressSpace* as)
         } else if ((opcode & 0xFFC0) == 0x4800) {
             /* NBCD - negate decimal with extend */
             M68K_Op_NBCD(as, opcode);
+        } else if ((opcode & 0xFFFF) == 0x4AFC) {
+            /* ILLEGAL */
+            M68K_Op_ILLEGAL(as, opcode);
+        } else if ((opcode & 0xFFFF) == 0x4E70) {
+            /* RESET */
+            M68K_Op_RESET(as, opcode);
+        } else if ((opcode & 0xFFFF) == 0x4E76) {
+            /* TRAPV */
+            M68K_Op_TRAPV(as, opcode);
+        } else if ((opcode & 0xFFFF) == 0x4E77) {
+            /* RTR */
+            M68K_Op_RTR(as, opcode);
+        } else if ((opcode & 0xFFC0) == 0x44C0) {
+            /* MOVE to CCR */
+            M68K_Op_MOVE_CCR(as, opcode);
+        } else if ((opcode & 0xFFC0) == 0x46C0) {
+            /* MOVE to SR */
+            M68K_Op_MOVE_SR(as, opcode);
+        } else if ((opcode & 0xFFC0) == 0x40C0) {
+            /* MOVE from SR */
+            M68K_Op_MOVE_FROM_SR(as, opcode);
+        } else if ((opcode & 0xFFF8) == 0x4E60) {
+            /* MOVE USP */
+            M68K_Op_MOVE_USP(as, opcode);
         } else {
             M68K_Fault(as, "Unimplemented 4xxx opcode");
         }

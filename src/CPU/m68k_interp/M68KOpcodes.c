@@ -2952,3 +2952,267 @@ void M68K_Op_CMPM(M68KAddressSpace* as, UInt16 opcode)
         M68K_ClearFlag(as, CCR_V);
     }
 }
+
+/*
+ * ILLEGAL - Illegal Instruction
+ * Encoding: 0100 1010 1111 1100
+ */
+void M68K_Op_ILLEGAL(M68KAddressSpace* as, UInt16 opcode)
+{
+    (void)opcode;
+    M68K_Fault(as, "ILLEGAL instruction executed");
+}
+
+/*
+ * RESET - Reset External Devices
+ * Encoding: 0100 1110 0111 0000
+ *
+ * Supervisor only - asserts RESET line to external devices.
+ * In our emulator, this is a no-op since we have no external hardware.
+ */
+void M68K_Op_RESET(M68KAddressSpace* as, UInt16 opcode)
+{
+    (void)opcode;
+
+    /* Check supervisor mode */
+    if (!(as->regs.sr & SR_S)) {
+        M68K_Fault(as, "RESET in user mode (privilege violation)");
+        return;
+    }
+
+    /* In a real system, this would pulse the RESET line.
+     * In our emulator, we just acknowledge it. */
+    M68K_LOG_DEBUG("RESET instruction executed (no-op in emulator)\n");
+}
+
+/*
+ * TRAPV - Trap on Overflow
+ * Encoding: 0100 1110 0111 0110
+ */
+void M68K_Op_TRAPV(M68KAddressSpace* as, UInt16 opcode)
+{
+    (void)opcode;
+
+    /* Check overflow flag */
+    if (M68K_TestFlag(as, CCR_V)) {
+        M68K_Fault(as, "TRAPV: overflow exception");
+    }
+}
+
+/*
+ * RTR - Return and Restore Condition Codes
+ * Encoding: 0100 1110 0111 0111
+ */
+void M68K_Op_RTR(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt16 ccr;
+    UInt32 ret_addr;
+
+    (void)opcode;
+
+    /* Pop CCR from stack */
+    ccr = M68K_Pop16(as);
+    as->regs.sr = (as->regs.sr & 0xFF00) | (ccr & 0x001F);
+
+    /* Pop return address from stack */
+    ret_addr = M68K_Pop32(as);
+    as->regs.pc = ret_addr;
+}
+
+/*
+ * ANDI to CCR - AND Immediate to Condition Code Register
+ * Encoding: 0000 0010 0011 1100
+ */
+void M68K_Op_ANDI_CCR(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 immediate;
+
+    (void)opcode;
+
+    /* Fetch immediate byte */
+    immediate = M68K_Fetch16(as) & 0xFF;
+
+    /* AND with CCR (lower byte of SR) */
+    as->regs.sr = (as->regs.sr & 0xFF00) | ((as->regs.sr & 0x00FF) & immediate);
+}
+
+/*
+ * ANDI to SR - AND Immediate to Status Register
+ * Encoding: 0000 0010 0111 1100
+ */
+void M68K_Op_ANDI_SR(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt16 immediate;
+
+    (void)opcode;
+
+    /* Check supervisor mode */
+    if (!(as->regs.sr & SR_S)) {
+        M68K_Fault(as, "ANDI to SR in user mode (privilege violation)");
+        return;
+    }
+
+    /* Fetch immediate word */
+    immediate = M68K_Fetch16(as);
+
+    /* AND with entire SR */
+    as->regs.sr &= immediate;
+}
+
+/*
+ * ORI to CCR - OR Immediate to Condition Code Register
+ * Encoding: 0000 0000 0011 1100
+ */
+void M68K_Op_ORI_CCR(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 immediate;
+
+    (void)opcode;
+
+    /* Fetch immediate byte */
+    immediate = M68K_Fetch16(as) & 0xFF;
+
+    /* OR with CCR (lower byte of SR) */
+    as->regs.sr = (as->regs.sr & 0xFF00) | ((as->regs.sr & 0x00FF) | immediate);
+}
+
+/*
+ * ORI to SR - OR Immediate to Status Register
+ * Encoding: 0000 0000 0111 1100
+ */
+void M68K_Op_ORI_SR(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt16 immediate;
+
+    (void)opcode;
+
+    /* Check supervisor mode */
+    if (!(as->regs.sr & SR_S)) {
+        M68K_Fault(as, "ORI to SR in user mode (privilege violation)");
+        return;
+    }
+
+    /* Fetch immediate word */
+    immediate = M68K_Fetch16(as);
+
+    /* OR with entire SR */
+    as->regs.sr |= immediate;
+}
+
+/*
+ * EORI to CCR - Exclusive OR Immediate to Condition Code Register
+ * Encoding: 0000 1010 0011 1100
+ */
+void M68K_Op_EORI_CCR(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 immediate;
+
+    (void)opcode;
+
+    /* Fetch immediate byte */
+    immediate = M68K_Fetch16(as) & 0xFF;
+
+    /* EOR with CCR (lower byte of SR) */
+    as->regs.sr = (as->regs.sr & 0xFF00) | ((as->regs.sr & 0x00FF) ^ immediate);
+}
+
+/*
+ * EORI to SR - Exclusive OR Immediate to Status Register
+ * Encoding: 0000 1010 0111 1100
+ */
+void M68K_Op_EORI_SR(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt16 immediate;
+
+    (void)opcode;
+
+    /* Check supervisor mode */
+    if (!(as->regs.sr & SR_S)) {
+        M68K_Fault(as, "EORI to SR in user mode (privilege violation)");
+        return;
+    }
+
+    /* Fetch immediate word */
+    immediate = M68K_Fetch16(as);
+
+    /* EOR with entire SR */
+    as->regs.sr ^= immediate;
+}
+
+/*
+ * MOVE to CCR - Move to Condition Code Register
+ * Encoding: 0100 0100 1100 0000 + EA
+ */
+void M68K_Op_MOVE_CCR(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 mode = (opcode >> 3) & 7;
+    UInt8 reg = opcode & 7;
+    UInt16 value;
+
+    /* Read source operand (word) */
+    value = M68K_EA_Read(as, mode, reg, SIZE_WORD);
+
+    /* Move to CCR (lower byte of SR) */
+    as->regs.sr = (as->regs.sr & 0xFF00) | (value & 0x001F);
+}
+
+/*
+ * MOVE to SR - Move to Status Register
+ * Encoding: 0100 0110 1100 0000 + EA
+ */
+void M68K_Op_MOVE_SR(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 mode = (opcode >> 3) & 7;
+    UInt8 reg = opcode & 7;
+    UInt16 value;
+
+    /* Check supervisor mode */
+    if (!(as->regs.sr & SR_S)) {
+        M68K_Fault(as, "MOVE to SR in user mode (privilege violation)");
+        return;
+    }
+
+    /* Read source operand (word) */
+    value = M68K_EA_Read(as, mode, reg, SIZE_WORD);
+
+    /* Move to SR */
+    as->regs.sr = value;
+}
+
+/*
+ * MOVE from SR - Move from Status Register
+ * Encoding: 0100 0000 1100 0000 + EA
+ */
+void M68K_Op_MOVE_FROM_SR(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 mode = (opcode >> 3) & 7;
+    UInt8 reg = opcode & 7;
+
+    /* Write SR to destination */
+    M68K_EA_Write(as, mode, reg, SIZE_WORD, as->regs.sr);
+}
+
+/*
+ * MOVE USP - Move User Stack Pointer
+ * Encoding: 0100 1110 0110 drrr
+ * d = direction (0 = An to USP, 1 = USP to An)
+ */
+void M68K_Op_MOVE_USP(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 dir = (opcode >> 3) & 1;
+    UInt8 reg = opcode & 7;
+
+    /* Check supervisor mode */
+    if (!(as->regs.sr & SR_S)) {
+        M68K_Fault(as, "MOVE USP in user mode (privilege violation)");
+        return;
+    }
+
+    if (dir == 0) {
+        /* An to USP */
+        as->regs.usp = as->regs.a[reg];
+    } else {
+        /* USP to An */
+        as->regs.a[reg] = as->regs.usp;
+    }
+}

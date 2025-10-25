@@ -269,6 +269,24 @@ extern void M68K_Op_MOVEP(M68KAddressSpace* as, UInt16 opcode);
 /* Compare memory */
 extern void M68K_Op_CMPM(M68KAddressSpace* as, UInt16 opcode);
 
+/* Supervisor and special operations */
+extern void M68K_Op_ILLEGAL(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_RESET(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_TRAPV(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_RTR(M68KAddressSpace* as, UInt16 opcode);
+
+/* CCR/SR manipulation */
+extern void M68K_Op_ANDI_CCR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_ANDI_SR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_ORI_CCR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_ORI_SR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_EORI_CCR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_EORI_SR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_MOVE_CCR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_MOVE_SR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_MOVE_FROM_SR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_MOVE_USP(M68KAddressSpace* as, UInt16 opcode);
+
 /* Multi-register operations */
 extern void M68K_Op_MOVEM(M68KAddressSpace* as, UInt16 opcode);
 
