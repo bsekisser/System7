@@ -108,6 +108,12 @@ static OSErr PPC_CreateAddressSpace(void* processHandle, CPUAddressSpace* out)
     memset(&as->regs, 0, sizeof(PPCRegs));
     as->regs.msr = 0x0000; /* User mode initially */
 
+    /* Initialize time base and processor version */
+    as->regs.tbl = 0;
+    as->regs.tbu = 0;
+    as->regs.dec = 0;
+    as->regs.pvr = 0x00080200; /* PowerPC 603 processor version */
+
     *out = (CPUAddressSpace)as;
     return noErr;
 }
@@ -734,6 +740,10 @@ OSErr PPC_Step(PPCAddressSpace* as)
         case PPC_OP_EXT19:       /* 19 - Extended opcodes (branches to LR/CTR, CR ops) */
             extended = PPC_EXTENDED_OPCODE(insn);
             switch (extended) {
+                case PPC_XOP19_MCRF:
+                    PPC_Op_MCRF(as, insn);
+                    break;
+
                 case PPC_XOP19_BCLR:
                     PPC_Op_BCLR(as, insn);
                     break;
@@ -851,7 +861,11 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     break;
 
                 case PPC_XOP_SUBF:
-                    PPC_Op_SUBF(as, insn);
+                    if (insn & 0x00000400) {
+                        PPC_Op_SUBFO(as, insn);
+                    } else {
+                        PPC_Op_SUBF(as, insn);
+                    }
                     break;
 
                 case PPC_XOP_DCBST:
@@ -867,7 +881,11 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     break;
 
                 case 104:  /* NEG */
-                    PPC_Op_NEG(as, insn);
+                    if (insn & 0x00000400) {
+                        PPC_Op_NEGO(as, insn);
+                    } else {
+                        PPC_Op_NEG(as, insn);
+                    }
                     break;
 
                 case PPC_XOP_SUBFE:
@@ -903,11 +921,19 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     break;
 
                 case PPC_XOP_ADD:
-                    PPC_Op_ADD(as, insn);
+                    if (insn & 0x00000400) {
+                        PPC_Op_ADDO(as, insn);
+                    } else {
+                        PPC_Op_ADD(as, insn);
+                    }
                     break;
 
                 case PPC_XOP_MULLW:
-                    PPC_Op_MULLW(as, insn);
+                    if (insn & 0x00000400) {
+                        PPC_Op_MULLWO(as, insn);
+                    } else {
+                        PPC_Op_MULLW(as, insn);
+                    }
                     break;
 
                 case PPC_XOP_MFSPR:
@@ -923,7 +949,27 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     break;
 
                 case PPC_XOP_DIVW:
-                    PPC_Op_DIVW(as, insn);
+                    if (insn & 0x00000400) {
+                        PPC_Op_DIVWO(as, insn);
+                    } else {
+                        PPC_Op_DIVW(as, insn);
+                    }
+                    break;
+
+                case PPC_XOP_LSWX:
+                    PPC_Op_LSWX(as, insn);
+                    break;
+
+                case PPC_XOP_LSWI:
+                    PPC_Op_LSWI(as, insn);
+                    break;
+
+                case PPC_XOP_STSWX:
+                    PPC_Op_STSWX(as, insn);
+                    break;
+
+                case PPC_XOP_STSWI:
+                    PPC_Op_STSWI(as, insn);
                     break;
 
                 /* Logical */
@@ -1000,9 +1046,7 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     break;
 
                 case PPC_XOP_LWZUX:
-                    /* LWZUX - Load word and zero with update indexed */
-                    /* Not implemented yet - would be same as LWZX but updates rA */
-                    PPC_Fault(as, "LWZUX not implemented");
+                    PPC_Op_LWZUX(as, insn);
                     break;
 
                 case PPC_XOP_LBZX:
@@ -1010,8 +1054,7 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     break;
 
                 case PPC_XOP_LBZUX:
-                    /* LBZUX - Load byte and zero with update indexed */
-                    PPC_Fault(as, "LBZUX not implemented");
+                    PPC_Op_LBZUX(as, insn);
                     break;
 
                 case PPC_XOP_LHZX:
@@ -1019,8 +1062,7 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     break;
 
                 case PPC_XOP_LHZUX:
-                    /* LHZUX - Load halfword and zero with update indexed */
-                    PPC_Fault(as, "LHZUX not implemented");
+                    PPC_Op_LHZUX(as, insn);
                     break;
 
                 case PPC_XOP_LHAX:
@@ -1028,8 +1070,7 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     break;
 
                 case PPC_XOP_LHAUX:
-                    /* LHAUX - Load halfword algebraic with update indexed */
-                    PPC_Fault(as, "LHAUX not implemented");
+                    PPC_Op_LHAUX(as, insn);
                     break;
 
                 case PPC_XOP_STWX:
@@ -1037,8 +1078,7 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     break;
 
                 case PPC_XOP_STWUX:
-                    /* STWUX - Store word with update indexed */
-                    PPC_Fault(as, "STWUX not implemented");
+                    PPC_Op_STWUX(as, insn);
                     break;
 
                 case PPC_XOP_STBX:
@@ -1046,8 +1086,7 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     break;
 
                 case PPC_XOP_STBUX:
-                    /* STBUX - Store byte with update indexed */
-                    PPC_Fault(as, "STBUX not implemented");
+                    PPC_Op_STBUX(as, insn);
                     break;
 
                 case PPC_XOP_STHX:
@@ -1055,8 +1094,7 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     break;
 
                 case PPC_XOP_STHUX:
-                    /* STHUX - Store halfword with update indexed */
-                    PPC_Fault(as, "STHUX not implemented");
+                    PPC_Op_STHUX(as, insn);
                     break;
 
                 default:
@@ -1106,9 +1144,7 @@ OSErr PPC_Step(PPCAddressSpace* as)
             break;
 
         case PPC_OP_LHA:         /* 42 */
-            /* LHA - Load halfword algebraic (sign-extend) */
-            /* Not implemented yet - similar to LHZ but sign-extends */
-            PPC_Fault(as, "LHA not implemented");
+            PPC_Op_LHA(as, insn);
             break;
 
         case PPC_OP_LHAU:        /* 43 */

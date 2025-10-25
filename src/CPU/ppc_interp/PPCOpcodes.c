@@ -2162,6 +2162,18 @@ void PPC_Op_MFSPR(PPCAddressSpace* as, UInt32 insn)
         case 9:   /* CTR */
             as->regs.gpr[rd] = as->regs.ctr;
             break;
+        case 22:  /* DEC - Decrementer */
+            as->regs.gpr[rd] = as->regs.dec;
+            break;
+        case 268: /* TBL - Time Base Lower (read-only) */
+            as->regs.gpr[rd] = as->regs.tbl;
+            break;
+        case 269: /* TBU - Time Base Upper (read-only) */
+            as->regs.gpr[rd] = as->regs.tbu;
+            break;
+        case 287: /* PVR - Processor Version Register (read-only) */
+            as->regs.gpr[rd] = as->regs.pvr;
+            break;
         default:
             /* Unsupported SPR - return 0 */
             as->regs.gpr[rd] = 0;
@@ -2189,8 +2201,14 @@ void PPC_Op_MTSPR(PPCAddressSpace* as, UInt32 insn)
         case 9:   /* CTR */
             as->regs.ctr = value;
             break;
+        case 22:  /* DEC - Decrementer */
+            as->regs.dec = value;
+            break;
+        case 268: /* TBL - Time Base Lower (supervisor write-only, ignore in user mode) */
+        case 269: /* TBU - Time Base Upper (supervisor write-only, ignore in user mode) */
+        case 287: /* PVR - Processor Version Register (read-only, ignore writes) */
         default:
-            /* Unsupported SPR - ignore */
+            /* Unsupported or read-only SPR - ignore */
             break;
     }
 }
@@ -2373,9 +2391,580 @@ void PPC_Op_ISYNC(PPCAddressSpace* as, UInt32 insn)
 }
 
 /*
+ * ============================================================================
+ * INDEXED UPDATE LOAD/STORE INSTRUCTIONS
+ * ============================================================================
+ */
+
+/*
+ * LWZUX - Load Word and Zero with Update Indexed
+ * EA = rA + rB
+ * rD = MEM(EA, 4)
+ * rA = EA
+ */
+void PPC_Op_LWZUX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea;
+
+    if (ra == 0) {
+        PPC_Fault(as, "LWZUX with rA=0");
+        return;
+    }
+
+    ea = as->regs.gpr[ra] + as->regs.gpr[rb];
+    as->regs.gpr[rd] = PPC_Read32(as, ea);
+    as->regs.gpr[ra] = ea;
+}
+
+/*
+ * LBZUX - Load Byte and Zero with Update Indexed
+ * EA = rA + rB
+ * rD = MEM(EA, 1)
+ * rA = EA
+ */
+void PPC_Op_LBZUX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea;
+
+    if (ra == 0) {
+        PPC_Fault(as, "LBZUX with rA=0");
+        return;
+    }
+
+    ea = as->regs.gpr[ra] + as->regs.gpr[rb];
+    as->regs.gpr[rd] = PPC_Read8(as, ea);
+    as->regs.gpr[ra] = ea;
+}
+
+/*
+ * LHZUX - Load Halfword and Zero with Update Indexed
+ * EA = rA + rB
+ * rD = MEM(EA, 2)
+ * rA = EA
+ */
+void PPC_Op_LHZUX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea;
+
+    if (ra == 0) {
+        PPC_Fault(as, "LHZUX with rA=0");
+        return;
+    }
+
+    ea = as->regs.gpr[ra] + as->regs.gpr[rb];
+    as->regs.gpr[rd] = PPC_Read16(as, ea);
+    as->regs.gpr[ra] = ea;
+}
+
+/*
+ * LHAUX - Load Halfword Algebraic with Update Indexed
+ * EA = rA + rB
+ * rD = EXTS(MEM(EA, 2))
+ * rA = EA
+ */
+void PPC_Op_LHAUX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea;
+    UInt16 value;
+
+    if (ra == 0) {
+        PPC_Fault(as, "LHAUX with rA=0");
+        return;
+    }
+
+    ea = as->regs.gpr[ra] + as->regs.gpr[rb];
+    value = PPC_Read16(as, ea);
+
+    /* Sign extend */
+    if (value & 0x8000) {
+        as->regs.gpr[rd] = 0xFFFF0000 | value;
+    } else {
+        as->regs.gpr[rd] = value;
+    }
+
+    as->regs.gpr[ra] = ea;
+}
+
+/*
+ * STWUX - Store Word with Update Indexed
+ * EA = rA + rB
+ * MEM(EA, 4) = rS
+ * rA = EA
+ */
+void PPC_Op_STWUX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea;
+
+    if (ra == 0) {
+        PPC_Fault(as, "STWUX with rA=0");
+        return;
+    }
+
+    ea = as->regs.gpr[ra] + as->regs.gpr[rb];
+    PPC_Write32(as, ea, as->regs.gpr[rs]);
+    as->regs.gpr[ra] = ea;
+}
+
+/*
+ * STBUX - Store Byte with Update Indexed
+ * EA = rA + rB
+ * MEM(EA, 1) = rS[24:31]
+ * rA = EA
+ */
+void PPC_Op_STBUX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea;
+
+    if (ra == 0) {
+        PPC_Fault(as, "STBUX with rA=0");
+        return;
+    }
+
+    ea = as->regs.gpr[ra] + as->regs.gpr[rb];
+    PPC_Write8(as, ea, (UInt8)(as->regs.gpr[rs] & 0xFF));
+    as->regs.gpr[ra] = ea;
+}
+
+/*
+ * STHUX - Store Halfword with Update Indexed
+ * EA = rA + rB
+ * MEM(EA, 2) = rS[16:31]
+ * rA = EA
+ */
+void PPC_Op_STHUX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea;
+
+    if (ra == 0) {
+        PPC_Fault(as, "STHUX with rA=0");
+        return;
+    }
+
+    ea = as->regs.gpr[ra] + as->regs.gpr[rb];
+    PPC_Write16(as, ea, (UInt16)(as->regs.gpr[rs] & 0xFFFF));
+    as->regs.gpr[ra] = ea;
+}
+
+/*
+ * ============================================================================
+ * LOAD HALFWORD ALGEBRAIC
+ * ============================================================================
+ */
+
+/*
+ * LHA - Load Halfword Algebraic
+ * EA = (rA|0) + EXTS(d)
+ * rD = EXTS(MEM(EA, 2))
+ */
+void PPC_Op_LHA(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    SInt16 d = (SInt16)(insn & 0xFFFF);
+    UInt32 ea;
+    UInt16 value;
+
+    if (ra == 0) {
+        ea = d;
+    } else {
+        ea = as->regs.gpr[ra] + d;
+    }
+
+    value = PPC_Read16(as, ea);
+
+    /* Sign extend */
+    if (value & 0x8000) {
+        as->regs.gpr[rd] = 0xFFFF0000 | value;
+    } else {
+        as->regs.gpr[rd] = value;
+    }
+}
+
+/*
+ * ============================================================================
+ * STRING LOAD/STORE INSTRUCTIONS
+ * ============================================================================
+ */
+
+/*
+ * LSWI - Load String Word Immediate
+ * Load n bytes from EA into consecutive registers
+ */
+void PPC_Op_LSWI(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 nb = PPC_RB(insn);
+    UInt32 ea;
+    UInt32 count;
+    UInt8 reg;
+    UInt32 value;
+    int shift;
+
+    if (nb == 0) {
+        count = 32;
+    } else {
+        count = nb;
+    }
+
+    ea = (ra == 0) ? 0 : as->regs.gpr[ra];
+    reg = rd;
+    value = 0;
+    shift = 24;
+
+    for (UInt32 i = 0; i < count; i++) {
+        value |= ((UInt32)PPC_Read8(as, ea + i)) << shift;
+        shift -= 8;
+
+        if (shift < 0 || i == count - 1) {
+            as->regs.gpr[reg] = value;
+            reg = (reg + 1) & 31;
+            value = 0;
+            shift = 24;
+        }
+    }
+}
+
+/*
+ * LSWX - Load String Word Indexed
+ * Load XER[25:31] bytes from EA into consecutive registers
+ */
+void PPC_Op_LSWX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea;
+    UInt32 count;
+    UInt8 reg;
+    UInt32 value;
+    int shift;
+
+    count = as->regs.xer & 0x7F;
+
+    if (count == 0) {
+        return;
+    }
+
+    ea = ((ra == 0) ? 0 : as->regs.gpr[ra]) + as->regs.gpr[rb];
+    reg = rd;
+    value = 0;
+    shift = 24;
+
+    for (UInt32 i = 0; i < count; i++) {
+        value |= ((UInt32)PPC_Read8(as, ea + i)) << shift;
+        shift -= 8;
+
+        if (shift < 0 || i == count - 1) {
+            as->regs.gpr[reg] = value;
+            reg = (reg + 1) & 31;
+            value = 0;
+            shift = 24;
+        }
+    }
+}
+
+/*
+ * STSWI - Store String Word Immediate
+ * Store n bytes from consecutive registers to memory
+ */
+void PPC_Op_STSWI(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 nb = PPC_RB(insn);
+    UInt32 ea;
+    UInt32 count;
+    UInt8 reg;
+    UInt32 value;
+    int shift;
+
+    if (nb == 0) {
+        count = 32;
+    } else {
+        count = nb;
+    }
+
+    ea = (ra == 0) ? 0 : as->regs.gpr[ra];
+    reg = rs;
+    value = as->regs.gpr[reg];
+    shift = 24;
+
+    for (UInt32 i = 0; i < count; i++) {
+        PPC_Write8(as, ea + i, (UInt8)((value >> shift) & 0xFF));
+        shift -= 8;
+
+        if (shift < 0) {
+            reg = (reg + 1) & 31;
+            value = as->regs.gpr[reg];
+            shift = 24;
+        }
+    }
+}
+
+/*
+ * STSWX - Store String Word Indexed
+ * Store XER[25:31] bytes from consecutive registers to memory
+ */
+void PPC_Op_STSWX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea;
+    UInt32 count;
+    UInt8 reg;
+    UInt32 value;
+    int shift;
+
+    count = as->regs.xer & 0x7F;
+
+    if (count == 0) {
+        return;
+    }
+
+    ea = ((ra == 0) ? 0 : as->regs.gpr[ra]) + as->regs.gpr[rb];
+    reg = rs;
+    value = as->regs.gpr[reg];
+    shift = 24;
+
+    for (UInt32 i = 0; i < count; i++) {
+        PPC_Write8(as, ea + i, (UInt8)((value >> shift) & 0xFF));
+        shift -= 8;
+
+        if (shift < 0) {
+            reg = (reg + 1) & 31;
+            value = as->regs.gpr[reg];
+            shift = 24;
+        }
+    }
+}
+
+/*
+ * ============================================================================
+ * CONDITION REGISTER FIELD OPERATIONS
+ * ============================================================================
+ */
+
+/*
+ * MCRF - Move Condition Register Field
+ * CR[4*crbD:4*crbD+3] = CR[4*crbA:4*crbA+3]
+ */
+void PPC_Op_MCRF(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 crbD = (insn >> 23) & 0x7;
+    UInt8 crbA = (insn >> 18) & 0x7;
+    UInt32 field_mask = 0xF << (28 - (crbA * 4));
+    UInt32 field_value = as->regs.cr & field_mask;
+
+    /* Clear destination field */
+    as->regs.cr &= ~(0xF << (28 - (crbD * 4)));
+
+    /* Move field */
+    if (crbD != crbA) {
+        if (crbD < crbA) {
+            field_value <<= ((crbA - crbD) * 4);
+        } else {
+            field_value >>= ((crbD - crbA) * 4);
+        }
+    }
+
+    as->regs.cr |= field_value;
+}
+
+/*
+ * ============================================================================
+ * OVERFLOW ARITHMETIC
+ * ============================================================================
+ */
+
+/*
+ * ADDO - Add with Overflow
+ * rD = rA + rB
+ * Sets OV if signed overflow occurs
+ */
+void PPC_Op_ADDO(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+    SInt32 a = (SInt32)as->regs.gpr[ra];
+    SInt32 b = (SInt32)as->regs.gpr[rb];
+    SInt32 result = a + b;
+
+    as->regs.gpr[rd] = (UInt32)result;
+
+    /* Check for signed overflow */
+    if ((a > 0 && b > 0 && result < 0) || (a < 0 && b < 0 && result > 0)) {
+        as->regs.xer |= PPC_XER_OV | PPC_XER_SO;
+    } else {
+        as->regs.xer &= ~PPC_XER_OV;
+    }
+
+    if (rc) {
+        PPC_SetCR0(as, result);
+    }
+}
+
+/*
+ * SUBFO - Subtract From with Overflow
+ * rD = rB - rA
+ * Sets OV if signed overflow occurs
+ */
+void PPC_Op_SUBFO(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+    SInt32 a = (SInt32)as->regs.gpr[ra];
+    SInt32 b = (SInt32)as->regs.gpr[rb];
+    SInt32 result = b - a;
+
+    as->regs.gpr[rd] = (UInt32)result;
+
+    /* Check for signed overflow */
+    if ((b > 0 && a < 0 && result < 0) || (b < 0 && a > 0 && result > 0)) {
+        as->regs.xer |= PPC_XER_OV | PPC_XER_SO;
+    } else {
+        as->regs.xer &= ~PPC_XER_OV;
+    }
+
+    if (rc) {
+        PPC_SetCR0(as, result);
+    }
+}
+
+/*
+ * NEGO - Negate with Overflow
+ * rD = -rA
+ * Sets OV if overflow occurs
+ */
+void PPC_Op_NEGO(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    Boolean rc = PPC_RC(insn);
+    SInt32 a = (SInt32)as->regs.gpr[ra];
+    SInt32 result = -a;
+
+    as->regs.gpr[rd] = (UInt32)result;
+
+    /* Check for signed overflow (only happens for 0x80000000) */
+    if (a == (SInt32)0x80000000) {
+        as->regs.xer |= PPC_XER_OV | PPC_XER_SO;
+    } else {
+        as->regs.xer &= ~PPC_XER_OV;
+    }
+
+    if (rc) {
+        PPC_SetCR0(as, result);
+    }
+}
+
+/*
+ * MULLWO - Multiply Low Word with Overflow
+ * rD = rA * rB (low 32 bits)
+ * Sets OV if overflow occurs
+ */
+void PPC_Op_MULLWO(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+    SInt32 a = (SInt32)as->regs.gpr[ra];
+    SInt32 b = (SInt32)as->regs.gpr[rb];
+    SInt64 result64 = (SInt64)a * (SInt64)b;
+    SInt32 result = (SInt32)(result64 & 0xFFFFFFFF);
+
+    as->regs.gpr[rd] = (UInt32)result;
+
+    /* Check for overflow */
+    if (result64 != (SInt64)result) {
+        as->regs.xer |= PPC_XER_OV | PPC_XER_SO;
+    } else {
+        as->regs.xer &= ~PPC_XER_OV;
+    }
+
+    if (rc) {
+        PPC_SetCR0(as, result);
+    }
+}
+
+/*
+ * DIVWO - Divide Word with Overflow
+ * rD = rA / rB
+ * Sets OV if overflow occurs (divide by zero or 0x80000000 / -1)
+ */
+void PPC_Op_DIVWO(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+    SInt32 a = (SInt32)as->regs.gpr[ra];
+    SInt32 b = (SInt32)as->regs.gpr[rb];
+    SInt32 result;
+
+    if (b == 0 || (a == (SInt32)0x80000000 && b == -1)) {
+        /* Overflow condition */
+        as->regs.gpr[rd] = 0;
+        as->regs.xer |= PPC_XER_OV | PPC_XER_SO;
+        result = 0;
+    } else {
+        result = a / b;
+        as->regs.gpr[rd] = (UInt32)result;
+        as->regs.xer &= ~PPC_XER_OV;
+    }
+
+    if (rc) {
+        PPC_SetCR0(as, result);
+    }
+}
+
+/*
+ * ============================================================================
+ * ADDITIONAL SPR ACCESS
+ * ============================================================================
+ */
+
+/*
+ * Additional SPRs implemented:
+ * - TBL/TBU (268/269): Time Base Lower/Upper (read-only in user mode)
+ * - PVR (287): Processor Version Register (read-only)
+ * - DEC (22): Decrementer (read-write, supervisor)
+ *
+ * Note: These use the existing MFSPR/MTSPR infrastructure, just need
+ * to handle the new SPR numbers in those functions.
+ */
+
+/*
  * ==================================================
  * COMPREHENSIVE IMPLEMENTATION
- * Total: 93 instructions (71 previous + 22 new)
+ * Total: 119 instructions (93 previous + 26 new)
  * ==================================================
  */
 

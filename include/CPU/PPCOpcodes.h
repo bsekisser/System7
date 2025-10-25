@@ -202,6 +202,14 @@ extern "C" {
 #define PPC_XOP_ICBI        982 /* Instruction cache block invalidate */
 
 /*
+ * String Load/Store (Opcode 31)
+ */
+#define PPC_XOP_LSWI        597 /* Load string word immediate */
+#define PPC_XOP_LSWX        533 /* Load string word indexed */
+#define PPC_XOP_STSWI       725 /* Store string word immediate */
+#define PPC_XOP_STSWX       661 /* Store string word indexed */
+
+/*
  * Branch Extended Opcode 19 Instructions
  */
 #define PPC_XOP19_BCLR      16  /* Branch conditional to link register */
@@ -209,6 +217,7 @@ extern "C" {
 #define PPC_XOP19_CRAND     257 /* Condition register AND */
 #define PPC_XOP19_CROR      449 /* Condition register OR */
 #define PPC_XOP19_CRXOR     193 /* Condition register XOR */
+#define PPC_XOP19_MCRF      0   /* Move condition register field */
 #define PPC_XOP19_SYNC      598 /* Synchronize */
 #define PPC_XOP19_ISYNC     150 /* Instruction synchronize */
 
@@ -355,6 +364,34 @@ extern void PPC_Op_DCBF(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_ICBI(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_SYNC(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_ISYNC(PPCAddressSpace* as, UInt32 insn);
+
+/* Indexed update load/store */
+extern void PPC_Op_LWZUX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LBZUX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LHZUX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LHAUX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STWUX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STBUX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STHUX(PPCAddressSpace* as, UInt32 insn);
+
+/* Load halfword algebraic */
+extern void PPC_Op_LHA(PPCAddressSpace* as, UInt32 insn);
+
+/* String load/store */
+extern void PPC_Op_LSWI(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LSWX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STSWI(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STSWX(PPCAddressSpace* as, UInt32 insn);
+
+/* Condition register field operations */
+extern void PPC_Op_MCRF(PPCAddressSpace* as, UInt32 insn);
+
+/* Overflow arithmetic */
+extern void PPC_Op_ADDO(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_SUBFO(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_NEGO(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_MULLWO(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_DIVWO(PPCAddressSpace* as, UInt32 insn);
 
 /* System operations */
 extern void PPC_Op_SC(PPCAddressSpace* as, UInt32 insn);

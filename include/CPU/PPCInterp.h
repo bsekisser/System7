@@ -42,6 +42,10 @@ typedef struct PPCRegs {
     UInt32 xer;               /* Fixed-point exception register */
     UInt32 fpscr;             /* Floating-point status and control register */
     UInt32 msr;               /* Machine state register */
+    UInt32 tbl;               /* Time base lower */
+    UInt32 tbu;               /* Time base upper */
+    UInt32 dec;               /* Decrementer */
+    UInt32 pvr;               /* Processor version register */
 } PPCRegs;
 
 /*
