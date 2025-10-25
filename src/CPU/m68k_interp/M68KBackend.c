@@ -743,6 +743,7 @@ extern void M68K_Op_EORI_SR(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_MOVE_CCR(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_MOVE_SR(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_MOVE_FROM_SR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_MOVE_FROM_CCR(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_MOVE_USP(M68KAddressSpace* as, UInt16 opcode);
 extern UInt16 M68K_Fetch16(M68KAddressSpace* as);
 extern void M68K_Fault(M68KAddressSpace* as, const char* reason);
@@ -936,6 +937,9 @@ OSErr M68K_Step(M68KAddressSpace* as)
         } else if ((opcode & 0xFFC0) == 0x40C0) {
             /* MOVE from SR */
             M68K_Op_MOVE_FROM_SR(as, opcode);
+        } else if ((opcode & 0xFFC0) == 0x42C0) {
+            /* MOVE from CCR (undocumented on 68000, official in 68010+) */
+            M68K_Op_MOVE_FROM_CCR(as, opcode);
         } else if ((opcode & 0xFFF8) == 0x4E60) {
             /* MOVE USP */
             M68K_Op_MOVE_USP(as, opcode);

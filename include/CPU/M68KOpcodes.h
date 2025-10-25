@@ -290,6 +290,10 @@ extern void M68K_Op_MOVE_USP(M68KAddressSpace* as, UInt16 opcode);
 /* Multi-register operations */
 extern void M68K_Op_MOVEM(M68KAddressSpace* as, UInt16 opcode);
 
+/* Undocumented 68000 features */
+extern void M68K_Op_MOVE_FROM_CCR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_CheckAddressAlignment(M68KAddressSpace* as, UInt32 addr, M68KSize size);
+
 /* Control flow - unconditional */
 extern void M68K_Op_JMP(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_JSR(M68KAddressSpace* as, UInt16 opcode);
