@@ -173,10 +173,16 @@ extern void PPC_Fault(PPCAddressSpace* as, const char* reason);
 extern void PPC_Op_ADD(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_ADDI(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_ADDIS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_ADDIC(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_ADDIC_RC(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_ADDC(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_SUBF(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_SUBFIC(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_SUBFC(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_MULLI(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_MULLW(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_DIVW(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_NEG(PPCAddressSpace* as, UInt32 insn);
 
 /* Logical operations */
 extern void PPC_Op_AND(PPCAddressSpace* as, UInt32 insn);
@@ -188,6 +194,11 @@ extern void PPC_Op_XORI(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_XORIS(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_ANDI_RC(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_ANDIS_RC(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_NOR(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_NAND(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_EQV(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_ANDC(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_ORC(PPCAddressSpace* as, UInt32 insn);
 
 /* Comparison operations */
 extern void PPC_Op_CMP(PPCAddressSpace* as, UInt32 insn);
@@ -201,6 +212,17 @@ extern void PPC_Op_BC(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_BCLR(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_BCCTR(PPCAddressSpace* as, UInt32 insn);
 
+/* Shift operations */
+extern void PPC_Op_SLW(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_SRW(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_SRAW(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_SRAWI(PPCAddressSpace* as, UInt32 insn);
+
+/* Rotate operations */
+extern void PPC_Op_RLWINM(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_RLWNM(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_RLWIMI(PPCAddressSpace* as, UInt32 insn);
+
 /* Load/Store operations */
 extern void PPC_Op_LWZ(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_LBZ(PPCAddressSpace* as, UInt32 insn);
@@ -208,6 +230,38 @@ extern void PPC_Op_LHZ(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_STW(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_STB(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_STH(PPCAddressSpace* as, UInt32 insn);
+
+/* Indexed Load/Store operations */
+extern void PPC_Op_LWZX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LBZX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LHZX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LHAX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STWX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STBX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STHX(PPCAddressSpace* as, UInt32 insn);
+
+/* Update-form Load/Store operations */
+extern void PPC_Op_LWZU(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LBZU(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LHZU(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LHAU(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STWU(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STBU(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STHU(PPCAddressSpace* as, UInt32 insn);
+
+/* Multiple Load/Store operations */
+extern void PPC_Op_LMW(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STMW(PPCAddressSpace* as, UInt32 insn);
+
+/* Condition Register operations */
+extern void PPC_Op_CRAND(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_CROR(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_CRXOR(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_CRNAND(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_CRNOR(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_CREQV(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_CRANDC(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_CRORC(PPCAddressSpace* as, UInt32 insn);
 
 /* System operations */
 extern void PPC_Op_SC(PPCAddressSpace* as, UInt32 insn);

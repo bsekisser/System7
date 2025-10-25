@@ -687,12 +687,24 @@ OSErr PPC_Step(PPCAddressSpace* as)
             PPC_Op_MULLI(as, insn);
             break;
 
+        case PPC_OP_SUBFIC:      /* 8 */
+            PPC_Op_SUBFIC(as, insn);
+            break;
+
         case PPC_OP_CMPLI:       /* 10 */
             PPC_Op_CMPLI(as, insn);
             break;
 
         case PPC_OP_CMPI:        /* 11 */
             PPC_Op_CMPI(as, insn);
+            break;
+
+        case PPC_OP_ADDIC:       /* 12 */
+            PPC_Op_ADDIC(as, insn);
+            break;
+
+        case PPC_OP_ADDIC_RC:    /* 13 */
+            PPC_Op_ADDIC_RC(as, insn);
             break;
 
         case PPC_OP_ADDI:        /* 14 */
@@ -715,7 +727,7 @@ OSErr PPC_Step(PPCAddressSpace* as)
             PPC_Op_B(as, insn);
             break;
 
-        case PPC_OP_EXT19:       /* 19 - Extended opcodes (branches to LR/CTR) */
+        case PPC_OP_EXT19:       /* 19 - Extended opcodes (branches to LR/CTR, CR ops) */
             extended = PPC_EXTENDED_OPCODE(insn);
             switch (extended) {
                 case PPC_XOP19_BCLR:
@@ -726,10 +738,40 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     PPC_Op_BCCTR(as, insn);
                     break;
 
+                case PPC_XOP19_CRAND:
+                    PPC_Op_CRAND(as, insn);
+                    break;
+
+                case PPC_XOP19_CROR:
+                    PPC_Op_CROR(as, insn);
+                    break;
+
+                case PPC_XOP19_CRXOR:
+                    PPC_Op_CRXOR(as, insn);
+                    break;
+
                 default:
-                    PPC_Fault(as, "Unimplemented opcode 19 extended");
+                    /* Check for other CR ops */
+                    if (extended == 225) PPC_Op_CRNAND(as, insn);
+                    else if (extended == 33) PPC_Op_CRNOR(as, insn);
+                    else if (extended == 289) PPC_Op_CREQV(as, insn);
+                    else if (extended == 129) PPC_Op_CRANDC(as, insn);
+                    else if (extended == 417) PPC_Op_CRORC(as, insn);
+                    else PPC_Fault(as, "Unimplemented opcode 19 extended");
                     break;
             }
+            break;
+
+        case PPC_OP_RLWIMI:      /* 20 */
+            PPC_Op_RLWIMI(as, insn);
+            break;
+
+        case PPC_OP_RLWINM:      /* 21 */
+            PPC_Op_RLWINM(as, insn);
+            break;
+
+        case PPC_OP_RLWNM:       /* 23 */
+            PPC_Op_RLWNM(as, insn);
             break;
 
         case PPC_OP_ORI:         /* 24 */
@@ -767,32 +809,148 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     PPC_Op_CMPL(as, insn);
                     break;
 
+                /* Arithmetic */
+                case 8:    /* SUBFC */
+                    PPC_Op_SUBFC(as, insn);
+                    break;
+
+                case 10:   /* ADDC */
+                    PPC_Op_ADDC(as, insn);
+                    break;
+
                 case PPC_XOP_SUBF:
                     PPC_Op_SUBF(as, insn);
                     break;
 
-                case PPC_XOP_AND:
-                    PPC_Op_AND(as, insn);
-                    break;
-
-                case PPC_XOP_MULLW:
-                    PPC_Op_MULLW(as, insn);
+                case 104:  /* NEG */
+                    PPC_Op_NEG(as, insn);
                     break;
 
                 case PPC_XOP_ADD:
                     PPC_Op_ADD(as, insn);
                     break;
 
-                case PPC_XOP_XOR:
-                    PPC_Op_XOR(as, insn);
+                case PPC_XOP_MULLW:
+                    PPC_Op_MULLW(as, insn);
+                    break;
+
+                case PPC_XOP_DIVW:
+                    PPC_Op_DIVW(as, insn);
+                    break;
+
+                /* Logical */
+                case PPC_XOP_AND:
+                    PPC_Op_AND(as, insn);
+                    break;
+
+                case PPC_XOP_ANDC:
+                    PPC_Op_ANDC(as, insn);
                     break;
 
                 case PPC_XOP_OR:
                     PPC_Op_OR(as, insn);
                     break;
 
-                case PPC_XOP_DIVW:
-                    PPC_Op_DIVW(as, insn);
+                case PPC_XOP_ORC:
+                    PPC_Op_ORC(as, insn);
+                    break;
+
+                case PPC_XOP_XOR:
+                    PPC_Op_XOR(as, insn);
+                    break;
+
+                case PPC_XOP_NAND:
+                    PPC_Op_NAND(as, insn);
+                    break;
+
+                case PPC_XOP_NOR:
+                    PPC_Op_NOR(as, insn);
+                    break;
+
+                case PPC_XOP_EQV:
+                    PPC_Op_EQV(as, insn);
+                    break;
+
+                /* Shifts */
+                case PPC_XOP_SLW:
+                    PPC_Op_SLW(as, insn);
+                    break;
+
+                case PPC_XOP_SRW:
+                    PPC_Op_SRW(as, insn);
+                    break;
+
+                case PPC_XOP_SRAW:
+                    PPC_Op_SRAW(as, insn);
+                    break;
+
+                case PPC_XOP_SRAWI:
+                    PPC_Op_SRAWI(as, insn);
+                    break;
+
+                /* Indexed loads/stores */
+                case PPC_XOP_LWZX:
+                    PPC_Op_LWZX(as, insn);
+                    break;
+
+                case PPC_XOP_LWZUX:
+                    /* LWZUX - Load word and zero with update indexed */
+                    /* Not implemented yet - would be same as LWZX but updates rA */
+                    PPC_Fault(as, "LWZUX not implemented");
+                    break;
+
+                case PPC_XOP_LBZX:
+                    PPC_Op_LBZX(as, insn);
+                    break;
+
+                case PPC_XOP_LBZUX:
+                    /* LBZUX - Load byte and zero with update indexed */
+                    PPC_Fault(as, "LBZUX not implemented");
+                    break;
+
+                case PPC_XOP_LHZX:
+                    PPC_Op_LHZX(as, insn);
+                    break;
+
+                case PPC_XOP_LHZUX:
+                    /* LHZUX - Load halfword and zero with update indexed */
+                    PPC_Fault(as, "LHZUX not implemented");
+                    break;
+
+                case PPC_XOP_LHAX:
+                    PPC_Op_LHAX(as, insn);
+                    break;
+
+                case PPC_XOP_LHAUX:
+                    /* LHAUX - Load halfword algebraic with update indexed */
+                    PPC_Fault(as, "LHAUX not implemented");
+                    break;
+
+                case PPC_XOP_STWX:
+                    PPC_Op_STWX(as, insn);
+                    break;
+
+                case PPC_XOP_STWUX:
+                    /* STWUX - Store word with update indexed */
+                    PPC_Fault(as, "STWUX not implemented");
+                    break;
+
+                case PPC_XOP_STBX:
+                    PPC_Op_STBX(as, insn);
+                    break;
+
+                case PPC_XOP_STBUX:
+                    /* STBUX - Store byte with update indexed */
+                    PPC_Fault(as, "STBUX not implemented");
+                    break;
+
+                case PPC_XOP_STHX:
+                    PPC_Op_STHX(as, insn);
+                    break;
+
+                case PPC_XOP_STHUX:
+                    /* STHUX - Store halfword with update indexed */
+                    PPC_Fault(as, "STHUX not implemented");
                     break;
 
                 default:
@@ -805,24 +963,66 @@ OSErr PPC_Step(PPCAddressSpace* as)
             PPC_Op_LWZ(as, insn);
             break;
 
+        case PPC_OP_LWZU:        /* 33 */
+            PPC_Op_LWZU(as, insn);
+            break;
+
         case PPC_OP_LBZ:         /* 34 */
             PPC_Op_LBZ(as, insn);
+            break;
+
+        case PPC_OP_LBZU:        /* 35 */
+            PPC_Op_LBZU(as, insn);
             break;
 
         case PPC_OP_STW:         /* 36 */
             PPC_Op_STW(as, insn);
             break;
 
+        case PPC_OP_STWU:        /* 37 */
+            PPC_Op_STWU(as, insn);
+            break;
+
         case PPC_OP_STB:         /* 38 */
             PPC_Op_STB(as, insn);
+            break;
+
+        case PPC_OP_STBU:        /* 39 */
+            PPC_Op_STBU(as, insn);
             break;
 
         case PPC_OP_LHZ:         /* 40 */
             PPC_Op_LHZ(as, insn);
             break;
 
+        case PPC_OP_LHZU:        /* 41 */
+            PPC_Op_LHZU(as, insn);
+            break;
+
+        case PPC_OP_LHA:         /* 42 */
+            /* LHA - Load halfword algebraic (sign-extend) */
+            /* Not implemented yet - similar to LHZ but sign-extends */
+            PPC_Fault(as, "LHA not implemented");
+            break;
+
+        case PPC_OP_LHAU:        /* 43 */
+            PPC_Op_LHAU(as, insn);
+            break;
+
         case PPC_OP_STH:         /* 44 */
             PPC_Op_STH(as, insn);
+            break;
+
+        case PPC_OP_STHU:        /* 45 */
+            PPC_Op_STHU(as, insn);
+            break;
+
+        case PPC_OP_LMW:         /* 46 */
+            PPC_Op_LMW(as, insn);
+            break;
+
+        case PPC_OP_STMW:        /* 47 */
+            PPC_Op_STMW(as, insn);
             break;
 
         default:

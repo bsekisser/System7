@@ -850,6 +850,932 @@ void PPC_Op_STH(PPCAddressSpace* as, UInt32 insn)
 
 /*
  * ============================================================================
+ * ADDITIONAL ARITHMETIC INSTRUCTIONS
+ * ============================================================================
+ */
+
+/*
+ * ADDIC - Add Immediate Carrying
+ * rD = rA + SIMM, sets CA
+ */
+void PPC_Op_ADDIC(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    SInt32 simm = PPC_SIMM(insn);
+    UInt32 a = as->regs.gpr[ra];
+    UInt32 result = a + simm;
+
+    as->regs.gpr[rd] = result;
+
+    /* Set CA if carry occurred */
+    if (result < a) {
+        as->regs.xer |= PPC_XER_CA;
+    } else {
+        as->regs.xer &= ~PPC_XER_CA;
+    }
+}
+
+/*
+ * ADDIC. - Add Immediate Carrying and Record
+ * rD = rA + SIMM, sets CA and CR0
+ */
+void PPC_Op_ADDIC_RC(PPCAddressSpace* as, UInt32 insn)
+{
+    PPC_Op_ADDIC(as, insn);
+    PPC_SetCR0(as, (SInt32)as->regs.gpr[PPC_RD(insn)]);
+}
+
+/*
+ * SUBFIC - Subtract From Immediate Carrying
+ * rD = SIMM - rA, sets CA
+ */
+void PPC_Op_SUBFIC(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    SInt32 simm = PPC_SIMM(insn);
+    UInt32 a = as->regs.gpr[ra];
+    UInt32 result = simm - a;
+
+    as->regs.gpr[rd] = result;
+
+    /* Set CA if no borrow occurred (simm >= a in unsigned) */
+    if ((UInt32)simm >= a) {
+        as->regs.xer |= PPC_XER_CA;
+    } else {
+        as->regs.xer &= ~PPC_XER_CA;
+    }
+}
+
+/*
+ * NEG - Negate
+ * rD = -rA
+ */
+void PPC_Op_NEG(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    Boolean rc = PPC_RC(insn);
+    SInt32 a = (SInt32)as->regs.gpr[ra];
+
+    as->regs.gpr[rd] = (UInt32)(-a);
+
+    if (rc) {
+        PPC_SetCR0(as, -a);
+    }
+}
+
+/*
+ * ADDC - Add Carrying
+ * rD = rA + rB, sets CA
+ */
+void PPC_Op_ADDC(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+    UInt32 a = as->regs.gpr[ra];
+    UInt32 b = as->regs.gpr[rb];
+    UInt32 result = a + b;
+
+    as->regs.gpr[rd] = result;
+
+    /* Set CA if carry occurred */
+    if (result < a) {
+        as->regs.xer |= PPC_XER_CA;
+    } else {
+        as->regs.xer &= ~PPC_XER_CA;
+    }
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)result);
+    }
+}
+
+/*
+ * SUBFC - Subtract From Carrying
+ * rD = rB - rA, sets CA
+ */
+void PPC_Op_SUBFC(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+    UInt32 a = as->regs.gpr[ra];
+    UInt32 b = as->regs.gpr[rb];
+    UInt32 result = b - a;
+
+    as->regs.gpr[rd] = result;
+
+    /* Set CA if no borrow occurred (b >= a in unsigned) */
+    if (b >= a) {
+        as->regs.xer |= PPC_XER_CA;
+    } else {
+        as->regs.xer &= ~PPC_XER_CA;
+    }
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)result);
+    }
+}
+
+/*
+ * ============================================================================
+ * ADDITIONAL LOGICAL INSTRUCTIONS
+ * ============================================================================
+ */
+
+/*
+ * NOR - NOR
+ * rA = ~(rS | rB)
+ */
+void PPC_Op_NOR(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+
+    as->regs.gpr[ra] = ~(as->regs.gpr[rs] | as->regs.gpr[rb]);
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[ra]);
+    }
+}
+
+/*
+ * NAND - NAND
+ * rA = ~(rS & rB)
+ */
+void PPC_Op_NAND(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+
+    as->regs.gpr[ra] = ~(as->regs.gpr[rs] & as->regs.gpr[rb]);
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[ra]);
+    }
+}
+
+/*
+ * EQV - Equivalent
+ * rA = ~(rS ^ rB)
+ */
+void PPC_Op_EQV(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+
+    as->regs.gpr[ra] = ~(as->regs.gpr[rs] ^ as->regs.gpr[rb]);
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[ra]);
+    }
+}
+
+/*
+ * ANDC - AND with Complement
+ * rA = rS & ~rB
+ */
+void PPC_Op_ANDC(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+
+    as->regs.gpr[ra] = as->regs.gpr[rs] & ~as->regs.gpr[rb];
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[ra]);
+    }
+}
+
+/*
+ * ORC - OR with Complement
+ * rA = rS | ~rB
+ */
+void PPC_Op_ORC(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+
+    as->regs.gpr[ra] = as->regs.gpr[rs] | ~as->regs.gpr[rb];
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[ra]);
+    }
+}
+
+/*
+ * ============================================================================
+ * SHIFT INSTRUCTIONS
+ * ============================================================================
+ */
+
+/*
+ * SLW - Shift Left Word
+ * rA = rS << rB[27:31]
+ */
+void PPC_Op_SLW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+    UInt32 shift = as->regs.gpr[rb] & 0x3F;
+
+    if (shift < 32) {
+        as->regs.gpr[ra] = as->regs.gpr[rs] << shift;
+    } else {
+        as->regs.gpr[ra] = 0;
+    }
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[ra]);
+    }
+}
+
+/*
+ * SRW - Shift Right Word
+ * rA = rS >> rB[27:31] (logical)
+ */
+void PPC_Op_SRW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+    UInt32 shift = as->regs.gpr[rb] & 0x3F;
+
+    if (shift < 32) {
+        as->regs.gpr[ra] = as->regs.gpr[rs] >> shift;
+    } else {
+        as->regs.gpr[ra] = 0;
+    }
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[ra]);
+    }
+}
+
+/*
+ * SRAW - Shift Right Algebraic Word
+ * rA = rS >> rB[27:31] (arithmetic), sets CA
+ */
+void PPC_Op_SRAW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+    UInt32 shift = as->regs.gpr[rb] & 0x3F;
+    SInt32 value = (SInt32)as->regs.gpr[rs];
+    SInt32 result;
+
+    if (shift < 32) {
+        result = value >> shift;
+        /* Set CA if any 1 bits were shifted out of a negative number */
+        if (value < 0 && (value & ((1U << shift) - 1))) {
+            as->regs.xer |= PPC_XER_CA;
+        } else {
+            as->regs.xer &= ~PPC_XER_CA;
+        }
+    } else {
+        result = (value < 0) ? -1 : 0;
+        /* Set CA if value was negative */
+        if (value < 0) {
+            as->regs.xer |= PPC_XER_CA;
+        } else {
+            as->regs.xer &= ~PPC_XER_CA;
+        }
+    }
+
+    as->regs.gpr[ra] = (UInt32)result;
+
+    if (rc) {
+        PPC_SetCR0(as, result);
+    }
+}
+
+/*
+ * SRAWI - Shift Right Algebraic Word Immediate
+ * rA = rS >> SH (arithmetic), sets CA
+ */
+void PPC_Op_SRAWI(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 sh = PPC_SH(insn);
+    Boolean rc = PPC_RC(insn);
+    SInt32 value = (SInt32)as->regs.gpr[rs];
+    SInt32 result = value >> sh;
+
+    as->regs.gpr[ra] = (UInt32)result;
+
+    /* Set CA if any 1 bits were shifted out of a negative number */
+    if (value < 0 && sh > 0 && (value & ((1U << sh) - 1))) {
+        as->regs.xer |= PPC_XER_CA;
+    } else {
+        as->regs.xer &= ~PPC_XER_CA;
+    }
+
+    if (rc) {
+        PPC_SetCR0(as, result);
+    }
+}
+
+/*
+ * ============================================================================
+ * ROTATE INSTRUCTIONS
+ * ============================================================================
+ */
+
+/* Helper: Create mask from MB to ME */
+static UInt32 PPC_MakeMask(UInt8 mb, UInt8 me)
+{
+    UInt32 mask;
+    if (mb <= me) {
+        /* Normal case: MB...ME */
+        mask = ((1U << (32 - mb)) - 1) & ~((1U << (31 - me)) - 1);
+    } else {
+        /* Wrapped case: ME...MB */
+        mask = ~(((1U << (32 - me - 1)) - 1) & ~((1U << (31 - mb + 1)) - 1));
+    }
+    return mask;
+}
+
+/*
+ * RLWINM - Rotate Left Word Immediate then AND with Mask
+ * rA = ROTL(rS, SH) & MASK(MB, ME)
+ */
+void PPC_Op_RLWINM(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 sh = PPC_SH(insn);
+    UInt8 mb = PPC_MB(insn);
+    UInt8 me = PPC_ME(insn);
+    Boolean rc = PPC_RC(insn);
+    UInt32 value = as->regs.gpr[rs];
+    UInt32 rotated = (value << sh) | (value >> (32 - sh));
+    UInt32 mask = PPC_MakeMask(mb, me);
+
+    as->regs.gpr[ra] = rotated & mask;
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[ra]);
+    }
+}
+
+/*
+ * RLWNM - Rotate Left Word then AND with Mask
+ * rA = ROTL(rS, rB[27:31]) & MASK(MB, ME)
+ */
+void PPC_Op_RLWNM(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt8 mb = PPC_MB(insn);
+    UInt8 me = PPC_ME(insn);
+    Boolean rc = PPC_RC(insn);
+    UInt32 value = as->regs.gpr[rs];
+    UInt8 sh = as->regs.gpr[rb] & 0x1F;
+    UInt32 rotated = (value << sh) | (value >> (32 - sh));
+    UInt32 mask = PPC_MakeMask(mb, me);
+
+    as->regs.gpr[ra] = rotated & mask;
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[ra]);
+    }
+}
+
+/*
+ * RLWIMI - Rotate Left Word Immediate then Mask Insert
+ * rA = (ROTL(rS, SH) & MASK(MB, ME)) | (rA & ~MASK(MB, ME))
+ */
+void PPC_Op_RLWIMI(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 sh = PPC_SH(insn);
+    UInt8 mb = PPC_MB(insn);
+    UInt8 me = PPC_ME(insn);
+    Boolean rc = PPC_RC(insn);
+    UInt32 value = as->regs.gpr[rs];
+    UInt32 rotated = (value << sh) | (value >> (32 - sh));
+    UInt32 mask = PPC_MakeMask(mb, me);
+
+    as->regs.gpr[ra] = (rotated & mask) | (as->regs.gpr[ra] & ~mask);
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[ra]);
+    }
+}
+
+/*
+ * ============================================================================
+ * INDEXED LOAD/STORE INSTRUCTIONS
+ * ============================================================================
+ */
+
+/*
+ * LWZX - Load Word and Zero Indexed
+ * rD = MEM(rA + rB)
+ */
+void PPC_Op_LWZX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea;
+
+    if (ra == 0) {
+        ea = as->regs.gpr[rb];
+    } else {
+        ea = as->regs.gpr[ra] + as->regs.gpr[rb];
+    }
+
+    as->regs.gpr[rd] = PPC_Read32(as, ea);
+}
+
+/*
+ * LBZX - Load Byte and Zero Indexed
+ * rD = MEM(rA + rB)
+ */
+void PPC_Op_LBZX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea;
+
+    if (ra == 0) {
+        ea = as->regs.gpr[rb];
+    } else {
+        ea = as->regs.gpr[ra] + as->regs.gpr[rb];
+    }
+
+    as->regs.gpr[rd] = PPC_Read8(as, ea);
+}
+
+/*
+ * LHZX - Load Halfword and Zero Indexed
+ * rD = MEM(rA + rB)
+ */
+void PPC_Op_LHZX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea;
+
+    if (ra == 0) {
+        ea = as->regs.gpr[rb];
+    } else {
+        ea = as->regs.gpr[ra] + as->regs.gpr[rb];
+    }
+
+    as->regs.gpr[rd] = PPC_Read16(as, ea);
+}
+
+/*
+ * LHAX - Load Halfword Algebraic Indexed
+ * rD = EXTS(MEM(rA + rB))
+ */
+void PPC_Op_LHAX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea;
+    SInt16 value;
+
+    if (ra == 0) {
+        ea = as->regs.gpr[rb];
+    } else {
+        ea = as->regs.gpr[ra] + as->regs.gpr[rb];
+    }
+
+    value = (SInt16)PPC_Read16(as, ea);
+    as->regs.gpr[rd] = (UInt32)(SInt32)value; /* Sign-extend */
+}
+
+/*
+ * STWX - Store Word Indexed
+ * MEM(rA + rB) = rS
+ */
+void PPC_Op_STWX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea;
+
+    if (ra == 0) {
+        ea = as->regs.gpr[rb];
+    } else {
+        ea = as->regs.gpr[ra] + as->regs.gpr[rb];
+    }
+
+    PPC_Write32(as, ea, as->regs.gpr[rs]);
+}
+
+/*
+ * STBX - Store Byte Indexed
+ * MEM(rA + rB) = rS[24:31]
+ */
+void PPC_Op_STBX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea;
+
+    if (ra == 0) {
+        ea = as->regs.gpr[rb];
+    } else {
+        ea = as->regs.gpr[ra] + as->regs.gpr[rb];
+    }
+
+    PPC_Write8(as, ea, (UInt8)(as->regs.gpr[rs] & 0xFF));
+}
+
+/*
+ * STHX - Store Halfword Indexed
+ * MEM(rA + rB) = rS[16:31]
+ */
+void PPC_Op_STHX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea;
+
+    if (ra == 0) {
+        ea = as->regs.gpr[rb];
+    } else {
+        ea = as->regs.gpr[ra] + as->regs.gpr[rb];
+    }
+
+    PPC_Write16(as, ea, (UInt16)(as->regs.gpr[rs] & 0xFFFF));
+}
+
+/*
+ * ============================================================================
+ * UPDATE-FORM LOAD/STORE INSTRUCTIONS
+ * ============================================================================
+ */
+
+/*
+ * LWZU - Load Word and Zero with Update
+ * rD = MEM(rA + d), rA = rA + d
+ */
+void PPC_Op_LWZU(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    SInt16 d = PPC_SIMM(insn);
+    UInt32 ea = as->regs.gpr[ra] + d;
+
+    as->regs.gpr[rd] = PPC_Read32(as, ea);
+    as->regs.gpr[ra] = ea;
+}
+
+/*
+ * LBZU - Load Byte and Zero with Update
+ * rD = MEM(rA + d), rA = rA + d
+ */
+void PPC_Op_LBZU(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    SInt16 d = PPC_SIMM(insn);
+    UInt32 ea = as->regs.gpr[ra] + d;
+
+    as->regs.gpr[rd] = PPC_Read8(as, ea);
+    as->regs.gpr[ra] = ea;
+}
+
+/*
+ * LHZU - Load Halfword and Zero with Update
+ * rD = MEM(rA + d), rA = rA + d
+ */
+void PPC_Op_LHZU(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    SInt16 d = PPC_SIMM(insn);
+    UInt32 ea = as->regs.gpr[ra] + d;
+
+    as->regs.gpr[rd] = PPC_Read16(as, ea);
+    as->regs.gpr[ra] = ea;
+}
+
+/*
+ * LHAU - Load Halfword Algebraic with Update
+ * rD = EXTS(MEM(rA + d)), rA = rA + d
+ */
+void PPC_Op_LHAU(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    SInt16 d = PPC_SIMM(insn);
+    UInt32 ea = as->regs.gpr[ra] + d;
+    SInt16 value = (SInt16)PPC_Read16(as, ea);
+
+    as->regs.gpr[rd] = (UInt32)(SInt32)value; /* Sign-extend */
+    as->regs.gpr[ra] = ea;
+}
+
+/*
+ * STWU - Store Word with Update
+ * MEM(rA + d) = rS, rA = rA + d
+ */
+void PPC_Op_STWU(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    SInt16 d = PPC_SIMM(insn);
+    UInt32 ea = as->regs.gpr[ra] + d;
+
+    PPC_Write32(as, ea, as->regs.gpr[rs]);
+    as->regs.gpr[ra] = ea;
+}
+
+/*
+ * STBU - Store Byte with Update
+ * MEM(rA + d) = rS[24:31], rA = rA + d
+ */
+void PPC_Op_STBU(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    SInt16 d = PPC_SIMM(insn);
+    UInt32 ea = as->regs.gpr[ra] + d;
+
+    PPC_Write8(as, ea, (UInt8)(as->regs.gpr[rs] & 0xFF));
+    as->regs.gpr[ra] = ea;
+}
+
+/*
+ * STHU - Store Halfword with Update
+ * MEM(rA + d) = rS[16:31], rA = rA + d
+ */
+void PPC_Op_STHU(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    SInt16 d = PPC_SIMM(insn);
+    UInt32 ea = as->regs.gpr[ra] + d;
+
+    PPC_Write16(as, ea, (UInt16)(as->regs.gpr[rs] & 0xFFFF));
+    as->regs.gpr[ra] = ea;
+}
+
+/*
+ * ============================================================================
+ * MULTIPLE LOAD/STORE INSTRUCTIONS
+ * ============================================================================
+ */
+
+/*
+ * LMW - Load Multiple Word
+ * Load consecutive words from memory into registers rD through r31
+ */
+void PPC_Op_LMW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    SInt16 d = PPC_SIMM(insn);
+    UInt32 ea;
+    UInt8 r;
+
+    if (ra == 0) {
+        ea = d;
+    } else {
+        ea = as->regs.gpr[ra] + d;
+    }
+
+    for (r = rd; r <= 31; r++) {
+        as->regs.gpr[r] = PPC_Read32(as, ea);
+        ea += 4;
+    }
+}
+
+/*
+ * STMW - Store Multiple Word
+ * Store consecutive words from registers rS through r31 into memory
+ */
+void PPC_Op_STMW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    SInt16 d = PPC_SIMM(insn);
+    UInt32 ea;
+    UInt8 r;
+
+    if (ra == 0) {
+        ea = d;
+    } else {
+        ea = as->regs.gpr[ra] + d;
+    }
+
+    for (r = rs; r <= 31; r++) {
+        PPC_Write32(as, ea, as->regs.gpr[r]);
+        ea += 4;
+    }
+}
+
+/*
+ * ============================================================================
+ * CONDITION REGISTER LOGICAL OPERATIONS
+ * ============================================================================
+ */
+
+/*
+ * CRAND - Condition Register AND
+ * CR[crbD] = CR[crbA] & CR[crbB]
+ */
+void PPC_Op_CRAND(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 crbd = PPC_RD(insn);
+    UInt8 crba = PPC_RA(insn);
+    UInt8 crbb = PPC_RB(insn);
+    UInt32 bit_a = (as->regs.cr >> (31 - crba)) & 1;
+    UInt32 bit_b = (as->regs.cr >> (31 - crbb)) & 1;
+    UInt32 result = bit_a & bit_b;
+
+    /* Clear destination bit */
+    as->regs.cr &= ~(1U << (31 - crbd));
+    /* Set destination bit if result is 1 */
+    if (result) {
+        as->regs.cr |= (1U << (31 - crbd));
+    }
+}
+
+/*
+ * CROR - Condition Register OR
+ * CR[crbD] = CR[crbA] | CR[crbB]
+ */
+void PPC_Op_CROR(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 crbd = PPC_RD(insn);
+    UInt8 crba = PPC_RA(insn);
+    UInt8 crbb = PPC_RB(insn);
+    UInt32 bit_a = (as->regs.cr >> (31 - crba)) & 1;
+    UInt32 bit_b = (as->regs.cr >> (31 - crbb)) & 1;
+    UInt32 result = bit_a | bit_b;
+
+    /* Clear destination bit */
+    as->regs.cr &= ~(1U << (31 - crbd));
+    /* Set destination bit if result is 1 */
+    if (result) {
+        as->regs.cr |= (1U << (31 - crbd));
+    }
+}
+
+/*
+ * CRXOR - Condition Register XOR
+ * CR[crbD] = CR[crbA] ^ CR[crbB]
+ */
+void PPC_Op_CRXOR(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 crbd = PPC_RD(insn);
+    UInt8 crba = PPC_RA(insn);
+    UInt8 crbb = PPC_RB(insn);
+    UInt32 bit_a = (as->regs.cr >> (31 - crba)) & 1;
+    UInt32 bit_b = (as->regs.cr >> (31 - crbb)) & 1;
+    UInt32 result = bit_a ^ bit_b;
+
+    /* Clear destination bit */
+    as->regs.cr &= ~(1U << (31 - crbd));
+    /* Set destination bit if result is 1 */
+    if (result) {
+        as->regs.cr |= (1U << (31 - crbd));
+    }
+}
+
+/*
+ * CRNAND - Condition Register NAND
+ * CR[crbD] = ~(CR[crbA] & CR[crbB])
+ */
+void PPC_Op_CRNAND(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 crbd = PPC_RD(insn);
+    UInt8 crba = PPC_RA(insn);
+    UInt8 crbb = PPC_RB(insn);
+    UInt32 bit_a = (as->regs.cr >> (31 - crba)) & 1;
+    UInt32 bit_b = (as->regs.cr >> (31 - crbb)) & 1;
+    UInt32 result = ~(bit_a & bit_b) & 1;
+
+    /* Clear destination bit */
+    as->regs.cr &= ~(1U << (31 - crbd));
+    /* Set destination bit if result is 1 */
+    if (result) {
+        as->regs.cr |= (1U << (31 - crbd));
+    }
+}
+
+/*
+ * CRNOR - Condition Register NOR
+ * CR[crbD] = ~(CR[crbA] | CR[crbB])
+ */
+void PPC_Op_CRNOR(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 crbd = PPC_RD(insn);
+    UInt8 crba = PPC_RA(insn);
+    UInt8 crbb = PPC_RB(insn);
+    UInt32 bit_a = (as->regs.cr >> (31 - crba)) & 1;
+    UInt32 bit_b = (as->regs.cr >> (31 - crbb)) & 1;
+    UInt32 result = ~(bit_a | bit_b) & 1;
+
+    /* Clear destination bit */
+    as->regs.cr &= ~(1U << (31 - crbd));
+    /* Set destination bit if result is 1 */
+    if (result) {
+        as->regs.cr |= (1U << (31 - crbd));
+    }
+}
+
+/*
+ * CREQV - Condition Register Equivalent
+ * CR[crbD] = ~(CR[crbA] ^ CR[crbB])
+ */
+void PPC_Op_CREQV(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 crbd = PPC_RD(insn);
+    UInt8 crba = PPC_RA(insn);
+    UInt8 crbb = PPC_RB(insn);
+    UInt32 bit_a = (as->regs.cr >> (31 - crba)) & 1;
+    UInt32 bit_b = (as->regs.cr >> (31 - crbb)) & 1;
+    UInt32 result = ~(bit_a ^ bit_b) & 1;
+
+    /* Clear destination bit */
+    as->regs.cr &= ~(1U << (31 - crbd));
+    /* Set destination bit if result is 1 */
+    if (result) {
+        as->regs.cr |= (1U << (31 - crbd));
+    }
+}
+
+/*
+ * CRANDC - Condition Register AND with Complement
+ * CR[crbD] = CR[crbA] & ~CR[crbB]
+ */
+void PPC_Op_CRANDC(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 crbd = PPC_RD(insn);
+    UInt8 crba = PPC_RA(insn);
+    UInt8 crbb = PPC_RB(insn);
+    UInt32 bit_a = (as->regs.cr >> (31 - crba)) & 1;
+    UInt32 bit_b = (as->regs.cr >> (31 - crbb)) & 1;
+    UInt32 result = bit_a & (~bit_b & 1);
+
+    /* Clear destination bit */
+    as->regs.cr &= ~(1U << (31 - crbd));
+    /* Set destination bit if result is 1 */
+    if (result) {
+        as->regs.cr |= (1U << (31 - crbd));
+    }
+}
+
+/*
+ * CRORC - Condition Register OR with Complement
+ * CR[crbD] = CR[crbA] | ~CR[crbB]
+ */
+void PPC_Op_CRORC(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 crbd = PPC_RD(insn);
+    UInt8 crba = PPC_RA(insn);
+    UInt8 crbb = PPC_RB(insn);
+    UInt32 bit_a = (as->regs.cr >> (31 - crba)) & 1;
+    UInt32 bit_b = (as->regs.cr >> (31 - crbb)) & 1;
+    UInt32 result = bit_a | (~bit_b & 1);
+
+    /* Clear destination bit */
+    as->regs.cr &= ~(1U << (31 - crbd));
+    /* Set destination bit if result is 1 */
+    if (result) {
+        as->regs.cr |= (1U << (31 - crbd));
+    }
+}
+
+/*
+ * ============================================================================
  * SYSTEM INSTRUCTIONS
  * ============================================================================
  */
@@ -867,8 +1793,8 @@ void PPC_Op_SC(PPCAddressSpace* as, UInt32 insn)
 
 /*
  * ==================================================
- * FOUNDATION IMPLEMENTATION COMPLETE
- * Additional instructions can be added as needed
+ * EXTENDED IMPLEMENTATION
+ * Total: 71 instructions (31 foundation + 40 new)
  * ==================================================
  */
 
