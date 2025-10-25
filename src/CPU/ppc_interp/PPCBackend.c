@@ -683,6 +683,10 @@ OSErr PPC_Step(PPCAddressSpace* as)
 
     /* Decode and dispatch */
     switch (primary) {
+        case PPC_OP_TWI:         /* 3 */
+            PPC_Op_TWI(as, insn);
+            break;
+
         case PPC_OP_MULLI:       /* 7 */
             PPC_Op_MULLI(as, insn);
             break;
@@ -750,6 +754,14 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     PPC_Op_CRXOR(as, insn);
                     break;
 
+                case PPC_XOP19_ISYNC:
+                    PPC_Op_ISYNC(as, insn);
+                    break;
+
+                case PPC_XOP19_SYNC:
+                    PPC_Op_SYNC(as, insn);
+                    break;
+
                 default:
                     /* Check for other CR ops */
                     if (extended == 225) PPC_Op_CRNAND(as, insn);
@@ -809,6 +821,10 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     PPC_Op_CMPL(as, insn);
                     break;
 
+                case PPC_XOP_TW:
+                    PPC_Op_TW(as, insn);
+                    break;
+
                 /* Arithmetic */
                 case 8:    /* SUBFC */
                     PPC_Op_SUBFC(as, insn);
@@ -818,12 +834,72 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     PPC_Op_ADDC(as, insn);
                     break;
 
+                case PPC_XOP_MULHWU:
+                    PPC_Op_MULHWU(as, insn);
+                    break;
+
+                case PPC_XOP_MFCR:
+                    PPC_Op_MFCR(as, insn);
+                    break;
+
+                case PPC_XOP_LWARX:
+                    PPC_Op_LWARX(as, insn);
+                    break;
+
+                case PPC_XOP_CNTLZW:
+                    PPC_Op_CNTLZW(as, insn);
+                    break;
+
                 case PPC_XOP_SUBF:
                     PPC_Op_SUBF(as, insn);
                     break;
 
+                case PPC_XOP_DCBST:
+                    PPC_Op_DCBST(as, insn);
+                    break;
+
+                case PPC_XOP_MULHW:
+                    PPC_Op_MULHW(as, insn);
+                    break;
+
+                case PPC_XOP_DCBF:
+                    PPC_Op_DCBF(as, insn);
+                    break;
+
                 case 104:  /* NEG */
                     PPC_Op_NEG(as, insn);
+                    break;
+
+                case PPC_XOP_SUBFE:
+                    PPC_Op_SUBFE(as, insn);
+                    break;
+
+                case PPC_XOP_ADDE:
+                    PPC_Op_ADDE(as, insn);
+                    break;
+
+                case PPC_XOP_MTCRF:
+                    PPC_Op_MTCRF(as, insn);
+                    break;
+
+                case PPC_XOP_STWCX:
+                    PPC_Op_STWCX(as, insn);
+                    break;
+
+                case PPC_XOP_SUBFZE:
+                    PPC_Op_SUBFZE(as, insn);
+                    break;
+
+                case PPC_XOP_ADDZE:
+                    PPC_Op_ADDZE(as, insn);
+                    break;
+
+                case PPC_XOP_SUBFME:
+                    PPC_Op_SUBFME(as, insn);
+                    break;
+
+                case PPC_XOP_ADDME:
+                    PPC_Op_ADDME(as, insn);
                     break;
 
                 case PPC_XOP_ADD:
@@ -832,6 +908,18 @@ OSErr PPC_Step(PPCAddressSpace* as)
 
                 case PPC_XOP_MULLW:
                     PPC_Op_MULLW(as, insn);
+                    break;
+
+                case PPC_XOP_MFSPR:
+                    PPC_Op_MFSPR(as, insn);
+                    break;
+
+                case PPC_XOP_DIVWU:
+                    PPC_Op_DIVWU(as, insn);
+                    break;
+
+                case PPC_XOP_MTSPR:
+                    PPC_Op_MTSPR(as, insn);
                     break;
 
                 case PPC_XOP_DIVW:
@@ -886,6 +974,24 @@ OSErr PPC_Step(PPCAddressSpace* as)
 
                 case PPC_XOP_SRAWI:
                     PPC_Op_SRAWI(as, insn);
+                    break;
+
+                /* Sign extension */
+                case PPC_XOP_EXTSH:
+                    PPC_Op_EXTSH(as, insn);
+                    break;
+
+                case PPC_XOP_EXTSB:
+                    PPC_Op_EXTSB(as, insn);
+                    break;
+
+                /* Cache management */
+                case PPC_XOP_ICBI:
+                    PPC_Op_ICBI(as, insn);
+                    break;
+
+                case PPC_XOP_DCBZ:
+                    PPC_Op_DCBZ(as, insn);
                     break;
 
                 /* Indexed loads/stores */

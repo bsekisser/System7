@@ -151,6 +151,57 @@ extern "C" {
 #define PPC_XOP_SRAWI       824 /* Shift right algebraic word immediate */
 
 /*
+ * Extended Arithmetic with Carry (Opcode 31)
+ */
+#define PPC_XOP_ADDZE       202 /* Add to zero extended */
+#define PPC_XOP_ADDME       234 /* Add to minus one extended */
+#define PPC_XOP_ADDE        138 /* Add extended */
+#define PPC_XOP_SUBFE       136 /* Subtract from extended */
+#define PPC_XOP_SUBFZE      200 /* Subtract from zero extended */
+#define PPC_XOP_SUBFME      232 /* Subtract from minus one extended */
+
+/*
+ * Unsigned Multiply/Divide (Opcode 31)
+ */
+#define PPC_XOP_MULHW       75  /* Multiply high word */
+#define PPC_XOP_MULHWU      11  /* Multiply high word unsigned */
+#define PPC_XOP_DIVWU       459 /* Divide word unsigned */
+
+/*
+ * Bit Operations (Opcode 31)
+ */
+#define PPC_XOP_EXTSB       954 /* Extend sign byte */
+#define PPC_XOP_EXTSH       922 /* Extend sign halfword */
+#define PPC_XOP_CNTLZW      26  /* Count leading zeros word */
+
+/*
+ * Special Register Access (Opcode 31)
+ */
+#define PPC_XOP_MFCR        19  /* Move from condition register */
+#define PPC_XOP_MTCRF       144 /* Move to condition register fields */
+#define PPC_XOP_MFSPR       339 /* Move from special purpose register */
+#define PPC_XOP_MTSPR       467 /* Move to special purpose register */
+
+/*
+ * Trap Instructions
+ */
+#define PPC_XOP_TW          4   /* Trap word */
+
+/*
+ * Atomic Operations (Opcode 31)
+ */
+#define PPC_XOP_LWARX       20  /* Load word and reserve indexed */
+#define PPC_XOP_STWCX       150 /* Store word conditional indexed (note: bit 0 must be set) */
+
+/*
+ * Cache Management (Opcode 31)
+ */
+#define PPC_XOP_DCBZ        1014 /* Data cache block set to zero */
+#define PPC_XOP_DCBST       54  /* Data cache block store */
+#define PPC_XOP_DCBF        86  /* Data cache block flush */
+#define PPC_XOP_ICBI        982 /* Instruction cache block invalidate */
+
+/*
  * Branch Extended Opcode 19 Instructions
  */
 #define PPC_XOP19_BCLR      16  /* Branch conditional to link register */
@@ -158,6 +209,8 @@ extern "C" {
 #define PPC_XOP19_CRAND     257 /* Condition register AND */
 #define PPC_XOP19_CROR      449 /* Condition register OR */
 #define PPC_XOP19_CRXOR     193 /* Condition register XOR */
+#define PPC_XOP19_SYNC      598 /* Synchronize */
+#define PPC_XOP19_ISYNC     150 /* Instruction synchronize */
 
 /*
  * Forward declarations
@@ -262,6 +315,46 @@ extern void PPC_Op_CRNOR(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_CREQV(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_CRANDC(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_CRORC(PPCAddressSpace* as, UInt32 insn);
+
+/* Extended arithmetic with carry */
+extern void PPC_Op_ADDZE(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_ADDME(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_ADDE(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_SUBFE(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_SUBFZE(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_SUBFME(PPCAddressSpace* as, UInt32 insn);
+
+/* Unsigned multiply/divide */
+extern void PPC_Op_MULHW(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_MULHWU(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_DIVWU(PPCAddressSpace* as, UInt32 insn);
+
+/* Sign extension and bit operations */
+extern void PPC_Op_EXTSB(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_EXTSH(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_CNTLZW(PPCAddressSpace* as, UInt32 insn);
+
+/* Special register access */
+extern void PPC_Op_MFCR(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_MTCRF(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_MFSPR(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_MTSPR(PPCAddressSpace* as, UInt32 insn);
+
+/* Trap instructions */
+extern void PPC_Op_TW(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_TWI(PPCAddressSpace* as, UInt32 insn);
+
+/* Atomic operations */
+extern void PPC_Op_LWARX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STWCX(PPCAddressSpace* as, UInt32 insn);
+
+/* Cache management (NOPs) */
+extern void PPC_Op_DCBZ(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_DCBST(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_DCBF(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_ICBI(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_SYNC(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_ISYNC(PPCAddressSpace* as, UInt32 insn);
 
 /* System operations */
 extern void PPC_Op_SC(PPCAddressSpace* as, UInt32 insn);

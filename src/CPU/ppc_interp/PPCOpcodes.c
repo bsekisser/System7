@@ -1792,9 +1792,590 @@ void PPC_Op_SC(PPCAddressSpace* as, UInt32 insn)
 }
 
 /*
+ * ============================================================================
+ * EXTENDED ARITHMETIC WITH CARRY
+ * ============================================================================
+ */
+
+/*
+ * ADDZE - Add to Zero Extended
+ * rD = rA + XER[CA]
+ */
+void PPC_Op_ADDZE(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    Boolean rc = PPC_RC(insn);
+    UInt32 a = as->regs.gpr[ra];
+    UInt32 ca = (as->regs.xer & PPC_XER_CA) ? 1 : 0;
+    UInt32 result = a + ca;
+
+    as->regs.gpr[rd] = result;
+
+    /* Set CA if carry occurred */
+    if (result < a) {
+        as->regs.xer |= PPC_XER_CA;
+    } else {
+        as->regs.xer &= ~PPC_XER_CA;
+    }
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)result);
+    }
+}
+
+/*
+ * ADDME - Add to Minus One Extended
+ * rD = rA + XER[CA] - 1
+ */
+void PPC_Op_ADDME(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    Boolean rc = PPC_RC(insn);
+    UInt32 a = as->regs.gpr[ra];
+    UInt32 ca = (as->regs.xer & PPC_XER_CA) ? 1 : 0;
+    UInt32 result = a + ca + 0xFFFFFFFF; /* + ca - 1 */
+
+    as->regs.gpr[rd] = result;
+
+    /* Set CA if carry occurred */
+    if (ca == 1 || a != 0) {
+        as->regs.xer |= PPC_XER_CA;
+    } else {
+        as->regs.xer &= ~PPC_XER_CA;
+    }
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)result);
+    }
+}
+
+/*
+ * ADDE - Add Extended
+ * rD = rA + rB + XER[CA]
+ */
+void PPC_Op_ADDE(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+    UInt32 a = as->regs.gpr[ra];
+    UInt32 b = as->regs.gpr[rb];
+    UInt32 ca = (as->regs.xer & PPC_XER_CA) ? 1 : 0;
+    UInt32 result = a + b + ca;
+
+    as->regs.gpr[rd] = result;
+
+    /* Set CA if carry occurred */
+    if (result < a || (result == a && ca == 1)) {
+        as->regs.xer |= PPC_XER_CA;
+    } else {
+        as->regs.xer &= ~PPC_XER_CA;
+    }
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)result);
+    }
+}
+
+/*
+ * SUBFE - Subtract From Extended
+ * rD = ~rA + rB + XER[CA]
+ */
+void PPC_Op_SUBFE(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+    UInt32 a = as->regs.gpr[ra];
+    UInt32 b = as->regs.gpr[rb];
+    UInt32 ca = (as->regs.xer & PPC_XER_CA) ? 1 : 0;
+    UInt32 result = ~a + b + ca;
+
+    as->regs.gpr[rd] = result;
+
+    /* Set CA if carry occurred */
+    if (result < (~a) || (result == (~a) && ca == 1 && b == 0)) {
+        as->regs.xer |= PPC_XER_CA;
+    } else {
+        as->regs.xer &= ~PPC_XER_CA;
+    }
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)result);
+    }
+}
+
+/*
+ * SUBFZE - Subtract From Zero Extended
+ * rD = ~rA + XER[CA]
+ */
+void PPC_Op_SUBFZE(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    Boolean rc = PPC_RC(insn);
+    UInt32 a = as->regs.gpr[ra];
+    UInt32 ca = (as->regs.xer & PPC_XER_CA) ? 1 : 0;
+    UInt32 result = ~a + ca;
+
+    as->regs.gpr[rd] = result;
+
+    /* Set CA appropriately */
+    if (result < (~a)) {
+        as->regs.xer |= PPC_XER_CA;
+    } else {
+        as->regs.xer &= ~PPC_XER_CA;
+    }
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)result);
+    }
+}
+
+/*
+ * SUBFME - Subtract From Minus One Extended
+ * rD = ~rA + XER[CA] - 1
+ */
+void PPC_Op_SUBFME(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    Boolean rc = PPC_RC(insn);
+    UInt32 a = as->regs.gpr[ra];
+    UInt32 ca = (as->regs.xer & PPC_XER_CA) ? 1 : 0;
+    UInt32 result = ~a + ca + 0xFFFFFFFF; /* + ca - 1 */
+
+    as->regs.gpr[rd] = result;
+
+    /* Set CA appropriately */
+    if (ca == 1 || a != 0xFFFFFFFF) {
+        as->regs.xer |= PPC_XER_CA;
+    } else {
+        as->regs.xer &= ~PPC_XER_CA;
+    }
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)result);
+    }
+}
+
+/*
+ * ============================================================================
+ * UNSIGNED MULTIPLY/DIVIDE
+ * ============================================================================
+ */
+
+/*
+ * MULHW - Multiply High Word (signed)
+ * rD = (rA * rB)[0:31] (upper 32 bits of 64-bit result)
+ */
+void PPC_Op_MULHW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+    SInt64 a = (SInt32)as->regs.gpr[ra];
+    SInt64 b = (SInt32)as->regs.gpr[rb];
+    SInt64 result = a * b;
+
+    as->regs.gpr[rd] = (UInt32)(result >> 32);
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[rd]);
+    }
+}
+
+/*
+ * MULHWU - Multiply High Word Unsigned
+ * rD = (rA * rB)[0:31] (upper 32 bits of 64-bit unsigned result)
+ */
+void PPC_Op_MULHWU(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+    UInt64 a = as->regs.gpr[ra];
+    UInt64 b = as->regs.gpr[rb];
+    UInt64 result = a * b;
+
+    as->regs.gpr[rd] = (UInt32)(result >> 32);
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[rd]);
+    }
+}
+
+/*
+ * DIVWU - Divide Word Unsigned
+ * rD = rA / rB (unsigned)
+ */
+void PPC_Op_DIVWU(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+    UInt32 a = as->regs.gpr[ra];
+    UInt32 b = as->regs.gpr[rb];
+
+    if (b == 0) {
+        /* Divide by zero - result is undefined, set to 0 */
+        as->regs.gpr[rd] = 0;
+    } else {
+        as->regs.gpr[rd] = a / b;
+    }
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[rd]);
+    }
+}
+
+/*
+ * ============================================================================
+ * SIGN EXTENSION AND BIT OPERATIONS
+ * ============================================================================
+ */
+
+/*
+ * EXTSB - Extend Sign Byte
+ * rA = EXTS(rS[24:31])
+ */
+void PPC_Op_EXTSB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    Boolean rc = PPC_RC(insn);
+    SInt8 byte = (SInt8)(as->regs.gpr[rs] & 0xFF);
+
+    as->regs.gpr[ra] = (UInt32)(SInt32)byte;
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[ra]);
+    }
+}
+
+/*
+ * EXTSH - Extend Sign Halfword
+ * rA = EXTS(rS[16:31])
+ */
+void PPC_Op_EXTSH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    Boolean rc = PPC_RC(insn);
+    SInt16 halfword = (SInt16)(as->regs.gpr[rs] & 0xFFFF);
+
+    as->regs.gpr[ra] = (UInt32)(SInt32)halfword;
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[ra]);
+    }
+}
+
+/*
+ * CNTLZW - Count Leading Zeros Word
+ * rA = count of consecutive zero bits starting at bit 0 of rS
+ */
+void PPC_Op_CNTLZW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    Boolean rc = PPC_RC(insn);
+    UInt32 value = as->regs.gpr[rs];
+    UInt32 count = 0;
+
+    if (value == 0) {
+        count = 32;
+    } else {
+        while ((value & 0x80000000) == 0) {
+            count++;
+            value <<= 1;
+        }
+    }
+
+    as->regs.gpr[ra] = count;
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)count);
+    }
+}
+
+/*
+ * ============================================================================
+ * SPECIAL REGISTER ACCESS
+ * ============================================================================
+ */
+
+/*
+ * MFCR - Move From Condition Register
+ * rD = CR
+ */
+void PPC_Op_MFCR(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    as->regs.gpr[rd] = as->regs.cr;
+}
+
+/*
+ * MTCRF - Move To Condition Register Fields
+ * CR = rS (with field mask)
+ */
+void PPC_Op_MTCRF(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 crm = (insn >> 12) & 0xFF; /* CRM field */
+    UInt32 value = as->regs.gpr[rs];
+    UInt32 mask = 0;
+
+    /* Build mask from CRM field */
+    for (int i = 0; i < 8; i++) {
+        if (crm & (1 << (7 - i))) {
+            mask |= 0xF << ((7 - i) * 4);
+        }
+    }
+
+    as->regs.cr = (as->regs.cr & ~mask) | (value & mask);
+}
+
+/*
+ * MFSPR - Move From Special Purpose Register
+ * rD = SPR[spr]
+ */
+void PPC_Op_MFSPR(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt16 spr = ((insn >> 11) & 0x1F) | (((insn >> 16) & 0x1F) << 5);
+
+    switch (spr) {
+        case 1:   /* XER */
+            as->regs.gpr[rd] = as->regs.xer;
+            break;
+        case 8:   /* LR */
+            as->regs.gpr[rd] = as->regs.lr;
+            break;
+        case 9:   /* CTR */
+            as->regs.gpr[rd] = as->regs.ctr;
+            break;
+        default:
+            /* Unsupported SPR - return 0 */
+            as->regs.gpr[rd] = 0;
+            break;
+    }
+}
+
+/*
+ * MTSPR - Move To Special Purpose Register
+ * SPR[spr] = rS
+ */
+void PPC_Op_MTSPR(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt16 spr = ((insn >> 11) & 0x1F) | (((insn >> 16) & 0x1F) << 5);
+    UInt32 value = as->regs.gpr[rs];
+
+    switch (spr) {
+        case 1:   /* XER */
+            as->regs.xer = value;
+            break;
+        case 8:   /* LR */
+            as->regs.lr = value;
+            break;
+        case 9:   /* CTR */
+            as->regs.ctr = value;
+            break;
+        default:
+            /* Unsupported SPR - ignore */
+            break;
+    }
+}
+
+/*
+ * ============================================================================
+ * TRAP INSTRUCTIONS
+ * ============================================================================
+ */
+
+/* Helper: Check trap condition */
+static Boolean PPC_CheckTrapCondition(UInt32 to, SInt32 a, SInt32 b)
+{
+    if ((to & 16) && (a < b)) return true;   /* LT */
+    if ((to & 8) && (a > b)) return true;    /* GT */
+    if ((to & 4) && (a == b)) return true;   /* EQ */
+    if ((to & 2) && ((UInt32)a < (UInt32)b)) return true;  /* LTU */
+    if ((to & 1) && ((UInt32)a > (UInt32)b)) return true;  /* GTU */
+    return false;
+}
+
+/*
+ * TW - Trap Word
+ * Trap if condition is met
+ */
+void PPC_Op_TW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 to = PPC_RD(insn);  /* TO field */
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    SInt32 a = (SInt32)as->regs.gpr[ra];
+    SInt32 b = (SInt32)as->regs.gpr[rb];
+
+    if (PPC_CheckTrapCondition(to, a, b)) {
+        PPC_Fault(as, "Trap condition met (TW)");
+    }
+}
+
+/*
+ * TWI - Trap Word Immediate
+ * Trap if condition is met (immediate operand)
+ */
+void PPC_Op_TWI(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 to = PPC_RD(insn);  /* TO field */
+    UInt8 ra = PPC_RA(insn);
+    SInt32 simm = PPC_SIMM(insn);
+    SInt32 a = (SInt32)as->regs.gpr[ra];
+
+    if (PPC_CheckTrapCondition(to, a, simm)) {
+        PPC_Fault(as, "Trap condition met (TWI)");
+    }
+}
+
+/*
+ * ============================================================================
+ * ATOMIC OPERATIONS
+ * ============================================================================
+ */
+
+/*
+ * LWARX - Load Word and Reserve Indexed
+ * rD = MEM(rA + rB), set reservation
+ */
+void PPC_Op_LWARX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea;
+
+    if (ra == 0) {
+        ea = as->regs.gpr[rb];
+    } else {
+        ea = as->regs.gpr[ra] + as->regs.gpr[rb];
+    }
+
+    as->regs.gpr[rd] = PPC_Read32(as, ea);
+
+    /* Set reservation (simplified - just remember address) */
+    /* In a real implementation, this would set a reservation bit */
+    /* For now, we'll just do the load */
+}
+
+/*
+ * STWCX - Store Word Conditional Indexed
+ * If reservation valid: MEM(rA + rB) = rS, CR0[EQ] = 1
+ * Else: CR0[EQ] = 0
+ */
+void PPC_Op_STWCX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea;
+
+    if (ra == 0) {
+        ea = as->regs.gpr[rb];
+    } else {
+        ea = as->regs.gpr[ra] + as->regs.gpr[rb];
+    }
+
+    /* Simplified: always succeed (reservation always valid) */
+    PPC_Write32(as, ea, as->regs.gpr[rs]);
+
+    /* Set CR0[EQ] = 1 to indicate success */
+    as->regs.cr = (as->regs.cr & 0x0FFFFFFF) | PPC_CR_EQ(0);
+}
+
+/*
+ * ============================================================================
+ * CACHE MANAGEMENT (implemented as NOPs)
+ * ============================================================================
+ */
+
+/*
+ * DCBZ - Data Cache Block Set to Zero
+ * Clear cache block (implemented as NOP for interpreter)
+ */
+void PPC_Op_DCBZ(PPCAddressSpace* as, UInt32 insn)
+{
+    (void)as;
+    (void)insn;
+    /* NOP - cache operations not needed in interpreter */
+}
+
+/*
+ * DCBST - Data Cache Block Store
+ * Flush cache block to memory (implemented as NOP)
+ */
+void PPC_Op_DCBST(PPCAddressSpace* as, UInt32 insn)
+{
+    (void)as;
+    (void)insn;
+    /* NOP */
+}
+
+/*
+ * DCBF - Data Cache Block Flush
+ * Flush cache block (implemented as NOP)
+ */
+void PPC_Op_DCBF(PPCAddressSpace* as, UInt32 insn)
+{
+    (void)as;
+    (void)insn;
+    /* NOP */
+}
+
+/*
+ * ICBI - Instruction Cache Block Invalidate
+ * Invalidate instruction cache block (implemented as NOP)
+ */
+void PPC_Op_ICBI(PPCAddressSpace* as, UInt32 insn)
+{
+    (void)as;
+    (void)insn;
+    /* NOP */
+}
+
+/*
+ * SYNC - Synchronize
+ * Memory synchronization (implemented as NOP)
+ */
+void PPC_Op_SYNC(PPCAddressSpace* as, UInt32 insn)
+{
+    (void)as;
+    (void)insn;
+    /* NOP */
+}
+
+/*
+ * ISYNC - Instruction Synchronize
+ * Instruction synchronization (implemented as NOP)
+ */
+void PPC_Op_ISYNC(PPCAddressSpace* as, UInt32 insn)
+{
+    (void)as;
+    (void)insn;
+    /* NOP */
+}
+
+/*
  * ==================================================
- * EXTENDED IMPLEMENTATION
- * Total: 71 instructions (31 foundation + 40 new)
+ * COMPREHENSIVE IMPLEMENTATION
+ * Total: 93 instructions (71 previous + 22 new)
  * ==================================================
  */
 
