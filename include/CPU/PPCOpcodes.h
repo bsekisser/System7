@@ -105,6 +105,16 @@ extern "C" {
 #define PPC_OP_STHU         45  /* Store halfword with update */
 #define PPC_OP_LMW          46  /* Load multiple word */
 #define PPC_OP_STMW         47  /* Store multiple word */
+#define PPC_OP_LFS          48  /* Load floating-point single */
+#define PPC_OP_LFSU         49  /* Load floating-point single with update */
+#define PPC_OP_LFD          50  /* Load floating-point double */
+#define PPC_OP_LFDU         51  /* Load floating-point double with update */
+#define PPC_OP_STFS         52  /* Store floating-point single */
+#define PPC_OP_STFSU        53  /* Store floating-point single with update */
+#define PPC_OP_STFD         54  /* Store floating-point double */
+#define PPC_OP_STFDU        55  /* Store floating-point double with update */
+#define PPC_OP_EXT59        59  /* Extended opcodes (single-precision FP) */
+#define PPC_OP_EXT63        63  /* Extended opcodes (double-precision FP) */
 
 /*
  * Extended Opcode 31 Instructions (XO form)
@@ -210,6 +220,31 @@ extern "C" {
 #define PPC_XOP_STSWX       661 /* Store string word indexed */
 
 /*
+ * Byte-Reversed Load/Store (Opcode 31)
+ */
+#define PPC_XOP_LWBRX       534 /* Load word byte-reverse indexed */
+#define PPC_XOP_LHBRX       790 /* Load halfword byte-reverse indexed */
+#define PPC_XOP_STWBRX      662 /* Store word byte-reverse indexed */
+#define PPC_XOP_STHBRX      918 /* Store halfword byte-reverse indexed */
+
+/*
+ * Floating-Point Indexed Load/Store (Opcode 31)
+ */
+#define PPC_XOP_LFSX        535 /* Load floating-point single indexed */
+#define PPC_XOP_LFSUX       567 /* Load floating-point single with update indexed */
+#define PPC_XOP_LFDX        599 /* Load floating-point double indexed */
+#define PPC_XOP_LFDUX       631 /* Load floating-point double with update indexed */
+#define PPC_XOP_STFSX       663 /* Store floating-point single indexed */
+#define PPC_XOP_STFSUX      695 /* Store floating-point single with update indexed */
+#define PPC_XOP_STFDX       727 /* Store floating-point double indexed */
+#define PPC_XOP_STFDUX      759 /* Store floating-point double with update indexed */
+
+/*
+ * Memory Ordering (Opcode 31)
+ */
+#define PPC_XOP_EIEIO       854 /* Enforce in-order execution of I/O */
+
+/*
  * Branch Extended Opcode 19 Instructions
  */
 #define PPC_XOP19_BCLR      16  /* Branch conditional to link register */
@@ -220,6 +255,56 @@ extern "C" {
 #define PPC_XOP19_MCRF      0   /* Move condition register field */
 #define PPC_XOP19_SYNC      598 /* Synchronize */
 #define PPC_XOP19_ISYNC     150 /* Instruction synchronize */
+#define PPC_XOP19_RFI       50  /* Return from interrupt */
+
+/*
+ * Extended Opcode 59 Instructions (Single-Precision FP)
+ */
+#define PPC_XOP59_FADDS     21  /* Floating add single */
+#define PPC_XOP59_FSUBS     20  /* Floating subtract single */
+#define PPC_XOP59_FMULS     25  /* Floating multiply single */
+#define PPC_XOP59_FDIVS     18  /* Floating divide single */
+#define PPC_XOP59_FSQRTS    22  /* Floating square root single */
+#define PPC_XOP59_FRES      24  /* Floating reciprocal estimate single */
+#define PPC_XOP59_FMADDS    29  /* Floating multiply-add single */
+#define PPC_XOP59_FMSUBS    28  /* Floating multiply-subtract single */
+#define PPC_XOP59_FNMADDS   31  /* Floating negative multiply-add single */
+#define PPC_XOP59_FNMSUBS   30  /* Floating negative multiply-subtract single */
+
+/*
+ * Extended Opcode 63 Instructions (Double-Precision FP)
+ */
+#define PPC_XOP63_FADD      21  /* Floating add */
+#define PPC_XOP63_FSUB      20  /* Floating subtract */
+#define PPC_XOP63_FMUL      25  /* Floating multiply */
+#define PPC_XOP63_FDIV      18  /* Floating divide */
+#define PPC_XOP63_FSQRT     22  /* Floating square root */
+#define PPC_XOP63_FSEL      23  /* Floating select */
+#define PPC_XOP63_FRSQRTE   26  /* Floating reciprocal square root estimate */
+#define PPC_XOP63_FMADD     29  /* Floating multiply-add */
+#define PPC_XOP63_FMSUB     28  /* Floating multiply-subtract */
+#define PPC_XOP63_FNMADD    31  /* Floating negative multiply-add */
+#define PPC_XOP63_FNMSUB    30  /* Floating negative multiply-subtract */
+#define PPC_XOP63_FCMPU     0   /* Floating compare unordered */
+#define PPC_XOP63_FCMPO     32  /* Floating compare ordered */
+#define PPC_XOP63_FRSP      12  /* Floating round to single-precision */
+#define PPC_XOP63_FCTIW     14  /* Floating convert to integer word */
+#define PPC_XOP63_FCTIWZ    15  /* Floating convert to integer word with round toward zero */
+#define PPC_XOP63_FABS      264 /* Floating absolute value */
+#define PPC_XOP63_FNEG      40  /* Floating negate */
+#define PPC_XOP63_FNABS     136 /* Floating negative absolute value */
+#define PPC_XOP63_FMR       72  /* Floating move register */
+#define PPC_XOP63_MFFS      583 /* Move from FPSCR */
+#define PPC_XOP63_MTFSF     711 /* Move to FPSCR fields */
+#define PPC_XOP63_MTFSFI    134 /* Move to FPSCR field immediate */
+#define PPC_XOP63_MTFSB0    70  /* Move to FPSCR bit 0 */
+#define PPC_XOP63_MTFSB1    38  /* Move to FPSCR bit 1 */
+
+/*
+ * System Instructions (Opcode 31)
+ */
+#define PPC_XOP_MFMSR       83  /* Move from machine state register */
+#define PPC_XOP_MTMSR       146 /* Move to machine state register */
 
 /*
  * Forward declarations
@@ -395,6 +480,77 @@ extern void PPC_Op_DIVWO(PPCAddressSpace* as, UInt32 insn);
 
 /* System operations */
 extern void PPC_Op_SC(PPCAddressSpace* as, UInt32 insn);
+
+/* Byte-reversed load/store */
+extern void PPC_Op_LWBRX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LHBRX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STWBRX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STHBRX(PPCAddressSpace* as, UInt32 insn);
+
+/* Floating-point load/store */
+extern void PPC_Op_LFS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LFSU(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LFSX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LFSUX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LFD(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LFDU(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LFDX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LFDUX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STFS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STFSU(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STFSX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STFSUX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STFD(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STFDU(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STFDX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STFDUX(PPCAddressSpace* as, UInt32 insn);
+
+/* Floating-point arithmetic */
+extern void PPC_Op_FADD(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FADDS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FSUB(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FSUBS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FMUL(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FMULS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FDIV(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FDIVS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FSQRT(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FSQRTS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FRES(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FRSQRTE(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FMADD(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FMADDS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FMSUB(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FMSUBS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FNMADD(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FNMADDS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FNMSUB(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FNMSUBS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FABS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FNEG(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FNABS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FMR(PPCAddressSpace* as, UInt32 insn);
+
+/* Floating-point compare/convert */
+extern void PPC_Op_FCMPU(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FCMPO(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FCTIW(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FCTIWZ(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FRSP(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_FSEL(PPCAddressSpace* as, UInt32 insn);
+
+/* Floating-point status */
+extern void PPC_Op_MFFS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_MTFSF(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_MTFSFI(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_MTFSB0(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_MTFSB1(PPCAddressSpace* as, UInt32 insn);
+
+/* System instructions */
+extern void PPC_Op_EIEIO(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_MFMSR(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_MTMSR(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_RFI(PPCAddressSpace* as, UInt32 insn);
 
 #ifdef __cplusplus
 }

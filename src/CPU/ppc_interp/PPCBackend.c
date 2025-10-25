@@ -772,6 +772,10 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     PPC_Op_SYNC(as, insn);
                     break;
 
+                case PPC_XOP19_RFI:
+                    PPC_Op_RFI(as, insn);
+                    break;
+
                 default:
                     /* Check for other CR ops */
                     if (extended == 225) PPC_Op_CRNAND(as, insn);
@@ -1097,6 +1101,70 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     PPC_Op_STHUX(as, insn);
                     break;
 
+                /* Byte-reversed load/store */
+                case PPC_XOP_LWBRX:
+                    PPC_Op_LWBRX(as, insn);
+                    break;
+
+                case PPC_XOP_LHBRX:
+                    PPC_Op_LHBRX(as, insn);
+                    break;
+
+                case PPC_XOP_STWBRX:
+                    PPC_Op_STWBRX(as, insn);
+                    break;
+
+                case PPC_XOP_STHBRX:
+                    PPC_Op_STHBRX(as, insn);
+                    break;
+
+                /* Floating-point indexed load/store */
+                case PPC_XOP_LFSX:
+                    PPC_Op_LFSX(as, insn);
+                    break;
+
+                case PPC_XOP_LFSUX:
+                    PPC_Op_LFSUX(as, insn);
+                    break;
+
+                case PPC_XOP_LFDX:
+                    PPC_Op_LFDX(as, insn);
+                    break;
+
+                case PPC_XOP_LFDUX:
+                    PPC_Op_LFDUX(as, insn);
+                    break;
+
+                case PPC_XOP_STFSX:
+                    PPC_Op_STFSX(as, insn);
+                    break;
+
+                case PPC_XOP_STFSUX:
+                    PPC_Op_STFSUX(as, insn);
+                    break;
+
+                case PPC_XOP_STFDX:
+                    PPC_Op_STFDX(as, insn);
+                    break;
+
+                case PPC_XOP_STFDUX:
+                    PPC_Op_STFDUX(as, insn);
+                    break;
+
+                /* Memory ordering */
+                case PPC_XOP_EIEIO:
+                    PPC_Op_EIEIO(as, insn);
+                    break;
+
+                /* System instructions */
+                case PPC_XOP_MFMSR:
+                    PPC_Op_MFMSR(as, insn);
+                    break;
+
+                case PPC_XOP_MTMSR:
+                    PPC_Op_MTMSR(as, insn);
+                    break;
+
                 default:
                     PPC_Fault(as, "Unimplemented opcode 31 extended");
                     break;
@@ -1165,6 +1233,196 @@ OSErr PPC_Step(PPCAddressSpace* as)
 
         case PPC_OP_STMW:        /* 47 */
             PPC_Op_STMW(as, insn);
+            break;
+
+        case PPC_OP_LFS:         /* 48 */
+            PPC_Op_LFS(as, insn);
+            break;
+
+        case PPC_OP_LFSU:        /* 49 */
+            PPC_Op_LFSU(as, insn);
+            break;
+
+        case PPC_OP_LFD:         /* 50 */
+            PPC_Op_LFD(as, insn);
+            break;
+
+        case PPC_OP_LFDU:        /* 51 */
+            PPC_Op_LFDU(as, insn);
+            break;
+
+        case PPC_OP_STFS:        /* 52 */
+            PPC_Op_STFS(as, insn);
+            break;
+
+        case PPC_OP_STFSU:       /* 53 */
+            PPC_Op_STFSU(as, insn);
+            break;
+
+        case PPC_OP_STFD:        /* 54 */
+            PPC_Op_STFD(as, insn);
+            break;
+
+        case PPC_OP_STFDU:       /* 55 */
+            PPC_Op_STFDU(as, insn);
+            break;
+
+        case PPC_OP_EXT59:       /* 59 - Single-precision FP arithmetic */
+            extended = PPC_EXTENDED_OPCODE(insn);
+            switch (extended) {
+                case PPC_XOP59_FADDS:
+                    PPC_Op_FADDS(as, insn);
+                    break;
+
+                case PPC_XOP59_FSUBS:
+                    PPC_Op_FSUBS(as, insn);
+                    break;
+
+                case PPC_XOP59_FMULS:
+                    PPC_Op_FMULS(as, insn);
+                    break;
+
+                case PPC_XOP59_FDIVS:
+                    PPC_Op_FDIVS(as, insn);
+                    break;
+
+                case PPC_XOP59_FSQRTS:
+                    PPC_Op_FSQRTS(as, insn);
+                    break;
+
+                case PPC_XOP59_FRES:
+                    PPC_Op_FRES(as, insn);
+                    break;
+
+                case PPC_XOP59_FMADDS:
+                    PPC_Op_FMADDS(as, insn);
+                    break;
+
+                case PPC_XOP59_FMSUBS:
+                    PPC_Op_FMSUBS(as, insn);
+                    break;
+
+                case PPC_XOP59_FNMADDS:
+                    PPC_Op_FNMADDS(as, insn);
+                    break;
+
+                case PPC_XOP59_FNMSUBS:
+                    PPC_Op_FNMSUBS(as, insn);
+                    break;
+
+                default:
+                    PPC_Fault(as, "Unimplemented opcode 59 extended");
+                    break;
+            }
+            break;
+
+        case PPC_OP_EXT63:       /* 63 - Double-precision FP arithmetic */
+            extended = PPC_EXTENDED_OPCODE(insn);
+            switch (extended) {
+                case PPC_XOP63_FCMPU:
+                    PPC_Op_FCMPU(as, insn);
+                    break;
+
+                case PPC_XOP63_FRSP:
+                    PPC_Op_FRSP(as, insn);
+                    break;
+
+                case PPC_XOP63_FCTIW:
+                    PPC_Op_FCTIW(as, insn);
+                    break;
+
+                case PPC_XOP63_FCTIWZ:
+                    PPC_Op_FCTIWZ(as, insn);
+                    break;
+
+                case PPC_XOP63_FDIV:
+                    PPC_Op_FDIV(as, insn);
+                    break;
+
+                case PPC_XOP63_FSUB:
+                    PPC_Op_FSUB(as, insn);
+                    break;
+
+                case PPC_XOP63_FADD:
+                    PPC_Op_FADD(as, insn);
+                    break;
+
+                case PPC_XOP63_FSQRT:
+                    PPC_Op_FSQRT(as, insn);
+                    break;
+
+                case PPC_XOP63_FSEL:
+                    PPC_Op_FSEL(as, insn);
+                    break;
+
+                case PPC_XOP63_FMUL:
+                    PPC_Op_FMUL(as, insn);
+                    break;
+
+                case PPC_XOP63_FRSQRTE:
+                    PPC_Op_FRSQRTE(as, insn);
+                    break;
+
+                case PPC_XOP63_FMSUB:
+                    PPC_Op_FMSUB(as, insn);
+                    break;
+
+                case PPC_XOP63_FMADD:
+                    PPC_Op_FMADD(as, insn);
+                    break;
+
+                case PPC_XOP63_FNMSUB:
+                    PPC_Op_FNMSUB(as, insn);
+                    break;
+
+                case PPC_XOP63_FNMADD:
+                    PPC_Op_FNMADD(as, insn);
+                    break;
+
+                case PPC_XOP63_FCMPO:
+                    PPC_Op_FCMPO(as, insn);
+                    break;
+
+                case PPC_XOP63_FNEG:
+                    PPC_Op_FNEG(as, insn);
+                    break;
+
+                case PPC_XOP63_MTFSB1:
+                    PPC_Op_MTFSB1(as, insn);
+                    break;
+
+                case PPC_XOP63_MTFSB0:
+                    PPC_Op_MTFSB0(as, insn);
+                    break;
+
+                case PPC_XOP63_FMR:
+                    PPC_Op_FMR(as, insn);
+                    break;
+
+                case PPC_XOP63_MTFSFI:
+                    PPC_Op_MTFSFI(as, insn);
+                    break;
+
+                case PPC_XOP63_FNABS:
+                    PPC_Op_FNABS(as, insn);
+                    break;
+
+                case PPC_XOP63_FABS:
+                    PPC_Op_FABS(as, insn);
+                    break;
+
+                case PPC_XOP63_MFFS:
+                    PPC_Op_MFFS(as, insn);
+                    break;
+
+                case PPC_XOP63_MTFSF:
+                    PPC_Op_MTFSF(as, insn);
+                    break;
+
+                default:
+                    PPC_Fault(as, "Unimplemented opcode 63 extended");
+                    break;
+            }
             break;
 
         default:

@@ -549,7 +549,7 @@ $(KERNEL): $(OBJECTS) | $(BUILD_DIR)
 	@if [ "$(PLATFORM)" = "arm" ]; then \
         $(CC) $(LDFLAGS) -Wl,-T,$(LINKER_SCRIPT) -nostdlib -o $(KERNEL) $(OBJECTS) -lgcc; \
     else \
-        $(LD) $(LDFLAGS) -T $(LINKER_SCRIPT) -o $(KERNEL) $(OBJECTS); \
+        $(CC) -m32 -Wl,-T,$(LINKER_SCRIPT) -nostdlib -no-pie -o $(KERNEL) $(OBJECTS) -lgcc; \
 	fi
 	@readelf -h $(KERNEL) >/dev/null 2>&1 || { echo "ERROR: Invalid ELF file"; exit 1; }
 	@echo "✓ Kernel linked successfully ($(shell stat -c%s $(KERNEL) 2>/dev/null || stat -f%z $(KERNEL) 2>/dev/null) bytes)"
