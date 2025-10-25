@@ -1,0 +1,219 @@
+/*
+ * PPCOpcodes.h - PowerPC Instruction Definitions and Helpers
+ *
+ * Defines PowerPC instruction formats, opcode patterns, and helper macros
+ * for the PowerPC interpreter implementation.
+ */
+
+#ifndef PPC_OPCODES_H
+#define PPC_OPCODES_H
+
+#include "SystemTypes.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/*
+ * PowerPC Instruction Formats
+ * All PowerPC instructions are 32 bits wide
+ */
+
+/* Extract primary opcode (bits 0-5) */
+#define PPC_PRIMARY_OPCODE(insn)  (((insn) >> 26) & 0x3F)
+
+/* Extract extended opcode (bits 21-30 or 26-30 depending on format) */
+#define PPC_EXTENDED_OPCODE(insn) (((insn) >> 1) & 0x3FF)
+#define PPC_EXTENDED_XO(insn)     (((insn) >> 1) & 0x1FF)
+
+/* Register field extraction */
+#define PPC_RD(insn)    (((insn) >> 21) & 0x1F)  /* Destination register */
+#define PPC_RS(insn)    (((insn) >> 21) & 0x1F)  /* Source register */
+#define PPC_RA(insn)    (((insn) >> 16) & 0x1F)  /* Register A */
+#define PPC_RB(insn)    (((insn) >> 11) & 0x1F)  /* Register B */
+
+/* Immediate field extraction */
+#define PPC_SIMM(insn)  ((SInt32)(SInt16)((insn) & 0xFFFF))  /* Signed 16-bit immediate */
+#define PPC_UIMM(insn)  ((insn) & 0xFFFF)                    /* Unsigned 16-bit immediate */
+
+/* Branch field extraction */
+#define PPC_LI(insn)    ((SInt32)(((insn) & 0x03FFFFFC) << 6) >> 6)  /* 24-bit offset (sign-extended, shifted left 2) */
+#define PPC_BD(insn)    ((SInt32)(SInt16)(((insn) & 0xFFFC)))         /* 14-bit offset (sign-extended, shifted left 2) */
+#define PPC_BO(insn)    (((insn) >> 21) & 0x1F)  /* Branch options */
+#define PPC_BI(insn)    (((insn) >> 16) & 0x1F)  /* Branch condition bit */
+
+/* Shift/mask extraction */
+#define PPC_SH(insn)    (((insn) >> 11) & 0x1F)  /* Shift amount */
+#define PPC_MB(insn)    (((insn) >> 6) & 0x1F)   /* Mask begin */
+#define PPC_ME(insn)    (((insn) >> 1) & 0x1F)   /* Mask end */
+
+/* Condition register field */
+#define PPC_CRFD(insn)  (((insn) >> 23) & 0x07)  /* CR destination field */
+#define PPC_CRFS(insn)  (((insn) >> 18) & 0x07)  /* CR source field */
+
+/* Record bit (Rc) - updates CR0 */
+#define PPC_RC(insn)    ((insn) & 0x0001)
+
+/* Overflow enable (OE) */
+#define PPC_OE(insn)    (((insn) >> 10) & 0x0001)
+
+/* Link bit (LK) - saves return address */
+#define PPC_LK(insn)    ((insn) & 0x0001)
+
+/* Absolute address bit (AA) */
+#define PPC_AA(insn)    (((insn) >> 1) & 0x0001)
+
+/*
+ * Primary Opcodes (bits 0-5)
+ */
+#define PPC_OP_TWI          3   /* Trap word immediate */
+#define PPC_OP_MULLI        7   /* Multiply low immediate */
+#define PPC_OP_SUBFIC       8   /* Subtract from immediate carrying */
+#define PPC_OP_CMPLI        10  /* Compare logical immediate */
+#define PPC_OP_CMPI         11  /* Compare immediate */
+#define PPC_OP_ADDIC        12  /* Add immediate carrying */
+#define PPC_OP_ADDIC_RC     13  /* Add immediate carrying and record */
+#define PPC_OP_ADDI         14  /* Add immediate */
+#define PPC_OP_ADDIS        15  /* Add immediate shifted */
+#define PPC_OP_BC           16  /* Branch conditional */
+#define PPC_OP_SC           17  /* System call */
+#define PPC_OP_B            18  /* Branch */
+#define PPC_OP_EXT19        19  /* Extended opcodes (CR ops, branches) */
+#define PPC_OP_RLWIMI       20  /* Rotate left word immediate then mask insert */
+#define PPC_OP_RLWINM       21  /* Rotate left word immediate then AND with mask */
+#define PPC_OP_RLWNM        23  /* Rotate left word then AND with mask */
+#define PPC_OP_ORI          24  /* OR immediate */
+#define PPC_OP_ORIS         25  /* OR immediate shifted */
+#define PPC_OP_XORI         26  /* XOR immediate */
+#define PPC_OP_XORIS        27  /* XOR immediate shifted */
+#define PPC_OP_ANDI_RC      28  /* AND immediate and record */
+#define PPC_OP_ANDIS_RC     29  /* AND immediate shifted and record */
+#define PPC_OP_EXT31        31  /* Extended opcodes (arithmetic, logical, loads, stores) */
+#define PPC_OP_LWZ          32  /* Load word and zero */
+#define PPC_OP_LWZU         33  /* Load word and zero with update */
+#define PPC_OP_LBZ          34  /* Load byte and zero */
+#define PPC_OP_LBZU         35  /* Load byte and zero with update */
+#define PPC_OP_STW          36  /* Store word */
+#define PPC_OP_STWU         37  /* Store word with update */
+#define PPC_OP_STB          38  /* Store byte */
+#define PPC_OP_STBU         39  /* Store byte with update */
+#define PPC_OP_LHZ          40  /* Load halfword and zero */
+#define PPC_OP_LHZU         41  /* Load halfword and zero with update */
+#define PPC_OP_LHA          42  /* Load halfword algebraic */
+#define PPC_OP_LHAU         43  /* Load halfword algebraic with update */
+#define PPC_OP_STH          44  /* Store halfword */
+#define PPC_OP_STHU         45  /* Store halfword with update */
+#define PPC_OP_LMW          46  /* Load multiple word */
+#define PPC_OP_STMW         47  /* Store multiple word */
+
+/*
+ * Extended Opcode 31 Instructions (XO form)
+ */
+#define PPC_XOP_CMP         0   /* Compare */
+#define PPC_XOP_CMPL        32  /* Compare logical */
+#define PPC_XOP_SUBF        40  /* Subtract from */
+#define PPC_XOP_ADD         266 /* Add */
+#define PPC_XOP_MULLW       235 /* Multiply low word */
+#define PPC_XOP_DIVW        491 /* Divide word */
+#define PPC_XOP_AND         28  /* AND */
+#define PPC_XOP_OR          444 /* OR */
+#define PPC_XOP_XOR         316 /* XOR */
+#define PPC_XOP_NAND        476 /* NAND */
+#define PPC_XOP_NOR         124 /* NOR */
+#define PPC_XOP_EQV         284 /* Equivalent */
+#define PPC_XOP_ANDC        60  /* AND with complement */
+#define PPC_XOP_ORC         412 /* OR with complement */
+
+/*
+ * Load/Store Extended Opcodes
+ */
+#define PPC_XOP_LWZX        23  /* Load word and zero indexed */
+#define PPC_XOP_LWZUX       55  /* Load word and zero with update indexed */
+#define PPC_XOP_LBZX        87  /* Load byte and zero indexed */
+#define PPC_XOP_LBZUX       119 /* Load byte and zero with update indexed */
+#define PPC_XOP_STWX        151 /* Store word indexed */
+#define PPC_XOP_STWUX       183 /* Store word with update indexed */
+#define PPC_XOP_STBX        215 /* Store byte indexed */
+#define PPC_XOP_STBUX       247 /* Store byte with update indexed */
+#define PPC_XOP_LHZX        279 /* Load halfword and zero indexed */
+#define PPC_XOP_LHZUX       311 /* Load halfword and zero with update indexed */
+#define PPC_XOP_LHAX        343 /* Load halfword algebraic indexed */
+#define PPC_XOP_LHAUX       375 /* Load halfword algebraic with update indexed */
+#define PPC_XOP_STHX        407 /* Store halfword indexed */
+#define PPC_XOP_STHUX       439 /* Store halfword with update indexed */
+
+/*
+ * Shift Extended Opcodes
+ */
+#define PPC_XOP_SLW         24  /* Shift left word */
+#define PPC_XOP_SRW         536 /* Shift right word */
+#define PPC_XOP_SRAW        792 /* Shift right algebraic word */
+#define PPC_XOP_SRAWI       824 /* Shift right algebraic word immediate */
+
+/*
+ * Branch Extended Opcode 19 Instructions
+ */
+#define PPC_XOP19_BCLR      16  /* Branch conditional to link register */
+#define PPC_XOP19_BCCTR     528 /* Branch conditional to count register */
+#define PPC_XOP19_CRAND     257 /* Condition register AND */
+#define PPC_XOP19_CROR      449 /* Condition register OR */
+#define PPC_XOP19_CRXOR     193 /* Condition register XOR */
+
+/*
+ * Forward declarations
+ */
+typedef struct PPCAddressSpace PPCAddressSpace;
+
+/*
+ * Opcode Handler Function Prototypes
+ */
+extern void PPC_Fault(PPCAddressSpace* as, const char* reason);
+
+/* Arithmetic operations */
+extern void PPC_Op_ADD(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_ADDI(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_ADDIS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_SUBF(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_MULLI(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_MULLW(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_DIVW(PPCAddressSpace* as, UInt32 insn);
+
+/* Logical operations */
+extern void PPC_Op_AND(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_OR(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_XOR(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_ORI(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_ORIS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_XORI(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_XORIS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_ANDI_RC(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_ANDIS_RC(PPCAddressSpace* as, UInt32 insn);
+
+/* Comparison operations */
+extern void PPC_Op_CMP(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_CMPI(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_CMPL(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_CMPLI(PPCAddressSpace* as, UInt32 insn);
+
+/* Branch operations */
+extern void PPC_Op_B(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_BC(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_BCLR(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_BCCTR(PPCAddressSpace* as, UInt32 insn);
+
+/* Load/Store operations */
+extern void PPC_Op_LWZ(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LBZ(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LHZ(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STW(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STB(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STH(PPCAddressSpace* as, UInt32 insn);
+
+/* System operations */
+extern void PPC_Op_SC(PPCAddressSpace* as, UInt32 insn);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* PPC_OPCODES_H */
