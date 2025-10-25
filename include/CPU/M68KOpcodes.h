@@ -251,6 +251,24 @@ extern void M68K_Op_TAS(M68KAddressSpace* as, UInt16 opcode);
 /* Compare immediate */
 extern void M68K_Op_CMPI(M68KAddressSpace* as, UInt16 opcode);
 
+/* Immediate instruction variants */
+extern void M68K_Op_ADDI(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_SUBI(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_ANDI(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_ORI(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_EORI(M68KAddressSpace* as, UInt16 opcode);
+
+/* BCD arithmetic */
+extern void M68K_Op_ABCD(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_SBCD(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_NBCD(M68KAddressSpace* as, UInt16 opcode);
+
+/* Peripheral data transfer */
+extern void M68K_Op_MOVEP(M68KAddressSpace* as, UInt16 opcode);
+
+/* Compare memory */
+extern void M68K_Op_CMPM(M68KAddressSpace* as, UInt16 opcode);
+
 /* Multi-register operations */
 extern void M68K_Op_MOVEM(M68KAddressSpace* as, UInt16 opcode);
 

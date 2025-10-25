@@ -720,6 +720,16 @@ extern void M68K_Op_NEGX(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_CHK(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_TAS(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_CMPI(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_ADDI(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_SUBI(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_ANDI(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_ORI(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_EORI(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_ABCD(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_SBCD(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_NBCD(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_MOVEP(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_CMPM(M68KAddressSpace* as, UInt16 opcode);
 extern UInt16 M68K_Fetch16(M68KAddressSpace* as);
 extern void M68K_Fault(M68KAddressSpace* as, const char* reason);
 
@@ -771,6 +781,24 @@ OSErr M68K_Step(M68KAddressSpace* as)
         } else if ((opcode & 0xFF00) == 0x0C00) {
             /* CMPI - compare immediate */
             M68K_Op_CMPI(as, opcode);
+        } else if ((opcode & 0xFF00) == 0x0600) {
+            /* ADDI - add immediate */
+            M68K_Op_ADDI(as, opcode);
+        } else if ((opcode & 0xFF00) == 0x0400) {
+            /* SUBI - subtract immediate */
+            M68K_Op_SUBI(as, opcode);
+        } else if ((opcode & 0xFF00) == 0x0200) {
+            /* ANDI - AND immediate */
+            M68K_Op_ANDI(as, opcode);
+        } else if ((opcode & 0xFF00) == 0x0000) {
+            /* ORI - OR immediate */
+            M68K_Op_ORI(as, opcode);
+        } else if ((opcode & 0xFF00) == 0x0A00) {
+            /* EORI - EOR immediate */
+            M68K_Op_EORI(as, opcode);
+        } else if ((opcode & 0xF1F8) == 0x0108) {
+            /* MOVEP - move peripheral data */
+            M68K_Op_MOVEP(as, opcode);
         } else if ((opcode & 0xFF00) == 0x4200) {
             M68K_Op_CLR(as, opcode);
         } else if ((opcode & 0xFF00) == 0x4600) {
@@ -852,6 +880,9 @@ OSErr M68K_Step(M68KAddressSpace* as)
         } else if ((opcode & 0xFFC0) == 0x4AC0) {
             /* TAS - test and set */
             M68K_Op_TAS(as, opcode);
+        } else if ((opcode & 0xFFC0) == 0x4800) {
+            /* NBCD - negate decimal with extend */
+            M68K_Op_NBCD(as, opcode);
         } else {
             M68K_Fault(as, "Unimplemented 4xxx opcode");
         }
@@ -889,13 +920,16 @@ OSErr M68K_Step(M68KAddressSpace* as)
             M68K_Op_Bcc(as, opcode);
         }
     } else if ((opcode & 0xF000) == 0x8000) {
-        /* 8xxx - OR/DIVU/DIVS */
+        /* 8xxx - OR/DIVU/DIVS/SBCD */
         if ((opcode & 0x01C0) == 0x00C0) {
             /* DIVU - bits 8-6 = 011 */
             M68K_Op_DIVU(as, opcode);
         } else if ((opcode & 0x01C0) == 0x01C0) {
             /* DIVS - bits 8-6 = 111 */
             M68K_Op_DIVS(as, opcode);
+        } else if ((opcode & 0xF1F0) == 0x8100) {
+            /* SBCD - subtract decimal with extend */
+            M68K_Op_SBCD(as, opcode);
         } else {
             /* OR */
             M68K_Op_OR(as, opcode);
@@ -916,10 +950,13 @@ OSErr M68K_Step(M68KAddressSpace* as)
         /* Axxx - A-line trap */
         M68K_Op_TRAP(as, opcode);
     } else if ((opcode & 0xF100) == 0xB000) {
-        /* Bxxx - CMP/CMPA/EOR */
+        /* Bxxx - CMP/CMPA/EOR/CMPM */
         if ((opcode & 0x00C0) == 0x00C0) {
             /* CMPA - bits 7-6 = 11 */
             M68K_Op_CMPA(as, opcode);
+        } else if ((opcode & 0xF138) == 0xB108) {
+            /* CMPM - compare memory to memory */
+            M68K_Op_CMPM(as, opcode);
         } else if ((opcode & 0x0100) == 0x0100) {
             /* EOR - bit 8 = 1 */
             M68K_Op_EOR(as, opcode);
@@ -940,13 +977,16 @@ OSErr M68K_Step(M68KAddressSpace* as)
             M68K_Op_ADD(as, opcode);
         }
     } else if ((opcode & 0xF000) == 0xC000) {
-        /* Cxxx - AND/MULU/MULS */
+        /* Cxxx - AND/MULU/MULS/ABCD */
         if ((opcode & 0x01C0) == 0x00C0) {
             /* MULU - bits 8-6 = 011 */
             M68K_Op_MULU(as, opcode);
         } else if ((opcode & 0x01C0) == 0x01C0) {
             /* MULS - bits 8-6 = 111 */
             M68K_Op_MULS(as, opcode);
+        } else if ((opcode & 0xF1F0) == 0xC100) {
+            /* ABCD - add decimal with extend */
+            M68K_Op_ABCD(as, opcode);
         } else {
             /* AND */
             M68K_Op_AND(as, opcode);
