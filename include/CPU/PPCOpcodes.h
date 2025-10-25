@@ -64,6 +64,50 @@ extern "C" {
 #define PPC_AA(insn)    (((insn) >> 1) & 0x0001)
 
 /*
+ * Special Purpose Register (SPR) Numbers
+ * Used by MFSPR/MTSPR instructions
+ */
+#define SPR_XER         1    /* Fixed-point exception register */
+#define SPR_LR          8    /* Link register */
+#define SPR_CTR         9    /* Count register */
+#define SPR_DSISR       18   /* DSI exception register */
+#define SPR_DAR         19   /* Data address register */
+#define SPR_DEC         22   /* Decrementer */
+#define SPR_SDR1        25   /* Page table base register */
+#define SPR_SRR0        26   /* Save/restore register 0 */
+#define SPR_SRR1        27   /* Save/restore register 1 */
+#define SPR_SPRG0       272  /* SPR general 0 */
+#define SPR_SPRG1       273  /* SPR general 1 */
+#define SPR_SPRG2       274  /* SPR general 2 */
+#define SPR_SPRG3       275  /* SPR general 3 */
+#define SPR_EAR         282  /* External access register */
+#define SPR_TBL_READ    268  /* Time base lower (read) */
+#define SPR_TBU_READ    269  /* Time base upper (read) */
+#define SPR_TBL_WRITE   284  /* Time base lower (write) */
+#define SPR_TBU_WRITE   285  /* Time base upper (write) */
+#define SPR_PVR         287  /* Processor version register */
+#define SPR_IBAT0U      528  /* Instruction BAT 0 upper */
+#define SPR_IBAT0L      529  /* Instruction BAT 0 lower */
+#define SPR_IBAT1U      530  /* Instruction BAT 1 upper */
+#define SPR_IBAT1L      531  /* Instruction BAT 1 lower */
+#define SPR_IBAT2U      532  /* Instruction BAT 2 upper */
+#define SPR_IBAT2L      533  /* Instruction BAT 2 lower */
+#define SPR_IBAT3U      534  /* Instruction BAT 3 upper */
+#define SPR_IBAT3L      535  /* Instruction BAT 3 lower */
+#define SPR_DBAT0U      536  /* Data BAT 0 upper */
+#define SPR_DBAT0L      537  /* Data BAT 0 lower */
+#define SPR_DBAT1U      538  /* Data BAT 1 upper */
+#define SPR_DBAT1L      539  /* Data BAT 1 lower */
+#define SPR_DBAT2U      540  /* Data BAT 2 upper */
+#define SPR_DBAT2L      541  /* Data BAT 2 lower */
+#define SPR_DBAT3U      542  /* Data BAT 3 upper */
+#define SPR_DBAT3L      543  /* Data BAT 3 lower */
+#define SPR_HID0        1008 /* Hardware implementation register 0 */
+#define SPR_HID1        1009 /* Hardware implementation register 1 */
+#define SPR_IABR        1010 /* Instruction address breakpoint */
+#define SPR_DABR        1013 /* Data address breakpoint */
+
+/*
  * Primary Opcodes (bits 0-5)
  */
 #define PPC_OP_TWI          3   /* Trap word immediate */
@@ -210,6 +254,25 @@ extern "C" {
 #define PPC_XOP_DCBST       54  /* Data cache block store */
 #define PPC_XOP_DCBF        86  /* Data cache block flush */
 #define PPC_XOP_ICBI        982 /* Instruction cache block invalidate */
+#define PPC_XOP_DCBI        470 /* Data cache block invalidate */
+#define PPC_XOP_DCBT        278 /* Data cache block touch (prefetch) */
+#define PPC_XOP_DCBTST      246 /* Data cache block touch for store */
+
+/*
+ * TLB Management (Opcode 31)
+ */
+#define PPC_XOP_TLBIE       306 /* TLB invalidate entry */
+#define PPC_XOP_TLBSYNC     566 /* TLB synchronize */
+#define PPC_XOP_TLBIA       370 /* TLB invalidate all (601 only) */
+
+/*
+ * Segment Register Operations (Opcode 31)
+ */
+#define PPC_XOP_MFSR        595 /* Move from segment register */
+#define PPC_XOP_MTSR        210 /* Move to segment register */
+#define PPC_XOP_MFSRIN      659 /* Move from segment register indirect */
+#define PPC_XOP_MTSRIN      242 /* Move to segment register indirect */
+#define PPC_XOP_MFTB        371 /* Move from time base */
 
 /*
  * String Load/Store (Opcode 31)
@@ -551,6 +614,25 @@ extern void PPC_Op_EIEIO(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_MFMSR(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_MTMSR(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_RFI(PPCAddressSpace* as, UInt32 insn);
+
+/* Segment register operations */
+extern void PPC_Op_MFSR(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_MTSR(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_MFSRIN(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_MTSRIN(PPCAddressSpace* as, UInt32 insn);
+
+/* TLB management operations */
+extern void PPC_Op_TLBIE(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_TLBSYNC(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_TLBIA(PPCAddressSpace* as, UInt32 insn);
+
+/* Cache control operations */
+extern void PPC_Op_DCBI(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_DCBT(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_DCBTST(PPCAddressSpace* as, UInt32 insn);
+
+/* Time base access */
+extern void PPC_Op_MFTB(PPCAddressSpace* as, UInt32 insn);
 
 #ifdef __cplusplus
 }

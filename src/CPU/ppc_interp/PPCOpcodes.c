@@ -2192,6 +2192,7 @@ void PPC_Op_MFSPR(PPCAddressSpace* as, UInt32 insn)
     UInt16 spr = ((insn >> 11) & 0x1F) | (((insn >> 16) & 0x1F) << 5);
 
     switch (spr) {
+        /* User SPRs */
         case 1:   /* XER */
             as->regs.gpr[rd] = as->regs.xer;
             break;
@@ -2201,18 +2202,92 @@ void PPC_Op_MFSPR(PPCAddressSpace* as, UInt32 insn)
         case 9:   /* CTR */
             as->regs.gpr[rd] = as->regs.ctr;
             break;
-        case 22:  /* DEC - Decrementer */
+
+        /* Supervisor SPRs - Exception handling */
+        case 18:  /* DSISR */
+            as->regs.gpr[rd] = as->regs.dsisr;
+            break;
+        case 19:  /* DAR */
+            as->regs.gpr[rd] = as->regs.dar;
+            break;
+        case 22:  /* DEC */
             as->regs.gpr[rd] = as->regs.dec;
             break;
-        case 268: /* TBL - Time Base Lower (read-only) */
+        case 25:  /* SDR1 */
+            as->regs.gpr[rd] = as->regs.sdr1;
+            break;
+        case 26:  /* SRR0 */
+            as->regs.gpr[rd] = as->regs.srr0;
+            break;
+        case 27:  /* SRR1 */
+            as->regs.gpr[rd] = as->regs.srr1;
+            break;
+
+        /* Time base (read) */
+        case 268: /* TBL (read) */
+        case 284: /* TBL (write encoding, but read here) */
             as->regs.gpr[rd] = as->regs.tbl;
             break;
-        case 269: /* TBU - Time Base Upper (read-only) */
+        case 269: /* TBU (read) */
+        case 285: /* TBU (write encoding, but read here) */
             as->regs.gpr[rd] = as->regs.tbu;
             break;
-        case 287: /* PVR - Processor Version Register (read-only) */
+
+        /* SPRG registers */
+        case 272: /* SPRG0 */
+            as->regs.gpr[rd] = as->regs.sprg[0];
+            break;
+        case 273: /* SPRG1 */
+            as->regs.gpr[rd] = as->regs.sprg[1];
+            break;
+        case 274: /* SPRG2 */
+            as->regs.gpr[rd] = as->regs.sprg[2];
+            break;
+        case 275: /* SPRG3 */
+            as->regs.gpr[rd] = as->regs.sprg[3];
+            break;
+
+        case 282: /* EAR */
+            as->regs.gpr[rd] = as->regs.ear;
+            break;
+        case 287: /* PVR (read-only) */
             as->regs.gpr[rd] = as->regs.pvr;
             break;
+
+        /* Instruction BAT registers */
+        case 528: as->regs.gpr[rd] = as->regs.ibat[0]; break; /* IBAT0U */
+        case 529: as->regs.gpr[rd] = as->regs.ibat[1]; break; /* IBAT0L */
+        case 530: as->regs.gpr[rd] = as->regs.ibat[2]; break; /* IBAT1U */
+        case 531: as->regs.gpr[rd] = as->regs.ibat[3]; break; /* IBAT1L */
+        case 532: as->regs.gpr[rd] = as->regs.ibat[4]; break; /* IBAT2U */
+        case 533: as->regs.gpr[rd] = as->regs.ibat[5]; break; /* IBAT2L */
+        case 534: as->regs.gpr[rd] = as->regs.ibat[6]; break; /* IBAT3U */
+        case 535: as->regs.gpr[rd] = as->regs.ibat[7]; break; /* IBAT3L */
+
+        /* Data BAT registers */
+        case 536: as->regs.gpr[rd] = as->regs.dbat[0]; break; /* DBAT0U */
+        case 537: as->regs.gpr[rd] = as->regs.dbat[1]; break; /* DBAT0L */
+        case 538: as->regs.gpr[rd] = as->regs.dbat[2]; break; /* DBAT1U */
+        case 539: as->regs.gpr[rd] = as->regs.dbat[3]; break; /* DBAT1L */
+        case 540: as->regs.gpr[rd] = as->regs.dbat[4]; break; /* DBAT2U */
+        case 541: as->regs.gpr[rd] = as->regs.dbat[5]; break; /* DBAT2L */
+        case 542: as->regs.gpr[rd] = as->regs.dbat[6]; break; /* DBAT3U */
+        case 543: as->regs.gpr[rd] = as->regs.dbat[7]; break; /* DBAT3L */
+
+        /* Hardware implementation dependent */
+        case 1008: /* HID0 */
+            as->regs.gpr[rd] = as->regs.hid0;
+            break;
+        case 1009: /* HID1 */
+            as->regs.gpr[rd] = as->regs.hid1;
+            break;
+        case 1010: /* IABR */
+            as->regs.gpr[rd] = as->regs.iabr;
+            break;
+        case 1013: /* DABR */
+            as->regs.gpr[rd] = as->regs.dabr;
+            break;
+
         default:
             /* Unsupported SPR - return 0 */
             as->regs.gpr[rd] = 0;
@@ -2231,6 +2306,7 @@ void PPC_Op_MTSPR(PPCAddressSpace* as, UInt32 insn)
     UInt32 value = as->regs.gpr[rs];
 
     switch (spr) {
+        /* User SPRs */
         case 1:   /* XER */
             as->regs.xer = value;
             break;
@@ -2240,12 +2316,91 @@ void PPC_Op_MTSPR(PPCAddressSpace* as, UInt32 insn)
         case 9:   /* CTR */
             as->regs.ctr = value;
             break;
-        case 22:  /* DEC - Decrementer */
+
+        /* Supervisor SPRs - Exception handling */
+        case 18:  /* DSISR */
+            as->regs.dsisr = value;
+            break;
+        case 19:  /* DAR */
+            as->regs.dar = value;
+            break;
+        case 22:  /* DEC */
             as->regs.dec = value;
             break;
-        case 268: /* TBL - Time Base Lower (supervisor write-only, ignore in user mode) */
-        case 269: /* TBU - Time Base Upper (supervisor write-only, ignore in user mode) */
-        case 287: /* PVR - Processor Version Register (read-only, ignore writes) */
+        case 25:  /* SDR1 */
+            as->regs.sdr1 = value;
+            break;
+        case 26:  /* SRR0 */
+            as->regs.srr0 = value;
+            break;
+        case 27:  /* SRR1 */
+            as->regs.srr1 = value;
+            break;
+
+        /* SPRG registers */
+        case 272: /* SPRG0 */
+            as->regs.sprg[0] = value;
+            break;
+        case 273: /* SPRG1 */
+            as->regs.sprg[1] = value;
+            break;
+        case 274: /* SPRG2 */
+            as->regs.sprg[2] = value;
+            break;
+        case 275: /* SPRG3 */
+            as->regs.sprg[3] = value;
+            break;
+
+        case 282: /* EAR */
+            as->regs.ear = value;
+            break;
+
+        /* Time base (write - supervisor only) */
+        case 284: /* TBL (write) */
+            as->regs.tbl = value;
+            break;
+        case 285: /* TBU (write) */
+            as->regs.tbu = value;
+            break;
+
+        /* Instruction BAT registers */
+        case 528: as->regs.ibat[0] = value; break; /* IBAT0U */
+        case 529: as->regs.ibat[1] = value; break; /* IBAT0L */
+        case 530: as->regs.ibat[2] = value; break; /* IBAT1U */
+        case 531: as->regs.ibat[3] = value; break; /* IBAT1L */
+        case 532: as->regs.ibat[4] = value; break; /* IBAT2U */
+        case 533: as->regs.ibat[5] = value; break; /* IBAT2L */
+        case 534: as->regs.ibat[6] = value; break; /* IBAT3U */
+        case 535: as->regs.ibat[7] = value; break; /* IBAT3L */
+
+        /* Data BAT registers */
+        case 536: as->regs.dbat[0] = value; break; /* DBAT0U */
+        case 537: as->regs.dbat[1] = value; break; /* DBAT0L */
+        case 538: as->regs.dbat[2] = value; break; /* DBAT1U */
+        case 539: as->regs.dbat[3] = value; break; /* DBAT1L */
+        case 540: as->regs.dbat[4] = value; break; /* DBAT2U */
+        case 541: as->regs.dbat[5] = value; break; /* DBAT2L */
+        case 542: as->regs.dbat[6] = value; break; /* DBAT3U */
+        case 543: as->regs.dbat[7] = value; break; /* DBAT3L */
+
+        /* Hardware implementation dependent */
+        case 1008: /* HID0 */
+            as->regs.hid0 = value;
+            break;
+        case 1009: /* HID1 */
+            as->regs.hid1 = value;
+            break;
+        case 1010: /* IABR */
+            as->regs.iabr = value;
+            break;
+        case 1013: /* DABR */
+            as->regs.dabr = value;
+            break;
+
+        /* Read-only registers */
+        case 268: /* TBL (read encoding) */
+        case 269: /* TBU (read encoding) */
+        case 287: /* PVR */
         default:
             /* Unsupported or read-only SPR - ignore */
             break;
@@ -4092,21 +4247,191 @@ void PPC_Op_MTMSR(PPCAddressSpace* as, UInt32 insn)
 
 /*
  * RFI - Return from Interrupt
- * Simplified implementation
+ * Restore PC and MSR from exception state
  */
 void PPC_Op_RFI(PPCAddressSpace* as, UInt32 insn)
 {
     (void)insn;
 
     /* Restore PC from SRR0 and MSR from SRR1 */
-    /* For now, just a placeholder */
-    as->halted = true;
+    as->regs.pc = as->regs.srr0;
+    as->regs.msr = as->regs.srr1 & 0x87C0FF73; /* Mask valid MSR bits */
+}
+
+/*
+ * ============================================================================
+ * SEGMENT REGISTER OPERATIONS
+ * ============================================================================
+ */
+
+/*
+ * MFSR - Move From Segment Register
+ * rD = SR[SR]
+ */
+void PPC_Op_MFSR(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 sr = (insn >> 16) & 0x0F; /* SR field (bits 16-19) */
+
+    as->regs.gpr[rd] = as->regs.sr[sr];
+}
+
+/*
+ * MTSR - Move To Segment Register
+ * SR[SR] = rS
+ */
+void PPC_Op_MTSR(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 sr = (insn >> 16) & 0x0F; /* SR field (bits 16-19) */
+
+    as->regs.sr[sr] = as->regs.gpr[rs] & 0x8FFFFFFF; /* Mask valid SR bits */
+}
+
+/*
+ * MFSRIN - Move From Segment Register Indirect
+ * rD = SR[rB[0-3]]
+ */
+void PPC_Op_MFSRIN(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt8 sr = (as->regs.gpr[rb] >> 28) & 0x0F; /* High 4 bits select SR */
+
+    as->regs.gpr[rd] = as->regs.sr[sr];
+}
+
+/*
+ * MTSRIN - Move To Segment Register Indirect
+ * SR[rB[0-3]] = rS
+ */
+void PPC_Op_MTSRIN(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt8 sr = (as->regs.gpr[rb] >> 28) & 0x0F; /* High 4 bits select SR */
+
+    as->regs.sr[sr] = as->regs.gpr[rs] & 0x8FFFFFFF; /* Mask valid SR bits */
+}
+
+/*
+ * ============================================================================
+ * TLB MANAGEMENT OPERATIONS
+ * ============================================================================
+ */
+
+/*
+ * TLBIE - TLB Invalidate Entry
+ * Invalidate TLB entry for effective address in rB
+ * (NOP in interpreter - no actual TLB)
+ */
+void PPC_Op_TLBIE(PPCAddressSpace* as, UInt32 insn)
+{
+    (void)as;
+    (void)insn;
+    /* NOP in interpreter */
+}
+
+/*
+ * TLBSYNC - TLB Synchronize
+ * Ensure TLB invalidations complete
+ * (NOP in interpreter - no actual TLB)
+ */
+void PPC_Op_TLBSYNC(PPCAddressSpace* as, UInt32 insn)
+{
+    (void)as;
+    (void)insn;
+    /* NOP in interpreter */
+}
+
+/*
+ * TLBIA - TLB Invalidate All (PowerPC 601 only)
+ * Invalidate all TLB entries
+ * (NOP in interpreter - no actual TLB)
+ */
+void PPC_Op_TLBIA(PPCAddressSpace* as, UInt32 insn)
+{
+    (void)as;
+    (void)insn;
+    /* NOP in interpreter */
+}
+
+/*
+ * ============================================================================
+ * CACHE CONTROL OPERATIONS
+ * ============================================================================
+ */
+
+/*
+ * DCBI - Data Cache Block Invalidate
+ * Invalidate data cache block (supervisor)
+ * (NOP in interpreter - no cache)
+ */
+void PPC_Op_DCBI(PPCAddressSpace* as, UInt32 insn)
+{
+    (void)as;
+    (void)insn;
+    /* NOP in interpreter */
+}
+
+/*
+ * DCBT - Data Cache Block Touch
+ * Hint that data at EA will be needed soon (prefetch)
+ * (NOP in interpreter - no cache)
+ */
+void PPC_Op_DCBT(PPCAddressSpace* as, UInt32 insn)
+{
+    (void)as;
+    (void)insn;
+    /* NOP in interpreter */
+}
+
+/*
+ * DCBTST - Data Cache Block Touch for Store
+ * Hint that data at EA will be stored soon (prefetch for write)
+ * (NOP in interpreter - no cache)
+ */
+void PPC_Op_DCBTST(PPCAddressSpace* as, UInt32 insn)
+{
+    (void)as;
+    (void)insn;
+    /* NOP in interpreter */
+}
+
+/*
+ * ============================================================================
+ * TIME BASE ACCESS
+ * ============================================================================
+ */
+
+/*
+ * MFTB - Move From Time Base
+ * rD = TBR[tbr]
+ * Note: Uses same encoding as MFSPR but different opcode
+ */
+void PPC_Op_MFTB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt16 tbr = ((insn >> 11) & 0x1F) | (((insn >> 16) & 0x1F) << 5);
+
+    switch (tbr) {
+        case 268: /* TBL */
+            as->regs.gpr[rd] = as->regs.tbl;
+            break;
+        case 269: /* TBU */
+            as->regs.gpr[rd] = as->regs.tbu;
+            break;
+        default:
+            /* Invalid TBR */
+            as->regs.gpr[rd] = 0;
+            break;
+    }
 }
 
 /*
  * ==================================================
  * COMPREHENSIVE IMPLEMENTATION
- * Total: 206 instructions (119 previous + 87 new)
+ * Total: 217 instructions (206 previous + 11 new)
  * ==================================================
  */
 

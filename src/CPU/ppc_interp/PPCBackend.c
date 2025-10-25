@@ -1165,6 +1165,54 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     PPC_Op_MTMSR(as, insn);
                     break;
 
+                /* Segment register operations */
+                case PPC_XOP_MFSR:
+                    PPC_Op_MFSR(as, insn);
+                    break;
+
+                case PPC_XOP_MTSR:
+                    PPC_Op_MTSR(as, insn);
+                    break;
+
+                case PPC_XOP_MFSRIN:
+                    PPC_Op_MFSRIN(as, insn);
+                    break;
+
+                case PPC_XOP_MTSRIN:
+                    PPC_Op_MTSRIN(as, insn);
+                    break;
+
+                /* TLB management */
+                case PPC_XOP_TLBIE:
+                    PPC_Op_TLBIE(as, insn);
+                    break;
+
+                case PPC_XOP_TLBSYNC:
+                    PPC_Op_TLBSYNC(as, insn);
+                    break;
+
+                case PPC_XOP_TLBIA:
+                    PPC_Op_TLBIA(as, insn);
+                    break;
+
+                /* Additional cache control */
+                case PPC_XOP_DCBI:
+                    PPC_Op_DCBI(as, insn);
+                    break;
+
+                case PPC_XOP_DCBT:
+                    PPC_Op_DCBT(as, insn);
+                    break;
+
+                case PPC_XOP_DCBTST:
+                    PPC_Op_DCBTST(as, insn);
+                    break;
+
+                /* Time base access */
+                case PPC_XOP_MFTB:
+                    PPC_Op_MFTB(as, insn);
+                    break;
+
                 default:
                     PPC_Fault(as, "Unimplemented opcode 31 extended");
                     break;

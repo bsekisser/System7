@@ -46,6 +46,32 @@ typedef struct PPCRegs {
     UInt32 tbu;               /* Time base upper */
     UInt32 dec;               /* Decrementer */
     UInt32 pvr;               /* Processor version register */
+
+    /* Exception/Interrupt registers */
+    UInt32 srr0;              /* Save/restore register 0 (exception PC) */
+    UInt32 srr1;              /* Save/restore register 1 (exception MSR) */
+    UInt32 dar;               /* Data address register (fault address) */
+    UInt32 dsisr;             /* DSI status register (fault status) */
+
+    /* Memory management */
+    UInt32 sdr1;              /* Page table base register */
+    UInt32 sr[16];            /* Segment registers SR0-SR15 */
+
+    /* OS scratch registers */
+    UInt32 sprg[4];           /* SPRG0-SPRG3 general purpose */
+
+    /* Block address translation (BAT) registers */
+    UInt32 ibat[8];           /* IBAT0U, IBAT0L, IBAT1U, IBAT1L, ... IBAT3U, IBAT3L */
+    UInt32 dbat[8];           /* DBAT0U, DBAT0L, DBAT1U, DBAT1L, ... DBAT3U, DBAT3L */
+
+    /* Hardware implementation dependent */
+    UInt32 hid0;              /* Hardware implementation register 0 */
+    UInt32 hid1;              /* Hardware implementation register 1 */
+
+    /* Debug/performance registers */
+    UInt32 iabr;              /* Instruction address breakpoint */
+    UInt32 dabr;              /* Data address breakpoint */
+    UInt32 ear;               /* External access register */
 } PPCRegs;
 
 /*
