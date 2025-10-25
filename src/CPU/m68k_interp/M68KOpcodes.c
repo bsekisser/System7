@@ -2056,3 +2056,420 @@ void M68K_Op_NEG(M68KAddressSpace* as, UInt16 opcode)
         M68K_ClearFlag(as, CCR_V);
     }
 }
+
+/*
+ * ROXL - Rotate left through extend
+ * Encoding: 1110 cccD ss01 0rrr
+ * Format: ROXL Dx, Dy  or  ROXL #<data>, Dy
+ */
+void M68K_Op_ROXL(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 count_reg = (opcode >> 9) & 7;
+    UInt8 dir = (opcode >> 8) & 1;
+    UInt8 size = (opcode >> 6) & 3;
+    UInt8 data_reg = opcode & 7;
+    UInt32 value, result, count;
+    UInt32 mask = SIZE_MASK(size);
+    UInt8 bit_width = SIZE_BYTES(size) * 8;
+    Boolean x_flag;
+
+    /* Get rotate count */
+    if (dir) {
+        count = as->regs.d[count_reg] & 0x3F;
+    } else {
+        count = count_reg ? count_reg : 8;
+    }
+
+    /* Read operand */
+    value = as->regs.d[data_reg] & mask;
+
+    /* Get X flag state */
+    x_flag = M68K_TestFlag(as, CCR_X);
+
+    /* Perform rotation through extend */
+    if (count == 0) {
+        result = value;
+        /* C gets X */
+        if (x_flag) {
+            M68K_SetFlag(as, CCR_C);
+        } else {
+            M68K_ClearFlag(as, CCR_C);
+        }
+    } else {
+        count = count % (bit_width + 1);  /* Modulo (bit_width + 1) because X is included */
+        result = value;
+
+        for (UInt32 i = 0; i < count; i++) {
+            Boolean msb = (result & (1 << (bit_width - 1))) != 0;
+            result = ((result << 1) | (x_flag ? 1 : 0)) & mask;
+            x_flag = msb;
+        }
+
+        /* C and X get last bit rotated out */
+        if (x_flag) {
+            M68K_SetFlag(as, CCR_C | CCR_X);
+        } else {
+            M68K_ClearFlag(as, CCR_C | CCR_X);
+        }
+    }
+
+    /* Write result */
+    as->regs.d[data_reg] = (as->regs.d[data_reg] & ~mask) | result;
+
+    /* Set flags */
+    M68K_SetNZ(as, result, size);
+    M68K_ClearFlag(as, CCR_V);
+}
+
+/*
+ * ROXR - Rotate right through extend
+ * Encoding: 1110 cccD ss01 0rrr
+ * Format: ROXR Dx, Dy  or  ROXR #<data>, Dy
+ */
+void M68K_Op_ROXR(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 count_reg = (opcode >> 9) & 7;
+    UInt8 dir = (opcode >> 8) & 1;
+    UInt8 size = (opcode >> 6) & 3;
+    UInt8 data_reg = opcode & 7;
+    UInt32 value, result, count;
+    UInt32 mask = SIZE_MASK(size);
+    UInt8 bit_width = SIZE_BYTES(size) * 8;
+    Boolean x_flag;
+
+    /* Get rotate count */
+    if (dir) {
+        count = as->regs.d[count_reg] & 0x3F;
+    } else {
+        count = count_reg ? count_reg : 8;
+    }
+
+    /* Read operand */
+    value = as->regs.d[data_reg] & mask;
+
+    /* Get X flag state */
+    x_flag = M68K_TestFlag(as, CCR_X);
+
+    /* Perform rotation through extend */
+    if (count == 0) {
+        result = value;
+        /* C gets X */
+        if (x_flag) {
+            M68K_SetFlag(as, CCR_C);
+        } else {
+            M68K_ClearFlag(as, CCR_C);
+        }
+    } else {
+        count = count % (bit_width + 1);
+        result = value;
+
+        for (UInt32 i = 0; i < count; i++) {
+            Boolean lsb = (result & 1) != 0;
+            result = ((result >> 1) | ((x_flag ? 1 : 0) << (bit_width - 1))) & mask;
+            x_flag = lsb;
+        }
+
+        /* C and X get last bit rotated out */
+        if (x_flag) {
+            M68K_SetFlag(as, CCR_C | CCR_X);
+        } else {
+            M68K_ClearFlag(as, CCR_C | CCR_X);
+        }
+    }
+
+    /* Write result */
+    as->regs.d[data_reg] = (as->regs.d[data_reg] & ~mask) | result;
+
+    /* Set flags */
+    M68K_SetNZ(as, result, size);
+    M68K_ClearFlag(as, CCR_V);
+}
+
+/*
+ * ADDX - Add with extend
+ * Encoding: 1101 rrr1 ss00 mrrr (m=0: data regs, m=1: address regs with predecrement)
+ * Format: ADDX Dx, Dy  or  ADDX -(Ax), -(Ay)
+ */
+void M68K_Op_ADDX(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 dst_reg = (opcode >> 9) & 7;
+    UInt8 size = (opcode >> 6) & 3;
+    UInt8 mode = (opcode >> 3) & 1;
+    UInt8 src_reg = opcode & 7;
+    UInt32 src, dst, result;
+    UInt32 mask = SIZE_MASK(size);
+    Boolean x = M68K_TestFlag(as, CCR_X);
+
+    if (mode == 0) {
+        /* Data register mode */
+        src = as->regs.d[src_reg] & mask;
+        dst = as->regs.d[dst_reg] & mask;
+        result = (dst + src + (x ? 1 : 0)) & mask;
+        as->regs.d[dst_reg] = (as->regs.d[dst_reg] & ~mask) | result;
+    } else {
+        /* Predecrement mode */
+        UInt8 byte_count = SIZE_BYTES(size);
+        as->regs.a[src_reg] -= byte_count;
+        as->regs.a[dst_reg] -= byte_count;
+
+        src = M68K_EA_Read(as, MODE_An_IND, src_reg, size);
+        dst = M68K_EA_Read(as, MODE_An_IND, dst_reg, size);
+        result = (dst + src + (x ? 1 : 0)) & mask;
+
+        M68K_EA_Write(as, MODE_An_IND, dst_reg, size, result);
+    }
+
+    /* Set flags (Z cleared only if result is non-zero) */
+    if (result != 0) {
+        M68K_ClearFlag(as, CCR_Z);
+    }
+
+    if (result & SIZE_SIGN_BIT(size)) {
+        M68K_SetFlag(as, CCR_N);
+    } else {
+        M68K_ClearFlag(as, CCR_N);
+    }
+
+    /* Carry */
+    if ((dst + src + (x ? 1 : 0)) > mask) {
+        M68K_SetFlag(as, CCR_C | CCR_X);
+    } else {
+        M68K_ClearFlag(as, CCR_C | CCR_X);
+    }
+
+    /* Overflow */
+    {
+        UInt32 sign_bit = SIZE_SIGN_BIT(size);
+        Boolean src_neg = (src & sign_bit) != 0;
+        Boolean dst_neg = (dst & sign_bit) != 0;
+        Boolean res_neg = (result & sign_bit) != 0;
+
+        if (src_neg == dst_neg && res_neg != dst_neg) {
+            M68K_SetFlag(as, CCR_V);
+        } else {
+            M68K_ClearFlag(as, CCR_V);
+        }
+    }
+}
+
+/*
+ * SUBX - Subtract with extend
+ * Encoding: 1001 rrr1 ss00 mrrr
+ * Format: SUBX Dx, Dy  or  SUBX -(Ax), -(Ay)
+ */
+void M68K_Op_SUBX(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 dst_reg = (opcode >> 9) & 7;
+    UInt8 size = (opcode >> 6) & 3;
+    UInt8 mode = (opcode >> 3) & 1;
+    UInt8 src_reg = opcode & 7;
+    UInt32 src, dst, result;
+    UInt32 mask = SIZE_MASK(size);
+    Boolean x = M68K_TestFlag(as, CCR_X);
+
+    if (mode == 0) {
+        /* Data register mode */
+        src = as->regs.d[src_reg] & mask;
+        dst = as->regs.d[dst_reg] & mask;
+        result = (dst - src - (x ? 1 : 0)) & mask;
+        as->regs.d[dst_reg] = (as->regs.d[dst_reg] & ~mask) | result;
+    } else {
+        /* Predecrement mode */
+        UInt8 byte_count = SIZE_BYTES(size);
+        as->regs.a[src_reg] -= byte_count;
+        as->regs.a[dst_reg] -= byte_count;
+
+        src = M68K_EA_Read(as, MODE_An_IND, src_reg, size);
+        dst = M68K_EA_Read(as, MODE_An_IND, dst_reg, size);
+        result = (dst - src - (x ? 1 : 0)) & mask;
+
+        M68K_EA_Write(as, MODE_An_IND, dst_reg, size, result);
+    }
+
+    /* Set flags (Z cleared only if result is non-zero) */
+    if (result != 0) {
+        M68K_ClearFlag(as, CCR_Z);
+    }
+
+    if (result & SIZE_SIGN_BIT(size)) {
+        M68K_SetFlag(as, CCR_N);
+    } else {
+        M68K_ClearFlag(as, CCR_N);
+    }
+
+    /* Borrow */
+    if ((src + (x ? 1 : 0)) > dst) {
+        M68K_SetFlag(as, CCR_C | CCR_X);
+    } else {
+        M68K_ClearFlag(as, CCR_C | CCR_X);
+    }
+
+    /* Overflow */
+    {
+        UInt32 sign_bit = SIZE_SIGN_BIT(size);
+        Boolean src_neg = (src & sign_bit) != 0;
+        Boolean dst_neg = (dst & sign_bit) != 0;
+        Boolean res_neg = (result & sign_bit) != 0;
+
+        if (src_neg != dst_neg && res_neg != dst_neg) {
+            M68K_SetFlag(as, CCR_V);
+        } else {
+            M68K_ClearFlag(as, CCR_V);
+        }
+    }
+}
+
+/*
+ * NEGX - Negate with extend
+ * Encoding: 0100 0000 ssxx xrrr
+ * Format: NEGX <ea>
+ */
+void M68K_Op_NEGX(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 size = (opcode >> 6) & 3;
+    UInt8 mode = (opcode >> 3) & 7;
+    UInt8 reg = opcode & 7;
+    UInt32 value, result;
+    UInt32 mask = SIZE_MASK(size);
+    Boolean x = M68K_TestFlag(as, CCR_X);
+
+    /* Read operand */
+    value = M68K_EA_Read(as, mode, reg, size);
+
+    /* Negate with extend (0 - value - X) */
+    result = (0 - value - (x ? 1 : 0)) & mask;
+
+    /* Write result */
+    M68K_EA_Write(as, mode, reg, size, result);
+
+    /* Set flags (Z cleared only if result is non-zero) */
+    if (result != 0) {
+        M68K_ClearFlag(as, CCR_Z);
+    }
+
+    if (result & SIZE_SIGN_BIT(size)) {
+        M68K_SetFlag(as, CCR_N);
+    } else {
+        M68K_ClearFlag(as, CCR_N);
+    }
+
+    /* C and X */
+    if (value != 0 || x) {
+        M68K_SetFlag(as, CCR_C | CCR_X);
+    } else {
+        M68K_ClearFlag(as, CCR_C | CCR_X);
+    }
+
+    /* V */
+    if (value == SIZE_SIGN_BIT(size) && x) {
+        M68K_SetFlag(as, CCR_V);
+    } else {
+        M68K_ClearFlag(as, CCR_V);
+    }
+}
+
+/*
+ * CHK - Check register against bounds
+ * Encoding: 0100 rrr1 10xx xrrr
+ * Format: CHK <ea>, Dn
+ */
+void M68K_Op_CHK(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 reg = (opcode >> 9) & 7;
+    UInt8 ea_mode = (opcode >> 3) & 7;
+    UInt8 ea_reg = opcode & 7;
+    SInt32 value, upper_bound;
+
+    /* Read upper bound (word, sign-extended) */
+    upper_bound = SIGN_EXTEND_WORD(M68K_EA_Read(as, ea_mode, ea_reg, SIZE_WORD));
+
+    /* Read value to check (low word of Dn, sign-extended) */
+    value = SIGN_EXTEND_WORD(as->regs.d[reg] & 0xFFFF);
+
+    /* Check if value < 0 or value > upper_bound */
+    if (value < 0) {
+        M68K_SetFlag(as, CCR_N);
+        M68K_Fault(as, "CHK failed: value < 0");
+    } else if (value > upper_bound) {
+        M68K_ClearFlag(as, CCR_N);
+        M68K_Fault(as, "CHK failed: value > bound");
+    } else {
+        /* Value is within bounds, continue */
+        M68K_ClearFlag(as, CCR_N);
+    }
+}
+
+/*
+ * TAS - Test and set
+ * Encoding: 0100 1010 11xx xrrr
+ * Format: TAS <ea>
+ */
+void M68K_Op_TAS(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 mode = (opcode >> 3) & 7;
+    UInt8 reg = opcode & 7;
+    UInt8 value;
+
+    /* Read byte */
+    value = M68K_EA_Read(as, mode, reg, SIZE_BYTE) & 0xFF;
+
+    /* Test and set flags */
+    M68K_SetNZ(as, value, SIZE_BYTE);
+    M68K_ClearFlag(as, CCR_V | CCR_C);
+
+    /* Set bit 7 */
+    value |= 0x80;
+
+    /* Write back */
+    M68K_EA_Write(as, mode, reg, SIZE_BYTE, value);
+}
+
+/*
+ * CMPI - Compare immediate
+ * Encoding: 0000 1100 ssxx xrrr
+ * Format: CMPI #<data>, <ea>
+ */
+void M68K_Op_CMPI(M68KAddressSpace* as, UInt16 opcode)
+{
+    UInt8 size = (opcode >> 6) & 3;
+    UInt8 mode = (opcode >> 3) & 7;
+    UInt8 reg = opcode & 7;
+    UInt32 immediate, operand, result;
+    UInt32 mask = SIZE_MASK(size);
+
+    /* Fetch immediate value */
+    if (size == SIZE_BYTE || size == SIZE_WORD) {
+        immediate = M68K_Fetch16(as) & mask;
+    } else {
+        immediate = M68K_Fetch32(as);
+    }
+
+    /* Read operand */
+    operand = M68K_EA_Read(as, mode, reg, size);
+
+    /* Compare (operand - immediate) */
+    result = (operand - immediate) & mask;
+
+    /* Set flags */
+    M68K_SetNZ(as, result, size);
+
+    if (immediate > operand) {
+        M68K_SetFlag(as, CCR_C);
+    } else {
+        M68K_ClearFlag(as, CCR_C);
+    }
+
+    /* V flag */
+    {
+        UInt32 sign_bit = SIZE_SIGN_BIT(size);
+        Boolean src_neg = (immediate & sign_bit) != 0;
+        Boolean dst_neg = (operand & sign_bit) != 0;
+        Boolean res_neg = (result & sign_bit) != 0;
+
+        if (src_neg != dst_neg && res_neg != dst_neg) {
+            M68K_SetFlag(as, CCR_V);
+        } else {
+            M68K_ClearFlag(as, CCR_V);
+        }
+    }
+}

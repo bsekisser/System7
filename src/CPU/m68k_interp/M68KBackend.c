@@ -712,6 +712,14 @@ extern void M68K_Op_BCHG(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_ROL(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_ROR(M68KAddressSpace* as, UInt16 opcode);
 extern void M68K_Op_NEG(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_ROXL(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_ROXR(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_ADDX(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_SUBX(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_NEGX(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_CHK(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_TAS(M68KAddressSpace* as, UInt16 opcode);
+extern void M68K_Op_CMPI(M68KAddressSpace* as, UInt16 opcode);
 extern UInt16 M68K_Fetch16(M68KAddressSpace* as);
 extern void M68K_Fault(M68KAddressSpace* as, const char* reason);
 
@@ -760,6 +768,9 @@ OSErr M68K_Step(M68KAddressSpace* as)
         } else if ((opcode & 0xFFC0) == 0x0840) {
             /* BCHG with immediate */
             M68K_Op_BCHG(as, opcode);
+        } else if ((opcode & 0xFF00) == 0x0C00) {
+            /* CMPI - compare immediate */
+            M68K_Op_CMPI(as, opcode);
         } else if ((opcode & 0xFF00) == 0x4200) {
             M68K_Op_CLR(as, opcode);
         } else if ((opcode & 0xFF00) == 0x4600) {
@@ -832,6 +843,15 @@ OSErr M68K_Step(M68KAddressSpace* as)
         } else if ((opcode & 0xFF00) == 0x4400) {
             /* NEG */
             M68K_Op_NEG(as, opcode);
+        } else if ((opcode & 0xFF00) == 0x4000) {
+            /* NEGX - negate with extend */
+            M68K_Op_NEGX(as, opcode);
+        } else if ((opcode & 0xF1C0) == 0x4180) {
+            /* CHK - check register against bounds */
+            M68K_Op_CHK(as, opcode);
+        } else if ((opcode & 0xFFC0) == 0x4AC0) {
+            /* TAS - test and set */
+            M68K_Op_TAS(as, opcode);
         } else {
             M68K_Fault(as, "Unimplemented 4xxx opcode");
         }
@@ -881,10 +901,13 @@ OSErr M68K_Step(M68KAddressSpace* as)
             M68K_Op_OR(as, opcode);
         }
     } else if ((opcode & 0xF000) == 0x9000) {
-        /* 9xxx - SUB/SUBA */
+        /* 9xxx - SUB/SUBA/SUBX */
         if ((opcode & 0x00C0) == 0x00C0) {
             /* SUBA - bits 7-6 = 11 */
             M68K_Op_SUBA(as, opcode);
+        } else if ((opcode & 0xF130) == 0x9100) {
+            /* SUBX - bits 8 = 1, bits 5-4 = 00 */
+            M68K_Op_SUBX(as, opcode);
         } else {
             /* SUB */
             M68K_Op_SUB(as, opcode);
@@ -905,10 +928,13 @@ OSErr M68K_Step(M68KAddressSpace* as)
             M68K_Op_CMP(as, opcode);
         }
     } else if ((opcode & 0xF000) == 0xD000) {
-        /* Dxxx - ADD/ADDA */
+        /* Dxxx - ADD/ADDA/ADDX */
         if ((opcode & 0x00C0) == 0x00C0) {
             /* ADDA - bits 7-6 = 11 */
             M68K_Op_ADDA(as, opcode);
+        } else if ((opcode & 0xF130) == 0xD100) {
+            /* ADDX - bits 8 = 1, bits 5-4 = 00 */
+            M68K_Op_ADDX(as, opcode);
         } else {
             /* ADD */
             M68K_Op_ADD(as, opcode);
@@ -953,8 +979,17 @@ OSErr M68K_Step(M68KAddressSpace* as)
         } else if (type == 2) {
             /* ASL - bits 4-3 = 10 */
             M68K_Op_ASL(as, opcode);
+        } else if (type == 3) {
+            /* ROXL or ROXR - bits 4-3 = 11 */
+            if ((opcode & 0x0018) == 0x0008) {
+                /* ROXL - bit 5 = 1 */
+                M68K_Op_ROXL(as, opcode);
+            } else {
+                /* ROXR - bit 5 = 0 */
+                M68K_Op_ROXR(as, opcode);
+            }
         } else {
-            M68K_Fault(as, "Unimplemented Exxx opcode (rotate with extend)");
+            M68K_Fault(as, "Unimplemented Exxx opcode");
         }
     } else {
         serial_printf("[M68K] ILLEGAL opcode 0x%04X at PC=0x%08X\n", opcode, as->regs.pc - 2);
