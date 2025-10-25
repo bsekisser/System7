@@ -16,7 +16,7 @@
  */
 
 /* Fetch 32-bit instruction at PC and advance */
-static UInt32 PPC_Fetch32(PPCAddressSpace* as)
+UInt32 PPC_Fetch32(PPCAddressSpace* as)
 {
     UInt32 insn;
     UInt8* page;
@@ -43,7 +43,7 @@ static UInt32 PPC_Fetch32(PPCAddressSpace* as)
 }
 
 /* Read memory (big-endian) */
-static UInt32 PPC_Read32(PPCAddressSpace* as, UInt32 addr)
+UInt32 PPC_Read32(PPCAddressSpace* as, UInt32 addr)
 {
     UInt32 pageNum = addr >> PPC_PAGE_SHIFT;
     UInt32 offset = addr & (PPC_PAGE_SIZE - 1);
@@ -59,7 +59,7 @@ static UInt32 PPC_Read32(PPCAddressSpace* as, UInt32 addr)
            (page[offset + 2] << 8) | page[offset + 3];
 }
 
-static UInt16 PPC_Read16(PPCAddressSpace* as, UInt32 addr)
+UInt16 PPC_Read16(PPCAddressSpace* as, UInt32 addr)
 {
     UInt32 pageNum = addr >> PPC_PAGE_SHIFT;
     UInt32 offset = addr & (PPC_PAGE_SIZE - 1);
@@ -74,7 +74,7 @@ static UInt16 PPC_Read16(PPCAddressSpace* as, UInt32 addr)
     return (page[offset] << 8) | page[offset + 1];
 }
 
-static UInt8 PPC_Read8(PPCAddressSpace* as, UInt32 addr)
+UInt8 PPC_Read8(PPCAddressSpace* as, UInt32 addr)
 {
     UInt32 pageNum = addr >> PPC_PAGE_SHIFT;
     UInt32 offset = addr & (PPC_PAGE_SIZE - 1);
@@ -90,7 +90,7 @@ static UInt8 PPC_Read8(PPCAddressSpace* as, UInt32 addr)
 }
 
 /* Write memory (big-endian) */
-static void PPC_Write32(PPCAddressSpace* as, UInt32 addr, UInt32 value)
+void PPC_Write32(PPCAddressSpace* as, UInt32 addr, UInt32 value)
 {
     UInt32 pageNum = addr >> PPC_PAGE_SHIFT;
     UInt32 offset = addr & (PPC_PAGE_SIZE - 1);
@@ -108,7 +108,7 @@ static void PPC_Write32(PPCAddressSpace* as, UInt32 addr, UInt32 value)
     page[offset + 3] = value & 0xFF;
 }
 
-static void PPC_Write16(PPCAddressSpace* as, UInt32 addr, UInt16 value)
+void PPC_Write16(PPCAddressSpace* as, UInt32 addr, UInt16 value)
 {
     UInt32 pageNum = addr >> PPC_PAGE_SHIFT;
     UInt32 offset = addr & (PPC_PAGE_SIZE - 1);
@@ -124,7 +124,7 @@ static void PPC_Write16(PPCAddressSpace* as, UInt32 addr, UInt16 value)
     page[offset + 1] = value & 0xFF;
 }
 
-static void PPC_Write8(PPCAddressSpace* as, UInt32 addr, UInt8 value)
+void PPC_Write8(PPCAddressSpace* as, UInt32 addr, UInt8 value)
 {
     UInt32 pageNum = addr >> PPC_PAGE_SHIFT;
     UInt32 offset = addr & (PPC_PAGE_SIZE - 1);
@@ -161,7 +161,7 @@ static void PPC_SetCR0(PPCAddressSpace* as, SInt32 result)
 /* Fault handler */
 void PPC_Fault(PPCAddressSpace* as, const char* reason)
 {
-    PPC_LOG_ERROR("PowerPC FAULT at PC=0x%08X: %s\n", as->regs.pc - 4, reason);
+    serial_printf("[PPC] FAULT at PC=0x%08X: %s\n", as->regs.pc - 4, reason);
     as->halted = true;
 }
 
