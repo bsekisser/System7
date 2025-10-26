@@ -16,6 +16,9 @@ OSErr InitPacks(void);
 OSErr InitAllPacks(void);
 OSErr CallPackage(short packID, short selector, void* params);
 
+/* Package dispatcher declarations */
+extern OSErr Pack7_Dispatch(short selector, void* params);  /* Binary/Decimal Conversion */
+
 /* Debug logging */
 #define PKG_MGR_DEBUG 0
 
@@ -204,8 +207,8 @@ OSErr CallPackage(short packID, short selector, void* params) {
 
         case 7:
             /* Pack7: Binary/Decimal Conversion */
-            PKG_LOG("CallPackage: Pack7 (Binary/Decimal) not yet implemented\n");
-            return unimpErr;
+            PKG_LOG("CallPackage: Pack7 (Binary/Decimal) dispatching\n");
+            return Pack7_Dispatch(selector, params);
 
         case 8:
             /* Pack8: Apple Events */
