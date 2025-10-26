@@ -2334,6 +2334,21 @@ void PPC_Op_MFSPR(PPCAddressSpace* as, UInt32 insn)
         case 1013: /* DABR */
             as->regs.gpr[rd] = as->regs.dabr;
             break;
+        case 1017: /* L2CR */
+            as->regs.gpr[rd] = as->regs.l2cr;
+            break;
+        case 1019: /* ICTC */
+            as->regs.gpr[rd] = as->regs.ictc;
+            break;
+        case 1020: /* THRM1 */
+            as->regs.gpr[rd] = as->regs.thrm[0];
+            break;
+        case 1021: /* THRM2 */
+            as->regs.gpr[rd] = as->regs.thrm[1];
+            break;
+        case 1022: /* THRM3 */
+            as->regs.gpr[rd] = as->regs.thrm[2];
+            break;
 
         default:
             /* Unsupported SPR - return 0 */
@@ -2442,6 +2457,21 @@ void PPC_Op_MTSPR(PPCAddressSpace* as, UInt32 insn)
             break;
         case 1013: /* DABR */
             as->regs.dabr = value;
+            break;
+        case 1017: /* L2CR */
+            as->regs.l2cr = value;
+            break;
+        case 1019: /* ICTC */
+            as->regs.ictc = value;
+            break;
+        case 1020: /* THRM1 */
+            as->regs.thrm[0] = value;
+            break;
+        case 1021: /* THRM2 */
+            as->regs.thrm[1] = value;
+            break;
+        case 1022: /* THRM3 */
+            as->regs.thrm[2] = value;
             break;
 
         /* Read-only registers */

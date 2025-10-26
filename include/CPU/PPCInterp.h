@@ -67,11 +67,16 @@ typedef struct PPCRegs {
     /* Hardware implementation dependent */
     UInt32 hid0;              /* Hardware implementation register 0 */
     UInt32 hid1;              /* Hardware implementation register 1 */
+    UInt32 l2cr;              /* L2 cache control register (G3/G4) */
+    UInt32 ictc;              /* Instruction cache throttling control */
 
     /* Debug/performance registers */
     UInt32 iabr;              /* Instruction address breakpoint */
     UInt32 dabr;              /* Data address breakpoint */
     UInt32 ear;               /* External access register */
+
+    /* Thermal management (G3/G4) */
+    UInt32 thrm[3];           /* THRM1-THRM3: thermal management registers */
 
     /* AltiVec/VMX vector registers (G4/G5) */
     UInt32 vr[32][4];         /* VR0-VR31: 32 128-bit vector registers (stored as 4x32-bit) */
