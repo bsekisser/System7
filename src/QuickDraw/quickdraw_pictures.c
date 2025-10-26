@@ -346,6 +346,26 @@ void DrawPicture(PicHandle myPicture, const Rect* dstRect) {
                 break;
             }
 
+            case 0x03: { /* Text font */
+                SInt16 fontID;
+                if (!pict_read_s16(&stream, &fontID)) {
+                    done = true;
+                    break;
+                }
+                TextFont(fontID);
+                break;
+            }
+
+            case 0x04: { /* Text face */
+                UInt8 face;
+                if (!pict_read_u8(&stream, &face)) {
+                    done = true;
+                    break;
+                }
+                TextFace(face);
+                break;
+            }
+
             case 0x0C: { /* Origin */
                 SInt16 dh, dv;
                 if (!pict_read_s16(&stream, &dh) || !pict_read_s16(&stream, &dv)) {
@@ -407,6 +427,42 @@ void DrawPicture(PicHandle myPicture, const Rect* dstRect) {
                 break;
             }
 
+            case 0x28: { /* DrawString */
+                UInt8 len;
+                if (!pict_read_u8(&stream, &len)) {
+                    done = true;
+                    break;
+                }
+                if (stream.ptr + len > stream.end) {
+                    done = true;
+                    break;
+                }
+                DrawText((const char*)stream.ptr, 0, len);
+                stream.ptr += len;
+                /* Pad to even byte boundary */
+                if (len % 2 == 0) {
+                    stream.ptr++;
+                }
+                break;
+            }
+
+            case 0x2C: /* FrameOval */
+            case 0x2D: /* PaintOval */
+            case 0x2E: /* EraseOval */
+            case 0x2F: { /* InvertOval */
+                Rect r;
+                if (!pict_read_rect(&stream, &r)) {
+                    done = true;
+                    break;
+                }
+                Rect scaled = pict_scale_rect(&r, &picFrame, dstRect, scaleX, scaleY);
+                if (opcode == 0x2C) FrameOval(&scaled);
+                else if (opcode == 0x2D) PaintOval(&scaled);
+                else if (opcode == 0x2E) EraseOval(&scaled);
+                else if (opcode == 0x2F) InvertOval(&scaled);
+                break;
+            }
+
             case 0x30: /* FrameRect */
             case 0x31: /* PaintRect */
             case 0x32: /* EraseRect */
@@ -423,6 +479,58 @@ void DrawPicture(PicHandle myPicture, const Rect* dstRect) {
                 else if (opcode == 0x32) EraseRect(&scaled);
                 else if (opcode == 0x33) InvertRect(&scaled);
                 else FillRect(&scaled, &thePort->fillPat);
+                break;
+            }
+
+            case 0x40: /* FrameRoundRect */
+            case 0x41: /* PaintRoundRect */
+            case 0x42: /* EraseRoundRect */
+            case 0x43: { /* InvertRoundRect */
+                Rect r;
+                if (!pict_read_rect(&stream, &r)) {
+                    done = true;
+                    break;
+                }
+                Rect scaled = pict_scale_rect(&r, &picFrame, dstRect, scaleX, scaleY);
+                /* Use fixed corner radius of 16 pixels */
+                if (opcode == 0x40) FrameRoundRect(&scaled, 16, 16);
+                else if (opcode == 0x41) PaintRoundRect(&scaled, 16, 16);
+                else if (opcode == 0x42) EraseRoundRect(&scaled, 16, 16);
+                else if (opcode == 0x43) InvertRoundRect(&scaled, 16, 16);
+                break;
+            }
+
+            case 0x50: /* FrameArc */
+            case 0x51: /* PaintArc */
+            case 0x52: /* EraseArc */
+            case 0x53: { /* InvertArc */
+                Rect r;
+                SInt16 startAngle, arcAngle;
+                if (!pict_read_rect(&stream, &r) ||
+                    !pict_read_s16(&stream, &startAngle) ||
+                    !pict_read_s16(&stream, &arcAngle)) {
+                    done = true;
+                    break;
+                }
+                Rect scaled = pict_scale_rect(&r, &picFrame, dstRect, scaleX, scaleY);
+                if (opcode == 0x50) FrameArc(&scaled, startAngle, arcAngle);
+                else if (opcode == 0x51) PaintArc(&scaled, startAngle, arcAngle);
+                else if (opcode == 0x52) EraseArc(&scaled, startAngle, arcAngle);
+                else if (opcode == 0x53) InvertArc(&scaled, startAngle, arcAngle);
+                break;
+            }
+
+            case 0x70: /* FramePoly */
+            case 0x71: { /* PaintPoly */
+                UInt16 polySize;
+                if (!pict_read_u16(&stream, &polySize)) {
+                    done = true;
+                    break;
+                }
+                /* Skip polygon data for now - just advance stream */
+                if (!pict_skip_bytes(&stream, polySize - 2)) {
+                    done = true;
+                }
                 break;
             }
 
