@@ -427,7 +427,8 @@ C_SOURCES = src/main.c \
 
 # Add ResourceMgr sources if enabled
 ifeq ($(ENABLE_RESOURCES),1)
-C_SOURCES += src/ResourceMgr/ResourceMgr.c
+C_SOURCES += src/ResourceMgr/ResourceMgr.c \
+             src/ResourceMgr/StringResources.c
 endif
 
 # Add FileMgr extra sources if enabled

@@ -91,6 +91,10 @@ void SetResAttrs(Handle theResource, ResAttributes attrs);
 /* Get resource data (for reading) */
 void* GetResourceData(Handle theResource);
 
+/* String resource functions */
+void GetString(StringPtr theString, SInt16 stringID);
+void GetIndString(StringPtr theString, SInt16 strListID, SInt16 index);
+
 /* ---- Resource File Management Functions ------------------------------------------ */
 
 /* Open a resource file */
