@@ -5,6 +5,8 @@
  */
 
 #include "SystemTypes.h"
+#include "MacTypes.h"
+#include "FileManagerTypes.h"
 #include "ResourceMgr/ResourceMgr.h"
 #include "ResourceMgr/resource_manager.h"
 #include "ResourceMgr/ResourceMgrPriv.h"
@@ -18,6 +20,10 @@ extern void HLock(Handle h);
 extern void HUnlock(Handle h);
 extern void BlockMove(const void* srcPtr, void* destPtr, Size byteCount);
 extern void serial_puts(const char* s);
+extern OSErr FSOpenRF(ConstStr255Param fileName, VolumeRefNum vRefNum, FileRefNum* refNum);
+extern OSErr FSRead(FileRefNum refNum, UInt32* count, void* buffer);
+extern OSErr FSClose(FileRefNum refNum);
+extern OSErr FSSetFPos(FileRefNum refNum, UInt16 posMode, SInt32 posOffset);
 
 /* Resource index for fast lookups */
 typedef struct {
@@ -941,11 +947,111 @@ void SetResLoad(Boolean load) {
     gResMgr.resLoad = load;
 }
 
-/* Open resource file (stub) */
+/* Open resource file */
 SInt16 OpenResFile(ConstStr255Param fileName) {
-    (void)fileName;
-    gResMgr.resError = resFNotFound;
-    return -1;
+    SInt16 refNum;
+    OSErr err;
+
+    /* Find free slot */
+    refNum = -1;
+    for (SInt16 i = 1; i < MAX_RES_FILES; i++) {
+        if (!gResMgr.resFiles[i].inUse) {
+            refNum = i;
+            break;
+        }
+    }
+
+    if (refNum < 0) {
+        gResMgr.resError = tmfoErr;  /* Too many files open */
+        return -1;
+    }
+
+    /* Open resource fork using File Manager */
+    FileRefNum fileRef;
+    err = FSOpenRF(fileName, 0, &fileRef);
+    if (err != noErr) {
+        gResMgr.resError = err;
+        return -1;
+    }
+
+    /* Read resource header */
+    ResourceHeader header;
+    UInt32 readCount = sizeof(ResourceHeader);
+    err = FSRead(fileRef, &readCount, &header);
+    if (err != noErr || readCount != sizeof(ResourceHeader)) {
+        FSClose(fileRef);
+        gResMgr.resError = err;
+        return -1;
+    }
+
+    /* Byte-swap header fields (resource forks are big-endian) */
+    UInt32 mapOffset = read_be32((UInt8*)&header.mapOffset);
+    UInt32 mapLength = read_be32((UInt8*)&header.mapLength);
+
+    /* Unused but available for validation if needed */
+    (void)read_be32((UInt8*)&header.dataOffset);
+    (void)read_be32((UInt8*)&header.dataLength);
+
+    /* Validate header */
+    if (mapLength < sizeof(ResMapHeader)) {
+        FSClose(fileRef);
+        gResMgr.resError = mapReadErr;
+        return -1;
+    }
+
+    /* Allocate buffer for entire resource fork */
+    UInt32 totalSize = mapOffset + mapLength;
+    Handle dataHandle = NewHandle(totalSize);
+    if (!dataHandle) {
+        FSClose(fileRef);
+        gResMgr.resError = memFullErr;
+        return -1;
+    }
+
+    /* Seek to beginning and read entire fork */
+    err = FSSetFPos(fileRef, fsFromStart, 0);
+    if (err != noErr) {
+        DisposeHandle(dataHandle);
+        FSClose(fileRef);
+        gResMgr.resError = err;
+        return -1;
+    }
+
+    readCount = totalSize;
+    HLock(dataHandle);
+    err = FSRead(fileRef, &readCount, *dataHandle);
+    HUnlock(dataHandle);
+
+    if (err != noErr || readCount != totalSize) {
+        DisposeHandle(dataHandle);
+        FSClose(fileRef);
+        gResMgr.resError = err;
+        return -1;
+    }
+
+    /* Done with file - resource data now in memory */
+    FSClose(fileRef);
+
+    /* Initialize resource file control block */
+    ResFile* resFile = &gResMgr.resFiles[refNum];
+    resFile->inUse = true;
+    resFile->refNum = refNum;
+    resFile->data = (UInt8*)*dataHandle;
+    resFile->dataSize = totalSize;
+    resFile->map = (ResMapHeader*)(resFile->data + mapOffset);
+    resFile->mapSize = mapLength;
+    resFile->mapHandle = dataHandle;
+
+    /* Copy filename for debugging */
+    UInt8 len = fileName[0];
+    if (len > 255) len = 255;
+    resFile->fileName[0] = len;
+    for (UInt8 i = 0; i < len; i++) {
+        resFile->fileName[i + 1] = fileName[i + 1];
+    }
+
+    gResMgr.resError = noErr;
+    return refNum;
 }
 
 /* Close resource file */
