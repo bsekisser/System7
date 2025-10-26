@@ -225,6 +225,11 @@ OSErr Ext_Deallocate(VCB* vcb, UInt32 fileID, UInt8 forkType, UInt32 startBlock)
 OSErr Ext_Map(VCB* vcb, FCB* fcb, UInt32 fileBlock, UInt32* physBlock, UInt32* contiguous);
 OSErr Ext_Extend(VCB* vcb, FCB* fcb, UInt32 newSize);
 OSErr Ext_Truncate(VCB* vcb, FCB* fcb, UInt32 newSize);
+OSErr Ext_SearchOverflow(VCB* vcb, UInt32 fileID, UInt8 forkType, UInt32 startFABN,
+                        ExtDataRec* extents);
+OSErr Ext_AddOverflow(VCB* vcb, UInt32 fileID, UInt8 forkType, UInt32 startFABN,
+                     const ExtDataRec* extents);
+OSErr Ext_DeleteOverflow(VCB* vcb, UInt32 fileID, UInt8 forkType, UInt32 startFABN);
 
 /* Allocation Bitmap Management */
 OSErr Alloc_Init(VCB* vcb);

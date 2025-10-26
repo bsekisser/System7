@@ -111,6 +111,18 @@ typedef struct {
 
 typedef ExtDescriptor ExtDataRec[3];  /* Array of 3 extent descriptors */
 
+/* Extent overflow B-tree key */
+typedef struct ExtentKey {
+    UInt8  xkrKeyLen;   /* Key length */
+    UInt8  xkrFkType;   /* Fork type (0x00 = data, 0xFF = resource) */
+    UInt32 xkrFNum;     /* File number (catalog node ID) */
+    UInt16 xkrFABN;     /* Starting file allocation block number */
+} ExtentKey;
+
+/* Fork types for extent keys */
+#define kDataFork       0x00
+#define kResourceFork   0xFF
+
 /* Catalog types */
 typedef struct {
     UInt8 cdrType;      /* Record type */

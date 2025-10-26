@@ -296,8 +296,52 @@ OSErr Ext_Map(VCB* vcb, FCB* fcb, UInt32 fileBlock, UInt32* physBlock, UInt32* c
         currentBlock += (*extents).extent[i].blockCount;
     }
 
-    /* File block is beyond extents in FCB */
-    FS_LOG_DEBUG("Ext_Map: fileBlock=%u beyond FCB extents\n", fileBlock);
+    /* File block is beyond extents in FCB - search overflow B-tree */
+    FS_LOG_DEBUG("Ext_Map: searching overflow for fileBlock=%u (currentBlock=%u)\n",
+                 fileBlock, currentBlock);
+
+    /* Search overflow extents starting from first overflow FABN */
+    UInt32 overflowFABN = currentBlock;  /* Start of overflow extents */
+    ExtDataRec overflowExtents;
+    OSErr err;
+
+    while (currentBlock < fileBlock) {
+        /* Search for extent record starting at this FABN */
+        err = Ext_SearchOverflow(vcb, fcb->base.fcbFlNm, kDataFork,
+                                overflowFABN, &overflowExtents);
+        if (err != noErr) {
+            FS_LOG_DEBUG("Ext_Map: overflow extent not found at FABN=%u\n", overflowFABN);
+            return ioErr;
+        }
+
+        /* Search through this overflow extent record */
+        for (i = 0; i < 3; i++) {
+            if (overflowExtents[i].xdrNumABlks == 0) {
+                break;  /* End of extents in this record */
+            }
+
+            if (fileBlock < currentBlock + overflowExtents[i].xdrNumABlks) {
+                /* Found the extent containing the file block */
+                *physBlock = overflowExtents[i].xdrStABN + (fileBlock - currentBlock);
+
+                /* Calculate contiguous blocks if requested */
+                if (contiguous) {
+                    *contiguous = overflowExtents[i].xdrNumABlks - (fileBlock - currentBlock);
+                }
+
+                FS_LOG_DEBUG("Ext_Map: fileBlock=%u -> physBlock=%u (overflow extent FABN=%u[%u])\n",
+                           fileBlock, *physBlock, overflowFABN, i);
+                return noErr;
+            }
+
+            currentBlock += overflowExtents[i].xdrNumABlks;
+        }
+
+        /* Move to next overflow extent record */
+        overflowFABN = currentBlock;
+    }
+
+    FS_LOG_DEBUG("Ext_Map: fileBlock=%u not found in overflow extents\n", fileBlock);
     return ioErr;
 }
 
@@ -385,10 +429,29 @@ OSErr Ext_Extend(VCB* vcb, FCB* fcb, UInt32 newSize) {
     }
 
     if (!extentAdded) {
-        /* No room in extent record - would need overflow B-tree */
-        FS_LOG_ERROR("Ext_Extend: extent overflow (>3 extents) not supported\n");
-        Alloc_Free(vcb, allocStart, allocCount);
-        return ioErr;  /* File system limitation */
+        /* FCB extent record is full - use overflow B-tree */
+        FS_LOG_DEBUG("Ext_Extend: FCB extents full, using overflow B-tree\n");
+
+        /* Calculate starting FABN for overflow extent */
+        UInt32 overflowFABN = currentBlocks;
+
+        /* Create overflow extent record */
+        ExtDataRec overflowExtents;
+        memset(&overflowExtents, 0, sizeof(ExtDataRec));
+        overflowExtents[0].xdrStABN = (UInt16)allocStart;
+        overflowExtents[0].xdrNumABlks = (UInt16)allocCount;
+
+        /* Add to overflow B-tree */
+        err = Ext_AddOverflow(vcb, fcb->base.fcbFlNm, kDataFork,
+                             overflowFABN, &overflowExtents);
+        if (err != noErr) {
+            FS_LOG_ERROR("Ext_Extend: failed to add overflow extent: %d\n", err);
+            Alloc_Free(vcb, allocStart, allocCount);
+            return err;
+        }
+
+        FS_LOG_DEBUG("Ext_Extend: added overflow extent at FABN=%u: start=%u count=%u\n",
+                    overflowFABN, allocStart, allocCount);
     }
 
     /* Update FCB */
@@ -423,7 +486,120 @@ OSErr Ext_Truncate(VCB* vcb, FCB* fcb, UInt32 newSize) {
 
     blocksToFree = currentBlocks - neededBlocks;
 
-    /* Free blocks from end of extents (work backwards) */
+    /* First, check if we have overflow extents to free */
+    UInt32 fcbBlocks = 0;
+    for (i = 0; i < 3; i++) {
+        fcbBlocks += fcb->base.fcbExtRec.extent[i].blockCount;
+    }
+
+    /* Free overflow extents if file extends beyond FCB extents */
+    if (currentBlocks > fcbBlocks && blocksToFree > 0) {
+        UInt32 overflowFABN = currentBlocks;  /* Start from end of file */
+        ExtDataRec overflowExtents;
+
+        /* Work backwards through overflow extents */
+        while (overflowFABN > fcbBlocks && blocksToFree > 0) {
+            /* Find the overflow extent that contains this FABN */
+            /* We need to search backwards from currentBlocks to find extent boundaries */
+            UInt32 searchFABN = fcbBlocks;
+            UInt32 lastFoundFABN = fcbBlocks;
+
+            while (searchFABN < overflowFABN) {
+                err = Ext_SearchOverflow(vcb, fcb->base.fcbFlNm, kDataFork,
+                                        searchFABN, &overflowExtents);
+                if (err != noErr) {
+                    break;  /* No more overflow extents */
+                }
+
+                /* Calculate end of this extent record */
+                UInt32 extentBlocks = 0;
+                for (i = 0; i < 3; i++) {
+                    extentBlocks += overflowExtents[i].xdrNumABlks;
+                }
+
+                lastFoundFABN = searchFABN;
+                searchFABN += extentBlocks;
+            }
+
+            /* Now lastFoundFABN points to the last overflow extent record */
+            if (lastFoundFABN >= fcbBlocks) {
+                err = Ext_SearchOverflow(vcb, fcb->base.fcbFlNm, kDataFork,
+                                        lastFoundFABN, &overflowExtents);
+                if (err != noErr) {
+                    break;
+                }
+
+                /* Free extents from this record (working backwards) */
+                for (i = 2; i >= 0; i--) {
+                    if (overflowExtents[i].xdrNumABlks > 0) {
+                        if (blocksToFree >= overflowExtents[i].xdrNumABlks) {
+                            /* Free entire extent */
+                            err = Alloc_Free(vcb, overflowExtents[i].xdrStABN,
+                                           overflowExtents[i].xdrNumABlks);
+                            if (err != noErr) {
+                                FS_LOG_ERROR("Ext_Truncate: failed to free overflow extent\n");
+                                return err;
+                            }
+
+                            FS_LOG_DEBUG("Ext_Truncate: freed overflow extent[%d]: %u blocks\n",
+                                        i, overflowExtents[i].xdrNumABlks);
+
+                            blocksToFree -= overflowExtents[i].xdrNumABlks;
+                            overflowExtents[i].xdrStABN = 0;
+                            overflowExtents[i].xdrNumABlks = 0;
+                        } else {
+                            /* Free partial extent */
+                            UInt32 keepBlocks = overflowExtents[i].xdrNumABlks - blocksToFree;
+                            err = Alloc_Free(vcb,
+                                           overflowExtents[i].xdrStABN + keepBlocks,
+                                           blocksToFree);
+                            if (err != noErr) {
+                                FS_LOG_ERROR("Ext_Truncate: failed to free partial overflow extent\n");
+                                return err;
+                            }
+
+                            FS_LOG_DEBUG("Ext_Truncate: freed %u blocks from overflow extent[%d]\n",
+                                        blocksToFree, i);
+
+                            overflowExtents[i].xdrNumABlks = (UInt16)keepBlocks;
+                            blocksToFree = 0;
+                        }
+                    }
+                }
+
+                /* Check if we should delete this overflow extent record entirely */
+                Boolean allZero = true;
+                for (i = 0; i < 3; i++) {
+                    if (overflowExtents[i].xdrNumABlks > 0) {
+                        allZero = false;
+                        break;
+                    }
+                }
+
+                if (allZero) {
+                    /* Delete the entire overflow extent record */
+                    err = Ext_DeleteOverflow(vcb, fcb->base.fcbFlNm, kDataFork, lastFoundFABN);
+                    if (err != noErr) {
+                        FS_LOG_ERROR("Ext_Truncate: failed to delete overflow extent record\n");
+                        return err;
+                    }
+                    FS_LOG_DEBUG("Ext_Truncate: deleted overflow extent record at FABN=%u\n",
+                                lastFoundFABN);
+                }
+
+                /* Move to previous overflow extent */
+                overflowFABN = lastFoundFABN;
+            } else {
+                break;  /* No more overflow extents */
+            }
+
+            if (blocksToFree == 0) {
+                break;
+            }
+        }
+    }
+
+    /* Free blocks from FCB extents if still needed (work backwards) */
     for (i = 2; i >= 0; i--) {
         if (fcb->base.fcbExtRec.extent[i].blockCount > 0) {
             if (blocksToFree >= fcb->base.fcbExtRec.extent[i].blockCount) {
@@ -472,6 +648,130 @@ OSErr Ext_Truncate(VCB* vcb, FCB* fcb, UInt32 newSize) {
     FS_LOG_DEBUG("Ext_Truncate: truncated from %u to %u blocks (pLen=%u)\n",
                 currentBlocks, neededBlocks, fcb->base.fcbPLen);
 
+    return noErr;
+}
+
+/* ============================================================================
+ * Extent Overflow B-tree Operations
+ * ============================================================================ */
+
+/**
+ * Search extent overflow B-tree for extent record
+ */
+OSErr Ext_SearchOverflow(VCB* vcb, UInt32 fileID, UInt8 forkType, UInt32 startFABN,
+                        ExtDataRec* extents)
+{
+    ExtentKey key;
+    ExtDataRec record;
+    UInt16 recordSize;
+    OSErr err;
+
+    if (!vcb || !extents) {
+        return paramErr;
+    }
+
+    /* Build extent key */
+    memset(&key, 0, sizeof(key));
+    key.xkrKeyLen = sizeof(ExtentKey) - 1;  /* Don't count key length byte */
+    key.xkrFkType = forkType;
+    key.xkrFNum = fileID;
+    key.xkrFABN = (UInt16)startFABN;
+
+    /* Search extents B-tree */
+    recordSize = sizeof(ExtDataRec);
+    err = BTree_Search((BTCB*)vcb->base.vcbXTRef, &key, &record, &recordSize, NULL);
+    if (err != noErr) {
+        FS_LOG_DEBUG("Ext_SearchOverflow: not found for fileID=%u FABN=%u\n",
+                    fileID, startFABN);
+        return err;
+    }
+
+    /* Copy extent record */
+    memcpy(extents, &record, sizeof(ExtDataRec));
+
+    FS_LOG_DEBUG("Ext_SearchOverflow: found extent for fileID=%u FABN=%u\n",
+                fileID, startFABN);
+    return noErr;
+}
+
+/**
+ * Add extent record to overflow B-tree
+ */
+OSErr Ext_AddOverflow(VCB* vcb, UInt32 fileID, UInt8 forkType, UInt32 startFABN,
+                     const ExtDataRec* extents)
+{
+    ExtentKey key;
+    OSErr err;
+
+    if (!vcb || !extents) {
+        return paramErr;
+    }
+
+    FS_LockVolume(vcb);
+
+    /* Build extent key */
+    memset(&key, 0, sizeof(key));
+    key.xkrKeyLen = sizeof(ExtentKey) - 1;  /* Don't count key length byte */
+    key.xkrFkType = forkType;
+    key.xkrFNum = fileID;
+    key.xkrFABN = (UInt16)startFABN;
+
+    /* Insert into extents B-tree */
+    err = BTree_Insert((BTCB*)vcb->base.vcbXTRef, &key, extents, sizeof(ExtDataRec));
+    if (err != noErr) {
+        FS_LOG_ERROR("Ext_AddOverflow: insert failed for fileID=%u FABN=%u: %d\n",
+                    fileID, startFABN, err);
+        FS_UnlockVolume(vcb);
+        return err;
+    }
+
+    /* Mark volume as dirty */
+    vcb->base.vcbFlags |= VCB_DIRTY;
+
+    FS_UnlockVolume(vcb);
+
+    FS_LOG_DEBUG("Ext_AddOverflow: added extent for fileID=%u FABN=%u\n",
+                fileID, startFABN);
+    return noErr;
+}
+
+/**
+ * Delete extent record from overflow B-tree
+ */
+OSErr Ext_DeleteOverflow(VCB* vcb, UInt32 fileID, UInt8 forkType, UInt32 startFABN)
+{
+    ExtentKey key;
+    OSErr err;
+
+    if (!vcb) {
+        return paramErr;
+    }
+
+    FS_LockVolume(vcb);
+
+    /* Build extent key */
+    memset(&key, 0, sizeof(key));
+    key.xkrKeyLen = sizeof(ExtentKey) - 1;  /* Don't count key length byte */
+    key.xkrFkType = forkType;
+    key.xkrFNum = fileID;
+    key.xkrFABN = (UInt16)startFABN;
+
+    /* Delete from extents B-tree */
+    err = BTree_Delete((BTCB*)vcb->base.vcbXTRef, &key);
+    if (err != noErr) {
+        FS_LOG_ERROR("Ext_DeleteOverflow: delete failed for fileID=%u FABN=%u: %d\n",
+                    fileID, startFABN, err);
+        FS_UnlockVolume(vcb);
+        return err;
+    }
+
+    /* Mark volume as dirty */
+    vcb->base.vcbFlags |= VCB_DIRTY;
+
+    FS_UnlockVolume(vcb);
+
+    FS_LOG_DEBUG("Ext_DeleteOverflow: deleted extent for fileID=%u FABN=%u\n",
+                fileID, startFABN);
     return noErr;
 }
 
