@@ -1770,6 +1770,10 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     PPC_Op_STFDUX(as, insn);
                     break;
 
+                case PPC_XOP_STFIWX:
+                    PPC_Op_STFIWX(as, insn);
+                    break;
+
                 /* Memory ordering */
                 case PPC_XOP_EIEIO:
                     PPC_Op_EIEIO(as, insn);
@@ -1825,6 +1829,10 @@ OSErr PPC_Step(PPCAddressSpace* as)
 
                 case PPC_XOP_DCBTST:
                     PPC_Op_DCBTST(as, insn);
+                    break;
+
+                case PPC_XOP_DCBA:
+                    PPC_Op_DCBA(as, insn);
                     break;
 
                 /* External control */
@@ -2193,6 +2201,10 @@ OSErr PPC_Step(PPCAddressSpace* as)
 
                 case PPC_XOP63_MFFS:
                     PPC_Op_MFFS(as, insn);
+                    break;
+
+                case PPC_XOP63_MCRFS:
+                    PPC_Op_MCRFS(as, insn);
                     break;
 
                 case PPC_XOP63_MTFSF:

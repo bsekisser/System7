@@ -260,6 +260,7 @@ extern "C" {
 #define PPC_XOP_DCBI        470 /* Data cache block invalidate */
 #define PPC_XOP_DCBT        278 /* Data cache block touch (prefetch) */
 #define PPC_XOP_DCBTST      246 /* Data cache block touch for store */
+#define PPC_XOP_DCBA        758 /* Data cache block allocate */
 
 /*
  * TLB Management (Opcode 31)
@@ -315,6 +316,7 @@ extern "C" {
 #define PPC_XOP_STFSUX      695 /* Store floating-point single with update indexed */
 #define PPC_XOP_STFDX       727 /* Store floating-point double indexed */
 #define PPC_XOP_STFDUX      759 /* Store floating-point double with update indexed */
+#define PPC_XOP_STFIWX      983 /* Store floating-point as integer word indexed */
 
 /*
  * Memory Ordering (Opcode 31)
@@ -378,6 +380,7 @@ extern "C" {
 #define PPC_XOP63_FNABS     136 /* Floating negative absolute value */
 #define PPC_XOP63_FMR       72  /* Floating move register */
 #define PPC_XOP63_MFFS      583 /* Move from FPSCR */
+#define PPC_XOP63_MCRFS     64  /* Move to condition register from FPSCR */
 #define PPC_XOP63_MTFSF     711 /* Move to FPSCR fields */
 #define PPC_XOP63_MTFSFI    134 /* Move to FPSCR field immediate */
 #define PPC_XOP63_MTFSB0    70  /* Move to FPSCR bit 0 */
@@ -812,6 +815,7 @@ extern void PPC_Op_STFD(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_STFDU(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_STFDX(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_STFDUX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STFIWX(PPCAddressSpace* as, UInt32 insn);
 
 /* Floating-point arithmetic */
 extern void PPC_Op_FADD(PPCAddressSpace* as, UInt32 insn);
@@ -849,6 +853,7 @@ extern void PPC_Op_FSEL(PPCAddressSpace* as, UInt32 insn);
 
 /* Floating-point status */
 extern void PPC_Op_MFFS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_MCRFS(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_MTFSF(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_MTFSFI(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_MTFSB0(PPCAddressSpace* as, UInt32 insn);
@@ -875,6 +880,7 @@ extern void PPC_Op_TLBIA(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_DCBI(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_DCBT(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_DCBTST(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_DCBA(PPCAddressSpace* as, UInt32 insn);
 
 /* Time base access */
 extern void PPC_Op_MFTB(PPCAddressSpace* as, UInt32 insn);
