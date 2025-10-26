@@ -17,6 +17,7 @@
 #include "Gestalt/Gestalt.h"
 #include "System71StdLib.h"
 #include "ScrapManager/ScrapLogging.h"
+#include "FileManager.h"
 
 /* Additional function declarations */
 extern OSErr Gestalt_RegisterSelector(OSType selector, SInt32 value);
@@ -378,24 +379,197 @@ long GetScrap(Handle hDest, OSType theType, long* offset) {
 }
 
 /*
- * LoadScrap - Load scrap from disk
- * Stubbed for kernel environment - TODO: Implement using VFS
+ * LoadScrap - Load scrap from disk using File Manager
  */
 void LoadScrap(void) {
+    Str255 fileName = {9, 'C','l','i','p','b','o','a','r','d'};  /* Pascal string "Clipboard" */
+    FileRefNum refNum;
+    OSErr err;
+    UInt32 magic, version, count;
+    UInt32 readCount;
+    int i;
+
     InitScrapIfNeeded();
-    SCRAP_LOG("LoadScrap: stub - file I/O not available\n");
-    /* In-memory scrap only for now */
+
+    /* Try to open the clipboard file */
+    err = FSOpen(fileName, 0, &refNum);
+    if (err != noErr) {
+        SCRAP_LOG("LoadScrap: Clipboard file not found (first run)\n");
+        return;  /* No clipboard file yet */
+    }
+
+    /* Read magic number */
+    readCount = sizeof(magic);
+    err = FSRead(refNum, &readCount, &magic);
+    if (err != noErr || readCount != sizeof(magic) || magic != SCRAP_FILE_MAGIC) {
+        SCRAP_LOG("LoadScrap: Invalid clipboard file format\n");
+        FSClose(refNum);
+        return;
+    }
+
+    /* Read version */
+    readCount = sizeof(version);
+    err = FSRead(refNum, &readCount, &version);
+    if (err != noErr || version != SCRAP_FILE_VERSION) {
+        SCRAP_LOG("LoadScrap: Unsupported clipboard version\n");
+        FSClose(refNum);
+        return;
+    }
+
+    /* Read item count */
+    readCount = sizeof(count);
+    err = FSRead(refNum, &readCount, &count);
+    if (err != noErr || count > MAX_SCRAP_ITEMS) {
+        SCRAP_LOG("LoadScrap: Invalid item count\n");
+        FSClose(refNum);
+        return;
+    }
+
+    /* Clear existing scrap */
+    Scrap_Zero();
+
+    /* Read each scrap item */
+    for (i = 0; i < (int)count; i++) {
+        OSType type;
+        UInt32 size;
+        Handle data;
+
+        /* Read type */
+        readCount = sizeof(type);
+        err = FSRead(refNum, &readCount, &type);
+        if (err != noErr) break;
+
+        /* Read size */
+        readCount = sizeof(size);
+        err = FSRead(refNum, &readCount, &size);
+        if (err != noErr || size > 1024 * 1024) break;  /* Sanity check: max 1MB */
+
+        /* Allocate handle for data */
+        data = NewHandle(size);
+        if (!data) {
+            SCRAP_LOG("LoadScrap: Failed to allocate %lu bytes\n", (unsigned long)size);
+            break;
+        }
+
+        /* Read data */
+        HLock(data);
+        readCount = size;
+        err = FSRead(refNum, &readCount, *data);
+        HUnlock(data);
+
+        if (err != noErr || readCount != size) {
+            DisposeHandle(data);
+            break;
+        }
+
+        /* Add to scrap */
+        if (gScrap.count < MAX_SCRAP_ITEMS) {
+            gScrap.items[gScrap.count].type = type;
+            gScrap.items[gScrap.count].data = data;
+            gScrap.count++;
+            SCRAP_LOG("LoadScrap: Loaded '%.4s' (%lu bytes)\n", (char*)&type, (unsigned long)size);
+        } else {
+            DisposeHandle(data);
+        }
+    }
+
+    FSClose(refNum);
+    gScrap.dirty = false;
+    SCRAP_LOG("LoadScrap: Loaded %d items from clipboard\n", gScrap.count);
 }
 
 /*
- * UnloadScrap - Save scrap to disk
- * Stubbed for kernel environment - TODO: Implement using VFS
+ * UnloadScrap - Save scrap to disk using File Manager
  */
 void UnloadScrap(void) {
+    Str255 fileName = {9, 'C','l','i','p','b','o','a','r','d'};  /* Pascal string "Clipboard" */
+    FileRefNum refNum;
+    OSErr err;
+    UInt32 magic = SCRAP_FILE_MAGIC;
+    UInt32 version = SCRAP_FILE_VERSION;
+    UInt32 count;
+    UInt32 writeCount;
+    int i;
+
     InitScrapIfNeeded();
-    SCRAP_LOG("UnloadScrap: stub - file I/O not available\n");
-    /* In-memory scrap only for now */
-    gScrap.dirty = false;
+
+    if (!gScrap.dirty) {
+        SCRAP_LOG("UnloadScrap: Scrap not dirty, skipping save\n");
+        return;  /* Nothing to save */
+    }
+
+    /* Delete old clipboard file if it exists */
+    FSDelete(fileName, 0);
+
+    /* Create new clipboard file */
+    err = FSCreate(fileName, 0, 'CLIP', 'SYSL');
+    if (err != noErr) {
+        SCRAP_LOG("UnloadScrap: Failed to create clipboard file (err=%d)\n", err);
+        return;
+    }
+
+    /* Open for writing */
+    err = FSOpen(fileName, 0, &refNum);
+    if (err != noErr) {
+        SCRAP_LOG("UnloadScrap: Failed to open clipboard file (err=%d)\n", err);
+        return;
+    }
+
+    /* Write magic number */
+    writeCount = sizeof(magic);
+    err = FSWrite(refNum, &writeCount, &magic);
+    if (err != noErr) goto cleanup;
+
+    /* Write version */
+    writeCount = sizeof(version);
+    err = FSWrite(refNum, &writeCount, &version);
+    if (err != noErr) goto cleanup;
+
+    /* Write item count */
+    count = gScrap.count;
+    writeCount = sizeof(count);
+    err = FSWrite(refNum, &writeCount, &count);
+    if (err != noErr) goto cleanup;
+
+    /* Write each scrap item */
+    for (i = 0; i < gScrap.count; i++) {
+        OSType type = gScrap.items[i].type;
+        UInt32 size;
+
+        if (!gScrap.items[i].data) continue;
+
+        size = GetHandleSize(gScrap.items[i].data);
+
+        /* Write type */
+        writeCount = sizeof(type);
+        err = FSWrite(refNum, &writeCount, &type);
+        if (err != noErr) break;
+
+        /* Write size */
+        writeCount = sizeof(size);
+        err = FSWrite(refNum, &writeCount, &size);
+        if (err != noErr) break;
+
+        /* Write data */
+        HLock(gScrap.items[i].data);
+        writeCount = size;
+        err = FSWrite(refNum, &writeCount, *gScrap.items[i].data);
+        HUnlock(gScrap.items[i].data);
+
+        if (err != noErr) break;
+
+        SCRAP_LOG("UnloadScrap: Saved '%.4s' (%lu bytes)\n", (char*)&type, (unsigned long)size);
+    }
+
+cleanup:
+    FSClose(refNum);
+
+    if (err == noErr) {
+        gScrap.dirty = false;
+        SCRAP_LOG("UnloadScrap: Saved %d items to clipboard\n", gScrap.count);
+    } else {
+        SCRAP_LOG("UnloadScrap: Save failed (err=%d)\n", err);
+    }
 }
 /*
  * InfoScrap - Get scrap change count
