@@ -383,6 +383,7 @@ C_SOURCES = src/main.c \
             src/PackageManager/Pack4_SANE.c \
             src/PackageManager/Pack6_InternationalUtils.c \
             src/PackageManager/Pack7_BinaryDecimal.c \
+            src/PackageManager/Pack_Stubs.c \
             src/FileManager.c \
             src/FileManagerStubs.c \
             src/EventManager/event_manager.c \

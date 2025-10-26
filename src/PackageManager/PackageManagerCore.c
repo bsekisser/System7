@@ -22,6 +22,12 @@ extern OSErr Pack3_Dispatch(short selector, void* params);  /* Standard File */
 extern OSErr Pack4_Dispatch(short selector, void* params);  /* SANE (Floating Point Math) */
 extern OSErr Pack6_Dispatch(short selector, void* params);  /* International Utilities */
 extern OSErr Pack7_Dispatch(short selector, void* params);  /* Binary/Decimal Conversion */
+extern OSErr Pack8_Dispatch(short selector, void* params);  /* Apple Events (stub) */
+extern OSErr Pack10_Dispatch(short selector, void* params); /* Edition Manager (stub) */
+extern OSErr Pack12_Dispatch(short selector, void* params); /* Dictionary Manager (stub) */
+extern OSErr Pack13_Dispatch(short selector, void* params); /* PPC Toolbox (stub) */
+extern OSErr Pack14_Dispatch(short selector, void* params); /* Help Manager (stub) */
+extern OSErr Pack15_Dispatch(short selector, void* params); /* Picture Utilities (stub) */
 
 /* Debug logging */
 #define PKG_MGR_DEBUG 0
@@ -216,33 +222,33 @@ OSErr CallPackage(short packID, short selector, void* params) {
 
         case 8:
             /* Pack8: Apple Events */
-            PKG_LOG("CallPackage: Pack8 (Apple Events) dispatch not yet implemented\n");
-            return unimpErr;
+            PKG_LOG("CallPackage: Pack8 (Apple Events) dispatching to stub\n");
+            return Pack8_Dispatch(selector, params);
 
         case 10:
             /* Pack10: Edition Manager */
-            PKG_LOG("CallPackage: Pack10 (Edition Manager) not yet implemented\n");
-            return unimpErr;
+            PKG_LOG("CallPackage: Pack10 (Edition Manager) dispatching to stub\n");
+            return Pack10_Dispatch(selector, params);
 
         case 12:
             /* Pack12: Dictionary Manager */
-            PKG_LOG("CallPackage: Pack12 (Dictionary Manager) not yet implemented\n");
-            return unimpErr;
+            PKG_LOG("CallPackage: Pack12 (Dictionary Manager) dispatching to stub\n");
+            return Pack12_Dispatch(selector, params);
 
         case 13:
             /* Pack13: PPC Toolbox */
-            PKG_LOG("CallPackage: Pack13 (PPC Toolbox) not yet implemented\n");
-            return unimpErr;
+            PKG_LOG("CallPackage: Pack13 (PPC Toolbox) dispatching to stub\n");
+            return Pack13_Dispatch(selector, params);
 
         case 14:
             /* Pack14: Help Manager */
-            PKG_LOG("CallPackage: Pack14 (Help Manager) not yet implemented\n");
-            return unimpErr;
+            PKG_LOG("CallPackage: Pack14 (Help Manager) dispatching to stub\n");
+            return Pack14_Dispatch(selector, params);
 
         case 15:
             /* Pack15: Picture Utilities */
-            PKG_LOG("CallPackage: Pack15 (Picture Utilities) not yet implemented\n");
-            return unimpErr;
+            PKG_LOG("CallPackage: Pack15 (Picture Utilities) dispatching to stub\n");
+            return Pack15_Dispatch(selector, params);
 
         default:
             PKG_LOG("CallPackage: Invalid package ID %d\n", packID);
