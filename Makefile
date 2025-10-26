@@ -574,9 +574,9 @@ src/patterns_rsrc.c: $(RSRC_BIN)
 $(KERNEL): $(OBJECTS) | $(BUILD_DIR)
 	@echo "LD $(KERNEL)"
 	@if [ "$(PLATFORM)" = "arm" ]; then \
-        $(CC) $(LDFLAGS) -Wl,-T,$(LINKER_SCRIPT) -nostdlib -o $(KERNEL) $(OBJECTS) -lm -lgcc; \
+        $(CC) $(LDFLAGS) -Wl,-T,$(LINKER_SCRIPT) -nostdlib -static -o $(KERNEL) $(OBJECTS) -lm -lgcc; \
     else \
-        $(CC) -m32 -Wl,-T,$(LINKER_SCRIPT) -nostdlib -no-pie -o $(KERNEL) $(OBJECTS) -lm -lgcc; \
+        $(CC) -m32 -Wl,-T,$(LINKER_SCRIPT) -nostdlib -no-pie -static -o $(KERNEL) $(OBJECTS) -lm -lgcc; \
 	fi
 	@readelf -h $(KERNEL) >/dev/null 2>&1 || { echo "ERROR: Invalid ELF file"; exit 1; }
 	@echo "✓ Kernel linked successfully ($(shell stat -c%s $(KERNEL) 2>/dev/null || stat -f%z $(KERNEL) 2>/dev/null) bytes)"
