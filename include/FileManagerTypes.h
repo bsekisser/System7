@@ -93,9 +93,13 @@ typedef struct FSGlobals {
 
 /* Platform Hooks */
 typedef OSErr (*DeviceEjectProc)(UInt16 device);
+typedef OSErr (*DeviceReadProc)(UInt16 device, UInt64 offset, UInt32 count, void* buffer);
+typedef OSErr (*DeviceWriteProc)(UInt16 device, UInt64 offset, UInt32 count, const void* buffer);
 
 typedef struct PlatformHooks {
     DeviceEjectProc DeviceEject;
+    DeviceReadProc  DeviceRead;
+    DeviceWriteProc DeviceWrite;
 } PlatformHooks;
 
 /* Additional types */

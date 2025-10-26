@@ -262,8 +262,43 @@ OSErr Ext_Deallocate(VCB* vcb, UInt32 fileID, UInt8 forkType, UInt32 startBlock)
 }
 
 OSErr Ext_Map(VCB* vcb, FCB* fcb, UInt32 fileBlock, UInt32* physBlock, UInt32* contiguous) {
-    FS_LOG_DEBUG("Ext_Map stub: fileBlock=%d\n", fileBlock);
-    return noErr;
+    ExtentRecord* extents;
+    UInt32 currentBlock = 0;
+    UInt32 i;
+
+    if (!vcb || !fcb || !physBlock) {
+        return paramErr;
+    }
+
+    /* Use data fork extent record from FCB */
+    extents = &fcb->base.fcbExtRec;
+
+    /* Search through extent records */
+    for (i = 0; i < 3; i++) {
+        if ((*extents).extent[i].blockCount == 0) {
+            break;  /* End of extents */
+        }
+
+        if (fileBlock < currentBlock + (*extents).extent[i].blockCount) {
+            /* Found the extent containing the file block */
+            *physBlock = (*extents).extent[i].startBlock + (fileBlock - currentBlock);
+
+            /* Calculate contiguous blocks if requested */
+            if (contiguous) {
+                *contiguous = (*extents).extent[i].blockCount - (fileBlock - currentBlock);
+            }
+
+            FS_LOG_DEBUG("Ext_Map: fileBlock=%u -> physBlock=%u (extent %u)\n",
+                         fileBlock, *physBlock, i);
+            return noErr;
+        }
+
+        currentBlock += (*extents).extent[i].blockCount;
+    }
+
+    /* File block is beyond extents in FCB */
+    FS_LOG_DEBUG("Ext_Map: fileBlock=%u beyond FCB extents\n", fileBlock);
+    return ioErr;
 }
 
 OSErr Ext_Extend(VCB* vcb, FCB* fcb, UInt32 newSize) {
@@ -371,11 +406,17 @@ OSErr IO_ReadFork(FCB* fcb, UInt32 offset, UInt32 count, void* buffer, UInt32* a
 
 OSErr IO_WriteFork(FCB* fcb, UInt32 offset, UInt32 count, const void* buffer, UInt32* actual) {
     VCB* vcb;
+    VCBExt* vcbExt;
     UInt32 fileBlock;
+    UInt32 physBlock;
     UInt32 blockOffset;
+    UInt32 contiguous;
     UInt32 toWrite;
     UInt32 totalWritten = 0;
     const UInt8* src;
+    UInt8* blockBuffer = NULL;
+    OSErr err;
+    UInt64 diskOffset;
 
     if (!fcb || !buffer || !actual) {
         return paramErr;
@@ -387,33 +428,47 @@ OSErr IO_WriteFork(FCB* fcb, UInt32 offset, UInt32 count, const void* buffer, UI
         return rfNumErr;
     }
 
+    vcbExt = (VCBExt*)vcb;  /* Cast to extended VCB for device access */
+
     /* Check write permission */
     if (!(fcb->base.fcbFlags & FCB_WRITE_PERM)) {
         return wrPermErr;
     }
 
-    /* Check if offset + count exceeds EOF */
+    /* Check if offset + count exceeds physical length */
     if (offset + count > fcb->fcbPLen) {
-        /* For simplicity, don't extend files - just write up to EOF */
+        /* Don't extend files - just write up to physical length */
         if (offset >= fcb->fcbPLen) {
             return eofErr;
         }
         count = fcb->fcbPLen - offset;
     }
 
+    /* Check if we have device write capability */
+    if (!g_PlatformHooks.DeviceWrite) {
+        FS_LOG_DEBUG("IO_WriteFork: DeviceWrite not available\n");
+        return ioErr;
+    }
+
     src = (const UInt8*)buffer;
 
-    /* Simple implementation: write directly without caching
-     * NOTE: This is a minimal implementation that only supports
-     * block-aligned writes. A full implementation would need:
-     * - Read-modify-write for partial blocks
-     * - Extent mapping for fragmented files
-     * - Proper block allocation for extending files
-     * For now, we just write what we can. */
-    while (count > 0 && totalWritten < count) {
+    /* Write loop: handle partial blocks with read-modify-write */
+    while (count > 0) {
         /* Calculate file block and offset within block */
         fileBlock = offset / vcb->base.vcbAlBlkSiz;
         blockOffset = offset % vcb->base.vcbAlBlkSiz;
+
+        /* Map file block to physical block using extents */
+        err = Ext_Map(vcb, fcb, fileBlock, &physBlock, &contiguous);
+        if (err != noErr) {
+            FS_LOG_DEBUG("IO_WriteFork: Ext_Map failed for fileBlock %u\n", fileBlock);
+            if (totalWritten > 0) {
+                *actual = totalWritten;
+                fcb->base.fcbFlags |= FCB_DIRTY;
+                return noErr;  /* Partial write */
+            }
+            return err;
+        }
 
         /* Calculate amount to write to this block */
         toWrite = vcb->base.vcbAlBlkSiz - blockOffset;
@@ -421,23 +476,79 @@ OSErr IO_WriteFork(FCB* fcb, UInt32 offset, UInt32 count, const void* buffer, UI
             toWrite = count;
         }
 
-        /* For simplicity, we write entire blocks only */
-        if (blockOffset == 0 && toWrite == vcb->base.vcbAlBlkSiz) {
-            /* Full block write - write directly to disk */
-            /* Note: This assumes contiguous allocation, which is
-             * not always true. A full implementation would use extent mapping. */
-            FS_LOG_DEBUG("IO_WriteFork: writing block %u\n", fileBlock);
-            totalWritten += toWrite;
+        /* Calculate physical disk offset */
+        diskOffset = (UInt64)(vcb->base.vcbAlBlSt + physBlock) * vcb->base.vcbAlBlkSiz + blockOffset;
+
+        /* Check if we need read-modify-write for partial block */
+        if (blockOffset != 0 || toWrite < vcb->base.vcbAlBlkSiz) {
+            /* Partial block write - need read-modify-write */
+            blockBuffer = (UInt8*)NewPtr(vcb->base.vcbAlBlkSiz);
+            if (!blockBuffer) {
+                if (totalWritten > 0) {
+                    *actual = totalWritten;
+                    fcb->base.fcbFlags |= FCB_DIRTY;
+                    return noErr;  /* Partial write */
+                }
+                return memFullErr;
+            }
+
+            /* Read existing block */
+            UInt64 blockDiskOffset = (UInt64)(vcb->base.vcbAlBlSt + physBlock) * vcb->base.vcbAlBlkSiz;
+            if (g_PlatformHooks.DeviceRead) {
+                err = g_PlatformHooks.DeviceRead(vcbExt->vcbDevice, blockDiskOffset,
+                                                 vcb->base.vcbAlBlkSiz, blockBuffer);
+                if (err != noErr) {
+                    DisposePtr((Ptr)blockBuffer);
+                    if (totalWritten > 0) {
+                        *actual = totalWritten;
+                        fcb->base.fcbFlags |= FCB_DIRTY;
+                        return noErr;  /* Partial write */
+                    }
+                    return err;
+                }
+            } else {
+                /* No DeviceRead - zero the buffer */
+                memset(blockBuffer, 0, vcb->base.vcbAlBlkSiz);
+            }
+
+            /* Modify the block with new data */
+            memcpy(blockBuffer + blockOffset, src, toWrite);
+
+            /* Write the entire block back */
+            err = g_PlatformHooks.DeviceWrite(vcbExt->vcbDevice, blockDiskOffset,
+                                              vcb->base.vcbAlBlkSiz, blockBuffer);
+
+            DisposePtr((Ptr)blockBuffer);
+            blockBuffer = NULL;
+
+            if (err != noErr) {
+                if (totalWritten > 0) {
+                    *actual = totalWritten;
+                    fcb->base.fcbFlags |= FCB_DIRTY;
+                    return noErr;  /* Partial write */
+                }
+                return err;
+            }
         } else {
-            /* Partial block write - would need read-modify-write */
-            FS_LOG_DEBUG("IO_WriteFork: partial block write not supported\n");
-            break;
+            /* Full block write - write directly */
+            err = g_PlatformHooks.DeviceWrite(vcbExt->vcbDevice, diskOffset, toWrite, src);
+            if (err != noErr) {
+                if (totalWritten > 0) {
+                    *actual = totalWritten;
+                    fcb->base.fcbFlags |= FCB_DIRTY;
+                    return noErr;  /* Partial write */
+                }
+                return err;
+            }
         }
 
         /* Update counters */
         src += toWrite;
         offset += toWrite;
         count -= toWrite;
+        totalWritten += toWrite;
+
+        FS_LOG_DEBUG("IO_WriteFork: wrote %u bytes to physBlock %u\n", toWrite, physBlock);
     }
 
     /* Update file position and EOF if extended */
@@ -453,8 +564,7 @@ OSErr IO_WriteFork(FCB* fcb, UInt32 offset, UInt32 count, const void* buffer, UI
 
     *actual = totalWritten;
 
-    /* For now, return success but note that actual writes are not implemented */
-    FS_LOG_DEBUG("IO_WriteFork: claimed to write %u bytes (not actually written)\n", totalWritten);
+    FS_LOG_DEBUG("IO_WriteFork: successfully wrote %u bytes\n", totalWritten);
     return noErr;
 }
 
