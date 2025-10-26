@@ -400,6 +400,8 @@ extern "C" {
 #define PPC_VXO_VCMPEQUB    6   /* Vector compare equal unsigned byte */
 #define PPC_VXO_VCMPEQUH    70  /* Vector compare equal unsigned halfword */
 #define PPC_VXO_VCMPEQUW    134 /* Vector compare equal unsigned word */
+#define PPC_VXO_VCMPGTUB    518 /* Vector compare greater than unsigned byte */
+#define PPC_VXO_VCMPGTSB    774 /* Vector compare greater than signed byte */
 
 /* Vector permute/select */
 #define PPC_VXO_VPERM       43  /* Vector permute */
@@ -414,12 +416,44 @@ extern "C" {
 #define PPC_VXO_VSPLTISH    844 /* Vector splat immediate signed halfword */
 #define PPC_VXO_VSPLTISW    908 /* Vector splat immediate signed word */
 
+/* Vector saturating arithmetic */
+#define PPC_VXO_VADDSBS     768 /* Vector add signed byte saturate */
+#define PPC_VXO_VADDUBS     512 /* Vector add unsigned byte saturate */
+#define PPC_VXO_VADDSHS     832 /* Vector add signed halfword saturate */
+#define PPC_VXO_VADDUHS     576 /* Vector add unsigned halfword saturate */
+#define PPC_VXO_VSUBSBS     1792 /* Vector subtract signed byte saturate */
+#define PPC_VXO_VSUBUBS     1536 /* Vector subtract unsigned byte saturate */
+#define PPC_VXO_VSUBSHS     1856 /* Vector subtract signed halfword saturate */
+#define PPC_VXO_VSUBUHS     1600 /* Vector subtract unsigned halfword saturate */
+
+/* Vector shift */
+#define PPC_VXO_VSLB        260 /* Vector shift left byte */
+#define PPC_VXO_VSRB        516 /* Vector shift right byte */
+#define PPC_VXO_VSRAB       772 /* Vector shift right algebraic byte */
+#define PPC_VXO_VSLH        324 /* Vector shift left halfword */
+#define PPC_VXO_VSRH        580 /* Vector shift right halfword */
+#define PPC_VXO_VSRAW       836 /* Vector shift right algebraic word */
+
+/* Vector pack/unpack */
+#define PPC_VXO_VPKUHUM     14  /* Vector pack unsigned halfword unsigned modulo */
+#define PPC_VXO_VPKUWUM     78  /* Vector pack unsigned word unsigned modulo */
+#define PPC_VXO_VUPKHSB     526 /* Vector unpack high signed byte */
+#define PPC_VXO_VUPKLSB     590 /* Vector unpack low signed byte */
+#define PPC_VXO_VUPKHSH     654 /* Vector unpack high signed halfword */
+#define PPC_VXO_VUPKLSH     718 /* Vector unpack low signed halfword */
+
+/* Vector merge */
+#define PPC_VXO_VMRGHB      12  /* Vector merge high byte */
+#define PPC_VXO_VMRGLB      268 /* Vector merge low byte */
+
 /* Vector load/store (use primary opcodes 7, 39, etc.) */
 #define PPC_OP_LVX          103 /* Load vector indexed (actually opcode 31/103) */
 #define PPC_OP_STVX         231 /* Store vector indexed (actually opcode 31/231) */
-#define PPC_OP_LVEBX        7   /* Load vector element byte indexed */
-#define PPC_OP_LVEHX        39  /* Load vector element halfword indexed */
-#define PPC_OP_LVEWX        71  /* Load vector element word indexed */
+#define PPC_OP_LVEBX        7   /* Load vector element byte indexed (opcode 31/7) */
+#define PPC_OP_LVEHX        39  /* Load vector element halfword indexed (opcode 31/39) */
+#define PPC_OP_LVEWX        71  /* Load vector element word indexed (opcode 31/71) */
+#define PPC_OP_STVEBX       135 /* Store vector element byte indexed (opcode 31/135) */
+#define PPC_OP_STVEHX       167 /* Store vector element halfword indexed (opcode 31/167) */
 
 /*
  * System Instructions (Opcode 31)
@@ -719,6 +753,58 @@ extern void PPC_Op_VSPLTISH(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_VSPLTISW(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_LVX(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_STVX(PPCAddressSpace* as, UInt32 insn);
+
+/* Vector saturating arithmetic */
+extern void PPC_Op_VADDSBS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VADDUBS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VADDSHS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VADDUHS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSUBSBS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSUBUBS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSUBSHS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSUBUHS(PPCAddressSpace* as, UInt32 insn);
+
+/* Vector shift */
+extern void PPC_Op_VSLB(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSRB(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSRAB(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSLH(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSRH(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSRAW(PPCAddressSpace* as, UInt32 insn);
+
+/* Vector pack/unpack */
+extern void PPC_Op_VPKUHUM(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VPKUWUM(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VUPKHSB(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VUPKLSB(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VUPKHSH(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VUPKLSH(PPCAddressSpace* as, UInt32 insn);
+
+/* Vector merge */
+extern void PPC_Op_VMRGHB(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VMRGLB(PPCAddressSpace* as, UInt32 insn);
+
+/* Vector permute/select */
+extern void PPC_Op_VPERM(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSEL(PPCAddressSpace* as, UInt32 insn);
+
+/* Vector compare */
+extern void PPC_Op_VCMPEQUB(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VCMPGTUB(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VCMPGTSB(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VCMPEQUH(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VCMPEQUW(PPCAddressSpace* as, UInt32 insn);
+
+/* Vector splat */
+extern void PPC_Op_VSPLTB(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSPLTH(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSPLTW(PPCAddressSpace* as, UInt32 insn);
+
+/* Vector element load/store */
+extern void PPC_Op_LVEBX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LVEHX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STVEBX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STVEHX(PPCAddressSpace* as, UInt32 insn);
 
 #ifdef __cplusplus
 }

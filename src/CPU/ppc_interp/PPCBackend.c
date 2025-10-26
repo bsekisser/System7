@@ -740,6 +740,141 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     PPC_Op_VSPLTISW(as, insn);
                     break;
 
+                /* Saturating arithmetic */
+                case PPC_VXO_VADDSBS:
+                    PPC_Op_VADDSBS(as, insn);
+                    break;
+
+                case PPC_VXO_VADDUBS:
+                    PPC_Op_VADDUBS(as, insn);
+                    break;
+
+                case PPC_VXO_VADDSHS:
+                    PPC_Op_VADDSHS(as, insn);
+                    break;
+
+                case PPC_VXO_VADDUHS:
+                    PPC_Op_VADDUHS(as, insn);
+                    break;
+
+                case PPC_VXO_VSUBSBS:
+                    PPC_Op_VSUBSBS(as, insn);
+                    break;
+
+                case PPC_VXO_VSUBUBS:
+                    PPC_Op_VSUBUBS(as, insn);
+                    break;
+
+                case PPC_VXO_VSUBSHS:
+                    PPC_Op_VSUBSHS(as, insn);
+                    break;
+
+                case PPC_VXO_VSUBUHS:
+                    PPC_Op_VSUBUHS(as, insn);
+                    break;
+
+                /* Shift */
+                case PPC_VXO_VSLB:
+                    PPC_Op_VSLB(as, insn);
+                    break;
+
+                case PPC_VXO_VSRB:
+                    PPC_Op_VSRB(as, insn);
+                    break;
+
+                case PPC_VXO_VSRAB:
+                    PPC_Op_VSRAB(as, insn);
+                    break;
+
+                case PPC_VXO_VSLH:
+                    PPC_Op_VSLH(as, insn);
+                    break;
+
+                case PPC_VXO_VSRH:
+                    PPC_Op_VSRH(as, insn);
+                    break;
+
+                case PPC_VXO_VSRAW:
+                    PPC_Op_VSRAW(as, insn);
+                    break;
+
+                /* Pack/Unpack */
+                case PPC_VXO_VPKUHUM:
+                    PPC_Op_VPKUHUM(as, insn);
+                    break;
+
+                case PPC_VXO_VPKUWUM:
+                    PPC_Op_VPKUWUM(as, insn);
+                    break;
+
+                case PPC_VXO_VUPKHSB:
+                    PPC_Op_VUPKHSB(as, insn);
+                    break;
+
+                case PPC_VXO_VUPKLSB:
+                    PPC_Op_VUPKLSB(as, insn);
+                    break;
+
+                case PPC_VXO_VUPKHSH:
+                    PPC_Op_VUPKHSH(as, insn);
+                    break;
+
+                case PPC_VXO_VUPKLSH:
+                    PPC_Op_VUPKLSH(as, insn);
+                    break;
+
+                /* Merge */
+                case PPC_VXO_VMRGHB:
+                    PPC_Op_VMRGHB(as, insn);
+                    break;
+
+                case PPC_VXO_VMRGLB:
+                    PPC_Op_VMRGLB(as, insn);
+                    break;
+
+                /* Permute/Select */
+                case PPC_VXO_VPERM:
+                    PPC_Op_VPERM(as, insn);
+                    break;
+
+                case PPC_VXO_VSEL:
+                    PPC_Op_VSEL(as, insn);
+                    break;
+
+                /* Compare */
+                case PPC_VXO_VCMPEQUB:
+                    PPC_Op_VCMPEQUB(as, insn);
+                    break;
+
+                case PPC_VXO_VCMPGTUB:
+                    PPC_Op_VCMPGTUB(as, insn);
+                    break;
+
+                case PPC_VXO_VCMPGTSB:
+                    PPC_Op_VCMPGTSB(as, insn);
+                    break;
+
+                case PPC_VXO_VCMPEQUH:
+                    PPC_Op_VCMPEQUH(as, insn);
+                    break;
+
+                case PPC_VXO_VCMPEQUW:
+                    PPC_Op_VCMPEQUW(as, insn);
+                    break;
+
+                /* Splat */
+                case PPC_VXO_VSPLTB:
+                    PPC_Op_VSPLTB(as, insn);
+                    break;
+
+                case PPC_VXO_VSPLTH:
+                    PPC_Op_VSPLTH(as, insn);
+                    break;
+
+                case PPC_VXO_VSPLTW:
+                    PPC_Op_VSPLTW(as, insn);
+                    break;
+
                 default:
                     PPC_Fault(as, "Unimplemented AltiVec opcode");
                     break;
@@ -1310,6 +1445,22 @@ OSErr PPC_Step(PPCAddressSpace* as)
 
                 case PPC_OP_STVX:
                     PPC_Op_STVX(as, insn);
+                    break;
+
+                case PPC_OP_LVEBX:
+                    PPC_Op_LVEBX(as, insn);
+                    break;
+
+                case PPC_OP_LVEHX:
+                    PPC_Op_LVEHX(as, insn);
+                    break;
+
+                case PPC_OP_STVEBX:
+                    PPC_Op_STVEBX(as, insn);
+                    break;
+
+                case PPC_OP_STVEHX:
+                    PPC_Op_STVEHX(as, insn);
                     break;
 
                 default:

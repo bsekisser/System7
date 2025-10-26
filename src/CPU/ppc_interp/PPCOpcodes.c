@@ -4871,9 +4871,686 @@ void PPC_Op_STVX(PPCAddressSpace* as, UInt32 insn)
 }
 
 /*
+ * Vector Saturating Arithmetic Instructions
+ */
+
+/* Saturate signed byte to range [-128, 127] */
+static inline UInt8 SaturateSB(SInt16 val) {
+    if (val > 127) return 127;
+    if (val < -128) return (UInt8)(-128);
+    return (UInt8)val;
+}
+
+/* Saturate unsigned byte to range [0, 255] */
+static inline UInt8 SaturateUB(SInt16 val) {
+    if (val > 255) return 255;
+    if (val < 0) return 0;
+    return (UInt8)val;
+}
+
+/* Saturate signed halfword to range [-32768, 32767] */
+static inline UInt16 SaturateSH(SInt32 val) {
+    if (val > 32767) return 32767;
+    if (val < -32768) return (UInt16)(-32768);
+    return (UInt16)val;
+}
+
+/* Saturate unsigned halfword to range [0, 65535] */
+static inline UInt16 SaturateUH(SInt32 val) {
+    if (val > 65535) return 65535;
+    if (val < 0) return 0;
+    return (UInt16)val;
+}
+
+/* VADDSBS - Vector Add Signed Byte Saturate */
+void PPC_Op_VADDSBS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        SInt8 a = (SInt8)VR_GetByte(as, va, i);
+        SInt8 b = (SInt8)VR_GetByte(as, vb, i);
+        VR_SetByte(as, vd, i, SaturateSB((SInt16)a + (SInt16)b));
+    }
+}
+
+/* VADDUBS - Vector Add Unsigned Byte Saturate */
+void PPC_Op_VADDUBS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        UInt8 a = VR_GetByte(as, va, i);
+        UInt8 b = VR_GetByte(as, vb, i);
+        VR_SetByte(as, vd, i, SaturateUB((SInt16)a + (SInt16)b));
+    }
+}
+
+/* VADDSHS - Vector Add Signed Halfword Saturate */
+void PPC_Op_VADDSHS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        SInt16 a = (SInt16)((as->regs.vr[va][word] >> shift) & 0xFFFF);
+        SInt16 b = (SInt16)((as->regs.vr[vb][word] >> shift) & 0xFFFF);
+        UInt16 result = SaturateSH((SInt32)a + (SInt32)b);
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (result << shift);
+    }
+}
+
+/* VADDUHS - Vector Add Unsigned Halfword Saturate */
+void PPC_Op_VADDUHS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        UInt16 a = (as->regs.vr[va][word] >> shift) & 0xFFFF;
+        UInt16 b = (as->regs.vr[vb][word] >> shift) & 0xFFFF;
+        UInt16 result = SaturateUH((SInt32)a + (SInt32)b);
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (result << shift);
+    }
+}
+
+/* VSUBUBM is already implemented above */
+
+/* VSUBSBS - Vector Subtract Signed Byte Saturate */
+void PPC_Op_VSUBSBS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        SInt8 a = (SInt8)VR_GetByte(as, va, i);
+        SInt8 b = (SInt8)VR_GetByte(as, vb, i);
+        VR_SetByte(as, vd, i, SaturateSB((SInt16)a - (SInt16)b));
+    }
+}
+
+/* VSUBUBS - Vector Subtract Unsigned Byte Saturate */
+void PPC_Op_VSUBUBS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        UInt8 a = VR_GetByte(as, va, i);
+        UInt8 b = VR_GetByte(as, vb, i);
+        VR_SetByte(as, vd, i, SaturateUB((SInt16)a - (SInt16)b));
+    }
+}
+
+/* VSUBSHS - Vector Subtract Signed Halfword Saturate */
+void PPC_Op_VSUBSHS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        SInt16 a = (SInt16)((as->regs.vr[va][word] >> shift) & 0xFFFF);
+        SInt16 b = (SInt16)((as->regs.vr[vb][word] >> shift) & 0xFFFF);
+        UInt16 result = SaturateSH((SInt32)a - (SInt32)b);
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (result << shift);
+    }
+}
+
+/* VSUBUHS - Vector Subtract Unsigned Halfword Saturate */
+void PPC_Op_VSUBUHS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        UInt16 a = (as->regs.vr[va][word] >> shift) & 0xFFFF;
+        UInt16 b = (as->regs.vr[vb][word] >> shift) & 0xFFFF;
+        UInt16 result = SaturateUH((SInt32)a - (SInt32)b);
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (result << shift);
+    }
+}
+
+/*
+ * Vector Shift Instructions
+ */
+
+/* VSLB - Vector Shift Left Byte */
+void PPC_Op_VSLB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        UInt8 a = VR_GetByte(as, va, i);
+        UInt8 shift = VR_GetByte(as, vb, i) & 0x07;
+        VR_SetByte(as, vd, i, a << shift);
+    }
+}
+
+/* VSRB - Vector Shift Right Byte */
+void PPC_Op_VSRB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        UInt8 a = VR_GetByte(as, va, i);
+        UInt8 shift = VR_GetByte(as, vb, i) & 0x07;
+        VR_SetByte(as, vd, i, a >> shift);
+    }
+}
+
+/* VSRAB - Vector Shift Right Algebraic Byte */
+void PPC_Op_VSRAB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        SInt8 a = (SInt8)VR_GetByte(as, va, i);
+        UInt8 shift = VR_GetByte(as, vb, i) & 0x07;
+        VR_SetByte(as, vd, i, (UInt8)(a >> shift));
+    }
+}
+
+/* VSLH - Vector Shift Left Halfword */
+void PPC_Op_VSLH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift_amt = (1 - half) * 16;
+        UInt16 a = (as->regs.vr[va][word] >> shift_amt) & 0xFFFF;
+        UInt16 shift = ((as->regs.vr[vb][word] >> shift_amt) & 0xFFFF) & 0x0F;
+        UInt16 result = a << shift;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift_amt)) | (result << shift_amt);
+    }
+}
+
+/* VSRH - Vector Shift Right Halfword */
+void PPC_Op_VSRH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift_amt = (1 - half) * 16;
+        UInt16 a = (as->regs.vr[va][word] >> shift_amt) & 0xFFFF;
+        UInt16 shift = ((as->regs.vr[vb][word] >> shift_amt) & 0xFFFF) & 0x0F;
+        UInt16 result = a >> shift;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift_amt)) | (result << shift_amt);
+    }
+}
+
+/* VSRAW - Vector Shift Right Algebraic Word */
+void PPC_Op_VSRAW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        SInt32 a = (SInt32)as->regs.vr[va][i];
+        UInt32 shift = as->regs.vr[vb][i] & 0x1F;
+        as->regs.vr[vd][i] = (UInt32)(a >> shift);
+    }
+}
+
+/*
+ * Vector Pack/Unpack Instructions
+ */
+
+/* VPKUHUM - Vector Pack Unsigned Halfword Unsigned Modulo */
+void PPC_Op_VPKUHUM(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    /* Pack high bytes of halfwords from va into low half of vd */
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        UInt8 byte = (as->regs.vr[va][word] >> (shift + 8)) & 0xFF;
+        VR_SetByte(as, vd, i, byte);
+    }
+
+    /* Pack high bytes of halfwords from vb into high half of vd */
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        UInt8 byte = (as->regs.vr[vb][word] >> (shift + 8)) & 0xFF;
+        VR_SetByte(as, vd, i + 8, byte);
+    }
+}
+
+/* VPKUWUM - Vector Pack Unsigned Word Unsigned Modulo */
+void PPC_Op_VPKUWUM(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    /* Pack high halfwords of words from va into low quarter of vd */
+    for (i = 0; i < 4; i++) {
+        UInt16 half = (as->regs.vr[va][i] >> 16) & 0xFFFF;
+        UInt8 word_d = i / 2;
+        UInt8 half_d = i % 2;
+        UInt8 shift = (1 - half_d) * 16;
+        as->regs.vr[vd][word_d] = (as->regs.vr[vd][word_d] & ~(0xFFFF << shift)) | (half << shift);
+    }
+
+    /* Pack high halfwords of words from vb into high quarter of vd */
+    for (i = 0; i < 4; i++) {
+        UInt16 half = (as->regs.vr[vb][i] >> 16) & 0xFFFF;
+        UInt8 word_d = (i + 4) / 2;
+        UInt8 half_d = (i + 4) % 2;
+        UInt8 shift = (1 - half_d) * 16;
+        as->regs.vr[vd][word_d] = (as->regs.vr[vd][word_d] & ~(0xFFFF << shift)) | (half << shift);
+    }
+}
+
+/* VUPKHSB - Vector Unpack High Signed Byte */
+void PPC_Op_VUPKHSB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    /* Unpack high 8 bytes of vb into 8 halfwords in vd (sign-extend) */
+    for (i = 0; i < 8; i++) {
+        SInt8 byte = (SInt8)VR_GetByte(as, vb, i);
+        SInt16 half = (SInt16)byte;
+        UInt8 word = i / 2;
+        UInt8 half_idx = i % 2;
+        UInt8 shift = (1 - half_idx) * 16;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (((UInt16)half) << shift);
+    }
+}
+
+/* VUPKLSB - Vector Unpack Low Signed Byte */
+void PPC_Op_VUPKLSB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    /* Unpack low 8 bytes of vb into 8 halfwords in vd (sign-extend) */
+    for (i = 0; i < 8; i++) {
+        SInt8 byte = (SInt8)VR_GetByte(as, vb, i + 8);
+        SInt16 half = (SInt16)byte;
+        UInt8 word = i / 2;
+        UInt8 half_idx = i % 2;
+        UInt8 shift = (1 - half_idx) * 16;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (((UInt16)half) << shift);
+    }
+}
+
+/* VUPKHSH - Vector Unpack High Signed Halfword */
+void PPC_Op_VUPKHSH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    /* Unpack high 4 halfwords of vb into 4 words in vd (sign-extend) */
+    for (i = 0; i < 4; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        SInt16 halfword = (SInt16)((as->regs.vr[vb][word] >> shift) & 0xFFFF);
+        as->regs.vr[vd][i] = (UInt32)((SInt32)halfword);
+    }
+}
+
+/* VUPKLSH - Vector Unpack Low Signed Halfword */
+void PPC_Op_VUPKLSH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    /* Unpack low 4 halfwords of vb into 4 words in vd (sign-extend) */
+    for (i = 0; i < 4; i++) {
+        UInt8 word = (i + 4) / 2;
+        UInt8 half = (i + 4) % 2;
+        UInt8 shift = (1 - half) * 16;
+        SInt16 halfword = (SInt16)((as->regs.vr[vb][word] >> shift) & 0xFFFF);
+        as->regs.vr[vd][i] = (UInt32)((SInt32)halfword);
+    }
+}
+
+/*
+ * Vector Merge Instructions
+ */
+
+/* VMRGHB - Vector Merge High Byte */
+void PPC_Op_VMRGHB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        VR_SetByte(as, vd, i * 2, VR_GetByte(as, va, i));
+        VR_SetByte(as, vd, i * 2 + 1, VR_GetByte(as, vb, i));
+    }
+}
+
+/* VMRGLB - Vector Merge Low Byte */
+void PPC_Op_VMRGLB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        VR_SetByte(as, vd, i * 2, VR_GetByte(as, va, i + 8));
+        VR_SetByte(as, vd, i * 2 + 1, VR_GetByte(as, vb, i + 8));
+    }
+}
+
+/*
+ * Vector Permute/Select Instructions
+ */
+
+/* VPERM - Vector Permute */
+void PPC_Op_VPERM(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 vc = (insn >> 6) & 0x1F;
+    UInt8 result[16];
+    int i;
+
+    /* Create temporary result */
+    for (i = 0; i < 16; i++) {
+        UInt8 index = VR_GetByte(as, vc, i) & 0x1F;
+        if (index < 16) {
+            result[i] = VR_GetByte(as, va, index);
+        } else {
+            result[i] = VR_GetByte(as, vb, index - 16);
+        }
+    }
+
+    /* Copy result to destination */
+    for (i = 0; i < 16; i++) {
+        VR_SetByte(as, vd, i, result[i]);
+    }
+}
+
+/* VSEL - Vector Select */
+void PPC_Op_VSEL(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 vc = (insn >> 6) & 0x1F;
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        UInt32 a = as->regs.vr[va][i];
+        UInt32 b = as->regs.vr[vb][i];
+        UInt32 c = as->regs.vr[vc][i];
+        as->regs.vr[vd][i] = (a & ~c) | (b & c);
+    }
+}
+
+/*
+ * Vector Compare Instructions
+ */
+
+/* VCMPEQUB - Vector Compare Equal Unsigned Byte */
+void PPC_Op_VCMPEQUB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        UInt8 a = VR_GetByte(as, va, i);
+        UInt8 b = VR_GetByte(as, vb, i);
+        VR_SetByte(as, vd, i, (a == b) ? 0xFF : 0x00);
+    }
+}
+
+/* VCMPGTUB - Vector Compare Greater Than Unsigned Byte */
+void PPC_Op_VCMPGTUB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        UInt8 a = VR_GetByte(as, va, i);
+        UInt8 b = VR_GetByte(as, vb, i);
+        VR_SetByte(as, vd, i, (a > b) ? 0xFF : 0x00);
+    }
+}
+
+/* VCMPGTSB - Vector Compare Greater Than Signed Byte */
+void PPC_Op_VCMPGTSB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        SInt8 a = (SInt8)VR_GetByte(as, va, i);
+        SInt8 b = (SInt8)VR_GetByte(as, vb, i);
+        VR_SetByte(as, vd, i, (a > b) ? 0xFF : 0x00);
+    }
+}
+
+/* VCMPEQUH - Vector Compare Equal Unsigned Halfword */
+void PPC_Op_VCMPEQUH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        UInt16 a = (as->regs.vr[va][word] >> shift) & 0xFFFF;
+        UInt16 b = (as->regs.vr[vb][word] >> shift) & 0xFFFF;
+        UInt16 result = (a == b) ? 0xFFFF : 0x0000;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (result << shift);
+    }
+}
+
+/* VCMPEQUW - Vector Compare Equal Unsigned Word */
+void PPC_Op_VCMPEQUW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        UInt32 a = as->regs.vr[va][i];
+        UInt32 b = as->regs.vr[vb][i];
+        as->regs.vr[vd][i] = (a == b) ? 0xFFFFFFFF : 0x00000000;
+    }
+}
+
+/*
+ * Vector Splat Instructions
+ */
+
+/* VSPLTB - Vector Splat Byte */
+void PPC_Op_VSPLTB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 uimm = (insn >> 16) & 0x1F;
+    UInt8 byte = VR_GetByte(as, vb, uimm & 0x0F);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        VR_SetByte(as, vd, i, byte);
+    }
+}
+
+/* VSPLTH - Vector Splat Halfword */
+void PPC_Op_VSPLTH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 uimm = (insn >> 16) & 0x1F;
+    UInt8 idx = uimm & 0x07;
+    UInt8 word = idx / 2;
+    UInt8 half = idx % 2;
+    UInt8 shift = (1 - half) * 16;
+    UInt16 halfword = (as->regs.vr[vb][word] >> shift) & 0xFFFF;
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word_d = i / 2;
+        UInt8 half_d = i % 2;
+        UInt8 shift_d = (1 - half_d) * 16;
+        as->regs.vr[vd][word_d] = (as->regs.vr[vd][word_d] & ~(0xFFFF << shift_d)) | (halfword << shift_d);
+    }
+}
+
+/* VSPLTW - Vector Splat Word */
+void PPC_Op_VSPLTW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 uimm = (insn >> 16) & 0x1F;
+    UInt32 word = as->regs.vr[vb][uimm & 0x03];
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        as->regs.vr[vd][i] = word;
+    }
+}
+
+/*
+ * Additional Vector Load/Store Instructions
+ */
+
+/* LVEBX - Load Vector Element Byte Indexed */
+void PPC_Op_LVEBX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea = ((ra == 0) ? 0 : as->regs.gpr[ra]) + as->regs.gpr[rb];
+    UInt8 byte = PPC_Read8(as, ea);
+    UInt8 index = ea & 0x0F;
+
+    VR_SetByte(as, vd, index, byte);
+}
+
+/* LVEHX - Load Vector Element Halfword Indexed */
+void PPC_Op_LVEHX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea = ((ra == 0) ? 0 : as->regs.gpr[ra]) + as->regs.gpr[rb];
+    UInt16 halfword = PPC_Read16(as, ea & ~1);
+    UInt8 index = (ea >> 1) & 0x07;
+    UInt8 word = index / 2;
+    UInt8 half = index % 2;
+    UInt8 shift = (1 - half) * 16;
+
+    as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (halfword << shift);
+}
+
+/* STVEBX - Store Vector Element Byte Indexed */
+void PPC_Op_STVEBX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea = ((ra == 0) ? 0 : as->regs.gpr[ra]) + as->regs.gpr[rb];
+    UInt8 index = ea & 0x0F;
+    UInt8 byte = VR_GetByte(as, vs, index);
+
+    PPC_Write8(as, ea, byte);
+}
+
+/* STVEHX - Store Vector Element Halfword Indexed */
+void PPC_Op_STVEHX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea = ((ra == 0) ? 0 : as->regs.gpr[ra]) + as->regs.gpr[rb];
+    UInt8 index = (ea >> 1) & 0x07;
+    UInt8 word = index / 2;
+    UInt8 half = index % 2;
+    UInt8 shift = (1 - half) * 16;
+    UInt16 halfword = (as->regs.vr[vs][word] >> shift) & 0xFFFF;
+
+    PPC_Write16(as, ea & ~1, halfword);
+}
+
+/*
  * ==================================================
  * COMPREHENSIVE IMPLEMENTATION
- * Total: 243 instructions (217 + 9 601 + 17 AltiVec)
+ * Total: 275 instructions (217 + 9 601 + 49 AltiVec)
  * ==================================================
  */
 
