@@ -35,6 +35,8 @@ typedef struct VCBExt {
     pthread_mutex_t vcbMutex;       /* Volume mutex */
     void*           vcbCatalogBTCB; /* Catalog B-tree control block */
     void*           vcbExtentsBTCB; /* Extents B-tree control block */
+    void*           vcbCTRef;       /* Catalog file reference (BTCB*) */
+    void*           vcbXTRef;       /* Extents file reference (BTCB*) */
     UInt32          vcbFilCnt;      /* File count */
     UInt32          vcbDirCnt;      /* Directory count */
     UInt16          vcbDevice;      /* Device number */
@@ -65,6 +67,7 @@ typedef struct BTCB {
     UInt32          btcbFileID;     /* File ID */
     UInt32          btcbNodeSize;   /* Node size */
     UInt32          btcbMaxDepth;   /* Maximum depth */
+    int (*btcKeyCmp)(const void*, const void*); /* Key comparison function */
 } BTCB;
 
 /* Cache Buffer */

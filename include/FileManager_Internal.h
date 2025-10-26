@@ -135,15 +135,22 @@ extern "C" {
 
 /* B-tree Header Record */
 
-/* Catalog Key */
-
-/* Catalog Data Record Type */
-
-/* Catalog Directory Record */
-
-/* Catalog File Record */
+/* Catalog Key - HFS catalog B-tree key structure */
+typedef struct CatalogKey {
+    UInt8  ckrKeyLen;      /* Key length */
+    UInt8  ckrResrv1;      /* Reserved */
+    UInt32 ckrParID;       /* Parent directory ID */
+    Str31  ckrCName;       /* Catalog node name (Pascal string) */
+} CatalogKey;
 
 /* Catalog Thread Record */
+typedef struct CatalogThreadRec {
+    UInt8  cdrType;        /* Record type (REC_FIL_THREAD or REC_FLDR_THREAD) */
+    UInt8  cdrResrv2;      /* Reserved */
+    UInt32 thdResrv[2];    /* Reserved */
+    UInt32 thdParID;       /* Parent directory ID */
+    Str31  thdCName;       /* Catalog node name */
+} CatalogThreadRec;
 
 /* Extent Key */
 
