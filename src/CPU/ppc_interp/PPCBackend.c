@@ -693,12 +693,69 @@ OSErr PPC_Step(PPCAddressSpace* as)
             PPC_Op_TWI(as, insn);
             break;
 
+        case PPC_OP_EXT4:        /* 4 - AltiVec/VMX vector operations */
+            extended = (insn & 0x7FF);  /* 11-bit extended opcode for AltiVec */
+            switch (extended) {
+                case PPC_VXO_VADDUBM:
+                    PPC_Op_VADDUBM(as, insn);
+                    break;
+
+                case PPC_VXO_VADDUHM:
+                    PPC_Op_VADDUHM(as, insn);
+                    break;
+
+                case PPC_VXO_VADDUWM:
+                    PPC_Op_VADDUWM(as, insn);
+                    break;
+
+                case PPC_VXO_VSUBUBM:
+                    PPC_Op_VSUBUBM(as, insn);
+                    break;
+
+                case PPC_VXO_VAND:
+                    PPC_Op_VAND(as, insn);
+                    break;
+
+                case PPC_VXO_VOR:
+                    PPC_Op_VOR(as, insn);
+                    break;
+
+                case PPC_VXO_VXOR:
+                    PPC_Op_VXOR(as, insn);
+                    break;
+
+                case PPC_VXO_VNOR:
+                    PPC_Op_VNOR(as, insn);
+                    break;
+
+                case PPC_VXO_VSPLTISB:
+                    PPC_Op_VSPLTISB(as, insn);
+                    break;
+
+                case PPC_VXO_VSPLTISH:
+                    PPC_Op_VSPLTISH(as, insn);
+                    break;
+
+                case PPC_VXO_VSPLTISW:
+                    PPC_Op_VSPLTISW(as, insn);
+                    break;
+
+                default:
+                    PPC_Fault(as, "Unimplemented AltiVec opcode");
+                    break;
+            }
+            break;
+
         case PPC_OP_MULLI:       /* 7 */
             PPC_Op_MULLI(as, insn);
             break;
 
         case PPC_OP_SUBFIC:      /* 8 */
             PPC_Op_SUBFIC(as, insn);
+            break;
+
+        case PPC_OP_DOZI:        /* 9 - PowerPC 601 difference or zero immediate */
+            PPC_Op_DOZI(as, insn);
             break;
 
         case PPC_OP_CMPLI:       /* 10 */
@@ -794,6 +851,10 @@ OSErr PPC_Step(PPCAddressSpace* as)
 
         case PPC_OP_RLWINM:      /* 21 */
             PPC_Op_RLWINM(as, insn);
+            break;
+
+        case PPC_OP_RLMI:        /* 22 - PowerPC 601 rotate left then mask insert */
+            PPC_Op_RLMI(as, insn);
             break;
 
         case PPC_OP_RLWNM:       /* 23 */
@@ -1211,6 +1272,44 @@ OSErr PPC_Step(PPCAddressSpace* as)
                 /* Time base access */
                 case PPC_XOP_MFTB:
                     PPC_Op_MFTB(as, insn);
+                    break;
+
+                /* PowerPC 601 compatibility instructions */
+                case PPC_XOP_DOZ:
+                    PPC_Op_DOZ(as, insn);
+                    break;
+
+                case PPC_XOP_MUL:
+                    PPC_Op_MUL(as, insn);
+                    break;
+
+                case PPC_XOP_DIV:
+                    PPC_Op_DIV(as, insn);
+                    break;
+
+                case PPC_XOP_DIVS:
+                    PPC_Op_DIVS(as, insn);
+                    break;
+
+                case PPC_XOP_ABS:
+                    PPC_Op_ABS(as, insn);
+                    break;
+
+                case PPC_XOP_NABS:
+                    PPC_Op_NABS(as, insn);
+                    break;
+
+                case PPC_XOP_CLCS:
+                    PPC_Op_CLCS(as, insn);
+                    break;
+
+                /* AltiVec vector load/store */
+                case PPC_OP_LVX:
+                    PPC_Op_LVX(as, insn);
+                    break;
+
+                case PPC_OP_STVX:
+                    PPC_Op_STVX(as, insn);
                     break;
 
                 default:

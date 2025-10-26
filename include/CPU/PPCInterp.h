@@ -72,6 +72,11 @@ typedef struct PPCRegs {
     UInt32 iabr;              /* Instruction address breakpoint */
     UInt32 dabr;              /* Data address breakpoint */
     UInt32 ear;               /* External access register */
+
+    /* AltiVec/VMX vector registers (G4/G5) */
+    UInt32 vr[32][4];         /* VR0-VR31: 32 128-bit vector registers (stored as 4x32-bit) */
+    UInt32 vscr;              /* Vector status and control register */
+    UInt32 vrsave;            /* Vector register save register */
 } PPCRegs;
 
 /*

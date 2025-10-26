@@ -4429,9 +4429,451 @@ void PPC_Op_MFTB(PPCAddressSpace* as, UInt32 insn)
 }
 
 /*
+ * ============================================================================
+ * POWERPC 601 COMPATIBILITY INSTRUCTIONS
+ * ============================================================================
+ */
+
+/*
+ * DOZI - Difference Or Zero Immediate (PowerPC 601)
+ * if rA > SIMM then rD = rA - SIMM else rD = 0
+ */
+void PPC_Op_DOZI(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    SInt32 simm = PPC_SIMM(insn);
+    SInt32 a = (SInt32)as->regs.gpr[ra];
+
+    if (a > simm) {
+        as->regs.gpr[rd] = (UInt32)(a - simm);
+    } else {
+        as->regs.gpr[rd] = 0;
+    }
+}
+
+/*
+ * DOZ - Difference Or Zero (PowerPC 601)
+ * if rA > rB then rD = rA - rB else rD = 0
+ */
+void PPC_Op_DOZ(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+    SInt32 a = (SInt32)as->regs.gpr[ra];
+    SInt32 b = (SInt32)as->regs.gpr[rb];
+
+    if (a > b) {
+        as->regs.gpr[rd] = (UInt32)(a - b);
+    } else {
+        as->regs.gpr[rd] = 0;
+    }
+
+    if (rc) {
+        PPC_UpdateCR0(as, as->regs.gpr[rd]);
+    }
+}
+
+/*
+ * ABS - Absolute (PowerPC 601)
+ * rD = |rA|
+ */
+void PPC_Op_ABS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    Boolean rc = PPC_RC(insn);
+    SInt32 a = (SInt32)as->regs.gpr[ra];
+
+    if (a < 0) {
+        as->regs.gpr[rd] = (UInt32)(-a);
+    } else {
+        as->regs.gpr[rd] = (UInt32)a;
+    }
+
+    if (rc) {
+        PPC_UpdateCR0(as, as->regs.gpr[rd]);
+    }
+}
+
+/*
+ * NABS - Negative Absolute (PowerPC 601)
+ * rD = -|rA|
+ */
+void PPC_Op_NABS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    Boolean rc = PPC_RC(insn);
+    SInt32 a = (SInt32)as->regs.gpr[ra];
+
+    if (a < 0) {
+        as->regs.gpr[rd] = (UInt32)a;
+    } else {
+        as->regs.gpr[rd] = (UInt32)(-a);
+    }
+
+    if (rc) {
+        PPC_UpdateCR0(as, as->regs.gpr[rd]);
+    }
+}
+
+/*
+ * MUL - Multiply (PowerPC 601)
+ * rD = rA * rB (low-order 32 bits)
+ */
+void PPC_Op_MUL(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+    SInt32 a = (SInt32)as->regs.gpr[ra];
+    SInt32 b = (SInt32)as->regs.gpr[rb];
+
+    as->regs.gpr[rd] = (UInt32)(a * b);
+
+    if (rc) {
+        PPC_UpdateCR0(as, as->regs.gpr[rd]);
+    }
+}
+
+/*
+ * DIV - Divide (PowerPC 601)
+ * rD = rA / rB
+ */
+void PPC_Op_DIV(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+    SInt32 a = (SInt32)as->regs.gpr[ra];
+    SInt32 b = (SInt32)as->regs.gpr[rb];
+
+    if (b == 0) {
+        /* Division by zero - undefined on 601 */
+        as->regs.gpr[rd] = 0;
+    } else {
+        as->regs.gpr[rd] = (UInt32)(a / b);
+    }
+
+    if (rc) {
+        PPC_UpdateCR0(as, as->regs.gpr[rd]);
+    }
+}
+
+/*
+ * DIVS - Divide Short (PowerPC 601)
+ * rD = rA / rB (short form)
+ */
+void PPC_Op_DIVS(PPCAddressSpace* as, UInt32 insn)
+{
+    /* Same as DIV on 601 */
+    PPC_Op_DIV(as, insn);
+}
+
+/*
+ * RLMI - Rotate Left then Mask Insert (PowerPC 601)
+ * Similar to RLWIMI but slightly different
+ */
+void PPC_Op_RLMI(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt8 mb = PPC_MB(insn);
+    UInt8 me = PPC_ME(insn);
+    Boolean rc = PPC_RC(insn);
+    UInt32 r = as->regs.gpr[rs];
+    UInt32 shift = as->regs.gpr[rb] & 0x1F;
+    UInt32 rotated = (r << shift) | (r >> (32 - shift));
+    UInt32 mask;
+
+    /* Generate mask */
+    if (mb <= me) {
+        mask = ((1U << (me - mb + 1)) - 1) << (31 - me);
+    } else {
+        mask = ~(((1U << (mb - me - 1)) - 1) << (31 - mb + 1));
+    }
+
+    as->regs.gpr[ra] = (as->regs.gpr[ra] & ~mask) | (rotated & mask);
+
+    if (rc) {
+        PPC_UpdateCR0(as, as->regs.gpr[ra]);
+    }
+}
+
+/*
+ * CLCS - Cache Line Compute Size (PowerPC 601)
+ * Returns cache line size (NOP in interpreter)
+ */
+void PPC_Op_CLCS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+
+    /* Return 32 bytes (typical 601 cache line size) */
+    as->regs.gpr[rd] = 32;
+}
+
+/*
+ * ============================================================================
+ * ALTIVEC/VMX VECTOR INSTRUCTIONS (G4/G5)
+ * ============================================================================
+ */
+
+/* Helper: Get vector register element as byte */
+static inline UInt8 VR_GetByte(PPCAddressSpace* as, UInt8 vr, UInt8 element)
+{
+    UInt8 word = element / 4;
+    UInt8 byte_in_word = element % 4;
+    return (as->regs.vr[vr][word] >> (24 - byte_in_word * 8)) & 0xFF;
+}
+
+/* Helper: Set vector register element as byte */
+static inline void VR_SetByte(PPCAddressSpace* as, UInt8 vr, UInt8 element, UInt8 value)
+{
+    UInt8 word = element / 4;
+    UInt8 byte_in_word = element % 4;
+    UInt32 shift = 24 - byte_in_word * 8;
+    as->regs.vr[vr][word] = (as->regs.vr[vr][word] & ~(0xFF << shift)) | (value << shift);
+}
+
+/*
+ * VADDUBM - Vector Add Unsigned Byte Modulo
+ * VD[i] = VA[i] + VB[i] (for each byte)
+ */
+void PPC_Op_VADDUBM(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        UInt8 a = VR_GetByte(as, va, i);
+        UInt8 b = VR_GetByte(as, vb, i);
+        VR_SetByte(as, vd, i, a + b);
+    }
+}
+
+/*
+ * VADDUHM - Vector Add Unsigned Halfword Modulo
+ * VD[i] = VA[i] + VB[i] (for each halfword)
+ */
+void PPC_Op_VADDUHM(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i, j;
+
+    for (i = 0; i < 4; i++) {
+        for (j = 0; j < 2; j++) {
+            int elem = i * 2 + j;
+            UInt8 a = VR_GetByte(as, va, elem);
+            UInt8 b = VR_GetByte(as, vb, elem);
+            VR_SetByte(as, vd, elem, a + b);
+        }
+    }
+}
+
+/*
+ * VADDUWM - Vector Add Unsigned Word Modulo
+ * VD[i] = VA[i] + VB[i] (for each word)
+ */
+void PPC_Op_VADDUWM(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        as->regs.vr[vd][i] = as->regs.vr[va][i] + as->regs.vr[vb][i];
+    }
+}
+
+/*
+ * VSUBUBM - Vector Subtract Unsigned Byte Modulo
+ * VD[i] = VA[i] - VB[i] (for each byte)
+ */
+void PPC_Op_VSUBUBM(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        UInt8 a = VR_GetByte(as, va, i);
+        UInt8 b = VR_GetByte(as, vb, i);
+        VR_SetByte(as, vd, i, a - b);
+    }
+}
+
+/*
+ * VAND - Vector Logical AND
+ * VD = VA & VB
+ */
+void PPC_Op_VAND(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        as->regs.vr[vd][i] = as->regs.vr[va][i] & as->regs.vr[vb][i];
+    }
+}
+
+/*
+ * VOR - Vector Logical OR
+ * VD = VA | VB
+ */
+void PPC_Op_VOR(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        as->regs.vr[vd][i] = as->regs.vr[va][i] | as->regs.vr[vb][i];
+    }
+}
+
+/*
+ * VXOR - Vector Logical XOR
+ * VD = VA ^ VB
+ */
+void PPC_Op_VXOR(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        as->regs.vr[vd][i] = as->regs.vr[va][i] ^ as->regs.vr[vb][i];
+    }
+}
+
+/*
+ * VNOR - Vector Logical NOR
+ * VD = ~(VA | VB)
+ */
+void PPC_Op_VNOR(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        as->regs.vr[vd][i] = ~(as->regs.vr[va][i] | as->regs.vr[vb][i]);
+    }
+}
+
+/*
+ * VSPLTISB - Vector Splat Immediate Signed Byte
+ * VD[all bytes] = SIMM (sign-extended 5-bit immediate)
+ */
+void PPC_Op_VSPLTISB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    SInt8 simm = (insn >> 16) & 0x1F;
+    if (simm & 0x10) simm |= 0xE0; /* Sign extend */
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        VR_SetByte(as, vd, i, (UInt8)simm);
+    }
+}
+
+/*
+ * VSPLTISH - Vector Splat Immediate Signed Halfword
+ * VD[all halfwords] = SIMM (sign-extended 5-bit immediate)
+ */
+void PPC_Op_VSPLTISH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    SInt16 simm = (insn >> 16) & 0x1F;
+    if (simm & 0x10) simm |= 0xFFE0; /* Sign extend */
+    int i, j;
+
+    for (i = 0; i < 8; i++) {
+        for (j = 0; j < 2; j++) {
+            VR_SetByte(as, vd, i * 2 + j, (simm >> (8 - j * 8)) & 0xFF);
+        }
+    }
+}
+
+/*
+ * VSPLTISW - Vector Splat Immediate Signed Word
+ * VD[all words] = SIMM (sign-extended 5-bit immediate)
+ */
+void PPC_Op_VSPLTISW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    SInt32 simm = (insn >> 16) & 0x1F;
+    if (simm & 0x10) simm |= 0xFFFFFFE0; /* Sign extend */
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        as->regs.vr[vd][i] = (UInt32)simm;
+    }
+}
+
+/*
+ * LVX - Load Vector Indexed
+ * VD = MEM[EA] (16-byte aligned load)
+ */
+void PPC_Op_LVX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea = ((ra == 0) ? 0 : as->regs.gpr[ra]) + as->regs.gpr[rb];
+    int i;
+
+    /* Align to 16-byte boundary */
+    ea &= ~0xF;
+
+    /* Load 16 bytes */
+    for (i = 0; i < 16; i++) {
+        VR_SetByte(as, vd, i, PPC_Read8(as, ea + i));
+    }
+}
+
+/*
+ * STVX - Store Vector Indexed
+ * MEM[EA] = VS (16-byte aligned store)
+ */
+void PPC_Op_STVX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea = ((ra == 0) ? 0 : as->regs.gpr[ra]) + as->regs.gpr[rb];
+    int i;
+
+    /* Align to 16-byte boundary */
+    ea &= ~0xF;
+
+    /* Store 16 bytes */
+    for (i = 0; i < 16; i++) {
+        PPC_Write8(as, ea + i, VR_GetByte(as, vs, i));
+    }
+}
+
+/*
  * ==================================================
  * COMPREHENSIVE IMPLEMENTATION
- * Total: 217 instructions (206 previous + 11 new)
+ * Total: 243 instructions (217 + 9 601 + 17 AltiVec)
  * ==================================================
  */
 

@@ -111,8 +111,10 @@ extern "C" {
  * Primary Opcodes (bits 0-5)
  */
 #define PPC_OP_TWI          3   /* Trap word immediate */
+#define PPC_OP_EXT4         4   /* Extended opcodes (AltiVec/VMX) */
 #define PPC_OP_MULLI        7   /* Multiply low immediate */
 #define PPC_OP_SUBFIC       8   /* Subtract from immediate carrying */
+#define PPC_OP_DOZI         9   /* Difference or zero immediate (601) */
 #define PPC_OP_CMPLI        10  /* Compare logical immediate */
 #define PPC_OP_CMPI         11  /* Compare immediate */
 #define PPC_OP_ADDIC        12  /* Add immediate carrying */
@@ -125,6 +127,7 @@ extern "C" {
 #define PPC_OP_EXT19        19  /* Extended opcodes (CR ops, branches) */
 #define PPC_OP_RLWIMI       20  /* Rotate left word immediate then mask insert */
 #define PPC_OP_RLWINM       21  /* Rotate left word immediate then AND with mask */
+#define PPC_OP_RLMI         22  /* Rotate left then mask insert (601) */
 #define PPC_OP_RLWNM        23  /* Rotate left word then AND with mask */
 #define PPC_OP_ORI          24  /* OR immediate */
 #define PPC_OP_ORIS         25  /* OR immediate shifted */
@@ -266,6 +269,17 @@ extern "C" {
 #define PPC_XOP_TLBIA       370 /* TLB invalidate all (601 only) */
 
 /*
+ * PowerPC 601 Compatibility Instructions (Opcode 31)
+ */
+#define PPC_XOP_ABS         360 /* Absolute (601) */
+#define PPC_XOP_NABS        488 /* Negative absolute (601) */
+#define PPC_XOP_DIV         331 /* Divide (601) */
+#define PPC_XOP_DIVS        363 /* Divide short (601) */
+#define PPC_XOP_DOZ         264 /* Difference or zero (601) */
+#define PPC_XOP_MUL         107 /* Multiply (601) */
+#define PPC_XOP_CLCS        531 /* Cache line compute size (601) */
+
+/*
  * Segment Register Operations (Opcode 31)
  */
 #define PPC_XOP_MFSR        595 /* Move from segment register */
@@ -364,10 +378,56 @@ extern "C" {
 #define PPC_XOP63_MTFSB1    38  /* Move to FPSCR bit 1 */
 
 /*
+ * Extended Opcode 4 Instructions (AltiVec/VMX Vector Operations)
+ */
+/* Vector arithmetic */
+#define PPC_VXO_VADDUBM     0   /* Vector add unsigned byte modulo */
+#define PPC_VXO_VADDUHM     64  /* Vector add unsigned halfword modulo */
+#define PPC_VXO_VADDUWM     128 /* Vector add unsigned word modulo */
+#define PPC_VXO_VSUBUBM     1024 /* Vector subtract unsigned byte modulo */
+#define PPC_VXO_VSUBUHM     1088 /* Vector subtract unsigned halfword modulo */
+#define PPC_VXO_VSUBUWM     1152 /* Vector subtract unsigned word modulo */
+#define PPC_VXO_VMUL        /* Multiple variants with different encodings */
+
+/* Vector logical */
+#define PPC_VXO_VAND        1028 /* Vector AND */
+#define PPC_VXO_VOR         1156 /* Vector OR */
+#define PPC_VXO_VXOR        1220 /* Vector XOR */
+#define PPC_VXO_VANDC       1092 /* Vector AND with complement */
+#define PPC_VXO_VNOR        1284 /* Vector NOR */
+
+/* Vector compare */
+#define PPC_VXO_VCMPEQUB    6   /* Vector compare equal unsigned byte */
+#define PPC_VXO_VCMPEQUH    70  /* Vector compare equal unsigned halfword */
+#define PPC_VXO_VCMPEQUW    134 /* Vector compare equal unsigned word */
+
+/* Vector permute/select */
+#define PPC_VXO_VPERM       43  /* Vector permute */
+#define PPC_VXO_VSEL        42  /* Vector select */
+#define PPC_VXO_VSLDOI      44  /* Vector shift left double by octet immediate */
+
+/* Vector splat */
+#define PPC_VXO_VSPLTB      524 /* Vector splat byte */
+#define PPC_VXO_VSPLTH      588 /* Vector splat halfword */
+#define PPC_VXO_VSPLTW      652 /* Vector splat word */
+#define PPC_VXO_VSPLTISB    780 /* Vector splat immediate signed byte */
+#define PPC_VXO_VSPLTISH    844 /* Vector splat immediate signed halfword */
+#define PPC_VXO_VSPLTISW    908 /* Vector splat immediate signed word */
+
+/* Vector load/store (use primary opcodes 7, 39, etc.) */
+#define PPC_OP_LVX          103 /* Load vector indexed (actually opcode 31/103) */
+#define PPC_OP_STVX         231 /* Store vector indexed (actually opcode 31/231) */
+#define PPC_OP_LVEBX        7   /* Load vector element byte indexed */
+#define PPC_OP_LVEHX        39  /* Load vector element halfword indexed */
+#define PPC_OP_LVEWX        71  /* Load vector element word indexed */
+
+/*
  * System Instructions (Opcode 31)
  */
 #define PPC_XOP_MFMSR       83  /* Move from machine state register */
 #define PPC_XOP_MTMSR       146 /* Move to machine state register */
+#define PPC_XOP_MFVSCR      1540 /* Move from vector status and control register */
+#define PPC_XOP_MTVSCR      1604 /* Move to vector status and control register */
 
 /*
  * Forward declarations
@@ -633,6 +693,32 @@ extern void PPC_Op_DCBTST(PPCAddressSpace* as, UInt32 insn);
 
 /* Time base access */
 extern void PPC_Op_MFTB(PPCAddressSpace* as, UInt32 insn);
+
+/* PowerPC 601 compatibility instructions */
+extern void PPC_Op_DOZI(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_DOZ(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_ABS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_NABS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_MUL(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_DIV(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_DIVS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_RLMI(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_CLCS(PPCAddressSpace* as, UInt32 insn);
+
+/* AltiVec/VMX vector instructions */
+extern void PPC_Op_VADDUBM(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VADDUHM(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VADDUWM(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSUBUBM(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VAND(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VOR(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VXOR(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VNOR(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSPLTISB(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSPLTISH(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSPLTISW(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LVX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STVX(PPCAddressSpace* as, UInt32 insn);
 
 #ifdef __cplusplus
 }
