@@ -322,6 +322,12 @@ extern "C" {
 #define PPC_XOP_EIEIO       854 /* Enforce in-order execution of I/O */
 
 /*
+ * External Control (Opcode 31)
+ */
+#define PPC_XOP_ECIWX       310 /* External control in word indexed */
+#define PPC_XOP_ECOWX       438 /* External control out word indexed */
+
+/*
  * Branch Extended Opcode 19 Instructions
  */
 #define PPC_XOP19_BCLR      16  /* Branch conditional to link register */
@@ -774,6 +780,10 @@ extern void PPC_Op_DCBTST(PPCAddressSpace* as, UInt32 insn);
 
 /* Time base access */
 extern void PPC_Op_MFTB(PPCAddressSpace* as, UInt32 insn);
+
+/* External control operations */
+extern void PPC_Op_ECIWX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_ECOWX(PPCAddressSpace* as, UInt32 insn);
 
 /* PowerPC 601 compatibility instructions */
 extern void PPC_Op_DOZI(PPCAddressSpace* as, UInt32 insn);

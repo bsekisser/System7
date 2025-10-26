@@ -1544,6 +1544,15 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     PPC_Op_DCBTST(as, insn);
                     break;
 
+                /* External control */
+                case PPC_XOP_ECIWX:
+                    PPC_Op_ECIWX(as, insn);
+                    break;
+
+                case PPC_XOP_ECOWX:
+                    PPC_Op_ECOWX(as, insn);
+                    break;
+
                 /* Time base access */
                 case PPC_XOP_MFTB:
                     PPC_Op_MFTB(as, insn);

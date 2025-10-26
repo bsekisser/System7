@@ -4620,6 +4620,262 @@ void PPC_Op_CLCS(PPCAddressSpace* as, UInt32 insn)
 
 /*
  * ============================================================================
+ * SUPERVISOR MODE INSTRUCTIONS
+ * ============================================================================
+ */
+
+/*
+ * MFSR - Move From Segment Register
+ * rD = SR[SR#]
+ */
+void PPC_Op_MFSR(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 sr = (insn >> 16) & 0xF;  /* Bits 16-19 contain SR# */
+
+    as->regs.gpr[rd] = as->regs.sr[sr];
+}
+
+/*
+ * MTSR - Move To Segment Register
+ * SR[SR#] = rS
+ */
+void PPC_Op_MTSR(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 sr = (insn >> 16) & 0xF;  /* Bits 16-19 contain SR# */
+
+    as->regs.sr[sr] = as->regs.gpr[rs];
+}
+
+/*
+ * MFSRIN - Move From Segment Register Indirect
+ * rD = SR[rB[0-3]]
+ */
+void PPC_Op_MFSRIN(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt8 sr = (as->regs.gpr[rb] >> 28) & 0xF;  /* Use top 4 bits of rB */
+
+    as->regs.gpr[rd] = as->regs.sr[sr];
+}
+
+/*
+ * MTSRIN - Move To Segment Register Indirect
+ * SR[rB[0-3]] = rS
+ */
+void PPC_Op_MTSRIN(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rs = PPC_RS(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt8 sr = (as->regs.gpr[rb] >> 28) & 0xF;  /* Use top 4 bits of rB */
+
+    as->regs.sr[sr] = as->regs.gpr[rs];
+}
+
+/*
+ * ============================================================================
+ * TLB MANAGEMENT INSTRUCTIONS
+ * ============================================================================
+ */
+
+/*
+ * TLBIE - TLB Invalidate Entry
+ * Invalidate TLB entry for effective address in rB
+ * (NOP in interpreter - no real TLB)
+ */
+void PPC_Op_TLBIE(PPCAddressSpace* as, UInt32 insn)
+{
+    /* NOP - interpreter doesn't have a TLB */
+    (void)as;
+    (void)insn;
+}
+
+/*
+ * TLBSYNC - TLB Synchronize
+ * Ensure TLB invalidations complete on all processors
+ * (NOP in single-processor interpreter)
+ */
+void PPC_Op_TLBSYNC(PPCAddressSpace* as, UInt32 insn)
+{
+    /* NOP - single processor, nothing to sync */
+    (void)as;
+    (void)insn;
+}
+
+/*
+ * TLBIA - TLB Invalidate All (PowerPC 601 only)
+ * Invalidate all TLB entries
+ * (NOP in interpreter - no real TLB)
+ */
+void PPC_Op_TLBIA(PPCAddressSpace* as, UInt32 insn)
+{
+    /* NOP - interpreter doesn't have a TLB */
+    (void)as;
+    (void)insn;
+}
+
+/*
+ * ============================================================================
+ * CACHE CONTROL INSTRUCTIONS
+ * ============================================================================
+ */
+
+/*
+ * DCBI - Data Cache Block Invalidate (supervisor)
+ * Invalidate data cache block
+ * (NOP in interpreter - no cache)
+ */
+void PPC_Op_DCBI(PPCAddressSpace* as, UInt32 insn)
+{
+    /* NOP - interpreter doesn't have a cache */
+    (void)as;
+    (void)insn;
+}
+
+/*
+ * DCBT - Data Cache Block Touch (prefetch hint)
+ * Prefetch data cache block
+ * (NOP in interpreter - no cache)
+ */
+void PPC_Op_DCBT(PPCAddressSpace* as, UInt32 insn)
+{
+    /* NOP - interpreter doesn't have a cache */
+    (void)as;
+    (void)insn;
+}
+
+/*
+ * DCBTST - Data Cache Block Touch for Store
+ * Prefetch data cache block for store
+ * (NOP in interpreter - no cache)
+ */
+void PPC_Op_DCBTST(PPCAddressSpace* as, UInt32 insn)
+{
+    /* NOP - interpreter doesn't have a cache */
+    (void)as;
+    (void)insn;
+}
+
+/*
+ * ============================================================================
+ * TIME BASE INSTRUCTIONS
+ * ============================================================================
+ */
+
+/*
+ * MFTB - Move From Time Base
+ * rD = TB[TBR] where TBR can be TBL (268) or TBU (269)
+ * This is a user-mode instruction for reading time base
+ */
+void PPC_Op_MFTB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt16 tbr = ((insn >> 11) & 0x1F) | (((insn >> 16) & 0x1F) << 5);
+
+    switch (tbr) {
+        case 268:  /* TBL */
+            as->regs.gpr[rd] = as->regs.tbl;
+            break;
+        case 269:  /* TBU */
+            as->regs.gpr[rd] = as->regs.tbu;
+            break;
+        default:
+            /* Invalid TBR - return 0 */
+            as->regs.gpr[rd] = 0;
+            break;
+    }
+}
+
+/*
+ * ============================================================================
+ * EXTERNAL CONTROL INSTRUCTIONS
+ * ============================================================================
+ */
+
+/*
+ * ECIWX - External Control In Word Indexed
+ * Load word from external device with EAR setup
+ * (Stub - return 0 for now)
+ */
+void PPC_Op_ECIWX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+
+    /* Stub: External control rarely used */
+    /* Would need EAR register and external device support */
+    as->regs.gpr[rd] = 0;
+}
+
+/*
+ * ECOWX - External Control Out Word Indexed
+ * Store word to external device with EAR setup
+ * (Stub - NOP for now)
+ */
+void PPC_Op_ECOWX(PPCAddressSpace* as, UInt32 insn)
+{
+    /* Stub: External control rarely used */
+    /* Would need EAR register and external device support */
+    (void)as;
+    (void)insn;
+}
+
+/*
+ * ============================================================================
+ * ADDITIONAL POWERPC 601 INSTRUCTIONS
+ * ============================================================================
+ */
+
+/*
+ * DOZI - Difference Or Zero Immediate
+ * rD = (rA < SIMM) ? (SIMM - rA) : 0
+ */
+void PPC_Op_DOZI(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    SInt32 simm = PPC_SIMM(insn);
+    SInt32 a = (SInt32)as->regs.gpr[ra];
+
+    if (a < simm) {
+        as->regs.gpr[rd] = (UInt32)(simm - a);
+    } else {
+        as->regs.gpr[rd] = 0;
+    }
+}
+
+/*
+ * DIVS - Divide Short (PowerPC 601)
+ * rD = rA / rB (with overflow detection)
+ */
+void PPC_Op_DIVS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    Boolean rc = PPC_RC(insn);
+    SInt32 a = (SInt32)as->regs.gpr[ra];
+    SInt32 b = (SInt32)as->regs.gpr[rb];
+
+    if (b == 0) {
+        /* Division by zero - result undefined, set overflow */
+        as->regs.gpr[rd] = 0;
+        as->regs.xer |= PPC_XER_OV;
+        if (as->regs.xer & PPC_XER_OV) {
+            as->regs.xer |= PPC_XER_SO;
+        }
+    } else {
+        as->regs.gpr[rd] = (UInt32)(a / b);
+    }
+
+    if (rc) {
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[rd]);
+    }
+}
+
+/*
+ * ============================================================================
  * ALTIVEC/VMX VECTOR INSTRUCTIONS (G4/G5)
  * ============================================================================
  */
@@ -6166,7 +6422,10 @@ void PPC_Op_VSUM4SBS(PPCAddressSpace* as, UInt32 insn)
 /*
  * ==================================================
  * COMPREHENSIVE IMPLEMENTATION
- * Total: 318 instructions (217 + 9 601 + 92 AltiVec)
+ * Total: 333 instructions (217 base + 11 601 + 13 supervisor + 92 AltiVec)
+ *
+ * Supervisor instructions: MFSR, MTSR, MFSRIN, MTSRIN, TLBIE, TLBSYNC, TLBIA,
+ *                          DCBI, DCBT, DCBTST, MFTB, ECIWX, ECOWX
  * ==================================================
  */
 
