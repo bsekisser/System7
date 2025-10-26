@@ -684,6 +684,73 @@ CNodeID Cat_GetNextID(VCB* vcb)
     return cnid;
 }
 
+/**
+ * Update file record in catalog (sizes, extents, modification date)
+ */
+OSErr Cat_UpdateFileRecord(VCB* vcb, UInt32 dirID, const UInt8* name,
+                          UInt32 logicalEOF, UInt32 physicalEOF,
+                          const ExtDataRec* extents)
+{
+    CatalogKey key;
+    CatalogFileRec fileRec;
+    UInt32 hint = 0;
+    UInt8 recType;
+    OSErr err;
+
+    if (!vcb || !name || !extents) {
+        return paramErr;
+    }
+
+    FS_LockVolume(vcb);
+
+    /* Look up the file */
+    err = Cat_Lookup(vcb, dirID, name, &fileRec, &hint);
+    if (err != noErr) {
+        FS_UnlockVolume(vcb);
+        return err;
+    }
+
+    /* Verify it's a file */
+    recType = *(UInt8*)&fileRec;
+    if (recType != REC_FIL) {
+        FS_UnlockVolume(vcb);
+        return paramErr;
+    }
+
+    /* Build catalog key */
+    memset(&key, 0, sizeof(key));
+    key.ckrKeyLen = sizeof(UInt32) + 1 + name[0];
+    key.ckrParID = dirID;
+    memcpy(key.ckrCName, name, name[0] + 1);
+
+    /* Update file sizes and extent record */
+    fileRec.filLgLen = logicalEOF;
+    fileRec.filPyLen = physicalEOF;
+    memcpy(&fileRec.filExtRec, extents, sizeof(ExtDataRec));
+    fileRec.filMdDat = DateTime_Current();
+
+    /* Delete old record */
+    err = BTree_Delete((BTCB*)vcb->base.vcbCTRef, &key);
+    if (err != noErr) {
+        FS_UnlockVolume(vcb);
+        return err;
+    }
+
+    /* Insert updated record */
+    err = BTree_Insert((BTCB*)vcb->base.vcbCTRef, &key, &fileRec, sizeof(fileRec));
+    if (err != noErr) {
+        FS_UnlockVolume(vcb);
+        return err;
+    }
+
+    /* Mark volume as dirty */
+    vcb->base.vcbFlags |= VCB_DIRTY;
+
+    FS_UnlockVolume(vcb);
+
+    return noErr;
+}
+
 /* ============================================================================
  * B-tree Operations (Simplified Implementation)
  * ============================================================================ */

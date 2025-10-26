@@ -834,25 +834,13 @@ OSErr FCB_Flush(FCB* fcb)
         return noErr;
     }
 
-    /* Look up file in catalog */
-    hint = fcb->fcbCatPos;
-    err = Cat_Lookup(fcb->fcbVPtr, fcb->fcbDirID, fcb->fcbCName, &fileRec, &hint);
+    /* Update catalog with current file sizes and extent record */
+    err = Cat_UpdateFileRecord(fcb->fcbVPtr, fcb->fcbDirID, fcb->fcbCName,
+                               fcb->fcbEOF, fcb->fcbPLen, &fcb->fcbExtRec);
     if (err != noErr) {
+        FS_LOG_ERROR("FCB_Flush: Cat_UpdateFileRecord failed: %d\n", err);
         return err;
     }
-
-    /* Update catalog record */
-    fileRec.filLgLen = fcb->fcbEOF;
-    fileRec.filPyLen = fcb->fcbPLen;
-    fileRec.filStBlk = fcb->fcbSBlk;
-    fileRec.filClpSize = (UInt16)fcb->fcbClmpSize;
-    memcpy(fileRec.filExtRec, fcb->fcbExtRec, sizeof(ExtDataRec));
-    fileRec.filMdDat = DateTime_Current();
-
-    /* Write back to catalog */
-    /* Note: This would typically update the catalog B-tree */
-    /* For now, we'll mark the volume as dirty */
-    fcb->fcbVPtr->vcbFlags |= VCB_DIRTY;
 
     /* Clear dirty flag */
     fcb->fcbFlags &= ~FCB_DIRTY;

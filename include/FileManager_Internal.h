@@ -213,6 +213,9 @@ OSErr Cat_Move(VCB* vcb, UInt32 srcDirID, const UInt8* name, UInt32 dstDirID);
 OSErr Cat_GetInfo(VCB* vcb, UInt32 dirID, const UInt8* name, CInfoPBRec* pb);
 OSErr Cat_SetInfo(VCB* vcb, UInt32 dirID, const UInt8* name, const CInfoPBRec* pb);
 CNodeID Cat_GetNextID(VCB* vcb);
+OSErr Cat_UpdateFileRecord(VCB* vcb, UInt32 dirID, const UInt8* name,
+                          UInt32 logicalEOF, UInt32 physicalEOF,
+                          const ExtDataRec* extents);
 
 /* Extent Management */
 OSErr Ext_Open(VCB* vcb);
