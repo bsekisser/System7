@@ -19,6 +19,7 @@ OSErr CallPackage(short packID, short selector, void* params);
 /* Package dispatcher declarations */
 extern OSErr Pack0_Dispatch(short selector, void* params);  /* List Manager */
 extern OSErr Pack3_Dispatch(short selector, void* params);  /* Standard File */
+extern OSErr Pack4_Dispatch(short selector, void* params);  /* SANE (Floating Point Math) */
 extern OSErr Pack6_Dispatch(short selector, void* params);  /* International Utilities */
 extern OSErr Pack7_Dispatch(short selector, void* params);  /* Binary/Decimal Conversion */
 
@@ -200,8 +201,8 @@ OSErr CallPackage(short packID, short selector, void* params) {
 
         case 4:
             /* Pack4: SANE (Floating Point Math) */
-            PKG_LOG("CallPackage: Pack4 (SANE) not yet implemented\n");
-            return unimpErr;
+            PKG_LOG("CallPackage: Pack4 (SANE) dispatching\n");
+            return Pack4_Dispatch(selector, params);
 
         case 6:
             /* Pack6: International Utilities */

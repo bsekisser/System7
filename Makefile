@@ -380,6 +380,7 @@ C_SOURCES = src/main.c \
             src/PackageManager/PackageManagerCore.c \
             src/PackageManager/TextEncodingUtils.c \
             src/PackageManager/InternationalOrdering.c \
+            src/PackageManager/Pack4_SANE.c \
             src/PackageManager/Pack6_InternationalUtils.c \
             src/PackageManager/Pack7_BinaryDecimal.c \
             src/FileManager.c \
