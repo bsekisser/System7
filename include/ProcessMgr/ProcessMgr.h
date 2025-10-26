@@ -38,6 +38,17 @@ extern "C" {
 #define kPM_FinderProcessID     0x00000002
 
 /*
+ * AppFile structure for GetAppFiles/CountAppFiles
+ * Used to pass file information to applications at launch
+ */
+typedef struct AppFile {
+    SInt16 vRefNum;     /* Volume reference number */
+    OSType fType;       /* File type */
+    SInt16 versNum;     /* Version number (unused in System 7) */
+    Str255 fName;       /* Filename */
+} AppFile;
+
+/*
  * Process States for Cooperative Multitasking
 
  */
@@ -176,6 +187,12 @@ Boolean MultiFinder_IsActive(void);
 ProcessSerialNumber ProcessManager_GetFrontProcess(void);
 OSErr ProcessManager_SetFrontProcess(ProcessSerialNumber psn);
 ProcessQueue* ProcessManager_GetProcessQueue(void);
+
+/* Application File Management - System 7 */
+void GetAppParms(Str255 apName, SInt16* apRefNum, Handle* apParam);
+void CountAppFiles(SInt16* message, SInt16* count);
+OSErr GetAppFiles(SInt16 index, AppFile* theFile);
+void ClrAppFiles(SInt16 index);
 
 /*
  * Global Process Manager Variables
