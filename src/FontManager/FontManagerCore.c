@@ -8,6 +8,7 @@
 #include "FontManager/FontInternal.h"
 #include "FontManager/FontManager.h"
 #include "FontManager/FontTypes.h"
+#include "FontManager/FontResources.h"
 #include "QuickDraw/ColorQuickDraw.h"
 #include "QuickDraw/QuickDraw.h"
 #include "SystemTypes.h"
@@ -325,10 +326,202 @@ void GetFNum(ConstStr255Param name, short *familyID) {
     FM_LOG("GetFNum: %.*s not found\n", name[0], &name[1]);
 }
 
+/* ============================================================================
+ * Resource-Based Font Loading
+ * ============================================================================ */
+
+/* Load a font strike from FOND/NFNT resources */
+static FontStrike* FM_LoadFontStrike(short fontNum, short size, Style face) {
+    extern Handle GetResource(ResType theType, short theID);
+    extern void ReleaseResource(Handle theResource);
+    extern Ptr NewPtr(Size byteCount);
+    extern void DisposePtr(Ptr p);
+
+    FM_LOG("FM_LoadFontStrike: Loading font %d size %d face 0x%02X\n", fontNum, size, face);
+
+    /* Try to load FOND resource (family descriptor) */
+    Handle fondHandle = GetResource('FOND', fontNum);
+    if (!fondHandle) {
+        FM_LOG("FM_LoadFontStrike: FOND %d not found\n", fontNum);
+        return NULL;
+    }
+
+    /* Parse FOND resource */
+    FONDResource* fond = NULL;
+    OSErr err = FM_LoadFONDResource(fondHandle, &fond);
+    if (err != noErr || !fond) {
+        FM_LOG("FM_LoadFontStrike: Failed to parse FOND: %d\n", err);
+        ReleaseResource(fondHandle);
+        return NULL;
+    }
+
+    /* Find best matching NFNT resource ID */
+    short nfntID = FM_FindBestMatch(fond, size, face);
+    if (nfntID < 0) {
+        FM_LOG("FM_LoadFontStrike: No NFNT match found\n");
+        FM_DisposeFOND(fond);
+        ReleaseResource(fondHandle);
+        return NULL;
+    }
+
+    FM_LOG("FM_LoadFontStrike: Found NFNT ID %d\n", nfntID);
+
+    /* Load NFNT resource */
+    Handle nfntHandle = GetResource('NFNT', nfntID);
+    if (!nfntHandle) {
+        FM_LOG("FM_LoadFontStrike: NFNT %d not found\n", nfntID);
+        FM_DisposeFOND(fond);
+        ReleaseResource(fondHandle);
+        return NULL;
+    }
+
+    /* Parse NFNT resource */
+    NFNTResource* nfnt = NULL;
+    err = FM_LoadNFNTResource(nfntHandle, &nfnt);
+    if (err != noErr || !nfnt) {
+        FM_LOG("FM_LoadFontStrike: Failed to parse NFNT: %d\n", err);
+        ReleaseResource(nfntHandle);
+        FM_DisposeFOND(fond);
+        ReleaseResource(fondHandle);
+        return NULL;
+    }
+
+    /* Parse offset/width table */
+    OWTEntry* owt = NULL;
+    err = FM_ParseOWTTable(nfnt, &owt);
+    if (err != noErr || !owt) {
+        FM_LOG("FM_LoadFontStrike: Failed to parse OWT: %d\n", err);
+        FM_DisposeNFNT(nfnt);
+        ReleaseResource(nfntHandle);
+        FM_DisposeFOND(fond);
+        ReleaseResource(fondHandle);
+        return NULL;
+    }
+
+    /* Build width table */
+    UInt8* widths = NULL;
+    err = FM_BuildWidthTable(nfnt, owt, &widths);
+    if (err != noErr || !widths) {
+        FM_LOG("FM_LoadFontStrike: Failed to build width table: %d\n", err);
+        DisposePtr((Ptr)owt);
+        FM_DisposeNFNT(nfnt);
+        ReleaseResource(nfntHandle);
+        FM_DisposeFOND(fond);
+        ReleaseResource(fondHandle);
+        return NULL;
+    }
+
+    /* Extract bitmap data */
+    UInt8* bitmapData = NULL;
+    Size bitmapSize = 0;
+    err = FM_ExtractBitmap(nfnt, &bitmapData, &bitmapSize);
+    if (err != noErr || !bitmapData) {
+        FM_LOG("FM_LoadFontStrike: Failed to extract bitmap: %d\n", err);
+        DisposePtr((Ptr)widths);
+        DisposePtr((Ptr)owt);
+        FM_DisposeNFNT(nfnt);
+        ReleaseResource(nfntHandle);
+        FM_DisposeFOND(fond);
+        ReleaseResource(fondHandle);
+        return NULL;
+    }
+
+    /* Allocate font strike structure */
+    FontStrike* strike = (FontStrike*)NewPtr(sizeof(FontStrike));
+    if (!strike) {
+        FM_LOG("FM_LoadFontStrike: Failed to allocate strike\n");
+        DisposePtr((Ptr)bitmapData);
+        DisposePtr((Ptr)widths);
+        DisposePtr((Ptr)owt);
+        FM_DisposeNFNT(nfnt);
+        ReleaseResource(nfntHandle);
+        FM_DisposeFOND(fond);
+        ReleaseResource(fondHandle);
+        return NULL;
+    }
+
+    /* Fill in strike structure */
+    strike->familyID = fontNum;
+    strike->size = size;
+    strike->face = face;
+    strike->synthetic = FALSE;
+    strike->ascent = nfnt->ascent;
+    strike->descent = nfnt->descent;
+    strike->leading = nfnt->leading;
+    strike->widMax = nfnt->widMax;
+    strike->firstChar = nfnt->firstChar;
+    strike->lastChar = nfnt->lastChar;
+    strike->rowWords = nfnt->rowWords;
+    strike->fRectHeight = nfnt->fRectHeight;
+    /* Cast Ptr to Handle (treating as opaque pointer since we're not using relocatable memory) */
+    strike->bitmapData = (Handle)((void*)bitmapData);
+    strike->locTable = (short*)owt;  /* OWT serves as location table */
+    strike->widthTable = widths;
+    strike->next = NULL;
+    strike->prev = NULL;
+    strike->lastUsed = 0;  /* Will be set by caller */
+
+    /* Clean up temporary structures */
+    FM_DisposeNFNT(nfnt);
+    ReleaseResource(nfntHandle);
+    FM_DisposeFOND(fond);
+    ReleaseResource(fondHandle);
+
+    FM_LOG("FM_LoadFontStrike: Successfully loaded font %d size %d\n", fontNum, size);
+    return strike;
+}
+
+/* Add a strike to the cache (LRU) */
+static void FM_AddStrikeToCache(FontStrike* strike) {
+    if (!strike) return;
+
+    /* For now, simple linked list cache */
+    strike->next = g_fmState.strikeCache;
+    if (g_fmState.strikeCache) {
+        g_fmState.strikeCache->prev = strike;
+    }
+    g_fmState.strikeCache = strike;
+    g_fmState.strikeCacheSize++;
+
+    FM_LOG("FM_AddStrikeToCache: Cache size now %d\n", g_fmState.strikeCacheSize);
+}
+
+/* Find a strike in the cache */
+static FontStrike* FM_FindStrikeInCache(short fontNum, short size, Style face) {
+    FontStrike* strike = g_fmState.strikeCache;
+
+    while (strike) {
+        if (strike->familyID == fontNum && strike->size == size && strike->face == face) {
+            FM_LOG("FM_FindStrikeInCache: Found cached strike for %d/%d/0x%02X\n",
+                   fontNum, size, face);
+            return strike;
+        }
+        strike = strike->next;
+    }
+
+    FM_LOG("FM_FindStrikeInCache: No cached strike for %d/%d/0x%02X\n", fontNum, size, face);
+    return NULL;
+}
+
 Boolean RealFont(short fontNum, short size) {
-    /* For now, only Chicago 12 is "real" */
+    /* Built-in Chicago 12 is always real */
     if (fontNum == chicagoFont && size == 12) {
-        FM_LOG("RealFont: Chicago %d is real\n", size);
+        FM_LOG("RealFont: Chicago %d is real (built-in)\n", size);
+        return TRUE;
+    }
+
+    /* Check if we already have this strike cached */
+    FontStrike* cached = FM_FindStrikeInCache(fontNum, size, normal);
+    if (cached) {
+        FM_LOG("RealFont: Font %d size %d is real (cached)\n", fontNum, size);
+        return TRUE;
+    }
+
+    /* Try to load from resources */
+    FontStrike* strike = FM_LoadFontStrike(fontNum, size, normal);
+    if (strike) {
+        FM_AddStrikeToCache(strike);
+        FM_LOG("RealFont: Font %d size %d is real (loaded from resource)\n", fontNum, size);
         return TRUE;
     }
 
@@ -346,8 +539,36 @@ void TextFont(short font) {
     g_currentPort->txFont = font;
     FM_LOG("TextFont: Set to %d\n", font);
 
-    /* Update current strike - for now always use Chicago 12 */
+    /* Try to find appropriate strike for new font */
+    short size = g_currentPort->txSize;
+    Style face = g_currentPort->txFace;
+
+    /* Check for built-in Chicago 12 */
+    if (font == chicagoFont && size == 12) {
+        g_fmState.currentStrike = &g_chicagoStrike12;
+        return;
+    }
+
+    /* Try to find or load from cache */
+    FontStrike* strike = FM_FindStrikeInCache(font, size, face);
+    if (strike) {
+        g_fmState.currentStrike = strike;
+        FM_LOG("TextFont: Using cached strike for %d/%d\n", font, size);
+        return;
+    }
+
+    /* Try to load from resources */
+    strike = FM_LoadFontStrike(font, size, face);
+    if (strike) {
+        FM_AddStrikeToCache(strike);
+        g_fmState.currentStrike = strike;
+        FM_LOG("TextFont: Loaded strike for %d/%d\n", font, size);
+        return;
+    }
+
+    /* Fall back to Chicago 12 */
     g_fmState.currentStrike = &g_chicagoStrike12;
+    FM_LOG("TextFont: Falling back to Chicago 12\n");
 }
 
 void TextFace(Style face) {
@@ -365,15 +586,36 @@ void TextSize(short size) {
     g_currentPort->txSize = size;
     FM_LOG("TextSize: Set to %d\n", size);
 
-    /* Update current strike based on size */
-    if (size == 12) {
+    /* Try to find appropriate strike for new size */
+    short font = g_currentPort->txFont;
+    Style face = g_currentPort->txFace;
+
+    /* Check for built-in Chicago 12 */
+    if (font == chicagoFont && size == 12) {
         g_fmState.currentStrike = &g_chicagoStrike12;
-    } else {
-        /* For other sizes, we'll use scaling */
-        /* Keep Chicago 12 as base but remember requested size in txSize */
-        g_fmState.currentStrike = &g_chicagoStrike12;
-        FM_LOG("TextSize: Will use scaling for %dpt\n", size);
+        return;
     }
+
+    /* Try to find or load from cache */
+    FontStrike* strike = FM_FindStrikeInCache(font, size, face);
+    if (strike) {
+        g_fmState.currentStrike = strike;
+        FM_LOG("TextSize: Using cached strike for %d/%d\n", font, size);
+        return;
+    }
+
+    /* Try to load from resources */
+    strike = FM_LoadFontStrike(font, size, face);
+    if (strike) {
+        FM_AddStrikeToCache(strike);
+        g_fmState.currentStrike = strike;
+        FM_LOG("TextSize: Loaded strike for %d/%d\n", font, size);
+        return;
+    }
+
+    /* Fall back to Chicago 12 (will use scaling if needed) */
+    g_fmState.currentStrike = &g_chicagoStrike12;
+    FM_LOG("TextSize: Falling back to Chicago 12 (will scale from 12 to %d)\n", size);
 }
 
 void TextMode(short mode) {
@@ -388,9 +630,31 @@ void TextMode(short mode) {
  * ============================================================================ */
 
 void GetFontMetrics(FMetricRec *theMetrics) {
-    if (!theMetrics || !g_fmState.currentStrike) return;
+    if (!theMetrics) return;
 
+    /* Use current strike if available, otherwise load it */
     FontStrike* strike = g_fmState.currentStrike;
+
+    if (!strike && g_currentPort) {
+        /* Try to load appropriate strike */
+        short font = g_currentPort->txFont;
+        short size = g_currentPort->txSize;
+        Style face = g_currentPort->txFace;
+
+        strike = FM_FindStrikeInCache(font, size, face);
+        if (!strike) {
+            strike = FM_LoadFontStrike(font, size, face);
+            if (strike) {
+                FM_AddStrikeToCache(strike);
+                g_fmState.currentStrike = strike;
+            }
+        }
+    }
+
+    /* Fall back to Chicago 12 if no strike available */
+    if (!strike) {
+        strike = &g_chicagoStrike12;
+    }
 
     /* FMetricRec uses SInt32, not Fixed */
     theMetrics->ascent = strike->ascent;
@@ -704,7 +968,21 @@ FMOutPtr FMSwapFont(const FMInput *inRec) {
     FM_LOG("FMSwapFont: family=%d size=%d face=0x%02x\n",
            inRec->family, inRec->size, inRec->face);
 
-    /* For now, always return Chicago 12 metrics */
+    /* Try to find or load the requested font strike */
+    FontStrike* strike = FM_FindStrikeInCache(inRec->family, inRec->size, inRec->face);
+    if (!strike) {
+        strike = FM_LoadFontStrike(inRec->family, inRec->size, inRec->face);
+        if (strike) {
+            FM_AddStrikeToCache(strike);
+        }
+    }
+
+    /* Fall back to Chicago 12 if not found */
+    if (!strike) {
+        strike = &g_chicagoStrike12;
+    }
+
+    /* Fill output record with actual metrics */
     g_fmOutput.errNum = noErr;
     g_fmOutput.fontHandle = NULL;  /* Would be handle to NFNT resource */
     g_fmOutput.boldPixels = (inRec->face & bold) ? 1 : 0;
@@ -714,10 +992,10 @@ FMOutPtr FMSwapFont(const FMInput *inRec) {
     g_fmOutput.ulShadow = 0;  /* Underline shadow */
     g_fmOutput.shadowPixels = (inRec->face & shadow) ? 1 : 0;
     g_fmOutput.extra = 0;
-    g_fmOutput.ascent = CHICAGO_ASCENT;
-    g_fmOutput.descent = CHICAGO_DESCENT;
-    g_fmOutput.widMax = 16;
-    g_fmOutput.leading = CHICAGO_LEADING;
+    g_fmOutput.ascent = strike->ascent;
+    g_fmOutput.descent = strike->descent;
+    g_fmOutput.widMax = strike->widMax;
+    g_fmOutput.leading = strike->leading;
     g_fmOutput.unused = 0;
     g_fmOutput.numer.h = 1;
     g_fmOutput.numer.v = 1;
@@ -725,7 +1003,7 @@ FMOutPtr FMSwapFont(const FMInput *inRec) {
     g_fmOutput.denom.v = 1;
 
     /* Update current strike */
-    g_fmState.currentStrike = &g_chicagoStrike12;
+    g_fmState.currentStrike = strike;
 
     return &g_fmOutput;
 }
