@@ -309,6 +309,7 @@ C_SOURCES = src/main.c \
             src/Resources/pattern_data.c \
             src/Resources/happy_mac_icon.c \
             src/Resources/generated/icons_generated.c \
+            src/Resources/ResourceData.c \
             src/ControlPanels/cdev_desktop.c \
             src/simple_resource_manager.c \
             src/ControlManager/ControlManagerCore.c \
