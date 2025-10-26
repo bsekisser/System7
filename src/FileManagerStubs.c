@@ -301,35 +301,444 @@ OSErr Ext_Map(VCB* vcb, FCB* fcb, UInt32 fileBlock, UInt32* physBlock, UInt32* c
     return ioErr;
 }
 
+/* ============================================================================
+ * Extent Management - File Extension/Truncation
+ * ============================================================================ */
+
 OSErr Ext_Extend(VCB* vcb, FCB* fcb, UInt32 newSize) {
-    FS_LOG_DEBUG("Ext_Extend stub: newSize=%d\n", newSize);
+    UInt32 currentBlocks;
+    UInt32 neededBlocks;
+    UInt32 allocStart;
+    UInt32 allocCount;
+    UInt32 clumpSize;
+    UInt32 blocksToAlloc;
+    UInt32 lastBlock = 0;
+    UInt32 i;
+    OSErr err;
+
+    if (!vcb || !fcb) {
+        return paramErr;
+    }
+
+    /* Calculate current and needed blocks */
+    currentBlocks = (fcb->base.fcbPLen + vcb->base.vcbAlBlkSiz - 1) / vcb->base.vcbAlBlkSiz;
+    neededBlocks = (newSize + vcb->base.vcbAlBlkSiz - 1) / vcb->base.vcbAlBlkSiz;
+
+    if (neededBlocks <= currentBlocks) {
+        /* No additional blocks needed */
+        return noErr;
+    }
+
+    /* Calculate allocation size using clump size */
+    clumpSize = (fcb->base.fcbClpSiz != 0) ? fcb->base.fcbClpSiz : vcb->base.vcbClpSiz;
+    UInt32 clumpBlocks = (clumpSize + vcb->base.vcbAlBlkSiz - 1) / vcb->base.vcbAlBlkSiz;
+    blocksToAlloc = neededBlocks - currentBlocks;
+    if (blocksToAlloc < clumpBlocks) {
+        blocksToAlloc = clumpBlocks;  /* Allocate at least one clump */
+    }
+
+    /* Find last allocated block for contiguous allocation hint */
+    if (currentBlocks > 0) {
+        for (i = 0; i < 3; i++) {
+            if (fcb->base.fcbExtRec.extent[i].blockCount > 0) {
+                lastBlock = fcb->base.fcbExtRec.extent[i].startBlock +
+                           fcb->base.fcbExtRec.extent[i].blockCount;
+            }
+        }
+    }
+
+    /* Try to allocate contiguously after current end */
+    err = Alloc_Blocks(vcb, lastBlock, blocksToAlloc, blocksToAlloc,
+                      &allocStart, &allocCount);
+    if (err != noErr) {
+        /* Try allocating minimum needed */
+        blocksToAlloc = neededBlocks - currentBlocks;
+        err = Alloc_Blocks(vcb, 0, blocksToAlloc, blocksToAlloc,
+                          &allocStart, &allocCount);
+        if (err != noErr) {
+            FS_LOG_ERROR("Ext_Extend: allocation failed, needed %u blocks\n",
+                        blocksToAlloc);
+            return err;
+        }
+    }
+
+    /* Add to extent record (simplified - assumes fits in first 3 extents) */
+    Boolean extentAdded = false;
+    for (i = 0; i < 3; i++) {
+        if (fcb->base.fcbExtRec.extent[i].blockCount == 0) {
+            /* Empty extent slot */
+            fcb->base.fcbExtRec.extent[i].startBlock = (UInt16)allocStart;
+            fcb->base.fcbExtRec.extent[i].blockCount = (UInt16)allocCount;
+            extentAdded = true;
+            FS_LOG_DEBUG("Ext_Extend: added new extent[%u]: start=%u count=%u\n",
+                        i, allocStart, allocCount);
+            break;
+        } else if (fcb->base.fcbExtRec.extent[i].startBlock +
+                   fcb->base.fcbExtRec.extent[i].blockCount == allocStart) {
+            /* Can merge with existing extent */
+            fcb->base.fcbExtRec.extent[i].blockCount += (UInt16)allocCount;
+            extentAdded = true;
+            FS_LOG_DEBUG("Ext_Extend: merged with extent[%u]: new count=%u\n",
+                        i, fcb->base.fcbExtRec.extent[i].blockCount);
+            break;
+        }
+    }
+
+    if (!extentAdded) {
+        /* No room in extent record - would need overflow B-tree */
+        FS_LOG_ERROR("Ext_Extend: extent overflow (>3 extents) not supported\n");
+        Alloc_Free(vcb, allocStart, allocCount);
+        return ioErr;  /* File system limitation */
+    }
+
+    /* Update FCB */
+    fcb->base.fcbPLen = (currentBlocks + allocCount) * vcb->base.vcbAlBlkSiz;
+    fcb->base.fcbFlags |= FCB_DIRTY;
+
+    FS_LOG_DEBUG("Ext_Extend: extended from %u to %u blocks (pLen=%u)\n",
+                currentBlocks, currentBlocks + allocCount, fcb->base.fcbPLen);
+
     return noErr;
 }
 
 OSErr Ext_Truncate(VCB* vcb, FCB* fcb, UInt32 newSize) {
-    FS_LOG_DEBUG("Ext_Truncate stub: newSize=%d\n", newSize);
+    UInt32 currentBlocks;
+    UInt32 neededBlocks;
+    UInt32 blocksToFree;
+    SInt32 i;
+    OSErr err;
+
+    if (!vcb || !fcb) {
+        return paramErr;
+    }
+
+    /* Calculate current and needed blocks */
+    currentBlocks = (fcb->base.fcbPLen + vcb->base.vcbAlBlkSiz - 1) / vcb->base.vcbAlBlkSiz;
+    neededBlocks = (newSize + vcb->base.vcbAlBlkSiz - 1) / vcb->base.vcbAlBlkSiz;
+
+    if (neededBlocks >= currentBlocks) {
+        /* No blocks to free */
+        return noErr;
+    }
+
+    blocksToFree = currentBlocks - neededBlocks;
+
+    /* Free blocks from end of extents (work backwards) */
+    for (i = 2; i >= 0; i--) {
+        if (fcb->base.fcbExtRec.extent[i].blockCount > 0) {
+            if (blocksToFree >= fcb->base.fcbExtRec.extent[i].blockCount) {
+                /* Free entire extent */
+                err = Alloc_Free(vcb, fcb->base.fcbExtRec.extent[i].startBlock,
+                               fcb->base.fcbExtRec.extent[i].blockCount);
+                if (err != noErr) {
+                    FS_LOG_ERROR("Ext_Truncate: failed to free extent[%d]\n", i);
+                    return err;
+                }
+
+                FS_LOG_DEBUG("Ext_Truncate: freed entire extent[%d]: %u blocks\n",
+                            i, fcb->base.fcbExtRec.extent[i].blockCount);
+
+                blocksToFree -= fcb->base.fcbExtRec.extent[i].blockCount;
+                fcb->base.fcbExtRec.extent[i].startBlock = 0;
+                fcb->base.fcbExtRec.extent[i].blockCount = 0;
+            } else {
+                /* Free partial extent */
+                UInt32 keepBlocks = fcb->base.fcbExtRec.extent[i].blockCount - blocksToFree;
+                err = Alloc_Free(vcb,
+                               fcb->base.fcbExtRec.extent[i].startBlock + keepBlocks,
+                               blocksToFree);
+                if (err != noErr) {
+                    FS_LOG_ERROR("Ext_Truncate: failed to free partial extent[%d]\n", i);
+                    return err;
+                }
+
+                FS_LOG_DEBUG("Ext_Truncate: freed %u blocks from extent[%d]\n",
+                            blocksToFree, i);
+
+                fcb->base.fcbExtRec.extent[i].blockCount = (UInt16)keepBlocks;
+                blocksToFree = 0;
+            }
+
+            if (blocksToFree == 0) {
+                break;
+            }
+        }
+    }
+
+    /* Update FCB */
+    fcb->base.fcbPLen = neededBlocks * vcb->base.vcbAlBlkSiz;
+    fcb->base.fcbFlags |= FCB_DIRTY;
+
+    FS_LOG_DEBUG("Ext_Truncate: truncated from %u to %u blocks (pLen=%u)\n",
+                currentBlocks, neededBlocks, fcb->base.fcbPLen);
+
     return noErr;
 }
 
-/* Allocation Bitmap Management */
+/* ============================================================================
+ * Allocation Bitmap Management
+ * ============================================================================ */
+
+/* Bitmap bit manipulation helpers */
+#define BITS_PER_BYTE 8
+
+static Boolean TestBit(UInt8* bitmap, UInt32 bitNum) {
+    UInt32 byteNum = bitNum / BITS_PER_BYTE;
+    UInt32 bitPos = bitNum % BITS_PER_BYTE;
+    return (bitmap[byteNum] & (1 << (7 - bitPos))) != 0;
+}
+
+static void SetBit(UInt8* bitmap, UInt32 bitNum) {
+    UInt32 byteNum = bitNum / BITS_PER_BYTE;
+    UInt32 bitPos = bitNum % BITS_PER_BYTE;
+    bitmap[byteNum] |= (1 << (7 - bitPos));
+}
+
+static void ClearBit(UInt8* bitmap, UInt32 bitNum) {
+    UInt32 byteNum = bitNum / BITS_PER_BYTE;
+    UInt32 bitPos = bitNum % BITS_PER_BYTE;
+    bitmap[byteNum] &= ~(1 << (7 - bitPos));
+}
+
+/* Find a run of free blocks in the bitmap */
+static UInt32 FindFreeRun(UInt8* bitmap, UInt32 totalBlocks,
+                          UInt32 startHint, UInt32 minBlocks) {
+    UInt32 start = startHint;
+    UInt32 count = 0;
+    UInt32 firstFree = 0;
+    Boolean wrapped = false;
+
+    while (true) {
+        /* Check if block is free */
+        if (!TestBit(bitmap, start)) {
+            if (count == 0) {
+                firstFree = start;
+            }
+            count++;
+
+            /* Found enough blocks? */
+            if (count >= minBlocks) {
+                return firstFree;
+            }
+        } else {
+            /* Block is allocated, reset count */
+            count = 0;
+        }
+
+        /* Move to next block */
+        start++;
+        if (start >= totalBlocks) {
+            if (wrapped) {
+                break;  /* Searched entire bitmap */
+            }
+            start = 0;
+            wrapped = true;
+        }
+
+        /* Stop if we've come back to hint */
+        if (wrapped && start >= startHint) {
+            break;
+        }
+    }
+
+    return 0xFFFFFFFF;  /* No run found */
+}
+
 OSErr Alloc_Init(VCB* vcb) {
-    FS_LOG_DEBUG("Alloc_Init stub\n");
+    UInt32 bitmapBytes;
+    UInt32 bitmapBlocks;
+    OSErr err;
+
+    if (!vcb) {
+        return paramErr;
+    }
+
+    /* Calculate bitmap size */
+    bitmapBytes = (vcb->base.vcbNmAlBlks + 7) / 8;  /* Round up to byte boundary */
+    bitmapBlocks = (bitmapBytes + 511) / 512;  /* 512 bytes per block */
+
+    /* Allocate bitmap cache */
+    vcb->base.vcbMAdr = NewPtrClear((Size)bitmapBytes);
+    if (!vcb->base.vcbMAdr) {
+        return memFullErr;
+    }
+
+    /* Read bitmap from disk */
+    err = IO_ReadBlocks(vcb, (UInt32)vcb->base.vcbVBMSt, bitmapBlocks, vcb->base.vcbMAdr);
+    if (err != noErr) {
+        DisposePtr(vcb->base.vcbMAdr);
+        vcb->base.vcbMAdr = NULL;
+        return err;
+    }
+
+    FS_LOG_DEBUG("Alloc_Init: loaded %u blocks of bitmap (%u bytes)\n",
+                 bitmapBlocks, bitmapBytes);
     return noErr;
 }
 
 OSErr Alloc_Close(VCB* vcb) {
-    FS_LOG_DEBUG("Alloc_Close stub\n");
+    if (!vcb) {
+        return paramErr;
+    }
+
+    /* Free bitmap cache */
+    if (vcb->base.vcbMAdr) {
+        DisposePtr(vcb->base.vcbMAdr);
+        vcb->base.vcbMAdr = NULL;
+    }
+
+    FS_LOG_DEBUG("Alloc_Close: freed bitmap cache\n");
     return noErr;
 }
 
 OSErr Alloc_Blocks(VCB* vcb, UInt32 startHint, UInt32 minBlocks, UInt32 maxBlocks,
                    UInt32* actualStart, UInt32* actualCount) {
-    FS_LOG_DEBUG("Alloc_Blocks stub: minBlocks=%d, maxBlocks=%d\n", minBlocks, maxBlocks);
-    return dskFulErr;
+    UInt8* bitmap;
+    UInt32 foundStart;
+    UInt32 foundCount;
+    UInt32 i;
+    UInt32 bitmapBytes;
+    UInt32 bitmapBlocks;
+    OSErr err;
+
+    if (!vcb || !actualStart || !actualCount) {
+        return paramErr;
+    }
+
+    if (minBlocks == 0 || minBlocks > maxBlocks) {
+        return paramErr;
+    }
+
+    FS_LockVolume(vcb);
+
+    /* Ensure bitmap is loaded */
+    if (!vcb->base.vcbMAdr) {
+        FS_UnlockVolume(vcb);
+        return ioErr;
+    }
+
+    bitmap = (UInt8*)vcb->base.vcbMAdr;
+
+    /* Check if enough free blocks available */
+    if (vcb->base.vcbFreeBks < minBlocks) {
+        FS_UnlockVolume(vcb);
+        return dskFulErr;
+    }
+
+    /* Use allocation pointer as hint if no hint provided */
+    if (startHint == 0) {
+        startHint = (UInt32)vcb->base.vcbAllocPtr;
+    }
+
+    /* Find a run of free blocks */
+    foundStart = FindFreeRun(bitmap, (UInt32)vcb->base.vcbNmAlBlks, startHint, minBlocks);
+    if (foundStart == 0xFFFFFFFF) {
+        /* Try again from beginning */
+        foundStart = FindFreeRun(bitmap, (UInt32)vcb->base.vcbNmAlBlks, 0, minBlocks);
+        if (foundStart == 0xFFFFFFFF) {
+            FS_UnlockVolume(vcb);
+            return dskFulErr;
+        }
+    }
+
+    /* Count available blocks in the run */
+    foundCount = 0;
+    for (i = foundStart; i < (UInt32)vcb->base.vcbNmAlBlks && foundCount < maxBlocks; i++) {
+        if (!TestBit(bitmap, i)) {
+            foundCount++;
+        } else {
+            break;
+        }
+    }
+
+    /* Mark blocks as allocated */
+    for (i = 0; i < foundCount; i++) {
+        SetBit(bitmap, foundStart + i);
+    }
+
+    /* Update VCB */
+    vcb->base.vcbFreeBks -= (UInt16)foundCount;
+    vcb->base.vcbAllocPtr = (SInt16)(foundStart + foundCount);
+    if (vcb->base.vcbAllocPtr >= vcb->base.vcbNmAlBlks) {
+        vcb->base.vcbAllocPtr = 0;
+    }
+    vcb->base.vcbFlags |= VCB_DIRTY;
+
+    /* Write updated bitmap back to disk */
+    bitmapBytes = (vcb->base.vcbNmAlBlks + 7) / 8;
+    bitmapBlocks = (bitmapBytes + 511) / 512;
+    err = IO_WriteBlocks(vcb, (UInt32)vcb->base.vcbVBMSt, bitmapBlocks, bitmap);
+    if (err != noErr) {
+        FS_LOG_ERROR("Alloc_Blocks: failed to write bitmap: %d\n", err);
+        FS_UnlockVolume(vcb);
+        return err;
+    }
+
+    *actualStart = foundStart;
+    *actualCount = foundCount;
+
+    FS_LOG_DEBUG("Alloc_Blocks: allocated %u blocks at %u (free=%u)\n",
+                 foundCount, foundStart, vcb->base.vcbFreeBks);
+
+    FS_UnlockVolume(vcb);
+    return noErr;
 }
 
 OSErr Alloc_Free(VCB* vcb, UInt32 startBlock, UInt32 blockCount) {
-    FS_LOG_DEBUG("Alloc_Free stub: startBlock=%d, count=%d\n", startBlock, blockCount);
+    UInt8* bitmap;
+    UInt32 i;
+    UInt32 bitmapBytes;
+    UInt32 bitmapBlocks;
+    OSErr err;
+
+    if (!vcb || blockCount == 0) {
+        return paramErr;
+    }
+
+    /* Check bounds */
+    if (startBlock + blockCount > (UInt32)vcb->base.vcbNmAlBlks) {
+        return paramErr;
+    }
+
+    FS_LockVolume(vcb);
+
+    /* Ensure bitmap is loaded */
+    if (!vcb->base.vcbMAdr) {
+        FS_UnlockVolume(vcb);
+        return ioErr;
+    }
+
+    bitmap = (UInt8*)vcb->base.vcbMAdr;
+
+    /* Mark blocks as free */
+    for (i = 0; i < blockCount; i++) {
+        if (TestBit(bitmap, startBlock + i)) {
+            ClearBit(bitmap, startBlock + i);
+            vcb->base.vcbFreeBks++;
+        }
+    }
+
+    /* Update allocation pointer to freed area for next search */
+    if (startBlock < (UInt32)vcb->base.vcbAllocPtr) {
+        vcb->base.vcbAllocPtr = (SInt16)startBlock;
+    }
+
+    vcb->base.vcbFlags |= VCB_DIRTY;
+
+    /* Write updated bitmap back to disk */
+    bitmapBytes = (vcb->base.vcbNmAlBlks + 7) / 8;
+    bitmapBlocks = (bitmapBytes + 511) / 512;
+    err = IO_WriteBlocks(vcb, (UInt32)vcb->base.vcbVBMSt, bitmapBlocks, bitmap);
+    if (err != noErr) {
+        FS_LOG_ERROR("Alloc_Free: failed to write bitmap: %d\n", err);
+        FS_UnlockVolume(vcb);
+        return err;
+    }
+
+    FS_LOG_DEBUG("Alloc_Free: freed %u blocks at %u (free=%u)\n",
+                 blockCount, startBlock, vcb->base.vcbFreeBks);
+
+    FS_UnlockVolume(vcb);
     return noErr;
 }
 

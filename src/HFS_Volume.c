@@ -63,6 +63,9 @@ void VCB_Free(VCB* vcb)
         return;
     }
 
+    /* Close allocation bitmap */
+    Alloc_Close(vcb);
+
     /* Free caches */
     if (vcb->vcbVBMCache) {
         DisposePtr((Ptr)vcb->vcbVBMCache);
