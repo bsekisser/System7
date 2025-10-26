@@ -97,6 +97,12 @@ void    MoveHHi(Handle h);
 void    EmptyHandle(Handle h);
 bool    RecoverHandle(void* p, Handle* h);
 
+/* Handle utility functions - System 7 */
+OSErr   HandToHand(Handle* theHndl);
+OSErr   PtrToHand(const void* srcPtr, Handle* dstHndl, Size size);
+OSErr   PtrAndHand(const void* srcPtr, Handle dstHndl, Size size);
+OSErr   HandAndHand(Handle aHndl, Handle bHndl);
+
 /* Zone operations */
 void    InitZone(ZoneInfo* zone, void* memory, u32 size, void** masterTable, u32 masterCount);
 ZoneInfo* GetZone(void);
