@@ -270,6 +270,15 @@ void SetCursor(const Cursor* crsr) {
     CursorManager_SetCursorInternal(crsr, false);
 }
 
+/* Get cursor from resource */
+CursHandle GetCursor(short cursorID) {
+    /* Load CURS resource from Resource Manager */
+    extern Handle GetResource(ResType theType, ResID theID);
+
+    /* CURS resource type is 'CURS' = 0x43555253 */
+    return (CursHandle)GetResource(0x43555253, cursorID);
+}
+
 const Cursor* CursorManager_GetCurrentCursorImage(void) {
     return gCursorState.hasCursor ? &gCursorState.currentImage : NULL;
 }

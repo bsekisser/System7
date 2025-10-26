@@ -245,6 +245,7 @@ void DrawText(const void* textBuf, short firstByte, short byteCount);
 /* Cursor Management */
 void InitCursor(void);
 void SetCursor(const Cursor *crsr);
+CursHandle GetCursor(short cursorID);
 void HideCursor(void);
 void ShowCursor(void);
 void ObscureCursor(void);
