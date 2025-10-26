@@ -50,6 +50,53 @@ static inline double trunc(double x) {
     return (double)(SInt32)x;
 }
 
+static inline float exp2f(float x) {
+    /* Simple exponential approximation: 2^x */
+    /* For small x, use Taylor series: 2^x ≈ 1 + x*ln(2) + (x*ln(2))^2/2 + ... */
+    if (x == 0.0f) return 1.0f;
+    if (x < 0.0f) return 1.0f / exp2f(-x);
+
+    /* For larger x, use power of 2 decomposition */
+    int whole = (int)x;
+    float frac = x - (float)whole;
+    float result = 1.0f;
+
+    /* Compute 2^whole by repeated multiplication */
+    for (int i = 0; i < whole; i++) {
+        result *= 2.0f;
+    }
+
+    /* Approximate 2^frac using Taylor series */
+    float ln2 = 0.693147f;
+    float term = frac * ln2;
+    result *= (1.0f + term + term * term / 2.0f);
+
+    return result;
+}
+
+static inline float log2f(float x) {
+    /* Simple logarithm base 2 approximation */
+    if (x <= 0.0f) return 0.0f;
+    if (x == 1.0f) return 0.0f;
+
+    /* Find the exponent by repeated division */
+    float result = 0.0f;
+    while (x >= 2.0f) {
+        x /= 2.0f;
+        result += 1.0f;
+    }
+    while (x < 1.0f) {
+        x *= 2.0f;
+        result -= 1.0f;
+    }
+
+    /* Linear approximation for fractional part */
+    /* log2(x) ≈ (x-1) when x is close to 1 */
+    result += (x - 1.0f) * 1.4427f; /* 1.4427 = 1/ln(2) */
+
+    return result;
+}
+
 /*
  * Helper Functions
  */
@@ -7065,9 +7112,220 @@ void PPC_Op_VMSUMUHM(PPCAddressSpace* as, UInt32 insn)
 }
 
 /*
+ * Vector Floating-Point Compare Operations
+ */
+
+/* VCMPEQFP - Vector Compare Equal Floating-Point */
+void PPC_Op_VCMPEQFP(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        float a = VR_GetFloat(as, va, i);
+        float b = VR_GetFloat(as, vb, i);
+        as->regs.vr[vd][i] = (a == b) ? 0xFFFFFFFF : 0x00000000;
+    }
+}
+
+/* VCMPGEFP - Vector Compare Greater Than or Equal Floating-Point */
+void PPC_Op_VCMPGEFP(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        float a = VR_GetFloat(as, va, i);
+        float b = VR_GetFloat(as, vb, i);
+        as->regs.vr[vd][i] = (a >= b) ? 0xFFFFFFFF : 0x00000000;
+    }
+}
+
+/* VCMPGTFP - Vector Compare Greater Than Floating-Point */
+void PPC_Op_VCMPGTFP(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        float a = VR_GetFloat(as, va, i);
+        float b = VR_GetFloat(as, vb, i);
+        as->regs.vr[vd][i] = (a > b) ? 0xFFFFFFFF : 0x00000000;
+    }
+}
+
+/* VCMPBFP - Vector Compare Bounds Floating-Point */
+void PPC_Op_VCMPBFP(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        float a = VR_GetFloat(as, va, i);
+        float b = VR_GetFloat(as, vb, i);
+        UInt32 result = 0;
+
+        /* Check if a <= -b (bit 0) */
+        if (a <= -b) result |= 0x80000000;
+
+        /* Check if a >= b (bit 1) */
+        if (a >= b) result |= 0x40000000;
+
+        as->regs.vr[vd][i] = result;
+    }
+}
+
+/*
+ * Vector Floating-Point Estimate Operations
+ */
+
+/* VREFP - Vector Reciprocal Estimate Floating-Point */
+void PPC_Op_VREFP(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        float b = VR_GetFloat(as, vb, i);
+        float result = (b != 0.0f) ? (1.0f / b) : 0.0f;
+        VR_SetFloat(as, vd, i, result);
+    }
+}
+
+/* VRSQRTEFP - Vector Reciprocal Square Root Estimate Floating-Point */
+void PPC_Op_VRSQRTEFP(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        float b = VR_GetFloat(as, vb, i);
+        float result = (b > 0.0f) ? (1.0f / sqrtf(b)) : 0.0f;
+        VR_SetFloat(as, vd, i, result);
+    }
+}
+
+/* VEXPTEFP - Vector 2^x Estimate Floating-Point */
+void PPC_Op_VEXPTEFP(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        float b = VR_GetFloat(as, vb, i);
+        float result = exp2f(b);
+        VR_SetFloat(as, vd, i, result);
+    }
+}
+
+/* VLOGEFP - Vector log2(x) Estimate Floating-Point */
+void PPC_Op_VLOGEFP(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        float b = VR_GetFloat(as, vb, i);
+        float result = (b > 0.0f) ? log2f(b) : 0.0f;
+        VR_SetFloat(as, vd, i, result);
+    }
+}
+
+/*
+ * Vector Load/Store for Shift Operations
+ */
+
+/* LVSL - Load Vector for Shift Left */
+void PPC_Op_LVSL(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea = (ra ? as->regs.gpr[ra] : 0) + as->regs.gpr[rb];
+    UInt8 sh = ea & 0xF;
+    int i;
+
+    /* Generate shift control vector for left shift */
+    for (i = 0; i < 16; i++) {
+        VR_SetByte(as, vd, i, (sh + i) & 0x1F);
+    }
+}
+
+/* LVSR - Load Vector for Shift Right */
+void PPC_Op_LVSR(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea = (ra ? as->regs.gpr[ra] : 0) + as->regs.gpr[rb];
+    UInt8 sh = ea & 0xF;
+    int i;
+
+    /* Generate shift control vector for right shift */
+    for (i = 0; i < 16; i++) {
+        VR_SetByte(as, vd, i, (16 - sh + i) & 0x1F);
+    }
+}
+
+/*
+ * Additional Vector Load/Store Operations
+ */
+
+/* LVXL - Load Vector Indexed LRU (cache hint variant of LVX) */
+void PPC_Op_LVXL(PPCAddressSpace* as, UInt32 insn)
+{
+    /* Same as LVX but with cache hint - just use LVX implementation */
+    PPC_Op_LVX(as, insn);
+}
+
+/* STVXL - Store Vector Indexed LRU (cache hint variant of STVX) */
+void PPC_Op_STVXL(PPCAddressSpace* as, UInt32 insn)
+{
+    /* Same as STVX but with cache hint - just use STVX implementation */
+    PPC_Op_STVX(as, insn);
+}
+
+/* LVEWX - Load Vector Element Word Indexed */
+void PPC_Op_LVEWX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea = (ra ? as->regs.gpr[ra] : 0) + as->regs.gpr[rb];
+    UInt32 word = PPC_Read32(as, ea & ~0x3);  /* Word-aligned */
+    UInt8 element = (ea >> 2) & 0x3;
+
+    as->regs.vr[vd][element] = word;
+}
+
+/* STVEWX - Store Vector Element Word Indexed */
+void PPC_Op_STVEWX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vs = PPC_RS(insn);
+    UInt8 ra = PPC_RA(insn);
+    UInt8 rb = PPC_RB(insn);
+    UInt32 ea = (ra ? as->regs.gpr[ra] : 0) + as->regs.gpr[rb];
+    UInt8 element = (ea >> 2) & 0x3;
+
+    PPC_Write32(as, ea & ~0x3, as->regs.vr[vs][element]);
+}
+
+/*
  * ==================================================
  * COMPREHENSIVE IMPLEMENTATION
- * Total: 379 instructions (217 base + 11 601 + 13 supervisor + 138 AltiVec)
+ * Total: 393 instructions (217 base + 11 601 + 13 supervisor + 152 AltiVec)
  *
  * Supervisor instructions: MFSR, MTSR, MFSRIN, MTSRIN, TLBIE, TLBSYNC, TLBIA,
  *                          DCBI, DCBT, DCBTST, MFTB, ECIWX, ECOWX

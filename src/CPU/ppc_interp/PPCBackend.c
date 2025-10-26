@@ -1194,6 +1194,40 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     PPC_Op_VMSUMUHM(as, insn);
                     break;
 
+                /* Floating-Point Compare */
+                case PPC_VXO_VCMPEQFP:
+                    PPC_Op_VCMPEQFP(as, insn);
+                    break;
+
+                case PPC_VXO_VCMPGEFP:
+                    PPC_Op_VCMPGEFP(as, insn);
+                    break;
+
+                case PPC_VXO_VCMPGTFP:
+                    PPC_Op_VCMPGTFP(as, insn);
+                    break;
+
+                case PPC_VXO_VCMPBFP:
+                    PPC_Op_VCMPBFP(as, insn);
+                    break;
+
+                /* Floating-Point Estimate */
+                case PPC_VXO_VREFP:
+                    PPC_Op_VREFP(as, insn);
+                    break;
+
+                case PPC_VXO_VRSQRTEFP:
+                    PPC_Op_VRSQRTEFP(as, insn);
+                    break;
+
+                case PPC_VXO_VEXPTEFP:
+                    PPC_Op_VEXPTEFP(as, insn);
+                    break;
+
+                case PPC_VXO_VLOGEFP:
+                    PPC_Op_VLOGEFP(as, insn);
+                    break;
+
                 default:
                     PPC_Fault(as, "Unimplemented AltiVec opcode");
                     break;
@@ -1789,6 +1823,31 @@ OSErr PPC_Step(PPCAddressSpace* as)
 
                 case PPC_OP_STVEHX:
                     PPC_Op_STVEHX(as, insn);
+                    break;
+
+                /* Additional vector load/store */
+                case PPC_OP_LVSL:
+                    PPC_Op_LVSL(as, insn);
+                    break;
+
+                case PPC_OP_LVSR:
+                    PPC_Op_LVSR(as, insn);
+                    break;
+
+                case PPC_OP_LVEWX:
+                    PPC_Op_LVEWX(as, insn);
+                    break;
+
+                case PPC_OP_STVEWX:
+                    PPC_Op_STVEWX(as, insn);
+                    break;
+
+                case PPC_OP_LVXL:
+                    PPC_Op_LVXL(as, insn);
+                    break;
+
+                case PPC_OP_STVXL:
+                    PPC_Op_STVXL(as, insn);
                     break;
 
                 default:

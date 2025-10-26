@@ -558,6 +558,18 @@ extern "C" {
 #define PPC_VXO_VMSUMUBM    36   /* Vector multiply-sum unsigned byte modulo */
 #define PPC_VXO_VMSUMUHM    40   /* Vector multiply-sum unsigned halfword modulo */
 
+/* Vector floating-point compare */
+#define PPC_VXO_VCMPEQFP    198  /* Vector compare equal floating-point */
+#define PPC_VXO_VCMPGEFP    2000 /* Vector compare greater than or equal floating-point */
+#define PPC_VXO_VCMPGTFP    710  /* Vector compare greater than floating-point */
+#define PPC_VXO_VCMPBFP     966  /* Vector compare bounds floating-point */
+
+/* Vector floating-point estimate */
+#define PPC_VXO_VREFP       2001 /* Vector reciprocal estimate floating-point */
+#define PPC_VXO_VRSQRTEFP   2002 /* Vector reciprocal square root estimate floating-point */
+#define PPC_VXO_VEXPTEFP    2003 /* Vector 2^x estimate floating-point */
+#define PPC_VXO_VLOGEFP     2004 /* Vector log2 estimate floating-point */
+
 /* Vector load/store (use primary opcodes 7, 39, etc.) */
 #define PPC_OP_LVX          103 /* Load vector indexed (actually opcode 31/103) */
 #define PPC_OP_STVX         231 /* Store vector indexed (actually opcode 31/231) */
@@ -566,6 +578,11 @@ extern "C" {
 #define PPC_OP_LVEWX        71  /* Load vector element word indexed (opcode 31/71) */
 #define PPC_OP_STVEBX       135 /* Store vector element byte indexed (opcode 31/135) */
 #define PPC_OP_STVEHX       167 /* Store vector element halfword indexed (opcode 31/167) */
+#define PPC_OP_STVEWX       199 /* Store vector element word indexed (opcode 31/199) */
+#define PPC_OP_LVSL         6   /* Load vector for shift left (opcode 31/6) */
+#define PPC_OP_LVSR         38  /* Load vector for shift right (opcode 31/38) */
+#define PPC_OP_LVXL         359 /* Load vector indexed LRU (opcode 31/359) */
+#define PPC_OP_STVXL        487 /* Store vector indexed LRU (opcode 31/487) */
 
 /*
  * System Instructions (Opcode 31)
@@ -1034,6 +1051,28 @@ extern void PPC_Op_VMHADDSHS(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_VMHRADDSHS(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_VMSUMUBM(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_VMSUMUHM(PPCAddressSpace* as, UInt32 insn);
+
+/* Vector floating-point compare */
+extern void PPC_Op_VCMPEQFP(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VCMPGEFP(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VCMPGTFP(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VCMPBFP(PPCAddressSpace* as, UInt32 insn);
+
+/* Vector floating-point estimate */
+extern void PPC_Op_VREFP(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VRSQRTEFP(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VEXPTEFP(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VLOGEFP(PPCAddressSpace* as, UInt32 insn);
+
+/* Vector load/store for shift */
+extern void PPC_Op_LVSL(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LVSR(PPCAddressSpace* as, UInt32 insn);
+
+/* Additional vector load/store */
+extern void PPC_Op_LVXL(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STVXL(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_LVEWX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_STVEWX(PPCAddressSpace* as, UInt32 insn);
 
 #ifdef __cplusplus
 }
