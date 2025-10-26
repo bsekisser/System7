@@ -61,9 +61,30 @@ extern void EraseRect(const Rect *r);
 extern void InvalRect(const Rect *r);
 extern void DrawText(const void *text, SInt16 firstByte, SInt16 byteCount);
 
+/* Style structures - must match TextFormatting.c */
+typedef struct StyleTable {
+    SInt16      nStyles;
+    TextStyle   styles[1];
+} StyleTable;
+
+typedef struct RunArray {
+    SInt16      nRuns;
+    StyleRun    runs[1];
+} RunArray;
+
+typedef struct STRec_Internal {
+    SInt16      nRuns;
+    SInt16      nStyles;
+    Handle      styleTab;
+    Handle      runArray;
+    Handle      lineHeights;
+} STRec_Internal;
+
 /* Forward declarations */
 static void TE_DrawLineSegment(TEHandle hTE, SInt32 start, SInt32 end,
                                SInt16 x, SInt16 y, Boolean selected);
+static void TE_DrawStyledSegment(TEHandle hTE, SInt32 start, SInt32 end,
+                                 SInt16 x, SInt16 y, Boolean selected);
 static SInt16 TE_MeasureText(TEHandle hTE, SInt32 start, SInt32 length);
 
 /* ============================================================================
@@ -556,6 +577,111 @@ SInt16 TEGetOffset(Point pt, TEHandle hTE) {
 /*
  * TE_DrawLineSegment - Draw a segment of text
  */
+/*
+ * TE_DrawStyledSegment - Draw text segment with multiple style runs
+ */
+static void TE_DrawStyledSegment(TEHandle hTE, SInt32 start, SInt32 end,
+                                 SInt16 x, SInt16 y, Boolean selected) {
+    TEExtPtr pTE;
+    STRec_Internal* stRec;
+    RunArray* runArr;
+    StyleTable* styleTab;
+    char *pText;
+    SInt32 pos, nextPos;
+    SInt16 currentX;
+    SInt16 i;
+    Rect selRect;
+
+    if (start >= end) return;
+
+    HLock((Handle)hTE);
+    pTE = (TEExtPtr)*hTE;
+
+    if (!pTE->hStyles || !*pTE->hStyles) {
+        /* No styles - draw plain */
+        HUnlock((Handle)hTE);
+        TE_DrawLineSegment(hTE, start, end, x, y, selected);
+        return;
+    }
+
+    stRec = (STRec_Internal*)*pTE->hStyles;
+    if (!stRec->runArray || !*stRec->runArray ||
+        !stRec->styleTab || !*stRec->styleTab) {
+        /* Invalid style record */
+        HUnlock((Handle)hTE);
+        TE_DrawLineSegment(hTE, start, end, x, y, selected);
+        return;
+    }
+
+    runArr = (RunArray*)*stRec->runArray;
+    styleTab = (StyleTable*)*stRec->styleTab;
+
+    HLock(pTE->base.hText);
+    pText = *pTE->base.hText;
+
+    /* Draw selection background for entire segment if needed */
+    if (selected) {
+        SInt16 width = TE_MeasureText(hTE, start, end - start);
+        SetRect(&selRect, x, y - pTE->base.fontAscent,
+                x + width, y + pTE->base.lineHeight - pTE->base.fontAscent);
+        SectRect(&selRect, &pTE->base.viewRect, &selRect);
+        if (!EmptyRect(&selRect)) {
+            InvertRect(&selRect);
+        }
+    }
+
+    /* Draw text in style runs */
+    pos = start;
+    currentX = x;
+
+    while (pos < end) {
+        /* Find run containing pos */
+        SInt16 styleIndex = 0;
+        nextPos = end;
+
+        for (i = runArr->nRuns - 1; i >= 0; i--) {
+            if (pos >= runArr->runs[i].startChar) {
+                styleIndex = runArr->runs[i].styleIndex;
+
+                /* Find next run boundary */
+                if (i + 1 < runArr->nRuns) {
+                    if (runArr->runs[i + 1].startChar < end) {
+                        nextPos = runArr->runs[i + 1].startChar;
+                    }
+                }
+                break;
+            }
+        }
+
+        /* Ensure we don't go past end */
+        if (nextPos > end) {
+            nextPos = end;
+        }
+
+        /* Apply style for this run */
+        if (styleIndex >= 0 && styleIndex < styleTab->nStyles) {
+            TextStyle* style = &styleTab->styles[styleIndex];
+            TextFont(style->tsFont);
+            TextSize(style->tsSize);
+            TextFace(style->tsFace);
+            /* Color would be applied here if supported */
+        }
+
+        /* Draw this run */
+        MoveTo(currentX, y);
+        DrawText(pText, pos, nextPos - pos);
+
+        /* Measure width for next segment */
+        SInt16 segWidth = TextWidth(pText, pos, nextPos - pos);
+        currentX += segWidth;
+
+        pos = nextPos;
+    }
+
+    HUnlock(pTE->base.hText);
+    HUnlock((Handle)hTE);
+}
+
 static void TE_DrawLineSegment(TEHandle hTE, SInt32 start, SInt32 end,
                                SInt16 x, SInt16 y, Boolean selected) {
     TEExtPtr pTE;
@@ -566,6 +692,13 @@ static void TE_DrawLineSegment(TEHandle hTE, SInt32 start, SInt32 end,
 
     HLock((Handle)hTE);
     pTE = (TEExtPtr)*hTE;
+
+    /* Check if we have styles - if so, use styled drawing */
+    if (pTE->hStyles && *pTE->hStyles) {
+        HUnlock((Handle)hTE);
+        TE_DrawStyledSegment(hTE, start, end, x, y, selected);
+        return;
+    }
 
     HLock(pTE->base.hText);
     pText = *pTE->base.hText;
@@ -594,31 +727,105 @@ static void TE_DrawLineSegment(TEHandle hTE, SInt32 start, SInt32 end,
 }
 
 /*
- * TE_MeasureText - Measure text width
+ * TE_MeasureText - Measure text width (handles styled text)
  */
 static SInt16 TE_MeasureText(TEHandle hTE, SInt32 start, SInt32 length) {
     TEExtPtr pTE;
+    STRec_Internal* stRec;
+    RunArray* runArr;
+    StyleTable* styleTab;
     char *pText;
     SInt16 width;
+    SInt32 pos, end, nextPos;
+    SInt16 i;
 
     if (length <= 0) return 0;
 
     HLock((Handle)hTE);
     pTE = (TEExtPtr)*hTE;
 
-    /* Set font for measurement */
-    TextFont(pTE->base.txFont);
-    TextSize(pTE->base.txSize);
-    TextFace(pTE->base.txFace);
+    end = start + length;
+
+    /* Check if we have styles */
+    if (!pTE->hStyles || !*pTE->hStyles) {
+        /* Plain text - measure with current font */
+        TextFont(pTE->base.txFont);
+        TextSize(pTE->base.txSize);
+        TextFace(pTE->base.txFace);
+
+        HLock(pTE->base.hText);
+        pText = *pTE->base.hText;
+        width = TextWidth(pText, start, length);
+        HUnlock(pTE->base.hText);
+        HUnlock((Handle)hTE);
+        return width;
+    }
+
+    stRec = (STRec_Internal*)*pTE->hStyles;
+    if (!stRec->runArray || !*stRec->runArray ||
+        !stRec->styleTab || !*stRec->styleTab) {
+        /* Invalid style record - use plain measurement */
+        TextFont(pTE->base.txFont);
+        TextSize(pTE->base.txSize);
+        TextFace(pTE->base.txFace);
+
+        HLock(pTE->base.hText);
+        pText = *pTE->base.hText;
+        width = TextWidth(pText, start, length);
+        HUnlock(pTE->base.hText);
+        HUnlock((Handle)hTE);
+        return width;
+    }
+
+    runArr = (RunArray*)*stRec->runArray;
+    styleTab = (StyleTable*)*stRec->styleTab;
 
     HLock(pTE->base.hText);
     pText = *pTE->base.hText;
 
-    /* Measure text */
-    width = TextWidth(pText, start, length);
+    /* Measure text across style runs */
+    width = 0;
+    pos = start;
+
+    while (pos < end) {
+        /* Find run containing pos */
+        SInt16 styleIndex = 0;
+        nextPos = end;
+
+        for (i = runArr->nRuns - 1; i >= 0; i--) {
+            if (pos >= runArr->runs[i].startChar) {
+                styleIndex = runArr->runs[i].styleIndex;
+
+                /* Find next run boundary */
+                if (i + 1 < runArr->nRuns) {
+                    if (runArr->runs[i + 1].startChar < end) {
+                        nextPos = runArr->runs[i + 1].startChar;
+                    }
+                }
+                break;
+            }
+        }
+
+        /* Ensure we don't go past end */
+        if (nextPos > end) {
+            nextPos = end;
+        }
+
+        /* Apply style and measure */
+        if (styleIndex >= 0 && styleIndex < styleTab->nStyles) {
+            TextStyle* style = &styleTab->styles[styleIndex];
+            TextFont(style->tsFont);
+            TextSize(style->tsSize);
+            TextFace(style->tsFace);
+        }
+
+        /* Measure this segment */
+        width += TextWidth(pText, pos, nextPos - pos);
+
+        pos = nextPos;
+    }
 
     HUnlock(pTE->base.hText);
     HUnlock((Handle)hTE);
-
     return width;
 }
