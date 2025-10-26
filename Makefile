@@ -211,6 +211,7 @@ C_SOURCES = src/main.c \
             src/runtime_stubs.c \
             src/System/SystemTheme.c \
             src/ToolboxCompat.c \
+            src/Toolbox/IconUtilities.c \
             src/Finder/finder_main.c \
             src/Finder/desktop_manager.c \
             src/Finder/folder_window.c \
