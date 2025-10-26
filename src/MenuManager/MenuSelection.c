@@ -752,13 +752,19 @@ void FlashMenuSelection(short menuID, short item, short flashes)
         return;
     }
 
-    /* Flash menu title first */
+    /* Flash menu item AND title for complete feedback */
+    extern void FlashMenuItem(MenuHandle theMenu, short item, short flashes);
+
+    /* Flash menu title in menu bar */
     for (short i = 0; i < flashes; i++) {
         HiliteMenu(menuID);
-        WaitForMouseChange(4); /* Brief delay */
+        WaitForMouseChange(2); /* Brief delay */
         HiliteMenu(0);
-        WaitForMouseChange(4);
+        WaitForMouseChange(2);
     }
+
+    /* Flash the menu item itself (if menu is still shown) */
+    FlashMenuItem(theMenu, item, flashes);
 }
 
 /*

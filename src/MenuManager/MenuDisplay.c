@@ -808,31 +808,75 @@ short GetMenuTitleWidth(MenuHandle theMenu)
 
 /*
  * FlashMenuItem - Flash menu item
+ *
+ * Provides visual feedback by briefly flashing a menu item. The item is
+ * redrawn with highlighting toggled on/off. This works by directly redrawing
+ * the menu item rather than relying on Platform_HiliteMenuItem stub.
+ *
+ * Only works if the menu is currently shown (gCurrentlyShownMenu).
  */
 void FlashMenuItem(MenuHandle theMenu, short item, short flashes)
 {
-    if (theMenu == NULL || item < 1) {
+    if (theMenu == NULL || item < 1 || flashes < 1) {
         return;
     }
 
+    /* Only flash if this menu is currently shown on screen */
+    if (gCurrentlyShownMenu != theMenu) {
+        return;
+    }
+
+    /* Get item properties to build draw info */
+    Rect itemRect;
+    Style tempStyle;
+    CalcMenuItemRect(theMenu, item, &gCurrentMenuRect, &itemRect);
+
+    MenuItemDrawInfo itemDrawInfo;
+    itemDrawInfo.menu = theMenu;
+    itemDrawInfo.itemNum = item;
+    itemDrawInfo.itemRect = itemRect;
+    itemDrawInfo.itemFlags = kMenuItemNormal;
+    itemDrawInfo.context = &gDrawingContext;
+
+    /* Get item properties */
+    GetMenuItemText(theMenu, item, itemDrawInfo.itemText);
+    GetItemIcon(theMenu, item, (short*)&itemDrawInfo.iconID);
+    GetItemMark(theMenu, item, (short*)&itemDrawInfo.markChar);
+    GetItemCmd(theMenu, item, (short*)&itemDrawInfo.cmdChar);
+    GetItemStyle(theMenu, item, &tempStyle);
+    itemDrawInfo.textStyle = tempStyle;
+
+    /* Check if item is disabled */
+    extern Boolean CheckMenuItemEnabled(MenuHandle theMenu, short item);
+    if (!CheckMenuItemEnabled(theMenu, item)) {
+        itemDrawInfo.itemFlags |= kMenuItemDisabled;
+    }
+
+    /* Flash multiple times by redrawing item with highlight toggled */
     extern UInt32 TickCount(void);
     extern void SystemTask(void);
 
     for (short i = 0; i < flashes; i++) {
-        HiliteMenuItem(theMenu, item, true);
+        /* Draw highlighted */
+        itemDrawInfo.itemFlags |= kMenuItemSelected;
+        DrawMenuItem(&itemDrawInfo);
 
-        /* Delay ~8 ticks (133ms at 60Hz) */
+        /* Brief delay ~5 ticks (83ms at 60Hz) */
         UInt32 startTick = TickCount();
-        while ((TickCount() - startTick) < 8) {
+        while ((TickCount() - startTick) < 5) {
             SystemTask();
         }
 
-        HiliteMenuItem(theMenu, item, false);
+        /* Draw normal */
+        itemDrawInfo.itemFlags &= ~kMenuItemSelected;
+        DrawMenuItem(&itemDrawInfo);
 
-        /* Delay ~8 ticks */
-        startTick = TickCount();
-        while ((TickCount() - startTick) < 8) {
-            SystemTask();
+        /* Brief delay between flashes */
+        if (i < flashes - 1) {
+            startTick = TickCount();
+            while ((TickCount() - startTick) < 5) {
+                SystemTask();
+            }
         }
     }
 }
