@@ -1008,7 +1008,7 @@ static int Calculator_DAOpen(DeskAccessory *da)
     if (!da) return DESK_ERR_INVALID_PARAM;
 
     /* Initialize resource data for icon access */
-    /* InitResourceData(); */  /* TODO: Enable when InitResourceData is implemented */
+    InitResourceData();
 
     /* Create window */
     DAWindowAttr attr;
