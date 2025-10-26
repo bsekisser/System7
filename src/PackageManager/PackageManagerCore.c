@@ -17,6 +17,7 @@ OSErr InitAllPacks(void);
 OSErr CallPackage(short packID, short selector, void* params);
 
 /* Package dispatcher declarations */
+extern OSErr Pack6_Dispatch(short selector, void* params);  /* International Utilities */
 extern OSErr Pack7_Dispatch(short selector, void* params);  /* Binary/Decimal Conversion */
 
 /* Debug logging */
@@ -202,8 +203,8 @@ OSErr CallPackage(short packID, short selector, void* params) {
 
         case 6:
             /* Pack6: International Utilities */
-            PKG_LOG("CallPackage: Pack6 (International Utilities) dispatch not yet implemented\n");
-            return unimpErr;
+            PKG_LOG("CallPackage: Pack6 (International Utilities) dispatching\n");
+            return Pack6_Dispatch(selector, params);
 
         case 7:
             /* Pack7: Binary/Decimal Conversion */
