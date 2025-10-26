@@ -234,6 +234,7 @@ C_SOURCES = src/main.c \
             src/ColorManager/ColorManager.c \
             src/OSUtils/OSUtilsTraps.c \
             src/OSUtils/Munger.c \
+            src/OSUtils/DateTime.c \
             src/Platform/WindowPlatform.c \
             $(if $(filter arm,$(PLATFORM)), \
               src/Platform/arm/hal_boot.c \
