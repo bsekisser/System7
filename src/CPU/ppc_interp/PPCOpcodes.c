@@ -7550,9 +7550,231 @@ void PPC_Op_DSSALL(PPCAddressSpace* as, UInt32 insn)
 }
 
 /*
+ * Additional AltiVec Instructions
+ */
+
+/* VADDCUW - Vector Add Carryout Unsigned Word */
+void PPC_Op_VADDCUW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        /* Detect carry by checking if result < either operand */
+        UInt32 sum = as->regs.vr[va][i] + as->regs.vr[vb][i];
+        as->regs.vr[vd][i] = (sum < as->regs.vr[va][i]) ? 1 : 0;
+    }
+}
+
+/* VSUBCUW - Vector Subtract Carryout Unsigned Word */
+void PPC_Op_VSUBCUW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        /* Borrow occurs when va < vb (unsigned comparison) */
+        as->regs.vr[vd][i] = (as->regs.vr[va][i] >= as->regs.vr[vb][i]) ? 1 : 0;
+    }
+}
+
+/* VORC - Vector OR with Complement */
+void PPC_Op_VORC(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        as->regs.vr[vd][i] = as->regs.vr[va][i] | ~as->regs.vr[vb][i];
+    }
+}
+
+/* VSLO - Vector Shift Left Octet */
+void PPC_Op_VSLO(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+
+    /* Shift amount in bytes is bits 121-124 of vb (last byte, bits 1-4) */
+    UInt8 shift_bytes = (VR_GetByte(as, vb, 15) >> 3) & 0x0F;
+
+    /* Create 128-bit shifted result */
+    UInt8 temp[16];
+    int i;
+
+    /* Initialize with zeros */
+    for (i = 0; i < 16; i++) {
+        temp[i] = 0;
+    }
+
+    /* Shift left by bytes */
+    for (i = 0; i < 16; i++) {
+        if (i + shift_bytes < 16) {
+            temp[i] = VR_GetByte(as, va, i + shift_bytes);
+        }
+    }
+
+    /* Write result back */
+    for (i = 0; i < 16; i++) {
+        VR_SetByte(as, vd, i, temp[i]);
+    }
+}
+
+/* VSRO - Vector Shift Right Octet */
+void PPC_Op_VSRO(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+
+    /* Shift amount in bytes is bits 121-124 of vb (last byte, bits 1-4) */
+    UInt8 shift_bytes = (VR_GetByte(as, vb, 15) >> 3) & 0x0F;
+
+    /* Create 128-bit shifted result */
+    UInt8 temp[16];
+    int i;
+
+    /* Initialize with zeros */
+    for (i = 0; i < 16; i++) {
+        temp[i] = 0;
+    }
+
+    /* Shift right by bytes */
+    for (i = 0; i < 16; i++) {
+        if (i >= shift_bytes) {
+            temp[i] = VR_GetByte(as, va, i - shift_bytes);
+        }
+    }
+
+    /* Write result back */
+    for (i = 0; i < 16; i++) {
+        VR_SetByte(as, vd, i, temp[i]);
+    }
+}
+
+/* VPKPX - Vector Pack Pixel */
+void PPC_Op_VPKPX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    /* Pack 4 pixels from va into low half of vd (1:5:5:5 format) */
+    for (i = 0; i < 4; i++) {
+        /* Extract 32-bit pixel (8:8:8:8 ARGB format) */
+        UInt32 pixel = as->regs.vr[va][i];
+        UInt8 a = (pixel >> 24) & 0xFF;
+        UInt8 r = (pixel >> 16) & 0xFF;
+        UInt8 g = (pixel >> 8) & 0xFF;
+        UInt8 b = pixel & 0xFF;
+
+        /* Convert to 1:5:5:5 format */
+        UInt16 packed = ((a >> 7) << 15) |  /* 1-bit alpha */
+                       ((r >> 3) << 10) |  /* 5-bit red */
+                       ((g >> 3) << 5) |   /* 5-bit green */
+                       (b >> 3);           /* 5-bit blue */
+
+        /* Store as halfword in vd */
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (packed << shift);
+    }
+
+    /* Pack 4 pixels from vb into high half of vd */
+    for (i = 0; i < 4; i++) {
+        UInt32 pixel = as->regs.vr[vb][i];
+        UInt8 a = (pixel >> 24) & 0xFF;
+        UInt8 r = (pixel >> 16) & 0xFF;
+        UInt8 g = (pixel >> 8) & 0xFF;
+        UInt8 b = pixel & 0xFF;
+
+        UInt16 packed = ((a >> 7) << 15) |
+                       ((r >> 3) << 10) |
+                       ((g >> 3) << 5) |
+                       (b >> 3);
+
+        UInt8 word = 2 + i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (packed << shift);
+    }
+}
+
+/* VUPKHPX - Vector Unpack High Pixel */
+void PPC_Op_VUPKHPX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    /* Unpack high 4 pixels from 1:5:5:5 format to 8:8:8:8 format */
+    for (i = 0; i < 4; i++) {
+        /* Extract 16-bit packed pixel from high half of vb */
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        UInt16 packed = (as->regs.vr[vb][word] >> shift) & 0xFFFF;
+
+        /* Extract 1:5:5:5 components */
+        UInt8 a = (packed >> 15) & 0x01;
+        UInt8 r = (packed >> 10) & 0x1F;
+        UInt8 g = (packed >> 5) & 0x1F;
+        UInt8 b = packed & 0x1F;
+
+        /* Expand to 8:8:8:8 format */
+        UInt32 pixel = ((a ? 0xFF : 0x00) << 24) |  /* 1-bit -> 8-bit alpha */
+                      ((r << 3) << 16) |            /* 5-bit -> 8-bit red */
+                      ((g << 3) << 8) |             /* 5-bit -> 8-bit green */
+                      (b << 3);                     /* 5-bit -> 8-bit blue */
+
+        as->regs.vr[vd][i] = pixel;
+    }
+}
+
+/* VUPKLPX - Vector Unpack Low Pixel */
+void PPC_Op_VUPKLPX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    /* Unpack low 4 pixels from 1:5:5:5 format to 8:8:8:8 format */
+    for (i = 0; i < 4; i++) {
+        /* Extract 16-bit packed pixel from low half of vb */
+        UInt8 word = 2 + i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        UInt16 packed = (as->regs.vr[vb][word] >> shift) & 0xFFFF;
+
+        /* Extract 1:5:5:5 components */
+        UInt8 a = (packed >> 15) & 0x01;
+        UInt8 r = (packed >> 10) & 0x1F;
+        UInt8 g = (packed >> 5) & 0x1F;
+        UInt8 b = packed & 0x1F;
+
+        /* Expand to 8:8:8:8 format */
+        UInt32 pixel = ((a ? 0xFF : 0x00) << 24) |
+                      ((r << 3) << 16) |
+                      ((g << 3) << 8) |
+                      (b << 3);
+
+        as->regs.vr[vd][i] = pixel;
+    }
+}
+
+/*
  * ==================================================
  * COMPREHENSIVE IMPLEMENTATION
- * Total: 407 instructions (217 base + 11 601 + 13 supervisor + 166 AltiVec)
+ * Total: 415 instructions (217 base + 11 601 + 13 supervisor + 174 AltiVec)
  *
  * Supervisor instructions: MFSR, MTSR, MFSRIN, MTSRIN, TLBIE, TLBSYNC, TLBIA,
  *                          DCBI, DCBT, DCBTST, MFTB, ECIWX, ECOWX

@@ -740,6 +740,10 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     PPC_Op_VNOR(as, insn);
                     break;
 
+                case PPC_VXO_VORC:
+                    PPC_Op_VORC(as, insn);
+                    break;
+
                 case PPC_VXO_VSPLTISB:
                     PPC_Op_VSPLTISB(as, insn);
                     break;
@@ -819,6 +823,10 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     PPC_Op_VPKUWUM(as, insn);
                     break;
 
+                case PPC_VXO_VPKPX:
+                    PPC_Op_VPKPX(as, insn);
+                    break;
+
                 case PPC_VXO_VUPKHSB:
                     PPC_Op_VUPKHSB(as, insn);
                     break;
@@ -833,6 +841,14 @@ OSErr PPC_Step(PPCAddressSpace* as)
 
                 case PPC_VXO_VUPKLSH:
                     PPC_Op_VUPKLSH(as, insn);
+                    break;
+
+                case PPC_VXO_VUPKHPX:
+                    PPC_Op_VUPKHPX(as, insn);
+                    break;
+
+                case PPC_VXO_VUPKLPX:
+                    PPC_Op_VUPKLPX(as, insn);
                     break;
 
                 /* Merge */
@@ -975,6 +991,14 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     PPC_Op_VSRW(as, insn);
                     break;
 
+                case PPC_VXO_VSLO:
+                    PPC_Op_VSLO(as, insn);
+                    break;
+
+                case PPC_VXO_VSRO:
+                    PPC_Op_VSRO(as, insn);
+                    break;
+
                 /* Merge Halfword/Word */
                 case PPC_VXO_VMRGHH:
                     PPC_Op_VMRGHH(as, insn);
@@ -1054,6 +1078,14 @@ OSErr PPC_Step(PPCAddressSpace* as)
 
                 case PPC_VXO_VSUBUWS:
                     PPC_Op_VSUBUWS(as, insn);
+                    break;
+
+                case PPC_VXO_VADDCUW:
+                    PPC_Op_VADDCUW(as, insn);
+                    break;
+
+                case PPC_VXO_VSUBCUW:
+                    PPC_Op_VSUBCUW(as, insn);
                     break;
 
                 /* Additional Average */

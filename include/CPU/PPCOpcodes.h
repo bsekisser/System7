@@ -400,6 +400,7 @@ extern "C" {
 #define PPC_VXO_VOR         1156 /* Vector OR */
 #define PPC_VXO_VXOR        1220 /* Vector XOR */
 #define PPC_VXO_VANDC       1092 /* Vector AND with complement */
+#define PPC_VXO_VORC        1348 /* Vector OR with complement */
 #define PPC_VXO_VNOR        1284 /* Vector NOR */
 
 /* Vector compare */
@@ -443,10 +444,13 @@ extern "C" {
 /* Vector pack/unpack */
 #define PPC_VXO_VPKUHUM     14  /* Vector pack unsigned halfword unsigned modulo */
 #define PPC_VXO_VPKUWUM     78  /* Vector pack unsigned word unsigned modulo */
+#define PPC_VXO_VPKPX       782 /* Vector pack pixel */
 #define PPC_VXO_VUPKHSB     526 /* Vector unpack high signed byte */
 #define PPC_VXO_VUPKLSB     590 /* Vector unpack low signed byte */
 #define PPC_VXO_VUPKHSH     654 /* Vector unpack high signed halfword */
 #define PPC_VXO_VUPKLSH     718 /* Vector unpack low signed halfword */
+#define PPC_VXO_VUPKHPX     846 /* Vector unpack high pixel */
+#define PPC_VXO_VUPKLPX     974 /* Vector unpack low pixel */
 
 /* Vector merge */
 #define PPC_VXO_VMRGHB      12  /* Vector merge high byte */
@@ -485,6 +489,8 @@ extern "C" {
 #define PPC_VXO_VSLW        388 /* Vector shift left word */
 #define PPC_VXO_VSRW        644 /* Vector shift right word */
 #define PPC_VXO_VSRAH       900 /* Vector shift right algebraic halfword */
+#define PPC_VXO_VSLO        1036 /* Vector shift left octet */
+#define PPC_VXO_VSRO        1100 /* Vector shift right octet */
 
 /* Additional vector compare */
 #define PPC_VXO_VCMPGTUH    582 /* Vector compare greater than unsigned halfword */
@@ -508,6 +514,8 @@ extern "C" {
 #define PPC_VXO_VSUBSWS     1920 /* Vector subtract signed word saturate */
 #define PPC_VXO_VADDUWS     640  /* Vector add unsigned word saturate */
 #define PPC_VXO_VSUBUWS     1664 /* Vector subtract unsigned word saturate */
+#define PPC_VXO_VADDCUW     384  /* Vector add carryout unsigned word */
+#define PPC_VXO_VSUBCUW     1408 /* Vector subtract carryout unsigned word */
 
 /* Additional average */
 #define PPC_VXO_VAVGSH      1346 /* Vector average signed halfword */
@@ -1110,6 +1118,16 @@ extern void PPC_Op_DSTST(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_DSTSTT(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_DSS(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_DSSALL(PPCAddressSpace* as, UInt32 insn);
+
+/* Additional AltiVec instructions */
+extern void PPC_Op_VADDCUW(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSUBCUW(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VORC(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSLO(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSRO(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VPKPX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VUPKHPX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VUPKLPX(PPCAddressSpace* as, UInt32 insn);
 
 #ifdef __cplusplus
 }
