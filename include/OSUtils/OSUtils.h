@@ -56,6 +56,13 @@ Boolean BitTst(const void* bytePtr, SInt32 bitNum);
 void BitSet(void* bytePtr, SInt32 bitNum);
 void BitClr(void* bytePtr, SInt32 bitNum);
 
+/* Bitwise logical operations */
+SInt32 BitAnd(SInt32 value1, SInt32 value2);
+SInt32 BitOr(SInt32 value1, SInt32 value2);
+SInt32 BitXor(SInt32 value1, SInt32 value2);
+SInt32 BitNot(SInt32 value);
+SInt32 BitShift(SInt32 value, SInt16 count);
+
 /* Fixed-point mathematics utilities */
 Fixed FixMul(Fixed a, Fixed b);
 Fixed FixDiv(Fixed dividend, Fixed divisor);
