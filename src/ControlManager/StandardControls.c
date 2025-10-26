@@ -80,9 +80,9 @@ extern void HUnlock(Handle h);
 #define CTRL_LOG_DEBUG(fmt, ...) serial_logf(kLogModuleControl, kLogLevelDebug, "[CTRL] " fmt, ##__VA_ARGS__)
 #define CTRL_LOG_WARN(fmt, ...)  serial_logf(kLogModuleControl, kLogLevelWarn,  "[CTRL] " fmt, ##__VA_ARGS__)
 
-/* GetFontInfo implementation with proper size scaling
- * Calculates font metrics based on current port's font size
- * Provides proper vertical centering support for controls
+/* GetFontInfo implementation with Font Manager integration
+ * Uses FontManager's GetFontMetrics() when available for accurate metrics,
+ * falls back to proportional scaling based on font size.
  */
 static void GetFontInfo(FontInfo* info) {
     if (!info) return;
@@ -91,16 +91,18 @@ static void GetFontInfo(FontInfo* info) {
     GetPort(&port);
 
     if (port) {
-        short fontSize = port->txSize;
-        if (fontSize == 0) fontSize = 12;
+        /* Try to get actual metrics from Font Manager first */
+        extern void GetFontMetrics(FMetricRec *theMetrics);
+        FMetricRec fmetrics;
+        GetFontMetrics(&fmetrics);
 
-        /* Scale metrics proportionally with font size */
-        info->ascent = (fontSize * 3) / 4;   /* 75% of size */
-        info->descent = fontSize / 4;         /* 25% of size */
-        info->widMax = fontSize;              /* Max width roughly equals size */
-        info->leading = fontSize / 6;         /* Small leading */
+        /* Convert FMetricRec (SInt32) to FontInfo (short) */
+        info->ascent = (short)fmetrics.ascent;
+        info->descent = (short)fmetrics.descent;
+        info->widMax = (short)fmetrics.widMax;
+        info->leading = (short)fmetrics.leading;
     } else {
-        /* Fallback for Chicago 12pt */
+        /* Fallback when no port available */
         info->ascent = 9;
         info->descent = 2;
         info->widMax = 12;
