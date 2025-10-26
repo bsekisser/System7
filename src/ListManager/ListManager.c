@@ -429,15 +429,172 @@ OSErr LDelRow(ListHandle lh, short count, short fromRow)
 
 OSErr LAddColumn(ListHandle lh, short count, short afterCol)
 {
-    /* Stub: column operations less common */
-    LIST_LOG("LAddColumn: stub (count=%d after=%d)\n", count, afterCol);
+    ListMgrRec* list;
+    RowData* rowArray;
+    short newColCount;
+    short insertPos;
+    short i, col;
+
+    if (!lh || count <= 0) return paramErr;
+
+    HLock((Handle)lh);
+    list = *LIST_MGR_HANDLE(lh);
+
+    newColCount = list->colCount + count;
+    insertPos = afterCol + 1;  /* Insert after specified column */
+    if (insertPos < 0) insertPos = 0;
+    if (insertPos > list->colCount) insertPos = list->colCount;
+
+    LIST_LOG("LAddColumn: adding %d columns after col %d (insertPos=%d, old colCount=%d, new colCount=%d)\n",
+             count, afterCol, insertPos, list->colCount, newColCount);
+
+    /* Update each row to accommodate new columns */
+    if (list->rows) {
+        rowArray = *(list->rows);
+
+        for (i = 0; i < list->rowCount; i++) {
+            CellData* oldCells = rowArray[i].cells;
+            CellData* newCells;
+
+            /* Allocate new cells array */
+            newCells = (CellData*)NewPtrClear((Size)(newColCount * sizeof(CellData)));
+            if (!newCells) {
+                HUnlock((Handle)lh);
+                LIST_LOG_ERROR("LAddColumn: failed to allocate cells for row %d\n", i);
+                return memFullErr;
+            }
+
+            /* Copy cells before insertion point */
+            for (col = 0; col < insertPos; col++) {
+                if (col < rowArray[i].colCount) {
+                    newCells[col] = oldCells[col];
+                }
+            }
+
+            /* New cells at insertPos..insertPos+count-1 are already zero-initialized */
+
+            /* Copy cells after insertion point (shifted by count) */
+            for (col = insertPos; col < rowArray[i].colCount; col++) {
+                newCells[col + count] = oldCells[col];
+            }
+
+            /* Replace old cells array */
+            if (oldCells) {
+                DisposePtr((Ptr)oldCells);
+            }
+            rowArray[i].cells = newCells;
+            rowArray[i].colCount = newColCount;
+        }
+    }
+
+    /* Update list column count */
+    list->colCount = newColCount;
+
+    /* Recompute visible cells */
+    List_ComputeVisibleCells(list);
+
+    /* Update scrollbars */
+    List_UpdateScrollbars(list);
+
+    /* Invalidate for redraw */
+    List_InvalidateAll(list);
+
+    HUnlock((Handle)lh);
+    LIST_LOG("LAddColumn: completed successfully\n");
     return noErr;
 }
 
 OSErr LDelColumn(ListHandle lh, short count, short fromCol)
 {
-    /* Stub: column operations less common */
-    LIST_LOG("LDelColumn: stub (count=%d from=%d)\n", count, fromCol);
+    ListMgrRec* list;
+    RowData* rowArray;
+    short newColCount;
+    short i, col;
+
+    if (!lh || count <= 0) return paramErr;
+
+    HLock((Handle)lh);
+    list = *LIST_MGR_HANDLE(lh);
+
+    /* Validate deletion range */
+    if (fromCol < 0 || fromCol >= list->colCount) {
+        HUnlock((Handle)lh);
+        LIST_LOG_ERROR("LDelColumn: invalid fromCol %d (colCount=%d)\n", fromCol, list->colCount);
+        return paramErr;
+    }
+
+    /* Clamp count to available columns */
+    if (fromCol + count > list->colCount) {
+        count = list->colCount - fromCol;
+    }
+
+    newColCount = list->colCount - count;
+
+    /* Don't allow deleting all columns */
+    if (newColCount < 1) {
+        HUnlock((Handle)lh);
+        LIST_LOG_ERROR("LDelColumn: cannot delete all columns\n");
+        return paramErr;
+    }
+
+    LIST_LOG("LDelColumn: deleting %d columns from col %d (old colCount=%d, new colCount=%d)\n",
+             count, fromCol, list->colCount, newColCount);
+
+    /* Update each row to remove columns */
+    if (list->rows) {
+        rowArray = *(list->rows);
+
+        for (i = 0; i < list->rowCount; i++) {
+            CellData* oldCells = rowArray[i].cells;
+            CellData* newCells;
+
+            /* Allocate new cells array */
+            newCells = (CellData*)NewPtrClear((Size)(newColCount * sizeof(CellData)));
+            if (!newCells) {
+                HUnlock((Handle)lh);
+                LIST_LOG_ERROR("LDelColumn: failed to allocate cells for row %d\n", i);
+                return memFullErr;
+            }
+
+            /* Copy cells before deletion point */
+            for (col = 0; col < fromCol && col < rowArray[i].colCount; col++) {
+                newCells[col] = oldCells[col];
+            }
+
+            /* Copy cells after deletion point (skip deleted cells) */
+            for (col = fromCol + count; col < rowArray[i].colCount; col++) {
+                newCells[col - count] = oldCells[col];
+            }
+
+            /* Replace old cells array */
+            if (oldCells) {
+                DisposePtr((Ptr)oldCells);
+            }
+            rowArray[i].cells = newCells;
+            rowArray[i].colCount = newColCount;
+        }
+    }
+
+    /* Update list column count */
+    list->colCount = newColCount;
+
+    /* Adjust leftCol if needed */
+    if (list->leftCol >= newColCount) {
+        list->leftCol = newColCount - 1;
+        if (list->leftCol < 0) list->leftCol = 0;
+    }
+
+    /* Recompute visible cells */
+    List_ComputeVisibleCells(list);
+
+    /* Update scrollbars */
+    List_UpdateScrollbars(list);
+
+    /* Invalidate for redraw */
+    List_InvalidateAll(list);
+
+    HUnlock((Handle)lh);
+    LIST_LOG("LDelColumn: completed successfully\n");
     return noErr;
 }
 
