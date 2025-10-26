@@ -17,6 +17,7 @@ OSErr InitAllPacks(void);
 OSErr CallPackage(short packID, short selector, void* params);
 
 /* Package dispatcher declarations */
+extern OSErr Pack0_Dispatch(short selector, void* params);  /* List Manager */
 extern OSErr Pack3_Dispatch(short selector, void* params);  /* Standard File */
 extern OSErr Pack6_Dispatch(short selector, void* params);  /* International Utilities */
 extern OSErr Pack7_Dispatch(short selector, void* params);  /* Binary/Decimal Conversion */
@@ -189,8 +190,8 @@ OSErr CallPackage(short packID, short selector, void* params) {
     switch (packID) {
         case 0:
             /* Pack0: List Manager */
-            PKG_LOG("CallPackage: Pack0 (List Manager) not yet implemented\n");
-            return unimpErr;
+            PKG_LOG("CallPackage: Pack0 (List Manager) dispatching\n");
+            return Pack0_Dispatch(selector, params);
 
         case 3:
             /* Pack3: Standard File */

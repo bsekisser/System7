@@ -484,7 +484,8 @@ endif
 ifeq ($(ENABLE_LIST),1)
 C_SOURCES += src/ListManager/ListManager.c \
              src/ListManager/list_manager.c \
-             src/ListManager/ListSmoke.c
+             src/ListManager/ListSmoke.c \
+             src/ListManager/Pack0_ListManager.c
 CFLAGS += -DENABLE_LIST=1
 ifeq ($(LIST_SMOKE_TEST),1)
 CFLAGS += -DLIST_SMOKE_TEST=1
