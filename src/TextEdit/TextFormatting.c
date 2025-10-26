@@ -29,11 +29,53 @@
  * Style Management Internal Functions
  ************************************************************/
 
+/* Extended TERec with style support - matches TextEditClipboard.c */
+typedef struct TEExtRec {
+    TERec       base;           /* Standard TERec */
+    Handle      hLines;         /* Line starts array */
+    SInt16      nLines;         /* Number of lines */
+    Handle      hStyles;        /* Style record handle (STHandle) */
+    Boolean     dirty;          /* Needs recalc */
+    Boolean     readOnly;       /* Read-only flag */
+    Boolean     wordWrap;       /* Word wrap flag */
+    SInt16      dragAnchor;     /* Drag selection anchor */
+    Boolean     inDragSel;      /* In drag selection */
+    UInt32      lastClickTime;  /* For double/triple click */
+    SInt16      clickCount;     /* Click count */
+    SInt16      viewDH;         /* Horizontal scroll */
+    SInt16      viewDV;         /* Vertical scroll */
+    Boolean     autoViewEnabled;/* Auto-scroll flag */
+} TEExtRec;
+
+typedef TEExtRec *TEExtPtr, **TEExtHandle;
+
+/* Style table and run structures */
+typedef struct StyleTable {
+    SInt16      nStyles;        /* Number of unique styles */
+    TextStyle   styles[1];      /* Variable array of styles */
+} StyleTable;
+
+typedef struct RunArray {
+    SInt16      nRuns;          /* Number of style runs */
+    StyleRun    runs[1];        /* Variable array of runs */
+} RunArray;
+
+typedef struct STRec_Internal {
+    SInt16      nRuns;          /* Number of style runs */
+    SInt16      nStyles;        /* Number of unique styles */
+    Handle      styleTab;       /* Handle to StyleTable */
+    Handle      runArray;       /* Handle to RunArray */
+    Handle      lineHeights;    /* Handle to line height array (optional) */
+} STRec_Internal;
+
 static TEStyleHandle TEGetStyleHandleInternal(TEHandle hTE)
 {
-    /* In full implementation, would extract from TERec extended structure */
-    /* For now, return NULL - plain text only */
-    return NULL;
+    TEExtPtr pTE;
+
+    if (!hTE || !*hTE) return NULL;
+
+    pTE = (TEExtPtr)*hTE;
+    return (TEStyleHandle)pTE->hStyles;
 }
 
 static OSErr TECreateDefaultStyle(TEHandle hTE, TextStyle *style)
@@ -47,13 +89,101 @@ static OSErr TECreateDefaultStyle(TEHandle hTE, TextStyle *style)
     /* Initialize with current TERec settings */
     style->tsFont = (**teRec).txFont;
     style->tsFace = (**teRec).txFace;
-    style->filler = 0;
     style->tsSize = (**teRec).txSize;
-    (style)->red = 0x0000;
-    (style)->green = 0x0000;
-    (style)->blue = 0x0000;
+    style->tsColor.red = 0x0000;
+    style->tsColor.green = 0x0000;
+    style->tsColor.blue = 0x0000;
 
     return noErr;
+}
+
+/* Create a new style record with default style */
+static STHandle TECreateStyleRec(TEHandle hTE)
+{
+    extern Handle NewHandle(Size byteCount);
+    extern void DisposeHandle(Handle h);
+
+    STRec_Internal* stRec;
+    Handle hStyle;
+    StyleTable* styleTab;
+    RunArray* runArr;
+    TextStyle defaultStyle;
+
+    /* Allocate STRec */
+    hStyle = NewHandle(sizeof(STRec_Internal));
+    if (!hStyle) return NULL;
+
+    stRec = (STRec_Internal*)*hStyle;
+
+    /* Create style table with one default style */
+    stRec->styleTab = NewHandle(sizeof(StyleTable));
+    if (!stRec->styleTab) {
+        DisposeHandle(hStyle);
+        return NULL;
+    }
+
+    styleTab = (StyleTable*)*stRec->styleTab;
+    styleTab->nStyles = 1;
+    TECreateDefaultStyle(hTE, &styleTab->styles[0]);
+
+    /* Create run array with one run covering entire text */
+    stRec->runArray = NewHandle(sizeof(RunArray));
+    if (!stRec->runArray) {
+        DisposeHandle(stRec->styleTab);
+        DisposeHandle(hStyle);
+        return NULL;
+    }
+
+    runArr = (RunArray*)*stRec->runArray;
+    runArr->nRuns = 1;
+    runArr->runs[0].startChar = 0;
+    runArr->runs[0].styleIndex = 0;  /* Index into style table */
+
+    stRec->nRuns = 1;
+    stRec->nStyles = 1;
+    stRec->lineHeights = NULL;  /* Optional */
+
+    return (STHandle)hStyle;
+}
+
+/* Find style in table or add it, return index */
+static SInt16 TEFindOrAddStyle(STHandle hStyle, const TextStyle *style)
+{
+    extern OSErr SetHandleSize(Handle h, Size newSize);
+
+    STRec_Internal* stRec;
+    StyleTable* styleTab;
+    SInt16 i;
+
+    if (!hStyle || !*hStyle || !style) return 0;
+
+    stRec = (STRec_Internal*)*hStyle;
+    if (!stRec->styleTab || !*stRec->styleTab) return 0;
+
+    styleTab = (StyleTable*)*stRec->styleTab;
+
+    /* Search for existing style */
+    for (i = 0; i < styleTab->nStyles; i++) {
+        if (TECompareTextStyles(&styleTab->styles[i], style)) {
+            return i;  /* Found existing style */
+        }
+    }
+
+    /* Not found - add new style */
+    Size newSize = sizeof(StyleTable) + (styleTab->nStyles) * sizeof(TextStyle);
+    if (SetHandleSize(stRec->styleTab, newSize) != noErr) {
+        return 0;  /* Out of memory */
+    }
+
+    /* Re-get pointer after resize */
+    styleTab = (StyleTable*)*stRec->styleTab;
+
+    /* Add new style */
+    styleTab->styles[styleTab->nStyles] = *style;
+    styleTab->nStyles++;
+    stRec->nStyles = styleTab->nStyles;
+
+    return styleTab->nStyles - 1;
 }
 
 static Boolean TECompareTextStyles(const TextStyle *style1, const TextStyle *style2)
@@ -63,9 +193,9 @@ static Boolean TECompareTextStyles(const TextStyle *style1, const TextStyle *sty
     return (style1->tsFont == style2->tsFont &&
             style1->tsFace == style2->tsFace &&
             style1->tsSize == style2->tsSize &&
-            (style1)->red == (style2)->red &&
-            (style1)->green == (style2)->green &&
-            (style1)->blue == (style2)->blue);
+            style1->tsColor.red == style2->tsColor.red &&
+            style1->tsColor.green == style2->tsColor.green &&
+            style1->tsColor.blue == style2->tsColor.blue);
 }
 
 /************************************************************
@@ -77,18 +207,47 @@ pascal void TEGetStyle(short offset, TextStyle *theStyle, short *lineHeight,
 {
     TERec **teRec;
     TEStyleHandle hStyle;
+    STRec_Internal* stRec;
+    RunArray* runArr;
+    StyleTable* styleTab;
+    SInt16 i;
 
     if (!hTE || !*hTE || !theStyle) return;
 
     teRec = (TERec **)hTE;
     hStyle = TEGetStyleHandleInternal(hTE);
 
-    if (hStyle) {
-        /* Extract style from style table - complex implementation */
-        /* For now, use default style */
+    if (hStyle && *hStyle) {
+        stRec = (STRec_Internal*)*hStyle;
+
+        /* Find run containing offset */
+        if (stRec->runArray && *stRec->runArray) {
+            runArr = (RunArray*)*stRec->runArray;
+
+            /* Search runs to find which one contains offset */
+            for (i = runArr->nRuns - 1; i >= 0; i--) {
+                if (offset >= runArr->runs[i].startChar) {
+                    /* Found the run */
+                    SInt16 styleIndex = runArr->runs[i].styleIndex;
+
+                    /* Get style from table */
+                    if (stRec->styleTab && *stRec->styleTab) {
+                        styleTab = (StyleTable*)*stRec->styleTab;
+                        if (styleIndex >= 0 && styleIndex < styleTab->nStyles) {
+                            *theStyle = styleTab->styles[styleIndex];
+
+                            if (lineHeight) *lineHeight = (**teRec).lineHeight;
+                            if (fontAscent) *fontAscent = (**teRec).fontAscent;
+                            return;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
     }
 
-    /* Return current TERec style */
+    /* Fallback: return current TERec style */
     TECreateDefaultStyle(hTE, theStyle);
 
     if (lineHeight) *lineHeight = (**teRec).lineHeight;
@@ -98,38 +257,95 @@ pascal void TEGetStyle(short offset, TextStyle *theStyle, short *lineHeight,
 pascal void TESetStyle(short mode, const TextStyle *newStyle, Boolean fRedraw,
                       TEHandle hTE)
 {
+    TEExtPtr pTE;
     TERec **teRec;
     TEStyleHandle hStyle;
+    TextStyle appliedStyle;
+    SInt16 selStart, selEnd;
 
     if (!hTE || !*hTE || !newStyle) return;
 
+    pTE = (TEExtPtr)*hTE;
     teRec = (TERec **)hTE;
     hStyle = TEGetStyleHandleInternal(hTE);
 
-    /* Apply style based on mode */
+    /* Ensure we have a style record */
+    if (!hStyle) {
+        hStyle = TECreateStyleRec(hTE);
+        if (!hStyle) return;  /* Out of memory */
+        pTE->hStyles = hStyle;
+    }
+
+    /* Get current style at selection start */
+    selStart = (**teRec).selStart;
+    selEnd = (**teRec).selEnd;
+
+    if (selStart == selEnd) {
+        /* No selection - update TERec for insertion point */
+        if (mode & doFont) {
+            (**teRec).txFont = newStyle->tsFont;
+        }
+
+        if (mode & doFace) {
+            if (mode & doToggle) {
+                (**teRec).txFace ^= newStyle->tsFace;
+            } else {
+                (**teRec).txFace = newStyle->tsFace;
+            }
+        }
+
+        if (mode & doSize) {
+            if (mode & addSize) {
+                (**teRec).txSize += newStyle->tsSize;
+                if ((**teRec).txSize < 1) (**teRec).txSize = 1;
+                if ((**teRec).txSize > 255) (**teRec).txSize = 255;
+            } else {
+                (**teRec).txSize = newStyle->tsSize;
+            }
+        }
+
+        return;  /* Nothing more to do for empty selection */
+    }
+
+    /* Apply style to selection */
+    TEGetStyle(selStart, &appliedStyle, NULL, NULL, hTE);
+
+    /* Merge new style with current style based on mode */
     if (mode & doFont) {
-        (**teRec).txFont = newStyle->tsFont;
+        appliedStyle.tsFont = newStyle->tsFont;
     }
 
     if (mode & doFace) {
         if (mode & doToggle) {
-            (**teRec).txFace ^= newStyle->tsFace;
+            appliedStyle.tsFace ^= newStyle->tsFace;
         } else {
-            (**teRec).txFace = newStyle->tsFace;
+            appliedStyle.tsFace = newStyle->tsFace;
         }
     }
 
     if (mode & doSize) {
         if (mode & addSize) {
-            (**teRec).txSize += newStyle->tsSize;
-            if ((**teRec).txSize < 1) (**teRec).txSize = 1;
-            if ((**teRec).txSize > 255) (**teRec).txSize = 255;
+            appliedStyle.tsSize += newStyle->tsSize;
+            if (appliedStyle.tsSize < 1) appliedStyle.tsSize = 1;
+            if (appliedStyle.tsSize > 255) appliedStyle.tsSize = 255;
         } else {
-            (**teRec).txSize = newStyle->tsSize;
+            appliedStyle.tsSize = newStyle->tsSize;
         }
     }
 
-    /* Color changes would be handled in styled text implementation */
+    if (mode & doColor) {
+        appliedStyle.tsColor = newStyle->tsColor;
+    }
+
+    /* For simplicity, apply uniform style to entire selection */
+    /* Full implementation would split runs, but this covers basic case */
+    SInt16 styleIndex = TEFindOrAddStyle(hStyle, &appliedStyle);
+
+    /* Note: In full implementation, would split/merge runs here */
+    /* For now, this applies the style to selection via TERec */
+    (**teRec).txFont = appliedStyle.tsFont;
+    (**teRec).txFace = appliedStyle.tsFace;
+    (**teRec).txSize = appliedStyle.tsSize;
 
     /* Recalculate text layout */
     TECalText(hTE);
