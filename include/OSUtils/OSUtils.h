@@ -56,6 +56,16 @@ Boolean BitTst(const void* bytePtr, SInt32 bitNum);
 void BitSet(void* bytePtr, SInt32 bitNum);
 void BitClr(void* bytePtr, SInt32 bitNum);
 
+/* Fixed-point mathematics utilities */
+Fixed FixMul(Fixed a, Fixed b);
+Fixed FixDiv(Fixed dividend, Fixed divisor);
+Fixed FixRatio(SInt16 numer, SInt16 denom);
+SInt32 FixRound(Fixed x);
+SInt32 Fix2Long(Fixed x);
+Fixed Long2Fix(SInt32 x);
+Fract Fix2Frac(Fixed x);
+Fixed Frac2Fix(Fract x);
+
 #ifdef __cplusplus
 }
 #endif

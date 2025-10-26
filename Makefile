@@ -237,6 +237,7 @@ C_SOURCES = src/main.c \
             src/OSUtils/DateTime.c \
             src/OSUtils/QueueUtilities.c \
             src/OSUtils/BitManipulation.c \
+            src/OSUtils/FixedPointMath.c \
             src/Platform/WindowPlatform.c \
             $(if $(filter arm,$(PLATFORM)), \
               src/Platform/arm/hal_boot.c \
