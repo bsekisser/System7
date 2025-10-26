@@ -42,6 +42,11 @@ extern "C" {
 #define iuSelGetItlTable    36
 
 /* Date formatting constants */
+typedef enum {
+    shortDate = 0,      /* Short format: "1/15/25" */
+    longDate = 1,       /* Long format: "Friday, January 15, 2025" */
+    abbrevDate = 2      /* Abbreviated: "Fri, Jan 15, 2025" */
+} DateForm;
 
 /* International resource types */
 
