@@ -19,8 +19,7 @@
 #define __PROCESSMGR_H__
 
 #include "SystemTypes.h"
-
-#include "SystemTypes.h"
+#include "ProcessMgr/ProcessTypes.h"
 #include "EventManager/EventTypes.h"
 #include "FileMgr/file_manager.h"
 
@@ -154,7 +153,9 @@ OSErr Process_Resume(ProcessSerialNumber* psn);
 OSErr GetProcessInformation(ProcessSerialNumber* psn, ProcessInfoRec* info);
 OSErr GetCurrentProcess(ProcessSerialNumber* currentPSN);
 OSErr GetNextProcess(ProcessSerialNumber* psn);
-OSErr SetFrontProcess(ProcessSerialNumber* psn);
+OSErr SetFrontProcess(const ProcessSerialNumber* psn);
+OSErr GetFrontProcess(ProcessSerialNumber* frontPSN);
+OSErr SameProcess(const ProcessSerialNumber* psn1, const ProcessSerialNumber* psn2, Boolean* result);
 
 /* Event Integration for Cooperative Multitasking */
 /* Process-aware event functions that integrate with the scheduler */

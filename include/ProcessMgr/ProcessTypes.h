@@ -12,6 +12,13 @@
 /* Process ID type */
 typedef UInt32 ProcessID;
 
+/* Process Serial Number constants */
+enum {
+    kNoProcess = 0,              /* No process / null process */
+    kSystemProcess = 1,          /* System process */
+    kCurrentProcess = 2          /* Current process (shorthand) */
+};
+
 /* Process Manager error codes */
 enum {
     procNotFound = -600,
@@ -46,10 +53,7 @@ void Event_InitQueue(void);
 UInt16 Event_QueueCount(void);
 void Event_DumpQueue(void);
 
-/* Process-aware event functions */
-Boolean Proc_GetNextEvent(EventMask mask, EventRecord* evt);
-Boolean Proc_EventAvail(EventMask mask, EventRecord* evt);
-OSErr Proc_PostEvent(EventKind what, UInt32 message);
+/* Process-aware event functions - declared in ProcessMgr.h */
 
 /* When ENABLE_PROCESS_COOP is defined, these override canonical APIs */
 

@@ -377,6 +377,7 @@ C_SOURCES = src/main.c \
             src/EventManager/SystemEvents.c \
             src/ProcessMgr/ProcessManager.c \
             src/ProcessMgr/AppFileManager.c \
+            src/ProcessMgr/ProcessAPI.c \
             src/CPU/CPUBackend.c \
             src/CPU/m68k_interp/M68KBackend.c \
             src/CPU/m68k_interp/M68KDecode.c \
