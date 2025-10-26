@@ -244,18 +244,68 @@ void InitResourceManager(void) {
         gResMgr.resFiles[i].refNum = -1;
     }
 
-    /* Open system resource file (simplified - just use slot 0) */
-    /* In a real implementation, this would open System.rsrc */
     gResMgr.resFiles[0].inUse = true;
     gResMgr.resFiles[0].refNum = 0;
     gResMgr.curResFile = 0;
 
-    /* For now, we'll use embedded resource data */
+    /* Try to open System resource file from mounted volume */
+    Str255 systemName = "\006System";  /* Pascal string: length byte + "System" */
+    FileRefNum fileRef;
+    OSErr err = FSOpenRF(systemName, 0, &fileRef);
+
+    if (err == noErr) {
+        serial_puts("[ResourceMgr] Opening System file resource fork\n");
+
+        /* Read resource header */
+        ResourceHeader header;
+        UInt32 readCount = sizeof(ResourceHeader);
+        err = FSRead(fileRef, &readCount, &header);
+
+        if (err == noErr && readCount == sizeof(ResourceHeader)) {
+            /* Byte-swap header fields */
+            UInt32 mapOffset = read_be32((UInt8*)&header.mapOffset);
+            UInt32 mapLength = read_be32((UInt8*)&header.mapLength);
+
+            /* Allocate buffer for entire resource fork */
+            UInt32 totalSize = mapOffset + mapLength;
+            Handle dataHandle = NewHandle(totalSize);
+
+            if (dataHandle) {
+                /* Seek to beginning and read entire fork */
+                err = FSSetFPos(fileRef, fsFromStart, 0);
+                if (err == noErr) {
+                    readCount = totalSize;
+                    HLock(dataHandle);
+                    err = FSRead(fileRef, &readCount, *dataHandle);
+                    HUnlock(dataHandle);
+
+                    if (err == noErr && readCount == totalSize) {
+                        /* Successfully loaded System file */
+                        FSClose(fileRef);
+                        gResMgr.resFiles[0].data = (UInt8*)*dataHandle;
+                        gResMgr.resFiles[0].dataSize = totalSize;
+                        gResMgr.resFiles[0].mapHandle = dataHandle;
+                        serial_puts("[ResourceMgr] System file loaded from disk\n");
+                        goto parse_resources;
+                    }
+                }
+                DisposeHandle(dataHandle);
+            }
+        }
+        FSClose(fileRef);
+        serial_puts("[ResourceMgr] Failed to load System file, using embedded resources\n");
+    } else {
+        serial_puts("[ResourceMgr] System file not found, using embedded resources\n");
+    }
+
+    /* Fallback: use embedded resource data */
     extern const unsigned char patterns_rsrc_data[];
     extern const unsigned int patterns_rsrc_size;
 
     gResMgr.resFiles[0].data = (UInt8*)(uintptr_t)patterns_rsrc_data;
     gResMgr.resFiles[0].dataSize = patterns_rsrc_size;
+
+parse_resources:
 
     /* Parse resource header and map */
     if (gResMgr.resFiles[0].dataSize >= sizeof(ResourceHeader)) {
