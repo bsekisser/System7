@@ -239,6 +239,7 @@ C_SOURCES = src/main.c \
             src/OSUtils/BitManipulation.c \
             src/OSUtils/BitwiseOperations.c \
             src/OSUtils/FixedPointMath.c \
+            src/OSUtils/MemoryUtilities.c \
             src/Platform/WindowPlatform.c \
             $(if $(filter arm,$(PLATFORM)), \
               src/Platform/arm/hal_boot.c \

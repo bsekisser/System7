@@ -106,5 +106,6 @@ SInt16 HiWord(SInt32 x);
 SInt16 LoWord(SInt32 x);
 #endif
 void BlockMoveData(const void* srcPtr, void* destPtr, Size byteCount);
+void LongMul(SInt32 a, SInt32 b, wide* result);
 
 #endif /* SYSTEM71_STDLIB_H */

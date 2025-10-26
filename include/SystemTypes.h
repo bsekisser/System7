@@ -3120,6 +3120,12 @@ typedef struct UnsignedWide {
     UInt32 lo;
 } UnsignedWide;
 
+/* Signed 64-bit wide type */
+typedef struct wide {
+    SInt32 hi;
+    UInt32 lo;
+} wide;
+
 /* Time unit helpers */
 #ifndef MICROSECONDS_PER_SECOND
 #define MICROSECONDS_PER_SECOND 1000000ULL
