@@ -51,6 +51,11 @@ void Delay(UInt32 numTicks, UInt32* finalTicks);
 void Enqueue(QElemPtr qElement, QHdr* qHeader);
 OSErr Dequeue(QElemPtr qElement, QHdr* qHeader);
 
+/* Bit manipulation utilities */
+Boolean BitTst(const void* bytePtr, SInt32 bitNum);
+void BitSet(void* bytePtr, SInt32 bitNum);
+void BitClr(void* bytePtr, SInt32 bitNum);
+
 #ifdef __cplusplus
 }
 #endif
