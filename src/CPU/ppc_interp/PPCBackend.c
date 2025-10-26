@@ -1015,6 +1015,99 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     PPC_Op_VSUM4SBS(as, insn);
                     break;
 
+                case PPC_VXO_VSUM4SHS:
+                    PPC_Op_VSUM4SHS(as, insn);
+                    break;
+
+                case PPC_VXO_VSUM2SWS:
+                    PPC_Op_VSUM2SWS(as, insn);
+                    break;
+
+                case PPC_VXO_VSUMSWS:
+                    PPC_Op_VSUMSWS(as, insn);
+                    break;
+
+                /* Additional Saturating Arithmetic */
+                case PPC_VXO_VADDSWS:
+                    PPC_Op_VADDSWS(as, insn);
+                    break;
+
+                case PPC_VXO_VSUBSWS:
+                    PPC_Op_VSUBSWS(as, insn);
+                    break;
+
+                case PPC_VXO_VADDUWS:
+                    PPC_Op_VADDUWS(as, insn);
+                    break;
+
+                case PPC_VXO_VSUBUWS:
+                    PPC_Op_VSUBUWS(as, insn);
+                    break;
+
+                /* Additional Average */
+                case PPC_VXO_VAVGSH:
+                    PPC_Op_VAVGSH(as, insn);
+                    break;
+
+                case PPC_VXO_VAVGUH:
+                    PPC_Op_VAVGUH(as, insn);
+                    break;
+
+                case PPC_VXO_VAVGSW:
+                    PPC_Op_VAVGSW(as, insn);
+                    break;
+
+                case PPC_VXO_VAVGUW:
+                    PPC_Op_VAVGUW(as, insn);
+                    break;
+
+                /* Additional Min/Max */
+                case PPC_VXO_VMAXUH:
+                    PPC_Op_VMAXUH(as, insn);
+                    break;
+
+                case PPC_VXO_VMINUH:
+                    PPC_Op_VMINUH(as, insn);
+                    break;
+
+                case PPC_VXO_VMAXUW:
+                    PPC_Op_VMAXUW(as, insn);
+                    break;
+
+                case PPC_VXO_VMINUW:
+                    PPC_Op_VMINUW(as, insn);
+                    break;
+
+                case PPC_VXO_VMAXSW:
+                    PPC_Op_VMAXSW(as, insn);
+                    break;
+
+                case PPC_VXO_VMINSW:
+                    PPC_Op_VMINSW(as, insn);
+                    break;
+
+                /* Multiply-Add */
+                case PPC_VXO_VMLADDUHM:
+                    PPC_Op_VMLADDUHM(as, insn);
+                    break;
+
+                /* Additional Pack with Saturation */
+                case PPC_VXO_VPKSWSS:
+                    PPC_Op_VPKSWSS(as, insn);
+                    break;
+
+                case PPC_VXO_VPKSWUS:
+                    PPC_Op_VPKSWUS(as, insn);
+                    break;
+
+                case PPC_VXO_VPKSHSS:
+                    PPC_Op_VPKSHSS(as, insn);
+                    break;
+
+                case PPC_VXO_VPKSHUS:
+                    PPC_Op_VPKSHUS(as, insn);
+                    break;
+
                 default:
                     PPC_Fault(as, "Unimplemented AltiVec opcode");
                     break;

@@ -498,6 +498,38 @@ extern "C" {
 /* Vector sum */
 #define PPC_VXO_VSUM4UBS    1544 /* Vector sum across quarter unsigned byte saturate */
 #define PPC_VXO_VSUM4SBS    1800 /* Vector sum across quarter signed byte saturate */
+#define PPC_VXO_VSUM4SHS    1608 /* Vector sum across quarter signed halfword saturate */
+#define PPC_VXO_VSUM2SWS    1672 /* Vector sum across half signed word saturate */
+#define PPC_VXO_VSUMSWS     1928 /* Vector sum across signed word saturate */
+
+/* Additional saturating arithmetic */
+#define PPC_VXO_VADDSWS     896  /* Vector add signed word saturate */
+#define PPC_VXO_VSUBSWS     1920 /* Vector subtract signed word saturate */
+#define PPC_VXO_VADDUWS     640  /* Vector add unsigned word saturate */
+#define PPC_VXO_VSUBUWS     1664 /* Vector subtract unsigned word saturate */
+
+/* Additional average */
+#define PPC_VXO_VAVGSH      1346 /* Vector average signed halfword */
+#define PPC_VXO_VAVGUH      1090 /* Vector average unsigned halfword */
+#define PPC_VXO_VAVGSW      1410 /* Vector average signed word */
+#define PPC_VXO_VAVGUW      1154 /* Vector average unsigned word */
+
+/* Additional min/max */
+#define PPC_VXO_VMAXUH      66   /* Vector maximum unsigned halfword */
+#define PPC_VXO_VMINUH      578  /* Vector minimum unsigned halfword */
+#define PPC_VXO_VMAXUW      130  /* Vector maximum unsigned word */
+#define PPC_VXO_VMINUW      642  /* Vector minimum unsigned word */
+#define PPC_VXO_VMAXSW      386  /* Vector maximum signed word */
+#define PPC_VXO_VMINSW      898  /* Vector minimum signed word */
+
+/* Vector multiply-add */
+#define PPC_VXO_VMLADDUHM   34   /* Vector multiply-add unsigned halfword modulo */
+
+/* Additional pack with saturation */
+#define PPC_VXO_VPKSWSS     462  /* Vector pack signed word signed saturate */
+#define PPC_VXO_VPKSWUS     398  /* Vector pack signed word unsigned saturate */
+#define PPC_VXO_VPKSHSS     454  /* Vector pack signed halfword signed saturate */
+#define PPC_VXO_VPKSHUS     270  /* Vector pack signed halfword unsigned saturate */
 
 /* Vector load/store (use primary opcodes 7, 39, etc.) */
 #define PPC_OP_LVX          103 /* Load vector indexed (actually opcode 31/103) */
@@ -911,6 +943,38 @@ extern void PPC_Op_VPKUWUS(PPCAddressSpace* as, UInt32 insn);
 /* Vector sum */
 extern void PPC_Op_VSUM4UBS(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_VSUM4SBS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSUM4SHS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSUM2SWS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSUMSWS(PPCAddressSpace* as, UInt32 insn);
+
+/* Additional saturating arithmetic */
+extern void PPC_Op_VADDSWS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSUBSWS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VADDUWS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSUBUWS(PPCAddressSpace* as, UInt32 insn);
+
+/* Additional average */
+extern void PPC_Op_VAVGSH(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VAVGUH(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VAVGSW(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VAVGUW(PPCAddressSpace* as, UInt32 insn);
+
+/* Additional min/max */
+extern void PPC_Op_VMAXUH(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VMINUH(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VMAXUW(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VMINUW(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VMAXSW(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VMINSW(PPCAddressSpace* as, UInt32 insn);
+
+/* Vector multiply-add */
+extern void PPC_Op_VMLADDUHM(PPCAddressSpace* as, UInt32 insn);
+
+/* Additional pack with saturation */
+extern void PPC_Op_VPKSWSS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VPKSWUS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VPKSHSS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VPKSHUS(PPCAddressSpace* as, UInt32 insn);
 
 #ifdef __cplusplus
 }

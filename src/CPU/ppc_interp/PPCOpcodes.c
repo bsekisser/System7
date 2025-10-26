@@ -4430,6 +4430,39 @@ void PPC_Op_MFTB(PPCAddressSpace* as, UInt32 insn)
 
 /*
  * ============================================================================
+ * EXTERNAL CONTROL INSTRUCTIONS
+ * ============================================================================
+ */
+
+/*
+ * ECIWX - External Control In Word Indexed
+ * Load word from external device with EAR setup
+ * (Stub - return 0 for now)
+ */
+void PPC_Op_ECIWX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 rd = PPC_RD(insn);
+
+    /* Stub: External control rarely used */
+    /* Would need EAR register and external device support */
+    as->regs.gpr[rd] = 0;
+}
+
+/*
+ * ECOWX - External Control Out Word Indexed
+ * Store word to external device with EAR setup
+ * (Stub - NOP for now)
+ */
+void PPC_Op_ECOWX(PPCAddressSpace* as, UInt32 insn)
+{
+    /* Stub: External control rarely used */
+    /* Would need EAR register and external device support */
+    (void)as;
+    (void)insn;
+}
+
+/*
+ * ============================================================================
  * POWERPC 601 COMPATIBILITY INSTRUCTIONS
  * ============================================================================
  */
@@ -4617,263 +4650,6 @@ void PPC_Op_CLCS(PPCAddressSpace* as, UInt32 insn)
     /* Return 32 bytes (typical 601 cache line size) */
     as->regs.gpr[rd] = 32;
 }
-
-/*
- * ============================================================================
- * SUPERVISOR MODE INSTRUCTIONS
- * ============================================================================
- */
-
-/*
- * MFSR - Move From Segment Register
- * rD = SR[SR#]
- */
-void PPC_Op_MFSR(PPCAddressSpace* as, UInt32 insn)
-{
-    UInt8 rd = PPC_RD(insn);
-    UInt8 sr = (insn >> 16) & 0xF;  /* Bits 16-19 contain SR# */
-
-    as->regs.gpr[rd] = as->regs.sr[sr];
-}
-
-/*
- * MTSR - Move To Segment Register
- * SR[SR#] = rS
- */
-void PPC_Op_MTSR(PPCAddressSpace* as, UInt32 insn)
-{
-    UInt8 rs = PPC_RS(insn);
-    UInt8 sr = (insn >> 16) & 0xF;  /* Bits 16-19 contain SR# */
-
-    as->regs.sr[sr] = as->regs.gpr[rs];
-}
-
-/*
- * MFSRIN - Move From Segment Register Indirect
- * rD = SR[rB[0-3]]
- */
-void PPC_Op_MFSRIN(PPCAddressSpace* as, UInt32 insn)
-{
-    UInt8 rd = PPC_RD(insn);
-    UInt8 rb = PPC_RB(insn);
-    UInt8 sr = (as->regs.gpr[rb] >> 28) & 0xF;  /* Use top 4 bits of rB */
-
-    as->regs.gpr[rd] = as->regs.sr[sr];
-}
-
-/*
- * MTSRIN - Move To Segment Register Indirect
- * SR[rB[0-3]] = rS
- */
-void PPC_Op_MTSRIN(PPCAddressSpace* as, UInt32 insn)
-{
-    UInt8 rs = PPC_RS(insn);
-    UInt8 rb = PPC_RB(insn);
-    UInt8 sr = (as->regs.gpr[rb] >> 28) & 0xF;  /* Use top 4 bits of rB */
-
-    as->regs.sr[sr] = as->regs.gpr[rs];
-}
-
-/*
- * ============================================================================
- * TLB MANAGEMENT INSTRUCTIONS
- * ============================================================================
- */
-
-/*
- * TLBIE - TLB Invalidate Entry
- * Invalidate TLB entry for effective address in rB
- * (NOP in interpreter - no real TLB)
- */
-void PPC_Op_TLBIE(PPCAddressSpace* as, UInt32 insn)
-{
-    /* NOP - interpreter doesn't have a TLB */
-    (void)as;
-    (void)insn;
-}
-
-/*
- * TLBSYNC - TLB Synchronize
- * Ensure TLB invalidations complete on all processors
- * (NOP in single-processor interpreter)
- */
-void PPC_Op_TLBSYNC(PPCAddressSpace* as, UInt32 insn)
-{
-    /* NOP - single processor, nothing to sync */
-    (void)as;
-    (void)insn;
-}
-
-/*
- * TLBIA - TLB Invalidate All (PowerPC 601 only)
- * Invalidate all TLB entries
- * (NOP in interpreter - no real TLB)
- */
-void PPC_Op_TLBIA(PPCAddressSpace* as, UInt32 insn)
-{
-    /* NOP - interpreter doesn't have a TLB */
-    (void)as;
-    (void)insn;
-}
-
-/*
- * ============================================================================
- * CACHE CONTROL INSTRUCTIONS
- * ============================================================================
- */
-
-/*
- * DCBI - Data Cache Block Invalidate (supervisor)
- * Invalidate data cache block
- * (NOP in interpreter - no cache)
- */
-void PPC_Op_DCBI(PPCAddressSpace* as, UInt32 insn)
-{
-    /* NOP - interpreter doesn't have a cache */
-    (void)as;
-    (void)insn;
-}
-
-/*
- * DCBT - Data Cache Block Touch (prefetch hint)
- * Prefetch data cache block
- * (NOP in interpreter - no cache)
- */
-void PPC_Op_DCBT(PPCAddressSpace* as, UInt32 insn)
-{
-    /* NOP - interpreter doesn't have a cache */
-    (void)as;
-    (void)insn;
-}
-
-/*
- * DCBTST - Data Cache Block Touch for Store
- * Prefetch data cache block for store
- * (NOP in interpreter - no cache)
- */
-void PPC_Op_DCBTST(PPCAddressSpace* as, UInt32 insn)
-{
-    /* NOP - interpreter doesn't have a cache */
-    (void)as;
-    (void)insn;
-}
-
-/*
- * ============================================================================
- * TIME BASE INSTRUCTIONS
- * ============================================================================
- */
-
-/*
- * MFTB - Move From Time Base
- * rD = TB[TBR] where TBR can be TBL (268) or TBU (269)
- * This is a user-mode instruction for reading time base
- */
-void PPC_Op_MFTB(PPCAddressSpace* as, UInt32 insn)
-{
-    UInt8 rd = PPC_RD(insn);
-    UInt16 tbr = ((insn >> 11) & 0x1F) | (((insn >> 16) & 0x1F) << 5);
-
-    switch (tbr) {
-        case 268:  /* TBL */
-            as->regs.gpr[rd] = as->regs.tbl;
-            break;
-        case 269:  /* TBU */
-            as->regs.gpr[rd] = as->regs.tbu;
-            break;
-        default:
-            /* Invalid TBR - return 0 */
-            as->regs.gpr[rd] = 0;
-            break;
-    }
-}
-
-/*
- * ============================================================================
- * EXTERNAL CONTROL INSTRUCTIONS
- * ============================================================================
- */
-
-/*
- * ECIWX - External Control In Word Indexed
- * Load word from external device with EAR setup
- * (Stub - return 0 for now)
- */
-void PPC_Op_ECIWX(PPCAddressSpace* as, UInt32 insn)
-{
-    UInt8 rd = PPC_RD(insn);
-
-    /* Stub: External control rarely used */
-    /* Would need EAR register and external device support */
-    as->regs.gpr[rd] = 0;
-}
-
-/*
- * ECOWX - External Control Out Word Indexed
- * Store word to external device with EAR setup
- * (Stub - NOP for now)
- */
-void PPC_Op_ECOWX(PPCAddressSpace* as, UInt32 insn)
-{
-    /* Stub: External control rarely used */
-    /* Would need EAR register and external device support */
-    (void)as;
-    (void)insn;
-}
-
-/*
- * ============================================================================
- * ADDITIONAL POWERPC 601 INSTRUCTIONS
- * ============================================================================
- */
-
-/*
- * DOZI - Difference Or Zero Immediate
- * rD = (rA < SIMM) ? (SIMM - rA) : 0
- */
-void PPC_Op_DOZI(PPCAddressSpace* as, UInt32 insn)
-{
-    UInt8 rd = PPC_RD(insn);
-    UInt8 ra = PPC_RA(insn);
-    SInt32 simm = PPC_SIMM(insn);
-    SInt32 a = (SInt32)as->regs.gpr[ra];
-
-    if (a < simm) {
-        as->regs.gpr[rd] = (UInt32)(simm - a);
-    } else {
-        as->regs.gpr[rd] = 0;
-    }
-}
-
-/*
- * DIVS - Divide Short (PowerPC 601)
- * rD = rA / rB (with overflow detection)
- */
-void PPC_Op_DIVS(PPCAddressSpace* as, UInt32 insn)
-{
-    UInt8 rd = PPC_RD(insn);
-    UInt8 ra = PPC_RA(insn);
-    UInt8 rb = PPC_RB(insn);
-    Boolean rc = PPC_RC(insn);
-    SInt32 a = (SInt32)as->regs.gpr[ra];
-    SInt32 b = (SInt32)as->regs.gpr[rb];
-
-    if (b == 0) {
-        /* Division by zero - result undefined, set overflow */
-        as->regs.gpr[rd] = 0;
-        as->regs.xer |= PPC_XER_OV;
-        if (as->regs.xer & PPC_XER_OV) {
-            as->regs.xer |= PPC_XER_SO;
-        }
-    } else {
-        as->regs.gpr[rd] = (UInt32)(a / b);
-    }
-
-    if (rc) {
-        PPC_SetCR0(as, (SInt32)as->regs.gpr[rd]);
-    }
-}
-
 /*
  * ============================================================================
  * ALTIVEC/VMX VECTOR INSTRUCTIONS (G4/G5)
@@ -6420,9 +6196,482 @@ void PPC_Op_VSUM4SBS(PPCAddressSpace* as, UInt32 insn)
 }
 
 /*
+ * Additional Vector Saturating Arithmetic
+ */
+
+/* VADDSWS - Vector Add Signed Word Saturate */
+void PPC_Op_VADDSWS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        SInt64 a = (SInt32)as->regs.vr[va][i];
+        SInt64 b = (SInt32)as->regs.vr[vb][i];
+        SInt64 result = a + b;
+        if (result > 2147483647LL) result = 2147483647LL;
+        if (result < -2147483648LL) result = -2147483648LL;
+        as->regs.vr[vd][i] = (UInt32)result;
+    }
+}
+
+/* VSUBSWS - Vector Subtract Signed Word Saturate */
+void PPC_Op_VSUBSWS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        SInt64 a = (SInt32)as->regs.vr[va][i];
+        SInt64 b = (SInt32)as->regs.vr[vb][i];
+        SInt64 result = a - b;
+        if (result > 2147483647LL) result = 2147483647LL;
+        if (result < -2147483648LL) result = -2147483648LL;
+        as->regs.vr[vd][i] = (UInt32)result;
+    }
+}
+
+/* VADDUWS - Vector Add Unsigned Word Saturate */
+void PPC_Op_VADDUWS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        UInt64 a = as->regs.vr[va][i];
+        UInt64 b = as->regs.vr[vb][i];
+        UInt64 result = a + b;
+        if (result > 0xFFFFFFFFULL) result = 0xFFFFFFFFULL;
+        as->regs.vr[vd][i] = (UInt32)result;
+    }
+}
+
+/* VSUBUWS - Vector Subtract Unsigned Word Saturate */
+void PPC_Op_VSUBUWS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        UInt32 a = as->regs.vr[va][i];
+        UInt32 b = as->regs.vr[vb][i];
+        if (a < b) {
+            as->regs.vr[vd][i] = 0;
+        } else {
+            as->regs.vr[vd][i] = a - b;
+        }
+    }
+}
+
+/*
+ * Additional Vector Average Operations
+ */
+
+/* VAVGSH - Vector Average Signed Halfword */
+void PPC_Op_VAVGSH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        SInt16 a = (SInt16)((as->regs.vr[va][word] >> shift) & 0xFFFF);
+        SInt16 b = (SInt16)((as->regs.vr[vb][word] >> shift) & 0xFFFF);
+        SInt16 result = (SInt16)(((SInt32)a + (SInt32)b + 1) / 2);
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (((UInt16)result) << shift);
+    }
+}
+
+/* VAVGUH - Vector Average Unsigned Halfword */
+void PPC_Op_VAVGUH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        UInt16 a = (UInt16)((as->regs.vr[va][word] >> shift) & 0xFFFF);
+        UInt16 b = (UInt16)((as->regs.vr[vb][word] >> shift) & 0xFFFF);
+        UInt16 result = (UInt16)(((UInt32)a + (UInt32)b + 1) / 2);
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (result << shift);
+    }
+}
+
+/* VAVGSW - Vector Average Signed Word */
+void PPC_Op_VAVGSW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        SInt64 a = (SInt32)as->regs.vr[va][i];
+        SInt64 b = (SInt32)as->regs.vr[vb][i];
+        as->regs.vr[vd][i] = (UInt32)((a + b + 1) / 2);
+    }
+}
+
+/* VAVGUW - Vector Average Unsigned Word */
+void PPC_Op_VAVGUW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        UInt64 a = as->regs.vr[va][i];
+        UInt64 b = as->regs.vr[vb][i];
+        as->regs.vr[vd][i] = (UInt32)((a + b + 1) / 2);
+    }
+}
+
+/*
+ * Additional Vector Min/Max Operations
+ */
+
+/* VMAXUW - Vector Maximum Unsigned Word */
+void PPC_Op_VMAXUW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        UInt32 a = as->regs.vr[va][i];
+        UInt32 b = as->regs.vr[vb][i];
+        as->regs.vr[vd][i] = (a > b) ? a : b;
+    }
+}
+
+/* VMINUW - Vector Minimum Unsigned Word */
+void PPC_Op_VMINUW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        UInt32 a = as->regs.vr[va][i];
+        UInt32 b = as->regs.vr[vb][i];
+        as->regs.vr[vd][i] = (a < b) ? a : b;
+    }
+}
+
+/* VMAXSW - Vector Maximum Signed Word */
+void PPC_Op_VMAXSW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        SInt32 a = (SInt32)as->regs.vr[va][i];
+        SInt32 b = (SInt32)as->regs.vr[vb][i];
+        as->regs.vr[vd][i] = (UInt32)((a > b) ? a : b);
+    }
+}
+
+/* VMINSW - Vector Minimum Signed Word */
+void PPC_Op_VMINSW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        SInt32 a = (SInt32)as->regs.vr[va][i];
+        SInt32 b = (SInt32)as->regs.vr[vb][i];
+        as->regs.vr[vd][i] = (UInt32)((a < b) ? a : b);
+    }
+}
+
+/* VMAXUH - Vector Maximum Unsigned Halfword */
+void PPC_Op_VMAXUH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        UInt16 a = (UInt16)((as->regs.vr[va][word] >> shift) & 0xFFFF);
+        UInt16 b = (UInt16)((as->regs.vr[vb][word] >> shift) & 0xFFFF);
+        UInt16 result = (a > b) ? a : b;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (result << shift);
+    }
+}
+
+/* VMINUH - Vector Minimum Unsigned Halfword */
+void PPC_Op_VMINUH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        UInt16 a = (UInt16)((as->regs.vr[va][word] >> shift) & 0xFFFF);
+        UInt16 b = (UInt16)((as->regs.vr[vb][word] >> shift) & 0xFFFF);
+        UInt16 result = (a < b) ? a : b;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (result << shift);
+    }
+}
+
+/*
+ * Additional Vector Sum Operations
+ */
+
+/* VSUM4SHS - Vector Sum Across Quarter Signed Halfword Saturate */
+void PPC_Op_VSUM4SHS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i, j;
+
+    for (i = 0; i < 4; i++) {
+        SInt64 sum = (SInt32)as->regs.vr[vb][i];
+        for (j = 0; j < 2; j++) {
+            UInt8 word = i / 2 * 2 + j / 1;
+            UInt8 half = (i % 2) * 2 + (j % 2);
+            UInt8 shift = (1 - (half % 2)) * 16;
+            SInt16 val = (SInt16)((as->regs.vr[va][word] >> shift) & 0xFFFF);
+            sum += val;
+        }
+        /* Saturate to signed 32-bit */
+        if (sum > 2147483647LL) sum = 2147483647LL;
+        if (sum < -2147483648LL) sum = -2147483648LL;
+        as->regs.vr[vd][i] = (UInt32)sum;
+    }
+}
+
+/* VSUM2SWS - Vector Sum Across Half Signed Word Saturate */
+void PPC_Op_VSUM2SWS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    /* Sum elements 0,1 into result[1] */
+    SInt64 sum0 = (SInt32)as->regs.vr[vb][1];
+    sum0 += (SInt32)as->regs.vr[va][0];
+    sum0 += (SInt32)as->regs.vr[va][1];
+    if (sum0 > 2147483647LL) sum0 = 2147483647LL;
+    if (sum0 < -2147483648LL) sum0 = -2147483648LL;
+
+    /* Sum elements 2,3 into result[3] */
+    SInt64 sum1 = (SInt32)as->regs.vr[vb][3];
+    sum1 += (SInt32)as->regs.vr[va][2];
+    sum1 += (SInt32)as->regs.vr[va][3];
+    if (sum1 > 2147483647LL) sum1 = 2147483647LL;
+    if (sum1 < -2147483648LL) sum1 = -2147483648LL;
+
+    as->regs.vr[vd][0] = 0;
+    as->regs.vr[vd][1] = (UInt32)sum0;
+    as->regs.vr[vd][2] = 0;
+    as->regs.vr[vd][3] = (UInt32)sum1;
+}
+
+/* VSUMSWS - Vector Sum Across Signed Word Saturate */
+void PPC_Op_VSUMSWS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    SInt64 sum = (SInt32)as->regs.vr[vb][3];
+    for (i = 0; i < 4; i++) {
+        sum += (SInt32)as->regs.vr[va][i];
+    }
+    /* Saturate */
+    if (sum > 2147483647LL) sum = 2147483647LL;
+    if (sum < -2147483648LL) sum = -2147483648LL;
+
+    as->regs.vr[vd][0] = 0;
+    as->regs.vr[vd][1] = 0;
+    as->regs.vr[vd][2] = 0;
+    as->regs.vr[vd][3] = (UInt32)sum;
+}
+
+/*
+ * Vector Multiply-Add Operations
+ */
+
+/* VMLADDUHM - Vector Multiply-Add Unsigned Halfword Modulo */
+void PPC_Op_VMLADDUHM(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 vc = (insn >> 6) & 0x1F;
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        UInt16 a = (UInt16)((as->regs.vr[va][word] >> shift) & 0xFFFF);
+        UInt16 b = (UInt16)((as->regs.vr[vb][word] >> shift) & 0xFFFF);
+        UInt16 c = (UInt16)((as->regs.vr[vc][word] >> shift) & 0xFFFF);
+        UInt16 result = (UInt16)((a * b + c) & 0xFFFF);
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (result << shift);
+    }
+}
+
+/*
+ * Additional Vector Pack Operations
+ */
+
+/* VPKSWSS - Vector Pack Signed Word Signed Saturate */
+void PPC_Op_VPKSWSS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        SInt32 val = (SInt32)as->regs.vr[va][i];
+        if (val > 32767) val = 32767;
+        if (val < -32768) val = -32768;
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (((UInt16)val) << shift);
+    }
+
+    for (i = 0; i < 4; i++) {
+        SInt32 val = (SInt32)as->regs.vr[vb][i];
+        if (val > 32767) val = 32767;
+        if (val < -32768) val = -32768;
+        UInt8 word = 2 + i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (((UInt16)val) << shift);
+    }
+}
+
+/* VPKSWUS - Vector Pack Signed Word Unsigned Saturate */
+void PPC_Op_VPKSWUS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        SInt32 val = (SInt32)as->regs.vr[va][i];
+        if (val < 0) val = 0;
+        if (val > 65535) val = 65535;
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (((UInt16)val) << shift);
+    }
+
+    for (i = 0; i < 4; i++) {
+        SInt32 val = (SInt32)as->regs.vr[vb][i];
+        if (val < 0) val = 0;
+        if (val > 65535) val = 65535;
+        UInt8 word = 2 + i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (((UInt16)val) << shift);
+    }
+}
+
+/* VPKSHSS - Vector Pack Signed Halfword Signed Saturate */
+void PPC_Op_VPKSHSS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        SInt16 val = (SInt16)((as->regs.vr[va][word] >> shift) & 0xFFFF);
+        if (val > 127) val = 127;
+        if (val < -128) val = -128;
+        VR_SetByte(as, vd, i, (UInt8)val);
+    }
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        SInt16 val = (SInt16)((as->regs.vr[vb][word] >> shift) & 0xFFFF);
+        if (val > 127) val = 127;
+        if (val < -128) val = -128;
+        VR_SetByte(as, vd, i + 8, (UInt8)val);
+    }
+}
+
+/* VPKSHUS - Vector Pack Signed Halfword Unsigned Saturate */
+void PPC_Op_VPKSHUS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        SInt16 val = (SInt16)((as->regs.vr[va][word] >> shift) & 0xFFFF);
+        if (val < 0) val = 0;
+        if (val > 255) val = 255;
+        VR_SetByte(as, vd, i, (UInt8)val);
+    }
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        SInt16 val = (SInt16)((as->regs.vr[vb][word] >> shift) & 0xFFFF);
+        if (val < 0) val = 0;
+        if (val > 255) val = 255;
+        VR_SetByte(as, vd, i + 8, (UInt8)val);
+    }
+}
+
+/*
  * ==================================================
  * COMPREHENSIVE IMPLEMENTATION
- * Total: 333 instructions (217 base + 11 601 + 13 supervisor + 92 AltiVec)
+ * Total: 358 instructions (217 base + 11 601 + 13 supervisor + 117 AltiVec)
  *
  * Supervisor instructions: MFSR, MTSR, MFSRIN, MTSRIN, TLBIE, TLBSYNC, TLBIA,
  *                          DCBI, DCBT, DCBTST, MFTB, ECIWX, ECOWX
