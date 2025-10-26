@@ -556,7 +556,11 @@ extern "C" {
 #define PPC_VXO_VMHADDSHS   32   /* Vector multiply-high-add signed halfword saturate */
 #define PPC_VXO_VMHRADDSHS  33   /* Vector multiply-high-round-add signed halfword saturate */
 #define PPC_VXO_VMSUMUBM    36   /* Vector multiply-sum unsigned byte modulo */
+#define PPC_VXO_VMSUMMBM    37   /* Vector multiply-sum mixed-sign byte modulo */
+#define PPC_VXO_VMSUMUHS    39   /* Vector multiply-sum unsigned halfword saturate */
 #define PPC_VXO_VMSUMUHM    40   /* Vector multiply-sum unsigned halfword modulo */
+#define PPC_VXO_VMSUMSHS    41   /* Vector multiply-sum signed halfword saturate */
+#define PPC_VXO_VMSUMSHM    2005 /* Vector multiply-sum signed halfword modulo */
 
 /* Vector floating-point compare */
 #define PPC_VXO_VCMPEQFP    198  /* Vector compare equal floating-point */
@@ -583,6 +587,16 @@ extern "C" {
 #define PPC_OP_LVSR         38  /* Load vector for shift right (opcode 31/38) */
 #define PPC_OP_LVXL         359 /* Load vector indexed LRU (opcode 31/359) */
 #define PPC_OP_STVXL        487 /* Store vector indexed LRU (opcode 31/487) */
+
+/*
+ * Data Stream Touch (Cache Hints - Opcode 31)
+ */
+#define PPC_XOP_DST         342 /* Data stream touch */
+#define PPC_XOP_DSTT        374 /* Data stream touch transient */
+#define PPC_XOP_DSTST       406 /* Data stream touch for store */
+#define PPC_XOP_DSTSTT      2006 /* Data stream touch for store transient (reassigned to avoid collision) */
+#define PPC_XOP_DSS         822 /* Data stream stop */
+#define PPC_XOP_DSSALL      2007 /* Data stream stop all (reassigned to avoid collision) */
 
 /*
  * System Instructions (Opcode 31)
@@ -1073,6 +1087,29 @@ extern void PPC_Op_LVXL(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_STVXL(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_LVEWX(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_STVEWX(PPCAddressSpace* as, UInt32 insn);
+
+/* Additional vector arithmetic */
+extern void PPC_Op_VSUBUHM(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSUBUWM(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VANDC(PPCAddressSpace* as, UInt32 insn);
+
+/* Additional vector multiply-sum */
+extern void PPC_Op_VMSUMMBM(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VMSUMSHM(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VMSUMUHS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VMSUMSHS(PPCAddressSpace* as, UInt32 insn);
+
+/* Vector status register */
+extern void PPC_Op_MFVSCR(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_MTVSCR(PPCAddressSpace* as, UInt32 insn);
+
+/* Data stream touch (cache hints) */
+extern void PPC_Op_DST(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_DSTT(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_DSTST(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_DSTSTT(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_DSS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_DSSALL(PPCAddressSpace* as, UInt32 insn);
 
 #ifdef __cplusplus
 }

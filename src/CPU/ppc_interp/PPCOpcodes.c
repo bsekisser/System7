@@ -7323,9 +7323,236 @@ void PPC_Op_STVEWX(PPCAddressSpace* as, UInt32 insn)
 }
 
 /*
+ * Additional Vector Arithmetic Operations
+ */
+
+/* VSUBUHM - Vector Subtract Unsigned Halfword Modulo */
+void PPC_Op_VSUBUHM(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        UInt16 a = (as->regs.vr[va][word] >> shift) & 0xFFFF;
+        UInt16 b = (as->regs.vr[vb][word] >> shift) & 0xFFFF;
+        UInt16 result = a - b;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (result << shift);
+    }
+}
+
+/* VSUBUWM - Vector Subtract Unsigned Word Modulo */
+void PPC_Op_VSUBUWM(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        as->regs.vr[vd][i] = as->regs.vr[va][i] - as->regs.vr[vb][i];
+    }
+}
+
+/* VANDC - Vector AND with Complement */
+void PPC_Op_VANDC(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        as->regs.vr[vd][i] = as->regs.vr[va][i] & ~as->regs.vr[vb][i];
+    }
+}
+
+/*
+ * Additional Vector Multiply-Sum Operations
+ */
+
+/* VMSUMMBM - Vector Multiply-Sum Mixed-Sign Byte Modulo */
+void PPC_Op_VMSUMMBM(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 vc = (insn >> 6) & 0x1F;
+    int i, j;
+
+    for (i = 0; i < 4; i++) {
+        SInt32 sum = (SInt32)as->regs.vr[vc][i];
+        for (j = 0; j < 4; j++) {
+            SInt8 a = (SInt8)VR_GetByte(as, va, i * 4 + j);
+            UInt8 b = VR_GetByte(as, vb, i * 4 + j);
+            sum += (SInt32)a * (SInt32)b;
+        }
+        as->regs.vr[vd][i] = (UInt32)sum;
+    }
+}
+
+/* VMSUMSHM - Vector Multiply-Sum Signed Halfword Modulo */
+void PPC_Op_VMSUMSHM(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 vc = (insn >> 6) & 0x1F;
+    int i, j;
+
+    for (i = 0; i < 4; i++) {
+        SInt32 sum = (SInt32)as->regs.vr[vc][i];
+        for (j = 0; j < 2; j++) {
+            UInt8 word = i / 2 * 2 + j;
+            UInt8 half = (i % 2) * 2 + (j % 2);
+            UInt8 shift = (1 - (half % 2)) * 16;
+            SInt16 a = (SInt16)((as->regs.vr[va][word] >> shift) & 0xFFFF);
+            SInt16 b = (SInt16)((as->regs.vr[vb][word] >> shift) & 0xFFFF);
+            sum += (SInt32)a * (SInt32)b;
+        }
+        as->regs.vr[vd][i] = (UInt32)sum;
+    }
+}
+
+/* VMSUMUHS - Vector Multiply-Sum Unsigned Halfword Saturate */
+void PPC_Op_VMSUMUHS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 vc = (insn >> 6) & 0x1F;
+    int i, j;
+
+    for (i = 0; i < 4; i++) {
+        UInt32 sum = as->regs.vr[vc][i];
+        for (j = 0; j < 2; j++) {
+            UInt8 word = i / 2 * 2 + j;
+            UInt8 half = (i % 2) * 2 + (j % 2);
+            UInt8 shift = (1 - (half % 2)) * 16;
+            UInt16 a = (UInt16)((as->regs.vr[va][word] >> shift) & 0xFFFF);
+            UInt16 b = (UInt16)((as->regs.vr[vb][word] >> shift) & 0xFFFF);
+            sum += (UInt32)a * (UInt32)b;
+        }
+        /* Saturate to 32-bit unsigned max */
+        if (sum > 0xFFFFFFFF) sum = 0xFFFFFFFF;
+        as->regs.vr[vd][i] = sum;
+    }
+}
+
+/* VMSUMSHS - Vector Multiply-Sum Signed Halfword Saturate */
+void PPC_Op_VMSUMSHS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 vc = (insn >> 6) & 0x1F;
+    int i, j;
+
+    for (i = 0; i < 4; i++) {
+        SInt64 sum = (SInt32)as->regs.vr[vc][i];
+        for (j = 0; j < 2; j++) {
+            UInt8 word = i / 2 * 2 + j;
+            UInt8 half = (i % 2) * 2 + (j % 2);
+            UInt8 shift = (1 - (half % 2)) * 16;
+            SInt16 a = (SInt16)((as->regs.vr[va][word] >> shift) & 0xFFFF);
+            SInt16 b = (SInt16)((as->regs.vr[vb][word] >> shift) & 0xFFFF);
+            sum += (SInt64)a * (SInt64)b;
+        }
+        /* Saturate to 32-bit signed range */
+        if (sum > 2147483647) sum = 2147483647;
+        if (sum < -2147483648LL) sum = -2147483648LL;
+        as->regs.vr[vd][i] = (UInt32)sum;
+    }
+}
+
+/*
+ * Vector Status and Control Register Operations
+ */
+
+/* MFVSCR - Move From Vector Status and Control Register */
+void PPC_Op_MFVSCR(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    int i;
+
+    /* Clear destination register */
+    for (i = 0; i < 4; i++) {
+        as->regs.vr[vd][i] = 0;
+    }
+
+    /* VSCR is in the low word */
+    as->regs.vr[vd][3] = as->regs.vscr;
+}
+
+/* MTVSCR - Move To Vector Status and Control Register */
+void PPC_Op_MTVSCR(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vb = PPC_RB(insn);
+
+    /* VSCR comes from the low word of vb */
+    as->regs.vscr = as->regs.vr[vb][3];
+}
+
+/*
+ * Data Stream Touch Operations (Cache Hints - Implemented as NOPs)
+ */
+
+/* DST - Data Stream Touch */
+void PPC_Op_DST(PPCAddressSpace* as, UInt32 insn)
+{
+    /* NOP - cache hint for data stream */
+    (void)as;
+    (void)insn;
+}
+
+/* DSTT - Data Stream Touch Transient */
+void PPC_Op_DSTT(PPCAddressSpace* as, UInt32 insn)
+{
+    /* NOP - cache hint for transient data stream */
+    (void)as;
+    (void)insn;
+}
+
+/* DSTST - Data Stream Touch for Store */
+void PPC_Op_DSTST(PPCAddressSpace* as, UInt32 insn)
+{
+    /* NOP - cache hint for store data stream */
+    (void)as;
+    (void)insn;
+}
+
+/* DSTSTT - Data Stream Touch for Store Transient */
+void PPC_Op_DSTSTT(PPCAddressSpace* as, UInt32 insn)
+{
+    /* NOP - cache hint for transient store data stream */
+    (void)as;
+    (void)insn;
+}
+
+/* DSS - Data Stream Stop */
+void PPC_Op_DSS(PPCAddressSpace* as, UInt32 insn)
+{
+    /* NOP - stop data stream */
+    (void)as;
+    (void)insn;
+}
+
+/* DSSALL - Data Stream Stop All */
+void PPC_Op_DSSALL(PPCAddressSpace* as, UInt32 insn)
+{
+    /* NOP - stop all data streams */
+    (void)as;
+    (void)insn;
+}
+
+/*
  * ==================================================
  * COMPREHENSIVE IMPLEMENTATION
- * Total: 393 instructions (217 base + 11 601 + 13 supervisor + 152 AltiVec)
+ * Total: 407 instructions (217 base + 11 601 + 13 supervisor + 166 AltiVec)
  *
  * Supervisor instructions: MFSR, MTSR, MFSRIN, MTSRIN, TLBIE, TLBSYNC, TLBIA,
  *                          DCBI, DCBT, DCBTST, MFTB, ECIWX, ECOWX

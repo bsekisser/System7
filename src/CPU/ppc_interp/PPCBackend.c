@@ -712,8 +712,20 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     PPC_Op_VSUBUBM(as, insn);
                     break;
 
+                case PPC_VXO_VSUBUHM:
+                    PPC_Op_VSUBUHM(as, insn);
+                    break;
+
+                case PPC_VXO_VSUBUWM:
+                    PPC_Op_VSUBUWM(as, insn);
+                    break;
+
                 case PPC_VXO_VAND:
                     PPC_Op_VAND(as, insn);
+                    break;
+
+                case PPC_VXO_VANDC:
+                    PPC_Op_VANDC(as, insn);
                     break;
 
                 case PPC_VXO_VOR:
@@ -1226,6 +1238,32 @@ OSErr PPC_Step(PPCAddressSpace* as)
 
                 case PPC_VXO_VLOGEFP:
                     PPC_Op_VLOGEFP(as, insn);
+                    break;
+
+                /* Additional Multiply-Sum */
+                case PPC_VXO_VMSUMMBM:
+                    PPC_Op_VMSUMMBM(as, insn);
+                    break;
+
+                case PPC_VXO_VMSUMSHM:
+                    PPC_Op_VMSUMSHM(as, insn);
+                    break;
+
+                case PPC_VXO_VMSUMUHS:
+                    PPC_Op_VMSUMUHS(as, insn);
+                    break;
+
+                case PPC_VXO_VMSUMSHS:
+                    PPC_Op_VMSUMSHS(as, insn);
+                    break;
+
+                /* Vector Status Register */
+                case PPC_XOP_MFVSCR:
+                    PPC_Op_MFVSCR(as, insn);
+                    break;
+
+                case PPC_XOP_MTVSCR:
+                    PPC_Op_MTVSCR(as, insn);
                     break;
 
                 default:
@@ -1848,6 +1886,31 @@ OSErr PPC_Step(PPCAddressSpace* as)
 
                 case PPC_OP_STVXL:
                     PPC_Op_STVXL(as, insn);
+                    break;
+
+                /* Data Stream Touch (cache hints - NOPs) */
+                case PPC_XOP_DST:
+                    PPC_Op_DST(as, insn);
+                    break;
+
+                case PPC_XOP_DSTT:
+                    PPC_Op_DSTT(as, insn);
+                    break;
+
+                case PPC_XOP_DSTST:
+                    PPC_Op_DSTST(as, insn);
+                    break;
+
+                case PPC_XOP_DSTSTT:
+                    PPC_Op_DSTSTT(as, insn);
+                    break;
+
+                case PPC_XOP_DSS:
+                    PPC_Op_DSS(as, insn);
+                    break;
+
+                case PPC_XOP_DSSALL:
+                    PPC_Op_DSSALL(as, insn);
                     break;
 
                 default:
