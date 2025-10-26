@@ -371,6 +371,7 @@ C_SOURCES = src/main.c \
             src/PackageManager/StringConversion.c \
             src/PackageManager/DateTimeFormatting.c \
             src/PackageManager/StringUtilities.c \
+            src/PackageManager/StringManipulation.c \
             src/PackageManager/InternationalUtilities.c \
             src/FileManager.c \
             src/FileManagerStubs.c \
