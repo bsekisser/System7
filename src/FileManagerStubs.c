@@ -393,15 +393,136 @@ OSErr IO_WriteBlocks(VCB* vcb, UInt32 startBlock, UInt32 blockCount, const void*
     return ioErr;
 }
 
-static OSErr IO_Format(UInt16 drvNum, const UInt8* volName, UInt32 volSize) {
-    FS_LOG_DEBUG("IO_Format stub: drvNum=%d\n", drvNum);
-    return noErr;
-}
+/* I/O Operations */
 
 OSErr IO_ReadFork(FCB* fcb, UInt32 offset, UInt32 count, void* buffer, UInt32* actual) {
-    FS_LOG_DEBUG("IO_ReadFork stub: offset=%d, count=%d\n", offset, count);
-    if (actual) *actual = 0;
-    return ioErr;
+    VCB* vcb;
+    VCBExt* vcbExt;
+    UInt32 fileBlock;
+    UInt32 physBlock;
+    UInt32 blockOffset;
+    UInt32 contiguous;
+    UInt32 toRead;
+    UInt32 totalRead = 0;
+    UInt8* dst;
+    UInt8* blockBuffer = NULL;
+    OSErr err;
+    UInt64 diskOffset;
+
+    if (!fcb || !buffer || !actual) {
+        return paramErr;
+    }
+
+    *actual = 0;
+    vcb = (VCB*)fcb->base.fcbVPtr;
+    if (!vcb) {
+        return rfNumErr;
+    }
+
+    vcbExt = (VCBExt*)vcb;  /* Cast to extended VCB for device access */
+
+    /* Check if offset is beyond EOF */
+    if (offset >= fcb->base.fcbEOF) {
+        return eofErr;
+    }
+
+    /* Limit read to EOF */
+    if (offset + count > fcb->base.fcbEOF) {
+        count = fcb->base.fcbEOF - offset;
+    }
+
+    /* Check if we have device read capability */
+    if (!g_PlatformHooks.DeviceRead) {
+        FS_LOG_DEBUG("IO_ReadFork: DeviceRead not available\n");
+        return ioErr;
+    }
+
+    dst = (UInt8*)buffer;
+
+    /* Read loop: handle partial blocks */
+    while (count > 0) {
+        /* Calculate file block and offset within block */
+        fileBlock = offset / vcb->base.vcbAlBlkSiz;
+        blockOffset = offset % vcb->base.vcbAlBlkSiz;
+
+        /* Map file block to physical block using extents */
+        err = Ext_Map(vcb, fcb, fileBlock, &physBlock, &contiguous);
+        if (err != noErr) {
+            FS_LOG_DEBUG("IO_ReadFork: Ext_Map failed for fileBlock %u\n", fileBlock);
+            if (totalRead > 0) {
+                *actual = totalRead;
+                return noErr;  /* Partial read */
+            }
+            return err;
+        }
+
+        /* Calculate amount to read from this block */
+        toRead = vcb->base.vcbAlBlkSiz - blockOffset;
+        if (toRead > count) {
+            toRead = count;
+        }
+
+        /* Calculate physical disk offset */
+        diskOffset = (UInt64)(vcb->base.vcbAlBlSt + physBlock) * vcb->base.vcbAlBlkSiz + blockOffset;
+
+        /* Check if we need to read partial block */
+        if (blockOffset != 0 || toRead < vcb->base.vcbAlBlkSiz) {
+            /* Partial block read - read full block then copy subset */
+            blockBuffer = (UInt8*)NewPtr(vcb->base.vcbAlBlkSiz);
+            if (!blockBuffer) {
+                if (totalRead > 0) {
+                    *actual = totalRead;
+                    return noErr;  /* Partial read */
+                }
+                return memFullErr;
+            }
+
+            /* Read full block */
+            UInt64 blockDiskOffset = (UInt64)(vcb->base.vcbAlBlSt + physBlock) * vcb->base.vcbAlBlkSiz;
+            err = g_PlatformHooks.DeviceRead(vcbExt->vcbDevice, blockDiskOffset,
+                                             vcb->base.vcbAlBlkSiz, blockBuffer);
+            if (err != noErr) {
+                DisposePtr((Ptr)blockBuffer);
+                if (totalRead > 0) {
+                    *actual = totalRead;
+                    return noErr;  /* Partial read */
+                }
+                return err;
+            }
+
+            /* Copy the subset we need */
+            memcpy(dst, blockBuffer + blockOffset, toRead);
+
+            DisposePtr((Ptr)blockBuffer);
+            blockBuffer = NULL;
+        } else {
+            /* Full block read - read directly */
+            err = g_PlatformHooks.DeviceRead(vcbExt->vcbDevice, diskOffset, toRead, dst);
+            if (err != noErr) {
+                if (totalRead > 0) {
+                    *actual = totalRead;
+                    return noErr;  /* Partial read */
+                }
+                return err;
+            }
+        }
+
+        /* Update counters */
+        dst += toRead;
+        offset += toRead;
+        count -= toRead;
+        totalRead += toRead;
+
+        FS_LOG_DEBUG("IO_ReadFork: read %u bytes from physBlock %u\n", toRead, physBlock);
+    }
+
+    /* Update file position */
+    fcb->fcbCrPs = offset;
+
+    *actual = totalRead;
+
+    FS_LOG_DEBUG("IO_ReadFork: successfully read %u bytes\n", totalRead);
+    return noErr;
 }
 
 OSErr IO_WriteFork(FCB* fcb, UInt32 offset, UInt32 count, const void* buffer, UInt32* actual) {
@@ -581,34 +702,4 @@ time_t time(time_t* t) {
     time_t fake_time = 0x60000000;  /* Some arbitrary value */
     if (t) *t = fake_time;
     return fake_time;
-}
-
-/* Utility Functions */
-static OSErr FS_CompareNames(const UInt8* name1, const UInt8* name2, Boolean* equal) {
-    FS_LOG_DEBUG("FS_CompareNames stub\n");
-    *equal = false;
-    return noErr;
-}
-
-static OSErr FS_CopyName(const UInt8* src, UInt8* dst, UInt8 maxLen) {
-    FS_LOG_DEBUG("FS_CopyName stub\n");
-    if (src && dst) {
-        UInt8 len = src[0];
-        if (len > maxLen) len = maxLen;
-        memcpy(dst, src, len + 1);
-    }
-    return noErr;
-}
-
-static UInt32 FS_GetTime(void) {
-    FS_LOG_DEBUG("FS_GetTime stub\n");
-    return 0;
-}
-
-static OSErr FS_ValidateName(const UInt8* name) {
-    FS_LOG_DEBUG("FS_ValidateName stub\n");
-    if (!name || name[0] == 0 || name[0] > 31) {
-        return bdNamErr;
-    }
-    return noErr;
 }
