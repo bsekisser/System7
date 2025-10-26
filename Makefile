@@ -485,6 +485,10 @@ ifeq ($(SPEECH_SMOKE_TEST),1)
 CFLAGS += -DSPEECH_SMOKE_TEST=1
 endif
 
+# Notification Manager - Background notification system
+C_SOURCES += src/NotificationManager/NotificationManagerCore.c
+CFLAGS += -DENABLE_NOTIFICATION=1
+
 # Add Control smoke test if enabled
 ifeq ($(CTRL_SMOKE_TEST),1)
 CFLAGS += -DCTRL_SMOKE_TEST=1
