@@ -4472,7 +4472,7 @@ void PPC_Op_DOZ(PPCAddressSpace* as, UInt32 insn)
     }
 
     if (rc) {
-        PPC_UpdateCR0(as, as->regs.gpr[rd]);
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[rd]);
     }
 }
 
@@ -4494,7 +4494,7 @@ void PPC_Op_ABS(PPCAddressSpace* as, UInt32 insn)
     }
 
     if (rc) {
-        PPC_UpdateCR0(as, as->regs.gpr[rd]);
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[rd]);
     }
 }
 
@@ -4516,7 +4516,7 @@ void PPC_Op_NABS(PPCAddressSpace* as, UInt32 insn)
     }
 
     if (rc) {
-        PPC_UpdateCR0(as, as->regs.gpr[rd]);
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[rd]);
     }
 }
 
@@ -4536,7 +4536,7 @@ void PPC_Op_MUL(PPCAddressSpace* as, UInt32 insn)
     as->regs.gpr[rd] = (UInt32)(a * b);
 
     if (rc) {
-        PPC_UpdateCR0(as, as->regs.gpr[rd]);
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[rd]);
     }
 }
 
@@ -4561,7 +4561,7 @@ void PPC_Op_DIV(PPCAddressSpace* as, UInt32 insn)
     }
 
     if (rc) {
-        PPC_UpdateCR0(as, as->regs.gpr[rd]);
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[rd]);
     }
 }
 
@@ -4602,7 +4602,7 @@ void PPC_Op_RLMI(PPCAddressSpace* as, UInt32 insn)
     as->regs.gpr[ra] = (as->regs.gpr[ra] & ~mask) | (rotated & mask);
 
     if (rc) {
-        PPC_UpdateCR0(as, as->regs.gpr[ra]);
+        PPC_SetCR0(as, (SInt32)as->regs.gpr[ra]);
     }
 }
 
@@ -5548,9 +5548,625 @@ void PPC_Op_STVEHX(PPCAddressSpace* as, UInt32 insn)
 }
 
 /*
+ * Vector Multiply Instructions
+ */
+
+/* VMULESB - Vector Multiply Even Signed Byte */
+void PPC_Op_VMULESB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    /* Multiply even bytes (0, 2, 4, 6, 8, 10, 12, 14) */
+    for (i = 0; i < 8; i++) {
+        SInt8 a = (SInt8)VR_GetByte(as, va, i * 2);
+        SInt8 b = (SInt8)VR_GetByte(as, vb, i * 2);
+        SInt16 result = (SInt16)a * (SInt16)b;
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (((UInt16)result) << shift);
+    }
+}
+
+/* VMULOSB - Vector Multiply Odd Signed Byte */
+void PPC_Op_VMULOSB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    /* Multiply odd bytes (1, 3, 5, 7, 9, 11, 13, 15) */
+    for (i = 0; i < 8; i++) {
+        SInt8 a = (SInt8)VR_GetByte(as, va, i * 2 + 1);
+        SInt8 b = (SInt8)VR_GetByte(as, vb, i * 2 + 1);
+        SInt16 result = (SInt16)a * (SInt16)b;
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (((UInt16)result) << shift);
+    }
+}
+
+/* VMULEUB - Vector Multiply Even Unsigned Byte */
+void PPC_Op_VMULEUB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 a = VR_GetByte(as, va, i * 2);
+        UInt8 b = VR_GetByte(as, vb, i * 2);
+        UInt16 result = (UInt16)a * (UInt16)b;
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (result << shift);
+    }
+}
+
+/* VMULOUB - Vector Multiply Odd Unsigned Byte */
+void PPC_Op_VMULOUB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 a = VR_GetByte(as, va, i * 2 + 1);
+        UInt8 b = VR_GetByte(as, vb, i * 2 + 1);
+        UInt16 result = (UInt16)a * (UInt16)b;
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (result << shift);
+    }
+}
+
+/* VMULESH - Vector Multiply Even Signed Halfword */
+void PPC_Op_VMULESH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    /* Multiply even halfwords (0, 2, 4, 6) */
+    for (i = 0; i < 4; i++) {
+        UInt8 word = i;
+        SInt16 a = (SInt16)((as->regs.vr[va][word] >> 16) & 0xFFFF);
+        SInt16 b = (SInt16)((as->regs.vr[vb][word] >> 16) & 0xFFFF);
+        SInt32 result = (SInt32)a * (SInt32)b;
+        as->regs.vr[vd][i] = (UInt32)result;
+    }
+}
+
+/* VMULOSH - Vector Multiply Odd Signed Halfword */
+void PPC_Op_VMULOSH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    /* Multiply odd halfwords (1, 3, 5, 7) */
+    for (i = 0; i < 4; i++) {
+        UInt8 word = i;
+        SInt16 a = (SInt16)(as->regs.vr[va][word] & 0xFFFF);
+        SInt16 b = (SInt16)(as->regs.vr[vb][word] & 0xFFFF);
+        SInt32 result = (SInt32)a * (SInt32)b;
+        as->regs.vr[vd][i] = (UInt32)result;
+    }
+}
+
+/* VMULEUH - Vector Multiply Even Unsigned Halfword */
+void PPC_Op_VMULEUH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        UInt8 word = i;
+        UInt16 a = (as->regs.vr[va][word] >> 16) & 0xFFFF;
+        UInt16 b = (as->regs.vr[vb][word] >> 16) & 0xFFFF;
+        UInt32 result = (UInt32)a * (UInt32)b;
+        as->regs.vr[vd][i] = result;
+    }
+}
+
+/* VMULOUH - Vector Multiply Odd Unsigned Halfword */
+void PPC_Op_VMULOUH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        UInt8 word = i;
+        UInt16 a = as->regs.vr[va][word] & 0xFFFF;
+        UInt16 b = as->regs.vr[vb][word] & 0xFFFF;
+        UInt32 result = (UInt32)a * (UInt32)b;
+        as->regs.vr[vd][i] = result;
+    }
+}
+
+/*
+ * Vector Min/Max/Average Instructions
+ */
+
+/* VMAXSB - Vector Maximum Signed Byte */
+void PPC_Op_VMAXSB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        SInt8 a = (SInt8)VR_GetByte(as, va, i);
+        SInt8 b = (SInt8)VR_GetByte(as, vb, i);
+        VR_SetByte(as, vd, i, (UInt8)((a > b) ? a : b));
+    }
+}
+
+/* VMAXUB - Vector Maximum Unsigned Byte */
+void PPC_Op_VMAXUB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        UInt8 a = VR_GetByte(as, va, i);
+        UInt8 b = VR_GetByte(as, vb, i);
+        VR_SetByte(as, vd, i, (a > b) ? a : b);
+    }
+}
+
+/* VMINSB - Vector Minimum Signed Byte */
+void PPC_Op_VMINSB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        SInt8 a = (SInt8)VR_GetByte(as, va, i);
+        SInt8 b = (SInt8)VR_GetByte(as, vb, i);
+        VR_SetByte(as, vd, i, (UInt8)((a < b) ? a : b));
+    }
+}
+
+/* VMINUB - Vector Minimum Unsigned Byte */
+void PPC_Op_VMINUB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        UInt8 a = VR_GetByte(as, va, i);
+        UInt8 b = VR_GetByte(as, vb, i);
+        VR_SetByte(as, vd, i, (a < b) ? a : b);
+    }
+}
+
+/* VAVGSB - Vector Average Signed Byte */
+void PPC_Op_VAVGSB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        SInt8 a = (SInt8)VR_GetByte(as, va, i);
+        SInt8 b = (SInt8)VR_GetByte(as, vb, i);
+        SInt16 sum = (SInt16)a + (SInt16)b + 1;
+        VR_SetByte(as, vd, i, (UInt8)(sum >> 1));
+    }
+}
+
+/* VAVGUB - Vector Average Unsigned Byte */
+void PPC_Op_VAVGUB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        UInt8 a = VR_GetByte(as, va, i);
+        UInt8 b = VR_GetByte(as, vb, i);
+        UInt16 sum = (UInt16)a + (UInt16)b + 1;
+        VR_SetByte(as, vd, i, (UInt8)(sum >> 1));
+    }
+}
+
+/* VMAXSH - Vector Maximum Signed Halfword */
+void PPC_Op_VMAXSH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        SInt16 a = (SInt16)((as->regs.vr[va][word] >> shift) & 0xFFFF);
+        SInt16 b = (SInt16)((as->regs.vr[vb][word] >> shift) & 0xFFFF);
+        UInt16 result = (UInt16)((a > b) ? a : b);
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (result << shift);
+    }
+}
+
+/* VMINSH - Vector Minimum Signed Halfword */
+void PPC_Op_VMINSH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        SInt16 a = (SInt16)((as->regs.vr[va][word] >> shift) & 0xFFFF);
+        SInt16 b = (SInt16)((as->regs.vr[vb][word] >> shift) & 0xFFFF);
+        UInt16 result = (UInt16)((a < b) ? a : b);
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (result << shift);
+    }
+}
+
+/*
+ * Vector Rotate Instructions
+ */
+
+/* VRLB - Vector Rotate Left Byte */
+void PPC_Op_VRLB(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        UInt8 a = VR_GetByte(as, va, i);
+        UInt8 shift = VR_GetByte(as, vb, i) & 0x07;
+        UInt8 result = (a << shift) | (a >> (8 - shift));
+        VR_SetByte(as, vd, i, result);
+    }
+}
+
+/* VRLH - Vector Rotate Left Halfword */
+void PPC_Op_VRLH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift_pos = (1 - half) * 16;
+        UInt16 a = (as->regs.vr[va][word] >> shift_pos) & 0xFFFF;
+        UInt16 shift = ((as->regs.vr[vb][word] >> shift_pos) & 0xFFFF) & 0x0F;
+        UInt16 result = (a << shift) | (a >> (16 - shift));
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift_pos)) | (result << shift_pos);
+    }
+}
+
+/* VRLW - Vector Rotate Left Word */
+void PPC_Op_VRLW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        UInt32 a = as->regs.vr[va][i];
+        UInt32 shift = as->regs.vr[vb][i] & 0x1F;
+        as->regs.vr[vd][i] = (a << shift) | (a >> (32 - shift));
+    }
+}
+
+/*
+ * Vector Word Shift Instructions
+ */
+
+/* VSLW - Vector Shift Left Word */
+void PPC_Op_VSLW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        UInt32 a = as->regs.vr[va][i];
+        UInt32 shift = as->regs.vr[vb][i] & 0x1F;
+        as->regs.vr[vd][i] = a << shift;
+    }
+}
+
+/* VSRW - Vector Shift Right Word */
+void PPC_Op_VSRW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        UInt32 a = as->regs.vr[va][i];
+        UInt32 shift = as->regs.vr[vb][i] & 0x1F;
+        as->regs.vr[vd][i] = a >> shift;
+    }
+}
+
+/*
+ * Vector Merge Halfword/Word Instructions
+ */
+
+/* VMRGHH - Vector Merge High Halfword */
+void PPC_Op_VMRGHH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        UInt8 word_a = i / 2;
+        UInt8 half_a = i % 2;
+        UInt8 shift_a = (1 - half_a) * 16;
+        UInt16 val_a = (as->regs.vr[va][word_a] >> shift_a) & 0xFFFF;
+        UInt16 val_b = (as->regs.vr[vb][word_a] >> shift_a) & 0xFFFF;
+
+        UInt8 word_d = i;
+        as->regs.vr[vd][word_d] = ((UInt32)val_a << 16) | val_b;
+    }
+}
+
+/* VMRGLH - Vector Merge Low Halfword */
+void PPC_Op_VMRGLH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        UInt8 word_a = 2 + i / 2;
+        UInt8 half_a = i % 2;
+        UInt8 shift_a = (1 - half_a) * 16;
+        UInt16 val_a = (as->regs.vr[va][word_a] >> shift_a) & 0xFFFF;
+        UInt16 val_b = (as->regs.vr[vb][word_a] >> shift_a) & 0xFFFF;
+
+        UInt8 word_d = i;
+        as->regs.vr[vd][word_d] = ((UInt32)val_a << 16) | val_b;
+    }
+}
+
+/* VMRGHW - Vector Merge High Word */
+void PPC_Op_VMRGHW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+
+    as->regs.vr[vd][0] = as->regs.vr[va][0];
+    as->regs.vr[vd][1] = as->regs.vr[vb][0];
+    as->regs.vr[vd][2] = as->regs.vr[va][1];
+    as->regs.vr[vd][3] = as->regs.vr[vb][1];
+}
+
+/* VMRGLW - Vector Merge Low Word */
+void PPC_Op_VMRGLW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+
+    as->regs.vr[vd][0] = as->regs.vr[va][2];
+    as->regs.vr[vd][1] = as->regs.vr[vb][2];
+    as->regs.vr[vd][2] = as->regs.vr[va][3];
+    as->regs.vr[vd][3] = as->regs.vr[vb][3];
+}
+
+/*
+ * Additional Vector Compare Instructions
+ */
+
+/* VCMPGTUH - Vector Compare Greater Than Unsigned Halfword */
+void PPC_Op_VCMPGTUH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        UInt16 a = (as->regs.vr[va][word] >> shift) & 0xFFFF;
+        UInt16 b = (as->regs.vr[vb][word] >> shift) & 0xFFFF;
+        UInt16 result = (a > b) ? 0xFFFF : 0x0000;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (result << shift);
+    }
+}
+
+/* VCMPGTSH - Vector Compare Greater Than Signed Halfword */
+void PPC_Op_VCMPGTSH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        SInt16 a = (SInt16)((as->regs.vr[va][word] >> shift) & 0xFFFF);
+        SInt16 b = (SInt16)((as->regs.vr[vb][word] >> shift) & 0xFFFF);
+        UInt16 result = (a > b) ? 0xFFFF : 0x0000;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) | (result << shift);
+    }
+}
+
+/* VCMPGTUW - Vector Compare Greater Than Unsigned Word */
+void PPC_Op_VCMPGTUW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        UInt32 a = as->regs.vr[va][i];
+        UInt32 b = as->regs.vr[vb][i];
+        as->regs.vr[vd][i] = (a > b) ? 0xFFFFFFFF : 0x00000000;
+    }
+}
+
+/* VCMPGTSW - Vector Compare Greater Than Signed Word */
+void PPC_Op_VCMPGTSW(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        SInt32 a = (SInt32)as->regs.vr[va][i];
+        SInt32 b = (SInt32)as->regs.vr[vb][i];
+        as->regs.vr[vd][i] = (a > b) ? 0xFFFFFFFF : 0x00000000;
+    }
+}
+
+/*
+ * Additional Vector Pack Instructions
+ */
+
+/* VPKUHUS - Vector Pack Unsigned Halfword Unsigned Saturate */
+void PPC_Op_VPKUHUS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        UInt16 val = (as->regs.vr[va][word] >> shift) & 0xFFFF;
+        UInt8 byte = (val > 255) ? 255 : (UInt8)val;
+        VR_SetByte(as, vd, i, byte);
+    }
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        UInt16 val = (as->regs.vr[vb][word] >> shift) & 0xFFFF;
+        UInt8 byte = (val > 255) ? 255 : (UInt8)val;
+        VR_SetByte(as, vd, i + 8, byte);
+    }
+}
+
+/* VPKUWUS - Vector Pack Unsigned Word Unsigned Saturate */
+void PPC_Op_VPKUWUS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        UInt32 val = as->regs.vr[va][i];
+        UInt16 half = (val > 65535) ? 65535 : (UInt16)val;
+        UInt8 word_d = i / 2;
+        UInt8 half_d = i % 2;
+        UInt8 shift = (1 - half_d) * 16;
+        as->regs.vr[vd][word_d] = (as->regs.vr[vd][word_d] & ~(0xFFFF << shift)) | (half << shift);
+    }
+
+    for (i = 0; i < 4; i++) {
+        UInt32 val = as->regs.vr[vb][i];
+        UInt16 half = (val > 65535) ? 65535 : (UInt16)val;
+        UInt8 word_d = (i + 4) / 2;
+        UInt8 half_d = (i + 4) % 2;
+        UInt8 shift = (1 - half_d) * 16;
+        as->regs.vr[vd][word_d] = (as->regs.vr[vd][word_d] & ~(0xFFFF << shift)) | (half << shift);
+    }
+}
+
+/*
+ * Vector Sum Instructions
+ */
+
+/* VSUM4UBS - Vector Sum Across Quarter Unsigned Byte Saturate */
+void PPC_Op_VSUM4UBS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i, j;
+
+    for (i = 0; i < 4; i++) {
+        UInt32 sum = as->regs.vr[vb][i];
+        for (j = 0; j < 4; j++) {
+            sum += VR_GetByte(as, va, i * 4 + j);
+        }
+        if (sum > 0xFFFFFFFF) sum = 0xFFFFFFFF;
+        as->regs.vr[vd][i] = sum;
+    }
+}
+
+/* VSUM4SBS - Vector Sum Across Quarter Signed Byte Saturate */
+void PPC_Op_VSUM4SBS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i, j;
+
+    for (i = 0; i < 4; i++) {
+        SInt32 sum = (SInt32)as->regs.vr[vb][i];
+        for (j = 0; j < 4; j++) {
+            sum += (SInt8)VR_GetByte(as, va, i * 4 + j);
+        }
+        /* Saturate to signed 32-bit range */
+        if (sum > 2147483647) sum = 2147483647;
+        if (sum < -2147483648) sum = -2147483648;
+        as->regs.vr[vd][i] = (UInt32)sum;
+    }
+}
+
+/*
  * ==================================================
  * COMPREHENSIVE IMPLEMENTATION
- * Total: 275 instructions (217 + 9 601 + 49 AltiVec)
+ * Total: 318 instructions (217 + 9 601 + 92 AltiVec)
  * ==================================================
  */
 

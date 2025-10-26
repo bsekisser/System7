@@ -875,6 +875,146 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     PPC_Op_VSPLTW(as, insn);
                     break;
 
+                /* Multiply */
+                case PPC_VXO_VMULESB:
+                    PPC_Op_VMULESB(as, insn);
+                    break;
+
+                case PPC_VXO_VMULOSB:
+                    PPC_Op_VMULOSB(as, insn);
+                    break;
+
+                case PPC_VXO_VMULEUB:
+                    PPC_Op_VMULEUB(as, insn);
+                    break;
+
+                case PPC_VXO_VMULOUB:
+                    PPC_Op_VMULOUB(as, insn);
+                    break;
+
+                case PPC_VXO_VMULESH:
+                    PPC_Op_VMULESH(as, insn);
+                    break;
+
+                case PPC_VXO_VMULOSH:
+                    PPC_Op_VMULOSH(as, insn);
+                    break;
+
+                case PPC_VXO_VMULEUH:
+                    PPC_Op_VMULEUH(as, insn);
+                    break;
+
+                case PPC_VXO_VMULOUH:
+                    PPC_Op_VMULOUH(as, insn);
+                    break;
+
+                /* Min/Max/Average */
+                case PPC_VXO_VMAXSB:
+                    PPC_Op_VMAXSB(as, insn);
+                    break;
+
+                case PPC_VXO_VMAXUB:
+                    PPC_Op_VMAXUB(as, insn);
+                    break;
+
+                case PPC_VXO_VMINSB:
+                    PPC_Op_VMINSB(as, insn);
+                    break;
+
+                case PPC_VXO_VMINUB:
+                    PPC_Op_VMINUB(as, insn);
+                    break;
+
+                case PPC_VXO_VMAXSH:
+                    PPC_Op_VMAXSH(as, insn);
+                    break;
+
+                case PPC_VXO_VMINSH:
+                    PPC_Op_VMINSH(as, insn);
+                    break;
+
+                case PPC_VXO_VAVGSB:
+                    PPC_Op_VAVGSB(as, insn);
+                    break;
+
+                case PPC_VXO_VAVGUB:
+                    PPC_Op_VAVGUB(as, insn);
+                    break;
+
+                /* Rotate */
+                case PPC_VXO_VRLB:
+                    PPC_Op_VRLB(as, insn);
+                    break;
+
+                case PPC_VXO_VRLH:
+                    PPC_Op_VRLH(as, insn);
+                    break;
+
+                case PPC_VXO_VRLW:
+                    PPC_Op_VRLW(as, insn);
+                    break;
+
+                /* Word Shift */
+                case PPC_VXO_VSLW:
+                    PPC_Op_VSLW(as, insn);
+                    break;
+
+                case PPC_VXO_VSRW:
+                    PPC_Op_VSRW(as, insn);
+                    break;
+
+                /* Merge Halfword/Word */
+                case PPC_VXO_VMRGHH:
+                    PPC_Op_VMRGHH(as, insn);
+                    break;
+
+                case PPC_VXO_VMRGLH:
+                    PPC_Op_VMRGLH(as, insn);
+                    break;
+
+                case PPC_VXO_VMRGHW:
+                    PPC_Op_VMRGHW(as, insn);
+                    break;
+
+                case PPC_VXO_VMRGLW:
+                    PPC_Op_VMRGLW(as, insn);
+                    break;
+
+                /* Additional Compare */
+                case PPC_VXO_VCMPGTUH:
+                    PPC_Op_VCMPGTUH(as, insn);
+                    break;
+
+                case PPC_VXO_VCMPGTSH:
+                    PPC_Op_VCMPGTSH(as, insn);
+                    break;
+
+                case PPC_VXO_VCMPGTUW:
+                    PPC_Op_VCMPGTUW(as, insn);
+                    break;
+
+                case PPC_VXO_VCMPGTSW:
+                    PPC_Op_VCMPGTSW(as, insn);
+                    break;
+
+                /* Additional Pack */
+                case PPC_VXO_VPKUHUS:
+                    PPC_Op_VPKUHUS(as, insn);
+                    break;
+
+                case PPC_VXO_VPKUWUS:
+                    PPC_Op_VPKUWUS(as, insn);
+                    break;
+
+                /* Sum */
+                case PPC_VXO_VSUM4UBS:
+                    PPC_Op_VSUM4UBS(as, insn);
+                    break;
+
+                case PPC_VXO_VSUM4SBS:
+                    PPC_Op_VSUM4SBS(as, insn);
+                    break;
+
                 default:
                     PPC_Fault(as, "Unimplemented AltiVec opcode");
                     break;
