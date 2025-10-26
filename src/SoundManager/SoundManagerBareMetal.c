@@ -182,8 +182,202 @@ OSErr SndDoImmediate(SndChannelPtr chan, const SndCommand* cmd) {
     return unimpErr;
 }
 
+/* ============================================================================
+ * 'snd ' Resource Structures
+ * ============================================================================ */
+
+/* 'snd ' resource format 1 - synthesized sound (square wave) */
+typedef struct SndCommand_Res {
+    UInt16 cmd;        /* Command opcode */
+    SInt16 param1;     /* Parameter 1 */
+    SInt32 param2;     /* Parameter 2 */
+} SndCommand_Res;
+
+/* Sound command opcodes */
+#define freqCmd         1       /* Set frequency (param2 = frequency in Hz) */
+#define ampCmd          2       /* Set amplitude */
+#define timbreCmd       3       /* Set timbre */
+#define waveCmd         4       /* Set waveform */
+#define quietCmd        5       /* Turn off sound */
+#define restCmd         6       /* Rest for duration (param2 = duration in ms) */
+#define noteCmd         7       /* Play note (param1 = MIDI note, param2 = amplitude) */
+
+/* 'snd ' resource header */
+typedef struct SndResourceHeader {
+    UInt16 format;             /* Format: 1 = synth, 2 = sampled */
+    UInt16 numDataFormats;     /* Number of data formats (or numSynths for format 1) */
+} SndResourceHeader;
+
+/* Format 1 synthesizer descriptor */
+typedef struct SynthDesc {
+    UInt16 synthID;            /* Synthesizer ID (1 = square wave) */
+    UInt32 initBits;           /* Initialization options */
+} SynthDesc;
+
+/* Format 1 command list */
+typedef struct SndFormat1 {
+    UInt16 numCmds;            /* Number of commands */
+    SndCommand_Res cmds[1];    /* Variable length array of commands */
+} SndFormat1;
+
+/* ============================================================================
+ * Sound Playback Implementation
+ * ============================================================================ */
+
+/* Parse and play a format 1 'snd ' resource (square wave synthesis) */
+static OSErr SndPlay_Format1(const UInt8* sndData, Size dataSize) {
+    if (!sndData || dataSize < 10) {
+        return paramErr;
+    }
+
+    const UInt8* ptr = sndData + 2;  /* Skip format field (already checked) */
+
+    /* Read number of synths */
+    UInt16 numSynths = (ptr[0] << 8) | ptr[1];
+    ptr += 2;
+
+    SND_LOG_DEBUG("SndPlay_Format1: numSynths=%d\n", numSynths);
+
+    /* Skip synth descriptors (6 bytes each) */
+    if (dataSize < 4 + (numSynths * 6) + 2) {
+        return paramErr;
+    }
+    ptr += numSynths * 6;
+
+    /* Read number of commands */
+    UInt16 numCmds = (ptr[0] << 8) | ptr[1];
+    ptr += 2;
+
+    SND_LOG_DEBUG("SndPlay_Format1: numCmds=%d\n", numCmds);
+
+    /* Process commands */
+    UInt32 currentFreq = 0;
+    UInt32 currentDuration = 0;
+
+    for (UInt16 i = 0; i < numCmds && (ptr + 8) <= (sndData + dataSize); i++) {
+        /* Read command */
+        UInt16 cmd = (ptr[0] << 8) | ptr[1];
+        SInt16 param1 = (SInt16)((ptr[2] << 8) | ptr[3]);
+        SInt32 param2 = (SInt32)(((UInt32)ptr[4] << 24) |
+                                 ((UInt32)ptr[5] << 16) |
+                                 ((UInt32)ptr[6] << 8) |
+                                 (UInt32)ptr[7]);
+        ptr += 8;
+
+        SND_LOG_DEBUG("SndPlay_Format1: cmd=%d param1=%d param2=%d\n",
+                      cmd, param1, param2);
+
+        switch (cmd) {
+            case freqCmd:
+                /* Set frequency for next sound */
+                currentFreq = (UInt32)param2;
+                break;
+
+            case restCmd:
+                /* Play tone with current frequency and param2 duration */
+                currentDuration = (UInt32)param2;
+                if (currentFreq > 0 && currentDuration > 0) {
+                    PCSpkr_Beep(currentFreq, currentDuration);
+                    currentFreq = 0;  /* Reset after playing */
+                }
+                break;
+
+            case quietCmd:
+                /* Silence */
+                currentFreq = 0;
+                break;
+
+            case noteCmd:
+                /* MIDI note - convert to frequency */
+                /* MIDI note 60 (middle C) = 261.63 Hz */
+                /* Formula: freq = 440 * 2^((note-69)/12) */
+                if (param1 >= 0 && param1 <= 127) {
+                    /* Simplified: use lookup or approximation */
+                    /* For now, use simple mapping */
+                    UInt32 noteFreq = 440;  /* A4 as default */
+                    if (param1 >= 57 && param1 <= 69) {
+                        /* C4 to A4 range */
+                        static const UInt16 freqTable[] = {
+                            262, 277, 294, 311, 330, 349, 370, 392, 415, 440, 466, 494, 523
+                        };
+                        int idx = param1 - 57;
+                        if (idx >= 0 && idx < 13) {
+                            noteFreq = freqTable[idx];
+                        }
+                    }
+                    currentFreq = noteFreq;
+                    currentDuration = 200;  /* Default duration */
+                    PCSpkr_Beep(currentFreq, currentDuration);
+                }
+                break;
+
+            default:
+                /* Ignore unknown commands */
+                SND_LOG_DEBUG("SndPlay_Format1: Unknown command %d\n", cmd);
+                break;
+        }
+    }
+
+    return noErr;
+}
+
+/* Main SndPlay implementation */
 OSErr SndPlay(SndChannelPtr chan, SndListHandle sndHandle, Boolean async) {
-    return unimpErr;
+    /* For now, ignore channel and async parameters - just play the sound */
+    (void)chan;
+    (void)async;
+
+    if (!sndHandle || !*sndHandle) {
+        SND_LOG_ERROR("SndPlay: Invalid sound handle\n");
+        return paramErr;
+    }
+
+    /* Lock the handle and get the resource data */
+    extern void HLock(Handle h);
+    extern void HUnlock(Handle h);
+    extern Size GetHandleSize(Handle h);
+
+    HLock((Handle)sndHandle);
+
+    const UInt8* sndData = (const UInt8*)*sndHandle;
+    Size dataSize = GetHandleSize((Handle)sndHandle);
+
+    if (dataSize < 4) {
+        HUnlock((Handle)sndHandle);
+        SND_LOG_ERROR("SndPlay: Sound resource too small\n");
+        return paramErr;
+    }
+
+    /* Read format */
+    UInt16 format = (sndData[0] << 8) | sndData[1];
+
+    SND_LOG_INFO("SndPlay: Playing sound, format=%d, size=%d\n", format, dataSize);
+
+    OSErr result = noErr;
+
+    switch (format) {
+        case 1:
+            /* Format 1: Synthesized sound (square wave) */
+            result = SndPlay_Format1(sndData, dataSize);
+            break;
+
+        case 2:
+            /* Format 2: Sampled sound - not implemented yet */
+            SND_LOG_WARN("SndPlay: Format 2 (sampled sound) not yet implemented\n");
+            /* Fall back to simple beep */
+            PCSpkr_Beep(1000, 200);
+            result = noErr;
+            break;
+
+        default:
+            SND_LOG_ERROR("SndPlay: Unknown sound format %d\n", format);
+            result = paramErr;
+            break;
+    }
+
+    HUnlock((Handle)sndHandle);
+
+    return result;
 }
 
 OSErr SndControl(SInt16 id, SndCommand* cmd) {
