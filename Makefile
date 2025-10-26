@@ -376,6 +376,7 @@ C_SOURCES = src/main.c \
             src/PackageManager/StringComparison.c \
             src/PackageManager/CharacterClassification.c \
             src/PackageManager/InternationalUtilities.c \
+            src/PackageManager/PackageManagerCore.c \
             src/FileManager.c \
             src/FileManagerStubs.c \
             src/EventManager/event_manager.c \
