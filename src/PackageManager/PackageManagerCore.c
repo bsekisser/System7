@@ -17,6 +17,7 @@ OSErr InitAllPacks(void);
 OSErr CallPackage(short packID, short selector, void* params);
 
 /* Package dispatcher declarations */
+extern OSErr Pack3_Dispatch(short selector, void* params);  /* Standard File */
 extern OSErr Pack6_Dispatch(short selector, void* params);  /* International Utilities */
 extern OSErr Pack7_Dispatch(short selector, void* params);  /* Binary/Decimal Conversion */
 
@@ -193,8 +194,8 @@ OSErr CallPackage(short packID, short selector, void* params) {
 
         case 3:
             /* Pack3: Standard File */
-            PKG_LOG("CallPackage: Pack3 (Standard File) dispatch not yet implemented\n");
-            return unimpErr;
+            PKG_LOG("CallPackage: Pack3 (Standard File) dispatching\n");
+            return Pack3_Dispatch(selector, params);
 
         case 4:
             /* Pack4: SANE (Floating Point Math) */

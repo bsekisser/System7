@@ -369,6 +369,7 @@ C_SOURCES = src/main.c \
             src/DialogManager/DialogKeyboard.c \
             src/StandardFile/StandardFile.c \
             src/StandardFile/StandardFileHAL_Shims.c \
+            src/StandardFile/Pack3_StandardFile.c \
             src/PackageManager/StringConversion.c \
             src/PackageManager/DateTimeFormatting.c \
             src/PackageManager/StringUtilities.c \
