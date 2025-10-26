@@ -343,6 +343,7 @@ C_SOURCES = src/main.c \
             src/MemoryMgr/heap_compaction.c \
             src/MemoryMgr/blockmove_optimization.c \
             src/MemoryMgr/HandleUtilities.c \
+            src/MemoryMgr/MemoryInitialization.c \
             src/Resources/Icons/hd_icon.c \
             src/color_icons.c \
             src/DeskManager/DeskManagerCore.c \
