@@ -1,8 +1,6 @@
 #include "MemoryMgr/MemoryManager.h"
-/* #include "SystemTypes.h" */
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 /*
  * Calculator.c - Calculator Desk Accessory Implementation
  *
@@ -22,6 +20,46 @@
 #include "Resources/ResourceData.h"
 #include <math.h>
 
+/* Simple atof implementation for bare-metal kernel */
+static double simple_atof(const char* str) {
+    double result = 0.0;
+    double fraction = 0.0;
+    int divisor = 1;
+    int sign = 1;
+    Boolean inFraction = false;
+
+    if (!str) return 0.0;
+
+    /* Handle sign */
+    if (*str == '-') {
+        sign = -1;
+        str++;
+    } else if (*str == '+') {
+        str++;
+    }
+
+    /* Parse integer and fraction parts */
+    while (*str) {
+        if (*str >= '0' && *str <= '9') {
+            if (inFraction) {
+                fraction = fraction * 10.0 + (*str - '0');
+                divisor *= 10;
+            } else {
+                result = result * 10.0 + (*str - '0');
+            }
+        } else if (*str == '.' && !inFraction) {
+            inFraction = true;
+        } else {
+            break;  /* Stop at first invalid character */
+        }
+        str++;
+    }
+
+    result = result + fraction / divisor;
+    return sign * result;
+}
+
+#define atof simple_atof
 
 /* Calculator Implementation */
 static Calculator g_calculator = {0};
@@ -970,7 +1008,7 @@ static int Calculator_DAOpen(DeskAccessory *da)
     if (!da) return DESK_ERR_INVALID_PARAM;
 
     /* Initialize resource data for icon access */
-    InitResourceData();
+    /* InitResourceData(); */  /* TODO: Enable when InitResourceData is implemented */
 
     /* Create window */
     DAWindowAttr attr;

@@ -344,6 +344,7 @@ C_SOURCES = src/main.c \
             src/DeskManager/DAPreferences.c \
             src/DeskManager/KeyCaps.c \
             src/DeskManager/Notepad.c \
+            src/DeskManager/Calculator.c \
             src/DialogManager/DialogManagerCore.c \
             src/DialogManager/DialogManagerStubs.c \
             src/DialogManager/ModalDialogs.c \
@@ -552,9 +553,9 @@ src/patterns_rsrc.c: $(RSRC_BIN)
 $(KERNEL): $(OBJECTS) | $(BUILD_DIR)
 	@echo "LD $(KERNEL)"
 	@if [ "$(PLATFORM)" = "arm" ]; then \
-        $(CC) $(LDFLAGS) -Wl,-T,$(LINKER_SCRIPT) -nostdlib -o $(KERNEL) $(OBJECTS) -lgcc; \
+        $(CC) $(LDFLAGS) -Wl,-T,$(LINKER_SCRIPT) -nostdlib -o $(KERNEL) $(OBJECTS) -lm -lgcc; \
     else \
-        $(CC) -m32 -Wl,-T,$(LINKER_SCRIPT) -nostdlib -no-pie -o $(KERNEL) $(OBJECTS) -lgcc; \
+        $(CC) -m32 -Wl,-T,$(LINKER_SCRIPT) -nostdlib -no-pie -o $(KERNEL) $(OBJECTS) -lm -lgcc; \
 	fi
 	@readelf -h $(KERNEL) >/dev/null 2>&1 || { echo "ERROR: Invalid ELF file"; exit 1; }
 	@echo "✓ Kernel linked successfully ($(shell stat -c%s $(KERNEL) 2>/dev/null || stat -f%z $(KERNEL) 2>/dev/null) bytes)"

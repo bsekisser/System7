@@ -119,7 +119,7 @@ int DeskManager_RegisterBuiltinDAs(void)
 {
     int result;
 
-    /* TODO: Register Calculator - requires math library
+    /* Register Calculator */
     DARegistryEntry calculatorEntry = {0};
     strcpy(calculatorEntry.name, "Calculator");
     calculatorEntry.type = DA_TYPE_CALCULATOR;
@@ -131,7 +131,6 @@ int DeskManager_RegisterBuiltinDAs(void)
     if (result != 0) {
         return result;
     }
-    */
 
     /* Register Key Caps */
     DARegistryEntry keyCapsEntry = {0};
