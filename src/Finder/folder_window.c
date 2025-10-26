@@ -33,6 +33,8 @@
 #include "ControlPanels/Keyboard.h"
 #include "ControlPanels/ControlStrip.h"
 #include "Datetime/datetime_cdev.h"
+#include "ProcessMgr/ProcessTypes.h"
+extern OSErr LaunchApplication(LaunchParamBlockRec* launchParams);
 extern void MoveTo(short h, short v);
 extern void LineTo(short h, short v);
 extern void FrameRect(const Rect* r);
@@ -1075,10 +1077,81 @@ Boolean HandleFolderWindowClick(WindowPtr w, EventRecord *ev, Boolean isDoubleCl
                     FINDER_LOG_DEBUG("FW: Toggling Control Strip palette\n");
                     ControlStrip_Toggle();
                 } else {
-                    FINDER_LOG_DEBUG("FW: OPEN app \"%s\" not implemented\n", name);
+                    /* Generic application launcher */
+                    FINDER_LOG_DEBUG("FW: Launching generic application \"%s\"\n", name);
+
+                    LaunchParamBlockRec launchParams;
+                    FSSpec appSpec;
+                    OSErr err;
+
+                    /* Build FSSpec for the application file */
+                    /* For now, use simple path - in full implementation would resolve full path */
+                    appSpec.vRefNum = 0;  /* Default volume */
+                    appSpec.parID = 0;     /* Root directory for now */
+
+                    /* Convert name to Pascal string */
+                    UInt8 nameLen = strlen(name);
+                    if (nameLen > 63) nameLen = 63;
+                    appSpec.name[0] = nameLen;
+                    memcpy(&appSpec.name[1], name, nameLen);
+
+                    /* Set up launch parameters */
+                    memset(&launchParams, 0, sizeof(launchParams));
+                    launchParams.launchAppSpec = &appSpec;
+                    launchParams.launchPreferredSize = 512 * 1024;  /* 512KB default */
+                    launchParams.launchControlFlags = 0;  /* Default flags */
+
+                    /* Launch the application */
+                    err = LaunchApplication(&launchParams);
+                    if (err != noErr) {
+                        FINDER_LOG_DEBUG("FW: Failed to launch \"%s\" (err=%d)\n", name, err);
+                    } else {
+                        FINDER_LOG_DEBUG("FW: Successfully launched \"%s\"\n", name);
+                    }
                 }
             } else {
-                FINDER_LOG_DEBUG("FW: OPEN doc \"%s\" not implemented\n", name);
+                /* Document file - try to open with associated application */
+                FINDER_LOG_DEBUG("FW: Opening document \"%s\"\n", name);
+
+                /* For now, route common document types to their apps */
+                Boolean handled = false;
+
+                /* Check file extension for text files (.txt, README, etc.) */
+                if (!handled) {
+                    int len = strlen(name);
+                    Boolean isTextFile = false;
+
+                    if (len >= 4) {
+                        const char* ext = name + len - 4;
+                        if (ext[0] == '.' &&
+                            (ext[1] == 't' || ext[1] == 'T') &&
+                            (ext[2] == 'x' || ext[2] == 'X') &&
+                            (ext[3] == 't' || ext[3] == 'T')) {
+                            isTextFile = true;
+                        }
+                    }
+
+                    if (isTextFile) {
+                        FINDER_LOG_DEBUG("FW: Opening text document with SimpleText\n");
+                        extern void SimpleText_Launch(void);
+                        extern Boolean SimpleText_IsRunning(void);
+                        extern void SimpleText_OpenFile(const char* path);
+
+                        if (!SimpleText_IsRunning()) {
+                            SimpleText_Launch();
+                        }
+
+                        /* Build path and open file */
+                        char fullPath[512];
+                        snprintf(fullPath, sizeof(fullPath), "/%s", name);
+                        SimpleText_OpenFile(fullPath);
+                        handled = true;
+                    }
+                }
+
+                if (!handled) {
+                    FINDER_LOG_DEBUG("FW: No application associated with document \"%s\"\n", name);
+                }
             }
         }
 
