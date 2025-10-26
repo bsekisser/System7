@@ -47,6 +47,7 @@ typedef SInt16   ResID;
 #define false 0
 #define nil   NULL
 #define noErr 0
+#define qErr  -1  /* Queue error */
 
 // String types - MUST come before FSSpec
 typedef unsigned char Str255[256];

@@ -47,6 +47,10 @@ void ReadDateTime(UInt32* secs);
 /* Delay utilities */
 void Delay(UInt32 numTicks, UInt32* finalTicks);
 
+/* Queue utilities */
+void Enqueue(QElemPtr qElement, QHdr* qHeader);
+OSErr Dequeue(QElemPtr qElement, QHdr* qHeader);
+
 #ifdef __cplusplus
 }
 #endif
