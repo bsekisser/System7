@@ -366,6 +366,7 @@ C_SOURCES = src/main.c \
             src/StandardFile/StandardFileHAL_Shims.c \
             src/PackageManager/StringConversion.c \
             src/PackageManager/DateTimeFormatting.c \
+            src/PackageManager/StringUtilities.c \
             src/FileManager.c \
             src/FileManagerStubs.c \
             src/EventManager/event_manager.c \
