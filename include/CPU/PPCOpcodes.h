@@ -484,6 +484,7 @@ extern "C" {
 /* Vector word shift */
 #define PPC_VXO_VSLW        388 /* Vector shift left word */
 #define PPC_VXO_VSRW        644 /* Vector shift right word */
+#define PPC_VXO_VSRAH       900 /* Vector shift right algebraic halfword */
 
 /* Additional vector compare */
 #define PPC_VXO_VCMPGTUH    582 /* Vector compare greater than unsigned halfword */
@@ -530,6 +531,32 @@ extern "C" {
 #define PPC_VXO_VPKSWUS     398  /* Vector pack signed word unsigned saturate */
 #define PPC_VXO_VPKSHSS     454  /* Vector pack signed halfword signed saturate */
 #define PPC_VXO_VPKSHUS     270  /* Vector pack signed halfword unsigned saturate */
+
+/* Vector floating-point arithmetic */
+#define PPC_VXO_VADDFP      10   /* Vector add floating-point */
+#define PPC_VXO_VSUBFP      74   /* Vector subtract floating-point */
+#define PPC_VXO_VMADDFP     46   /* Vector multiply-add floating-point */
+#define PPC_VXO_VNMSUBFP    47   /* Vector negative multiply-subtract floating-point */
+#define PPC_VXO_VMAXFP      1034 /* Vector maximum floating-point */
+#define PPC_VXO_VMINFP      1098 /* Vector minimum floating-point */
+
+/* Vector floating-point conversions */
+#define PPC_VXO_VCFUX       778  /* Vector convert from unsigned fixed-point word */
+#define PPC_VXO_VCFSX       842  /* Vector convert from signed fixed-point word */
+#define PPC_VXO_VCTUXS      906  /* Vector convert to unsigned fixed-point word saturate */
+#define PPC_VXO_VCTSXS      970  /* Vector convert to signed fixed-point word saturate */
+
+/* Vector floating-point rounding */
+#define PPC_VXO_VRFIN       522  /* Vector round to floating-point integer nearest */
+#define PPC_VXO_VRFIZ       650  /* Vector round to floating-point integer toward zero */
+#define PPC_VXO_VRFIP       714  /* Vector round to floating-point integer toward +infinity */
+#define PPC_VXO_VRFIM       586  /* Vector round to floating-point integer toward -infinity */
+
+/* Vector multiply-add halfword */
+#define PPC_VXO_VMHADDSHS   32   /* Vector multiply-high-add signed halfword saturate */
+#define PPC_VXO_VMHRADDSHS  33   /* Vector multiply-high-round-add signed halfword saturate */
+#define PPC_VXO_VMSUMUBM    36   /* Vector multiply-sum unsigned byte modulo */
+#define PPC_VXO_VMSUMUHM    40   /* Vector multiply-sum unsigned halfword modulo */
 
 /* Vector load/store (use primary opcodes 7, 39, etc.) */
 #define PPC_OP_LVX          103 /* Load vector indexed (actually opcode 31/103) */
@@ -975,6 +1002,38 @@ extern void PPC_Op_VPKSWSS(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_VPKSWUS(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_VPKSHSS(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_VPKSHUS(PPCAddressSpace* as, UInt32 insn);
+
+/* Vector floating-point arithmetic */
+extern void PPC_Op_VADDFP(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VSUBFP(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VMADDFP(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VNMSUBFP(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VMAXFP(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VMINFP(PPCAddressSpace* as, UInt32 insn);
+
+/* Vector floating-point conversions */
+extern void PPC_Op_VCFUX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VCFSX(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VCTUXS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VCTSXS(PPCAddressSpace* as, UInt32 insn);
+
+/* Vector floating-point rounding */
+extern void PPC_Op_VRFIN(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VRFIZ(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VRFIP(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VRFIM(PPCAddressSpace* as, UInt32 insn);
+
+/* Vector shift halfword algebraic */
+extern void PPC_Op_VSRAH(PPCAddressSpace* as, UInt32 insn);
+
+/* Vector shift left double by octet immediate */
+extern void PPC_Op_VSLDOI(PPCAddressSpace* as, UInt32 insn);
+
+/* Vector multiply-add halfword */
+extern void PPC_Op_VMHADDSHS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VMHRADDSHS(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VMSUMUBM(PPCAddressSpace* as, UInt32 insn);
+extern void PPC_Op_VMSUMUHM(PPCAddressSpace* as, UInt32 insn);
 
 #ifdef __cplusplus
 }

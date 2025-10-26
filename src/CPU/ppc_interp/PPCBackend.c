@@ -1108,6 +1108,92 @@ OSErr PPC_Step(PPCAddressSpace* as)
                     PPC_Op_VPKSHUS(as, insn);
                     break;
 
+                /* Floating-Point Arithmetic */
+                case PPC_VXO_VADDFP:
+                    PPC_Op_VADDFP(as, insn);
+                    break;
+
+                case PPC_VXO_VSUBFP:
+                    PPC_Op_VSUBFP(as, insn);
+                    break;
+
+                case PPC_VXO_VMADDFP:
+                    PPC_Op_VMADDFP(as, insn);
+                    break;
+
+                case PPC_VXO_VNMSUBFP:
+                    PPC_Op_VNMSUBFP(as, insn);
+                    break;
+
+                case PPC_VXO_VMAXFP:
+                    PPC_Op_VMAXFP(as, insn);
+                    break;
+
+                case PPC_VXO_VMINFP:
+                    PPC_Op_VMINFP(as, insn);
+                    break;
+
+                /* Floating-Point Conversions */
+                case PPC_VXO_VCFUX:
+                    PPC_Op_VCFUX(as, insn);
+                    break;
+
+                case PPC_VXO_VCFSX:
+                    PPC_Op_VCFSX(as, insn);
+                    break;
+
+                case PPC_VXO_VCTUXS:
+                    PPC_Op_VCTUXS(as, insn);
+                    break;
+
+                case PPC_VXO_VCTSXS:
+                    PPC_Op_VCTSXS(as, insn);
+                    break;
+
+                /* Floating-Point Rounding */
+                case PPC_VXO_VRFIN:
+                    PPC_Op_VRFIN(as, insn);
+                    break;
+
+                case PPC_VXO_VRFIZ:
+                    PPC_Op_VRFIZ(as, insn);
+                    break;
+
+                case PPC_VXO_VRFIP:
+                    PPC_Op_VRFIP(as, insn);
+                    break;
+
+                case PPC_VXO_VRFIM:
+                    PPC_Op_VRFIM(as, insn);
+                    break;
+
+                /* Vector Shift Algebraic Halfword */
+                case PPC_VXO_VSRAH:
+                    PPC_Op_VSRAH(as, insn);
+                    break;
+
+                /* Vector Shift Left Double by Octet Immediate */
+                case PPC_VXO_VSLDOI:
+                    PPC_Op_VSLDOI(as, insn);
+                    break;
+
+                /* Vector Multiply-Add Halfword */
+                case PPC_VXO_VMHADDSHS:
+                    PPC_Op_VMHADDSHS(as, insn);
+                    break;
+
+                case PPC_VXO_VMHRADDSHS:
+                    PPC_Op_VMHRADDSHS(as, insn);
+                    break;
+
+                case PPC_VXO_VMSUMUBM:
+                    PPC_Op_VMSUMUBM(as, insn);
+                    break;
+
+                case PPC_VXO_VMSUMUHM:
+                    PPC_Op_VMSUMUHM(as, insn);
+                    break;
+
                 default:
                     PPC_Fault(as, "Unimplemented AltiVec opcode");
                     break;

@@ -6669,9 +6669,405 @@ void PPC_Op_VPKSHUS(PPCAddressSpace* as, UInt32 insn)
 }
 
 /*
+ * Additional Vector Floating-Point Operations
+ */
+
+/* Helper: Convert float to/from vector register format */
+static inline float VR_GetFloat(PPCAddressSpace* as, UInt8 vr, UInt8 element)
+{
+    union { UInt32 u; float f; } convert;
+    convert.u = as->regs.vr[vr][element];
+    return convert.f;
+}
+
+static inline void VR_SetFloat(PPCAddressSpace* as, UInt8 vr, UInt8 element, float value)
+{
+    union { UInt32 u; float f; } convert;
+    convert.f = value;
+    as->regs.vr[vr][element] = convert.u;
+}
+
+/* VADDFP - Vector Add Floating-Point */
+void PPC_Op_VADDFP(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        float a = VR_GetFloat(as, va, i);
+        float b = VR_GetFloat(as, vb, i);
+        VR_SetFloat(as, vd, i, a + b);
+    }
+}
+
+/* VSUBFP - Vector Subtract Floating-Point */
+void PPC_Op_VSUBFP(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        float a = VR_GetFloat(as, va, i);
+        float b = VR_GetFloat(as, vb, i);
+        VR_SetFloat(as, vd, i, a - b);
+    }
+}
+
+/* VMADDFP - Vector Multiply-Add Floating-Point */
+void PPC_Op_VMADDFP(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 vc = (insn >> 6) & 0x1F;
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        float a = VR_GetFloat(as, va, i);
+        float b = VR_GetFloat(as, vc, i);
+        float c = VR_GetFloat(as, vb, i);
+        VR_SetFloat(as, vd, i, (a * c) + b);
+    }
+}
+
+/* VNMSUBFP - Vector Negative Multiply-Subtract Floating-Point */
+void PPC_Op_VNMSUBFP(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 vc = (insn >> 6) & 0x1F;
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        float a = VR_GetFloat(as, va, i);
+        float b = VR_GetFloat(as, vb, i);
+        float c = VR_GetFloat(as, vc, i);
+        VR_SetFloat(as, vd, i, -((a * c) - b));
+    }
+}
+
+/* VMAXFP - Vector Maximum Floating-Point */
+void PPC_Op_VMAXFP(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        float a = VR_GetFloat(as, va, i);
+        float b = VR_GetFloat(as, vb, i);
+        VR_SetFloat(as, vd, i, (a > b) ? a : b);
+    }
+}
+
+/* VMINFP - Vector Minimum Floating-Point */
+void PPC_Op_VMINFP(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        float a = VR_GetFloat(as, va, i);
+        float b = VR_GetFloat(as, vb, i);
+        VR_SetFloat(as, vd, i, (a < b) ? a : b);
+    }
+}
+
+/*
+ * Vector Floating-Point Conversions
+ */
+
+/* VCFUX - Vector Convert From Unsigned Fixed-Point Word */
+void PPC_Op_VCFUX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 uimm = (insn >> 16) & 0x1F;
+    int i;
+    float scale = 1.0f / (1 << uimm);
+
+    for (i = 0; i < 4; i++) {
+        UInt32 val = as->regs.vr[vb][i];
+        VR_SetFloat(as, vd, i, (float)val * scale);
+    }
+}
+
+/* VCFSX - Vector Convert From Signed Fixed-Point Word */
+void PPC_Op_VCFSX(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 uimm = (insn >> 16) & 0x1F;
+    int i;
+    float scale = 1.0f / (1 << uimm);
+
+    for (i = 0; i < 4; i++) {
+        SInt32 val = (SInt32)as->regs.vr[vb][i];
+        VR_SetFloat(as, vd, i, (float)val * scale);
+    }
+}
+
+/* VCTUXS - Vector Convert To Unsigned Fixed-Point Word Saturate */
+void PPC_Op_VCTUXS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 uimm = (insn >> 16) & 0x1F;
+    int i;
+    float scale = (float)(1 << uimm);
+
+    for (i = 0; i < 4; i++) {
+        float val = VR_GetFloat(as, vb, i) * scale;
+        if (val < 0.0f) val = 0.0f;
+        if (val > 4294967295.0f) val = 4294967295.0f;
+        as->regs.vr[vd][i] = (UInt32)val;
+    }
+}
+
+/* VCTSXS - Vector Convert To Signed Fixed-Point Word Saturate */
+void PPC_Op_VCTSXS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 uimm = (insn >> 16) & 0x1F;
+    int i;
+    float scale = (float)(1 << uimm);
+
+    for (i = 0; i < 4; i++) {
+        float val = VR_GetFloat(as, vb, i) * scale;
+        if (val < -2147483648.0f) val = -2147483648.0f;
+        if (val > 2147483647.0f) val = 2147483647.0f;
+        as->regs.vr[vd][i] = (UInt32)(SInt32)val;
+    }
+}
+
+/*
+ * Vector Floating-Point Rounding
+ */
+
+/* VRFIN - Vector Round to Floating-Point Integer Nearest */
+void PPC_Op_VRFIN(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        float val = VR_GetFloat(as, vb, i);
+        float rounded = (val >= 0.0f) ? (float)((int)(val + 0.5f)) : (float)((int)(val - 0.5f));
+        VR_SetFloat(as, vd, i, rounded);
+    }
+}
+
+/* VRFIZ - Vector Round to Floating-Point Integer toward Zero */
+void PPC_Op_VRFIZ(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        float val = VR_GetFloat(as, vb, i);
+        VR_SetFloat(as, vd, i, (float)(int)val);
+    }
+}
+
+/* VRFIP - Vector Round to Floating-Point Integer toward +Infinity */
+void PPC_Op_VRFIP(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        float val = VR_GetFloat(as, vb, i);
+        float rounded = (val > (float)(int)val) ? (float)((int)val + 1) : (float)(int)val;
+        VR_SetFloat(as, vd, i, rounded);
+    }
+}
+
+/* VRFIM - Vector Round to Floating-Point Integer toward -Infinity */
+void PPC_Op_VRFIM(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        float val = VR_GetFloat(as, vb, i);
+        float rounded = (val < (float)(int)val) ? (float)((int)val - 1) : (float)(int)val;
+        VR_SetFloat(as, vd, i, rounded);
+    }
+}
+
+/*
+ * Additional Vector Logic and Permute Operations
+ */
+
+/* VSLDOI - Vector Shift Left Double by Octet Immediate */
+void PPC_Op_VSLDOI(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 sh = (insn >> 6) & 0xF;
+    UInt8 temp[32];
+    int i;
+
+    /* Copy va and vb into temporary buffer */
+    for (i = 0; i < 4; i++) {
+        temp[i*4 + 0] = (as->regs.vr[va][i] >> 24) & 0xFF;
+        temp[i*4 + 1] = (as->regs.vr[va][i] >> 16) & 0xFF;
+        temp[i*4 + 2] = (as->regs.vr[va][i] >> 8) & 0xFF;
+        temp[i*4 + 3] = (as->regs.vr[va][i] >> 0) & 0xFF;
+        temp[16 + i*4 + 0] = (as->regs.vr[vb][i] >> 24) & 0xFF;
+        temp[16 + i*4 + 1] = (as->regs.vr[vb][i] >> 16) & 0xFF;
+        temp[16 + i*4 + 2] = (as->regs.vr[vb][i] >> 8) & 0xFF;
+        temp[16 + i*4 + 3] = (as->regs.vr[vb][i] >> 0) & 0xFF;
+    }
+
+    /* Shift and copy back */
+    for (i = 0; i < 4; i++) {
+        as->regs.vr[vd][i] = ((UInt32)temp[sh + i*4 + 0] << 24) |
+                              ((UInt32)temp[sh + i*4 + 1] << 16) |
+                              ((UInt32)temp[sh + i*4 + 2] << 8) |
+                              ((UInt32)temp[sh + i*4 + 3] << 0);
+    }
+}
+
+/*
+ * Additional Shift Operations
+ */
+
+/* VSRAH - Vector Shift Right Algebraic Halfword */
+void PPC_Op_VSRAH(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift_pos = (1 - half) * 16;
+        SInt16 val = (SInt16)((as->regs.vr[va][word] >> shift_pos) & 0xFFFF);
+        UInt8 shift = as->regs.vr[vb][word] & 0xF;
+        SInt16 result = val >> shift;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift_pos)) |
+                                (((UInt16)result) << shift_pos);
+    }
+}
+
+/*
+ * Additional Multiply-Add Variants
+ */
+
+/* VMHADDSHS - Vector Multiply-High-Add Signed Halfword Saturate */
+void PPC_Op_VMHADDSHS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 vc = (insn >> 6) & 0x1F;
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        SInt16 a = (SInt16)((as->regs.vr[va][word] >> shift) & 0xFFFF);
+        SInt16 b = (SInt16)((as->regs.vr[vb][word] >> shift) & 0xFFFF);
+        SInt16 c = (SInt16)((as->regs.vr[vc][word] >> shift) & 0xFFFF);
+        SInt32 prod = ((SInt32)a * (SInt32)b) >> 15;
+        SInt32 sum = prod + c;
+        if (sum > 32767) sum = 32767;
+        if (sum < -32768) sum = -32768;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) |
+                                (((UInt16)sum) << shift);
+    }
+}
+
+/* VMHRADDSHS - Vector Multiply-High-Round-Add Signed Halfword Saturate */
+void PPC_Op_VMHRADDSHS(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 vc = (insn >> 6) & 0x1F;
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        UInt8 word = i / 2;
+        UInt8 half = i % 2;
+        UInt8 shift = (1 - half) * 16;
+        SInt16 a = (SInt16)((as->regs.vr[va][word] >> shift) & 0xFFFF);
+        SInt16 b = (SInt16)((as->regs.vr[vb][word] >> shift) & 0xFFFF);
+        SInt16 c = (SInt16)((as->regs.vr[vc][word] >> shift) & 0xFFFF);
+        SInt32 prod = (((SInt32)a * (SInt32)b) + 0x4000) >> 15;
+        SInt32 sum = prod + c;
+        if (sum > 32767) sum = 32767;
+        if (sum < -32768) sum = -32768;
+        as->regs.vr[vd][word] = (as->regs.vr[vd][word] & ~(0xFFFF << shift)) |
+                                (((UInt16)sum) << shift);
+    }
+}
+
+/* VMSUMUBM - Vector Multiply-Sum Unsigned Byte Modulo */
+void PPC_Op_VMSUMUBM(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 vc = (insn >> 6) & 0x1F;
+    int i, j;
+
+    for (i = 0; i < 4; i++) {
+        UInt32 sum = as->regs.vr[vc][i];
+        for (j = 0; j < 4; j++) {
+            UInt8 a = VR_GetByte(as, va, i * 4 + j);
+            UInt8 b = VR_GetByte(as, vb, i * 4 + j);
+            sum += (UInt32)a * (UInt32)b;
+        }
+        as->regs.vr[vd][i] = sum;
+    }
+}
+
+/* VMSUMUHM - Vector Multiply-Sum Unsigned Halfword Modulo */
+void PPC_Op_VMSUMUHM(PPCAddressSpace* as, UInt32 insn)
+{
+    UInt8 vd = PPC_RD(insn);
+    UInt8 va = PPC_RA(insn);
+    UInt8 vb = PPC_RB(insn);
+    UInt8 vc = (insn >> 6) & 0x1F;
+    int i, j;
+
+    for (i = 0; i < 4; i++) {
+        UInt32 sum = as->regs.vr[vc][i];
+        for (j = 0; j < 2; j++) {
+            UInt8 word = i / 2 * 2 + j;
+            UInt8 half = (i % 2) * 2 + (j % 2);
+            UInt8 shift = (1 - (half % 2)) * 16;
+            UInt16 a = (UInt16)((as->regs.vr[va][word] >> shift) & 0xFFFF);
+            UInt16 b = (UInt16)((as->regs.vr[vb][word] >> shift) & 0xFFFF);
+            sum += (UInt32)a * (UInt32)b;
+        }
+        as->regs.vr[vd][i] = sum;
+    }
+}
+
+/*
  * ==================================================
  * COMPREHENSIVE IMPLEMENTATION
- * Total: 358 instructions (217 base + 11 601 + 13 supervisor + 117 AltiVec)
+ * Total: 379 instructions (217 base + 11 601 + 13 supervisor + 138 AltiVec)
  *
  * Supervisor instructions: MFSR, MTSR, MFSRIN, MTSRIN, TLBIE, TLBSYNC, TLBIA,
  *                          DCBI, DCBT, DCBTST, MFTB, ECIWX, ECOWX
