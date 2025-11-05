@@ -945,6 +945,26 @@ void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
 
     if (!framebuffer || !r) return;
 
+    /* Log fill operations for debugging ghost window issue */
+    if (mode == fill && pat) {
+        /* Check if this looks like a window content fill (white pattern) */
+        bool allWhite = true;
+        for (int i = 0; i < 8; i++) {
+            if (pat->pat[i] != 0xFF) {
+                allWhite = false;
+                break;
+            }
+        }
+        if (allWhite) {
+            extern void serial_puts(const char *str);
+            extern int sprintf(char* buf, const char* fmt, ...);
+            char dbgbuf[256];
+            sprintf(dbgbuf, "[QDRAW-FILL] Filling region at bbox=(%d,%d,%d,%d) white pattern\n",
+                    r->left, r->top, r->right, r->bottom);
+            serial_puts(dbgbuf);
+        }
+    }
+
     /* Handle erase mode with Pattern Manager color patterns */
     if (mode == erase) {
         extern bool PM_GetColorPattern(uint32_t** patternData);

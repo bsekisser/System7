@@ -207,34 +207,70 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
     /* CRITICAL: Do NOT modify portRect - it must stay in LOCAL coordinates!
      * Only update the window regions which are in GLOBAL coordinates */
 
-    /* Update window regions */
+    /* Update window regions using the CORRECTED deltaH and deltaV after validation */
     if (theWindow->strucRgn) {
+        /* Validate that strucRgn handle is not NULL */
+        if (!*(theWindow->strucRgn)) {
+            WM_LOG_ERROR("MoveWindow: strucRgn handle points to NULL after validation\n");
+        }
+
         if (theWindow->refCon == 0x4449534b) {
-            Rect beforeOffset = (*(theWindow->strucRgn))->rgnBBox;
             extern void serial_puts(const char *str);
             extern int sprintf(char* buf, const char* fmt, ...);
             char dbgbuf[256];
-            sprintf(dbgbuf, "[MOVEWIN] BEFORE OffsetRgn: strucRgn=(%d,%d,%d,%d) deltaH=%d deltaV=%d\n",
-                    beforeOffset.left, beforeOffset.top, beforeOffset.right, beforeOffset.bottom,
-                    deltaH, deltaV);
+            sprintf(dbgbuf, "[MOVEWIN] Before offset: computed newBounds=(%d,%d,%d,%d)\n",
+                    newBounds.left, newBounds.top, newBounds.right, newBounds.bottom);
             serial_puts(dbgbuf);
         }
-        Platform_OffsetRgn(theWindow->strucRgn, deltaH, deltaV);
+
+        /* Instead of offsetting the existing region, recalculate it properly */
         if (theWindow->refCon == 0x4449534b) {
-            Rect afterOffset = (*(theWindow->strucRgn))->rgnBBox;
             extern void serial_puts(const char *str);
             extern int sprintf(char* buf, const char* fmt, ...);
             char dbgbuf[256];
-            sprintf(dbgbuf, "[MOVEWIN] AFTER OffsetRgn: strucRgn=(%d,%d,%d,%d)\n",
-                    afterOffset.left, afterOffset.top, afterOffset.right, afterOffset.bottom);
+            sprintf(dbgbuf, "[MOVEWIN] Calling SetRectRgn with (%d,%d,%d,%d)\n",
+                    newBounds.left, newBounds.top, newBounds.right, newBounds.bottom);
             serial_puts(dbgbuf);
+        }
+
+        extern void SetRectRgn(RgnHandle rgn, SInt16 left, SInt16 top, SInt16 right, SInt16 bottom);
+        SetRectRgn(theWindow->strucRgn, newBounds.left, newBounds.top, newBounds.right, newBounds.bottom);
+
+        if (theWindow->refCon == 0x4449534b) {
+            if (*(theWindow->strucRgn)) {
+                Rect afterUpdate = (*(theWindow->strucRgn))->rgnBBox;
+                extern void serial_puts(const char *str);
+                extern int sprintf(char* buf, const char* fmt, ...);
+                char dbgbuf[256];
+                sprintf(dbgbuf, "[MOVEWIN] After SetRectRgn: strucRgn=(%d,%d,%d,%d)\n",
+                        afterUpdate.left, afterUpdate.top, afterUpdate.right, afterUpdate.bottom);
+                serial_puts(dbgbuf);
+            } else {
+                extern void serial_puts(const char *str);
+                serial_puts("[MOVEWIN] After SetRectRgn: strucRgn is NULL!\n");
+            }
         }
     }
     if (theWindow->contRgn) {
-        Platform_OffsetRgn(theWindow->contRgn, deltaH, deltaV);
+        /* Recalculate content region based on new structure bounds */
+        if (theWindow->strucRgn && *(theWindow->strucRgn)) {
+            Rect newStrucBounds = (*(theWindow->strucRgn))->rgnBBox;
+            Rect newContBounds;
+            newContBounds.left = newStrucBounds.left + 1;      /* 1px left border */
+            newContBounds.top = newStrucBounds.top + 21;       /* 1px border + 20px title */
+            newContBounds.right = newStrucBounds.right - 1;    /* 1px right border */
+            newContBounds.bottom = newStrucBounds.bottom - 1;  /* 1px bottom border */
+            extern void RectRgn(RgnHandle rgn, const Rect* r);
+            RectRgn(theWindow->contRgn, &newContBounds);
+        }
     }
     if (theWindow->updateRgn) {
-        Platform_OffsetRgn(theWindow->updateRgn, deltaH, deltaV);
+        /* Update region should be recalculated, not offset */
+        /* For now, just recalculate it to match content region */
+        if (theWindow->contRgn) {
+            extern void CopyRgn(RgnHandle srcRgn, RgnHandle dstRgn);
+            CopyRgn(theWindow->contRgn, theWindow->updateRgn);
+        }
     }
 
     /* CRITICAL: Update portBits.baseAddr for Direct Framebuffer approach
@@ -420,8 +456,13 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     UInt32 loopCount = 0;
     const UInt32 MAX_DRAG_ITERATIONS = 100000;  /* Safety timeout: ~1666 seconds at 60Hz */
 
+    /* Track iterations without movement to detect stuck loop */
+    UInt32 noMovementCount = 0;
+    const UInt32 MAX_NO_MOVEMENT_ITERS = 1000;
+
     while (StillDown() && loopCount < MAX_DRAG_ITERATIONS) {
         loopCount++;
+        noMovementCount++;
 
         /* Poll hardware for new input events (mouse button state) */
         EventPumpYield();
@@ -431,8 +472,27 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
 
         GetMouse(&ptG);  /* Returns GLOBAL coords */
 
+        /* Check if stuck in loop without any StillDown() returning false */
+        if (noMovementCount > MAX_NO_MOVEMENT_ITERS) {
+            /* Force exit if button tracking is completely broken */
+            extern Boolean Button(void);
+            if (!Button()) {
+                /* Button was actually released, break out */
+                WM_LOG_WARN("DragWindow: Breaking out of stuck loop - button actually released after %u iterations\n", loopCount);
+                break;
+            } else {
+                /* Still reporting button down after many iterations - might be stuck for real */
+                if (noMovementCount > MAX_NO_MOVEMENT_ITERS * 10) {
+                    WM_LOG_ERROR("DragWindow: Force exiting stuck loop after %u iterations with no release\n", loopCount);
+                    break;  /* Force exit to prevent infinite timeout */
+                }
+            }
+        }
+
         /* Only process if mouse moved */
         if (ptG.h != lastPos.h || ptG.v != lastPos.v) {
+            noMovementCount = 0;  /* Reset counter on movement */
+
             /* Calculate new window position */
             short newLeft = ptG.h - offset.h;
             short newTop = ptG.v - offset.v;
