@@ -952,6 +952,21 @@ static void DrawPrimitive(GrafVerb verb, const Rect *shape, int shapeType,
          *   - baseAddr = framebuffer (global start)
          *   - portBits.bounds = window's GLOBAL position
          *   - Add bounds offset to convert LOCAL rectangle to GLOBAL */
+
+        /* Log portBits.bounds value for debugging */
+        extern void serial_puts(const char *str);
+        extern int sprintf(char* buf, const char* fmt, ...);
+        char dbgbuf[256];
+        extern WindowPtr FrontWindow(void);
+        WindowPtr frontWin = FrontWindow();
+        if (frontWin && frontWin->refCon == 0x4449534b) {
+            sprintf(dbgbuf, "[DRAW] portBits.bounds=(%d,%d,%d,%d) localRect=(%d,%d,%d,%d)\n",
+                    g_currentPort->portBits.bounds.left, g_currentPort->portBits.bounds.top,
+                    g_currentPort->portBits.bounds.right, g_currentPort->portBits.bounds.bottom,
+                    drawRect.left, drawRect.top, drawRect.right, drawRect.bottom);
+            serial_puts(dbgbuf);
+        }
+
         globalRect.left += g_currentPort->portBits.bounds.left;
         globalRect.top += g_currentPort->portBits.bounds.top;
         globalRect.right += g_currentPort->portBits.bounds.left;

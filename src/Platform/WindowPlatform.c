@@ -694,17 +694,12 @@ void Platform_GetRegionBounds(RgnHandle rgn, Rect* bounds) {
 /* Window movement and sizing */
 void Platform_MoveNativeWindow(WindowPtr window, short h, short v) {
     if (window) {
-        /* CRITICAL: With Direct Framebuffer approach, baseAddr is already updated by MoveWindow()
-         * before this function is called. We only need to ensure portBits.bounds stays in
-         * LOCAL coordinates (0,0,width,height) - never in global screen coordinates!
+        /* NOTE: We use Global Framebuffer approach where portBits.bounds stores the window's
+         * GLOBAL screen position. WindowDragging.c updates portBits.bounds after moving the window.
          *
-         * This is the key to correct window rendering with the Direct Framebuffer approach. */
-
-        short width = window->port.portRect.right - window->port.portRect.left;
-        short height = window->port.portRect.bottom - window->port.portRect.top;
-
-        /* CRITICAL: Ensure portBits.bounds ALWAYS stays in LOCAL coordinates */
-        SetRect(&window->port.portBits.bounds, 0, 0, width, height);
+         * DO NOT reset portBits.bounds here! That would break the coordinate system.
+         * The Global Framebuffer approach requires portBits.bounds to maintain the window's
+         * GLOBAL position for proper coordinate conversion during drawing. */
 
         /* NOTE: Do NOT call Platform_CalculateWindowRegions here - MoveWindow handles region updates */
     }
@@ -723,20 +718,19 @@ void Platform_SizeNativeWindow(WindowPtr window, short width, short height) {
             serial_puts(dbgbuf);
         }
 
-        /* CRITICAL: Direct Framebuffer approach requires portRect AND portBits.bounds
-         * to BOTH stay in LOCAL coordinates (0,0,width,height)!
+        /* CRITICAL: When resizing, update portRect to the new size.
+         * portRect stays in LOCAL coordinates (0,0,width,height).
          *
-         * When resizing, update BOTH to the new size */
+         * DO NOT reset portBits.bounds! With Global Framebuffer approach, portBits.bounds
+         * stores the window's GLOBAL position, which is set by WindowDragging/WindowResizing.
+         * Resetting it here would break coordinate conversion during drawing. */
         window->port.portRect.left = 0;
         window->port.portRect.top = 0;
         window->port.portRect.right = width;
         window->port.portRect.bottom = height;
 
-        /* CRITICAL: portBits.bounds must ALSO stay in LOCAL coordinates */
-        window->port.portBits.bounds.left = 0;
-        window->port.portBits.bounds.top = 0;
-        window->port.portBits.bounds.right = width;
-        window->port.portBits.bounds.bottom = height;
+        /* NOTE: portBits.bounds GLOBAL position is maintained by window management code,
+         * not reset here. This ensures proper coordinate conversion with Global Framebuffer. */
 
         if (window->refCon == 0x4449534b) {
             extern void serial_puts(const char *str);
