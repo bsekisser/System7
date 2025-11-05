@@ -1320,7 +1320,7 @@ MCEntryPtr GetMCEntry(short menuID, short menuItem)
     }
 
     /* Search for matching menu color entry */
-    for (short i = 0; i < gMenuColorTable->mctSize; i++) {
+    for (short i = 0; i < gMenuColorTable->mctCount; i++) {
         MCEntry* entry = &gMenuColorTable->mctTable[i];
         if (entry->mctID == menuID && entry->mctItem == menuItem) {
             return entry;
@@ -1345,11 +1345,11 @@ void SetMCEntries(short numEntries, MCTablePtr menuCEntries)
         if (gMenuColorTable == NULL) {
             return;  /* Allocation failed */
         }
-        gMenuColorTable->mctSize = numEntries;
+        gMenuColorTable->mctCount = numEntries;
     }
 
     /* Copy color entries */
-    for (short i = 0; i < numEntries && i < gMenuColorTable->mctSize; i++) {
+    for (short i = 0; i < numEntries && i < gMenuColorTable->mctCount; i++) {
         gMenuColorTable->mctTable[i] = menuCEntries->mctTable[i];
     }
 }
@@ -1365,7 +1365,7 @@ void DeleteMCEntries(short menuID, short menuItem)
 
     /* Find and remove matching entries by shifting array */
     short writeIndex = 0;
-    for (short readIndex = 0; readIndex < gMenuColorTable->mctSize; readIndex++) {
+    for (short readIndex = 0; readIndex < gMenuColorTable->mctCount; readIndex++) {
         MCEntry* entry = &gMenuColorTable->mctTable[readIndex];
         /* Keep entry if it doesn't match the deletion criteria */
         if (!(entry->mctID == menuID &&
@@ -1376,5 +1376,5 @@ void DeleteMCEntries(short menuID, short menuItem)
             writeIndex++;
         }
     }
-    gMenuColorTable->mctSize = writeIndex;
+    gMenuColorTable->mctCount = writeIndex;
 }

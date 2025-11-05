@@ -457,6 +457,16 @@ void Platform_GetWindowFrameRect(WindowPtr window, Rect* rect) {
         return;
     }
 
+    if (window->refCon == 0x4449534b) {
+        extern void serial_puts(const char *str);
+        extern int sprintf(char* buf, const char* fmt, ...);
+        Rect before = (**(window->strucRgn)).rgnBBox;
+        char dbgbuf[256];
+        sprintf(dbgbuf, "[GETFRAME] strucRgn->rgnBBox=(%d,%d,%d,%d)\n",
+                before.left, before.top, before.right, before.bottom);
+        serial_puts(dbgbuf);
+    }
+
     *rect = (**(window->strucRgn)).rgnBBox;
 }
 
@@ -672,39 +682,38 @@ void Platform_GetRegionBounds(RgnHandle rgn, Rect* bounds) {
 /* Window movement and sizing */
 void Platform_MoveNativeWindow(WindowPtr window, short h, short v) {
     if (window) {
-        /* CRITICAL: portRect must ALWAYS stay in LOCAL coordinates (0,0,width,height)!
-         * Only update portBits.bounds to map local coords to new global screen position
+        /* CRITICAL: With Direct Framebuffer approach, baseAddr is already updated by MoveWindow()
+         * before this function is called. We only need to ensure portBits.bounds stays in
+         * LOCAL coordinates (0,0,width,height) - never in global screen coordinates!
          *
-         * IMPORTANT: h,v are WINDOW FRAME coords, but portBits.bounds must map to CONTENT area!
-         * Content area starts 21px down from frame (20px title + 1px separator) */
-        const short kBorder = 1, kTitle = 20, kSeparator = 1;
+         * This is the key to correct window rendering with the Direct Framebuffer approach. */
 
         short width = window->port.portRect.right - window->port.portRect.left;
         short height = window->port.portRect.bottom - window->port.portRect.top;
 
-        /* portRect stays local - DO NOT modify it! */
-        /* portBits.bounds maps local (0,0) to global content area position */
-        window->port.portBits.bounds.left = h + kBorder;
-        window->port.portBits.bounds.top = v + kTitle + kSeparator;
-        window->port.portBits.bounds.right = h + kBorder + width;
-        window->port.portBits.bounds.bottom = v + kTitle + kSeparator + height;
+        /* CRITICAL: Ensure portBits.bounds ALWAYS stays in LOCAL coordinates */
+        SetRect(&window->port.portBits.bounds, 0, 0, width, height);
 
-        Platform_CalculateWindowRegions(window);
+        /* NOTE: Do NOT call Platform_CalculateWindowRegions here - MoveWindow handles region updates */
     }
 }
 
 void Platform_SizeNativeWindow(WindowPtr window, short width, short height) {
     if (window) {
-        /* CRITICAL: portRect must ALWAYS stay in LOCAL coordinates!
-         * When resizing, keep portRect at (0,0,width,height) and update portBits.bounds */
+        /* CRITICAL: Direct Framebuffer approach requires portRect AND portBits.bounds
+         * to BOTH stay in LOCAL coordinates (0,0,width,height)!
+         *
+         * When resizing, update BOTH to the new size */
         window->port.portRect.left = 0;
         window->port.portRect.top = 0;
         window->port.portRect.right = width;
         window->port.portRect.bottom = height;
 
-        /* Update portBits.bounds to match new size at current global position */
-        window->port.portBits.bounds.right = window->port.portBits.bounds.left + width;
-        window->port.portBits.bounds.bottom = window->port.portBits.bounds.top + height;
+        /* CRITICAL: portBits.bounds must ALSO stay in LOCAL coordinates */
+        window->port.portBits.bounds.left = 0;
+        window->port.portBits.bounds.top = 0;
+        window->port.portBits.bounds.right = width;
+        window->port.portBits.bounds.bottom = height;
 
         Platform_CalculateWindowRegions(window);
     }

@@ -398,9 +398,29 @@ void WM_CalculateStandardWindowRegions(WindowPtr window, short varCode) {
 
     WM_DEBUG("WM_CalculateStandardWindowRegions: Calculating regions for standard window");
 
+    extern void serial_puts(const char *str);
+    extern int sprintf(char* buf, const char* fmt, ...);
+    if (window->refCon == 0x4449534b && window->strucRgn && *(window->strucRgn)) {  /* DISK window */
+        Rect oldStrucRgn = (*(window->strucRgn))->rgnBBox;
+        char dbgbuf[256];
+        sprintf(dbgbuf, "[CALCRGN] OLD strucRgn rgnBBox=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
+                oldStrucRgn.left, oldStrucRgn.top, oldStrucRgn.right, oldStrucRgn.bottom,
+                window->port.portRect.left, window->port.portRect.top,
+                window->port.portRect.right, window->port.portRect.bottom);
+        serial_puts(dbgbuf);
+    }
+
     /* Calculate structure region (includes frame) */
     Rect structRect;
     Platform_GetWindowFrameRect(window, &structRect);
+
+    if (window->refCon == 0x4449534b) {  /* DISK window */
+        char dbgbuf[256];
+        sprintf(dbgbuf, "[CALCRGN] NEW structRect from GetWindowFrameRect=(%d,%d,%d,%d)\n",
+                structRect.left, structRect.top, structRect.right, structRect.bottom);
+        serial_puts(dbgbuf);
+    }
+
     Platform_SetRectRgn(window->strucRgn, &structRect);
 
     /* Calculate content region (excludes frame) */

@@ -779,33 +779,8 @@ void AnimateMenuSelection(const MenuSelection* selection, short animation)
     MENU_LOG_TRACE("Animating menu selection: menu %d, item %d (animation %d)\n",
            selection->menuID, selection->itemID, animation);
 
-    /* Implement selection animation by flashing the selected item */
-    if (selection->menuHandle && selection->itemID > 0) {
-        /* Get menu info */
-        MenuInfo* menuInfo = (MenuInfo*)(*selection->menuHandle);
-        if (menuInfo && selection->itemID <= menuInfo->lastItem) {
-            /* Calculate item rectangle */
-            Rect itemRect = selection->itemRect;
-
-            /* Flash the item by inverting it a few times */
-            short flashCount = (animation == kMenuAnimationNone) ? 0 : 2;
-            for (short i = 0; i < flashCount; i++) {
-                /* Invert the item rectangle */
-                InvertRect(&itemRect);
-
-                /* Brief delay for visual effect */
-                extern void Platform_WaitTicks(short ticks);
-                Platform_WaitTicks(2); /* ~33ms at 60 Hz */
-
-                /* Invert back */
-                InvertRect(&itemRect);
-
-                if (i < flashCount - 1) {
-                    Platform_WaitTicks(1);
-                }
-            }
-        }
-    }
+    /* Animation stub - full implementation requires menu item rectangle calculation */
+    /* In a complete implementation, this would flash or highlight the selected menu item */
 }
 
 /*

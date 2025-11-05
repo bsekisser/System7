@@ -919,14 +919,8 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
         WM_LOG_TRACE("InitializeWindowRecord: Set strucRgn to clampedBounds\n");
     }
 
-    /* CRITICAL: Initialize contRgn to match portBits.bounds EXACTLY!
-     * contRgn must match the actual content area for proper clipping */
-    if (window->contRgn) {
-        Platform_SetRectRgn(window->contRgn, &window->port.portBits.bounds);
-        WM_LOG_TRACE("InitializeWindowRecord: Set contRgn to match portBits.bounds (%d,%d,%d,%d)\n",
-                     window->port.portBits.bounds.left, window->port.portBits.bounds.top,
-                     window->port.portBits.bounds.right, window->port.portBits.bounds.bottom);
-    }
+    /* NOTE: Do NOT initialize contRgn here - let Platform_CalculateWindowRegions handle it
+     * This is called from ShowWindow and other places to ensure regions are always in sync */
 }
 
 static void AddWindowToList(WindowPtr window, WindowPtr behind) {

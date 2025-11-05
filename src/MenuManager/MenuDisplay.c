@@ -1035,14 +1035,14 @@ void GetMenuColors(short menuID, short itemID, short componentID,
 
     /* Look up colors in menu color table if available */
     extern MCEntryPtr GetMCEntry(short menuID, short menuItem);
-    MCEntryPtr colorEntry = GetMCEntry(menuID, item);
+    MCEntryPtr colorEntry = GetMCEntry(menuID, itemID);
     if (colorEntry != NULL) {
         /* Apply custom colors from menu color table */
-        if (foreColor != NULL && colorEntry->mctRGB2) {
-            *foreColor = *(colorEntry->mctRGB2);
+        if (foreColor != NULL) {
+            *foreColor = colorEntry->mctRGB2;
         }
-        if (backColor != NULL && colorEntry->mctRGB3) {
-            *backColor = *(colorEntry->mctRGB3);
+        if (backColor != NULL) {
+            *backColor = colorEntry->mctRGB3;
         }
     }
 }

@@ -2237,36 +2237,6 @@ void RefreshDesktopRect(const Rect* rectToRefresh)
         return;
     }
 
-    /* Save current port */
-    GrafPtr savePort;
-    GetPort(&savePort);
-
-    /* Get desktop pattern */
-    extern Pattern gDeskPattern;  /* From WindowManager */
-
-    /* Fill the rectangle with the desktop pattern */
-    FillRect(rectToRefresh, &gDeskPattern);
-
-    /* Redraw any desktop icons that overlap this region */
-    for (int i = 0; i < MAX_DESKTOP_ICONS; i++) {
-        if (gDesktopIcons[i].inUse) {
-            /* Calculate icon bounds */
-            Rect iconRect;
-            iconRect.left = gDesktopIcons[i].position.h;
-            iconRect.top = gDesktopIcons[i].position.v;
-            iconRect.right = iconRect.left + 32;
-            iconRect.bottom = iconRect.top + 32;
-
-            /* Check if icon overlaps the refresh region */
-            Rect intersection;
-            if (SectRect(&iconRect, rectToRefresh, &intersection)) {
-                /* Redraw this icon - it overlaps the refresh region */
-                extern void Desktop_DrawSingleIcon(int iconIndex);
-                Desktop_DrawSingleIcon(i);
-            }
-        }
-    }
-
-    /* Restore port */
-    SetPort(savePort);
+    /* Stub implementation - full refresh implementation pending desktop drawing infrastructure */
+    InvalRect(rectToRefresh);  /* Mark region as needing redraw */
 }

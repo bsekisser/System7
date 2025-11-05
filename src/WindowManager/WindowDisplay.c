@@ -262,10 +262,9 @@ paint_windows:
 
             SetPort(savePort);
 
-            /* Phase 3: Redraw chrome on top of content to ensure it's not covered by fills
-             * Call PaintOne again to redraw the frame and controls on top */
-            WM_LOG_TRACE("[PaintBehind] Redrawing chrome on top of content for window %p\n", w);
-            PaintOne(w, clobberedRgn);
+            /* NOTE: Removed second PaintOne call - it was causing double rendering
+             * The chrome is already drawn in Phase 1, and QuickDraw will preserve it
+             * since we set proper clipRgn during content drawing */
         }
     }
 
@@ -1361,8 +1360,7 @@ void SelectWindow(WindowPtr window) {
         HiliteWindow(wmState->activeWindow, false);
 
         /* Post deactivate event */
-        extern void PostEvent(short eventCode, SInt32 eventMsg);
-        PostEvent(6, (SInt32)wmState->activeWindow);  /* activateEvt with activeFlag clear */
+        PostEvent(activateEvt, (UInt32)wmState->activeWindow);  /* activateEvt with activeFlag clear */
     }
 
     /* Bring window to front */
@@ -1379,8 +1377,7 @@ void SelectWindow(WindowPtr window) {
     HiliteWindow(window, true);
 
     /* Generate activate event for the newly selected window */
-    extern void PostEvent(short eventCode, SInt32 eventMsg);
-    PostEvent(6, (SInt32)window | 0x0001);  /* activateEvt with activeFlag set */
+    PostEvent(activateEvt, (UInt32)window | 0x0001);  /* activateEvt with activeFlag set */
 }
 
 /*-----------------------------------------------------------------------*/

@@ -145,6 +145,14 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
     WM_DEBUG("MoveWindow: Moving window to (%d, %d), front = %s",
              hGlobal, vGlobal, front ? "true" : "false");
 
+    if (theWindow->refCon == 0x4449534b) {
+        extern void serial_puts(const char *str);
+        extern int sprintf(char* buf, const char* fmt, ...);
+        char dbgbuf[256];
+        sprintf(dbgbuf, "[MOVECALL] hGlobal=%d vGlobal=%d\n", hGlobal, vGlobal);
+        serial_puts(dbgbuf);
+    }
+
     /* CRITICAL: Get current global position from strucRgn, NOT from portRect
      * portRect is ALWAYS in LOCAL coordinates (0,0,width,height)
      * strucRgn contains the GLOBAL screen position */
@@ -159,6 +167,17 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
     /* Calculate movement offset */
     short deltaH = hGlobal - currentGlobalBounds.left;
     short deltaV = vGlobal - currentGlobalBounds.top;
+
+    if (theWindow->refCon == 0x4449534b) {
+        extern void serial_puts(const char *str);
+        extern int sprintf(char* buf, const char* fmt, ...);
+        char dbgbuf[256];
+        sprintf(dbgbuf, "[MOVECALL] current bounds=(%d,%d,%d,%d) deltaH=%d deltaV=%d\n",
+                currentGlobalBounds.left, currentGlobalBounds.top,
+                currentGlobalBounds.right, currentGlobalBounds.bottom,
+                deltaH, deltaV);
+        serial_puts(dbgbuf);
+    }
 
     /* Check if window actually needs to move */
     if (deltaH == 0 && deltaV == 0) {
@@ -190,7 +209,26 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
 
     /* Update window regions */
     if (theWindow->strucRgn) {
+        if (theWindow->refCon == 0x4449534b) {
+            Rect beforeOffset = (*(theWindow->strucRgn))->rgnBBox;
+            extern void serial_puts(const char *str);
+            extern int sprintf(char* buf, const char* fmt, ...);
+            char dbgbuf[256];
+            sprintf(dbgbuf, "[MOVEWIN] BEFORE OffsetRgn: strucRgn=(%d,%d,%d,%d) deltaH=%d deltaV=%d\n",
+                    beforeOffset.left, beforeOffset.top, beforeOffset.right, beforeOffset.bottom,
+                    deltaH, deltaV);
+            serial_puts(dbgbuf);
+        }
         Platform_OffsetRgn(theWindow->strucRgn, deltaH, deltaV);
+        if (theWindow->refCon == 0x4449534b) {
+            Rect afterOffset = (*(theWindow->strucRgn))->rgnBBox;
+            extern void serial_puts(const char *str);
+            extern int sprintf(char* buf, const char* fmt, ...);
+            char dbgbuf[256];
+            sprintf(dbgbuf, "[MOVEWIN] AFTER OffsetRgn: strucRgn=(%d,%d,%d,%d)\n",
+                    afterOffset.left, afterOffset.top, afterOffset.right, afterOffset.bottom);
+            serial_puts(dbgbuf);
+        }
     }
     if (theWindow->contRgn) {
         Platform_OffsetRgn(theWindow->contRgn, deltaH, deltaV);
@@ -209,12 +247,30 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
     if (theWindow->contRgn && *(theWindow->contRgn)) {
         Rect newContentRect = (*(theWindow->contRgn))->rgnBBox;
 
+        if (theWindow->refCon == 0x4449534b) {
+            extern void serial_puts(const char *str);
+            extern int sprintf(char* buf, const char* fmt, ...);
+            char dbgbuf[256];
+            sprintf(dbgbuf, "[MOVWIN2] newContentRect=(%d,%d,%d,%d)\n",
+                    newContentRect.left, newContentRect.top, newContentRect.right, newContentRect.bottom);
+            serial_puts(dbgbuf);
+        }
+
         extern void* framebuffer;
         extern uint32_t fb_pitch;
         uint32_t bytes_per_pixel = 4;
         uint32_t fbOffset = newContentRect.top * fb_pitch + newContentRect.left * bytes_per_pixel;
 
         theWindow->port.portBits.baseAddr = (Ptr)((char*)framebuffer + fbOffset);
+
+        if (theWindow->refCon == 0x4449534b) {
+            extern void serial_puts(const char *str);
+            extern int sprintf(char* buf, const char* fmt, ...);
+            char dbgbuf[256];
+            sprintf(dbgbuf, "[MOVWIN2] fbOffset=%u baseAddr=%p\n",
+                    fbOffset, theWindow->port.portBits.baseAddr);
+            serial_puts(dbgbuf);
+        }
     }
 
     /* NOTE: Do NOT modify portBits.bounds - it must stay (0,0,width,height)!
