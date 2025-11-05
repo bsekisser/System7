@@ -204,6 +204,32 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
     /* Resize native platform window */
     Platform_SizeNativeWindow(theWindow, w, h);
 
+    /* CRITICAL: Update baseAddr for Direct Framebuffer after resize
+     *
+     * After resizing, the content region position may change (due to chrome),
+     * so baseAddr must be recalculated to point to the new position in the framebuffer.
+     * This is the same calculation used in MoveWindow.
+     */
+    if (theWindow->contRgn && *(theWindow->contRgn)) {
+        Rect newContentRect = (*(theWindow->contRgn))->rgnBBox;
+
+        extern void* framebuffer;
+        extern uint32_t fb_pitch;
+        uint32_t bytes_per_pixel = 4;
+        uint32_t fbOffset = newContentRect.top * fb_pitch + newContentRect.left * bytes_per_pixel;
+        theWindow->port.portBits.baseAddr = (Ptr)((char*)framebuffer + fbOffset);
+
+        if (theWindow->refCon == 0x4449534b) {
+            extern void serial_puts(const char *str);
+            extern int sprintf(char* buf, const char* fmt, ...);
+            char dbgbuf[256];
+            sprintf(dbgbuf, "[SIZEWND] Updated baseAddr: contRect=(%d,%d,%d,%d) fbOffset=%u baseAddr=%p\n",
+                    newContentRect.left, newContentRect.top, newContentRect.right, newContentRect.bottom,
+                    fbOffset, theWindow->port.portBits.baseAddr);
+            serial_puts(dbgbuf);
+        }
+    }
+
     /* Generate update events for newly exposed areas if requested */
     if (fUpdate && theWindow->visible) {
         Local_GenerateResizeUpdateEvents(theWindow, currentWidth, currentHeight, w, h);
@@ -838,6 +864,13 @@ static void WM_CalculateStandardState(WindowPtr window, Rect* stdState) {
     Rect screenBounds;
     Platform_GetScreenBounds(&screenBounds);
 
+    extern void serial_puts(const char *str);
+    extern int sprintf(char* buf, const char* fmt, ...);
+    char dbgbuf[256];
+    sprintf(dbgbuf, "[ZW] screenBounds=(%d,%d,%d,%d)\n",
+            screenBounds.left, screenBounds.top, screenBounds.right, screenBounds.bottom);
+    serial_puts(dbgbuf);
+
     /* Calculate standard size (80% of screen, centered) */
     short screenWidth = screenBounds.right - screenBounds.left;
     short screenHeight = screenBounds.bottom - screenBounds.top;
@@ -863,6 +896,11 @@ static void WM_CalculateStandardState(WindowPtr window, Rect* stdState) {
 
     WM_DEBUG("WM_CalculateStandardState: Standard state = (%d, %d, %d, %d)",
              stdState->left, stdState->top, stdState->right, stdState->bottom);
+
+    sprintf(dbgbuf, "[ZW] stdState=(%d,%d,%d,%d) size=%dx%d\n",
+            stdState->left, stdState->top, stdState->right, stdState->bottom,
+            stdState->right - stdState->left, stdState->bottom - stdState->top);
+    serial_puts(dbgbuf);
 }
 
 static void WM_UpdateWindowUserState(WindowPtr window) {

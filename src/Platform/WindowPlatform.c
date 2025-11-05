@@ -178,7 +178,10 @@ Boolean Platform_InitializePort(GrafPtr port) {
 /* Get screen bounds */
 void Platform_GetScreenBounds(Rect* bounds) {
     if (bounds) {
-        SetRect(bounds, 0, 0, fb_width, fb_height);
+        /* System 7.1 uses 640x480 screen resolution
+         * The framebuffer may be larger (e.g., 800x600) but we need to
+         * report the logical screen size for window positioning */
+        SetRect(bounds, 0, 0, 640, 480);
     }
 }
 
