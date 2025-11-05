@@ -409,6 +409,15 @@ void Platform_GetWindowContentRect(WindowPtr window, Rect* rect) {
 
     Rect strucRect = (**(window->strucRgn)).rgnBBox;
 
+    if (window->refCon == 0x4449534b) {
+        extern void serial_puts(const char *str);
+        extern int sprintf(char* buf, const char* fmt, ...);
+        char dbgbuf[256];
+        sprintf(dbgbuf, "[GETCONTENT] DISK: strucRgn rgnBBox=(%d,%d,%d,%d)\n",
+                strucRect.left, strucRect.top, strucRect.right, strucRect.bottom);
+        serial_puts(dbgbuf);
+    }
+
     /* Chrome dimensions */
     const SInt16 kBorder = 1;
     const SInt16 kTitleBar = 20;
@@ -700,6 +709,17 @@ void Platform_MoveNativeWindow(WindowPtr window, short h, short v) {
 
 void Platform_SizeNativeWindow(WindowPtr window, short width, short height) {
     if (window) {
+        if (window->refCon == 0x4449534b) {
+            extern void serial_puts(const char *str);
+            extern int sprintf(char* buf, const char* fmt, ...);
+            char dbgbuf[256];
+            sprintf(dbgbuf, "[SIZENATIVE] DISK: width=%d height=%d oldPortRect=(%d,%d,%d,%d)\n",
+                    width, height,
+                    window->port.portRect.left, window->port.portRect.top,
+                    window->port.portRect.right, window->port.portRect.bottom);
+            serial_puts(dbgbuf);
+        }
+
         /* CRITICAL: Direct Framebuffer approach requires portRect AND portBits.bounds
          * to BOTH stay in LOCAL coordinates (0,0,width,height)!
          *
@@ -714,6 +734,16 @@ void Platform_SizeNativeWindow(WindowPtr window, short width, short height) {
         window->port.portBits.bounds.top = 0;
         window->port.portBits.bounds.right = width;
         window->port.portBits.bounds.bottom = height;
+
+        if (window->refCon == 0x4449534b) {
+            extern void serial_puts(const char *str);
+            extern int sprintf(char* buf, const char* fmt, ...);
+            char dbgbuf[256];
+            sprintf(dbgbuf, "[SIZENATIVE] DISK: newPortRect=(%d,%d,%d,%d)\n",
+                    window->port.portRect.left, window->port.portRect.top,
+                    window->port.portRect.right, window->port.portRect.bottom);
+            serial_puts(dbgbuf);
+        }
 
         Platform_CalculateWindowRegions(window);
     }
