@@ -165,6 +165,21 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
                 sprintf(dbgbuf, "[FILLRGN] DISK: About to fill region bbox=(%d,%d,%d,%d)\n",
                         fillBBox.left, fillBBox.top, fillBBox.right, fillBBox.bottom);
                 serial_puts(dbgbuf);
+
+                /* Log the current port state when filling */
+                extern QDGlobals qd;
+                GrafPtr currentPort = qd.thePort;
+                if (currentPort) {
+                    extern void* framebuffer;
+                    uint8_t* fbStart = (uint8_t*)framebuffer;
+                    uint8_t* baseAddr = (uint8_t*)currentPort->portBits.baseAddr;
+                    int offset = baseAddr - fbStart;
+                    sprintf(dbgbuf, "[FILLRGN] Port state: baseAddr=%p (offset=%d from fb), portRect=(%d,%d,%d,%d)\n",
+                            currentPort->portBits.baseAddr, offset,
+                            currentPort->portRect.left, currentPort->portRect.top,
+                            currentPort->portRect.right, currentPort->portRect.bottom);
+                    serial_puts(dbgbuf);
+                }
             }
 
             FillRgn(window->contRgn, &qd.white);
