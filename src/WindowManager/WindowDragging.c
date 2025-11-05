@@ -273,9 +273,23 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
         }
     }
 
-    /* With Global Framebuffer approach, update portBits.bounds to content area's new GLOBAL position */
+    /* With Global Framebuffer approach, update portBits.bounds to content area's new GLOBAL position
+     * CRITICAL: Do this AFTER updating contRgn! */
     if (theWindow->contRgn && *(theWindow->contRgn)) {
         Rect newContentBounds = (*(theWindow->contRgn))->rgnBBox;
+
+        if (theWindow->refCon == 0x4449534b) {
+            extern void serial_puts(const char *str);
+            extern int sprintf(char* buf, const char* fmt, ...);
+            char dbgbuf[256];
+            sprintf(dbgbuf, "[MOVWIN] strucRgn was (%d,%d,%d,%d) contRgn new bounds=(%d,%d,%d,%d)\n",
+                    (theWindow->strucRgn && *(theWindow->strucRgn)) ? (*(theWindow->strucRgn))->rgnBBox.left : -1,
+                    (theWindow->strucRgn && *(theWindow->strucRgn)) ? (*(theWindow->strucRgn))->rgnBBox.top : -1,
+                    (theWindow->strucRgn && *(theWindow->strucRgn)) ? (*(theWindow->strucRgn))->rgnBBox.right : -1,
+                    (theWindow->strucRgn && *(theWindow->strucRgn)) ? (*(theWindow->strucRgn))->rgnBBox.bottom : -1,
+                    newContentBounds.left, newContentBounds.top, newContentBounds.right, newContentBounds.bottom);
+            serial_puts(dbgbuf);
+        }
 
         /* Update bounds to content area's new GLOBAL position */
         SetRect(&theWindow->port.portBits.bounds,
@@ -286,8 +300,9 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
             extern void serial_puts(const char *str);
             extern int sprintf(char* buf, const char* fmt, ...);
             char dbgbuf[256];
-            sprintf(dbgbuf, "[MOVWIN] Updated bounds: contentRect=(%d,%d,%d,%d)\n",
-                    newContentBounds.left, newContentBounds.top, newContentBounds.right, newContentBounds.bottom);
+            sprintf(dbgbuf, "[MOVWIN] portBits.bounds updated to (%d,%d,%d,%d)\n",
+                    theWindow->port.portBits.bounds.left, theWindow->port.portBits.bounds.top,
+                    theWindow->port.portBits.bounds.right, theWindow->port.portBits.bounds.bottom);
             serial_puts(dbgbuf);
         }
     }
