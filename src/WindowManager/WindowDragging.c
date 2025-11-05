@@ -1100,11 +1100,21 @@ static Boolean Local_RectsIntersect(const Rect* rect1, const Rect* rect2) {
 }
 
 static void Local_InvalidateScreenRegion(RgnHandle rgn) {
-    if (rgn == NULL) return;
+    if (rgn == NULL || !*rgn) return;
 
-    /* Convert region to screen coordinates and invalidate */
-    /* TODO: Implement screen invalidation when graphics system is available */
     WM_DEBUG("Local_InvalidateScreenRegion: Invalidating screen region");
+
+    /* Repaint windows behind this region to erase the old window chrome/content
+     * This is critical after a drag operation to remove the ghost image at the old position */
+    extern void PaintBehind(WindowPtr startWindow, RgnHandle clobberedRgn);
+    extern WindowManagerState* GetWindowManagerState(void);
+
+    WindowManagerState* wmState = GetWindowManagerState();
+    if (wmState && wmState->windowList) {
+        /* PaintBehind will redraw all windows from the start of the list
+         * The region parameter tells PaintBehind what area was affected */
+        PaintBehind(wmState->windowList, rgn);
+    }
 }
 
 /* Platform functions are defined in Platform/WindowPlatform.c */
