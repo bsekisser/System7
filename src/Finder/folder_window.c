@@ -1251,6 +1251,19 @@ void FolderWindow_Draw(WindowPtr w) {
     GetPort(&savePort);
     SetPort((GrafPtr)w);
 
+    /* Debug: log portBits bounds at draw time */
+    if (w->refCon == 0x4449534b) {
+        extern void serial_puts(const char *str);
+        extern int sprintf(char* buf, const char* fmt, ...);
+        char dbgbuf[256];
+        sprintf(dbgbuf, "[FLDRAW] portBits.bounds at draw time: (%d,%d,%d,%d) portRect: (%d,%d,%d,%d)\n",
+                w->port.portBits.bounds.left, w->port.portBits.bounds.top,
+                w->port.portBits.bounds.right, w->port.portBits.bounds.bottom,
+                w->port.portRect.left, w->port.portRect.top,
+                w->port.portRect.right, w->port.portRect.bottom);
+        serial_puts(dbgbuf);
+    }
+
     /* Fill with white background - pattern is 1-bit bitmap where 0=white, 1=black */
     Pattern whitePat;
     for (int i = 0; i < 8; i++) whitePat.pat[i] = 0x00; /* solid white */

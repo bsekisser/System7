@@ -153,12 +153,10 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
     (theWindow)->port.portRect.right = (theWindow)->port.portRect.left + w;
     (theWindow)->port.portRect.bottom = (theWindow)->port.portRect.top + h;
 
-    /* CRITICAL: Update portBits.bounds for Direct Framebuffer approach
-     *
-     * With Direct Framebuffer, portBits.bounds must ALWAYS be (0,0,width,height).
-     * When window is resized, the LOCAL dimensions change, so update bounds. */
-    extern void SetRect(Rect* r, short left, short top, short right, short bottom);
-    SetRect(&(theWindow)->port.portBits.bounds, 0, 0, w, h);
+    /* NOTE: Do NOT update portBits.bounds here!
+     * portBits.bounds is updated later (line 212) after contRgn is recalculated.
+     * We use Global Framebuffer approach where portBits.bounds = content's GLOBAL position.
+     * Overwriting it here with (0,0,w,h) would break the coordinate system. */
 
     /* CRITICAL: Directly update window regions for resize
      *

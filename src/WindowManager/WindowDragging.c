@@ -258,8 +258,8 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
             Rect newContBounds;
             newContBounds.left = newStrucBounds.left + 1;      /* 1px left border */
             newContBounds.top = newStrucBounds.top + 21;       /* 1px border + 20px title */
-            newContBounds.right = newStrucBounds.right - 1;    /* 1px right border */
-            newContBounds.bottom = newStrucBounds.bottom - 1;  /* 1px bottom border */
+            newContBounds.right = newStrucBounds.right - 2;    /* 2px right border (1px border + 1px 3D highlight) */
+            newContBounds.bottom = newStrucBounds.bottom - 2;  /* 2px bottom border (1px bottom + 1px padding) */
             extern void RectRgn(RgnHandle rgn, const Rect* r);
             RectRgn(theWindow->contRgn, &newContBounds);
         }
