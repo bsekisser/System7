@@ -956,9 +956,11 @@ void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
      */
     extern QDGlobals qd;
     GrafPtr port = qd.thePort;
+    int isDirectFB = 0;
     if (port && port->portBits.baseAddr != (Ptr)framebuffer) {
         /* This port has a baseAddr offset from framebuffer (Direct Framebuffer approach)
          * Convert GLOBAL region coordinates to LOCAL coordinates */
+        isDirectFB = 1;
 
         /* Get the window's content offset from portBits.bounds */
         int localWidth = port->portBits.bounds.right - port->portBits.bounds.left;
@@ -974,11 +976,22 @@ void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
         int globalY = byteOffset / fb_pitch;
         int globalX = (byteOffset % fb_pitch) / 4;  /* 4 bytes per pixel */
 
+        extern void serial_puts(const char *str);
+        extern int sprintf(char* buf, const char* fmt, ...);
+        char dbgbuf[256];
+        sprintf(dbgbuf, "[QDRAW-COORD] BEFORE: global_region=(%d,%d,%d,%d) window_at=(%d,%d) local_size=%dx%d\n",
+                r.left, r.top, r.right, r.bottom, globalX, globalY, localWidth, localHeight);
+        serial_puts(dbgbuf);
+
         /* Convert region bounds from global to local */
         r.left = r.left - globalX;
         r.top = r.top - globalY;
         r.right = r.right - globalX;
         r.bottom = r.bottom - globalY;
+
+        sprintf(dbgbuf, "[QDRAW-COORD] AFTER:  local_region=(%d,%d,%d,%d)\n",
+                r.left, r.top, r.right, r.bottom);
+        serial_puts(dbgbuf);
 
         /* Clamp to window bounds (LOCAL coordinates 0,0,width,height) */
         if (r.left < 0) r.left = 0;
@@ -1088,7 +1101,7 @@ void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
                 uint32_t color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
 
                 /* Write to appropriate location */
-                if (port && port->portBits.baseAddr != (Ptr)framebuffer) {
+                if (isDirectFB) {
                     /* Direct Framebuffer: use window's baseAddr + local offset */
                     uint32_t* pixel = (uint32_t*)((uint8_t*)port->portBits.baseAddr + y * fb_pitch + x * 4);
                     *pixel = color;
