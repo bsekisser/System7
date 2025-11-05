@@ -284,7 +284,7 @@ void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
             uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
             *pixel = color;
         } else {
-            /* Drawing to offscreen basic bitmap (e.g., window GWorld backing) */
+            /* Drawing to offscreen basic bitmap (e.g., window GWorld backing or Direct Framebuffer) */
             Ptr baseAddr = g_currentPort->portBits.baseAddr;
             if (!baseAddr) return;
 
@@ -298,6 +298,18 @@ void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
 
             SInt16 portWidth = g_currentPort->portRect.right - g_currentPort->portRect.left;
             SInt16 portHeight = g_currentPort->portRect.bottom - g_currentPort->portRect.top;
+
+            /* Log first pixel for debugging */
+            static Boolean logged = false;
+            if (!logged && baseAddr != (Ptr)framebuffer) {
+                logged = true;
+                extern void serial_printf(const char* fmt, ...);
+                serial_printf("[QDP-PIX] First pixel x=%d y=%d localX=%d localY=%d portWidth=%d portHeight=%d\n",
+                             (int)x, (int)y, (int)localX, (int)localY, (int)portWidth, (int)portHeight);
+                serial_printf("[QDP-PIX] baseAddr=%p boundsLeft=%d boundsTop=%d rowBytes=%d\n",
+                             baseAddr, (int)boundsLeft, (int)boundsTop, (int)rowBytes);
+            }
+
             if (localX < 0 || localY < 0 || localX >= portWidth || localY >= portHeight) {
                 return;
             }
