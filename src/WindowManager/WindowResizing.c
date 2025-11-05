@@ -291,8 +291,18 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
     Local_StartResizeFeedback();
     serial_puts("[GW] Feedback started\n");
 
-    /* Get original window bounds for tracking */
-    Rect originalBounds = theWindow->port.portRect;
+    /* Get original window bounds for tracking - use strucRgn for GLOBAL coordinates */
+    Rect originalBounds;
+    if (theWindow->strucRgn && *(theWindow->strucRgn)) {
+        /* Use the actual GLOBAL window bounds from strucRgn */
+        originalBounds = (*(theWindow->strucRgn))->rgnBBox;
+    } else {
+        /* Fallback to portRect but this may be wrong */
+        originalBounds.left = 0;
+        originalBounds.top = 0;
+        originalBounds.right = theWindow->port.portRect.right - theWindow->port.portRect.left;
+        originalBounds.bottom = theWindow->port.portRect.bottom - theWindow->port.portRect.top;
+    }
 
     /* Main resize tracking loop */
     serial_puts("[GW] Entering main loop\n");
@@ -410,11 +420,24 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
     serial_puts("[GW] Final size calculated\n");
     serial_puts("[GW] Checking if resize is needed\n");
 
-    /* Apply resize if size actually changed */
-    if (finalWidth != originalWidth || finalHeight != originalHeight) {
-        serial_puts("[GW] Size changed, applying resize\n");
-        WM_DEBUG("GrowWindow: Applying final resize from %dx%d to %dx%d",
-                 originalWidth, originalHeight, finalWidth, finalHeight);
+    /* Get the ACTUAL current window dimensions from the portRect */
+    short actualWidth = theWindow->port.portRect.right - theWindow->port.portRect.left;
+    short actualHeight = theWindow->port.portRect.bottom - theWindow->port.portRect.top;
+
+    /* Log the size comparison for debugging */
+    extern void serial_puts(const char *str);
+    extern int sprintf(char* buf, const char* fmt, ...);
+    char dbgbuf[256];
+    sprintf(dbgbuf, "[GW] Size check: final=%dx%d actual=%dx%d original=%dx%d\n",
+            finalWidth, finalHeight, actualWidth, actualHeight, originalWidth, originalHeight);
+    serial_puts(dbgbuf);
+
+    /* Apply resize ONLY if size actually changed from the ACTUAL dimensions */
+    if (finalWidth != actualWidth || finalHeight != actualHeight) {
+        sprintf(dbgbuf, "[GW] Size changed, applying resize\n");
+        serial_puts(dbgbuf);
+        WM_DEBUG("GrowWindow: Applying final resize from %dx%d to %dx%d (actual=%dx%d)",
+                 actualWidth, actualHeight, finalWidth, finalHeight, actualWidth, actualHeight);
 
         /* Apply the resize */
         SizeWindow(theWindow, finalWidth, finalHeight, true);
@@ -461,6 +484,9 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
 
         serial_puts("[GW] Resize applied and redrawn\n");
     } else {
+        sprintf(dbgbuf, "[GW] No size change: %dx%d == %dx%d, skipping SizeWindow\n",
+                finalWidth, finalHeight, actualWidth, actualHeight);
+        serial_puts(dbgbuf);
         serial_puts("[GW] No size change detected\n");
     }
 
