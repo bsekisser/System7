@@ -302,16 +302,6 @@ void QDPlatform_SetPixel(SInt32 x, SInt32 y, UInt32 color) {
                 return;
             }
 
-            /* Log first pixel write to window for debugging */
-            static Boolean logged = false;
-            if (!logged && baseAddr != (Ptr)framebuffer) {
-                logged = true;
-                Ptr fbStart = (Ptr)framebuffer;
-                uint32_t fbOffset = (uint32_t)((char*)baseAddr - (char*)fbStart);
-                serial_printf("[QDP] First pixel to window: addr=%p offset=0x%x x=%d y=%d localX=%d localY=%d\n",
-                             baseAddr, fbOffset, (int)x, (int)y, (int)localX, (int)localY);
-            }
-
             uint32_t* pixel = (uint32_t*)((uint8_t*)baseAddr + localY * rowBytes + localX * 4);
             *pixel = color;
             /* Do not fall back to framebuffer when drawing to offscreen port */

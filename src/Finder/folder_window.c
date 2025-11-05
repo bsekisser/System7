@@ -1251,22 +1251,6 @@ void FolderWindow_Draw(WindowPtr w) {
     GetPort(&savePort);
     SetPort((GrafPtr)w);
 
-    /* Log window state at start of draw */
-    static Boolean logged = false;
-    if (!logged) {
-        logged = true;
-        serial_printf("[FW] FolderWindow_Draw: portRect=(%d,%d,%d,%d) portBits.bounds=(%d,%d,%d,%d)\n",
-                     w->port.portRect.left, w->port.portRect.top, w->port.portRect.right, w->port.portRect.bottom,
-                     w->port.portBits.bounds.left, w->port.portBits.bounds.top,
-                     w->port.portBits.bounds.right, w->port.portBits.bounds.bottom);
-        serial_printf("[FW] baseAddr=%p strucRgn bounds=(%d,%d,%d,%d)\n",
-                     w->port.portBits.baseAddr,
-                     (w->strucRgn && *w->strucRgn) ? (*(w->strucRgn))->rgnBBox.left : 0,
-                     (w->strucRgn && *w->strucRgn) ? (*(w->strucRgn))->rgnBBox.top : 0,
-                     (w->strucRgn && *w->strucRgn) ? (*(w->strucRgn))->rgnBBox.right : 0,
-                     (w->strucRgn && *w->strucRgn) ? (*(w->strucRgn))->rgnBBox.bottom : 0);
-    }
-
     /* Fill with white background - pattern is 1-bit bitmap where 0=white, 1=black */
     Pattern whitePat;
     for (int i = 0; i < 8; i++) whitePat.pat[i] = 0x00; /* solid white */
