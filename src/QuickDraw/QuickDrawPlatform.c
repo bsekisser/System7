@@ -941,9 +941,53 @@ void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
     if (!rgn || !*rgn) return;
 
     Region* region = (Region*)*rgn;
-    const Rect* r = &region->rgnBBox;
+    Rect r = region->rgnBBox;
 
-    if (!framebuffer || !r) return;
+    if (!framebuffer) return;
+
+    /* CRITICAL: Handle Direct Framebuffer coordinate conversion
+     *
+     * When using Direct Framebuffer (baseAddr = framebuffer + offset),
+     * the region coordinates are GLOBAL (screen coordinates), but we need
+     * to convert them to LOCAL coordinates (relative to window content area).
+     *
+     * The window's baseAddr already points to the window's content area,
+     * so we need to use LOCAL coordinates (0,0,width,height) for pixel calcs.
+     */
+    extern QDGlobals qd;
+    GrafPtr port = qd.thePort;
+    if (port && port->portBits.baseAddr != (Ptr)framebuffer) {
+        /* This port has a baseAddr offset from framebuffer (Direct Framebuffer approach)
+         * Convert GLOBAL region coordinates to LOCAL coordinates */
+
+        /* Get the window's content offset from portBits.bounds */
+        int localWidth = port->portBits.bounds.right - port->portBits.bounds.left;
+        int localHeight = port->portBits.bounds.bottom - port->portBits.bounds.top;
+
+        /* The offset in the framebuffer tells us the window's global position */
+        uint8_t* fbPtr = (uint8_t*)port->portBits.baseAddr;
+        uint8_t* fbStart = (uint8_t*)framebuffer;
+        int byteOffset = fbPtr - fbStart;
+
+        /* Calculate global position from byte offset */
+        extern uint32_t fb_pitch;
+        int globalY = byteOffset / fb_pitch;
+        int globalX = (byteOffset % fb_pitch) / 4;  /* 4 bytes per pixel */
+
+        /* Convert region bounds from global to local */
+        r.left = r.left - globalX;
+        r.top = r.top - globalY;
+        r.right = r.right - globalX;
+        r.bottom = r.bottom - globalY;
+
+        /* Clamp to window bounds (LOCAL coordinates 0,0,width,height) */
+        if (r.left < 0) r.left = 0;
+        if (r.top < 0) r.top = 0;
+        if (r.right > localWidth) r.right = localWidth;
+        if (r.bottom > localHeight) r.bottom = localHeight;
+
+        if (r.left >= r.right || r.top >= r.bottom) return;  /* Nothing to draw */
+    }
 
     /* Log fill operations for debugging ghost window issue */
     if (mode == fill && pat) {
@@ -960,7 +1004,7 @@ void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
             extern int sprintf(char* buf, const char* fmt, ...);
             char dbgbuf[256];
             sprintf(dbgbuf, "[QDRAW-FILL] Filling region at bbox=(%d,%d,%d,%d) white pattern\n",
-                    r->left, r->top, r->right, r->bottom);
+                    r.left, r.top, r.right, r.bottom);
             serial_puts(dbgbuf);
         }
     }
@@ -972,10 +1016,10 @@ void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
 
         if (PM_GetColorPattern(&colorPattern)) {
             /* Use color pattern - tile 8x8 across region bounds */
-            int left = (r->left < 0) ? 0 : r->left;
-            int top = (r->top < 0) ? 0 : r->top;
-            int right = (r->right > fb_width) ? fb_width : r->right;
-            int bottom = (r->bottom > fb_height) ? fb_height : r->bottom;
+            int left = (r.left < 0) ? 0 : r.left;
+            int top = (r.top < 0) ? 0 : r.top;
+            int right = (r.right > fb_width) ? fb_width : r.right;
+            int bottom = (r.bottom > fb_height) ? fb_height : r.bottom;
 
             for (int y = top; y < bottom; y++) {
                 for (int x = left; x < right; x++) {
@@ -1000,13 +1044,13 @@ void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
     /* For other modes or if pattern not available, use simple rect operations */
     if (mode == erase) {
         extern void EraseRect(const Rect* r);
-        EraseRect(r);
+        EraseRect(&r);
     } else if (mode == paint && pat) {
         /* Simple paint with pattern */
-        for (int y = r->top; y < r->bottom; y++) {
-            for (int x = r->left; x < r->right; x++) {
-                int patY = (y - r->top) % 8;
-                int patX = (x - r->left) % 8;
+        for (int y = r.top; y < r.bottom; y++) {
+            for (int x = r.left; x < r.right; x++) {
+                int patY = (y - r.top) % 8;
+                int patX = (x - r.left) % 8;
                 uint8_t patByte = pat->pat[patY];
                 bool bit = (patByte >> (7 - patX)) & 1;
                 uint32_t color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
@@ -1015,15 +1059,27 @@ void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
         }
     } else if (mode == fill && pat) {
         /* Fill region with pattern */
-        /* Clamp to screen bounds */
-        int left = (r->left < 0) ? 0 : r->left;
-        int top = (r->top < 0) ? 0 : r->top;
-        int right = (r->right > fb_width) ? fb_width : r->right;
-        int bottom = (r->bottom > fb_height) ? fb_height : r->bottom;
+        /* Clamp to local bounds */
+        int left = (r.left < 0) ? 0 : r.left;
+        int top = (r.top < 0) ? 0 : r.top;
+
+        /* Check if using Direct Framebuffer (baseAddr offset from framebuffer) */
+        int right, bottom;
+        if (port && port->portBits.baseAddr != (Ptr)framebuffer) {
+            /* LOCAL coordinates - clamp to window size */
+            int localWidth = port->portBits.bounds.right - port->portBits.bounds.left;
+            int localHeight = port->portBits.bounds.bottom - port->portBits.bounds.top;
+            right = (r.right > localWidth) ? localWidth : r.right;
+            bottom = (r.bottom > localHeight) ? localHeight : r.bottom;
+        } else {
+            /* GLOBAL coordinates - clamp to screen */
+            right = (r.right > fb_width) ? fb_width : r.right;
+            bottom = (r.bottom > fb_height) ? fb_height : r.bottom;
+        }
 
         for (int y = top; y < bottom; y++) {
             for (int x = left; x < right; x++) {
-                /* Use screen position for pattern tiling (8x8 repeat) */
+                /* Use position for pattern tiling (8x8 repeat) */
                 int patY = y % 8;
                 int patX = x % 8;
                 uint8_t patByte = pat->pat[patY];
@@ -1031,9 +1087,16 @@ void QDPlatform_DrawRegion(RgnHandle rgn, short mode, const Pattern* pat) {
                 /* Pattern: 0=white, 1=black */
                 uint32_t color = bit ? pack_color(0, 0, 0) : pack_color(255, 255, 255);
 
-                /* Write directly to framebuffer */
-                uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
-                *pixel = color;
+                /* Write to appropriate location */
+                if (port && port->portBits.baseAddr != (Ptr)framebuffer) {
+                    /* Direct Framebuffer: use window's baseAddr + local offset */
+                    uint32_t* pixel = (uint32_t*)((uint8_t*)port->portBits.baseAddr + y * fb_pitch + x * 4);
+                    *pixel = color;
+                } else {
+                    /* Regular framebuffer: calculate global position */
+                    uint32_t* pixel = (uint32_t*)((uint8_t*)framebuffer + y * fb_pitch + x * 4);
+                    *pixel = color;
+                }
             }
         }
     }
