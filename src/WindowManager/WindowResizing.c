@@ -123,6 +123,21 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
     short currentWidth = currentBounds.right - currentBounds.left;
     short currentHeight = currentBounds.bottom - currentBounds.top;
 
+    /* Log detailed info for debugging caller */
+    extern void serial_puts(const char *str);
+    extern int sprintf(char* buf, const char* fmt, ...);
+    char dbgbuf[256];
+    unsigned long refCon = (unsigned long)theWindow->refCon;
+    char refconStr[8];
+    refconStr[0] = (refCon >> 24) & 0xFF;
+    refconStr[1] = (refCon >> 16) & 0xFF;
+    refconStr[2] = (refCon >> 8) & 0xFF;
+    refconStr[3] = refCon & 0xFF;
+    refconStr[4] = 0;
+    sprintf(dbgbuf, "[SIZEWND] refCon=0x%08x (%s) current=%dx%d new=%dx%d\n",
+            (unsigned int)refCon, refconStr, currentWidth, currentHeight, w, h);
+    serial_puts(dbgbuf);
+
     if (currentWidth == w && currentHeight == h) {
         WM_DEBUG("SizeWindow: No size change needed");
         return;
@@ -440,6 +455,7 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
                  actualWidth, actualHeight, finalWidth, finalHeight, actualWidth, actualHeight);
 
         /* Apply the resize */
+        serial_puts("[GW] >>> Calling SizeWindow from GrowWindow\n");
         SizeWindow(theWindow, finalWidth, finalHeight, true);
         serial_puts("[GW] SizeWindow called\n");
 
@@ -569,6 +585,8 @@ void ZoomWindow(WindowPtr theWindow, short partCode, Boolean front) {
     short newHeight = targetBounds.bottom - targetBounds.top;
 
     MoveWindow(theWindow, targetBounds.left, targetBounds.top, false);
+    extern void serial_puts(const char *str);
+    serial_puts("[ZW] >>> Calling SizeWindow from ZoomWindow\n");
     SizeWindow(theWindow, newWidth, newHeight, true);
 
     /* Bring to front if requested */

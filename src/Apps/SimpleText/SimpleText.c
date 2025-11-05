@@ -224,6 +224,8 @@ static void HandleMouseDown(EventRecord* event) {
                 Rect sizeRect = {80, 80, 480, 640};
                 long newSize = GrowWindow(window, event->where, &sizeRect);
                 if (newSize) {
+                    extern void serial_puts(const char *str);
+                    serial_puts("[ST] >>> Calling SizeWindow from SimpleText (after GrowWindow)\n");
                     SizeWindow(window, LoWord(newSize), HiWord(newSize), true);
                     doc = STDoc_FindByWindow(window);
                     if (doc) {
