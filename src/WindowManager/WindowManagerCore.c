@@ -891,16 +891,18 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     /* CRITICAL FIX: Use Global Framebuffer approach instead of Direct Framebuffer
      * Global Framebuffer:
      *   - baseAddr = framebuffer (global start, not offset)
-     *   - portBits.bounds = window's GLOBAL position on screen
+     *   - portBits.bounds = CONTENT area's GLOBAL position on screen
+     *     (NOT structure bounds - that would include title bar offset!)
      *   - rowBytes = fb_pitch (framebuffer width * 4)
      * This approach is simpler and compatible with existing coordinate conversion code
      */
     window->port.portBits.baseAddr = (Ptr)framebuffer;
 
-    /* Set bounds to window's GLOBAL position on screen */
+    /* Set bounds to CONTENT area's GLOBAL position on screen
+     * Content starts after title bar and borders */
     SetRect(&window->port.portBits.bounds,
-            clampedBounds.left, clampedBounds.top,
-            clampedBounds.right, clampedBounds.bottom);
+            contentLeft, contentTop,
+            contentLeft + contentWidth, contentTop + contentHeight);
 
     /* rowBytes = framebuffer pitch (includes PixMap flag bit 15) */
     window->port.portBits.rowBytes = (fb_width * 4) | 0x8000;

@@ -273,21 +273,21 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
         }
     }
 
-    /* With Global Framebuffer approach, update portBits.bounds to window's new GLOBAL position */
-    if (theWindow->strucRgn && *(theWindow->strucRgn)) {
-        Rect newBounds = (*(theWindow->strucRgn))->rgnBBox;
+    /* With Global Framebuffer approach, update portBits.bounds to content area's new GLOBAL position */
+    if (theWindow->contRgn && *(theWindow->contRgn)) {
+        Rect newContentBounds = (*(theWindow->contRgn))->rgnBBox;
 
-        /* Update bounds to window's new GLOBAL position */
+        /* Update bounds to content area's new GLOBAL position */
         SetRect(&theWindow->port.portBits.bounds,
-                newBounds.left, newBounds.top,
-                newBounds.right, newBounds.bottom);
+                newContentBounds.left, newContentBounds.top,
+                newContentBounds.right, newContentBounds.bottom);
 
         if (theWindow->refCon == 0x4449534b) {
             extern void serial_puts(const char *str);
             extern int sprintf(char* buf, const char* fmt, ...);
             char dbgbuf[256];
-            sprintf(dbgbuf, "[MOVWIN] Updated bounds: strucRect=(%d,%d,%d,%d)\n",
-                    newBounds.left, newBounds.top, newBounds.right, newBounds.bottom);
+            sprintf(dbgbuf, "[MOVWIN] Updated bounds: contentRect=(%d,%d,%d,%d)\n",
+                    newContentBounds.left, newContentBounds.top, newContentBounds.right, newContentBounds.bottom);
             serial_puts(dbgbuf);
         }
     }
