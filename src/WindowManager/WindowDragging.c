@@ -273,45 +273,24 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
         }
     }
 
-    /* CRITICAL: Update portBits.baseAddr for Direct Framebuffer approach
-     *
-     * When using Direct Framebuffer coordinates (baseAddr = framebuffer + offset),
-     * baseAddr must be updated whenever the window moves to point to the new position.
-     *
-     * Calculate new framebuffer offset based on new content position.
-     */
-    if (theWindow->contRgn && *(theWindow->contRgn)) {
-        Rect newContentRect = (*(theWindow->contRgn))->rgnBBox;
+    /* With Global Framebuffer approach, update portBits.bounds to window's new GLOBAL position */
+    if (theWindow->strucRgn && *(theWindow->strucRgn)) {
+        Rect newBounds = (*(theWindow->strucRgn))->rgnBBox;
+
+        /* Update bounds to window's new GLOBAL position */
+        SetRect(&theWindow->port.portBits.bounds,
+                newBounds.left, newBounds.top,
+                newBounds.right, newBounds.bottom);
 
         if (theWindow->refCon == 0x4449534b) {
             extern void serial_puts(const char *str);
             extern int sprintf(char* buf, const char* fmt, ...);
             char dbgbuf[256];
-            sprintf(dbgbuf, "[MOVWIN2] newContentRect=(%d,%d,%d,%d)\n",
-                    newContentRect.left, newContentRect.top, newContentRect.right, newContentRect.bottom);
-            serial_puts(dbgbuf);
-        }
-
-        extern void* framebuffer;
-        extern uint32_t fb_pitch;
-        uint32_t bytes_per_pixel = 4;
-        uint32_t fbOffset = newContentRect.top * fb_pitch + newContentRect.left * bytes_per_pixel;
-
-        theWindow->port.portBits.baseAddr = (Ptr)((char*)framebuffer + fbOffset);
-
-        if (theWindow->refCon == 0x4449534b) {
-            extern void serial_puts(const char *str);
-            extern int sprintf(char* buf, const char* fmt, ...);
-            char dbgbuf[256];
-            sprintf(dbgbuf, "[MOVWIN2] fbOffset=%u baseAddr=%p\n",
-                    fbOffset, theWindow->port.portBits.baseAddr);
+            sprintf(dbgbuf, "[MOVWIN] Updated bounds: strucRect=(%d,%d,%d,%d)\n",
+                    newBounds.left, newBounds.top, newBounds.right, newBounds.bottom);
             serial_puts(dbgbuf);
         }
     }
-
-    /* NOTE: Do NOT modify portBits.bounds - it must stay (0,0,width,height)!
-     * With Direct Framebuffer approach, portBits.bounds is always in LOCAL coordinates.
-     * Only baseAddr needs to be updated to point to the new window position. */
 
     /* Move native platform window using new global position from strucRgn */
     if (theWindow->strucRgn && *(theWindow->strucRgn)) {

@@ -204,35 +204,21 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
     /* Resize native platform window */
     Platform_SizeNativeWindow(theWindow, w, h);
 
-    /* CRITICAL: Update baseAddr and rowBytes for Direct Framebuffer after resize
-     *
-     * After resizing, the content region position may change (due to chrome),
-     * so baseAddr must be recalculated to point to the new position in the framebuffer.
-     * Also, if the content width changed, rowBytes must be updated!
-     * This is the same calculation used in MoveWindow.
-     */
-    if (theWindow->contRgn && *(theWindow->contRgn)) {
-        Rect newContentRect = (*(theWindow->contRgn))->rgnBBox;
-        SInt16 newContentWidth = newContentRect.right - newContentRect.left;
-        SInt16 newContentHeight = newContentRect.bottom - newContentRect.top;
+    /* With Global Framebuffer approach, update portBits.bounds to window's new GLOBAL position */
+    if (theWindow->strucRgn && *(theWindow->strucRgn)) {
+        Rect newBounds = (*(theWindow->strucRgn))->rgnBBox;
 
-        extern void* framebuffer;
-        extern uint32_t fb_pitch;
-        uint32_t bytes_per_pixel = 4;
-        uint32_t fbOffset = newContentRect.top * fb_pitch + newContentRect.left * bytes_per_pixel;
-        theWindow->port.portBits.baseAddr = (Ptr)((char*)framebuffer + fbOffset);
-
-        /* Update portBits bounds and rowBytes for new size */
-        SetRect(&theWindow->port.portBits.bounds, 0, 0, newContentWidth, newContentHeight);
-        theWindow->port.portBits.rowBytes = (newContentWidth * 4) | 0x8000;
+        /* Update bounds to window's new GLOBAL position */
+        SetRect(&theWindow->port.portBits.bounds,
+                newBounds.left, newBounds.top,
+                newBounds.right, newBounds.bottom);
 
         if (theWindow->refCon == 0x4449534b) {
             extern void serial_puts(const char *str);
             extern int sprintf(char* buf, const char* fmt, ...);
             char dbgbuf[256];
-            sprintf(dbgbuf, "[SIZEWND] Updated baseAddr: contRect=(%d,%d,%d,%d) fbOffset=%u baseAddr=%p rowBytes=%d\n",
-                    newContentRect.left, newContentRect.top, newContentRect.right, newContentRect.bottom,
-                    fbOffset, theWindow->port.portBits.baseAddr, newContentWidth * 4);
+            sprintf(dbgbuf, "[SIZEWND] Updated bounds: strucRect=(%d,%d,%d,%d)\n",
+                    newBounds.left, newBounds.top, newBounds.right, newBounds.bottom);
             serial_puts(dbgbuf);
         }
     }

@@ -888,19 +888,22 @@ static void InitializeWindowRecord(WindowPtr window, const Rect* bounds,
     uint32_t bytes_per_pixel = 4;
     uint32_t fbOffset = contentTop * fb_pitch + contentLeft * bytes_per_pixel;
 
-    /* Set baseAddr to window's position in framebuffer (Direct approach) */
-    window->port.portBits.baseAddr = (Ptr)((char*)framebuffer + fbOffset);
+    /* CRITICAL FIX: Use Global Framebuffer approach instead of Direct Framebuffer
+     * Global Framebuffer:
+     *   - baseAddr = framebuffer (global start, not offset)
+     *   - portBits.bounds = window's GLOBAL position on screen
+     *   - rowBytes = fb_pitch (framebuffer width * 4)
+     * This approach is simpler and compatible with existing coordinate conversion code
+     */
+    window->port.portBits.baseAddr = (Ptr)framebuffer;
 
-    /* Set bounds to LOCAL coordinates (0,0,width,height) for Direct approach */
-    SetRect(&window->port.portBits.bounds, 0, 0, contentWidth, contentHeight);
+    /* Set bounds to window's GLOBAL position on screen */
+    SetRect(&window->port.portBits.bounds,
+            clampedBounds.left, clampedBounds.top,
+            clampedBounds.right, clampedBounds.bottom);
 
-    /* Set PixMap flag (bit 15) to indicate 32-bit PixMap, not 1-bit BitMap
-     * CRITICAL: rowBytes must be contentWidth * 4, not fb_width * 4!
-     * The rowBytes is the pitch of the LOCAL bitmap, which has width=contentWidth.
-     * If we set it to fb_width * 4, then pixel offsets will be calculated wrong:
-     * offset = y * rowBytes + x * 4 = y * (fb_width * 4) + x * 4
-     * This would skip fb_width pixels instead of contentWidth pixels per row! */
-    window->port.portBits.rowBytes = (contentWidth * 4) | 0x8000;
+    /* rowBytes = framebuffer pitch (includes PixMap flag bit 15) */
+    window->port.portBits.rowBytes = (fb_width * 4) | 0x8000;
 
     /* DEBUG: Log portBits initialization */
     extern void serial_puts(const char* str);

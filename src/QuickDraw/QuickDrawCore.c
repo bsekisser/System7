@@ -947,35 +947,19 @@ static void DrawPrimitive(GrafVerb verb, const Rect *shape, int shapeType,
                         globalRect.left, globalRect.top, globalRect.right, globalRect.bottom);
         }
     } else {
-        /* Basic GrafPort - check if using Direct Framebuffer mode vs Global mode
-         *
-         * Direct Framebuffer mode: baseAddr != framebuffer
-         *   - baseAddr points directly to window's content position
-         *   - portBits.bounds = (0,0,width,height) LOCAL coordinates
-         *   - Keep coordinates as LOCAL, don't add offset
-         *
-         * Global Framebuffer mode: baseAddr == framebuffer
-         *   - baseAddr points to framebuffer start
+        /* Basic GrafPort - convert local to global screen coords
+         * Using Global Framebuffer approach:
+         *   - baseAddr = framebuffer (global start)
          *   - portBits.bounds = window's GLOBAL position
-         *   - Add offset to convert LOCAL to GLOBAL */
-        extern void* framebuffer;
+         *   - Add bounds offset to convert LOCAL rectangle to GLOBAL */
+        globalRect.left += g_currentPort->portBits.bounds.left;
+        globalRect.top += g_currentPort->portBits.bounds.top;
+        globalRect.right += g_currentPort->portBits.bounds.left;
+        globalRect.bottom += g_currentPort->portBits.bounds.top;
 
-        if (g_currentPort->portBits.baseAddr != (Ptr)framebuffer) {
-            /* Direct Framebuffer mode - keep coords as LOCAL
-             * baseAddr is already offset to window position, so LOCAL coords work directly */
-            QD_LOG_TRACE("DrawPrimitive DIRECT FB: rect stays local (%d,%d,%d,%d)\n",
-                        globalRect.left, globalRect.top, globalRect.right, globalRect.bottom);
-        } else {
-            /* Global Framebuffer mode - convert local to global screen coords */
-            globalRect.left += g_currentPort->portBits.bounds.left;
-            globalRect.top += g_currentPort->portBits.bounds.top;
-            globalRect.right += g_currentPort->portBits.bounds.left;
-            globalRect.bottom += g_currentPort->portBits.bounds.top;
-
-            QD_LOG_TRACE("DrawPrimitive GLOBAL FB: global rect=(%d,%d,%d,%d) offset by portBits(%d,%d)\n",
-                        globalRect.left, globalRect.top, globalRect.right, globalRect.bottom,
-                        g_currentPort->portBits.bounds.left, g_currentPort->portBits.bounds.top);
-        }
+        QD_LOG_TRACE("DrawPrimitive BASIC PORT: global rect=(%d,%d,%d,%d) offset by portBits(%d,%d)\n",
+                    globalRect.left, globalRect.top, globalRect.right, globalRect.bottom,
+                    g_currentPort->portBits.bounds.left, g_currentPort->portBits.bounds.top);
     }
 
     /* Call platform layer to do actual drawing */
