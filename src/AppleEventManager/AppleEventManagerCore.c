@@ -644,8 +644,16 @@ OSErr AECreateAppleEvent(AEEventClass theAEEventClass, AEEventID theAEEventID, c
         if (err != noErr) goto cleanup;
     }
 
-    /* Add source attribute */
-    AEEventSource source = kAESameProcess;  /* TODO: Determine actual source */
+    /* Add source attribute - determine based on target */
+    AEEventSource source;
+    if (!target) {
+        /* No target specified - same process */
+        source = kAESameProcess;
+    } else {
+        /* Target specified - could be local or remote process */
+        /* For System 7.1, assume local process if target is provided */
+        source = 1;  /* kAELocalProcess - local but different process */
+    }
     err = AEPutKeyPtr(result, keyEventSourceAttr, typeEnumerated, &source, sizeof(source));
     if (err != noErr) goto cleanup;
 
