@@ -475,7 +475,20 @@ static void AddToDecompressionCache(ResType type, ResID id, Handle handle) {
         newCache->type = type;
         newCache->id = id;
         newCache->decompressedHandle = handle;
-        newCache->checksum = 0;  /* TODO: Calculate checksum */
+
+        /* Calculate simple checksum of decompressed data for cache validation */
+        UInt32 checksum = 0;
+        if (handle && *handle) {
+            SInt32 size = GetHandleSize(handle);
+            HLock(handle);
+            unsigned char* data = (unsigned char*)*handle;
+            for (SInt32 i = 0; i < size; i++) {
+                checksum = (checksum << 1) ^ data[i];  /* Simple rolling checksum */
+            }
+            HUnlock(handle);
+        }
+        newCache->checksum = checksum;
+
         newCache->lastAccess = time(NULL);
         newCache->next = gDecompCache;
         gDecompCache = newCache;
