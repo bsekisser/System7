@@ -348,12 +348,32 @@ parse_resources:
                     UInt16 count = read_be16((UInt8*)&te->count) + 1;
                     UInt16 refListOff = read_be16((UInt8*)&te->refListOffset);
 
-                    /* Bounds check reference list */
+                    /* Validate count is reasonable */
+                    if (count > 1024) {
+                        serial_puts("[ResourceMgr] Warning: Excessive resource count, skipping\n");
+                        continue;
+                    }
+
+                    /* Bounds check reference list with overflow protection */
                     UInt32 refListStart = typeListOff + refListOff;
-                    UInt32 refListSize = count * sizeof(RefListEntry);
-                    if (refListStart + refListSize > mapSize) {
+                    UInt32 refListSize = (UInt32)count * sizeof(RefListEntry);
+
+                    /* Check for multiplication overflow */
+                    if (count > 0 && refListSize / count != sizeof(RefListEntry)) {
+                        serial_puts("[ResourceMgr] Warning: Size calculation overflow\n");
+                        continue;
+                    }
+
+                    /* Check bounds */
+                    if (refListStart >= mapSize || refListStart + refListSize > mapSize) {
                         serial_puts("[ResourceMgr] Warning: Reference list exceeds map bounds\n");
                         continue;
+                    }
+
+                    /* Check totalRefs won't overflow */
+                    if (totalRefs + count < totalRefs) {
+                        serial_puts("[ResourceMgr] Warning: Total resource count overflow\n");
+                        break;
                     }
 
                     totalRefs += count;
@@ -837,8 +857,14 @@ Handle GetNamedResource(ResType theType, ConstStr255Param name) {
         UInt16 typeCount = read_be16(typeList);  /* Count is n-1 */
         typeList += 2;  /* Skip count */
 
+        /* Validate typeCount doesn't overflow buffer */
+        UInt32 typeListSize = 2 + ((UInt32)(typeCount + 1) * sizeof(TypeListEntry));
+        if (typeListOffset + typeListSize > file->mapSize) {
+            continue;  /* Skip corrupted type list */
+        }
+
         /* Find matching type */
-        for (UInt16 t = 0; t <= typeCount; t++) {
+        for (UInt16 t = 0; t < typeCount + 1; t++) {  /* Use < instead of <= */
             TypeListEntry* typeEntry = (TypeListEntry*)(typeList + t * sizeof(TypeListEntry));
             if (read_be32((UInt8*)&typeEntry->resType) != theType) continue;
 
@@ -846,10 +872,17 @@ Handle GetNamedResource(ResType theType, ConstStr255Param name) {
             UInt16 refListOffset = read_be16((UInt8*)&typeEntry->refListOffset);
             UInt16 resCount = read_be16((UInt8*)&typeEntry->count);  /* Count is n-1 */
 
-            RefListEntry* refList = (RefListEntry*)(mapData + typeListOffset + refListOffset);
+            /* Validate refList bounds before accessing */
+            UInt32 refListStart = typeListOffset + refListOffset;
+            UInt32 refListSize = ((UInt32)(resCount + 1)) * sizeof(RefListEntry);
+            if (refListStart + refListSize > file->mapSize) {
+                continue;  /* Skip corrupted reference list */
+            }
+
+            RefListEntry* refList = (RefListEntry*)(mapData + refListStart);
 
             /* Check each resource of this type */
-            for (UInt16 r = 0; r <= resCount; r++) {
+            for (UInt16 r = 0; r < resCount + 1; r++) {  /* Use < instead of <= */
                 RefListEntry* ref = &refList[r];
 
                 /* Check if resource has a name */

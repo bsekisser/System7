@@ -703,14 +703,25 @@ SInt16 GetRegionComplexity(RgnHandle rgn) {
     UInt8 *endPtr = (UInt8 *)region + region->rgnSize;
 
     while (dataPtr < endPtr) {
+        /* Bounds check: ensure we can read y value */
+        if (dataPtr + sizeof(SInt16) > endPtr) break;
+
         SInt16 y = *(SInt16 *)dataPtr;
         if (y == 0x7FFF) break;
 
         complexity++;
         dataPtr += sizeof(SInt16);
 
+        /* Bounds check: ensure we can read count value */
+        if (dataPtr + sizeof(SInt16) > endPtr) break;
+
         SInt16 count = *(SInt16 *)dataPtr;
-        dataPtr += sizeof(SInt16) + count * sizeof(SInt16);
+
+        /* Bounds check: ensure count won't cause buffer overflow */
+        UInt32 advance = sizeof(SInt16) + (UInt32)count * sizeof(SInt16);
+        if (dataPtr + advance > endPtr) break;
+
+        dataPtr += advance;
     }
 
     HUnlock((Handle)rgn);

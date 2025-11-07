@@ -901,27 +901,38 @@ void SeedFill(const void *srcPtr, void *dstPtr, SInt16 srcRow, SInt16 dstRow,
     assert(srcPtr != NULL);
     assert(dstPtr != NULL);
 
+    /* Validate parameters */
+    if (srcRow % 2 != 0 || dstRow % 2 != 0) {
+        return;  /* rowBytes must be even for UInt16* access */
+    }
+    if (height < 0 || words < 0 || height > 10000 || words > 10000) {
+        return;  /* Sanity check failed */
+    }
+
     /* Simple flood-fill implementation */
     /* This is a simplified version - a full implementation would be more complex */
 
-    const UInt16 *src = (const UInt16 *)srcPtr;
-    UInt16 *dst = (UInt16 *)dstPtr;
+    const UInt8 *srcBytes = (const UInt8 *)srcPtr;
+    UInt8 *dstBytes = (UInt8 *)dstPtr;
 
     /* Copy source to destination first */
     for (SInt16 y = 0; y < height; y++) {
-        const UInt16 *srcLine = src + y * (srcRow / 2);
-        UInt16 *dstLine = dst + y * (dstRow / 2);
+        const UInt8 *srcLine = srcBytes + y * srcRow;
+        UInt8 *dstLine = dstBytes + y * dstRow;
         memcpy(dstLine, srcLine, words * 2);
     }
 
     /* Perform seed fill at specified location */
-    if (seedV < height && seedH < words * 16) {
-        UInt16 *seedLine = dst + seedV * (dstRow / 2);
+    if (seedV >= 0 && seedV < height && seedH >= 0 && seedH < words * 16) {
+        UInt16 *seedLine = (UInt16 *)(dstBytes + seedV * dstRow);
         UInt16 wordIndex = seedH / 16;
         UInt16 bitIndex = seedH % 16;
 
-        /* Set the seed bit */
-        seedLine[wordIndex] |= (1 << (15 - bitIndex));
+        /* Bounds check wordIndex */
+        if (wordIndex < words) {
+            /* Set the seed bit */
+            seedLine[wordIndex] |= (1 << (15 - bitIndex));
+        }
     }
 }
 
@@ -969,8 +980,16 @@ static void CalculateScaling(const Rect *srcRect, const Rect *dstRect, ScaleInfo
                               scaleInfo->srcHeight != scaleInfo->dstHeight);
 
     if (scaleInfo->needsScaling) {
-        scaleInfo->hScale = (scaleInfo->srcWidth * FIXED_POINT_SCALE) / scaleInfo->dstWidth;
-        scaleInfo->vScale = (scaleInfo->srcHeight * FIXED_POINT_SCALE) / scaleInfo->dstHeight;
+        /* Guard against division by zero */
+        if (scaleInfo->dstWidth == 0 || scaleInfo->dstHeight == 0) {
+            /* Invalid destination rect - treat as no scaling */
+            scaleInfo->needsScaling = false;
+            scaleInfo->hScale = FIXED_POINT_SCALE;
+            scaleInfo->vScale = FIXED_POINT_SCALE;
+        } else {
+            scaleInfo->hScale = (scaleInfo->srcWidth * FIXED_POINT_SCALE) / scaleInfo->dstWidth;
+            scaleInfo->vScale = (scaleInfo->srcHeight * FIXED_POINT_SCALE) / scaleInfo->dstHeight;
+        }
     } else {
         scaleInfo->hScale = FIXED_POINT_SCALE;
         scaleInfo->vScale = FIXED_POINT_SCALE;
