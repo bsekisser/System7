@@ -371,12 +371,33 @@ void STView_Click(STDocument* doc, EventRecord* event) {
             clickCount++;
             if (clickCount == 2) {
                 /* Double-click - select word */
-                /* TODO: Implement word selection */
-                ST_Log("Double-click at (%d,%d)\n", localPt.h, localPt.v);
+                ST_Log("Double-click at (%d,%d) - selecting word\n", localPt.h, localPt.v);
+
+                /* Get click position */
+                SInt16 offset = TEGetOffset(localPt, doc->hTE);
+
+                /* Find word boundaries */
+                extern SInt32 TE_FindWordBoundary(TEHandle hTE, SInt32 offset, Boolean forward);
+                SInt32 wordStart = TE_FindWordBoundary(doc->hTE, offset, false);
+                SInt32 wordEnd = TE_FindWordBoundary(doc->hTE, offset, true);
+
+                /* Select the word */
+                TESetSelect(wordStart, wordEnd, doc->hTE);
             } else if (clickCount >= 3) {
                 /* Triple-click - select line */
-                /* TODO: Implement line selection */
-                ST_Log("Triple-click at (%d,%d)\n", localPt.h, localPt.v);
+                ST_Log("Triple-click at (%d,%d) - selecting line\n", localPt.h, localPt.v);
+
+                /* Get click position */
+                SInt16 offset = TEGetOffset(localPt, doc->hTE);
+
+                /* Find line boundaries */
+                extern SInt32 TE_FindLineStart(TEHandle hTE, SInt32 offset);
+                extern SInt32 TE_FindLineEnd(TEHandle hTE, SInt32 offset);
+                SInt32 lineStart = TE_FindLineStart(doc->hTE, offset);
+                SInt32 lineEnd = TE_FindLineEnd(doc->hTE, offset);
+
+                /* Select the line */
+                TESetSelect(lineStart, lineEnd, doc->hTE);
                 clickCount = 3;  /* Cap at triple */
             }
         } else {
