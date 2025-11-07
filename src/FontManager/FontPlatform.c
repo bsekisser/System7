@@ -184,6 +184,11 @@ OSErr GetInstalledPlatformFonts(Str255 **fontNames, short *count)
         return noErr;
     }
 
+    /* Check for integer overflow in allocation size */
+    if (gPlatformFontCount > SIZE_MAX / sizeof(Str255)) {
+        return fontOutOfMemoryErr;
+    }
+
     /* Allocate array for font names */
     names = (Str255 *)NewPtr(gPlatformFontCount * sizeof(Str255));
     if (names == NULL) {
