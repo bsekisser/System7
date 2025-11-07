@@ -487,6 +487,21 @@ void AppendDITL(DialogPtr theDialog, Handle theHandle, DITLMethod method)
 
     /* Resize the cache to accommodate new items */
     SInt16 totalItems = cache->itemCount + newItemCount;
+
+    /* Check for integer overflow in addition */
+    if (totalItems < cache->itemCount || totalItems < newItemCount) {
+        DisposePtr((Ptr)newItems);
+        // DIALOG_LOG_DEBUG("Error: Integer overflow in item count\n");
+        return;
+    }
+
+    /* Check for integer overflow in multiplication */
+    if (totalItems > 0 && SIZE_MAX / totalItems < sizeof(DialogItemEx)) {
+        DisposePtr((Ptr)newItems);
+        // DIALOG_LOG_DEBUG("Error: Integer overflow in size calculation\n");
+        return;
+    }
+
     Size oldSize = cache->itemCount * sizeof(DialogItemEx);
     DialogItemEx* expandedItems = (DialogItemEx*)NewPtr(totalItems * sizeof(DialogItemEx));
     if (!expandedItems) {

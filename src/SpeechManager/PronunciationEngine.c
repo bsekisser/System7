@@ -453,8 +453,21 @@ OSErr AddPronunciation(PronunciationDictionary *dictionary, const char *word,
 
     /* Check if we need to expand the array */
     if (dictionary->entryCount >= dictionary->maxEntries) {
+        /* Check for integer overflow in doubling maxEntries */
+        if (dictionary->maxEntries > LONG_MAX / 2) {
+            pthread_mutex_unlock(&dictionary->dictionaryMutex);
+            return memFullErr;
+        }
+
         Size oldSize = dictionary->maxEntries * sizeof(PronunciationEntry);
         long newSize = dictionary->maxEntries * 2;
+
+        /* Check for integer overflow in size multiplication */
+        if (newSize > SIZE_MAX / sizeof(PronunciationEntry)) {
+            pthread_mutex_unlock(&dictionary->dictionaryMutex);
+            return memFullErr;
+        }
+
         PronunciationEntry *newEntries = (PronunciationEntry *)NewPtr(newSize * sizeof(PronunciationEntry));
         if (!newEntries) {
             pthread_mutex_unlock(&dictionary->dictionaryMutex);

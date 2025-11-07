@@ -384,6 +384,10 @@ static Point GetNextExtensionPosition(void) {
         short areaWidth = gStartupScreen.extensionRect.right -
                          gStartupScreen.extensionRect.left;
         gExtensionState.iconsPerRow = areaWidth / EXTENSION_SPACING;
+        /* Ensure at least 1 icon per row to prevent divide-by-zero */
+        if (gExtensionState.iconsPerRow == 0) {
+            gExtensionState.iconsPerRow = 1;
+        }
     }
 
     /* Calculate position */

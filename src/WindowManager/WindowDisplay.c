@@ -1619,6 +1619,11 @@ void WM_Update(void) {
 
         /* Allocate and fill window stack */
         if (windowCount > 0) {
+            /* Check for integer overflow in size calculation */
+            if (windowCount > SIZE_MAX / sizeof(WindowPtr)) {
+                return;  /* Too many windows, cannot allocate */
+            }
+
             windowStack = (WindowPtr*)NewPtr(windowCount * sizeof(WindowPtr));
             if (windowStack) {
                 /* Initialize array to NULL to avoid uninitialized access */

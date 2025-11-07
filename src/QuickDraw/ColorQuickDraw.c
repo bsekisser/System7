@@ -267,12 +267,20 @@ void CopyPixMap(PixMapHandle srcPM, PixMapHandle dstPM) {
     /* Duplicate color table if present */
     if (src->pmTable) {
         ColorTable* srcTable = (ColorTable*)*((Handle)src->pmTable);
-        dst->pmTable = (Handle)GetCTable(srcTable->ctSize + 1);
-        if (dst->pmTable) {
-            ColorTable* dstTable = (ColorTable*)*((Handle)dst->pmTable);
-            memcpy(dstTable, srcTable,
-                   sizeof(ColorTable) + srcTable->ctSize * sizeof(ColorSpec));
+
+        /* Check for integer overflow in size calculation */
+        if (srcTable->ctSize > (SIZE_MAX - sizeof(ColorTable)) / sizeof(ColorSpec)) {
+            return;  /* Size would overflow */
         }
+
+        dst->pmTable = (Handle)GetCTable(srcTable->ctSize + 1);
+        if (!dst->pmTable) {
+            return;  /* NULL check: allocation failed */
+        }
+
+        ColorTable* dstTable = (ColorTable*)*((Handle)dst->pmTable);
+        memcpy(dstTable, srcTable,
+               sizeof(ColorTable) + srcTable->ctSize * sizeof(ColorSpec));
     }
 }
 

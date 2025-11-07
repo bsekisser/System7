@@ -427,6 +427,13 @@ void StandardFile_HAL_AddFileToList(DialogPtr dialog, const FSSpec *spec, OSType
 
     /* Check if we need to expand the array */
     if (gFileListCount >= gFileListCapacity) {
+        /* Check for integer overflow in doubling capacity */
+        if (gFileListCapacity > SIZE_MAX / (2 * sizeof(FileListEntry))) {
+            gFileListCapacity = 0;
+            gFileListCount = 0;
+            return;
+        }
+
         Size oldSize = gFileListCapacity * sizeof(FileListEntry);
         gFileListCapacity *= 2;
         FileListEntry* newArray = (FileListEntry*)NewPtr(gFileListCapacity * sizeof(FileListEntry));
