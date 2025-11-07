@@ -1577,7 +1577,10 @@ static OSErr ScanDirectoryForDesktopEntries(short vRefNum, long dirID, short dat
 
             /* Write record to database */
             dataSize = sizeof(DesktopRecord);
-            FSWrite(databaseRefNum, &dataSize, &record);
+            err = FSWrite(databaseRefNum, &dataSize, &record);
+            if (err != noErr) {
+                break;
+            }
 
             /* If it's a folder, recurse into it */
             if (pb.u.hFileInfo.ioFlAttrib & ioDirMask) {
