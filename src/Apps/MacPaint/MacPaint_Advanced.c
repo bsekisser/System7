@@ -124,7 +124,10 @@ OSErr MacPaint_SaveUndoState(const char *description)
     UndoFrame *frame = &gUndoBuffer.frames[gUndoBuffer.currentFrame];
     memcpy(frame->data, gUndoBuffer.compressionBuffer, compressedSize);
     frame->dataSize = compressedSize;
-    frame->timestamp = 0;  /* TODO: Get current tick count */
+
+    /* Get current tick count for undo frame timestamp */
+    extern UInt32 TickCount(void);
+    frame->timestamp = TickCount();
 
     if (description) {
         strncpy(frame->description, description, sizeof(frame->description) - 1);
