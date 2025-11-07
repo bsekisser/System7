@@ -83,6 +83,12 @@ OSErr MenuBitsPool_Init(SInt16 numBuffers, SInt32 bufferSize) {
     serial_printf("[MBPOOL] Initializing pool: %d buffers × %d bytes = %d KB total\n",
                  numBuffers, bufferSize, (numBuffers * bufferSize) / 1024);
 
+    /* Check for integer overflow in allocation size */
+    if (numBuffers > SIZE_MAX / sizeof(PoolEntry)) {
+        serial_printf("[MBPOOL] Integer overflow in pool entries allocation\n");
+        return memFullErr;
+    }
+
     /* Allocate pool entry array */
     gMenuBitsPool.entries = (PoolEntry*)NewPtr(numBuffers * sizeof(PoolEntry));
     if (!gMenuBitsPool.entries) {
