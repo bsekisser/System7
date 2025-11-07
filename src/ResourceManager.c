@@ -1784,21 +1784,52 @@ ResID Unique1ID(ResType theType) {
 }
 
 void SetResFileAttrs(RefNum refNum, UInt16 attrs) {
-    (void)refNum;
-    (void)attrs;
-    /* TODO: Implement */
+    /* Find resource map for this file reference */
+    ResourceMap* map = gResourceChain;
+    while (map) {
+        if (map->fileRefNum == refNum) {
+            map->attributes = attrs;
+            RESOURCE_LOG_DEBUG("SetResFileAttrs: Set attrs=0x%04x for refNum=%d\n", attrs, refNum);
+            return;
+        }
+        map = map->next;
+    }
+    RESOURCE_LOG_DEBUG("SetResFileAttrs: File refNum=%d not found\n", refNum);
 }
 
 UInt16 GetResFileAttrs(RefNum refNum) {
-    (void)refNum;
-    /* TODO: Implement */
+    /* Find resource map for this file reference */
+    ResourceMap* map = gResourceChain;
+    while (map) {
+        if (map->fileRefNum == refNum) {
+            RESOURCE_LOG_DEBUG("GetResFileAttrs: attrs=0x%04x for refNum=%d\n", map->attributes, refNum);
+            return map->attributes;
+        }
+        map = map->next;
+    }
+    RESOURCE_LOG_DEBUG("GetResFileAttrs: File refNum=%d not found\n", refNum);
     return 0;
 }
 
 RefNum GetNextResourceFile(RefNum curFile) {
-    (void)curFile;
-    /* TODO: Implement */
-    return -1;
+    /* Find current file in resource chain and return next */
+    ResourceMap* map = gResourceChain;
+    while (map) {
+        if (map->fileRefNum == curFile) {
+            /* Found current file - return next in chain */
+            if (map->next) {
+                RESOURCE_LOG_DEBUG("GetNextResourceFile: Next after refNum=%d is refNum=%d\n",
+                              curFile, map->next->fileRefNum);
+                return map->next->fileRefNum;
+            } else {
+                RESOURCE_LOG_DEBUG("GetNextResourceFile: No more files after refNum=%d\n", curFile);
+                return -1;  /* No more files */
+            }
+        }
+        map = map->next;
+    }
+    RESOURCE_LOG_DEBUG("GetNextResourceFile: curFile=%d not found\n", curFile);
+    return -1;  /* Current file not found */
 }
 
 RefNum GetTopResourceFile(void) {
