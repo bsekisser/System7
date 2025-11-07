@@ -81,7 +81,8 @@ OSErr AEStartRecording(const char* scriptName) {
         strncpy(g_recordingSession.scriptName, scriptName, MAX_SCRIPT_NAME - 1);
         g_recordingSession.scriptName[MAX_SCRIPT_NAME - 1] = '\0';
     } else {
-        strcpy(g_recordingSession.scriptName, "Untitled Script");
+        strncpy(g_recordingSession.scriptName, "Untitled Script", MAX_SCRIPT_NAME - 1);
+        g_recordingSession.scriptName[MAX_SCRIPT_NAME - 1] = '\0';
     }
 
     pthread_mutex_unlock(&g_recordingMutex);
@@ -223,9 +224,21 @@ OSErr AEGenerateScriptFromRecording(char** scriptText, Size* scriptSize) {
 
     /* Generate script header */
     char* current = *scriptText;
-    int written = sprintf(current, "-- AppleScript generated from recording\n");
-    written += sprintf(current + written, "-- Script: %s\n", g_recordingSession.scriptName);
-    written += sprintf(current + written, "-- Events recorded: %d\n\n", g_recordingSession.eventCount);
+    int written = 0;
+    int remaining = estimatedSize;
+
+    /* Use snprintf with bounds checking to prevent buffer overflow */
+    int n = snprintf(current + written, remaining, "-- AppleScript generated from recording\n");
+    if (n >= remaining) goto buffer_overflow;
+    written += n; remaining -= n;
+
+    n = snprintf(current + written, remaining, "-- Script: %s\n", g_recordingSession.scriptName);
+    if (n >= remaining) goto buffer_overflow;
+    written += n; remaining -= n;
+
+    n = snprintf(current + written, remaining, "-- Events recorded: %d\n\n", g_recordingSession.eventCount);
+    if (n >= remaining) goto buffer_overflow;
+    written += n; remaining -= n;
 
     /* Generate script for each event */
     for (int i = 0; i < g_recordingSession.eventCount; i++) {
@@ -247,27 +260,55 @@ OSErr AEGenerateScriptFromRecording(char** scriptText, Size* scriptSize) {
         /* Generate AppleScript command based on event type */
         if (eventClass == kCoreEventClass) {
             if (eventID == kAEOpenApplication) {
-                written += sprintf(current + written, "tell application \"Application\"\n");
-                written += sprintf(current + written, "    activate\n");
-                written += sprintf(current + written, "end tell\n\n");
+                n = snprintf(current + written, remaining, "tell application \"Application\"\n");
+                if (n >= remaining) goto buffer_overflow;
+                written += n; remaining -= n;
+                n = snprintf(current + written, remaining, "    activate\n");
+                if (n >= remaining) goto buffer_overflow;
+                written += n; remaining -= n;
+                n = snprintf(current + written, remaining, "end tell\n\n");
+                if (n >= remaining) goto buffer_overflow;
+                written += n; remaining -= n;
             } else if (eventID == kAEOpenDocuments) {
-                written += sprintf(current + written, "tell application \"Application\"\n");
-                written += sprintf(current + written, "    open {file \"Document\"}\n");
-                written += sprintf(current + written, "end tell\n\n");
+                n = snprintf(current + written, remaining, "tell application \"Application\"\n");
+                if (n >= remaining) goto buffer_overflow;
+                written += n; remaining -= n;
+                n = snprintf(current + written, remaining, "    open {file \"Document\"}\n");
+                if (n >= remaining) goto buffer_overflow;
+                written += n; remaining -= n;
+                n = snprintf(current + written, remaining, "end tell\n\n");
+                if (n >= remaining) goto buffer_overflow;
+                written += n; remaining -= n;
             } else if (eventID == kAEPrintDocuments) {
-                written += sprintf(current + written, "tell application \"Application\"\n");
-                written += sprintf(current + written, "    print {file \"Document\"}\n");
-                written += sprintf(current + written, "end tell\n\n");
+                n = snprintf(current + written, remaining, "tell application \"Application\"\n");
+                if (n >= remaining) goto buffer_overflow;
+                written += n; remaining -= n;
+                n = snprintf(current + written, remaining, "    print {file \"Document\"}\n");
+                if (n >= remaining) goto buffer_overflow;
+                written += n; remaining -= n;
+                n = snprintf(current + written, remaining, "end tell\n\n");
+                if (n >= remaining) goto buffer_overflow;
+                written += n; remaining -= n;
             } else if (eventID == kAEQuitApplication) {
-                written += sprintf(current + written, "tell application \"Application\"\n");
-                written += sprintf(current + written, "    quit\n");
-                written += sprintf(current + written, "end tell\n\n");
+                n = snprintf(current + written, remaining, "tell application \"Application\"\n");
+                if (n >= remaining) goto buffer_overflow;
+                written += n; remaining -= n;
+                n = snprintf(current + written, remaining, "    quit\n");
+                if (n >= remaining) goto buffer_overflow;
+                written += n; remaining -= n;
+                n = snprintf(current + written, remaining, "end tell\n\n");
+                if (n >= remaining) goto buffer_overflow;
+                written += n; remaining -= n;
             }
         } else {
             /* Generic event */
-            written += sprintf(current + written, "-- Event Class: '%.4s', Event ID: '%.4s'\n",
+            n = snprintf(current + written, remaining, "-- Event Class: '%.4s', Event ID: '%.4s'\n",
                              (char*)&eventClass, (char*)&eventID);
-            written += sprintf(current + written, "-- (Custom event - manual translation required)\n\n");
+            if (n >= remaining) goto buffer_overflow;
+            written += n; remaining -= n;
+            n = snprintf(current + written, remaining, "-- (Custom event - manual translation required)\n\n");
+            if (n >= remaining) goto buffer_overflow;
+            written += n; remaining -= n;
         }
     }
 
@@ -275,6 +316,13 @@ OSErr AEGenerateScriptFromRecording(char** scriptText, Size* scriptSize) {
 
     pthread_mutex_unlock(&g_recordingMutex);
     return noErr;
+
+buffer_overflow:
+    /* Buffer overflow detected - clean up and return error */
+    DisposePtr(*scriptText);
+    *scriptText = NULL;
+    pthread_mutex_unlock(&g_recordingMutex);
+    return memFullErr;
 }
 
 /* ========================================================================

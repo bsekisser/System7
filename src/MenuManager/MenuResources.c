@@ -313,7 +313,7 @@ short* ParseMBARResource(Handle resourceHandle, short* outMenuCount)
     }
 
     /* Allocate array for menu IDs with overflow protection */
-    if (count > 0 && sizeof(short) > SIZE_MAX / count) {
+    if (count > SIZE_MAX / sizeof(short)) {
         HUnlock(resourceHandle);
         return NULL;  /* Would overflow */
     }

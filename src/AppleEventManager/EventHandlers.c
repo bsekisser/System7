@@ -339,7 +339,10 @@ OSErr AEDispatchAppleEvent(const AppleEvent* theAppleEvent, AppleEvent* reply, A
         if (perfEntry) {
             perfEntry->callCount++;
             perfEntry->totalTimeMilliseconds += executionTimeMs;
-            perfEntry->averageTimeMilliseconds = perfEntry->totalTimeMilliseconds / perfEntry->callCount;
+            /* Defensive check against division by zero (should not happen, but protects against memory corruption) */
+            if (perfEntry->callCount > 0) {
+                perfEntry->averageTimeMilliseconds = perfEntry->totalTimeMilliseconds / perfEntry->callCount;
+            }
             if (executionTimeMs > perfEntry->maxTimeMilliseconds) {
                 perfEntry->maxTimeMilliseconds = executionTimeMs;
             }

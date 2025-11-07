@@ -136,10 +136,23 @@ OSErr PurgeScrapData(SInt32 bytesToPurge)
         /* Purge oldest cache entries first */
         time_t cutoffTime = time(NULL) - 60; /* Entries older than 1 minute */
 
-        for (i = 0; i < gMemoryState.cacheCount && bytesToPurge > 0; i++) {
+        /* Iterate backwards to safely remove entries during iteration */
+        for (i = gMemoryState.cacheCount - 1; i >= 0 && bytesToPurge > 0; i--) {
             if (gMemoryState.cache[i].lastAccess < cutoffTime) {
                 SInt32 entrySize = gMemoryState.cache[i].size;
-                RemoveFromCache(gMemoryState.cache[i].type);
+                SInt16 j;
+
+                /* Inline removal instead of calling RemoveFromCache */
+                if (gMemoryState.cache[i].dataHandle) {
+                    /* Don't dispose - caller owns the handle */
+                }
+
+                /* Shift remaining entries down */
+                for (j = i; j < gMemoryState.cacheCount - 1; j++) {
+                    gMemoryState.cache[j] = gMemoryState.cache[j + 1];
+                }
+
+                gMemoryState.cacheCount--;
                 bytesToPurge -= entrySize;
             }
         }
@@ -652,6 +665,11 @@ static OSErr AddToCacheEntry(ResType type, Handle data)
         }
 
         RemoveFromCache(gMemoryState.cache[oldestIndex].type);
+
+        /* Defensive check to ensure cacheCount is valid after removal */
+        if (gMemoryState.cacheCount >= 32) {
+            return memFullErr;  /* Should not happen, but protect against logic errors */
+        }
     }
 
     entry = &gMemoryState.cache[gMemoryState.cacheCount];
@@ -694,11 +712,24 @@ static OSErr RemoveFromCache(ResType type)
 static OSErr PurgeCache(SInt32 maxAge)
 {
     time_t cutoffTime = time(NULL) - maxAge;
-    SInt16 i;
+    SInt16 i, j;
 
+    /* Iterate backwards to safely remove entries during iteration */
     for (i = gMemoryState.cacheCount - 1; i >= 0; i--) {
         if (gMemoryState.cache[i].lastAccess < cutoffTime) {
-            RemoveFromCache(gMemoryState.cache[i].type);
+            /* Dispose handle if we own it */
+            if (gMemoryState.cache[i].dataHandle) {
+                /* Don't dispose - caller owns the handle */
+            }
+
+            /* Shift remaining entries down - only affects entries after i */
+            for (j = i; j < gMemoryState.cacheCount - 1; j++) {
+                gMemoryState.cache[j] = gMemoryState.cache[j + 1];
+            }
+
+            gMemoryState.cacheCount--;
+            /* Continue with i-1 on next iteration, which is safe because
+             * we only shifted elements after i */
         }
     }
 
