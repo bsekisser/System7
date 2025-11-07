@@ -277,7 +277,13 @@ OSErr TEFromScrap(void) {
                 styleErr = GetScrap(g_TEStyleScrap, kScrapFlavorTypeStyle, &styleScrapSize);
                 if (styleErr == noErr) {
                     SetHandleSize(g_TEStyleScrap, styleScrapSize);
-                    TEC_LOG("TEFromScrap: loaded %ld bytes of style scrap\n", styleScrapSize);
+                    styleErr = MemError();
+                    if (styleErr == noErr) {
+                        TEC_LOG("TEFromScrap: loaded %ld bytes of style scrap\n", styleScrapSize);
+                    } else {
+                        DisposeHandle(g_TEStyleScrap);
+                        g_TEStyleScrap = NULL;
+                    }
                 } else {
                     DisposeHandle(g_TEStyleScrap);
                     g_TEStyleScrap = NULL;
