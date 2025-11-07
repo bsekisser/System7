@@ -598,6 +598,11 @@ OSErr AEDisposeDescArray(AEDesc* descArray, SInt32 count) {
 OSErr AEDuplicateDescArray(const AEDesc* sourceArray, SInt32 count, AEDesc** destArray) {
     if (!sourceArray || !destArray || count < 0) return errAENotAEDesc;
 
+    /* Check for integer overflow in allocation size */
+    if (count > SIZE_MAX / sizeof(AEDesc)) {
+        return memFullErr;
+    }
+
     *destArray = NewPtr(count * sizeof(AEDesc));
     if (!*destArray) return memFullErr;
 
