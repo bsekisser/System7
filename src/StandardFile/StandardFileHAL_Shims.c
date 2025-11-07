@@ -105,9 +105,20 @@ void StandardFile_HAL_Init(void) {
     if (!gHALInitialized) {
         SF_HAL_LOG_DEBUG("StandardFile HAL: Initializing\n");
 
-        /* Allocate file list array */
+        /* Allocate file list array with overflow protection */
         gFileListCapacity = INITIAL_FILE_LIST_CAPACITY;
+
+        /* Check for integer overflow before allocation */
+        if (gFileListCapacity > 0 && sizeof(FileListEntry) > SIZE_MAX / gFileListCapacity) {
+            return memFullErr;  /* Would overflow */
+        }
+
         gFileListArray = (FileListEntry*)NewPtr(gFileListCapacity * sizeof(FileListEntry));
+        if (!gFileListArray) {
+            gFileListCapacity = 0;
+            return memFullErr;  /* Allocation failed */
+        }
+
         gFileListCount = 0;
         gSelectedIndex = -1;
         gFileListHandle = NULL;

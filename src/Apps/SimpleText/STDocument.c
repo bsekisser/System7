@@ -116,7 +116,14 @@ STDocument* STDoc_Open(const char* path) {
     doc->untitled = false;
     doc->fileType = 'TEXT';
     doc->fileCreator = 'ttxt';
-    strcpy(doc->filePath, path);
+
+    /* Safe path copy with bounds checking */
+    if (strlen(path) >= sizeof(doc->filePath)) {
+        DisposePtr((Ptr)doc);
+        return NULL;  /* Path too long */
+    }
+    strncpy(doc->filePath, path, sizeof(doc->filePath) - 1);
+    doc->filePath[sizeof(doc->filePath) - 1] = '\0';
 
     /* Extract filename from path */
     filename = path;
@@ -262,8 +269,12 @@ void STDoc_SaveAs(STDocument* doc) {
         return;  /* User cancelled */
     }
 
-    /* Update document info */
-    strcpy(doc->filePath, newPath);
+    /* Update document info - safe path copy */
+    if (strlen(newPath) >= sizeof(doc->filePath)) {
+        return;  /* Path too long */
+    }
+    strncpy(doc->filePath, newPath, sizeof(doc->filePath) - 1);
+    doc->filePath[sizeof(doc->filePath) - 1] = '\0';
     doc->untitled = false;
 
     /* Extract new filename */

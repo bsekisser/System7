@@ -475,8 +475,14 @@ OSErr TECopyAsRTF(TEHandle hTE, Handle *rtfHandle)
     }
 
     /* Create minimal RTF wrapper */
-    /* RTF header + text + footer */
-    rtfLength = 50 + selLength + 10; /* Rough estimate */
+    /* Calculate safe buffer size accounting for escaping:
+     * - Each char could need escaping (2 bytes: \ + char)
+     * - Carriage returns become "\\par " (6 bytes)
+     * - Header + footer (~60 bytes)
+     */
+    const char* rtfHeader = "{\\rtf1\\mac\\deff0 {\\fonttbl\\f0\\fswiss Monaco;} \\f0 ";
+    const char* rtfFooter = "}";
+    rtfLength = strlen(rtfHeader) + (selLength * 6) + strlen(rtfFooter) + 1;
 
     HUnlock((Handle)hTE);
 
@@ -492,27 +498,43 @@ OSErr TECopyAsRTF(TEHandle hTE, Handle *rtfHandle)
 
     rtfPtr = **rtfHandle;
     textPtr = *textHandle + selStart;
+    char* rtfEnd = rtfPtr + rtfLength;  /* Track end for safety */
 
-    /* Create basic RTF document */
-    strcpy(rtfPtr, "{\\rtf1\\mac\\deff0 {\\fonttbl\\f0\\fswiss Monaco;} \\f0 ");
-    rtfPtr += strlen(rtfPtr);
+    /* Create basic RTF document with bounds checking */
+    size_t headerLen = strlen(rtfHeader);
+    if (rtfPtr + headerLen >= rtfEnd) {
+        HUnlock(*rtfHandle);
+        HUnlock(textHandle);
+        HUnlock((Handle)hTE);
+        DisposeHandle(*rtfHandle);
+        *rtfHandle = NULL;
+        return memFullErr;
+    }
+    memcpy(rtfPtr, rtfHeader, headerLen);
+    rtfPtr += headerLen;
 
     /* Copy text, escaping special characters */
     for (long i = 0; i < selLength; i++) {
+        /* Safety check: ensure at least 6 bytes available (max expansion) */
+        if (rtfPtr + 6 >= rtfEnd) break;
+
         char ch = textPtr[i];
         if (ch == '\\' || ch == '{' || ch == '}') {
             *rtfPtr++ = '\\';
         }
         if (ch == '\r') {
-            strcpy(rtfPtr, "\\par ");
+            memcpy(rtfPtr, "\\par ", 5);
             rtfPtr += 5;
         } else {
             *rtfPtr++ = ch;
         }
     }
 
-    strcpy(rtfPtr, "}");
-    rtfPtr += 1;
+    /* Add footer with safety check */
+    if (rtfPtr + strlen(rtfFooter) < rtfEnd) {
+        memcpy(rtfPtr, rtfFooter, strlen(rtfFooter));
+        rtfPtr += strlen(rtfFooter);
+    }
 
     /* Calculate actual size before unlocking */
     actualSize = rtfPtr - **rtfHandle;

@@ -969,6 +969,11 @@ static short FindMenuItemAtPoint(MenuHandle theMenu, Point pt, const Rect* menuR
         return 0;
     }
 
+    /* Prevent division by zero */
+    if (itemHeight == 0) {
+        return 0;  /* Invalid menu configuration */
+    }
+
     short item = (itemY / itemHeight) + 1;
 
     if (item > itemCount) {
