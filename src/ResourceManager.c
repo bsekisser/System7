@@ -41,6 +41,7 @@ THREAD_LOCAL SInt16 gResError = noErr;
 THREAD_LOCAL Boolean gResLoad = true;
 THREAD_LOCAL Boolean gResOneDeep = false;
 THREAD_LOCAL Boolean gROMMapInsert = false;
+THREAD_LOCAL Boolean gResPurge = true;  /* Enable purging by default */
 THREAD_LOCAL ResErrProcPtr gResErrProc = NULL;
 THREAD_LOCAL DecompressHookProc gDecompressHook = NULL;
 
@@ -1099,13 +1100,48 @@ Boolean GetResLoad(void) {
 }
 
 void SetResPurge(Boolean install) {
-    /* TODO: Implement purge procedure */
-    (void)install;
+    RESOURCE_LOG_DEBUG("SetResPurge: %s purging\n", install ? "Enable" : "Disable");
+    gResPurge = install;
+
+    /* If enabling purge, mark all resource handles as purgeable */
+    if (install) {
+        ResourceMap* map = gResourceChain;
+        while (map) {
+            ResourceType* type = map->types;
+            while (type) {
+                ResourceEntry* entry = type->resources;
+                while (entry) {
+                    if (entry->handle) {
+                        HPurge(entry->handle);
+                    }
+                    entry = entry->next;
+                }
+                type = type->next;
+            }
+            map = map->next;
+        }
+    } else {
+        /* If disabling purge, mark all resource handles as non-purgeable */
+        ResourceMap* map = gResourceChain;
+        while (map) {
+            ResourceType* type = map->types;
+            while (type) {
+                ResourceEntry* entry = type->resources;
+                while (entry) {
+                    if (entry->handle) {
+                        HNoPurge(entry->handle);
+                    }
+                    entry = entry->next;
+                }
+                type = type->next;
+            }
+            map = map->next;
+        }
+    }
 }
 
 Boolean GetResPurge(void) {
-    /* TODO: Implement purge procedure */
-    return false;
+    return gResPurge;
 }
 
 SInt16 ResError(void) {
