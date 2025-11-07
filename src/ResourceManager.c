@@ -1429,9 +1429,37 @@ SInt16 CountResources(ResType theType) {
 }
 
 SInt16 Count1Resources(ResType theType) {
-    (void)theType;
-    /* TODO: Implement */
-    return 0;
+    SInt16 count = 0;
+
+    RESOURCE_LOG_DEBUG("Count1Resources: Counting type='%.4s' in current file\n", (char*)&theType);
+
+    /* Count resources of given type in current resource file only
+     * For now, use gCurrentMap to filter, or count all if no map distinction
+     */
+    if (gCurrentMap) {
+        ResourceType* typeEntry = gCurrentMap->types;
+        while (typeEntry) {
+            if (typeEntry->type == theType) {
+                ResourceEntry* entry = typeEntry->resources;
+                while (entry) {
+                    count++;
+                    entry = entry->next;
+                }
+                break;
+            }
+            typeEntry = typeEntry->next;
+        }
+    } else {
+        /* Fallback: count in simple array if map not used */
+        for (int i = 0; i < g_resourceCount; i++) {
+            if (g_resources[i].type == theType) {
+                count++;
+            }
+        }
+    }
+
+    RESOURCE_LOG_DEBUG("Count1Resources: Found %d resources\n", count);
+    return count;
 }
 
 Handle GetIndResource(ResType theType, SInt16 index) {
