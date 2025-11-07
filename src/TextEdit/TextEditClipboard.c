@@ -315,11 +315,22 @@ OSErr TEToScrap(void) {
             PutScrap(scrapSize, kScrapFlavorTypeText, *g_TEScrap);
             HUnlock(g_TEScrap);
 
-            TEC_LOG("TEToScrap: saved %d bytes\n", scrapSize);
+            TEC_LOG("TEToScrap: saved %d bytes of TEXT\n", scrapSize);
         }
-        err = noErr;
 
-        /* TODO: Put style scrap if present */
+        /* Put style scrap if present */
+        if (g_TEStyleScrap) {
+            SInt32 styleScrapSize = GetHandleSize(g_TEStyleScrap);
+            if (styleScrapSize > 0) {
+                HLock(g_TEStyleScrap);
+                PutScrap(styleScrapSize, kScrapFlavorTypeStyle, *g_TEStyleScrap);
+                HUnlock(g_TEStyleScrap);
+
+                TEC_LOG("TEToScrap: saved %d bytes of 'styl'\n", styleScrapSize);
+            }
+        }
+
+        err = noErr;
     }
 
     return err;
