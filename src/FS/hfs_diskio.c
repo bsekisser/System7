@@ -143,6 +143,11 @@ bool HFS_BD_Read(const HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t
         uint32_t sector_count = end_sector - start_sector;
 
         /* Allocate temporary buffer for sector-aligned read */
+        /* Check for integer overflow in multiplication */
+        if (bd->sectorSize != 0 && sector_count > UINT32_MAX / bd->sectorSize) {
+            return false;  /* Overflow would occur */
+        }
+
         uint8_t* temp_buffer = NewPtr(sector_count * bd->sectorSize);
         if (!temp_buffer) return false;
 
@@ -171,6 +176,11 @@ bool HFS_BD_Read(const HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t
         uint32_t block_count = end_block - start_block;
 
         /* Allocate temporary buffer for block-aligned read */
+        /* Check for integer overflow in multiplication */
+        if (bd->sectorSize != 0 && block_count > UINT32_MAX / bd->sectorSize) {
+            return false;  /* Overflow would occur */
+        }
+
         uint8_t* temp_buffer = NewPtr(block_count * bd->sectorSize);
         if (!temp_buffer) return false;
 
@@ -216,6 +226,11 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
         uint32_t offset_in_sector = (uint32_t)offset % bd->sectorSize;
 
         /* Allocate temporary buffer for sector-aligned write */
+        /* Check for integer overflow in multiplication */
+        if (bd->sectorSize != 0 && sector_count > UINT32_MAX / bd->sectorSize) {
+            return false;  /* Overflow would occur */
+        }
+
         uint8_t* temp_buffer = NewPtr(sector_count * bd->sectorSize);
         if (!temp_buffer) return false;
 
@@ -250,6 +265,11 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
         uint32_t offset_in_block = (uint32_t)offset % bd->sectorSize;
 
         /* Allocate temporary buffer for block-aligned write */
+        /* Check for integer overflow in multiplication */
+        if (bd->sectorSize != 0 && block_count > UINT32_MAX / bd->sectorSize) {
+            return false;  /* Overflow would occur */
+        }
+
         uint8_t* temp_buffer = NewPtr(block_count * bd->sectorSize);
         if (!temp_buffer) return false;
 

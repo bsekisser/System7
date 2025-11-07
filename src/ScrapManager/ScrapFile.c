@@ -279,12 +279,33 @@ OSErr LoadScrapFromFile(ConstStr255Param fileName, SInt16 vRefNum, SInt32 dirID)
         return scrapCorruptError;
     }
 
+    /* Validate bounds to prevent integer overflow */
+    #define MAX_SCRAP_FORMAT_COUNT 1000
+    #define MAX_SCRAP_DATA_SIZE (10 * 1024 * 1024)  /* 10MB limit */
+
+    if (header.formatCount > MAX_SCRAP_FORMAT_COUNT) {
+        CloseScrapFile();
+        return scrapCorruptError;
+    }
+
+    if (header.dataSize > MAX_SCRAP_DATA_SIZE) {
+        CloseScrapFile();
+        return scrapCorruptError;
+    }
+
     /* Clear current scrap */
     ZeroScrap();
 
     /* Read format entries */
     if (header.formatCount > 0) {
-        formatEntries = (ScrapFormatEntry *)NewPtrClear(header.formatCount * sizeof(ScrapFormatEntry));
+        /* Check for integer overflow before allocation */
+        size_t allocSize = (size_t)header.formatCount * sizeof(ScrapFormatEntry);
+        if (allocSize / sizeof(ScrapFormatEntry) != header.formatCount) {
+            CloseScrapFile();
+            return memFullErr;  /* Overflow would occur */
+        }
+
+        formatEntries = (ScrapFormatEntry *)NewPtrClear(allocSize);
         if (!formatEntries) {
             CloseScrapFile();
             return memFullErr;
@@ -341,8 +362,21 @@ OSErr LoadScrapFromFile(ConstStr255Param fileName, SInt16 vRefNum, SInt32 dirID)
             DisposePtr((Ptr)scrapInfo->formatTable);
         }
 
-        size_t tableSize = sizeof(ScrapFormatTable) +
-                          (header.formatCount - 1) * sizeof(ScrapFormatEntry);
+        /* Calculate table size with overflow checking */
+        size_t tableSize;
+        if (header.formatCount > 0) {
+            size_t entrySize = (size_t)(header.formatCount - 1) * sizeof(ScrapFormatEntry);
+            /* Check for overflow in multiplication */
+            if (header.formatCount > 1 && entrySize / sizeof(ScrapFormatEntry) != (header.formatCount - 1)) {
+                if (formatEntries) DisposePtr((Ptr)formatEntries);
+                CloseScrapFile();
+                return memFullErr;  /* Overflow would occur */
+            }
+            tableSize = sizeof(ScrapFormatTable) + entrySize;
+        } else {
+            tableSize = sizeof(ScrapFormatTable);
+        }
+
         scrapInfo->formatTable = (ScrapFormatTable *)NewPtrClear(tableSize);
 
         if (scrapInfo->formatTable) {

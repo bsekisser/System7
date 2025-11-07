@@ -89,6 +89,11 @@ static bool read_from_extents(HFS_Volume* vol, const HFS_Extent* extents,
         uint32_t blocksToRead = (toRead + allocOffset + vol->alBlkSize - 1) / vol->alBlkSize;
 
         /* Allocate temporary buffer for block-aligned read */
+        /* Check for integer overflow in multiplication */
+        if (vol->alBlkSize != 0 && blocksToRead > UINT32_MAX / vol->alBlkSize) {
+            return false;  /* Overflow would occur */
+        }
+
         uint8_t* tempBuf = NewPtr(blocksToRead * vol->alBlkSize);
         if (!tempBuf) return false;
 
