@@ -339,7 +339,7 @@ parse_resources:
                 UInt16 numTypes = read_be16(typeList) + 1;
 
                 /* Bounds check: ensure type list fits in map */
-                UInt32 typeListSize = 2 + (numTypes * sizeof(TypeListEntry));
+                UInt32 typeListSize = 2 + ((UInt32)numTypes * sizeof(TypeListEntry));
                 if (typeListOff + typeListSize > mapSize) {
                     serial_puts("[ResourceMgr] Warning: Type list exceeds map bounds\n");
                     gResMgr.resError = mapReadErr;
@@ -545,7 +545,7 @@ TypeListEntry* ResMap_FindType(ResFile* file, ResType type) {
     numTypes = read_be16(typeList) + 1;  /* Count is stored as n-1 */
 
     /* Bounds check: ensure type list entries fit in map */
-    UInt32 typeListSize = 2 + (numTypes * sizeof(TypeListEntry));
+    UInt32 typeListSize = 2 + ((UInt32)numTypes * sizeof(TypeListEntry));
     if (typeListOff + typeListSize > file->mapSize) {
         gResMgr.resError = mapReadErr;
         return NULL;
@@ -1304,7 +1304,7 @@ static ResType ResMap_GetIndType(ResFile* file, SInt16 index) {
     }
 
     /* Bounds check: ensure type list entries fit in map */
-    UInt32 typeListSize = 2 + (numTypes * sizeof(TypeListEntry));
+    UInt32 typeListSize = 2 + ((UInt32)numTypes * sizeof(TypeListEntry));
     if (typeListOff + typeListSize > file->mapSize) {
         gResMgr.resError = mapReadErr;
         return 0;
