@@ -107,6 +107,10 @@ OSErr FM_ParseOWTTable(const NFNTResource *nfnt, OWTEntry **owtOut) {
     const UInt8 *owtPtr = resourceBase + sizeof(NFNTResource) + bitmapSize;
 
     /* Allocate OWT array (+1 for the extra entry that defines last char's width) */
+    /* Check for integer overflow in allocation size */
+    if (numChars > SIZE_MAX / sizeof(OWTEntry) - 1) {
+        return memFullErr;
+    }
     Size owtSize = (numChars + 1) * sizeof(OWTEntry);
     OWTEntry *owt = (OWTEntry*)NewPtr(owtSize);
     if (!owt) {
