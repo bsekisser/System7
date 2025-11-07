@@ -343,16 +343,76 @@ void PlotIconHandle(const Rect* theRect, IconAlignmentType align, IconTransformT
                  alignedRect.left, alignedRect.top, alignedRect.right, alignedRect.bottom);
     }
 
-    /* Apply transform
-     * (Simplified - full implementation would modify drawing based on transform)
-     */
-    if (transform != kTransformNone) {
+    /* Apply transform by drawing icon with modifications */
+    if (transform == kTransformNone) {
+        /* No transform - use standard PlotIcon */
+        PlotIcon(&alignedRect, theIcon);
+    } else {
+        /* Apply transformation during drawing */
         ICON_LOG("PlotIconHandle: Applying transform %d\n", transform);
-        /* TODO: Apply proper transformation (dim for disabled, etc.) */
-    }
 
-    /* Plot the icon */
-    PlotIcon(&alignedRect, theIcon);
+        /* Lock the icon handle to get the data */
+        HLock(theIcon);
+        unsigned char* iconData = (unsigned char*)*theIcon;
+
+        if (iconData == NULL) {
+            HUnlock(theIcon);
+            return;
+        }
+
+        /* Calculate destination */
+        short iconWidth = kIconWidth;
+        short iconHeight = kIconHeight;
+        short destLeft = alignedRect.left;
+        short destTop = alignedRect.top;
+
+        /* Set up drawing */
+        extern void MoveTo(short h, short v);
+        extern void LineTo(short h, short v);
+        GrafPtr savePort;
+        GetPort(&savePort);
+        PenMode(patCopy);
+
+        /* Check for disabled state */
+        Boolean isDisabled = (transform & kTransformDisabled) != 0;
+        Boolean isSelected = (transform & kTransformSelected) != 0;
+
+        /* Draw icon with transform */
+        for (int row = 0; row < iconHeight; row++) {
+            for (int col = 0; col < iconWidth; col++) {
+                /* Get bit from icon data */
+                int byteIndex = row * 4 + col / 8;  /* 4 bytes per row */
+                int bitIndex = 7 - (col % 8);        /* MSB first */
+                int bit = (iconData[byteIndex] >> bitIndex) & 1;
+
+                /* Apply transform to bit */
+                if (isSelected) {
+                    bit = !bit;  /* Invert for selected state */
+                }
+
+                /* For disabled, draw checkerboard pattern (skip every other pixel) */
+                if (isDisabled && ((row + col) % 2) == 1) {
+                    bit = 0;  /* Skip pixel to create dimmed effect */
+                }
+
+                /* Draw pixel if bit is set after transformation */
+                if (bit) {
+                    short x = destLeft + col;
+                    short y = destTop + row;
+                    MoveTo(x, y);
+                    LineTo(x, y);
+                }
+            }
+        }
+
+        /* Draw offline indicator (diagonal line) if needed */
+        if (transform == kTransformOffline) {
+            MoveTo(destLeft, destTop);
+            LineTo(destLeft + iconWidth - 1, destTop + iconHeight - 1);
+        }
+
+        HUnlock(theIcon);
+    }
 }
 
 /*
