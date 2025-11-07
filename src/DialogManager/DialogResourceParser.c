@@ -30,6 +30,9 @@
  *   Data: item-specific data (varies by type)
  */
 
+/* Maximum data length for dialog item text - prevents excessive allocations */
+#define MAX_DIALOG_ITEM_DATA 4096
+
 /* Parse DITL resource into DialogItemEx array */
 OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
     unsigned char* p;
@@ -50,6 +53,20 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
     /* CRITICAL: Lock handle before dereferencing to prevent heap compaction issues */
     HLock(ditlHandle);
     p = (unsigned char*)*ditlHandle;
+
+    /* Validate handle data after lock */
+    if (!p) {
+        HUnlock(ditlHandle);
+        return -1;
+    }
+
+    /* Get handle size to validate bounds during parsing */
+    Size handleSize = GetHandleSize(ditlHandle);
+    if (handleSize < 2) {
+        HUnlock(ditlHandle);
+        return -1;
+    }
+    unsigned char* pEnd = p + handleSize;
 
     /* Read item count (stored as count-1 in resource) */
     count = ((SInt16)p[0] << 8) | p[1];
@@ -81,6 +98,14 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
         SInt16 dataLen;
         Rect bounds;
 
+        /* Validate we have enough bytes for item header (4 + 8 + 1 + 1 = 14 bytes minimum) */
+        if (p + 14 > pEnd) {
+            // DIALOG_LOG_DEBUG("Dialog: ParseDITL - truncated item data at item %d\n", i);
+            DisposePtr((Ptr)itemArray);
+            HUnlock(ditlHandle);
+            return -1;
+        }
+
         /* Skip placeholder (4 bytes) */
         p += 4;
 
@@ -97,9 +122,20 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
         /* Read data length (byte or word depending on odd length) */
         dataLen = *p++;
         if (dataLen == 0xFF) {
+            /* Validate we have 2 more bytes for long length */
+            if (p + 2 > pEnd) {
+                DisposePtr((Ptr)itemArray);
+                HUnlock(ditlHandle);
+                return -1;
+            }
             /* Long data length (next word) */
             dataLen = ((SInt16)p[0] << 8) | p[1];
             p += 2;
+        }
+
+        /* Cap dataLen to prevent excessive allocations */
+        if (dataLen > MAX_DIALOG_ITEM_DATA) {
+            dataLen = MAX_DIALOG_ITEM_DATA;
         }
 
         /* Initialize item */
@@ -120,6 +156,12 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
                 baseType == statText || baseType == editText) {
                 /* Text-based item - copy string data */
                 if (dataLen > 0) {
+                    /* Validate we have enough bytes available */
+                    if (p + dataLen > pEnd) {
+                        DisposePtr((Ptr)itemArray);
+                        HUnlock(ditlHandle);
+                        return -1;
+                    }
                     unsigned char* textData = (unsigned char*)NewPtr(dataLen + 1);
                     if (textData) {
                         memcpy(textData, p, dataLen);
@@ -130,6 +172,11 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
             } else if (baseType == iconItem || baseType == picItem) {
                 /* Resource ID stored as 2-byte integer */
                 if (dataLen >= 2) {
+                    if (p + 2 > pEnd) {
+                        DisposePtr((Ptr)itemArray);
+                        HUnlock(ditlHandle);
+                        return -1;
+                    }
                     SInt16 resID = ((SInt16)p[0] << 8) | p[1];
                     itemArray[i].refCon = resID;
                 }
@@ -139,6 +186,12 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
             }
         }
 
+        /* Validate pointer advance won't exceed bounds */
+        if (p + dataLen > pEnd) {
+            DisposePtr((Ptr)itemArray);
+            HUnlock(ditlHandle);
+            return -1;
+        }
         p += dataLen;
 
         /* Align to word boundary */

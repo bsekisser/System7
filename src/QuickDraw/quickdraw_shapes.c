@@ -34,6 +34,12 @@ void FrameRoundRect(const Rect* r, short ovalWidth, short ovalHeight)
         return;
     }
 
+    /* Validate framebuffer configuration */
+    if (fb_pitch == 0) {
+        QD_LOG_WARN("FrameRoundRect invalid fb_pitch (zero)\n");
+        return;
+    }
+
     uint32_t* fb = (uint32_t*)framebuffer;
     int pitch = fb_pitch / 4;
 
@@ -135,6 +141,12 @@ void PaintRoundRect(const Rect* r, short ovalWidth, short ovalHeight)
 
     if (!framebuffer) {
         QD_LOG_WARN("PaintRoundRect framebuffer unavailable\n");
+        return;
+    }
+
+    /* Validate framebuffer configuration */
+    if (fb_pitch == 0) {
+        QD_LOG_WARN("PaintRoundRect invalid fb_pitch (zero)\n");
         return;
     }
 

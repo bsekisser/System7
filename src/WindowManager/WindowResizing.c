@@ -134,7 +134,7 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
     refconStr[2] = (refCon >> 8) & 0xFF;
     refconStr[3] = refCon & 0xFF;
     refconStr[4] = 0;
-    sprintf(dbgbuf, "[SIZEWND] refCon=0x%08x (%s) current=%dx%d new=%dx%d\n",
+    snprintf(dbgbuf, sizeof(dbgbuf), "[SIZEWND] refCon=0x%08x (%s) current=%dx%d new=%dx%d\n",
             (unsigned int)refCon, refconStr, currentWidth, currentHeight, w, h);
     serial_puts(dbgbuf);
 
@@ -215,7 +215,7 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
             extern void serial_puts(const char *str);
             extern int sprintf(char* buf, const char* fmt, ...);
             char dbgbuf[256];
-            sprintf(dbgbuf, "[SIZEWND] Updated bounds: contentRect=(%d,%d,%d,%d)\n",
+            snprintf(dbgbuf, sizeof(dbgbuf), "[SIZEWND] Updated bounds: contentRect=(%d,%d,%d,%d)\n",
                     newContentBounds.left, newContentBounds.top, newContentBounds.right, newContentBounds.bottom);
             serial_puts(dbgbuf);
         }
@@ -460,13 +460,13 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
     extern void serial_puts(const char *str);
     extern int sprintf(char* buf, const char* fmt, ...);
     char dbgbuf[256];
-    sprintf(dbgbuf, "[GW] Size check: final=%dx%d actual=%dx%d original=%dx%d\n",
+    snprintf(dbgbuf, sizeof(dbgbuf), "[GW] Size check: final=%dx%d actual=%dx%d original=%dx%d\n",
             finalWidth, finalHeight, actualWidth, actualHeight, originalWidth, originalHeight);
     serial_puts(dbgbuf);
 
     /* Apply resize ONLY if size actually changed from the ACTUAL dimensions */
     if (finalWidth != actualWidth || finalHeight != actualHeight) {
-        sprintf(dbgbuf, "[GW] Size changed, applying resize\n");
+        snprintf(dbgbuf, sizeof(dbgbuf), "[GW] Size changed, applying resize\n");
         serial_puts(dbgbuf);
         WM_DEBUG("GrowWindow: Applying final resize from %dx%d to %dx%d (actual=%dx%d)",
                  actualWidth, actualHeight, finalWidth, finalHeight, actualWidth, actualHeight);
@@ -517,7 +517,7 @@ long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox) {
 
         serial_puts("[GW] Resize applied and redrawn\n");
     } else {
-        sprintf(dbgbuf, "[GW] No size change: %dx%d == %dx%d, skipping SizeWindow\n",
+        snprintf(dbgbuf, sizeof(dbgbuf), "[GW] No size change: %dx%d == %dx%d, skipping SizeWindow\n",
                 finalWidth, finalHeight, actualWidth, actualHeight);
         serial_puts(dbgbuf);
         serial_puts("[GW] No size change detected\n");
@@ -858,7 +858,7 @@ static void WM_CalculateStandardState(WindowPtr window, Rect* stdState) {
     extern void serial_puts(const char *str);
     extern int sprintf(char* buf, const char* fmt, ...);
     char dbgbuf[256];
-    sprintf(dbgbuf, "[ZW] screenBounds=(%d,%d,%d,%d)\n",
+    snprintf(dbgbuf, sizeof(dbgbuf), "[ZW] screenBounds=(%d,%d,%d,%d)\n",
             screenBounds.left, screenBounds.top, screenBounds.right, screenBounds.bottom);
     serial_puts(dbgbuf);
 
@@ -888,7 +888,7 @@ static void WM_CalculateStandardState(WindowPtr window, Rect* stdState) {
     WM_DEBUG("WM_CalculateStandardState: Standard state = (%d, %d, %d, %d)",
              stdState->left, stdState->top, stdState->right, stdState->bottom);
 
-    sprintf(dbgbuf, "[ZW] stdState=(%d,%d,%d,%d) size=%dx%d\n",
+    snprintf(dbgbuf, sizeof(dbgbuf), "[ZW] stdState=(%d,%d,%d,%d) size=%dx%d\n",
             stdState->left, stdState->top, stdState->right, stdState->bottom,
             stdState->right - stdState->left, stdState->bottom - stdState->top);
     serial_puts(dbgbuf);
