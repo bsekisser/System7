@@ -622,6 +622,19 @@ static OSErr ParseSFNTDirectory(Handle sfntData, TTFont *font)
     font->tableChecksums = (unsigned long *)NewPtr(font->numTables * sizeof(unsigned long));
 
     if (font->tables == NULL || font->tableTags == NULL || font->tableChecksums == NULL) {
+        /* Clean up any successfully allocated arrays */
+        if (font->tables) {
+            DisposePtr((Ptr)font->tables);
+            font->tables = NULL;
+        }
+        if (font->tableTags) {
+            DisposePtr((Ptr)font->tableTags);
+            font->tableTags = NULL;
+        }
+        if (font->tableChecksums) {
+            DisposePtr((Ptr)font->tableChecksums);
+            font->tableChecksums = NULL;
+        }
         HUnlock(sfntData);
         return fontOutOfMemoryErr;
     }
