@@ -1345,19 +1345,21 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
             FSSpec target, aliasFile;
             target.vRefNum = sourceVRef;
             target.parID = sourceDir;
-            /* Copy name from item */
+            /* Copy name from item as Pascal string */
             int nameLen = strlen(item->name);
             if (nameLen > 31) nameLen = 31;
-            memcpy(target.name, item->name, nameLen);
-            target.name[nameLen] = 0;
+            target.name[0] = (unsigned char)nameLen;
+            memcpy(&target.name[1], item->name, nameLen);
 
             /* Create alias on desktop with " alias" suffix */
             aliasFile.vRefNum = vref;
             aliasFile.parID = targetDir;
             char aliasName[64];
             snprintf(aliasName, sizeof(aliasName), "%s alias", item->name);
-            if (strlen(aliasName) > 31) aliasName[31] = 0;
-            memcpy(aliasFile.name, aliasName, strlen(aliasName) + 1);
+            int aliasLen = strlen(aliasName);
+            if (aliasLen > 31) aliasLen = 31;
+            aliasFile.name[0] = (unsigned char)aliasLen;
+            memcpy(&aliasFile.name[1], aliasName, aliasLen);
 
             if (CreateAlias(&target, &aliasFile) == noErr) {
                 FINDER_LOG_DEBUG("TrackIconDragSync: Alias created successfully\n");
