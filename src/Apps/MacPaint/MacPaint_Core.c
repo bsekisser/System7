@@ -222,8 +222,26 @@ void MacPaint_FillRect(Rect *rect)
 {
     if (!rect) return;
 
-    /* TODO: Implement pattern-based filling */
-    /* Use gCurrentPattern to fill the rectangle */
+    /* Fill rectangle with current pattern (8x8 repeating tile) */
+    for (int y = rect->top; y < rect->bottom; y++) {
+        /* Get pattern row (pattern repeats every 8 rows) */
+        int patternRow = y % 8;
+        unsigned char patternByte = gCurrentPattern[patternRow];
+
+        for (int x = rect->left; x < rect->right; x++) {
+            /* Get pattern bit (pattern repeats every 8 columns) */
+            int patternCol = x % 8;
+            int bitOffset = 7 - patternCol;
+            int patternBit = (patternByte >> bitOffset) & 1;
+
+            /* Set or clear pixel based on pattern bit */
+            if (patternBit) {
+                MacPaint_SetPixel(x, y, &gPaintBuffer);
+            } else {
+                MacPaint_ClearPixel(x, y, &gPaintBuffer);
+            }
+        }
+    }
 
     gDocDirty = 1;
 }
