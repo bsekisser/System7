@@ -309,12 +309,38 @@ void PlotIconHandle(const Rect* theRect, IconAlignmentType align, IconTransformT
     /* Calculate aligned rect based on alignment parameter */
     Rect alignedRect = *theRect;
 
-    /* Apply alignment
-     * (Simplified - full implementation would properly calculate offsets)
-     */
+    /* Apply alignment */
     if (align != kAlignNone) {
-        ICON_LOG("PlotIconHandle: Applying alignment\n");
-        /* TODO: Calculate proper alignment offsets */
+        short rectWidth = theRect->right - theRect->left;
+        short rectHeight = theRect->bottom - theRect->top;
+        short iconWidth = kIconWidth;
+        short iconHeight = kIconHeight;
+
+        /* Horizontal alignment */
+        if (align & kAlignHorizontalCenter) {
+            short offset = (rectWidth - iconWidth) / 2;
+            alignedRect.left = theRect->left + offset;
+            alignedRect.right = alignedRect.left + iconWidth;
+        } else if (align & kAlignLeft) {
+            alignedRect.right = alignedRect.left + iconWidth;
+        } else if (align & kAlignRight) {
+            alignedRect.left = theRect->right - iconWidth;
+        }
+
+        /* Vertical alignment */
+        if (align & kAlignVerticalCenter) {
+            short offset = (rectHeight - iconHeight) / 2;
+            alignedRect.top = theRect->top + offset;
+            alignedRect.bottom = alignedRect.top + iconHeight;
+        } else if (align & kAlignTop) {
+            alignedRect.bottom = alignedRect.top + iconHeight;
+        } else if (align & kAlignBottom) {
+            alignedRect.top = theRect->bottom - iconHeight;
+        }
+
+        ICON_LOG("PlotIconHandle: Aligned from (%d,%d,%d,%d) to (%d,%d,%d,%d)\n",
+                 theRect->left, theRect->top, theRect->right, theRect->bottom,
+                 alignedRect.left, alignedRect.top, alignedRect.right, alignedRect.bottom);
     }
 
     /* Apply transform
