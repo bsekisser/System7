@@ -524,6 +524,12 @@ SInt16 TEGetOffset(Point pt, TEHandle hTE) {
     HLock((Handle)hTE);
     pTE = (TEExtPtr)*hTE;
 
+    /* Guard against divide-by-zero: lineHeight must be positive */
+    if (pTE->base.lineHeight <= 0) {
+        HUnlock((Handle)hTE);
+        return 0;
+    }
+
     /* Find line at y position */
     lineNum = (pt.v - pTE->base.viewRect.top + pTE->viewDV) / pTE->base.lineHeight;
     if (lineNum < 0) lineNum = 0;
