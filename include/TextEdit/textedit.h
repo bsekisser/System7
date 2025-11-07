@@ -1,116 +1,198 @@
-/* RE-AGENT-BANNER
- * TextEdit Header - Apple System 7.1 TextEdit Manager
+/*
+ * TextEdit.h - System 7.1 TextEdit Manager
  *
- * implemented based on: System.rsrc
- * Architecture: m68k (68000)
- * ABI: classic_macos
- *
-
- * Mappings: mappings.textedit.json
- * Layouts: layouts.curated.textedit.json
- *
- * TextEdit is the Mac OS Toolbox component responsible for text editing
- * functionality. It provides text input, editing, display, and clipboard
- * operations for applications. This implementation is based on System 7.1.
+ * Complete text editing subsystem with single and multi-style support
+ * Based on Inside Macintosh: Text (1993)
  */
 
-#ifndef TEXTEDIT_H
-#define TEXTEDIT_H
+#ifndef __TEXTEDIT_H__
+#define __TEXTEDIT_H__
 
 #include "SystemTypes.h"
+#include "QuickDraw/QuickDraw.h"
+#include "FontManager/FontTypes.h"
+
+/* ============================================================================
+ * TextEdit Constants
+ * ============================================================================ */
+
+/* Text justification */
+#define teJustLeft      0       /* Left justified */
+#define teJustCenter    1       /* Center justified */
+#define teJustRight     -1      /* Right justified */
+#define teForceLeft     -2      /* Force left */
+
+/* Style modes for TESetStyle */
+#define doFont          1       /* Set font */
+#define doFace          2       /* Set face */
+#define doSize          4       /* Set size */
+#define doColor         8       /* Set color */
+#define doAll           15      /* Set all attributes */
+#define addSize         16      /* Add to size */
+#define doToggle        32      /* Toggle face */
+
+/* Feature flags */
+#define teFAutoScroll   0       /* Auto-scroll during selection */
+#define teFTextBuffering 1      /* Text buffering */
+#define teFOutlineHilite 2      /* Outline highlighting */
+#define teFInlineInput  3       /* Inline input support */
+#define teFUseWhiteBackground 4 /* Use white background */
+
+/* Caret/Selection */
+#define teCaretWidth    1       /* Caret width in pixels */
+#define teDefaultTab    8       /* Default tab width in chars */
+
+/* Limits */
+#define teMaxLength     32767   /* Maximum text length */
+
+/* ============================================================================
+ * TextEdit Types
+ * ============================================================================ */
 
 /* Forward declarations */
+typedef struct TERec **TEHandle;
+typedef struct TERec *TEPtr;
 
-#include "SystemTypes.h"
+/* TextStyle is already defined in SystemTypes.h */
 
-/* Forward declarations */
+/* Style run - associates style with text range */
+typedef struct StyleRun {
+    SInt32      startChar;      /* Starting character position */
+    SInt16      styleIndex;     /* Index into style table */
+} StyleRun;
 
-/* Ptr is defined in MacTypes.h */
-/* Handle is defined in MacTypes.h */
-/* Handle is defined in MacTypes.h */
+/* STElement is already defined in SystemTypes.h */
 
-/* Basic Mac OS types */
+typedef struct STRec {
+    SInt32      nRuns;          /* Number of style runs */
+    SInt32      nStyles;        /* Number of unique styles */
+    Handle      styleTab;       /* Handle to style table */
+    Handle      runArray;       /* Handle to run array */
+    Handle      lineHeights;    /* Handle to line height array */
+} STRec;
 
-/* Ptr is defined in MacTypes.h */
-/* Style is defined in MacTypes.h */
-/* Handle is defined in MacTypes.h */
+/* STPtr and STHandle already defined in SystemTypes.h */
 
-/* TextEdit constants - Evidence: evidence.curated.textedit.json */
-#define teJustLeft   0   /* Left justification */
-#define teJustCenter 1   /* Center justification */
-#define teJustRight  (-1) /* Right justification */
-#define teFAutoScroll 0  /* Auto-scroll feature flag */
+/* StScrpRec already defined in SystemTypes.h */
 
-/* TextEdit Record Structure - Layout: layouts.curated.textedit.json:TERec */
+/* Line height record */
+typedef struct LHElement {
+    SInt32      lhHeight;       /* Line height */
+    SInt32      lhAscent;       /* Line ascent */
+} LHElement;
 
-/* TextEdit Style Record - Layout: layouts.curated.textedit.json:TEStyleRec */
+typedef LHElement *LHPtr, **LHHandle;
 
-/* Handle is defined in MacTypes.h */
+/* Click loop callback */
+typedef pascal Boolean (*TEClickLoopProcPtr)(TEHandle hTE);
 
-/* TextEdit Function Prototypes - Evidence: evidence.curated.textedit.json */
+/* High-level hook callback */
+typedef pascal void (*TEDoTextProcPtr)(TEHandle hTE, SInt16 firstByte,
+                                       SInt16 byteCount, SInt16 selector);
 
-/* Initialization and lifecycle - Trap: 0xA9CC, Evidence: offset 0x00003780 */
-void TEInit(void);
+/* TERec is already defined in SystemTypes.h - we extend it with additional fields */
+/* Note: Our implementation adds extra fields not in the standard TERec */
 
-/* Create new TextEdit record - Trap: 0xA9D2, Evidence: offset 0x00003f00 */
-TEHandle TENew(Rect *destRect, Rect *viewRect);
+/* ============================================================================
+ * TextEdit API
+ * ============================================================================ */
 
-/* Dispose TextEdit record - Trap: 0xA9CD, Evidence: offset 0x00004180 */
-void TEDispose(TEHandle hTE);
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-/* Text content management - Trap: 0xA9CF, Evidence: offset 0x00004280 */
-void TESetText(void *text, SInt32 length, TEHandle hTE);
+/* Initialization */
+extern void TEInit(void);
 
-/* Get text handle - Trap: 0xA9CB, Evidence: offset 0x00004350 */
-CharsHandle TEGetText(TEHandle hTE);
+/* Creation and disposal */
+extern TEHandle TENew(const Rect *destRect, const Rect *viewRect);
+extern TEHandle TEStyleNew(const Rect *destRect, const Rect *viewRect);
+extern void TEDispose(TEHandle hTE);
 
-/* User interaction - Trap: 0xA9D4, Evidence: offset 0x00004450 */
-void TEClick(Point pt, SInt16 extendSelection, TEHandle hTE);
+/* Text manipulation */
+extern void TESetText(const void *text, SInt32 length, TEHandle hTE);
+extern Handle TEGetText(TEHandle hTE);
+extern void TEInsert(const void *text, SInt32 length, TEHandle hTE);
+extern void TEDelete(TEHandle hTE);
+extern void TEKey(CharParameter key, TEHandle hTE);
+extern void TEReplaceSel(const void *text, SInt32 length, TEHandle hTE);
 
-/* Keyboard input - Trap: 0xA9DC, Evidence: offset 0x00004650 */
-void TEKey(SInt16 key, TEHandle hTE);
+/* Selection */
+extern void TESetSelect(SInt32 selStart, SInt32 selEnd, TEHandle hTE);
+extern void TEGetSelection(SInt32 *selStart, SInt32 *selEnd, TEHandle hTE);
 
-/* Clipboard operations - Traps: 0xA9D6/0xA9D5/0xA9D7, Evidence: offsets 0x00004800-0x00004920 */
-void TECut(TEHandle hTE);
-void TECopy(TEHandle hTE);
-void TEPaste(TEHandle hTE);
+/* Mouse handling */
+extern void TEClick(Point pt, Boolean extendSelection, TEHandle hTE);
 
-/* Text editing - Trap: 0xA9D3, Evidence: offset 0x00004a00 */
-void TEDelete(TEHandle hTE);
+/* Clipboard operations */
+extern void TECut(TEHandle hTE);
+extern void TECopy(TEHandle hTE);
+extern void TEPaste(TEHandle hTE);
+extern OSErr TEFromScrap(void);
+extern OSErr TEToScrap(void);
+extern Handle TEScrapHandle(void);
 
-/* Text insertion - Trap: 0xA9DE, Evidence: offset 0x00004b00 */
-void TEInsert(void *text, SInt32 length, TEHandle hTE);
+/* Display and update */
+extern void TEUpdate(const Rect *updateRect, TEHandle hTE);
+extern void TETextBox(const void *text, SInt32 length, const Rect *box, SInt16 just);
+extern void TECalText(TEHandle hTE);
 
-/* Selection management - Trap: 0xA9D1, Evidence: offset 0x00004c50 */
-void TESetSelect(SInt32 selStart, SInt32 selEnd, TEHandle hTE);
+/* Scrolling */
+extern void TEScroll(SInt16 dh, SInt16 dv, TEHandle hTE);
+extern void TESelView(TEHandle hTE);
+extern void TEPinScroll(SInt16 dh, SInt16 dv, TEHandle hTE);
+extern void TEAutoView(Boolean autoView, TEHandle hTE);
 
-/* Activation state - Traps: 0xA9D8/0xA9D9, Evidence: offsets 0x00004d20-0x00004d80 */
-void TEActivate(TEHandle hTE);
-void TEDeactivate(TEHandle hTE);
+/* Activation */
+extern void TEActivate(TEHandle hTE);
+extern void TEDeactivate(TEHandle hTE);
+extern void TEIdle(TEHandle hTE);
 
-/* Idle processing for caret - Trap: 0xA9DA, Evidence: offset 0x00004e00 */
-void TEIdle(TEHandle hTE);
+/* Information */
+extern SInt16 TEGetHeight(SInt32 endLine, SInt32 startLine, TEHandle hTE);
+extern Point TEGetPoint(SInt16 offset, TEHandle hTE);
+extern SInt16 TEGetOffset(Point pt, TEHandle hTE);
+extern SInt16 TEGetLine(SInt16 offset, TEHandle hTE);
 
-/* Display update - Trap: 0xA9D3, Evidence: offset 0x00004f00 */
-void TEUpdate(void *updateRgn, TEHandle hTE);
+/* Style support (styled TextEdit only) */
+extern void TEGetStyle(SInt32 offset, TextStyle *theStyle,
+                      SInt16 *lineHeight, SInt16 *fontAscent, TEHandle hTE);
+extern void TESetStyle(SInt16 mode, const TextStyle *newStyle,
+                      Boolean redraw, TEHandle hTE);
+extern void TEContinuousStyle(SInt16 *mode, TextStyle *aStyle, TEHandle hTE);
+extern void TEUseStyleScrap(SInt32 rangeStart, SInt32 rangeEnd,
+                          StScrpHandle newStyles, Boolean redraw, TEHandle hTE);
+extern void TEStyleInsert(const void *text, SInt32 length,
+                         StScrpHandle hST, TEHandle hTE);
+extern void TEStylePaste(TEHandle hTE);
 
-/* Scrolling - Trap: 0xA9DD, Evidence: offset 0x00005100 */
-void TEScroll(SInt16 dh, SInt16 dv, TEHandle hTE);
+/* Features */
+extern SInt16 TEFeatureFlag(SInt16 feature, SInt16 action, TEHandle hTE);
 
-/* Simple text display - Trap: 0xA9CE, Evidence: offset 0x00005200 */
-void TETextBox(void *text, SInt32 length, Rect *box, SInt16 just);
+/* Utilities */
+extern void TESetJust(SInt16 just, TEHandle hTE);
+extern void TESetWordWrap(Boolean wrap, TEHandle hTE);
+extern Boolean TEIsActive(TEHandle hTE);
 
-#endif /* TEXTEDIT_H */
+/* Internal helpers (exposed for other TE modules) */
+extern void TE_RecalcLines(TEHandle hTE);
+extern SInt32 TE_OffsetToLine(TEHandle hTE, SInt32 offset);
+extern SInt32 TE_LineToOffset(TEHandle hTE, SInt32 line);
+extern void TE_DrawLine(TEHandle hTE, SInt32 lineNum, SInt16 y);
+extern void TE_InvalidateSelection(TEHandle hTE);
+extern void TE_UpdateCaret(TEHandle hTE, Boolean forceOn);
+extern SInt32 TE_FindWordBoundary(TEHandle hTE, SInt32 offset, Boolean forward);
+extern SInt32 TE_FindLineStart(TEHandle hTE, SInt32 offset);
+extern SInt32 TE_FindLineEnd(TEHandle hTE, SInt32 offset);
 
-/* RE-AGENT-TRAILER-JSON
-{
-  "component": "TextEdit",
-  "file": "include/textedit.h",
-  "functions": 19,
-  "structures": 2,
-  "constants": 4,
-  "evidence_refs": 19,
-  "provenance_density": 0.087,
-  "generated": "2024-09-18"
+/* Application helper entry points (SimpleText shell) */
+void TextEdit_InitApp(void);
+Boolean TextEdit_IsRunning(void);
+void TextEdit_HandleEvent(EventRecord* event);
+void TextEdit_LoadFile(const char* path);
+
+#ifdef __cplusplus
 }
-*/
+#endif
+
+#endif /* __TEXTEDIT_H__ */
