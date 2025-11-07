@@ -302,17 +302,20 @@ OSErr LAddRow(ListHandle lh, short count, short afterRow)
     
     /* Copy existing rows */
     if (list->rows) {
+        HLock((Handle)list->rows);  /* Lock handle before dereferencing */
         rowArray = *(list->rows);
-        
+
         /* Copy rows before insertion point */
         for (i = 0; i < insertPos; i++) {
             newRowArray[i] = rowArray[i];
         }
-        
+
         /* Copy rows after insertion point (shifted) */
         for (i = insertPos; i < list->rowCount; i++) {
             newRowArray[i + count] = rowArray[i];
         }
+
+        HUnlock((Handle)list->rows);  /* Unlock after done */
     }
     
     /* Initialize new rows */

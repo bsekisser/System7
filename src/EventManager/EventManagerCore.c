@@ -263,21 +263,36 @@ static void FillEventRecord(EventRecord* event)
         event->modifiers |= btnState;
     }
 
-    /* Check modifier keys in keymap */
-    if (g_keyMapState[1] & (1 << (kScanCommand - 32))) {
-        event->modifiers |= cmdKey;
+    /* Check modifier keys in keymap with proper bounds checking */
+    if (kScanCommand >= 32 && kScanCommand < 160) {
+        if (g_keyMapState[(kScanCommand - 32) / 32] &
+            (1 << ((kScanCommand - 32) % 32))) {
+            event->modifiers |= cmdKey;
+        }
     }
-    if (g_keyMapState[1] & (1 << (kScanShift - 32))) {
-        event->modifiers |= shiftKey;
+    if (kScanShift >= 32 && kScanShift < 160) {
+        if (g_keyMapState[(kScanShift - 32) / 32] &
+            (1 << ((kScanShift - 32) % 32))) {
+            event->modifiers |= shiftKey;
+        }
     }
-    if (g_keyMapState[1] & (1 << (kScanCapsLock - 32))) {
-        event->modifiers |= alphaLock;
+    if (kScanCapsLock >= 32 && kScanCapsLock < 160) {
+        if (g_keyMapState[(kScanCapsLock - 32) / 32] &
+            (1 << ((kScanCapsLock - 32) % 32))) {
+            event->modifiers |= alphaLock;
+        }
     }
-    if (g_keyMapState[1] & (1 << (kScanOption - 32))) {
-        event->modifiers |= optionKey;
+    if (kScanOption >= 32 && kScanOption < 160) {
+        if (g_keyMapState[(kScanOption - 32) / 32] &
+            (1 << ((kScanOption - 32) % 32))) {
+            event->modifiers |= optionKey;
+        }
     }
-    if (g_keyMapState[1] & (1 << (kScanControl - 32))) {
-        event->modifiers |= controlKey;
+    if (kScanControl >= 32 && kScanControl < 160) {
+        if (g_keyMapState[(kScanControl - 32) / 32] &
+            (1 << ((kScanControl - 32) % 32))) {
+            event->modifiers |= controlKey;
+        }
     }
 }
 

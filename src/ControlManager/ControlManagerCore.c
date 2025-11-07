@@ -275,11 +275,13 @@ void DisposeControl(ControlHandle theControl) {
     /* Dispose control data if any */
     if ((*theControl)->contrlData) {
         DisposeHandle((*theControl)->contrlData);
+        (*theControl)->contrlData = NULL;  /* Prevent double-free */
     }
 
     /* Dispose control definition procedure handle */
     if ((*theControl)->contrlDefProc) {
         DisposeHandle((*theControl)->contrlDefProc);
+        (*theControl)->contrlDefProc = NULL;  /* Prevent double-free */
     }
 
     /* Dispose control handle */
