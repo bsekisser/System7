@@ -1489,9 +1489,47 @@ Handle GetIndResource(ResType theType, SInt16 index) {
 }
 
 Handle Get1IndResource(ResType theType, SInt16 index) {
-    (void)theType;
-    (void)index;
-    /* TODO: Implement */
+    SInt16 count = 0;
+
+    RESOURCE_LOG_DEBUG("Get1IndResource: Getting type='%.4s' index=%d in current file\n",
+                  (char*)&theType, index);
+
+    if (index < 1) {
+        SetResError(resNotFound);
+        return NULL;
+    }
+
+    /* Find the nth resource of given type in current resource file only */
+    if (gCurrentMap) {
+        ResourceType* typeEntry = gCurrentMap->types;
+        while (typeEntry) {
+            if (typeEntry->type == theType) {
+                ResourceEntry* entry = typeEntry->resources;
+                while (entry) {
+                    count++;
+                    if (count == index) {
+                        SetResError(noErr);
+                        return entry->handle;
+                    }
+                    entry = entry->next;
+                }
+                break;
+            }
+            typeEntry = typeEntry->next;
+        }
+    } else {
+        /* Fallback: use simple array if map not used */
+        for (int i = 0; i < g_resourceCount; i++) {
+            if (g_resources[i].type == theType) {
+                count++;
+                if (count == index) {
+                    SetResError(noErr);
+                    return g_resources[i].handle;
+                }
+            }
+        }
+    }
+
     SetResError(resNotFound);
     return NULL;
 }
