@@ -142,22 +142,51 @@ void PlotIcon(const Rect* theRect, Handle theIcon) {
         return;
     }
 
-    /* Simple implementation: draw icon as bitmap
-     * In a full implementation, would use CopyBits with proper scaling
-     */
-
-    /* For now, just draw a placeholder rectangle
-     * A full implementation would render the actual icon bitmap
+    /* Draw icon as bitmap (32x32 pixels, 1 bit per pixel, 128 bytes)
+     * Icon data format: 4 bytes per row, 32 rows
      */
     GrafPtr savePort;
     GetPort(&savePort);
 
-    /* Draw icon outline for now (placeholder) */
-    ICON_LOG("PlotIcon: Drawing icon (placeholder implementation)\n");
+    /* Calculate destination rectangle (center icon if needed) */
+    short iconWidth = kIconWidth;
+    short iconHeight = kIconHeight;
+    short destLeft = theRect->left;
+    short destTop = theRect->top;
+    short destWidth = theRect->right - theRect->left;
+    short destHeight = theRect->bottom - theRect->top;
+
+    /* Center icon if rectangle is larger */
+    if (destWidth > iconWidth) {
+        destLeft += (destWidth - iconWidth) / 2;
+    }
+    if (destHeight > iconHeight) {
+        destTop += (destHeight - iconHeight) / 2;
+    }
+
+    /* Draw icon pixel by pixel */
+    extern void MoveTo(short h, short v);
+    extern void LineTo(short h, short v);
+    PenMode(patCopy);
+
+    for (int row = 0; row < iconHeight; row++) {
+        for (int col = 0; col < iconWidth; col++) {
+            /* Get bit from icon data */
+            int byteIndex = row * 4 + col / 8;  /* 4 bytes per row */
+            int bitIndex = 7 - (col % 8);        /* MSB first */
+            int bit = (iconData[byteIndex] >> bitIndex) & 1;
+
+            /* Draw pixel if bit is set */
+            if (bit) {
+                short x = destLeft + col;
+                short y = destTop + row;
+                MoveTo(x, y);
+                LineTo(x, y);  /* Draw single pixel */
+            }
+        }
+    }
 
     HUnlock(theIcon);
-
-    /* TODO: Implement actual icon bitmap rendering */
 }
 
 /*
