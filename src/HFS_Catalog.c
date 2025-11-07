@@ -130,6 +130,11 @@ OSErr Cat_Lookup(VCB* vcb, UInt32 dirID, const UInt8* name, void* catData, UInt3
         return paramErr;
     }
 
+    /* Validate name length (Str31 max is 31) */
+    if (name[0] > 31) {
+        return paramErr;
+    }
+
     /* Build catalog key */
     memset(&key, 0, sizeof(key));
     key.ckrKeyLen = sizeof(UInt32) + 1 + name[0];
@@ -154,6 +159,11 @@ OSErr Cat_Create(VCB* vcb, UInt32 dirID, const UInt8* name, UInt8 type, void* ca
     OSErr err;
 
     if (!vcb || !name || !catData) {
+        return paramErr;
+    }
+
+    /* Validate name length (Str31 max is 31) */
+    if (name[0] > 31) {
         return paramErr;
     }
 
@@ -230,6 +240,11 @@ OSErr Cat_Delete(VCB* vcb, UInt32 dirID, const UInt8* name)
         return paramErr;
     }
 
+    /* Validate name length (Str31 max is 31) */
+    if (name[0] > 31) {
+        return paramErr;
+    }
+
     /* Look up the entry first to get its CNode ID */
     err = Cat_Lookup(vcb, dirID, name, &fileRec, &hint);
     if (err != noErr) {
@@ -290,6 +305,11 @@ OSErr Cat_Rename(VCB* vcb, UInt32 dirID, const UInt8* oldName, const UInt8* newN
     OSErr err;
 
     if (!vcb || !oldName || !newName) {
+        return paramErr;
+    }
+
+    /* Validate name lengths (Str31 max is 31) */
+    if (oldName[0] > 31 || newName[0] > 31) {
         return paramErr;
     }
 
@@ -392,6 +412,11 @@ OSErr Cat_Move(VCB* vcb, UInt32 srcDirID, const UInt8* name, UInt32 dstDirID)
     OSErr err;
 
     if (!vcb || !name) {
+        return paramErr;
+    }
+
+    /* Validate name length (Str31 max is 31) */
+    if (name[0] > 31) {
         return paramErr;
     }
 
@@ -602,6 +627,11 @@ OSErr Cat_SetInfo(VCB* vcb, UInt32 dirID, const UInt8* name, const CInfoPBRec* p
         return paramErr;
     }
 
+    /* Validate name length (Str31 max is 31) */
+    if (name[0] > 31) {
+        return paramErr;
+    }
+
     /* Look up the entry */
     err = Cat_Lookup(vcb, dirID, name, &fileRec, &hint);
     if (err != noErr) {
@@ -698,6 +728,11 @@ OSErr Cat_UpdateFileRecord(VCB* vcb, UInt32 dirID, const UInt8* name,
     OSErr err;
 
     if (!vcb || !name || !extents) {
+        return paramErr;
+    }
+
+    /* Validate name length (Str31 max is 31) */
+    if (name[0] > 31) {
         return paramErr;
     }
 
