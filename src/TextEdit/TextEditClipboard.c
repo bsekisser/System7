@@ -252,8 +252,13 @@ OSErr TEFromScrap(void) {
             } else {
                 /* Resize to actual size */
                 SetHandleSize(g_TEScrap, scrapSize);
-                TEC_LOG("TEFromScrap: loaded %ld bytes\n", bytesRead);
-                err = noErr;
+                err = MemError();
+                if (err == noErr) {
+                    TEC_LOG("TEFromScrap: loaded %ld bytes\n", bytesRead);
+                } else {
+                    DisposeHandle(g_TEScrap);
+                    g_TEScrap = NULL;
+                }
             }
         } else {
             err = memFullErr;
