@@ -82,6 +82,12 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
     *itemCount = count;
     // DIALOG_LOG_DEBUG("Dialog: Parsing DITL with %d items\n", count);
 
+    /* Check for integer overflow in allocation size */
+    if (count > SIZE_MAX / sizeof(DialogItemEx)) {
+        HUnlock(ditlHandle);
+        return -108;  /* memFullErr */
+    }
+
     /* Allocate item array */
     itemArray = (DialogItemEx*)NewPtr(count * sizeof(DialogItemEx));
     if (!itemArray) {
