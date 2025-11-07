@@ -80,11 +80,19 @@ OSErr HandToHand(Handle* theHndl) {
     /* Lock source handle to prevent purging/compaction during copy */
     HLock(sourceHandle);
 
-    /* Copy data from source to new handle */
+    /* Verify handle data is not NULL after lock (handle may have been purged) */
     sourceData = *sourceHandle;
+    if (!sourceData) {
+        HUnlock(sourceHandle);
+        DisposeHandle(newHandle);
+        HUTIL_LOG("HandToHand: Source handle was purged\n");
+        return memPurgedErr;
+    }
+
+    /* Copy data from source to new handle */
     newData = *newHandle;
 
-    if (sourceData && newData) {
+    if (newData) {
         memcpy(newData, sourceData, handleSize);
         HUnlock(sourceHandle);
     } else {
@@ -206,6 +214,14 @@ OSErr PtrAndHand(const void* srcPtr, Handle dstHndl, Size size) {
 
     /* Get current handle size */
     oldSize = GetHandleSize(dstHndl);
+
+    /* Guard against integer overflow in size calculation */
+    if (oldSize > SIZE_MAX - size) {
+        HUTIL_LOG("PtrAndHand: Integer overflow (oldSize=%lu, size=%lu)\n",
+                  (unsigned long)oldSize, (unsigned long)size);
+        return memFullErr;
+    }
+
     newSize = oldSize + size;
 
     /* Resize handle to accommodate new data */
@@ -271,6 +287,13 @@ OSErr HandAndHand(Handle aHndl, Handle bHndl) {
         /* Nothing to append */
         HUTIL_LOG("HandAndHand: Source handle is empty\n");
         return noErr;
+    }
+
+    /* Guard against integer overflow in size calculation */
+    if (bSize > SIZE_MAX - aSize) {
+        HUTIL_LOG("HandAndHand: Integer overflow (bSize=%lu, aSize=%lu)\n",
+                  (unsigned long)bSize, (unsigned long)aSize);
+        return memFullErr;
     }
 
     newSize = bSize + aSize;

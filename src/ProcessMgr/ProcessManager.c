@@ -428,13 +428,32 @@ OSErr Process_Cleanup(ProcessSerialNumber* psn)
     process->processState = kProcessTerminated;
 
     /* Remove from scheduler queue */
-    if (gProcessQueue->queueHead == process) {
-        gProcessQueue->queueHead = process->processNextProcess;
+    ProcessControlBlock* prev = NULL;
+    ProcessControlBlock* curr = gProcessQueue->queueHead;
+
+    /* Find the process in the queue and its predecessor */
+    while (curr != NULL && curr != process) {
+        prev = curr;
+        curr = curr->processNextProcess;
     }
-    if (gProcessQueue->queueTail == process) {
-        gProcessQueue->queueTail = NULL; /* Find new tail if needed */
+
+    if (curr == process) {
+        /* Found the process, unlink it */
+        if (prev == NULL) {
+            /* Removing head */
+            gProcessQueue->queueHead = process->processNextProcess;
+        } else {
+            /* Removing middle or tail */
+            prev->processNextProcess = process->processNextProcess;
+        }
+
+        /* Update tail if we removed the last process */
+        if (gProcessQueue->queueTail == process) {
+            gProcessQueue->queueTail = prev;  /* prev is now the new tail */
+        }
+
+        gProcessQueue->queueSize--;
     }
-    gProcessQueue->queueSize--;
 
     return noErr;
 }

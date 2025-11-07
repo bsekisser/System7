@@ -37,9 +37,10 @@ typedef struct NotificationQueueEntry {
 
 static struct {
     NotificationQueueEntry* queueHead;
+    NotificationQueueEntry* queueTail;  /* Tail pointer for O(1) insertion */
     UInt16 notificationCount;
     Boolean initialized;
-} gNMState = {NULL, 0, false};
+} gNMState = {NULL, NULL, 0, false};
 
 /* Maximum active notifications */
 #define MAX_NOTIFICATIONS 16
@@ -53,6 +54,7 @@ void InitNotificationManager(void) {
     }
 
     gNMState.queueHead = NULL;
+    gNMState.queueTail = NULL;
     gNMState.notificationCount = 0;
     gNMState.initialized = true;
 
@@ -95,19 +97,20 @@ OSErr NMInstall(NMRecPtr nmReqPtr) {
     entry->next = NULL;
     entry->active = true;
 
-    /* Add to queue */
+    /* Add to queue using tail pointer for O(1) insertion */
     if (gNMState.queueHead == NULL) {
         gNMState.queueHead = entry;
+        gNMState.queueTail = entry;
     } else {
-        /* Find tail and append */
-        tail = gNMState.queueHead;
-        while (tail->next != NULL) {
-            tail = tail->next;
-        }
-        tail->next = entry;
+        gNMState.queueTail->next = entry;
+        gNMState.queueTail = entry;
     }
 
     gNMState.notificationCount++;
+
+    /* NOTE: Applications should call NMRemove() to clean up notifications.
+     * Abandoned notifications will eventually hit MAX_NOTIFICATIONS limit.
+     * TODO: Add timeout-based automatic cleanup for better resource management. */
 
     NM_LOG("NMInstall: Installed notification (count=%d)\n", gNMState.notificationCount);
 
@@ -166,6 +169,11 @@ OSErr NMRemove(NMRecPtr nmReqPtr) {
                 gNMState.queueHead = entry->next;
             } else {
                 prev->next = entry->next;
+            }
+
+            /* Update tail pointer if we removed the last element */
+            if (gNMState.queueTail == entry) {
+                gNMState.queueTail = prev;
             }
 
             /* Free the entry */

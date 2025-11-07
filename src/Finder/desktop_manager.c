@@ -863,7 +863,9 @@ static OSErr AllocateDesktopIcons(void)
     gDesktopIcons[0].iconID = 0xFFFFFFFF;
     gDesktopIcons[0].position.h = fb_width - 100;
     gDesktopIcons[0].position.v = fb_height - 80;
-    strcpy(gDesktopIcons[0].name, "Trash");
+    /* Use safe string copy with bounds checking */
+    strncpy(gDesktopIcons[0].name, "Trash", sizeof(gDesktopIcons[0].name) - 1);
+    gDesktopIcons[0].name[sizeof(gDesktopIcons[0].name) - 1] = '\0';  /* Ensure null termination */
     gDesktopIcons[0].movable = false;  /* Trash stays in place */
     gDesktopIconCount = 1;  /* Start with trash */
     gVolumeIconVisible = true;  /* Ensure trash renders even if volume add fails */
@@ -971,6 +973,11 @@ static void UpdateIconRect(short iconIndex, Rect *outRect)
 static short IconAtPoint(Point where)
 {
     Rect iconRect, labelRect;
+
+    /* Defensive bounds check to prevent buffer overrun from corrupted count */
+    if (gDesktopIconCount > kMaxDesktopIcons) {
+        gDesktopIconCount = kMaxDesktopIcons;
+    }
 
     FINDER_LOG_DEBUG("IconAtPoint: checking (%d,%d), gDesktopIconCount=%d\n",
                  where.h, where.v, gDesktopIconCount);
