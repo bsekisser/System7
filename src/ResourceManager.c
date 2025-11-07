@@ -1535,25 +1535,97 @@ Handle Get1IndResource(ResType theType, SInt16 index) {
 }
 
 SInt16 CountTypes(void) {
-    /* TODO: Implement */
-    return 0;
+    SInt16 count = 0;
+
+    RESOURCE_LOG_DEBUG("CountTypes: Counting all resource types\n");
+
+    /* Count unique resource types across all open resource files */
+    ResourceMap* map = gResourceChain;
+    while (map) {
+        ResourceType* typeEntry = map->types;
+        while (typeEntry) {
+            count++;
+            typeEntry = typeEntry->next;
+        }
+        map = map->next;
+    }
+
+    RESOURCE_LOG_DEBUG("CountTypes: Found %d types\n", count);
+    return count;
 }
 
 SInt16 Count1Types(void) {
-    /* TODO: Implement */
-    return 0;
+    SInt16 count = 0;
+
+    RESOURCE_LOG_DEBUG("Count1Types: Counting types in current file\n");
+
+    /* Count resource types in current resource file only */
+    if (gCurrentMap) {
+        ResourceType* typeEntry = gCurrentMap->types;
+        while (typeEntry) {
+            count++;
+            typeEntry = typeEntry->next;
+        }
+    }
+
+    RESOURCE_LOG_DEBUG("Count1Types: Found %d types\n", count);
+    return count;
 }
 
 void GetIndType(ResType* theType, SInt16 index) {
-    (void)theType;
-    (void)index;
-    /* TODO: Implement */
+    SInt16 count = 0;
+
+    if (!theType || index < 1) {
+        return;
+    }
+
+    RESOURCE_LOG_DEBUG("GetIndType: Getting type at index %d\n", index);
+
+    /* Get the nth resource type from all open resource files */
+    ResourceMap* map = gResourceChain;
+    while (map) {
+        ResourceType* typeEntry = map->types;
+        while (typeEntry) {
+            count++;
+            if (count == index) {
+                *theType = typeEntry->type;
+                RESOURCE_LOG_DEBUG("GetIndType: Found type='%.4s'\n", (char*)theType);
+                return;
+            }
+            typeEntry = typeEntry->next;
+        }
+        map = map->next;
+    }
+
+    /* Not found - set to zero */
+    *theType = 0;
 }
 
 void Get1IndType(ResType* theType, SInt16 index) {
-    (void)theType;
-    (void)index;
-    /* TODO: Implement */
+    SInt16 count = 0;
+
+    if (!theType || index < 1) {
+        return;
+    }
+
+    RESOURCE_LOG_DEBUG("Get1IndType: Getting type at index %d in current file\n", index);
+
+    /* Get the nth resource type from current resource file only */
+    if (gCurrentMap) {
+        ResourceType* typeEntry = gCurrentMap->types;
+        while (typeEntry) {
+            count++;
+            if (count == index) {
+                *theType = typeEntry->type;
+                RESOURCE_LOG_DEBUG("Get1IndType: Found type='%.4s'\n", (char*)theType);
+                return;
+            }
+            typeEntry = typeEntry->next;
+        }
+    }
+
+    /* Not found - set to zero */
+    *theType = 0;
 }
 
 ResID UniqueID(ResType theType) {
