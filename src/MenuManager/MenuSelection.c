@@ -865,8 +865,20 @@ Boolean WaitForMouseMove(unsigned long timeout)
  */
 void ConvertMenuPoint(Point* pt, Boolean fromGlobal)
 {
-    /* TODO: Implement coordinate conversion */
-    /* For now, assume all coordinates are global */
+    extern void GlobalToLocal(Point* pt);
+    extern void LocalToGlobal(Point* pt);
+
+    if (pt == NULL) {
+        return;
+    }
+
+    if (fromGlobal) {
+        /* Convert from global to local coordinates */
+        GlobalToLocal(pt);
+    } else {
+        /* Convert from local to global coordinates */
+        LocalToGlobal(pt);
+    }
 }
 
 /* ============================================================================
