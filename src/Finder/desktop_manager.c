@@ -1319,15 +1319,23 @@ static void TrackIconDragSync(short iconIndex, Point startPt)
         short partCode = FindWindow(dropPoint, &hitWindow);
 
         /* Check if dropped on a folder window */
-        Boolean droppedOnFolder = (hitWindow != NULL && partCode == inContent);
+        Boolean droppedOnFolder = (hitWindow != NULL && partCode == inContent && IsFolderWindow(hitWindow));
         DirID targetDir = HFS_ROOT_DIR_ID;  /* Default to desktop (root) */
         VRefNum vref = VFS_GetBootVRef();
 
         if (droppedOnFolder) {
-            /* TODO: Get actual folder window's DirID from window refCon */
-            FINDER_LOG_DEBUG("TrackIconDragSync: Dropped on folder window\n");
-            /* For now, treat as desktop drop */
-            droppedOnFolder = false;
+            /* Get actual folder window's DirID using public API */
+            targetDir = FolderWindow_GetCurrentDir(hitWindow);
+            vref = FolderWindow_GetVRef(hitWindow);
+            if (targetDir != 0) {
+                FINDER_LOG_DEBUG("TrackIconDragSync: Dropped on folder window, targetDir=%d vref=%d\n",
+                             (int)targetDir, (int)vref);
+            } else {
+                FINDER_LOG_DEBUG("TrackIconDragSync: Could not get folder directory, treating as desktop drop\n");
+                droppedOnFolder = false;
+                targetDir = HFS_ROOT_DIR_ID;
+                vref = VFS_GetBootVRef();
+            }
         }
 
         /* Get source volume and directory */
