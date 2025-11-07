@@ -131,7 +131,8 @@ static void CalibrateFrequencyAccurate(void) {
 
                 /* Sanity check: at least some cycles passed */
                 if (deltaCounter > 0) {
-                    freq = udiv64((deltaCounter * 60), N);
+                    /* Reorder to avoid overflow: divide first, then multiply */
+                    freq = udiv64(deltaCounter, N) * 60;
                     serial_puts("[TimeBase] Calibrated frequency from TickCount\n");
                 } else {
                     freq = 1000000;  /* Default if no cycles measured */

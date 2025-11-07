@@ -449,6 +449,12 @@ UInt32 WaveTableGenerate(WaveTableSynth* synth, SInt16* buffer, UInt32 frameCoun
 
     wave = &synth->waveTable->waves[synth->currentWave];
 
+    /* Guard against division by zero if waveLength is invalid */
+    if (wave->waveLength == 0) {
+        memset(buffer, 0, frameCount * sizeof(SInt16));
+        return frameCount;
+    }
+
     for (i = 0; i < frameCount; i++) {
         wavePos = synth->currentPos / (0xFFFFFFFF / wave->waveLength);
 
@@ -724,7 +730,12 @@ UInt16 EnvelopeProcess(MIDIVoice* voice)
 
     switch (voice->envelopePhase) {
         case ENV_PHASE_ATTACK:
-            if (voice->currentTime < voice->attackTime) {
+            /* Guard against division by zero */
+            if (voice->attackTime == 0) {
+                voice->envelopePhase = ENV_PHASE_DECAY;
+                voice->currentTime = 0;
+                amplitude = voice->amplitude;
+            } else if (voice->currentTime < voice->attackTime) {
                 amplitude = (voice->amplitude * voice->currentTime) / voice->attackTime;
             } else {
                 voice->envelopePhase = ENV_PHASE_DECAY;
@@ -734,7 +745,11 @@ UInt16 EnvelopeProcess(MIDIVoice* voice)
             break;
 
         case ENV_PHASE_DECAY:
-            if (voice->currentTime < voice->decayTime) {
+            /* Guard against division by zero */
+            if (voice->decayTime == 0) {
+                voice->envelopePhase = ENV_PHASE_SUSTAIN;
+                amplitude = voice->sustainLevel;
+            } else if (voice->currentTime < voice->decayTime) {
                 amplitude = voice->amplitude -
                            ((voice->amplitude - voice->sustainLevel) * voice->currentTime) / voice->decayTime;
             } else {
@@ -748,7 +763,12 @@ UInt16 EnvelopeProcess(MIDIVoice* voice)
             break;
 
         case ENV_PHASE_RELEASE:
-            if (voice->currentTime < voice->releaseTime) {
+            /* Guard against division by zero */
+            if (voice->releaseTime == 0) {
+                voice->envelopePhase = ENV_PHASE_OFF;
+                voice->active = false;
+                amplitude = 0;
+            } else if (voice->currentTime < voice->releaseTime) {
                 amplitude = voice->sustainLevel -
                            (voice->sustainLevel * voice->currentTime) / voice->releaseTime;
             } else {

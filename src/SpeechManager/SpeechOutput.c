@@ -145,13 +145,13 @@ static void InitializeDefaultConfig(AudioOutputConfig *config) {
     memset(config, 0, sizeof(AudioOutputConfig));
 
     strcpy(config->deviceID, "default");
-    (config)->\2->sampleRate = DEFAULT_SAMPLE_RATE;
-    (config)->\2->channels = 1;
-    (config)->\2->bitsPerSample = 16;
-    (config)->\2->isFloat = false;
-    (config)->\2->isBigEndian = false;
-    (config)->\2->isInterleaved = true;
-    (config)->\2->frameSize = 2; /* 16-bit mono */
+    config->format.sampleRate = DEFAULT_SAMPLE_RATE;
+    config->format.channels = 1;
+    config->format.bitsPerSample = 16;
+    config->format.isFloat = false;
+    config->format.isBigEndian = false;
+    config->format.isInterleaved = true;
+    config->format.frameSize = 2; /* 16-bit mono */
 
     config->routingMode = kRoutingMode_Automatic;
     config->flags = kOutputFlag_Normalize;

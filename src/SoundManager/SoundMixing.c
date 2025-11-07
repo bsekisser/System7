@@ -665,9 +665,10 @@ static void ProcessReverb(ReverbProcessor* reverb, float* input, float* output, 
 
         /* Read from delay buffer with multiple taps for diffusion */
         float wet = 0.0f;
-        UInt32 tap1 = (reverb->writeIndex - reverb->bufferSize / 3) % reverb->bufferSize;
-        UInt32 tap2 = (reverb->writeIndex - reverb->bufferSize / 2) % reverb->bufferSize;
-        UInt32 tap3 = (reverb->writeIndex - reverb->bufferSize * 2 / 3) % reverb->bufferSize;
+        /* Prevent unsigned underflow by adding bufferSize before subtracting */
+        UInt32 tap1 = (reverb->writeIndex + reverb->bufferSize - reverb->bufferSize / 3) % reverb->bufferSize;
+        UInt32 tap2 = (reverb->writeIndex + reverb->bufferSize - reverb->bufferSize / 2) % reverb->bufferSize;
+        UInt32 tap3 = (reverb->writeIndex + reverb->bufferSize - reverb->bufferSize * 2 / 3) % reverb->bufferSize;
 
         wet += reverb->delayBuffer[tap1] * 0.4f;
         wet += reverb->delayBuffer[tap2] * 0.3f;
