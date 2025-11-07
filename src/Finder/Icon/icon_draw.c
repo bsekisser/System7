@@ -113,10 +113,78 @@ void Icon_Draw32(const IconHandle* h, int x, int y, bool selected) {
     }
 }
 
+/* Draw 1-bit SICN 16x16 icon */
+static void DrawSICN16(const IconBitmap* ib, int dx, int dy) {
+    uint32_t black = 0xFF000000;
+    uint32_t white = 0xFFFFFFFF;
+
+    FINDER_ICON_LOG_DEBUG("[ICON_DRAW] DrawSICN16 at (%d,%d)\n", dx, dy);
+
+    /* Draw 16x16 icon using mask/image compositing */
+    for (int y = 0; y < 16; ++y) {
+        const uint8_t* mrow = ib->mask1b + y * 2;  /* 16px = 2 bytes */
+        const uint8_t* irow = ib->img1b + y * 2;
+
+        for (int x = 0; x < 16; ++x) {
+            /* Only draw where mask bit is set */
+            if (GetBit(mrow, x)) {
+                uint32_t color = GetBit(irow, x) ? black : white;
+                IconPort_WritePixel(dx + x, dy + y, color);
+            }
+        }
+    }
+}
+
 /* Draw 16x16 icon (for list views) */
 void Icon_Draw16(const IconHandle* h, int x, int y) {
-    /* TODO: Implement SICN drawing when we have small icons */
-    if (!h || !h->fam || !h->fam->hasSmall) return;
-    /* For now, just use the large icon (not selected in list views) */
-    Icon_Draw32(h, x, y, false);
+    if (!h || !h->fam) return;
+
+    /* Use small icon if available */
+    if (h->fam->hasSmall) {
+        const IconBitmap* b = &h->fam->small;
+        if (b->depth == kIconColor32 && b->argb32) {
+            /* Draw color 16x16 (if available) */
+            for (int py = 0; py < 16; ++py) {
+                const uint32_t* src = b->argb32 + py * 16;
+                for (int px = 0; px < 16; ++px) {
+                    uint32_t pixel = src[px];
+                    uint8_t alpha = (pixel >> 24) & 0xFF;
+                    if (alpha > 0) {
+                        IconPort_WritePixel(x + px, y + py, pixel);
+                    }
+                }
+            }
+        } else if (b->img1b && b->mask1b) {
+            DrawSICN16(b, x, y);
+        }
+    } else {
+        /* Fallback: scale down large icon (simplified - just skip every other pixel) */
+        const IconBitmap* b = &h->fam->large;
+        if (b->depth == kIconColor32 && b->argb32) {
+            for (int py = 0; py < 16; ++py) {
+                const uint32_t* src = b->argb32 + (py * 2) * 32;
+                for (int px = 0; px < 16; ++px) {
+                    uint32_t pixel = src[px * 2];
+                    uint8_t alpha = (pixel >> 24) & 0xFF;
+                    if (alpha > 0) {
+                        IconPort_WritePixel(x + px, y + py, pixel);
+                    }
+                }
+            }
+        } else if (b->img1b && b->mask1b) {
+            /* Scale 32x32 to 16x16 by sampling every other pixel */
+            uint32_t black = 0xFF000000;
+            uint32_t white = 0xFFFFFFFF;
+            for (int py = 0; py < 16; ++py) {
+                const uint8_t* mrow = b->mask1b + (py * 2) * 4;
+                const uint8_t* irow = b->img1b + (py * 2) * 4;
+                for (int px = 0; px < 16; ++px) {
+                    if (GetBit(mrow, px * 2)) {
+                        uint32_t color = GetBit(irow, px * 2) ? black : white;
+                        IconPort_WritePixel(x + px, y + py, color);
+                    }
+                }
+            }
+        }
+    }
 }
