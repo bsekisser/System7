@@ -875,7 +875,8 @@ Handle GetNamedResource(ResType theType, ConstStr255Param name) {
         typeList += 2;  /* Skip count */
 
         /* Validate typeCount doesn't overflow buffer */
-        UInt32 typeListSize = 2 + ((UInt32)(typeCount + 1) * sizeof(TypeListEntry));
+        /* Cast to UInt32 before adding 1 to prevent overflow */
+        UInt32 typeListSize = 2 + (((UInt32)typeCount + 1) * sizeof(TypeListEntry));
         if (typeListOffset + typeListSize > file->mapSize) {
             continue;  /* Skip corrupted type list */
         }
