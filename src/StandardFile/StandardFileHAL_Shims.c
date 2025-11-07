@@ -479,9 +479,14 @@ void StandardFile_HAL_AddFileToList(DialogPtr dialog, const FSSpec *spec, OSType
         /* Build display string: "[folder] Name" or "Name (TYPE)" */
         Str255 displayStr;
         if (isFolder) {
-            displayStr[0] = spec->name[0] + 1;  /* +1 for folder indicator */
+            /* Check for overflow: folder marker + name must fit in Str255 */
+            UInt8 nameLen = spec->name[0];
+            if (nameLen > 254) {
+                nameLen = 254;  /* Truncate to fit with folder marker */
+            }
+            displayStr[0] = nameLen + 1;  /* +1 for folder indicator */
             displayStr[1] = '*';  /* Folder marker */
-            BlockMove(&spec->name[1], &displayStr[2], spec->name[0]);
+            BlockMove(&spec->name[1], &displayStr[2], nameLen);
         } else {
             BlockMove(spec->name, displayStr, spec->name[0] + 1);
         }
