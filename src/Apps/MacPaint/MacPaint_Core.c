@@ -253,7 +253,66 @@ void MacPaint_DrawOval(Rect *rect)
 {
     if (!rect) return;
 
-    /* TODO: Implement oval drawing (Bresenham circle algorithm) */
+    /* Calculate center and radii */
+    int cx = (rect->left + rect->right) / 2;
+    int cy = (rect->top + rect->bottom) / 2;
+    int rx = (rect->right - rect->left) / 2;
+    int ry = (rect->bottom - rect->top) / 2;
+
+    if (rx <= 0 || ry <= 0) return;
+
+    /* Bresenham-like algorithm for ellipse drawing */
+    /* Based on midpoint ellipse algorithm */
+    int x = 0;
+    int y = ry;
+    int rx2 = rx * rx;
+    int ry2 = ry * ry;
+    int twoRx2 = 2 * rx2;
+    int twoRy2 = 2 * ry2;
+    int px = 0;
+    int py = twoRx2 * y;
+
+    /* Plot initial points (four-way symmetry) */
+    MacPaint_SetPixel(cx + x, cy + y, &gPaintBuffer);
+    MacPaint_SetPixel(cx - x, cy + y, &gPaintBuffer);
+    MacPaint_SetPixel(cx + x, cy - y, &gPaintBuffer);
+    MacPaint_SetPixel(cx - x, cy - y, &gPaintBuffer);
+
+    /* Region 1 */
+    int p = ry2 - (rx2 * ry) + (rx2 / 4);
+    while (px < py) {
+        x++;
+        px += twoRy2;
+        if (p < 0) {
+            p += ry2 + px;
+        } else {
+            y--;
+            py -= twoRx2;
+            p += ry2 + px - py;
+        }
+        MacPaint_SetPixel(cx + x, cy + y, &gPaintBuffer);
+        MacPaint_SetPixel(cx - x, cy + y, &gPaintBuffer);
+        MacPaint_SetPixel(cx + x, cy - y, &gPaintBuffer);
+        MacPaint_SetPixel(cx - x, cy - y, &gPaintBuffer);
+    }
+
+    /* Region 2 */
+    p = ry2 * (x * x + x) + rx2 * (y - 1) * (y - 1) - rx2 * ry2;
+    while (y > 0) {
+        y--;
+        py -= twoRx2;
+        if (p > 0) {
+            p += rx2 - py;
+        } else {
+            x++;
+            px += twoRy2;
+            p += rx2 - py + px;
+        }
+        MacPaint_SetPixel(cx + x, cy + y, &gPaintBuffer);
+        MacPaint_SetPixel(cx - x, cy + y, &gPaintBuffer);
+        MacPaint_SetPixel(cx + x, cy - y, &gPaintBuffer);
+        MacPaint_SetPixel(cx - x, cy - y, &gPaintBuffer);
+    }
 
     gDocDirty = 1;
 }
