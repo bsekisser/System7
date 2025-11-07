@@ -379,6 +379,16 @@ parse_resources:
                     totalRefs += count;
                 }
 
+                /* Check for integer overflow in allocation sizes */
+                if (numTypes > SIZE_MAX / sizeof(TypeIndex)) {
+                    serial_puts("[ResourceMgr] Integer overflow in typeIdx allocation\n");
+                    break;
+                }
+                if (totalRefs > SIZE_MAX / sizeof(RefIndex)) {
+                    serial_puts("[ResourceMgr] Integer overflow in refIdx allocation\n");
+                    break;
+                }
+
                 /* Allocate index arrays */
                 Handle typeIdxH = NewHandle(numTypes * sizeof(TypeIndex));
                 Handle refIdxH = NewHandle(totalRefs * sizeof(RefIndex));
