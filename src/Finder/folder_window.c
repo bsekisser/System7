@@ -340,11 +340,105 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
     }
 
     if (isTrash) {
-        /* Trash folder - for now, keep empty
-         * TODO: Get trash directory ID and enumerate it */
-        state->itemCount = 0;
-        state->items = NULL;
-        FINDER_LOG_DEBUG("InitializeFolderContentsEx: trash folder empty\n");
+        /* Trash folder - enumerate actual trash directory */
+        FINDER_LOG_DEBUG("InitializeFolderContentsEx: enumerating trash folder\n");
+
+        /* Get trash directory ID using FindFolder */
+        extern OSErr FindFolder(SInt16 vRefNum, OSType folderType, Boolean createFolder, SInt16* foundVRefNum, SInt32* foundDirID);
+        SInt16 trashVRefNum;
+        SInt32 trashDirID;
+        OSErr err = FindFolder(kOnSystemDisk, kTrashFolderType, kDontCreateFolder, &trashVRefNum, &trashDirID);
+
+        if (err != noErr || trashDirID == 0) {
+            FINDER_LOG_DEBUG("InitializeFolderContentsEx: FindFolder failed or returned invalid ID, err=%d dirID=%d\n",
+                         err, (int)trashDirID);
+            state->itemCount = 0;
+            state->items = NULL;
+            return;
+        }
+
+        FINDER_LOG_DEBUG("InitializeFolderContentsEx: trash folder found, vref=%d dirID=%d\n",
+                     (int)trashVRefNum, (int)trashDirID);
+
+        /* Update state with actual trash directory info */
+        state->vref = trashVRefNum;
+        state->currentDir = trashDirID;
+
+        /* Enumerate trash directory contents using VFS */
+        #define MAX_TRASH_ITEMS 128
+        CatEntry entries[MAX_TRASH_ITEMS];
+        int count = 0;
+
+        if (!VFS_Enumerate(trashVRefNum, trashDirID, entries, MAX_TRASH_ITEMS, &count)) {
+            FINDER_LOG_DEBUG("InitializeFolderContentsEx: VFS_Enumerate failed for trash\n");
+            state->itemCount = 0;
+            state->items = NULL;
+            return;
+        }
+
+        FINDER_LOG_DEBUG("InitializeFolderContentsEx: trash contains %d items\n", count);
+
+        if (count == 0) {
+            state->itemCount = 0;
+            state->items = NULL;
+            return;
+        }
+
+        /* Allocate item array */
+        state->items = (FolderItem*)NewPtr(sizeof(FolderItem) * count);
+        if (!state->items) {
+            FINDER_LOG_WARN("InitializeFolderContentsEx: allocation failed for %d trash items\n", count);
+            state->itemCount = 0;
+            return;
+        }
+
+        state->itemCount = count;
+
+        /* Convert CatEntry to FolderItem */
+        for (int i = 0; i < count; i++) {
+            /* Copy name (ensure null termination) */
+            size_t nameLen = strlen(entries[i].name);
+            if (nameLen >= 256) nameLen = 255;
+            memcpy(state->items[i].name, entries[i].name, nameLen);
+            state->items[i].name[nameLen] = '\0';
+
+            /* File system metadata */
+            state->items[i].isFolder = (entries[i].kind == kNodeDir);
+            state->items[i].size = entries[i].size;
+            state->items[i].modTime = entries[i].modTime;
+            state->items[i].label = 0;
+            state->items[i].fileID = entries[i].id;
+            state->items[i].parentID = entries[i].parent;
+            state->items[i].type = entries[i].type;
+            state->items[i].creator = entries[i].creator;
+
+            FINDER_LOG_DEBUG("InitializeFolderContentsEx: trash item %d: %s (id=%d, folder=%d)\n",
+                         i, state->items[i].name, (int)state->items[i].fileID, state->items[i].isFolder);
+        }
+
+        /* Layout in grid (same as other folders) */
+        const int startX = 80;
+        const int startY = 30;
+        const int colSpacing = 100;
+        const int rowHeight = 90;
+        const int numCols = 3;
+
+        for (int i = 0; i < count; i++) {
+            int col = i % numCols;
+            int row = i / numCols;
+            state->items[i].position.h = startX + (col * colSpacing);
+            state->items[i].position.v = startY + (row * rowHeight);
+        }
+
+        /* Allocate selection array */
+        state->selectedItems = (Boolean*)NewPtr(count * sizeof(Boolean));
+        if (state->selectedItems) {
+            for (int i = 0; i < count; i++) {
+                state->selectedItems[i] = false;
+            }
+        }
+
+        FINDER_LOG_DEBUG("InitializeFolderContentsEx: trash folder populated with %d items\n", count);
         return;
     }
 
