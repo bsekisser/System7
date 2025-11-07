@@ -489,7 +489,21 @@ OSErr DisposeIconSuite(Handle theIconSuite, Boolean disposeData) {
     if (disposeData) {
         /* Dispose all icon resources in suite */
         ICON_LOG("DisposeIconSuite: Disposing icon data\n");
-        /* TODO: Iterate through suite and dispose each icon */
+
+        /* Icon suite contains up to 16 icon pointers */
+        HLock(theIconSuite);
+        Ptr* iconPtrs = (Ptr*)*theIconSuite;
+
+        for (int i = 0; i < 16; i++) {
+            if (iconPtrs[i] != NULL) {
+                /* Release icon resource */
+                extern void ReleaseResource(Handle resource);
+                ReleaseResource((Handle)iconPtrs[i]);
+                iconPtrs[i] = NULL;
+            }
+        }
+
+        HUnlock(theIconSuite);
     }
 
     /* Dispose the suite structure itself */
