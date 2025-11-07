@@ -678,6 +678,11 @@ static void SF_PopulateFileList(void) {
 
     /* Copy final list */
     if (gSFState.numFiles > 0) {
+        /* Check for integer overflow in allocation size */
+        if (gSFState.numFiles > SIZE_MAX / sizeof(FSSpec)) {
+            DisposePtr((Ptr)tempFiles);
+            return;
+        }
         gSFState.files = (FSSpec*)NewPtr(sizeof(FSSpec) * gSFState.numFiles);
         if (gSFState.files) {
             memcpy(gSFState.files, tempFiles, sizeof(FSSpec) * gSFState.numFiles);
