@@ -306,7 +306,13 @@ static void Local_UpdateWindowVisibilityStats(WindowPtr window, RgnHandle visibl
 
     short visibilityPercent = 0;
     if (totalArea > 0) {
-        visibilityPercent = (short)((visibleArea * 100) / totalArea);
+        /* Check for integer overflow in multiplication */
+        if (visibleArea > LONG_MAX / 100) {
+            /* Avoid overflow by dividing first */
+            visibilityPercent = (short)(visibleArea / (totalArea / 100));
+        } else {
+            visibilityPercent = (short)((visibleArea * 100) / totalArea);
+        }
         if (visibilityPercent > 100) visibilityPercent = 100;
     }
 
