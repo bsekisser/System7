@@ -1367,9 +1367,37 @@ void UpdateResFile(RefNum refNum) {
 }
 
 void WriteResource(Handle theResource) {
-    (void)theResource;
-    /* TODO: Implement */
-    SetResError(noErr);
+    if (!theResource) {
+        SetResError(nilHandleErr);
+        return;
+    }
+
+    RESOURCE_LOG_DEBUG("WriteResource: Writing resource at %p\n", theResource);
+
+    /* Find the resource entry and mark it for writing */
+    ResourceMap* map = gResourceChain;
+    while (map) {
+        ResourceType* type = map->types;
+        while (type) {
+            ResourceEntry* entry = type->resources;
+            while (entry) {
+                if (entry->handle == theResource) {
+                    /* Mark resource as changed - would be written on UpdateResFile */
+                    entry->attributes |= 0x40;  /* resChanged flag */
+                    RESOURCE_LOG_DEBUG("WriteResource: Marked resource for writing\n");
+                    SetResError(noErr);
+                    return;
+                }
+                entry = entry->next;
+            }
+            type = type->next;
+        }
+        map = map->next;
+    }
+
+    /* Resource not found in any map */
+    RESOURCE_LOG_DEBUG("WriteResource: Resource not found in resource maps\n");
+    SetResError(resNotFound);
 }
 
 void AddResource(Handle theData, ResType theType, ResID theID, const char* name) {
@@ -1393,9 +1421,43 @@ void AddResource(Handle theData, ResType theType, ResID theID, const char* name)
 }
 
 void RemoveResource(Handle theResource) {
-    (void)theResource;
-    /* TODO: Implement */
-    SetResError(noErr);
+    if (!theResource) {
+        SetResError(nilHandleErr);
+        return;
+    }
+
+    RESOURCE_LOG_DEBUG("RemoveResource: Removing resource at %p\n", theResource);
+
+    /* Find and remove the resource entry from the resource map */
+    ResourceMap* map = gResourceChain;
+    while (map) {
+        ResourceType* type = map->types;
+        while (type) {
+            ResourceEntry** ppEntry = &type->resources;
+            ResourceEntry* entry;
+
+            while ((entry = *ppEntry) != NULL) {
+                if (entry->handle == theResource) {
+                    /* Remove from linked list */
+                    *ppEntry = entry->next;
+
+                    /* Free the entry (but not the handle - caller owns it) */
+                    DisposePtr((Ptr)entry);
+
+                    RESOURCE_LOG_DEBUG("RemoveResource: Resource removed from map\n");
+                    SetResError(noErr);
+                    return;
+                }
+                ppEntry = &entry->next;
+            }
+            type = type->next;
+        }
+        map = map->next;
+    }
+
+    /* Resource not found in any map */
+    RESOURCE_LOG_DEBUG("RemoveResource: Resource not found in resource maps\n");
+    SetResError(resNotFound);
 }
 
 void ChangedResource(Handle theResource) {
