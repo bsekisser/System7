@@ -137,6 +137,11 @@ bool HFS_BD_Read(const HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t
         ATADevice* ata_dev = ATA_GetDevice(bd->device_index);
         if (!ata_dev) return false;
 
+        /* Prevent division by zero */
+        if (bd->sectorSize == 0) {
+            return false;
+        }
+
         /* Calculate sector alignment (cast to avoid 64-bit division) */
         uint32_t start_sector = (uint32_t)offset / bd->sectorSize;
         uint32_t end_sector = ((uint32_t)offset + length + bd->sectorSize - 1) / bd->sectorSize;
@@ -144,7 +149,7 @@ bool HFS_BD_Read(const HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t
 
         /* Allocate temporary buffer for sector-aligned read */
         /* Check for integer overflow in multiplication */
-        if (bd->sectorSize != 0 && sector_count > UINT32_MAX / bd->sectorSize) {
+        if (sector_count > UINT32_MAX / bd->sectorSize) {
             return false;  /* Overflow would occur */
         }
 
@@ -170,6 +175,11 @@ bool HFS_BD_Read(const HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t
         /* SDHCI SD card - read blocks via HAL */
         #if defined(__arm__) || defined(__aarch64__) || defined(HFS_DISABLE_ATA)
 
+        /* Prevent division by zero */
+        if (bd->sectorSize == 0) {
+            return false;
+        }
+
         /* Calculate block alignment */
         uint32_t start_block = (uint32_t)offset / bd->sectorSize;
         uint32_t end_block = ((uint32_t)offset + length + bd->sectorSize - 1) / bd->sectorSize;
@@ -177,7 +187,7 @@ bool HFS_BD_Read(const HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t
 
         /* Allocate temporary buffer for block-aligned read */
         /* Check for integer overflow in multiplication */
-        if (bd->sectorSize != 0 && block_count > UINT32_MAX / bd->sectorSize) {
+        if (block_count > UINT32_MAX / bd->sectorSize) {
             return false;  /* Overflow would occur */
         }
 
@@ -219,6 +229,11 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
         ATADevice* ata_dev = ATA_GetDevice(bd->device_index);
         if (!ata_dev) return false;
 
+        /* Prevent division by zero */
+        if (bd->sectorSize == 0) {
+            return false;
+        }
+
         /* Calculate sector alignment (cast to avoid 64-bit division) */
         uint32_t start_sector = (uint32_t)offset / bd->sectorSize;
         uint32_t end_sector = ((uint32_t)offset + length + bd->sectorSize - 1) / bd->sectorSize;
@@ -227,7 +242,7 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
 
         /* Allocate temporary buffer for sector-aligned write */
         /* Check for integer overflow in multiplication */
-        if (bd->sectorSize != 0 && sector_count > UINT32_MAX / bd->sectorSize) {
+        if (sector_count > UINT32_MAX / bd->sectorSize) {
             return false;  /* Overflow would occur */
         }
 
@@ -258,6 +273,11 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
         /* SDHCI SD card - write blocks via HAL */
         #if defined(__arm__) || defined(__aarch64__) || defined(HFS_DISABLE_ATA)
 
+        /* Prevent division by zero */
+        if (bd->sectorSize == 0) {
+            return false;
+        }
+
         /* Calculate block alignment */
         uint32_t start_block = (uint32_t)offset / bd->sectorSize;
         uint32_t end_block = ((uint32_t)offset + length + bd->sectorSize - 1) / bd->sectorSize;
@@ -266,7 +286,7 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
 
         /* Allocate temporary buffer for block-aligned write */
         /* Check for integer overflow in multiplication */
-        if (bd->sectorSize != 0 && block_count > UINT32_MAX / bd->sectorSize) {
+        if (block_count > UINT32_MAX / bd->sectorSize) {
             return false;  /* Overflow would occur */
         }
 
