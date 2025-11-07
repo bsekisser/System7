@@ -582,6 +582,11 @@ static OSErr GetFontMetricsFromTrueType(TTFont *font, short pointSize, FontMetri
         return fontCorruptErr;
     }
 
+    /* Check for division by zero */
+    if (font->head->unitsPerEm == 0) {
+        return fontCorruptErr;
+    }
+
     /* Calculate scale factor from font units to points */
     scale = ((long)pointSize << 16) / font->head->unitsPerEm;
 
@@ -700,7 +705,7 @@ static Fixed MeasureCharacterWidth(short familyID, short size, short style, char
         error = MapCharacterToGlyph(ttFont, (unsigned short)character, &glyphIndex);
         if (error == noErr) {
             error = GetGlyphMetrics(ttFont, glyphIndex, &advanceWidth, &leftSideBearing);
-            if (error == noErr && ttFont->head != NULL) {
+            if (error == noErr && ttFont->head != NULL && ttFont->head->unitsPerEm != 0) {
                 Fixed scale = ((long)size << 16) / ttFont->head->unitsPerEm;
                 width = ((long)advanceWidth * scale) >> 16;
             }
