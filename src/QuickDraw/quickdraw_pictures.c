@@ -212,6 +212,11 @@ static Boolean pict_handle_bits_rect(PictStream* s, const Rect* picFrame,
         return false;
     }
 
+    /* Check for integer overflow before multiplication */
+    if (rowBytes > (SInt16)(0x7FFF / height)) {
+        return false;
+    }
+
     Size bufferSize = (Size)rowBytes * height;
     Ptr pixelData = NewPtr(bufferSize);
     if (!pixelData) {
@@ -222,7 +227,8 @@ static Boolean pict_handle_bits_rect(PictStream* s, const Rect* picFrame,
     if (packBits) {
         ok = pict_unpack_packbits(s, (UInt8*)pixelData, rowBytes, height);
     } else {
-        SInt32 expected = (SInt32)rowBytes * height;
+        /* Cast to SInt32 before multiplication to avoid overflow (already validated above) */
+        SInt32 expected = (SInt32)rowBytes * (SInt32)height;
         if ((s->end - s->ptr) < expected) {
             ok = false;
         } else {
