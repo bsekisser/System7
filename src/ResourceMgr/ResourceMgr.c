@@ -400,7 +400,16 @@ parse_resources:
                 Handle typeIdxH = NewHandle(numTypes * sizeof(TypeIndex));
                 Handle refIdxH = NewHandle(totalRefs * sizeof(RefIndex));
 
-                if (typeIdxH && refIdxH) {
+                if (!typeIdxH || !refIdxH) {
+                    /* Clean up any successfully allocated handles */
+                    if (typeIdxH) {
+                        DisposeHandle(typeIdxH);
+                    }
+                    if (refIdxH) {
+                        DisposeHandle(refIdxH);
+                    }
+                    serial_puts("[ResourceMgr] Warning: Could not allocate index\n");
+                } else if (typeIdxH && refIdxH) {
                     HLock(typeIdxH);
                     HLock(refIdxH);
                     gTypeIdx = (TypeIndex*)*typeIdxH;
@@ -457,8 +466,6 @@ parse_resources:
                     serial_puts("[ResourceMgr] Built index for ");
                     /* Would print count but no printf in freestanding */
                     serial_puts(" resources\n");
-                } else {
-                    serial_puts("[ResourceMgr] Warning: Could not allocate index\n");
                 }
             } else {
                 serial_puts("[ResourceMgr] Warning: Invalid type/name list offsets\n");
