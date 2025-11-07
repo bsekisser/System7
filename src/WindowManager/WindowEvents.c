@@ -212,7 +212,6 @@ Boolean TrackBox(WindowPtr theWindow, Point thePt, short partCode) {
 
     while (buttonDown && loopCount < MAX_TRACKING_ITERATIONS) {
         /* Get current mouse position and button state */
-        /* TODO: Get actual mouse state from platform */
         buttonDown = WM_IsMouseDown();
 
         if (loopCount == 0) {
