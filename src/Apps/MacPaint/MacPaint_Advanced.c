@@ -600,13 +600,18 @@ int MacPaint_GetBrushSize(void)
  * ADVANCED DRAWING MODES
  */
 
+/* Global drawing mode state */
+static int gDrawingMode = 0;  /* 0=replace, 1=OR, 2=XOR, 3=AND */
+
 /**
  * MacPaint_SetDrawingMode - Set pixel blending mode
  * mode: 0=replace, 1=OR, 2=XOR, 3=AND (clear)
  */
 void MacPaint_SetDrawingMode(int mode)
 {
-    /* TODO: Store mode for drawing operations */
+    if (mode >= 0 && mode <= 3) {
+        gDrawingMode = mode;
+    }
 }
 
 /**
@@ -614,8 +619,7 @@ void MacPaint_SetDrawingMode(int mode)
  */
 int MacPaint_GetDrawingMode(void)
 {
-    /* TODO: Return current mode */
-    return 0;
+    return gDrawingMode;
 }
 
 /*
