@@ -340,10 +340,10 @@ OSErr MeasureTextAdvanced(short familyID, short size, short style, const void *t
         }
 
         /* Check for integer overflow in allocation size */
-        if (length > 0 && sizeof(Fixed) > SIZE_MAX / length) {
+        if (length > SIZE_MAX / sizeof(Fixed)) {
             return fontOutOfMemoryErr;
         }
-        if (length > 0 && sizeof(Point) > SIZE_MAX / length) {
+        if (length > SIZE_MAX / sizeof(Point)) {
             return fontOutOfMemoryErr;
         }
 
