@@ -138,6 +138,13 @@ Handle SaveBits(const Rect *bounds, SInt16 mode) {
     savedBits->fromPool = false;  /* Mark as NOT from pool */
 
     /* Calculate data size (32 bits per pixel = 4 bytes) */
+    /* Check for integer overflow in size calculation */
+    if (width > 0x7FFFFFFF / height / 4) {
+        serial_puts("[SAVEBITS] SaveBits: Size calculation would overflow\n");
+        HUnlock((Handle)bitsHandle);
+        DisposeHandle((Handle)bitsHandle);
+        return NULL;
+    }
     savedBits->dataSize = width * height * 4;
 
     snprintf(buf, sizeof(buf), "[SAVEBITS] SaveBits: Allocating %d bytes for pixel data\n",
