@@ -297,6 +297,10 @@ OSErr LoadSegment(SegmentLoaderContext* ctx, SInt16 segID)
 
     /* Store segment descriptor */
     if (segID >= ctx->numSegments) {
+        /* Initialize any skipped segments to prevent access to uninitialized memory */
+        for (UInt16 i = ctx->numSegments; i < segID; i++) {
+            memset(&ctx->segments[i], 0, sizeof(SegmentDescriptor));
+        }
         ctx->numSegments = segID + 1;
     }
 
