@@ -459,8 +459,9 @@ void STView_Key(STDocument* doc, EventRecord* event) {
             if (selStart > 0) {
                 if (event->modifiers & cmdKey) {
                     /* Cmd-Left: beginning of line */
-                    /* TODO: Find line start */
-                    TESetSelect(0, 0, doc->hTE);
+                    extern SInt32 TE_FindLineStart(TEHandle hTE, SInt32 offset);
+                    SInt32 lineStart = TE_FindLineStart(doc->hTE, selStart);
+                    TESetSelect(lineStart, lineStart, doc->hTE);
                 } else {
                     TESetSelect(selStart - 1, selStart - 1, doc->hTE);
                 }
@@ -471,8 +472,9 @@ void STView_Key(STDocument* doc, EventRecord* event) {
             if (selEnd < (*doc->hTE)->teLength) {
                 if (event->modifiers & cmdKey) {
                     /* Cmd-Right: end of line */
-                    /* TODO: Find line end */
-                    TESetSelect((*doc->hTE)->teLength, (*doc->hTE)->teLength, doc->hTE);
+                    extern SInt32 TE_FindLineEnd(TEHandle hTE, SInt32 offset);
+                    SInt32 lineEnd = TE_FindLineEnd(doc->hTE, selEnd);
+                    TESetSelect(lineEnd, lineEnd, doc->hTE);
                 } else {
                     TESetSelect(selEnd + 1, selEnd + 1, doc->hTE);
                 }
