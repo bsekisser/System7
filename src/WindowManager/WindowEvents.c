@@ -435,8 +435,7 @@ void InvalRgn(RgnHandle badRgn) {
                  updateAfter->rgnBBox.left, updateAfter->rgnBBox.top,
                  updateAfter->rgnBBox.right, updateAfter->rgnBBox.bottom);
 
-    /* Schedule platform update */
-    /* TODO: Convert region to rectangle for platform invalidation */
+    /* Schedule platform update - convert region to rectangle for platform invalidation */
     Rect regionBounds;
     Platform_GetRegionBounds(badRgn, &regionBounds);
     Platform_InvalidateWindowRect(window, &regionBounds);
