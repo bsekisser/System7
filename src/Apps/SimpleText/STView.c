@@ -458,13 +458,49 @@ void STView_Key(STDocument* doc, EventRecord* event) {
             }
             break;
 
-        case 0x1E:  /* Up arrow */
-            /* TODO: Implement up arrow navigation */
-            break;
+        case 0x1E:  /* Up arrow */ {
+            /* Move cursor up one line */
+            Point cursorPos = TEGetPoint(selEnd, doc->hTE);
+            SInt16 lineHeight = (*doc->hTE)->lineHeight;
 
-        case 0x1F:  /* Down arrow */
-            /* TODO: Implement down arrow navigation */
+            if (lineHeight <= 0) lineHeight = 12;  /* Default if not set */
+
+            /* Calculate point one line above */
+            Point targetPos = cursorPos;
+            targetPos.v -= lineHeight;
+
+            /* Don't go above the text bounds */
+            if (targetPos.v < (*doc->hTE)->viewRect.top) {
+                targetPos.v = (*doc->hTE)->viewRect.top;
+            }
+
+            /* Convert point to offset */
+            SInt16 newOffset = TEGetOffset(targetPos, doc->hTE);
+            TESetSelect(newOffset, newOffset, doc->hTE);
             break;
+        }
+
+        case 0x1F:  /* Down arrow */ {
+            /* Move cursor down one line */
+            Point cursorPos = TEGetPoint(selEnd, doc->hTE);
+            SInt16 lineHeight = (*doc->hTE)->lineHeight;
+
+            if (lineHeight <= 0) lineHeight = 12;  /* Default if not set */
+
+            /* Calculate point one line below */
+            Point targetPos = cursorPos;
+            targetPos.v += lineHeight;
+
+            /* Don't go below the text bounds */
+            if (targetPos.v > (*doc->hTE)->viewRect.bottom) {
+                targetPos.v = (*doc->hTE)->viewRect.bottom;
+            }
+
+            /* Convert point to offset */
+            SInt16 newOffset = TEGetOffset(targetPos, doc->hTE);
+            TESetSelect(newOffset, newOffset, doc->hTE);
+            break;
+        }
 
         default:
             /* Regular character */
