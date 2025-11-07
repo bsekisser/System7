@@ -266,6 +266,13 @@ void InitResourceManager(void) {
             UInt32 mapOffset = read_be32((UInt8*)&header.mapOffset);
             UInt32 mapLength = read_be32((UInt8*)&header.mapLength);
 
+            /* Check for integer overflow in size calculation */
+            if (mapOffset > UINT32_MAX - mapLength) {
+                serial_puts("[ResourceMgr] Integer overflow in totalSize calculation\n");
+                FSClose(fileRef);
+                return;
+            }
+
             /* Allocate buffer for entire resource fork */
             UInt32 totalSize = mapOffset + mapLength;
             Handle dataHandle = NewHandle(totalSize);
