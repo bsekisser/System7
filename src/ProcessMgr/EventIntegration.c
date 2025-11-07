@@ -260,9 +260,7 @@ static Boolean CheckSystemEvents(EventMask mask, EventRecord* evt) {
  * GetModifiers - Get current keyboard modifiers
  */
 static UInt16 GetModifiers(void) {
-    UInt16 mods = 0;
-
-    /* TODO: Check actual keyboard state
+    /* Get actual keyboard modifier state from EventManager
      * - cmdKey (0x0100)
      * - shiftKey (0x0200)
      * - alphaLock (0x0400)
@@ -272,8 +270,8 @@ static UInt16 GetModifiers(void) {
      * - rightOptionKey (0x4000)
      * - rightControlKey (0x8000)
      */
-
-    return mods;
+    extern UInt16 GetCurrentModifiers(void);
+    return GetCurrentModifiers();
 }
 
 /*
