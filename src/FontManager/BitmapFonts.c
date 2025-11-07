@@ -424,6 +424,11 @@ OSErr ScaleBitmapFont(BitmapFontData *sourceFont, Point numer, Point denom,
         return paramErr;
     }
 
+    /* Prevent division by zero in scaling calculations */
+    if (denom.h == 0 || denom.v == 0) {
+        return paramErr;
+    }
+
     *scaledFont = NULL;
 
     /* Allocate new font structure */
@@ -834,6 +839,11 @@ static OSErr ScaleBitmapCharacter(BitmapFontData *font, char character, Point nu
     OSErr error;
 
     if (font == NULL || scaledBitmap == NULL || width == NULL || height == NULL) {
+        return paramErr;
+    }
+
+    /* Prevent division by zero in scaling calculations */
+    if (denom.h == 0 || denom.v == 0) {
         return paramErr;
     }
 
