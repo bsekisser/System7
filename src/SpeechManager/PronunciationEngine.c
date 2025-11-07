@@ -252,7 +252,7 @@ static OSErr ApplyGraphemeToPhonemeRules(const char *text, char *phonemes, long 
                 /* Apply rule */
                 size_t replacementLen = strlen(rule->replacement);
                 if (replacementLen <= remainingSize) {
-                    strcpy(output, rule->replacement);
+                    memcpy(output, rule->replacement, replacementLen);
                     output += replacementLen;
                     remainingSize -= replacementLen;
                     input += patternLen;
@@ -594,24 +594,36 @@ OSErr ConvertTextToPhonemeString(const char *text, long textLength,
     /* Simple word-by-word conversion */
     char *word = strtok(tempText, " \t\n\r");
     phonemeString[0] = '\0';
+    long currentLen = 0;
 
-    while (word && strlen(phonemeString) < stringSize - 64) {
+    while (word && currentLen < stringSize - 64) {
         /* Try dictionary lookup first */
         PronunciationEntry *entry = NULL;
         OSErr err = LookupPronunciation(gPronunciationEngine.defaultDictionary, word, &entry);
 
         if (err == noErr && entry) {
             /* Use dictionary pronunciation */
-            strcat(phonemeString, entry->phonemes);
+            size_t phonemeLen = strlen(entry->phonemes);
+            if (currentLen + phonemeLen < stringSize - 1) {
+                strncat(phonemeString, entry->phonemes, stringSize - currentLen - 1);
+                currentLen += phonemeLen;
+            }
         } else {
             /* Use rule-based conversion */
             char wordPhonemes[256];
             ApplyGraphemeToPhonemeRules(word, wordPhonemes, sizeof(wordPhonemes));
-            strcat(phonemeString, wordPhonemes);
+            size_t phonemeLen = strlen(wordPhonemes);
+            if (currentLen + phonemeLen < stringSize - 1) {
+                strncat(phonemeString, wordPhonemes, stringSize - currentLen - 1);
+                currentLen += phonemeLen;
+            }
         }
 
         /* Add word separator */
-        strcat(phonemeString, " ");
+        if (currentLen < stringSize - 2) {
+            strncat(phonemeString, " ", stringSize - currentLen - 1);
+            currentLen++;
+        }
 
         word = strtok(NULL, " \t\n\r");
     }

@@ -231,6 +231,13 @@ pascal void TECopy(TEHandle hTE)
     HLock(textHandle);
     HLock(gTEScrapHandle);
 
+    /* Validate handles after locking */
+    if (!*textHandle || !gTEScrapHandle || !*gTEScrapHandle) {
+        HUnlock(gTEScrapHandle);
+        HUnlock(textHandle);
+        return;
+    }
+
     srcPtr = *textHandle + selStart;
     memcpy(*gTEScrapHandle, srcPtr, selLength);
 

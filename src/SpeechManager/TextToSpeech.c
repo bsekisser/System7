@@ -575,7 +575,7 @@ OSErr ProcessNumbers(const char *inputText, long inputLength, TextProcessingCont
                 if (err == noErr) {
                     long wordsLen = strlen(numberWords);
                     if (outputPos + wordsLen < MAX_TEXT_LENGTH - 1) {
-                        strcpy(output + outputPos, numberWords);
+                        memcpy(output + outputPos, numberWords, wordsLen);
                         outputPos += wordsLen;
                     }
                 }
@@ -650,7 +650,7 @@ OSErr ExpandAbbreviations(const char *inputText, long inputLength, TextProcessin
                 if (err == noErr) {
                     long expansionLen = strlen(expansion);
                     if (outputPos + expansionLen < MAX_TEXT_LENGTH - 1) {
-                        strcpy(output + outputPos, expansion);
+                        memcpy(output + outputPos, expansion, expansionLen);
                         outputPos += expansionLen;
                     }
                     input = wordEnd;

@@ -117,11 +117,18 @@ static void TERecalculateLines(TEHandle hTE)
     short lineCount = 0;
     long i;
 
-    if (!hTE || !*hTE) return;
+    /* Validate handle pointer before any dereferencing */
+    if (!hTE) return;
 
     /* CRITICAL: Lock hTE before dereferencing to prevent heap compaction issues */
     HLock((Handle)hTE);
     teRec = (TERec **)hTE;
+
+    /* Now safe to dereference after locking */
+    if (!*teRec) {
+        HUnlock((Handle)hTE);
+        return;
+    }
 
     if (!(**teRec).hText) {
         HUnlock((Handle)hTE);

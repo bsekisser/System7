@@ -89,7 +89,11 @@ void MacPaint_DrawLineAlgo(int x0, int y0, int x1, int y1, int mode)
     int x = x0;
     int y = y0;
 
-    while (1) {
+    /* Safety limit to prevent infinite loops in case of coordinate corruption */
+    int maxIterations = dx + dy + 1;
+    int iterations = 0;
+
+    while (iterations < maxIterations) {
         MacPaint_DrawPixel(x, y, mode);
 
         if (x == x1 && y == y1) break;
@@ -103,6 +107,7 @@ void MacPaint_DrawLineAlgo(int x0, int y0, int x1, int y1, int mode)
             err = err + dx;
             y = y + sy;
         }
+        iterations++;
     }
 }
 
@@ -375,13 +380,27 @@ void MacPaint_ToolOval(int x, int y, int down)
  * MacPaint_FloodFill - Flood fill from (x,y) using stack-based algorithm
  * Fills all connected pixels of same color with different color
  */
-#define MAX_FILL_STACK 4096
+#define MAX_FILL_STACK 8192
 
 void MacPaint_FloodFill(int x, int y)
 {
-    /* Simple iterative flood fill with explicit stack */
-    int stack[MAX_FILL_STACK * 2]; /* Store x,y pairs */
+    /* Validate starting coordinates */
+    if (x < 0 || x >= gPaintBuffer.bounds.right ||
+        y < 0 || y >= gPaintBuffer.bounds.bottom) {
+        return;
+    }
+
+    /* Simple iterative flood fill with explicit stack - use dynamic allocation */
+    int *stack;
     int stack_ptr = 0;
+    int max_stack_size = MAX_FILL_STACK * 2;
+
+    /* Allocate stack buffer dynamically to avoid stack overflow */
+    stack = (int *)NewPtr(max_stack_size * sizeof(int));
+    if (stack == NULL) {
+        /* Memory allocation failed - cannot perform fill */
+        return;
+    }
 
     /* Check starting pixel - if it's set, erase; if clear, set */
     int fillMode = MacPaint_PixelTrue(x, y, &gPaintBuffer) ? 3 : 1;
@@ -389,7 +408,7 @@ void MacPaint_FloodFill(int x, int y)
     stack[stack_ptr++] = x;
     stack[stack_ptr++] = y;
 
-    while (stack_ptr > 0 && stack_ptr < MAX_FILL_STACK * 2 - 4) {
+    while (stack_ptr > 0 && stack_ptr < max_stack_size - 4) {
         y = stack[--stack_ptr];
         x = stack[--stack_ptr];
 
@@ -409,8 +428,8 @@ void MacPaint_FloodFill(int x, int y)
         /* Fill this pixel */
         MacPaint_DrawPixel(x, y, fillMode);
 
-        /* Add neighbors to stack */
-        if (stack_ptr < MAX_FILL_STACK * 2 - 8) {
+        /* Add neighbors to stack - verify space available */
+        if (stack_ptr < max_stack_size - 8) {
             stack[stack_ptr++] = x + 1;
             stack[stack_ptr++] = y;
             stack[stack_ptr++] = x - 1;
@@ -421,6 +440,9 @@ void MacPaint_FloodFill(int x, int y)
             stack[stack_ptr++] = y - 1;
         }
     }
+
+    /* Clean up allocated memory */
+    DisposePtr((void *)stack);
 }
 
 /**
@@ -650,7 +672,11 @@ void MacPaint_DrawPatternedLine(int x0, int y0, int x1, int y1, Pattern *pat)
     int x = x0;
     int y = y0;
 
-    while (1) {
+    /* Safety limit to prevent infinite loops in case of coordinate corruption */
+    int maxIterations = dx + dy + 1;
+    int iterations = 0;
+
+    while (iterations < maxIterations) {
         /* Draw line points with pattern modulation */
         unsigned char pat_row = pat->pat[step % 8];
         if ((pat_row >> (step % 8)) & 1) {
@@ -674,6 +700,7 @@ void MacPaint_DrawPatternedLine(int x0, int y0, int x1, int y1, Pattern *pat)
             y = y + sy;
         }
         step++;
+        iterations++;
     }
 }
 

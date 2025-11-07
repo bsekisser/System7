@@ -197,7 +197,8 @@ void MacPaint_FileClose(void)
     }
 
     /* Close window and clear document */
-    strcpy(gDocName, "Untitled");
+    strncpy(gDocName, "Untitled", sizeof(gDocName) - 1);
+    gDocName[sizeof(gDocName) - 1] = '\0';
 }
 
 /**
@@ -221,7 +222,8 @@ void MacPaint_FileSaveAs(void)
 {
     /* Show Standard File dialog for filename */
     char filePath[256];
-    strcpy(filePath, gDocName);
+    strncpy(filePath, gDocName, sizeof(filePath) - 1);
+    filePath[sizeof(filePath) - 1] = '\0';
 
     if (MacPaint_DoSaveDialog(filePath, sizeof(filePath))) {
         /* User selected a filename - save with new name */
