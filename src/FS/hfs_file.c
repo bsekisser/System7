@@ -170,10 +170,79 @@ HFSFile* HFS_FileOpen(HFS_Catalog* cat, FileID id, bool resourceFork) {
 HFSFile* HFS_FileOpenByPath(HFS_Catalog* cat, const char* path, bool resourceFork) {
     if (!cat || !path) return NULL;
 
-    /* TODO: Implement path parsing without strtok */
-    /* For now, just return NULL - path-based opening not critical for initial testing */
-    /* FS_LOG_DEBUG("HFS File: Path-based opening not yet implemented\n"); */
-    return NULL;
+    /* Get volume info to find root directory */
+    extern bool VFS_Lookup(VRefNum vref, DirID dir, const char* name, CatEntry* entry);
+    VRefNum vref = (VRefNum)(size_t)cat->vol;  /* Simplified - assumes vol pointer can be cast */
+    DirID currentDir = 2;  /* HFS root directory is typically CNID 2 */
+
+    const char* cursor = path;
+
+    /* Skip leading slashes */
+    while (*cursor == '/') cursor++;
+
+    if (*cursor == '\0') {
+        /* Empty path */
+        return NULL;
+    }
+
+    /* Parse path components */
+    FileID targetID = 0;
+    while (*cursor != '\0') {
+        /* Skip multiple slashes */
+        while (*cursor == '/') cursor++;
+        if (*cursor == '\0') break;
+
+        /* Find end of component */
+        const char* nextSlash = cursor;
+        while (*nextSlash != '\0' && *nextSlash != '/') {
+            nextSlash++;
+        }
+
+        size_t len = (size_t)(nextSlash - cursor);
+        if (len == 0 || len > 31) {
+            return NULL;  /* Invalid component */
+        }
+
+        /* Extract component name */
+        char component[32];
+        memcpy(component, cursor, len);
+        component[len] = '\0';
+
+        /* Look up component in current directory */
+        CatEntry entry;
+        if (!VFS_Lookup(vref, currentDir, component, &entry)) {
+            FS_LOG_DEBUG("HFS File: Component '%s' not found in path '%s'\n", component, path);
+            return NULL;
+        }
+
+        /* Check if this is the last component */
+        Boolean isLast = (*nextSlash == '\0');
+
+        if (isLast) {
+            /* Last component should be a file */
+            if (entry.kind != kNodeFile) {
+                FS_LOG_DEBUG("HFS File: Path '%s' resolves to directory, not file\n", path);
+                return NULL;
+            }
+            targetID = entry.id;
+        } else {
+            /* Intermediate component should be a directory */
+            if (entry.kind != kNodeDir) {
+                FS_LOG_DEBUG("HFS File: Intermediate component '%s' is not a directory\n", component);
+                return NULL;
+            }
+            currentDir = entry.id;
+        }
+
+        cursor = nextSlash;
+    }
+
+    if (targetID == 0) {
+        return NULL;
+    }
+
+    /* Open file by ID */
+    return HFS_FileOpen(cat, targetID, resourceFork);
 }
 
 void HFS_FileClose(HFSFile* file) {
