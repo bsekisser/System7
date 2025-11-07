@@ -2057,8 +2057,21 @@ OSErr HandleVolumeDoubleClick(Point clickPoint)
                 }
 
                 /* Open root directory window */
-                /* TODO: Create folder window for root directory */
-                /* FINDER_LOG_DEBUG("Opening volume: %s (root ID=%d)\n", vcb.name, vcb.rootID); */
+                FINDER_LOG_DEBUG("Opening volume: %s (root ID=%d)\n", vcb.name, vcb.rootID);
+
+                /* Convert C string to Pascal string for window title */
+                Str255 windowTitle;
+                int nameLen = strlen(vcb.name);
+                if (nameLen > 255) nameLen = 255;
+                windowTitle[0] = (unsigned char)nameLen;
+                memcpy(&windowTitle[1], vcb.name, nameLen);
+
+                /* Create folder window for root directory */
+                WindowPtr folderWin = FolderWindow_OpenFolder(gBootVolumeRef, vcb.rootID, windowTitle);
+                if (!folderWin) {
+                    FINDER_LOG_DEBUG("Failed to create folder window for root directory\n");
+                    return memFullErr;
+                }
 
                 return noErr;
             }
