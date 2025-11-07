@@ -83,6 +83,11 @@ static bool read_from_extents(HFS_Volume* vol, const HFS_Extent* extents,
         uint32_t toRead = extentBytes - extentOffset;
         if (toRead > remaining) toRead = remaining;
 
+        /* Prevent division by zero */
+        if (vol->alBlkSize == 0) {
+            return false;
+        }
+
         /* Calculate allocation block and offset within it */
         uint32_t startAllocBlock = extents[i].startBlock + (extentOffset / vol->alBlkSize);
         uint32_t allocOffset = extentOffset % vol->alBlkSize;
@@ -90,7 +95,7 @@ static bool read_from_extents(HFS_Volume* vol, const HFS_Extent* extents,
 
         /* Allocate temporary buffer for block-aligned read */
         /* Check for integer overflow in multiplication */
-        if (vol->alBlkSize != 0 && blocksToRead > UINT32_MAX / vol->alBlkSize) {
+        if (blocksToRead > UINT32_MAX / vol->alBlkSize) {
             return false;  /* Overflow would occur */
         }
 
