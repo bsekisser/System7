@@ -135,11 +135,29 @@ UInt32 CalculateChecksum(const UInt8* data, size_t size) {
 
 Boolean VerifyDecompression(const UInt8* original, size_t originalSize,
                          const UInt8* decompressed, size_t decompressedSize) {
-    (void)original;
-    (void)originalSize;
-    (void)decompressed;
-    (void)decompressedSize;
-    /* TODO: Implement verification logic */
+    /* Verify that sizes match */
+    if (originalSize != decompressedSize) {
+        if (gDebugEnabled) {
+            serial_puts("[RES_DECOMP] Verification failed: size mismatch\n");
+        }
+        return false;
+    }
+
+    /* Verify that data matches byte-by-byte */
+    for (size_t i = 0; i < originalSize; i++) {
+        if (original[i] != decompressed[i]) {
+            if (gDebugEnabled) {
+                serial_puts("[RES_DECOMP] Verification failed: data mismatch at offset ");
+                serial_puts_hex((UInt32)i);
+                serial_puts("\n");
+            }
+            return false;
+        }
+    }
+
+    if (gDebugEnabled) {
+        serial_puts("[RES_DECOMP] Verification successful\n");
+    }
     return true;
 }
 
