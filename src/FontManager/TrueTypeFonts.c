@@ -494,6 +494,11 @@ OSErr GetTrueTypeFontMetrics(TTFont *font, FMetricRec *metrics)
         return fontCorruptErr;
     }
 
+    /* Check for division by zero */
+    if (font->head->unitsPerEm == 0) {
+        return fontCorruptErr;
+    }
+
     /* Convert TrueType metrics to Font Manager format */
     metrics->ascent = ((long)font->hhea->ascender << 16) / font->head->unitsPerEm;
     metrics->descent = ((long)(-font->hhea->descender) << 16) / font->head->unitsPerEm;
