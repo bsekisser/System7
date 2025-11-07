@@ -422,6 +422,8 @@ extern WindowPtr gPaintWindow;
 extern char gDocName[64];
 extern int gDocDirty;
 extern int gCurrentTool;
+extern Rect gSelectionRect;
+extern int gSelectionActive;
 
 #ifdef __cplusplus
 }

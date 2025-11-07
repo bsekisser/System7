@@ -498,13 +498,22 @@ void MacPaint_ToolSpray(int x, int y, int down)
  */
 void MacPaint_ToolRectSelect(int x, int y, int down)
 {
+    extern Rect gSelectionRect;
+    extern int gSelectionActive;
+
     if (down) {
         gToolState.isDrawing = 1;
         gToolState.startX = x;
         gToolState.startY = y;
     } else {
         if (gToolState.isDrawing) {
-            /* TODO: Store selection rectangle for later use */
+            /* Store selection rectangle for later use (cut/copy/paste operations) */
+            gSelectionRect.left = (gToolState.startX < x) ? gToolState.startX : x;
+            gSelectionRect.top = (gToolState.startY < y) ? gToolState.startY : y;
+            gSelectionRect.right = (gToolState.startX > x) ? gToolState.startX : x;
+            gSelectionRect.bottom = (gToolState.startY > y) ? gToolState.startY : y;
+            gSelectionActive = 1;
+
             gToolState.isDrawing = 0;
         }
     }

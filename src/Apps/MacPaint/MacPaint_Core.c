@@ -51,8 +51,8 @@ static UInt32 gWorkSize = 0;
 int gCurrentTool = TOOL_PENCIL;  /* Exposed for menus and event handlers */
 static int gLineSize = 1;
 static Pattern gCurrentPattern;
-static Rect gSelectionRect;
-static int gSelectionActive = 0;
+Rect gSelectionRect;             /* Exposed for tools module */
+int gSelectionActive = 0;         /* Exposed for tools module */
 
 /* Pattern storage (from resource) */
 #define MACPAINT_PATTERN_COUNT 38
