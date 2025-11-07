@@ -589,11 +589,17 @@ static OSErr Notepad_LoadFile(NotePadGlobals *notepad) {
 
         /* Allocate and read page data */
         if (pageSize > 0) {
+            long originalSize = pageSize;
             SetHandleSize(notepad->pageData[i], pageSize);
             if (MemError() == noErr) {
                 HLock(notepad->pageData[i]);
                 err = FSRead(refNum, &pageSize, *notepad->pageData[i]);
                 HUnlock(notepad->pageData[i]);
+                /* If read failed or short read, clear page data */
+                if (err != noErr || pageSize != originalSize) {
+                    SetHandleSize(notepad->pageData[i], 1);
+                    *(*notepad->pageData[i]) = 0;
+                }
             }
         }
     }
