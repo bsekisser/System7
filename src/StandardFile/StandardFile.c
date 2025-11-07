@@ -432,6 +432,10 @@ void CustomGetFile(FileFilterYDProcPtr fileFilter,
 
     /* Copy type list */
     if (numTypes > 0 && typeList != NULL) {
+        /* Check for integer overflow in allocation size */
+        if (numTypes > SIZE_MAX / sizeof(OSType)) {
+            return;
+        }
         gSFState.typeList = (OSType*)NewPtr(numTypes * sizeof(OSType));
         memcpy(gSFState.typeList, typeList, numTypes * sizeof(OSType));
     }
