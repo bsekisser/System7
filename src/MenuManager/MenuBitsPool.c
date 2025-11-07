@@ -73,6 +73,13 @@ OSErr MenuBitsPool_Init(SInt16 numBuffers, SInt32 bufferSize) {
         return paramErr;
     }
 
+    /* Validate parameters to prevent integer overflow */
+    if (numBuffers > 1000 || bufferSize > 1024 * 1024) {
+        serial_printf("[MBPOOL] Pool parameters too large: %d buffers, %d bytes each\n",
+                     numBuffers, bufferSize);
+        return paramErr;
+    }
+
     serial_printf("[MBPOOL] Initializing pool: %d buffers × %d bytes = %d KB total\n",
                  numBuffers, bufferSize, (numBuffers * bufferSize) / 1024);
 
