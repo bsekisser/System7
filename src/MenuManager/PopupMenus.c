@@ -22,21 +22,28 @@
 long PopUpMenuSelect(MenuHandle menu, short top, short left, short popUpItem) {
     if (!menu) return 0;
 
-    printf("Showing popup menu %d at (%d,%d), item %d\n",
-           (*menu)->menuID, left, top, popUpItem);
+    /* External functions for tracking */
+    extern long TrackMenu(short menuID, Point *startPt);
+    extern void HiliteMenu(short menuID);
 
-    /* Calculate popup position */
-    Point location = {top, left};
+    /* Calculate popup position - adjust if popUpItem is specified */
+    Point location;
+    location.v = top;
+    location.h = left;
 
-    /* Show the menu */
-    ShowMenu(menu, location, NULL);
+    /* If popUpItem is specified, adjust vertical position so that item appears at top */
+    if (popUpItem > 0) {
+        short lineHeight = 16;  /* Standard menu item height */
+        location.v = top - (popUpItem - 1) * lineHeight - 2;  /* Account for top padding */
+    }
 
-    /* TODO: Track selection */
+    /* Track the popup menu - TrackMenu handles all mouse tracking and selection */
+    long result = TrackMenu((*menu)->menuID, &location);
 
-    /* Hide the menu */
-    HideMenu();
+    /* Un-highlight the menu (if it was highlighted in menu bar) */
+    HiliteMenu(0);
 
-    return 0; /* No selection for demo */
+    return result;
 }
 
 /* Extended popup menu functions */
