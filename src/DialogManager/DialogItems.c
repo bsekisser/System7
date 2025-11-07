@@ -425,12 +425,64 @@ void AppendDITL(DialogPtr theDialog, Handle theHandle, DITLMethod method)
             break;
     }
 
-    /* Adjust positions of new items */
+    /* Adjust positions of new items with overflow protection */
     for (SInt16 i = 0; i < newItemCount; i++) {
-        newItems[i].bounds.left += offsetH;
-        newItems[i].bounds.right += offsetH;
-        newItems[i].bounds.top += offsetV;
-        newItems[i].bounds.bottom += offsetV;
+        /* Check for overflow/underflow before adding offsets */
+        if (offsetH > 0) {
+            /* Adding positive offset - check for overflow */
+            if (newItems[i].bounds.left > SHRT_MAX - offsetH) {
+                newItems[i].bounds.left = SHRT_MAX;
+            } else {
+                newItems[i].bounds.left += offsetH;
+            }
+            if (newItems[i].bounds.right > SHRT_MAX - offsetH) {
+                newItems[i].bounds.right = SHRT_MAX;
+            } else {
+                newItems[i].bounds.right += offsetH;
+            }
+        } else if (offsetH < 0) {
+            /* Adding negative offset - check for underflow */
+            if (newItems[i].bounds.left < SHRT_MIN - offsetH) {
+                newItems[i].bounds.left = SHRT_MIN;
+            } else {
+                newItems[i].bounds.left += offsetH;
+            }
+            if (newItems[i].bounds.right < SHRT_MIN - offsetH) {
+                newItems[i].bounds.right = SHRT_MIN;
+            } else {
+                newItems[i].bounds.right += offsetH;
+            }
+        } else {
+            /* offsetH is 0, no change needed */
+        }
+
+        if (offsetV > 0) {
+            /* Adding positive offset - check for overflow */
+            if (newItems[i].bounds.top > SHRT_MAX - offsetV) {
+                newItems[i].bounds.top = SHRT_MAX;
+            } else {
+                newItems[i].bounds.top += offsetV;
+            }
+            if (newItems[i].bounds.bottom > SHRT_MAX - offsetV) {
+                newItems[i].bounds.bottom = SHRT_MAX;
+            } else {
+                newItems[i].bounds.bottom += offsetV;
+            }
+        } else if (offsetV < 0) {
+            /* Adding negative offset - check for underflow */
+            if (newItems[i].bounds.top < SHRT_MIN - offsetV) {
+                newItems[i].bounds.top = SHRT_MIN;
+            } else {
+                newItems[i].bounds.top += offsetV;
+            }
+            if (newItems[i].bounds.bottom < SHRT_MIN - offsetV) {
+                newItems[i].bounds.bottom = SHRT_MIN;
+            } else {
+                newItems[i].bounds.bottom += offsetV;
+            }
+        } else {
+            /* offsetV is 0, no change needed */
+        }
     }
 
     /* Resize the cache to accommodate new items */
@@ -817,4 +869,45 @@ static void DisposeDialogItemCache(DialogItemCache* cache)
     cache->dialog = NULL;
     cache->itemCount = 0;
     cache->needsUpdate = false;
+}
+
+/*
+ * RemoveDialogItemCache - Remove and dispose cache for a dialog
+ *
+ * This function is called when a dialog is disposed to prevent
+ * memory leaks and stale cache entries that could be matched if
+ * a new dialog is created at the same memory address.
+ *
+ * Parameters:
+ *   theDialog - The dialog whose cache should be removed
+ */
+void RemoveDialogItemCache(DialogPtr theDialog)
+{
+    if (!theDialog || !gDialogItemState.initialized) {
+        return;
+    }
+
+    /* Search for cache entry matching this dialog */
+    for (int i = 0; i < gDialogItemState.cacheCount; i++) {
+        if (gDialogItemState.cache[i].dialog == theDialog) {
+            /* Dispose of the cache data */
+            DisposeDialogItemCache(&gDialogItemState.cache[i]);
+
+            /* Shift remaining caches down to fill the gap */
+            for (int j = i; j < gDialogItemState.cacheCount - 1; j++) {
+                gDialogItemState.cache[j] = gDialogItemState.cache[j + 1];
+            }
+
+            /* Clear the last entry */
+            gDialogItemState.cache[gDialogItemState.cacheCount - 1].dialog = NULL;
+            gDialogItemState.cache[gDialogItemState.cacheCount - 1].itemCount = 0;
+            gDialogItemState.cache[gDialogItemState.cacheCount - 1].items = NULL;
+            gDialogItemState.cache[gDialogItemState.cacheCount - 1].needsUpdate = false;
+
+            /* Decrement count */
+            gDialogItemState.cacheCount--;
+
+            return;
+        }
+    }
 }

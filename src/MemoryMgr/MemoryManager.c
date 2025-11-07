@@ -1445,8 +1445,14 @@ void free(void* ptr) {
 void* calloc(size_t nmemb, size_t size) {
     /* NO LOGGING - serial_puts corrupts registers! */
 
+    /* Handle zero cases explicitly */
+    if (nmemb == 0 || size == 0) {
+        /* Allocate minimal block for NULL return compatibility */
+        return NULL;
+    }
+
     /* Check for integer overflow in multiplication */
-    if (nmemb != 0 && size > ((size_t)-1) / nmemb) {
+    if (size > SIZE_MAX / nmemb) {
         return NULL;  /* Overflow would occur */
     }
 

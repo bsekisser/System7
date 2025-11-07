@@ -77,14 +77,19 @@ OSErr HandToHand(Handle* theHndl) {
         return memFullErr;
     }
 
+    /* Lock source handle to prevent purging/compaction during copy */
+    HLock(sourceHandle);
+
     /* Copy data from source to new handle */
     sourceData = *sourceHandle;
     newData = *newHandle;
 
     if (sourceData && newData) {
         memcpy(newData, sourceData, handleSize);
+        HUnlock(sourceHandle);
     } else {
         /* Shouldn't happen, but handle gracefully */
+        HUnlock(sourceHandle);
         DisposeHandle(newHandle);
         HUTIL_LOG("HandToHand: NULL data pointer\n");
         return nilHandleErr;

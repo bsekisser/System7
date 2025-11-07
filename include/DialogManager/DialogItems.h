@@ -417,6 +417,7 @@ struct DialogItemInternal;
 typedef struct DialogItemInternal DialogItemInternal;
 DialogItemInternal* GetDialogItemPtr(DialogPtr theDialog, SInt16 itemNo);
 void UpdateDialogItemLayout(DialogPtr theDialog);
+void RemoveDialogItemCache(DialogPtr theDialog);
 
 /* Backwards compatibility aliases */
 #define GetDItem        GetDialogItem

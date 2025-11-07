@@ -976,7 +976,8 @@ static short FindMenuItemAtPoint(MenuHandle theMenu, Point pt, const Rect* menuR
 
     short item = (itemY / itemHeight) + 1;
 
-    if (item > itemCount) {
+    /* More explicit bounds check to prevent off-by-one errors */
+    if (item < 1 || item > itemCount) {
         return 0;
     }
 

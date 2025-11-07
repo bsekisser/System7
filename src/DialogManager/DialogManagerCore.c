@@ -296,6 +296,9 @@ void DisposDialog(DialogPtr theDialog)
         EndModalDialog(theDialog);
     }
 
+    /* Remove dialog item cache to prevent memory leak and stale cache reuse */
+    RemoveDialogItemCache(theDialog);
+
     /* Dispose of the dialog structure */
     DisposeDialogStructure(theDialog, false);
 }
