@@ -892,7 +892,8 @@ Handle GetNamedResource(ResType theType, ConstStr255Param name) {
 
             /* Validate refList bounds before accessing */
             UInt32 refListStart = typeListOffset + refListOffset;
-            UInt32 refListSize = ((UInt32)(resCount + 1)) * sizeof(RefListEntry);
+            /* Cast to UInt32 before adding 1 to prevent overflow */
+            UInt32 refListSize = (((UInt32)resCount + 1)) * sizeof(RefListEntry);
             if (refListStart + refListSize > file->mapSize) {
                 continue;  /* Skip corrupted reference list */
             }
