@@ -628,9 +628,15 @@ static OSErr ConvertTextToRTF(Handle sourceData, Handle *destData)
     sourceText = *sourceData;
     destText = **destData;
 
-    /* Build RTF document */
-    strcpy(destText, rtfHeader);
-    SInt32 destPos = strlen(rtfHeader);
+    /* Build RTF document with bounds checking */
+    size_t headerLen = strlen(rtfHeader);
+    if (headerLen >= destSize) {
+        HUnlock(*destData);
+        HUnlock(sourceData);
+        return memFullErr;
+    }
+    memcpy(destText, rtfHeader, headerLen);
+    SInt32 destPos = headerLen;
 
     /* Copy text with RTF escaping */
     SInt32 i;
@@ -662,8 +668,15 @@ static OSErr ConvertTextToRTF(Handle sourceData, Handle *destData)
         }
     }
 
-    strcpy(destText + destPos, rtfFooter);
-    destPos += strlen(rtfFooter);
+    /* Add footer with bounds checking */
+    size_t footerLen = strlen(rtfFooter);
+    if (destPos + footerLen >= destSize) {
+        HUnlock(*destData);
+        HUnlock(sourceData);
+        return memFullErr;
+    }
+    memcpy(destText + destPos, rtfFooter, footerLen);
+    destPos += footerLen;
 
     HUnlock(*destData);
     HUnlock(sourceData);

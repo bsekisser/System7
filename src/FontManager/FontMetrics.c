@@ -332,8 +332,21 @@ OSErr MeasureTextAdvanced(short familyID, short size, short style, const void *t
     metrics->lineCount = 1;
     metrics->charCount = length;
 
-    /* Allocate arrays for detailed measurements */
+    /* Allocate arrays for detailed measurements with overflow protection */
     if (measureMode != kMeasureExact) {
+        /* Sanity check length to prevent excessive allocations */
+        if (length < 0 || length > 0x10000) {  /* Max 64K characters */
+            return paramErr;
+        }
+
+        /* Check for integer overflow in allocation size */
+        if (length > 0 && sizeof(Fixed) > SIZE_MAX / length) {
+            return fontOutOfMemoryErr;
+        }
+        if (length > 0 && sizeof(Point) > SIZE_MAX / length) {
+            return fontOutOfMemoryErr;
+        }
+
         metrics->charWidths = (Fixed *)NewPtr(length * sizeof(Fixed));
         metrics->charPositions = (Point *)NewPtr(length * sizeof(Point));
 

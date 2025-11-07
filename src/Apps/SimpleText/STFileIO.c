@@ -619,13 +619,28 @@ Boolean STIO_SaveDialog(STDocument* doc, char* pathOut)
         return false;
     }
 
-    /* For now, return a test path */
+    /* For now, return a test path with bounds checking */
+    #define MAX_DIALOG_PATH 512
     if (doc->untitled) {
-        strcpy(pathOut, "/Documents/Untitled.txt");
+        const char* defaultPath = "/Documents/Untitled.txt";
+        if (strlen(defaultPath) >= MAX_DIALOG_PATH) {
+            return false;
+        }
+        strncpy(pathOut, defaultPath, MAX_DIALOG_PATH - 1);
+        pathOut[MAX_DIALOG_PATH - 1] = '\0';
     } else if (doc->filePath[0]) {
-        strcpy(pathOut, doc->filePath);
+        if (strlen(doc->filePath) >= MAX_DIALOG_PATH) {
+            return false;
+        }
+        strncpy(pathOut, doc->filePath, MAX_DIALOG_PATH - 1);
+        pathOut[MAX_DIALOG_PATH - 1] = '\0';
     } else {
-        strcpy(pathOut, "/Documents/Document.txt");
+        const char* defaultPath = "/Documents/Document.txt";
+        if (strlen(defaultPath) >= MAX_DIALOG_PATH) {
+            return false;
+        }
+        strncpy(pathOut, defaultPath, MAX_DIALOG_PATH - 1);
+        pathOut[MAX_DIALOG_PATH - 1] = '\0';
     }
 
     ST_Log("Save dialog would return: %s", pathOut);
@@ -643,8 +658,13 @@ Boolean STIO_OpenDialog(char* pathOut)
         return false;
     }
 
-    /* For now, return a test path */
-    strcpy(pathOut, "/Documents/Sample.txt");
+    /* For now, return a test path with bounds checking */
+    const char* defaultPath = "/Documents/Sample.txt";
+    if (strlen(defaultPath) >= MAX_DIALOG_PATH) {
+        return false;
+    }
+    strncpy(pathOut, defaultPath, MAX_DIALOG_PATH - 1);
+    pathOut[MAX_DIALOG_PATH - 1] = '\0';
 
     ST_Log("Open dialog would return: %s", pathOut);
 
