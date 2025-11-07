@@ -595,11 +595,3 @@ UInt32 GetCurrentTicks(void)
 {
     return ++g_tickCount; /* Simple tick counter */
 }
-
-/* Missing function implementations */
-IOParamPtr DequeueIORequest(DCEPtr dce)
-{
-    /* TODO: Implement I/O request dequeuing */
-    (void)dce;
-    return NULL;
-}
