@@ -438,10 +438,14 @@ OSErr AELoadRecording(const char* filePath) {
 
     /* Read header */
     int eventCount;
-    fread(&eventCount, sizeof(int), 1, file);
-    fread(g_recordingSession.scriptName, sizeof(char), MAX_SCRIPT_NAME, file);
-    fread(&g_recordingSession.startTime, sizeof(time_t), 1, file);
-    fread(&g_recordingSession.endTime, sizeof(time_t), 1, file);
+    if (fread(&eventCount, sizeof(int), 1, file) != 1 ||
+        fread(g_recordingSession.scriptName, sizeof(char), MAX_SCRIPT_NAME, file) != MAX_SCRIPT_NAME ||
+        fread(&g_recordingSession.startTime, sizeof(time_t), 1, file) != 1 ||
+        fread(&g_recordingSession.endTime, sizeof(time_t), 1, file) != 1) {
+        fclose(file);
+        pthread_mutex_unlock(&g_recordingMutex);
+        return eofErr;
+    }
 
     /* Allocate events */
     g_recordingSession.events = NewPtrClear((eventCount) * (sizeof(RecordedEvent)));
@@ -458,24 +462,45 @@ OSErr AELoadRecording(const char* filePath) {
         RecordedEvent* recorded = &g_recordingSession.events[i];
 
         /* Read event metadata */
-        fread(&recorded->timestamp, sizeof(time_t), 1, file);
-        fread(&recorded->targetPSN, sizeof(ProcessSerialNumber), 1, file);
-        fread(&recorded->hasReply, sizeof(Boolean), 1, file);
+        if (fread(&recorded->timestamp, sizeof(time_t), 1, file) != 1 ||
+            fread(&recorded->targetPSN, sizeof(ProcessSerialNumber), 1, file) != 1 ||
+            fread(&recorded->hasReply, sizeof(Boolean), 1, file) != 1) {
+            DisposePtr((Ptr)g_recordingSession.events);
+            g_recordingSession.events = NULL;
+            fclose(file);
+            pthread_mutex_unlock(&g_recordingMutex);
+            return eofErr;
+        }
 
         /* Read event descriptor */
         DescType eventType;
         Size eventSize;
-        fread(&eventType, sizeof(DescType), 1, file);
-        fread(&eventSize, sizeof(Size), 1, file);
+        if (fread(&eventType, sizeof(DescType), 1, file) != 1 ||
+            fread(&eventSize, sizeof(Size), 1, file) != 1) {
+            DisposePtr((Ptr)g_recordingSession.events);
+            g_recordingSession.events = NULL;
+            fclose(file);
+            pthread_mutex_unlock(&g_recordingMutex);
+            return eofErr;
+        }
 
         if (eventSize > 0) {
             void* eventData = NewPtr(eventSize);
             if (!eventData) {
+                DisposePtr((Ptr)g_recordingSession.events);
+                g_recordingSession.events = NULL;
                 fclose(file);
                 pthread_mutex_unlock(&g_recordingMutex);
                 return memFullErr;
             }
-            fread(eventData, 1, eventSize, file);
+            if (fread(eventData, 1, eventSize, file) != eventSize) {
+                DisposePtr((Ptr)eventData);
+                DisposePtr((Ptr)g_recordingSession.events);
+                g_recordingSession.events = NULL;
+                fclose(file);
+                pthread_mutex_unlock(&g_recordingMutex);
+                return eofErr;
+            }
             AECreateDesc(eventType, eventData, eventSize, &recorded->event);
             DisposePtr((Ptr)eventData);
         }
@@ -484,17 +509,32 @@ OSErr AELoadRecording(const char* filePath) {
         if (recorded->hasReply) {
             DescType replyType;
             Size replySize;
-            fread(&replyType, sizeof(DescType), 1, file);
-            fread(&replySize, sizeof(Size), 1, file);
+            if (fread(&replyType, sizeof(DescType), 1, file) != 1 ||
+                fread(&replySize, sizeof(Size), 1, file) != 1) {
+                DisposePtr((Ptr)g_recordingSession.events);
+                g_recordingSession.events = NULL;
+                fclose(file);
+                pthread_mutex_unlock(&g_recordingMutex);
+                return eofErr;
+            }
 
             if (replySize > 0) {
                 void* replyData = NewPtr(replySize);
                 if (!replyData) {
+                    DisposePtr((Ptr)g_recordingSession.events);
+                    g_recordingSession.events = NULL;
                     fclose(file);
                     pthread_mutex_unlock(&g_recordingMutex);
                     return memFullErr;
                 }
-                fread(replyData, 1, replySize, file);
+                if (fread(replyData, 1, replySize, file) != replySize) {
+                    DisposePtr((Ptr)replyData);
+                    DisposePtr((Ptr)g_recordingSession.events);
+                    g_recordingSession.events = NULL;
+                    fclose(file);
+                    pthread_mutex_unlock(&g_recordingMutex);
+                    return eofErr;
+                }
                 AECreateDesc(replyType, replyData, replySize, &recorded->reply);
                 DisposePtr((Ptr)replyData);
             }
