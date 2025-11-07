@@ -183,14 +183,16 @@ OSErr PutScrap(SInt32 length, ResType theType, const void *source)
     /* Resize scrap handle */
     if (gScrapStuff.scrapHandle == NULL) {
         newHandle = NewHandle(length);
+        if (newHandle == NULL) {
+            gScrapStats[3]++;
+            return memFullErr;
+        }
     } else {
-        SetHandleSize(gScrapStuff.scrapHandle, gScrapStuff.scrapSize + length);
+        if (!SetHandleSize(gScrapStuff.scrapHandle, gScrapStuff.scrapSize + length)) {
+            gScrapStats[3]++;
+            return memFullErr;
+        }
         newHandle = gScrapStuff.scrapHandle;
-    }
-
-    if (newHandle == NULL) {
-        gScrapStats[3]++;
-        return memFullErr;
     }
 
     /* Copy data to scrap handle */
