@@ -1756,9 +1756,31 @@ ResID UniqueID(ResType theType) {
 }
 
 ResID Unique1ID(ResType theType) {
-    (void)theType;
-    /* TODO: Implement */
-    return 128;
+    ResID maxID = 127;  /* Start above system resources */
+
+    if (!gCurrentMap) {
+        return 128;
+    }
+
+    /* Find highest ID for this type in current resource file only */
+    ResourceType* typeEntry = gCurrentMap->types;
+    while (typeEntry) {
+        if (typeEntry->type == theType) {
+            ResourceEntry* entry = typeEntry->resources;
+            while (entry) {
+                if (entry->id > maxID) {
+                    maxID = entry->id;
+                }
+                entry = entry->next;
+            }
+        }
+        typeEntry = typeEntry->next;
+    }
+
+    ResID newID = maxID + 1;
+    RESOURCE_LOG_DEBUG("Unique1ID: Generated ID %d for type='%.4s' in current file\n",
+                  newID, (char*)&theType);
+    return newID;
 }
 
 void SetResFileAttrs(RefNum refNum, UInt16 attrs) {
