@@ -206,6 +206,12 @@ OSErr CacheBitmapFont(short familyID, short fontSize, short faceStyle, short dev
                 break;
             }
         }
+
+        /* Check if we successfully made enough space */
+        if (gFontCache->cacheSize + dataSize > gFontCache->maxSize) {
+            /* Still not enough space even after removing LRU entries */
+            return fontOutOfMemoryErr;
+        }
     }
 
     /* Create handle for font data */

@@ -95,10 +95,20 @@ OSErr CopyToScrap(const void *data, SInt32 size, ResType primaryType,
     if (additionalTypes && typeCount > 0) {
         for (i = 0; i < typeCount; i++) {
             Handle convertedData = NULL;
+            Handle sourceData;
 
             /* Convert primary data to additional format */
+            sourceData = NewHandleFromData(data, size);
+            if (!sourceData) {
+                /* Allocation failed - skip this conversion */
+                continue;
+            }
+
             err = ConvertScrapFormat(primaryType, additionalTypes[i],
-                                   NewHandleFromData(data, size), &convertedData);
+                                   sourceData, &convertedData);
+
+            /* Dispose source handle after conversion attempt */
+            DisposeHandle(sourceData);
 
             if (err == noErr && convertedData) {
                 HLock(convertedData);
@@ -347,12 +357,25 @@ OSErr PasteBatchFromScrap(void ***dataItems, SInt32 **dataSizes,
         return scrapNoScrap;
     }
 
-    /* Allocate arrays */
+    /* Allocate arrays with proper cleanup on partial failure */
     *dataItems = (void **)NewPtrClear(actualCount * sizeof(void *));
-    *dataSizes = (SInt32 *)NewPtrClear(actualCount * sizeof(SInt32));
-    *dataTypes = (ResType *)NewPtrClear(actualCount * sizeof(ResType));
+    if (!*dataItems) {
+        return memFullErr;
+    }
 
-    if (!*dataItems || !*dataSizes || !*dataTypes) {
+    *dataSizes = (SInt32 *)NewPtrClear(actualCount * sizeof(SInt32));
+    if (!*dataSizes) {
+        DisposePtr((Ptr)*dataItems);
+        *dataItems = NULL;
+        return memFullErr;
+    }
+
+    *dataTypes = (ResType *)NewPtrClear(actualCount * sizeof(ResType));
+    if (!*dataTypes) {
+        DisposePtr((Ptr)*dataSizes);
+        DisposePtr((Ptr)*dataItems);
+        *dataSizes = NULL;
+        *dataItems = NULL;
         return memFullErr;
     }
 
@@ -467,6 +490,12 @@ OSErr WriteScrapStream(SInt32 streamID, const void *data, SInt32 size)
     if (stream->currentOffset + size > GetHandleSize(stream->dataHandle)) {
         SetHandleSize(stream->dataHandle, stream->currentOffset + size + 1024);
         if (MemError() != noErr) {
+            /* Clean up stream on fatal resize failure */
+            if (stream->dataHandle) {
+                DisposeHandle(stream->dataHandle);
+                stream->dataHandle = NULL;
+            }
+            FreeStreamOperation(streamID);
             return memFullErr;
         }
     }

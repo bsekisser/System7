@@ -361,6 +361,8 @@ handle_item:
                         err = DirCreate(gSFState.vRefNum, gSFState.dirID,
                                       folderName, (SInt32 *)&newDirID);
                         if (err == noErr) {
+                            /* Navigate into newly created folder */
+                            gSFState.dirID = newDirID;
                             SF_PopulateFileList();
                         }
                     }
