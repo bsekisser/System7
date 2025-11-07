@@ -602,7 +602,12 @@ CTabHandle GetCTable(SInt16 ctID) {
     CTabHandle cTable = (CTabHandle)NewPtrClear(sizeof(CTabPtr));
     if (!cTable) return NULL;
 
-    /* Calculate size needed */
+    /* Calculate size needed - check for integer overflow */
+    if (ctID > 1 && (SIZE_MAX - sizeof(ColorTable)) / sizeof(ColorSpec) < (ctID - 1)) {
+        DisposePtr((Ptr)cTable);
+        return NULL;  /* Would overflow */
+    }
+
     size_t tableSize = sizeof(ColorTable) + (ctID - 1) * sizeof(ColorSpec);
     ColorTable *table = (ColorTable *)NewPtrClear(tableSize);
     if (!table) {
