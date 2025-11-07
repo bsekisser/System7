@@ -647,7 +647,17 @@ OSErr AEValidateDesc(const AEDesc* theDesc) {
 
     /* Validate list/record structure */
     if (theDesc->descriptorType == typeAEList || theDesc->descriptorType == typeAERecord) {
-        /* TODO: Validate internal list structure */
+        /* Validate internal list structure by attempting to count items */
+        extern OSErr AECountItems(const AEDescList* theAEDescList, SInt32* theCount);
+        SInt32 itemCount;
+        OSErr err = AECountItems((const AEDescList*)theDesc, &itemCount);
+        if (err != noErr) {
+            return errAECorruptData;
+        }
+        /* Sanity check on item count */
+        if (itemCount < 0 || itemCount > 100000) {
+            return errAECorruptData;
+        }
     }
 
     return noErr;
