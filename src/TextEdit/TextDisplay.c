@@ -594,7 +594,7 @@ pascal void TECalText(TEHandle hTE)
     for (i = 0; i < textLen && lineCount < 16000; i++) {
         if (textPtr[i] == '\r' || textPtr[i] == '\n') {
             /* Hard line break */
-            if (i + 1 < textLen) {
+            if (i + 1 < textLen && lineCount < 16000) {
                 (**teRec).lineStarts[lineCount++] = i + 1;
             }
         }

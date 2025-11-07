@@ -162,6 +162,12 @@ void TESelView(TEHandle hTE) {
 
     /* Check if line is visible */
     if (!TE_IsLineVisible(hTE, selLine)) {
+        /* Guard against divide-by-zero: lineHeight must be positive */
+        if (pTE->base.lineHeight <= 0) {
+            HUnlock((Handle)hTE);
+            return;
+        }
+
         /* Calculate scroll needed */
         visibleLines = TE_GetVisibleLines(hTE);
 
@@ -391,6 +397,12 @@ static SInt16 TE_GetVisibleLines(TEHandle hTE) {
 
     HLock((Handle)hTE);
     pTE = (TEExtPtr)*hTE;
+
+    /* Guard against divide-by-zero: lineHeight must be positive */
+    if (pTE->base.lineHeight <= 0) {
+        HUnlock((Handle)hTE);
+        return 1;  /* Return 1 as safe default */
+    }
 
     viewHeight = pTE->base.viewRect.bottom - pTE->base.viewRect.top;
     visibleLines = viewHeight / pTE->base.lineHeight;

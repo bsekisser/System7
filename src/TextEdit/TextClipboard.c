@@ -474,6 +474,14 @@ OSErr TECopyAsRTF(TEHandle hTE, Handle *rtfHandle)
         return paramErr;
     }
 
+    /* Guard against integer overflow in buffer size calculation */
+    /* Max reasonable selection: ~100MB text = ~600MB RTF with 6x expansion */
+    #define MAX_SAFE_SELECTION (100 * 1024 * 1024)
+    if (selLength > MAX_SAFE_SELECTION) {
+        HUnlock((Handle)hTE);
+        return memFullErr;  /* Selection too large */
+    }
+
     /* Create minimal RTF wrapper */
     /* Calculate safe buffer size accounting for escaping:
      * - Each char could need escaping (2 bytes: \ + char)

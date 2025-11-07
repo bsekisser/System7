@@ -1621,6 +1621,9 @@ void WM_Update(void) {
         if (windowCount > 0) {
             windowStack = (WindowPtr*)NewPtr(windowCount * sizeof(WindowPtr));
             if (windowStack) {
+                /* Initialize array to NULL to avoid uninitialized access */
+                memset(windowStack, 0, windowCount * sizeof(WindowPtr));
+
                 WindowPtr w = window;
                 for (int i = 0; i < windowCount && w; i++) {
                     windowStack[i] = w;

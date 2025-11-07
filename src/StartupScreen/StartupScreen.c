@@ -612,7 +612,7 @@ OSErr ShowStartupError(ConstStr255Param errorMessage, OSErr errorCode) {
 
     /* Draw error code */
     Str255 errorStr;
-    sprintf((char*)&errorStr[1], "Error: %d", errorCode);
+    snprintf((char*)&errorStr[1], 254, "Error: %d", errorCode);
     errorStr[0] = strlen((char*)&errorStr[1]);
     MoveTo(gStartupScreen.extensionRect.left,
            gStartupScreen.extensionRect.bottom + 40);

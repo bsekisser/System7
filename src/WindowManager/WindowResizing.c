@@ -967,6 +967,12 @@ static void Local_InterpolateRect(const Rect* fromRect, const Rect* toRect,
                               int step, int totalSteps, Rect* result) {
     if (fromRect == NULL || toRect == NULL || result == NULL) return;
 
+    /* Guard against divide-by-zero */
+    if (totalSteps <= 0) {
+        *result = *toRect;  /* Just use destination rect */
+        return;
+    }
+
     /* Linear interpolation between rectangles */
     float ratio = (float)step / (float)totalSteps;
 
