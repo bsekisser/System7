@@ -49,11 +49,35 @@ typedef void (*DeskHookProc)(RgnHandle invalidRgn);
 
 /* Platform Menu System stubs */
 void Platform_InitMenuSystem(void) {
-    /* Platform-specific menu initialization */
+    /* Platform-specific menu initialization
+     * Called by InitMenus() during Menu Manager initialization
+     *
+     * In a full implementation, this would:
+     * - Initialize platform-specific menu rendering state
+     * - Set up menu bar cursor resources
+     * - Allocate platform-specific menu caches
+     * - Register menu-related event handlers
+     * - Initialize platform menu tracking structures
+     *
+     * For the kernel environment, menu rendering is handled by
+     * MenuDisplay.c and platform_stubs.c, so this is a no-op.
+     */
 }
 
 void Platform_CleanupMenuSystem(void) {
-    /* Platform-specific menu cleanup */
+    /* Platform-specific menu cleanup
+     * Called by CleanupMenus() during Menu Manager shutdown
+     *
+     * In a full implementation, this would:
+     * - Release platform-specific menu rendering resources
+     * - Dispose of cursor resources
+     * - Free platform menu caches
+     * - Unregister menu event handlers
+     * - Clean up platform tracking structures
+     *
+     * For the kernel environment, cleanup is handled by the
+     * Menu Manager core, so this is a no-op.
+     */
 }
 
 /* Resource Manager */
