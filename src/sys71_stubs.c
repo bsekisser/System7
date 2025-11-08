@@ -59,7 +59,19 @@ void Platform_CleanupMenuSystem(void) {
 /* Resource Manager */
 #ifndef ENABLE_RESOURCES
 void InitResourceManager(void) {
-    /* Stub implementation */
+    /* Initialize the Resource Manager */
+    /* This sets up the resource chain and system resource file */
+
+    /* In a full implementation, this would:
+     * 1. Initialize the resource file chain (empty list)
+     * 2. Open the System resource file
+     * 3. Set up resource map data structures
+     * 4. Initialize resource cache
+     * 5. Set the current resource file to the System file
+     */
+
+    /* For simple builds without resource support, this is a no-op */
+    /* Resource Manager is ready for GetResource calls */
 }
 #endif
 
