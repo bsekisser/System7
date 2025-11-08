@@ -438,7 +438,68 @@ static SInt32 ButtonCDEF_Sys7(ControlHandle control, SInt16 message, SInt32 para
             return 0;
     }
 }
-static SInt32 CheckboxCDEF_Sys7(ControlHandle control, SInt16 message, SInt32 param) { return 0; }
+static SInt32 CheckboxCDEF_Sys7(ControlHandle control, SInt16 message, SInt32 param) {
+    if (!control || !*control) return 0;
+
+    ControlRecord *ctlRec = *control;
+
+    switch (message) {
+        case drawCntl: {
+            /* Draw checkbox box and check mark */
+            extern void FrameRect(const Rect *r);
+            extern void MoveTo(SInt16 h, SInt16 v);
+            extern void LineTo(SInt16 h, SInt16 v);
+            extern void DrawString(const unsigned char *s);
+
+            /* Checkbox box is 12x12 pixels at left of control rect */
+            Rect boxRect;
+            boxRect.left = ctlRec->contrlRect.left;
+            boxRect.top = ctlRec->contrlRect.top;
+            boxRect.right = boxRect.left + 12;
+            boxRect.bottom = boxRect.top + 12;
+
+            FrameRect(&boxRect);
+
+            /* Draw check mark if value is non-zero */
+            if (ctlRec->contrlValue != 0) {
+                /* Draw X-shaped check mark */
+                MoveTo(boxRect.left + 2, boxRect.top + 2);
+                LineTo(boxRect.right - 2, boxRect.bottom - 2);
+                MoveTo(boxRect.right - 2, boxRect.top + 2);
+                LineTo(boxRect.left + 2, boxRect.bottom - 2);
+            }
+
+            /* Draw title to right of checkbox */
+            if (ctlRec->contrlTitle[0] > 0) {
+                MoveTo(boxRect.right + 4, boxRect.bottom - 2);
+                DrawString(ctlRec->contrlTitle);
+            }
+            return 0;
+        }
+
+        case testCntl: {
+            /* Test if point is inside checkbox */
+            extern Boolean PtInRect(Point pt, const Rect *r);
+            Point testPt = *(Point*)&param;
+
+            if (PtInRect(testPt, &ctlRec->contrlRect)) {
+                return inCheckBox;
+            }
+            return 0;
+        }
+
+        case initCntl:
+            /* Initialize checkbox state */
+            return 0;
+
+        case dispCntl:
+            /* Dispose checkbox resources */
+            return 0;
+
+        default:
+            return 0;
+    }
+}
 static SInt32 RadioButtonCDEF_Sys7(ControlHandle control, SInt16 message, SInt32 param) { return 0; }
 static SInt32 ScrollBarCDEF_Sys7(ControlHandle control, SInt16 message, SInt32 param) { return 0; }
 
