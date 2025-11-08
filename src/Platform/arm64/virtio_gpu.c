@@ -243,28 +243,37 @@ bool virtio_gpu_init(void) {
 
     uart_puts("[VIRTIO-GPU] Initializing virtio-gpu driver\n");
 
-    /* For now, hardcode to slot 0 - QEMU virt places virtio-gpu here
-     * when using -device virtio-gpu-device */
-    uart_puts("[VIRTIO-GPU] Checking slot 0 for GPU...\n");
+    /* Scan VirtIO MMIO slots - QEMU virt places devices sequentially */
+    uart_puts("[VIRTIO-GPU] Scanning VirtIO devices...\n");
 
-    virtio_base = (volatile uint32_t *)VIRTIO_MMIO_BASE_START;
-    magic = virtio_read32(VIRTIO_MMIO_MAGIC);
-    uart_puts("[VIRTIO-GPU] Magic: 0x");
-    uart_put_hex(magic);
-    uart_puts("\n");
+    for (int slot = 0; slot < 32; slot++) {
+        uintptr_t base = VIRTIO_MMIO_BASE_START + (slot * VIRTIO_MMIO_SLOT_SIZE);
+        virtio_base = (volatile uint32_t *)base;
 
-    if (magic == 0x74726976) {
+        magic = virtio_read32(VIRTIO_MMIO_MAGIC);
+
+        /* No device at this slot */
+        if (magic != 0x74726976) continue;
+
+        /* Found a VirtIO device */
+        uart_puts("[VIRTIO-GPU] Slot ");
+        uart_putc('0' + slot);
+        uart_puts(" - VirtIO device, reading ID...\n");
+
+        version = virtio_read32(VIRTIO_MMIO_VERSION);
         device_id = virtio_read32(VIRTIO_MMIO_DEVICE_ID);
+
         uart_puts("[VIRTIO-GPU] Device ID: ");
         uart_put_hex(device_id);
-        uart_puts("\n");
+        uart_puts(" (GPU=");
+        uart_put_hex(VIRTIO_ID_GPU);
+        uart_puts(")\n");
 
-        /* Device ID 0 might mean the device is there but not initialized,
-         * or QEMU hasn't fully set it up. Try using it anyway. */
-        uart_puts("[VIRTIO-GPU] Using device at slot 0\n");
-        virtio_gpu_base = VIRTIO_MMIO_BASE_START;
-    } else {
-        uart_puts("[VIRTIO-GPU] No valid VirtIO device at slot 0\n");
+        if (device_id == VIRTIO_ID_GPU) {
+            uart_puts("[VIRTIO-GPU] Found GPU!\n");
+            virtio_gpu_base = base;
+            break;
+        }
     }
 
     uart_puts("[VIRTIO-GPU] Scan complete\n");
