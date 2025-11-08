@@ -1,8 +1,12 @@
 # ARM64 Kernel Makefile
 # Build for Raspberry Pi 3/4/5 and QEMU
 
-# Toolchain
-PREFIX = aarch64-none-elf-
+# Toolchain - auto-detect available compiler
+PREFIX ?= aarch64-none-elf-
+ifeq ($(shell which $(PREFIX)gcc 2>/dev/null),)
+	PREFIX = aarch64-elf-
+endif
+
 CC = $(PREFIX)gcc
 AS = $(PREFIX)as
 LD = $(PREFIX)ld
@@ -26,7 +30,7 @@ LDFLAGS = -T link.ld -nostdlib
 
 # Source files
 ASM_SOURCES = platform_boot.S
-C_SOURCES = hal_boot.c uart.c timer.c gic.c mailbox.c framebuffer.c dtb.c cache.c mmu.c
+C_SOURCES = hal_boot.c uart.c timer.c gic.c mailbox.c framebuffer.c dtb.c cache.c mmu.c string.c
 
 # Add minimal kernel stub for testing
 C_SOURCES += kernel_stub.c
