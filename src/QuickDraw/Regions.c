@@ -779,19 +779,92 @@ RgnHandle RoundRectToRegion(const Rect *bounds, SInt16 ovalWidth, SInt16 ovalHei
  * REGION CLIPPING SUPPORT
  * ================================================================ */
 
+/* Cohen-Sutherland outcodes */
+#define OUTCODE_INSIDE 0  /* 0000 */
+#define OUTCODE_LEFT   1  /* 0001 */
+#define OUTCODE_RIGHT  2  /* 0010 */
+#define OUTCODE_BOTTOM 4  /* 0100 */
+#define OUTCODE_TOP    8  /* 1000 */
+
+/* Compute outcode for a point */
+static SInt16 ComputeOutcode(SInt16 x, SInt16 y, const Rect *clipRect) {
+    SInt16 code = OUTCODE_INSIDE;
+
+    if (x < clipRect->left) {
+        code |= OUTCODE_LEFT;
+    } else if (x > clipRect->right) {
+        code |= OUTCODE_RIGHT;
+    }
+
+    if (y < clipRect->top) {
+        code |= OUTCODE_TOP;
+    } else if (y > clipRect->bottom) {
+        code |= OUTCODE_BOTTOM;
+    }
+
+    return code;
+}
+
 Boolean ClipLineToRegion(Point *pt1, Point *pt2, RgnHandle clipRgn) {
     assert(pt1 != NULL);
     assert(pt2 != NULL);
     assert(clipRgn != NULL && *clipRgn != NULL);
 
-    /* Simple implementation - clip to bounding box */
+    /* Clip line to region's bounding box using Cohen-Sutherland algorithm */
     Region *region = *clipRgn;
     Rect clipRect = region->rgnBBox;
-    (void)clipRect;  /* Reserved for future use */
 
-    /* Use Cohen-Sutherland line clipping algorithm */
-    /* This is a simplified implementation */
-    return true;
+    SInt16 x0 = pt1->h;
+    SInt16 y0 = pt1->v;
+    SInt16 x1 = pt2->h;
+    SInt16 y1 = pt2->v;
+
+    SInt16 outcode0 = ComputeOutcode(x0, y0, &clipRect);
+    SInt16 outcode1 = ComputeOutcode(x1, y1, &clipRect);
+
+    while (true) {
+        if ((outcode0 | outcode1) == 0) {
+            /* Both points inside - accept line */
+            pt1->h = x0;
+            pt1->v = y0;
+            pt2->h = x1;
+            pt2->v = y1;
+            return true;
+        } else if ((outcode0 & outcode1) != 0) {
+            /* Both points share an outside region - reject line */
+            return false;
+        } else {
+            /* Line crosses boundary - clip it */
+            SInt16 x, y;
+            SInt16 outcodeOut = outcode0 ? outcode0 : outcode1;
+
+            /* Find intersection point */
+            if (outcodeOut & OUTCODE_TOP) {
+                x = x0 + (x1 - x0) * (clipRect.top - y0) / (y1 - y0);
+                y = clipRect.top;
+            } else if (outcodeOut & OUTCODE_BOTTOM) {
+                x = x0 + (x1 - x0) * (clipRect.bottom - y0) / (y1 - y0);
+                y = clipRect.bottom;
+            } else if (outcodeOut & OUTCODE_RIGHT) {
+                y = y0 + (y1 - y0) * (clipRect.right - x0) / (x1 - x0);
+                x = clipRect.right;
+            } else { /* OUTCODE_LEFT */
+                y = y0 + (y1 - y0) * (clipRect.left - x0) / (x1 - x0);
+                x = clipRect.left;
+            }
+
+            /* Update endpoint and outcode */
+            if (outcodeOut == outcode0) {
+                x0 = x;
+                y0 = y;
+                outcode0 = ComputeOutcode(x0, y0, &clipRect);
+            } else {
+                x1 = x;
+                y1 = y;
+                outcode1 = ComputeOutcode(x1, y1, &clipRect);
+            }
+        }
+    }
 }
 
 Boolean ClipRectToRegion(Rect *rect, RgnHandle clipRgn, Rect *clippedRect) {
