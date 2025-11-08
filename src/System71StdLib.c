@@ -209,6 +209,79 @@ int unsetenv(const char* name) {
     return 0;  /* Not found is not an error */
 }
 
+/* Command-line option parsing */
+char* optarg = NULL;
+int optind = 1;
+int opterr = 1;
+int optopt = 0;
+
+int getopt(int argc, char* const argv[], const char* optstring) {
+    static int sp = 1;
+    int c;
+    const char* cp;
+
+    if (sp == 1) {
+        /* Check for end of options */
+        if (optind >= argc || argv[optind][0] != '-' || argv[optind][1] == '\0') {
+            return -1;
+        }
+        if (strcmp(argv[optind], "--") == 0) {
+            optind++;
+            return -1;
+        }
+    }
+
+    optopt = c = argv[optind][sp];
+
+    /* Check for invalid option */
+    if (c == ':' || (cp = strchr(optstring, c)) == NULL) {
+        if (opterr && optstring[0] != ':') {
+            extern void serial_puts(const char* s);
+            extern void serial_putchar(char c);
+            serial_puts("Unknown option: -");
+            serial_putchar(c);
+            serial_puts("\n");
+        }
+        if (argv[optind][++sp] == '\0') {
+            optind++;
+            sp = 1;
+        }
+        return '?';
+    }
+
+    /* Check if option requires an argument */
+    if (cp[1] == ':') {
+        if (argv[optind][sp + 1] != '\0') {
+            /* Argument immediately follows option */
+            optarg = &argv[optind++][sp + 1];
+        } else if (++optind >= argc) {
+            /* Missing argument */
+            if (opterr && optstring[0] != ':') {
+                extern void serial_puts(const char* s);
+                extern void serial_putchar(char c);
+                serial_puts("Option requires an argument: -");
+                serial_putchar(c);
+                serial_puts("\n");
+            }
+            sp = 1;
+            return (optstring[0] == ':') ? ':' : '?';
+        } else {
+            /* Argument is next argv element */
+            optarg = argv[optind++];
+        }
+        sp = 1;
+    } else {
+        /* No argument */
+        if (argv[optind][++sp] == '\0') {
+            sp = 1;
+            optind++;
+        }
+        optarg = NULL;
+    }
+
+    return c;
+}
+
 /* String functions */
 size_t strlen(const char* s) {
     size_t len = 0;
