@@ -456,6 +456,23 @@ OSErr ShowConfirmDialog(StringPtr message, Boolean* confirmed) {
 }
 
 OSErr CloseAllWindows(void) {
+    /* Close all windows from front to back */
+    extern WindowPtr FrontWindow(void);
+    extern void CloseWindow(WindowPtr theWindow);
+
+    WindowPtr window;
+    while ((window = FrontWindow()) != NULL) {
+        /* Close the front window */
+        CloseWindow(window);
+
+        /* Safety check to prevent infinite loop if CloseWindow fails */
+        WindowPtr checkWindow = FrontWindow();
+        if (checkWindow == window) {
+            /* Window didn't close, abort to prevent hang */
+            break;
+        }
+    }
+
     return noErr;
 }
 
