@@ -281,9 +281,9 @@ ControlHandle NewControl_Sys7(void *window, Rect *bounds, char *title,
  */
 
 static UInt32 GetCurrentTicks(void) {
-    /* This would normally call TickCount() trap */
-    static UInt32 tickCounter = 0;
-    return ++tickCounter; /* Simplified for evidence-based implementation */
+    /* Call TickCount() trap to get actual system time */
+    extern UInt32 TickCount(void);
+    return TickCount();
 }
 
 static Boolean IsScrollingControl_Sys7(ControlHandle control) {
