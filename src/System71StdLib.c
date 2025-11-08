@@ -320,6 +320,26 @@ long labs(long n) {
     return n < 0 ? -n : n;
 }
 
+/* Random number generation */
+static unsigned long g_rand_seed = 1;
+
+void srand(unsigned int seed) {
+    g_rand_seed = seed;
+}
+
+int rand(void) {
+    /* Linear congruential generator (LCG)
+     * Using parameters from BSD/POSIX.1-2001:
+     * - Multiplier: 1103515245
+     * - Increment: 12345
+     * - Modulus: 2^31 (implicit via masking)
+     *
+     * Returns value in range [0, RAND_MAX] where RAND_MAX = 32767
+     */
+    g_rand_seed = g_rand_seed * 1103515245 + 12345;
+    return (int)((g_rand_seed >> 16) & 0x7FFF);  /* Return 15-bit value */
+}
+
 /* Serial I/O functions */
 #include <stdint.h>
 #include <stdarg.h>
