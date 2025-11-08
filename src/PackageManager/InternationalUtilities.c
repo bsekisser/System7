@@ -91,6 +91,16 @@ typedef struct {
     SInt16    intl2Vers;          /* International resource version */
 } Intl2Rec;
 
+/* Intl3 structure (Additional locale data) */
+typedef struct {
+    UInt8     unTokenTable[256];  /* Untoken table for text processing */
+    char      currencySymbol[8];  /* Currency symbol string */
+    char      thousandsSep[4];    /* Thousands separator string */
+    char      decimalSep[4];      /* Decimal separator string */
+    char      listSep[4];         /* List separator string */
+    SInt16    intl3Vers;          /* International resource version */
+} Intl3Rec;
+
 /*
  * CreateDefaultIntl0 - Create default US English Intl0 resource
  *
@@ -287,6 +297,59 @@ static Handle CreateDefaultIntl2(void) {
 }
 
 /*
+ * CreateDefaultIntl3 - Create default US English Intl3 resource
+ *
+ * Creates a default additional locale data resource with US English settings
+ * for currency symbols, separators, and text tokenization.
+ */
+static Handle CreateDefaultIntl3(void) {
+    Handle h;
+    Intl3Rec* intlPtr;
+    int i;
+
+    /* Allocate handle for Intl3 structure */
+    h = NewHandle(sizeof(Intl3Rec));
+    if (h == NULL) {
+        INTL_LOG("CreateDefaultIntl3: Failed to allocate handle\n");
+        return NULL;
+    }
+
+    /* Lock handle and fill in default locale data */
+    HLock(h);
+    intlPtr = (Intl3Rec*)*h;
+
+    /* Initialize untoken table - maps lowercase to uppercase for text processing */
+    for (i = 0; i < 256; i++) {
+        intlPtr->unTokenTable[i] = (UInt8)i;
+    }
+
+    /* Map lowercase letters to uppercase equivalents */
+    for (i = 'a'; i <= 'z'; i++) {
+        intlPtr->unTokenTable[i] = (UInt8)(i - 32); /* Convert to uppercase */
+    }
+
+    /* Currency symbol (US Dollar) */
+    strncpy(intlPtr->currencySymbol, "$", 8);
+
+    /* Thousands separator (comma) */
+    strncpy(intlPtr->thousandsSep, ",", 4);
+
+    /* Decimal separator (period) */
+    strncpy(intlPtr->decimalSep, ".", 4);
+
+    /* List separator (comma + space) */
+    strncpy(intlPtr->listSep, ", ", 4);
+
+    /* Version */
+    intlPtr->intl3Vers = 0;
+
+    HUnlock(h);
+
+    INTL_LOG("CreateDefaultIntl3: Created default US English Intl3\n");
+    return h;
+}
+
+/*
  * IUGetIntl - Get international resource handle
  *
  * Returns a handle to the specified international resource. These resources
@@ -339,8 +402,7 @@ Handle IUGetIntl(SInt16 theID) {
         case kIntl3ResID:
             /* Additional locale data */
             if (g_intl3Handle == NULL) {
-                /* TODO: Create default Intl3 resource */
-                INTL_LOG("IUGetIntl: Intl3 not implemented yet\n");
+                g_intl3Handle = CreateDefaultIntl3();
             }
             result = g_intl3Handle;
             break;
@@ -446,8 +508,24 @@ void IUSetIntl(SInt16 refNum, SInt16 theID, const void* intlParam) {
             break;
 
         case kIntl3ResID:
-            /* TODO: Implement other resource types */
-            INTL_LOG("IUSetIntl: Resource type %d not implemented\n", (int)theID);
+            dataSize = sizeof(Intl3Rec);
+
+            /* Dispose old handle if it exists */
+            if (g_intl3Handle != NULL) {
+                DisposeHandle(g_intl3Handle);
+            }
+
+            /* Create new handle and copy data */
+            h = NewHandle(dataSize);
+            if (h != NULL) {
+                HLock(h);
+                memcpy(*h, intlParam, dataSize);
+                HUnlock(h);
+                g_intl3Handle = h;
+                INTL_LOG("IUSetIntl: Successfully set Intl3\n");
+            } else {
+                INTL_LOG("IUSetIntl: Failed to allocate handle\n");
+            }
             break;
 
         default:
