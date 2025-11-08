@@ -617,9 +617,72 @@ static Handle DecompressResourceData(Handle compressedHandle, ResourceEntry* ent
         return decompressedHandle;
     } else {
         /* Call custom decompressor defproc */
-        /* TODO: Implement custom decompressor calling convention */
-        SetResError(CantDecompress);
-        return compressedHandle;
+        /* In classic Mac OS, this would execute 68K code from the defproc handle.
+         * For a portable implementation, we check if it's a known decompressor ID
+         * that we can handle internally, otherwise we fail gracefully. */
+
+        if (!defProcHandle || !*defProcHandle) {
+            SetResError(CantDecompress);
+            return compressedHandle;
+        }
+
+        /* Allocate output handle for decompressed data */
+        Handle decompressedHandle = NewHandle(decompressedSize);
+        if (!decompressedHandle) {
+            SetResError(memFullErr);
+            return compressedHandle;
+        }
+
+        /* Check defProcID to see if we can handle it internally */
+        /* Standard decompressor IDs:
+         * 0 = DonnBits (handled by built-in)
+         * 1 = Dcmp1 byte-wise (handled by built-in)
+         * 2 = GreggyBits (handled by built-in)
+         * Others = custom decompressors (would require 68K emulation) */
+
+        if (defProcID >= 0 && defProcID <= 2) {
+            /* Known decompressor - use built-in implementation */
+            UInt8* decompData = NULL;
+            int result = DecompressResource(compressedData, compressedSize,
+                                           &decompData, &decompressedSize);
+
+            if (result != 0 || !decompData) {
+                DisposeHandle(decompressedHandle);
+                SetResError(CantDecompress);
+                return compressedHandle;
+            }
+
+            /* Copy decompressed data to output handle */
+            memcpy(*decompressedHandle, decompData, decompressedSize);
+            DisposePtr((Ptr)decompData);
+
+            /* Dispose of compressed handle */
+            DisposeHandle(compressedHandle);
+
+            /* Add to cache */
+            if (entry) {
+                AddToDecompressionCache(entry->resType, entry->resID, decompressedHandle);
+                entry->attributes &= ~resCompressed;
+            }
+
+            return decompressedHandle;
+        } else {
+            /* Custom decompressor (ID > 2) */
+            /* In classic Mac OS, we would:
+             * 1. Lock the defproc handle
+             * 2. Set up Pascal calling convention (push params on stack)
+             * 3. Execute the 68K code
+             * 4. Check return value (OSErr)
+             *
+             * For portability, we cannot execute 68K code directly.
+             * Applications expecting custom decompressors must provide
+             * them through the DecompressHook mechanism instead. */
+
+            DisposeHandle(decompressedHandle);
+            SetResError(CantDecompress);
+            RES_LOG_ERROR("Custom decompressor ID %d requires 68K emulation", defProcID);
+            return compressedHandle;
+        }
     }
 }
 
