@@ -868,17 +868,30 @@ void DoActivate(WindowPtr window, Boolean activate) {
 }
 
 void DoBackgroundTasks(void) {
-    /* Perform idle-time system tasks */
-    extern void SystemTask(void);
-
-    /* Call SystemTask to handle desk accessories and other background processing */
-    SystemTask();
-
-    /* Could add other background tasks here:
-     * - Check for disk insertions
-     * - Update network status
-     * - Perform deferred cleanup
+    /* Perform idle-time system tasks during event loop
+     *
+     * Called from FinderEventLoop and other event loops to give time
+     * to background processes when no user events are pending.
+     *
+     * Primary tasks:
+     * 1. Call SystemTask() to update Desk Accessories
+     * 2. Allow DA windows to process periodic tasks
+     * 3. Update desk accessory menu items
+     * 4. Service VBL (vertical blanking) tasks
+     *
+     * In a full implementation, additional background work includes:
+     * - Check for disk insertions/ejections
+     * - Update network status indicators
+     * - Perform deferred memory cleanup
+     * - Process asynchronous I/O completions
+     * - Update AppleTalk status
+     * - Service printer queues
+     *
+     * This is critical for cooperative multitasking - without calling
+     * DoBackgroundTasks(), desk accessories and system tasks won't run.
      */
+    extern void SystemTask(void);
+    SystemTask();
 }
 
 /* WaitNextEvent now implemented in EventManager/event_manager.c */
