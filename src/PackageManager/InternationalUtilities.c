@@ -80,6 +80,17 @@ typedef struct {
     SInt16    intl1Vers;          /* International resource version */
 } Intl1Rec;
 
+/* Intl2 structure (Calendar information) */
+typedef struct {
+    SInt16    dateOrder;          /* Date order (mdy, dmy, ymd) */
+    SInt16    longDateFormat;     /* Long date format */
+    char      dayNames[7][16];    /* Day names (Sun, Mon, ...) */
+    char      monthNames[12][16]; /* Month names (Jan, Feb, ...) */
+    char      amString[8];        /* AM string */
+    char      pmString[8];        /* PM string */
+    SInt16    intl2Vers;          /* International resource version */
+} Intl2Rec;
+
 /*
  * CreateDefaultIntl0 - Create default US English Intl0 resource
  *
@@ -213,6 +224,69 @@ static Handle CreateDefaultIntl1(void) {
 }
 
 /*
+ * CreateDefaultIntl2 - Create default US English Intl2 resource
+ *
+ * Creates a default calendar information resource with US English day/month
+ * names and date formatting conventions.
+ */
+static Handle CreateDefaultIntl2(void) {
+    Handle h;
+    Intl2Rec* intlPtr;
+
+    /* Allocate handle for Intl2 structure */
+    h = NewHandle(sizeof(Intl2Rec));
+    if (h == NULL) {
+        INTL_LOG("CreateDefaultIntl2: Failed to allocate handle\n");
+        return NULL;
+    }
+
+    /* Lock handle and fill in default calendar data */
+    HLock(h);
+    intlPtr = (Intl2Rec*)*h;
+
+    /* Date ordering: month/day/year (US format) */
+    intlPtr->dateOrder = 0;  /* 0=MDY, 1=DMY, 2=YMD */
+
+    /* Long date format flags */
+    intlPtr->longDateFormat = 0;
+
+    /* Day names (Sunday = 0) */
+    strncpy(intlPtr->dayNames[0], "Sunday", 16);
+    strncpy(intlPtr->dayNames[1], "Monday", 16);
+    strncpy(intlPtr->dayNames[2], "Tuesday", 16);
+    strncpy(intlPtr->dayNames[3], "Wednesday", 16);
+    strncpy(intlPtr->dayNames[4], "Thursday", 16);
+    strncpy(intlPtr->dayNames[5], "Friday", 16);
+    strncpy(intlPtr->dayNames[6], "Saturday", 16);
+
+    /* Month names (January = 0) */
+    strncpy(intlPtr->monthNames[0], "January", 16);
+    strncpy(intlPtr->monthNames[1], "February", 16);
+    strncpy(intlPtr->monthNames[2], "March", 16);
+    strncpy(intlPtr->monthNames[3], "April", 16);
+    strncpy(intlPtr->monthNames[4], "May", 16);
+    strncpy(intlPtr->monthNames[5], "June", 16);
+    strncpy(intlPtr->monthNames[6], "July", 16);
+    strncpy(intlPtr->monthNames[7], "August", 16);
+    strncpy(intlPtr->monthNames[8], "September", 16);
+    strncpy(intlPtr->monthNames[9], "October", 16);
+    strncpy(intlPtr->monthNames[10], "November", 16);
+    strncpy(intlPtr->monthNames[11], "December", 16);
+
+    /* AM/PM strings */
+    strncpy(intlPtr->amString, "AM", 8);
+    strncpy(intlPtr->pmString, "PM", 8);
+
+    /* Version */
+    intlPtr->intl2Vers = 0;
+
+    HUnlock(h);
+
+    INTL_LOG("CreateDefaultIntl2: Created default US English Intl2\n");
+    return h;
+}
+
+/*
  * IUGetIntl - Get international resource handle
  *
  * Returns a handle to the specified international resource. These resources
@@ -257,8 +331,7 @@ Handle IUGetIntl(SInt16 theID) {
         case kIntl2ResID:
             /* Calendar information */
             if (g_intl2Handle == NULL) {
-                /* TODO: Create default Intl2 resource */
-                INTL_LOG("IUGetIntl: Intl2 not implemented yet\n");
+                g_intl2Handle = CreateDefaultIntl2();
             }
             result = g_intl2Handle;
             break;
@@ -352,6 +425,26 @@ void IUSetIntl(SInt16 refNum, SInt16 theID, const void* intlParam) {
             break;
 
         case kIntl2ResID:
+            dataSize = sizeof(Intl2Rec);
+
+            /* Dispose old handle if it exists */
+            if (g_intl2Handle != NULL) {
+                DisposeHandle(g_intl2Handle);
+            }
+
+            /* Create new handle and copy data */
+            h = NewHandle(dataSize);
+            if (h != NULL) {
+                HLock(h);
+                memcpy(*h, intlParam, dataSize);
+                HUnlock(h);
+                g_intl2Handle = h;
+                INTL_LOG("IUSetIntl: Successfully set Intl2\n");
+            } else {
+                INTL_LOG("IUSetIntl: Failed to allocate handle\n");
+            }
+            break;
+
         case kIntl3ResID:
             /* TODO: Implement other resource types */
             INTL_LOG("IUSetIntl: Resource type %d not implemented\n", (int)theID);
