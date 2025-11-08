@@ -637,31 +637,9 @@ OSErr ResError(void) {
 }
 #endif
 
-void AddResMenu(MenuHandle theMenu, ResType theType) {
-    if (!theMenu) return;
-
-    /* Add resources of specified type to menu */
-    /* Common types: 'FONT' for fonts, 'DRVR' for desk accessories */
-
-    /* In a full implementation, this would:
-     * 1. Enumerate all resources of type theType
-     * 2. For each resource, get its name
-     * 3. Append the name to the menu using AppendMenu
-     */
-
-    /* For now, this is a no-op as we don't have full resource enumeration */
-    /* Real implementation would call:
-     *   short count = Count1Resources(theType);
-     *   for (short i = 1; i <= count; i++) {
-     *       Handle res = Get1IndResource(theType, i);
-     *       Str255 name;
-     *       GetResInfo(res, &id, &type, name);
-     *       AppendMenu(theMenu, name);
-     *   }
-     */
-
-    (void)theType; /* Unused for now */
-}
+/* AddResMenu and InsertResMenu now implemented in MenuManager/menu_stubs.c
+ * - AddResMenu: Enumerates resources and appends names to menu
+ * - InsertResMenu: Enumerates resources and inserts names at position */
 
 /* InsertFontResMenu moved to MenuManager/MenuItems.c */
 
