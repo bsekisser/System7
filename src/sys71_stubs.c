@@ -332,6 +332,29 @@ OSErr ShowAboutFinder(void) {
 /* HandleContentClick moved to Finder/finder_main.c */
 
 OSErr HandleGrowWindow(WindowPtr window, EventRecord* event) {
+    if (!window || !event) {
+        return paramErr;
+    }
+
+    /* Call GrowWindow to let user resize the window */
+    extern long GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox);
+    extern void SizeWindow(WindowPtr theWindow, SInt16 w, SInt16 h, Boolean fUpdate);
+    extern SInt16 HiWord(long x);
+    extern SInt16 LoWord(long x);
+
+    /* Set size constraints (minimum 80x80, maximum screen size) */
+    Rect sizeRect = {80, 80, 480, 640};
+
+    /* Track window resizing */
+    long newSize = GrowWindow(window, event->where, &sizeRect);
+
+    /* If user changed size, apply it */
+    if (newSize != 0) {
+        SInt16 newWidth = LoWord(newSize);
+        SInt16 newHeight = HiWord(newSize);
+        SizeWindow(window, newWidth, newHeight, true);
+    }
+
     return noErr;
 }
 
