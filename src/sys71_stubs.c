@@ -357,7 +357,21 @@ void WriteResource(Handle theResource) {
 }
 
 void CloseResFile(SInt16 refNum) {
-    /* Stub */
+    if (refNum <= 0) return;
+
+    /* Close a resource file */
+    /* This writes any changes and releases the resource map */
+
+    /* In a full implementation, this would:
+     * 1. Write any modified resources to disk
+     * 2. Update the resource map on disk
+     * 3. Close the file via File Manager
+     * 4. Release the in-memory resource map
+     * 5. Remove from the resource file chain
+     */
+
+    /* For now, just a no-op as we don't have full resource file management */
+    (void)refNum;
 }
 
 OSErr ResError(void) {
