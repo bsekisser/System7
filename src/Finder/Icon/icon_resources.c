@@ -5,16 +5,78 @@
 #include "Finder/Icon/icon_resources.h"
 #include <string.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include "Resources/icons_generated.h"
+#include "ResourceManager.h"
+#include "SystemTypes.h"
 
-/* Stub: Load icon family by resource ID */
+/* Resource types */
+#define FOUR_CHAR_CODE(x) ((UInt32)(x))
+#define kICN_Type  FOUR_CHAR_CODE('ICN#')
+#define kCicn_Type FOUR_CHAR_CODE('cicn')
+
+/* Static buffers for icon data (persistent across calls) */
+static uint8_t gIconBitmap[128];
+static uint8_t gIconMask[128];
+
+/* Load icon family by resource ID */
 bool IconRes_LoadFamilyByID(int16_t rsrcID, IconFamily* out) {
     /* First check generated icon table (imported resources) */
     if (IconGen_FindByID(rsrcID, out)) {
         return true;
     }
-    /* TODO: Implement ICN#/cicn from resource fork files */
-    return false;
+
+    /* Try to load from resource fork files */
+    /* First try cicn (color icon) - preferred */
+    Handle cicnHandle = GetResource(kCicn_Type, rsrcID);
+    if (cicnHandle != NULL) {
+        /* cicn format is complex (PixMap + ColorTable + pixel data)
+         * For now, fall through to ICN# until cicn parser is implemented */
+        ReleaseResource(cicnHandle);
+    }
+
+    /* Try ICN# (1-bit icon with mask) */
+    Handle icnHandle = GetResource(kICN_Type, rsrcID);
+    if (icnHandle == NULL) {
+        return false;
+    }
+
+    /* Load the resource data into memory */
+    LoadResource(icnHandle);
+
+    /* Get resource size - should be 256 bytes (128 image + 128 mask) */
+    SInt32 size = GetHandleSize(icnHandle);
+    if (size != 256) {
+        ReleaseResource(icnHandle);
+        return false;
+    }
+
+    /* Lock the handle and get pointer to data */
+    UInt8 state = HGetState(icnHandle);
+    HLock(icnHandle);
+    uint8_t* data = (uint8_t*)*icnHandle;
+
+    /* Copy icon bitmap (first 128 bytes) */
+    memcpy(gIconBitmap, data, 128);
+
+    /* Copy icon mask (next 128 bytes) */
+    memcpy(gIconMask, data + 128, 128);
+
+    /* Restore handle state and release */
+    HSetState(icnHandle, state);
+    ReleaseResource(icnHandle);
+
+    /* Fill IconFamily structure */
+    memset(out, 0, sizeof(IconFamily));
+    out->large.w = 32;
+    out->large.h = 32;
+    out->large.depth = kIconDepth1;
+    out->large.img1b = gIconBitmap;
+    out->large.mask1b = gIconMask;
+    out->large.argb32 = NULL;
+    out->hasSmall = false;
+
+    return true;
 }
 
 /* Map type/creator to icon resource ID */
