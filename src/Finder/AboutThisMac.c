@@ -300,18 +300,12 @@ static void AboutWindow_UpdateFramebufferAddress(void) {
     if (!sAboutWin) return;
 
     /* Get current window content position in global coordinates */
-    /* TODO: Use contentGlobal for framebuffer address calculation */
+    /* Use window's content region for accurate global position */
+    if (!sAboutWin->contRgn || !*(sAboutWin->contRgn)) return;
 
-    /* Convert from local (0,0,w,h) back to global by using portRect and window position */
-    /* Actually, we need to get the window's structure rect and calculate content from that */
-    if (!sAboutWin->strucRgn) return;
-
-    Rect strucRect = (**(sAboutWin->strucRgn)).rgnBBox;
-
-    /* Content is inside the structure (account for title bar and borders) */
-    /* Title bar is typically 20 pixels, borders are 1 pixel */
-    SInt16 contentTop = strucRect.top + 20;  /* Below title bar */
-    SInt16 contentLeft = strucRect.left + 1;  /* Inside left border */
+    Rect contentGlobal = (*(sAboutWin->contRgn))->rgnBBox;
+    SInt16 contentTop = contentGlobal.top;
+    SInt16 contentLeft = contentGlobal.left;
 
     /* Clamp to screen bounds to prevent wrapping */
     extern QDGlobals qd;
