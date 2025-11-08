@@ -159,9 +159,48 @@ OSErr DrawMBARString(const unsigned char *text, SInt16 script, Rect *bounds, SIn
         return paramErr;
     }
 
-    /* TODO: Platform-specific text drawing implementation */
-    /* This would call through to QuickDraw text drawing routines */
-    /* For now, return success as a stub */
+    extern void MoveTo(SInt16 h, SInt16 v);
+    extern void DrawString(const unsigned char *s);
+    extern SInt16 StringWidth(const unsigned char *s);
+    extern void TextFont(SInt16 font);
+    extern void TextSize(SInt16 size);
+    extern void TextFace(SInt16 face);
+
+    /* Set menu bar font (Chicago 12) */
+    TextFont(0);
+    TextSize(12);
+    TextFace(0);
+
+    /* Calculate text width for justification */
+    SInt16 textWidth = StringWidth(text);
+    SInt16 boundsWidth = bounds->right - bounds->left;
+    SInt16 h = bounds->left;
+
+    /* Apply justification */
+    switch (just) {
+        case -1:  /* Left justify */
+            h = bounds->left;
+            break;
+        case 0:   /* Center */
+            h = bounds->left + (boundsWidth - textWidth) / 2;
+            break;
+        case 1:   /* Right justify */
+            h = bounds->right - textWidth;
+            break;
+        default:
+            h = bounds->left;
+            break;
+    }
+
+    /* Calculate baseline (typically at bottom - 3 for menu bar text) */
+    SInt16 v = bounds->bottom - 3;
+
+    /* Draw the text */
+    MoveTo(h, v);
+    DrawString(text);
+
+    /* Ignore script parameter for now - System 7 handles this internally */
+    (void)script;
 
     return noErr;
 }
