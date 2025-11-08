@@ -118,7 +118,87 @@ bool IconRes_MapTypeCreatorToIcon(uint32_t type, uint32_t creator, int16_t* outR
 
 /* Load custom icon from path */
 bool IconRes_LoadCustomIconForPath(const char* path, IconFamily* out) {
-    /* TODO: Check for Icon\r file in folder */
-    /* TODO: Check HFS+ extended attributes */
+    if (!path || !out) {
+        return false;
+    }
+
+    /* Check for Icon\r file in folder */
+    /* Icon\r is a special file with 0x0D (carriage return) as last char of name */
+    char iconPath[1024];
+    size_t pathLen = strlen(path);
+
+    if (pathLen + 7 > sizeof(iconPath)) {  /* 7 = "/Icon" + '\r' + '\0' */
+        return false;
+    }
+
+    /* Build path to Icon\r file */
+    strcpy(iconPath, path);
+    if (iconPath[pathLen - 1] != '/') {
+        strcat(iconPath, "/");
+    }
+    strcat(iconPath, "Icon");
+    iconPath[strlen(iconPath)] = '\r';  /* Append carriage return */
+    iconPath[strlen(iconPath) + 1] = '\0';
+
+    /* Try to open the Icon\r file's resource fork */
+    /* Convert to unsigned char* for OpenResFile */
+    unsigned char pIconPath[256];
+    size_t iconPathLen = strlen(iconPath);
+    if (iconPathLen > 255) {
+        return false;
+    }
+    pIconPath[0] = (unsigned char)iconPathLen;
+    memcpy(&pIconPath[1], iconPath, iconPathLen);
+
+    /* Open resource fork of Icon\r file */
+    SInt16 refNum = OpenResFile(pIconPath);
+    if (refNum == -1) {
+        /* No Icon\r file found */
+        return false;
+    }
+
+    /* Try to load ICN# resource ID 128 (standard custom icon ID) */
+    UseResFile(refNum);
+    Handle icnHandle = Get1Resource(kICN_Type, 128);
+
+    if (icnHandle != NULL) {
+        /* Load and parse ICN# resource */
+        LoadResource(icnHandle);
+        SInt32 size = GetHandleSize(icnHandle);
+
+        if (size == 256) {
+            UInt8 state = HGetState(icnHandle);
+            HLock(icnHandle);
+            uint8_t* data = (uint8_t*)*icnHandle;
+
+            /* Copy icon bitmap (first 128 bytes) */
+            memcpy(gIconBitmap, data, 128);
+
+            /* Copy icon mask (next 128 bytes) */
+            memcpy(gIconMask, data + 128, 128);
+
+            HSetState(icnHandle, state);
+            ReleaseResource(icnHandle);
+
+            /* Fill IconFamily structure */
+            memset(out, 0, sizeof(IconFamily));
+            out->large.w = 32;
+            out->large.h = 32;
+            out->large.depth = kIconDepth1;
+            out->large.img1b = gIconBitmap;
+            out->large.mask1b = gIconMask;
+            out->large.argb32 = NULL;
+            out->hasSmall = false;
+
+            CloseResFile(refNum);
+            return true;
+        }
+
+        ReleaseResource(icnHandle);
+    }
+
+    CloseResFile(refNum);
+
+    /* HFS+ extended attributes not supported yet */
     return false;
 }
