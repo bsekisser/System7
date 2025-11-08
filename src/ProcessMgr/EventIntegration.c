@@ -248,10 +248,25 @@ static Boolean CheckSystemEvents(EventMask mask, EventRecord* evt) {
      * But NOT for mouse/keyboard hardware polling.
      */
 
-    (void)mask;  /* Suppress unused warning */
-    (void)evt;   /* Suppress unused warning */
+    /* Generate null/idle events when no other events are pending */
+    /* Null events allow applications to perform background tasks */
+    if (mask & nullEvent) {
+        extern void GetMouse(Point* mouseLoc);
+        extern UInt32 TickCount(void);
 
-    /* TODO: Could generate idle/timeout events here if needed */
+        /* Fill in null event */
+        evt->what = nullEvent;
+        evt->message = 0;
+        evt->when = TickCount();
+        evt->modifiers = GetModifiers();
+
+        /* Get current mouse position */
+        Point mousePt;
+        GetMouse(&mousePt);
+        evt->where = mousePt;
+
+        return true;
+    }
 
     return false;  /* No events generated */
 }
