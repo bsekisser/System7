@@ -20,16 +20,7 @@ void exceptions_init(void) {
  * Synchronous exception handler
  */
 void exception_sync_handler(void) {
-    uint64_t esr, elr, far;
-
-    /* Read exception syndrome register */
-    __asm__ volatile("mrs %0, esr_el1" : "=r"(esr));
-    __asm__ volatile("mrs %0, elr_el1" : "=r"(elr));
-    __asm__ volatile("mrs %0, far_el1" : "=r"(far));
-
-    uart_puts("\n[EXCEPTION] Synchronous exception!\n");
-    uart_puts("[EXCEPTION] ESR: ");
-    uart_puts("[EXCEPTION] Halting...\n");
+    uart_puts("\n[EXCEPTION] Synchronous exception caught\n");
 
     /* Hang */
     while (1) {

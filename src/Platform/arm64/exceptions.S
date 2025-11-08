@@ -56,17 +56,9 @@ exception_curr_el_sp0_serror:
     b exception_hang
 
 exception_curr_el_spx_sync:
-    /* Save context */
-    stp x0, x1, [sp, #-16]!
-    stp x2, x3, [sp, #-16]!
-
-    /* Call C handler */
-    bl exception_sync_handler
-
-    /* Restore context */
-    ldp x2, x3, [sp], #16
-    ldp x0, x1, [sp], #16
-    eret
+    /* For now, just hang on any sync exception */
+    /* TODO: Properly save all registers and call C handler */
+    b exception_hang
 
 exception_curr_el_spx_irq:
     eret
