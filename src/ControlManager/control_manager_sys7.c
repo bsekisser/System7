@@ -380,7 +380,64 @@ static Boolean HasScrollThumb_Sys7(ControlHandle control) {
 }
 
 /* Stub implementations for standard CDEFs */
-static SInt32 ButtonCDEF_Sys7(ControlHandle control, SInt16 message, SInt32 param) { return 0; }
+static SInt32 ButtonCDEF_Sys7(ControlHandle control, SInt16 message, SInt32 param) {
+    if (!control || !*control) return 0;
+
+    ControlRecord *ctlRec = *control;
+
+    switch (message) {
+        case drawCntl: {
+            /* Draw button frame */
+            extern void FrameRect(const Rect *r);
+            extern void InvertRect(const Rect *r);
+            extern void MoveTo(SInt16 h, SInt16 v);
+            extern void DrawString(const unsigned char *s);
+            extern SInt16 StringWidth(const unsigned char *s);
+
+            FrameRect(&ctlRec->contrlRect);
+
+            /* Highlight if param != 0 */
+            if (param != 0) {
+                InvertRect(&ctlRec->contrlRect);
+            }
+
+            /* Draw title centered */
+            if (ctlRec->contrlTitle[0] > 0) {
+                SInt16 textWidth = StringWidth(ctlRec->contrlTitle);
+                SInt16 rectWidth = ctlRec->contrlRect.right - ctlRec->contrlRect.left;
+                SInt16 rectHeight = ctlRec->contrlRect.bottom - ctlRec->contrlRect.top;
+                SInt16 h = ctlRec->contrlRect.left + (rectWidth - textWidth) / 2;
+                SInt16 v = ctlRec->contrlRect.top + rectHeight / 2 + 4; /* Baseline offset */
+
+                MoveTo(h, v);
+                DrawString(ctlRec->contrlTitle);
+            }
+            return 0;
+        }
+
+        case testCntl: {
+            /* Test if point is inside button */
+            extern Boolean PtInRect(Point pt, const Rect *r);
+            Point testPt = *(Point*)&param;
+
+            if (PtInRect(testPt, &ctlRec->contrlRect)) {
+                return inButton;
+            }
+            return 0;
+        }
+
+        case initCntl:
+            /* Nothing special needed for button initialization */
+            return 0;
+
+        case dispCntl:
+            /* Nothing special needed for button disposal */
+            return 0;
+
+        default:
+            return 0;
+    }
+}
 static SInt32 CheckboxCDEF_Sys7(ControlHandle control, SInt16 message, SInt32 param) { return 0; }
 static SInt32 RadioButtonCDEF_Sys7(ControlHandle control, SInt16 message, SInt32 param) { return 0; }
 static SInt32 ScrollBarCDEF_Sys7(ControlHandle control, SInt16 message, SInt32 param) { return 0; }
