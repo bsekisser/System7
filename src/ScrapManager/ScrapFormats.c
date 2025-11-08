@@ -709,7 +709,58 @@ static OSErr ValidatePICTData(const void *data, SInt32 size)
 
 static OSErr ValidateSoundData(const void *data, SInt32 size)
 {
-    /* Sound validation would check for valid sound resource structure */
+    /* Sound validation checks for valid 'snd ' resource structure
+     *
+     * Sound resource format:
+     * - Format type (2 bytes):
+     *   - 0x0001 = Standard sound header
+     *   - 0x0002 = HyperCard sound header
+     * - Data type count (2 bytes) - number of sound commands
+     * - For format 1:
+     *   - Sample rate (Fixed, 4 bytes)
+     *   - Loop start (4 bytes)
+     *   - Loop end (4 bytes)
+     *   - Encoding (1 byte): 0x00=stdSH, 0xFF=extSH, 0xFE=cmpSH
+     *   - Base frequency (1 byte)
+     *   - Sample data follows
+     *
+     * Minimum valid sound is ~20 bytes (format + type count + header)
+     */
 
-    return noErr; /* Assume valid for now */
+    if (!data || size < 20) {
+        return paramErr;
+    }
+
+    const unsigned char *snd = (const unsigned char *)data;
+
+    /* Check format type (bytes 0-1) */
+    UInt16 format = (snd[0] << 8) | snd[1];
+
+    /* Valid formats: 0x0001 (standard) or 0x0002 (HyperCard) */
+    if (format != 0x0001 && format != 0x0002) {
+        return -1;  /* Invalid format */
+    }
+
+    /* Check data type count (bytes 2-3) */
+    UInt16 typeCount = (snd[2] << 8) | snd[3];
+
+    /* Type count should be reasonable (typically 1-16) */
+    if (typeCount == 0 || typeCount > 100) {
+        return -1;  /* Invalid type count */
+    }
+
+    /* For format 1, validate sample rate (bytes 4-7 as Fixed point) */
+    if (format == 0x0001 && size >= 8) {
+        UInt32 sampleRate = (snd[4] << 24) | (snd[5] << 16) | (snd[6] << 8) | snd[7];
+
+        /* Sample rate should be reasonable (1 kHz to 100 kHz in fixed point)
+         * Fixed point: high 16 bits = integer part */
+        UInt16 rateInt = sampleRate >> 16;
+
+        if (rateInt < 1000 || rateInt > 100000) {
+            return -1;  /* Unreasonable sample rate */
+        }
+    }
+
+    return noErr;
 }
