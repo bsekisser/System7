@@ -126,6 +126,7 @@ extern Boolean AboutWindow_HandleUpdate(WindowPtr w);
 static Point Local_CalculateFinalWindowPosition(Point mousePt);
 static void Local_InitializeDragState(WindowPtr theWindow, Point startPt, const Rect* bounds);
 #endif
+static void Local_ApplyWindowSnap(WindowPtr draggedWindow, short* newLeft, short* newTop, short windowWidth, short windowHeight);
 
 #if 0  /* UNUSED: Local_GetPreferredDragFeedback - orphaned by commenting out drag state functions */
 /* Implementation of Local_GetPreferredDragFeedback */
@@ -500,6 +501,9 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
                 newLeft = dragBounds.right - windowWidth;
             if (newTop + windowHeight > dragBounds.bottom)
                 newTop = dragBounds.bottom - windowHeight;
+
+            /* Apply snap to other windows */
+            Local_ApplyWindowSnap(theWindow, &newLeft, &newTop, windowWidth, windowHeight);
 
             /* XOR outline feedback (authentic Mac OS behavior) */
             if (newLeft != dragOutline.left || newTop != dragOutline.top) {
@@ -1034,7 +1038,7 @@ static Point Local_ApplySnapToEdges(Point windowPos) {
         windowPos.v = screenBounds.bottom - WM_RECT_HEIGHT(&windowBounds);
     }
 
-    /* TODO: Snap to other windows if enabled */
+    /* Window-to-window snapping implemented in active DragWindow code */
 
     return windowPos;
 }
@@ -1168,6 +1172,114 @@ static void Local_InvalidateScreenRegion(RgnHandle rgn) {
         /* PaintBehind will redraw all windows from the start of the list
          * The region parameter tells PaintBehind what area was affected */
         PaintBehind(wmState->windowList, rgn);
+    }
+}
+
+/**
+ * Local_ApplyWindowSnap - Apply snap-to-window edges during drag
+ * Snaps the dragged window to edges of other visible windows if within SNAP_DISTANCE
+ */
+static void Local_ApplyWindowSnap(WindowPtr draggedWindow, short* newLeft, short* newTop,
+                                   short windowWidth, short windowHeight) {
+    if (!draggedWindow || !newLeft || !newTop) return;
+
+    extern WindowManagerState* GetWindowManagerState(void);
+    WindowManagerState* wmState = GetWindowManagerState();
+    if (!wmState || !wmState->windowList) return;
+
+    /* Calculate dragged window edges */
+    short dragRight = *newLeft + windowWidth;
+    short dragBottom = *newTop + windowHeight;
+
+    /* Best snap distance found so far (closest edge) */
+    short bestSnapDist = SNAP_DISTANCE + 1;
+    short snapDeltaH = 0;
+    short snapDeltaV = 0;
+
+    /* Iterate through all windows in the window list */
+    WindowPtr otherWindow = wmState->windowList;
+    while (otherWindow) {
+        /* Skip the dragged window itself and invisible windows */
+        if (otherWindow != draggedWindow && otherWindow->visible && otherWindow->strucRgn) {
+            RgnHandle strucRgn = otherWindow->strucRgn;
+            if (*strucRgn) {
+                Rect otherBounds = (*strucRgn)->rgnBBox;
+
+                /* Check horizontal snapping (left/right edges) */
+                /* Snap dragged left edge to other right edge */
+                short dist = (*newLeft > otherBounds.right) ? (*newLeft - otherBounds.right) : (otherBounds.right - *newLeft);
+                if (dist <= SNAP_DISTANCE && dist < bestSnapDist) {
+                    bestSnapDist = dist;
+                    snapDeltaH = otherBounds.right - *newLeft;
+                    snapDeltaV = 0;
+                }
+
+                /* Snap dragged right edge to other left edge */
+                dist = (dragRight > otherBounds.left) ? (dragRight - otherBounds.left) : (otherBounds.left - dragRight);
+                if (dist <= SNAP_DISTANCE && dist < bestSnapDist) {
+                    bestSnapDist = dist;
+                    snapDeltaH = otherBounds.left - dragRight;
+                    snapDeltaV = 0;
+                }
+
+                /* Snap dragged left edge to other left edge (align) */
+                dist = (*newLeft > otherBounds.left) ? (*newLeft - otherBounds.left) : (otherBounds.left - *newLeft);
+                if (dist <= SNAP_DISTANCE && dist < bestSnapDist) {
+                    bestSnapDist = dist;
+                    snapDeltaH = otherBounds.left - *newLeft;
+                    snapDeltaV = 0;
+                }
+
+                /* Snap dragged right edge to other right edge (align) */
+                dist = (dragRight > otherBounds.right) ? (dragRight - otherBounds.right) : (otherBounds.right - dragRight);
+                if (dist <= SNAP_DISTANCE && dist < bestSnapDist) {
+                    bestSnapDist = dist;
+                    snapDeltaH = otherBounds.right - dragRight;
+                    snapDeltaV = 0;
+                }
+
+                /* Check vertical snapping (top/bottom edges) */
+                /* Snap dragged top edge to other bottom edge */
+                dist = (*newTop > otherBounds.bottom) ? (*newTop - otherBounds.bottom) : (otherBounds.bottom - *newTop);
+                if (dist <= SNAP_DISTANCE && dist < bestSnapDist) {
+                    bestSnapDist = dist;
+                    snapDeltaH = 0;
+                    snapDeltaV = otherBounds.bottom - *newTop;
+                }
+
+                /* Snap dragged bottom edge to other top edge */
+                dist = (dragBottom > otherBounds.top) ? (dragBottom - otherBounds.top) : (otherBounds.top - dragBottom);
+                if (dist <= SNAP_DISTANCE && dist < bestSnapDist) {
+                    bestSnapDist = dist;
+                    snapDeltaH = 0;
+                    snapDeltaV = otherBounds.top - dragBottom;
+                }
+
+                /* Snap dragged top edge to other top edge (align) */
+                dist = (*newTop > otherBounds.top) ? (*newTop - otherBounds.top) : (otherBounds.top - *newTop);
+                if (dist <= SNAP_DISTANCE && dist < bestSnapDist) {
+                    bestSnapDist = dist;
+                    snapDeltaH = 0;
+                    snapDeltaV = otherBounds.top - *newTop;
+                }
+
+                /* Snap dragged bottom edge to other bottom edge (align) */
+                dist = (dragBottom > otherBounds.bottom) ? (dragBottom - otherBounds.bottom) : (otherBounds.bottom - dragBottom);
+                if (dist <= SNAP_DISTANCE && dist < bestSnapDist) {
+                    bestSnapDist = dist;
+                    snapDeltaH = 0;
+                    snapDeltaV = otherBounds.bottom - dragBottom;
+                }
+            }
+        }
+
+        otherWindow = otherWindow->nextWindow;
+    }
+
+    /* Apply the best snap found */
+    if (bestSnapDist <= SNAP_DISTANCE) {
+        *newLeft += snapDeltaH;
+        *newTop += snapDeltaV;
     }
 }
 
