@@ -665,6 +665,134 @@ char* strtok(char* str, const char* delim) {
     return token_start;
 }
 
+char* strtok_r(char* str, const char* delim, char** saveptr) {
+    /* Reentrant version of strtok - thread-safe */
+    if (str == NULL) {
+        str = *saveptr;
+    }
+
+    if (str == NULL) {
+        return NULL;
+    }
+
+    /* Skip leading delimiters */
+    str += strspn(str, delim);
+    if (*str == '\0') {
+        *saveptr = NULL;
+        return NULL;
+    }
+
+    /* Find end of token */
+    char* token_start = str;
+    str = strpbrk(str, delim);
+    if (str == NULL) {
+        *saveptr = NULL;
+    } else {
+        *str = '\0';
+        *saveptr = str + 1;
+    }
+
+    return token_start;
+}
+
+char* strsep(char** stringp, const char* delim) {
+    /* Extract token and update pointer */
+    if (!stringp || !*stringp) {
+        return NULL;
+    }
+
+    char* start = *stringp;
+    char* end = strpbrk(start, delim);
+
+    if (end) {
+        *end = '\0';
+        *stringp = end + 1;
+    } else {
+        *stringp = NULL;
+    }
+
+    return start;
+}
+
+char* basename(const char* path) {
+    /* Extract filename from path (simplified version) */
+    static char buf[256];
+
+    if (!path || !*path) {
+        strcpy(buf, ".");
+        return buf;
+    }
+
+    /* Find last slash */
+    const char* p = strrchr(path, '/');
+    if (!p) {
+        /* No slash, return whole path */
+        strncpy(buf, path, sizeof(buf) - 1);
+        buf[sizeof(buf) - 1] = '\0';
+        return buf;
+    }
+
+    /* Skip trailing slashes */
+    const char* end = path + strlen(path) - 1;
+    while (end > path && *end == '/') {
+        end--;
+    }
+
+    if (end < p) {
+        /* Path is all slashes */
+        strcpy(buf, "/");
+        return buf;
+    }
+
+    /* Copy from last slash to end */
+    p++;
+    size_t len = end - p + 1;
+    if (len >= sizeof(buf)) len = sizeof(buf) - 1;
+    memcpy(buf, p, len);
+    buf[len] = '\0';
+
+    return buf;
+}
+
+char* dirname(const char* path) {
+    /* Extract directory from path (simplified version) */
+    static char buf[256];
+
+    if (!path || !*path) {
+        strcpy(buf, ".");
+        return buf;
+    }
+
+    /* Copy path to buffer */
+    strncpy(buf, path, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+
+    /* Remove trailing slashes */
+    char* end = buf + strlen(buf) - 1;
+    while (end > buf && *end == '/') {
+        *end = '\0';
+        end--;
+    }
+
+    /* Find last slash */
+    char* p = strrchr(buf, '/');
+    if (!p) {
+        /* No slash, return current directory */
+        strcpy(buf, ".");
+        return buf;
+    }
+
+    /* If slash is at beginning, return root */
+    if (p == buf) {
+        buf[1] = '\0';
+        return buf;
+    }
+
+    /* Terminate at last slash */
+    *p = '\0';
+    return buf;
+}
+
 /* Pascal string utilities */
 void c2pstrcpy(unsigned char* dst, const char* src) {
     /* Copy C string to Pascal string (safe version that doesn't modify src) */
