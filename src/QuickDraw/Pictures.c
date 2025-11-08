@@ -74,11 +74,21 @@ static void WriteByte(UInt8 byte) {
 
     /* Expand capacity if needed */
     if (g_pictureState.dataSize >= g_pictureState.dataCapacity) {
-        g_pictureState.dataCapacity += 256;
-        /* Realloc would go here - for now just prevent overflow */
-        if (g_pictureState.dataSize >= g_pictureState.dataCapacity) {
+        /* Calculate new capacity (grow by 256 bytes at a time) */
+        SInt32 newCapacity = g_pictureState.dataCapacity + 256;
+        SInt32 newHandleSize = sizeof(Picture) + newCapacity;
+
+        /* Resize the picture handle */
+        extern bool SetHandleSize(Handle h, uint32_t newSize);
+        if (!SetHandleSize((Handle)g_pictureState.currentPic, newHandleSize)) {
+            /* Resize failed - stop recording */
             return;
         }
+
+        /* Update pointers since handle may have moved */
+        Picture *picPtr = *g_pictureState.currentPic;
+        g_pictureState.dataPtr = (UInt8 *)(picPtr + 1);
+        g_pictureState.dataCapacity = newCapacity;
     }
 
     g_pictureState.dataPtr[g_pictureState.dataSize++] = byte;
