@@ -1517,6 +1517,34 @@ double pow(double base, double exponent) {
     return result;
 }
 
+double round(double x) {
+    /* Round to nearest integer, halfway cases away from zero
+     * Examples: round(2.3) = 2.0, round(2.5) = 3.0, round(-2.5) = -3.0 */
+    if (x >= 0.0) {
+        return floor(x + 0.5);
+    } else {
+        return ceil(x - 0.5);
+    }
+}
+
+double trunc(double x) {
+    /* Round towards zero (remove fractional part)
+     * Examples: trunc(2.7) = 2.0, trunc(-2.7) = -2.0 */
+    return (x >= 0.0) ? floor(x) : ceil(x);
+}
+
+int signum(int x) {
+    /* Return sign of integer: -1, 0, or 1 */
+    return (x > 0) - (x < 0);
+}
+
+double fsignum(double x) {
+    /* Return sign of double: -1.0, 0.0, or 1.0 */
+    if (x > 0.0) return 1.0;
+    if (x < 0.0) return -1.0;
+    return 0.0;
+}
+
 /* 64-bit division for -nostdlib build */
 long long __divdi3(long long a, long long b) {
     /* Binary long division algorithm for 64-bit signed integers
