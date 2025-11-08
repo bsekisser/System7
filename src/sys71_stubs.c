@@ -320,6 +320,12 @@ void AddResMenu(MenuHandle theMenu, ResType theType) {
 /* GenerateUniqueTrashName moved to Finder/trash_folder.c */
 
 OSErr InitializeWindowManager(void) {
+    /* Initialize the Window Manager */
+    extern void InitWindows(void);
+
+    /* Set up Window Manager port, desktop pattern, and internal structures */
+    InitWindows();
+
     return noErr;
 }
 
