@@ -326,6 +326,39 @@ char* strtok(char* str, const char* delim) {
     return token_start;
 }
 
+/* Pascal string utilities */
+void c2pstrcpy(unsigned char* dst, const char* src) {
+    /* Copy C string to Pascal string (safe version that doesn't modify src) */
+    if (!dst || !src) return;
+
+    size_t len = strlen(src);
+    if (len > 255) len = 255;  /* Pascal strings limited to 255 characters */
+
+    dst[0] = (unsigned char)len;  /* Set length byte */
+    memcpy(dst + 1, src, len);    /* Copy string data */
+}
+
+void p2cstrcpy(char* dst, const unsigned char* src) {
+    /* Copy Pascal string to C string (safe version that doesn't modify src) */
+    if (!dst || !src) return;
+
+    unsigned char len = src[0];   /* Get length from first byte */
+    memcpy(dst, src + 1, len);    /* Copy string data */
+    dst[len] = '\0';              /* Null terminate */
+}
+
+unsigned char* CopyCStringToPascal(const char* src, unsigned char* dst) {
+    /* Mac Toolbox alias for c2pstrcpy */
+    c2pstrcpy(dst, src);
+    return dst;
+}
+
+char* CopyPascalStringToC(const unsigned char* src, char* dst) {
+    /* Mac Toolbox alias for p2cstrcpy */
+    p2cstrcpy(dst, src);
+    return dst;
+}
+
 /* Character classification functions */
 int isdigit(int c) {
     return (c >= '0' && c <= '9');
