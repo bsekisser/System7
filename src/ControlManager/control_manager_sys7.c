@@ -500,7 +500,69 @@ static SInt32 CheckboxCDEF_Sys7(ControlHandle control, SInt16 message, SInt32 pa
             return 0;
     }
 }
-static SInt32 RadioButtonCDEF_Sys7(ControlHandle control, SInt16 message, SInt32 param) { return 0; }
+static SInt32 RadioButtonCDEF_Sys7(ControlHandle control, SInt16 message, SInt32 param) {
+    if (!control || !*control) return 0;
+
+    ControlRecord *ctlRec = *control;
+
+    switch (message) {
+        case drawCntl: {
+            /* Draw radio button circle and dot */
+            extern void FrameOval(const Rect *r);
+            extern void PaintOval(const Rect *r);
+            extern void MoveTo(SInt16 h, SInt16 v);
+            extern void DrawString(const unsigned char *s);
+
+            /* Radio button circle is 12x12 pixels at left of control rect */
+            Rect circleRect;
+            circleRect.left = ctlRec->contrlRect.left;
+            circleRect.top = ctlRec->contrlRect.top;
+            circleRect.right = circleRect.left + 12;
+            circleRect.bottom = circleRect.top + 12;
+
+            FrameOval(&circleRect);
+
+            /* Draw filled dot if value is non-zero */
+            if (ctlRec->contrlValue != 0) {
+                Rect dotRect;
+                dotRect.left = circleRect.left + 3;
+                dotRect.top = circleRect.top + 3;
+                dotRect.right = circleRect.right - 3;
+                dotRect.bottom = circleRect.bottom - 3;
+                PaintOval(&dotRect);
+            }
+
+            /* Draw title to right of radio button */
+            if (ctlRec->contrlTitle[0] > 0) {
+                MoveTo(circleRect.right + 4, circleRect.bottom - 2);
+                DrawString(ctlRec->contrlTitle);
+            }
+            return 0;
+        }
+
+        case testCntl: {
+            /* Test if point is inside radio button */
+            extern Boolean PtInRect(Point pt, const Rect *r);
+            Point testPt = *(Point*)&param;
+
+            if (PtInRect(testPt, &ctlRec->contrlRect)) {
+                return inButton;
+            }
+            return 0;
+        }
+
+        case initCntl:
+            /* Initialize radio button state */
+            return 0;
+
+        case dispCntl:
+            /* Dispose radio button resources */
+            return 0;
+
+        default:
+            return 0;
+    }
+}
 static SInt32 ScrollBarCDEF_Sys7(ControlHandle control, SInt16 message, SInt32 param) { return 0; }
 
 /**
