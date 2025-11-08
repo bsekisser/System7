@@ -225,6 +225,94 @@ char* strstr(const char* haystack, const char* needle) {
     return NULL;
 }
 
+size_t strspn(const char* s, const char* accept) {
+    /* Count initial characters in s that are in accept set */
+    const char* p = s;
+    while (*p) {
+        const char* a = accept;
+        int found = 0;
+        while (*a) {
+            if (*p == *a) {
+                found = 1;
+                break;
+            }
+            a++;
+        }
+        if (!found) break;
+        p++;
+    }
+    return p - s;
+}
+
+size_t strcspn(const char* s, const char* reject) {
+    /* Count initial characters in s NOT in reject set */
+    const char* p = s;
+    while (*p) {
+        const char* r = reject;
+        while (*r) {
+            if (*p == *r) {
+                return p - s;
+            }
+            r++;
+        }
+        p++;
+    }
+    return p - s;
+}
+
+char* strpbrk(const char* s, const char* accept) {
+    /* Find first character in s that matches any character in accept */
+    while (*s) {
+        const char* a = accept;
+        while (*a) {
+            if (*s == *a) {
+                return (char*)(uintptr_t)s;
+            }
+            a++;
+        }
+        s++;
+    }
+    return NULL;
+}
+
+char* strtok(char* str, const char* delim) {
+    /* Tokenize string using delimiters
+     * Uses static variable to maintain state between calls
+     * NOT thread-safe */
+    static char* saved = NULL;
+
+    /* Use saved pointer if str is NULL */
+    if (str == NULL) {
+        str = saved;
+    }
+
+    if (str == NULL) {
+        return NULL;
+    }
+
+    /* Skip leading delimiters */
+    str += strspn(str, delim);
+    if (*str == '\0') {
+        saved = NULL;
+        return NULL;
+    }
+
+    /* Find end of token */
+    char* token_start = str;
+    str = strpbrk(str, delim);
+
+    if (str == NULL) {
+        /* Last token */
+        saved = NULL;
+    } else {
+        /* Null-terminate token and save position */
+        *str = '\0';
+        saved = str + 1;
+    }
+
+    return token_start;
+}
+
 /* Character classification functions */
 int isdigit(int c) {
     return (c >= '0' && c <= '9');
