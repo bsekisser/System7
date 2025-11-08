@@ -392,6 +392,21 @@ OSErr FSpDirDelete(const FSSpec* spec) {
 }
 
 OSErr FSpCatMove(const FSSpec* source, const FSSpec* dest) {
+    if (!source || !dest) {
+        return paramErr;
+    }
+
+    /* Move or rename a file or directory */
+
+    /* In a full implementation, this would:
+     * 1. Validate source exists and dest doesn't exist
+     * 2. Check if moving to different volume (requires copy+delete)
+     * 3. If same volume, update directory entry
+     * 4. If different volume, copy data then delete source
+     * 5. Preserve file metadata (creator, type, dates)
+     */
+
+    /* For now, return success */
     return noErr;
 }
 
