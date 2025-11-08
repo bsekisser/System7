@@ -327,7 +327,30 @@ OSErr FSpOpenDF(const FSSpec* spec, SInt16 permission, SInt16* refNum) {
 }
 
 OSErr FSpOpenResFile(const FSSpec* spec, SInt16 permission) {
-    return 1; /* Return fake resource file ref */
+    if (!spec) {
+        return -1; /* Invalid resource file reference */
+    }
+
+    /* Open the resource fork of a file */
+
+    /* In a full implementation, this would:
+     * 1. Validate the FSSpec points to an existing file
+     * 2. Open the resource fork
+     * 3. Read and parse the resource map
+     * 4. Add the file to the resource file chain
+     * 5. Return the resource file reference number
+     */
+
+    /* Permission values:
+     * fsCurPerm (0) - read/write based on file permissions
+     * fsRdPerm (1) - read-only
+     * fsWrPerm (2) - write-only
+     * fsRdWrPerm (3) - read/write
+     */
+
+    /* Return fake resource file reference number */
+    (void)permission;
+    return 1;
 }
 
 OSErr FSpDelete(const FSSpec* spec) {
