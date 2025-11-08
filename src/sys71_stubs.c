@@ -838,6 +838,35 @@ OSErr ShowAboutFinder(void) {
 /* HandleContentClick moved to Finder/finder_main.c */
 
 OSErr HandleGrowWindow(WindowPtr window, EventRecord* event) {
+    /* Handle window grow/resize interaction
+     *
+     * Called when user clicks and drags the window's grow icon (bottom-right
+     * corner resize handle). Tracks the mouse and resizes the window to match
+     * user's desired size within specified constraints.
+     *
+     * Parameters:
+     *   window - Window to resize
+     *   event - Mouse down event in grow region
+     *
+     * Behavior:
+     * 1. Calls GrowWindow() to track mouse and show resize outline
+     * 2. GrowWindow returns new size as long (width in low word, height in high)
+     * 3. If size changed (nonzero return), calls SizeWindow() to apply new size
+     * 4. Size is constrained to sizeRect bounds (min 80x80, max 640x480)
+     *
+     * Size constraints in Rect format:
+     *   sizeRect.top = minimum height (80)
+     *   sizeRect.left = minimum width (80)
+     *   sizeRect.bottom = maximum height (480)
+     *   sizeRect.right = maximum width (640)
+     *
+     * After resizing, window contents are invalidated and redrawn.
+     * SizeWindow with fUpdate=true triggers automatic redraw.
+     *
+     * Returns:
+     *   paramErr if window or event is NULL
+     *   noErr on success
+     */
     if (!window || !event) {
         return paramErr;
     }
