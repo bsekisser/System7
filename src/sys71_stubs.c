@@ -1392,19 +1392,62 @@ double sin(double x) {
 
 /* 64-bit division for -nostdlib build */
 long long __divdi3(long long a, long long b) {
-    /* Simple implementation for positive numbers */
-    if (b == 0) return 0;
-    if (a < 0 || b < 0) return 0;  /* Don't handle negative for now */
+    /* Binary long division algorithm for 64-bit signed integers
+     * Much faster than repeated subtraction: O(log n) vs O(n)
+     * Handles negative operands using two's complement arithmetic
+     *
+     * Algorithm:
+     * 1. Handle signs: track if result should be negative
+     * 2. Work with absolute values
+     * 3. Binary long division from MSB to LSB
+     * 4. Apply sign to result
+     */
 
-    long long quotient = 0;
-    long long remainder = a;
+    if (b == 0) return 0;  /* Division by zero */
 
-    while (remainder >= b) {
-        remainder -= b;
-        quotient++;
+    /* Handle signs */
+    int result_negative = 0;
+    unsigned long long ua, ub;
+
+    if (a < 0) {
+        ua = (unsigned long long)(-a);
+        result_negative = !result_negative;
+    } else {
+        ua = (unsigned long long)a;
     }
 
-    return quotient;
+    if (b < 0) {
+        ub = (unsigned long long)(-b);
+        result_negative = !result_negative;
+    } else {
+        ub = (unsigned long long)b;
+    }
+
+    /* Binary long division */
+    unsigned long long quotient = 0;
+    unsigned long long remainder = 0;
+
+    /* Process each bit from MSB to LSB */
+    for (int i = 63; i >= 0; i--) {
+        /* Shift remainder left by 1 and bring down next bit of dividend */
+        remainder <<= 1;
+        if (ua & (1ULL << i)) {
+            remainder |= 1;
+        }
+
+        /* If remainder >= divisor, subtract and set quotient bit */
+        if (remainder >= ub) {
+            remainder -= ub;
+            quotient |= (1ULL << i);
+        }
+    }
+
+    /* Apply sign */
+    if (result_negative) {
+        return -(long long)quotient;
+    } else {
+        return (long long)quotient;
+    }
 }
 
 /* Standard library minimal implementations */
