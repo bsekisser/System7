@@ -280,6 +280,26 @@ OSErr FSpCreateResFile(const FSSpec* spec, OSType creator, OSType fileType, SInt
 /* File Manager stubs - Core functions now implemented in FileManager.c */
 
 OSErr FSpCreate(const FSSpec* spec, OSType creator, OSType fileType, SInt16 scriptTag) {
+    if (!spec) {
+        return paramErr;
+    }
+
+    /* Create a new file with specified creator and type */
+
+    /* In a full implementation, this would:
+     * 1. Validate the FSSpec (volume and parent directory exist)
+     * 2. Check if file already exists (return dupFNErr if so)
+     * 3. Create directory entry with name, creator, type
+     * 4. Set file dates (creation, modification)
+     * 5. Initialize empty data fork
+     */
+
+    /* For now, return success */
+    /* Real implementation would call File Manager PBHCreate */
+    (void)creator;
+    (void)fileType;
+    (void)scriptTag;
+
     return noErr;
 }
 
