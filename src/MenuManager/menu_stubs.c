@@ -1,58 +1,37 @@
-/* Menu Manager Stubs - Minimal implementation for initial boot */
+/*
+ * Menu Manager Stubs - Quarantined stub functions
+ *
+ * NOTE: Most Menu Manager functions have real implementations in:
+ * - MenuManagerCore.c: Menu creation, disposal, menu bar, hiliting
+ * - MenuItems.c: Item manipulation, properties, counting, sizing
+ * - MenuSelection.c: MenuSelect, MenuKey, MenuChoice
+ * - PopupMenus.c: PopUpMenuSelect
+ *
+ * This file previously contained stubs that shadowed real implementations.
+ * All such stubs have been removed to avoid link conflicts.
+ *
+ * Remaining stubs are functions without implementations yet.
+ */
 #include "MenuManager/menu_private.h"
 #include "../../include/SystemTypes.h"
 
-/* Menu creation and disposal */
-MenuHandle NewMenu(short menuID, const unsigned char* menuTitle) { return NULL; }
-MenuHandle GetMenu(short resourceID) { return NULL; }
-void DisposeMenu(MenuHandle theMenu) {}
-void DeleteMenu(short menuID) {}
-void InsertMenu(MenuHandle theMenu, short beforeID) {}
-
-/* Menu bar */
-void DrawMenuBar(void) {}
-void ClearMenuBar(void) {}
-Handle GetMenuBar(void) { return NULL; }
-void SetMenuBar(Handle menuBar) {}
-Handle GetNewMBar(short menuBarID) { return NULL; }
-
-/* Menu items */
-void AppendMenu(MenuHandle menu, const unsigned char* data) {}
-void InsertMenuItem(MenuHandle menu, const unsigned char* itemString, short afterItem) {}
-void DeleteMenuItem(MenuHandle menu, short item) {}
-void SetMenuItemText(MenuHandle menu, short item, const unsigned char* itemString) {}
-void GetMenuItemText(MenuHandle menu, short item, unsigned char* itemString) {}
-void EnableMenuItem(MenuHandle menu, short item) {}
-void DisableMenuItem(MenuHandle menu, short item) {}
-void CheckMenuItem(MenuHandle menu, short item, Boolean checked) {}
-void SetItemMark(MenuHandle menu, short item, short markChar) {}
-void GetItemMark(MenuHandle menu, short item, short* markChar) {}
-void SetItemIcon(MenuHandle menu, short item, unsigned char icon) {}
-void GetItemIcon(MenuHandle menu, short item, unsigned char* icon) {}
-void SetItemStyle(MenuHandle menu, short item, short style) {}
-void GetItemStyle(MenuHandle menu, short item, unsigned char* style) {}
-
-/* Menu selection */
-long MenuSelect(Point startPt) { return 0; }
-long MenuKey(short ch) { return 0; }
-void HiliteMenu(short menuID) {}
-long MenuChoice(void) { return 0; }
-
-/* Menu utilities */
-short CountMenuItems(MenuHandle menu) { return 0; }
-MenuHandle GetMenuHandle(short menuID) { return NULL; }
-void SetMenuFlash(short count) {}
-void FlashMenuBar(short menuID) {}
-Boolean IsMenuItemEnabled(MenuHandle menu, short item) {
-    /* Public API wrapper - delegates to internal CheckMenuItemEnabled */
-    extern Boolean CheckMenuItemEnabled(MenuHandle theMenu, short item);
-    return CheckMenuItemEnabled(menu, item);
+/* Standard menu commands - not yet implemented */
+void AddResMenu(MenuHandle theMenu, ResType theType) {
+    /* In a full implementation, this would:
+     * - Enumerate resources of type 'theType' from resource fork
+     * - Add each resource name as a menu item
+     * - Used for Font menu (FONT), Desk Accessories (DRVR), etc.
+     * See sys71_stubs.c:AddResMenu for documentation */
+    (void)theMenu;
+    (void)theType;
 }
-void CalcMenuSize(MenuHandle theMenu) {}
 
-/* Standard menu commands */
-void AddResMenu(MenuHandle theMenu, ResType theType) {}
-void InsertResMenu(MenuHandle theMenu, ResType theType, short afterItem) {}
-
-/* Popup menus */
-long PopUpMenuSelect(MenuHandle menu, short top, short left, short popUpItem) { return 0; }
+void InsertResMenu(MenuHandle theMenu, ResType theType, short afterItem) {
+    /* In a full implementation, this would:
+     * - Enumerate resources of type 'theType' from resource fork
+     * - Insert each resource name as a menu item after 'afterItem'
+     * - Similar to AddResMenu but allows insertion at specific position */
+    (void)theMenu;
+    (void)theType;
+    (void)afterItem;
+}
