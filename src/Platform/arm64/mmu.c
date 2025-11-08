@@ -5,6 +5,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 /* String function declaration */
 extern void *memset(void *s, int c, size_t n);
