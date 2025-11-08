@@ -560,6 +560,32 @@ char* strstr(const char* haystack, const char* needle) {
     return NULL;
 }
 
+char* strcasestr(const char* haystack, const char* needle) {
+    /* Case-insensitive substring search */
+    if (!haystack || !needle) return NULL;
+    if (!*needle) return (char*)(uintptr_t)haystack;
+
+    size_t needle_len = strlen(needle);
+
+    while (*haystack) {
+        if (strncasecmp(haystack, needle, needle_len) == 0) {
+            return (char*)(uintptr_t)haystack;
+        }
+        haystack++;
+    }
+    return NULL;
+}
+
+char* index(const char* s, int c) {
+    /* BSD alias for strchr */
+    return strchr(s, c);
+}
+
+char* rindex(const char* s, int c) {
+    /* BSD alias for strrchr */
+    return strrchr(s, c);
+}
+
 char* strdup(const char* s) {
     /* Duplicate string (allocates memory) */
     if (!s) return NULL;
