@@ -888,6 +888,30 @@ void serial_printf(const char* fmt, ...) {
     va_end(args);
 }
 
+int vprintf(const char* format, va_list args) {
+    /* vprintf - print formatted output to serial console with va_list
+     * This is the va_list version of serial_printf for serial output */
+    if (!format) return 0;
+
+    SystemLogModule module;
+    SystemLogLevel level;
+    SysLogClassifyMessage(format, &module, &level);
+
+    SysLogEmit(module, level, format, args);
+    return 0;  /* Return value not meaningful for serial output */
+}
+
+int printf(const char* format, ...) {
+    /* printf - print formatted output to serial console */
+    if (!format) return 0;
+
+    va_list args;
+    va_start(args, format);
+    int result = vprintf(format, args);
+    va_end(args);
+    return result;
+}
+
 /* Internal vsnprintf implementation */
 static int vsnprintf(char* str, size_t size, const char* format, va_list args) {
     if (!str || size == 0 || !format) return 0;
@@ -1058,15 +1082,22 @@ static int vsnprintf(char* str, size_t size, const char* format, va_list args) {
 }
 
 /* Standard I/O functions */
+int vsprintf(char* str, const char* format, va_list args) {
+    if (!str || !format) return 0;
+
+    /* Use a large buffer size for sprintf-style formatting (no bounds checking)
+     * Caller must ensure buffer is large enough */
+    return vsnprintf(str, 4096, format, args);
+}
+
 int sprintf(char* str, const char* format, ...) {
     if (!str || !format) return 0;
 
     va_list args;
     va_start(args, format);
 
-    /* Use a large buffer size for sprintf (no bounds checking) */
-    /* In practice, sprintf is unbounded - caller must ensure buffer is large enough */
-    int result = vsnprintf(str, 4096, format, args);
+    /* Delegate to vsprintf for actual formatting */
+    int result = vsprintf(str, format, args);
 
     va_end(args);
     return result;
