@@ -304,7 +304,25 @@ OSErr FSpCreate(const FSSpec* spec, OSType creator, OSType fileType, SInt16 scri
 }
 
 OSErr FSpOpenDF(const FSSpec* spec, SInt16 permission, SInt16* refNum) {
-    if (refNum) *refNum = 1;
+    if (!spec || !refNum) {
+        return paramErr;
+    }
+
+    /* Open the data fork of a file */
+
+    /* In a full implementation, this would:
+     * 1. Validate the FSSpec points to an existing file
+     * 2. Check permission flags (read, write, read/write)
+     * 3. Allocate a file control block (FCB)
+     * 4. Open the data fork via File Manager
+     * 5. Return the file reference number
+     */
+
+    /* Return a fake file reference number for now */
+    *refNum = 1;
+
+    (void)permission;
+
     return noErr;
 }
 
