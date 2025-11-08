@@ -635,6 +635,88 @@ ldiv_t ldiv(long numer, long denom) {
     return result;
 }
 
+/* Sorting and searching */
+static void qsort_swap(void* a, void* b, size_t size) {
+    unsigned char* p1 = (unsigned char*)a;
+    unsigned char* p2 = (unsigned char*)b;
+    unsigned char temp;
+
+    while (size--) {
+        temp = *p1;
+        *p1++ = *p2;
+        *p2++ = temp;
+    }
+}
+
+static void qsort_impl(void* base, size_t left, size_t right, size_t size,
+                      int (*compar)(const void*, const void*)) {
+    if (left >= right) return;
+
+    /* Choose pivot (median of three for better performance) */
+    size_t mid = left + (right - left) / 2;
+    unsigned char* arr = (unsigned char*)base;
+
+    /* Sort left, mid, right */
+    if (compar(arr + left * size, arr + mid * size) > 0)
+        qsort_swap(arr + left * size, arr + mid * size, size);
+    if (compar(arr + left * size, arr + right * size) > 0)
+        qsort_swap(arr + left * size, arr + right * size, size);
+    if (compar(arr + mid * size, arr + right * size) > 0)
+        qsort_swap(arr + mid * size, arr + right * size, size);
+
+    /* Use middle element as pivot */
+    qsort_swap(arr + mid * size, arr + right * size, size);
+
+    size_t i = left;
+    size_t j = right - 1;
+    void* pivot = arr + right * size;
+
+    while (1) {
+        while (i < right && compar(arr + i * size, pivot) < 0) i++;
+        while (j > left && compar(arr + j * size, pivot) > 0) j--;
+
+        if (i >= j) break;
+
+        qsort_swap(arr + i * size, arr + j * size, size);
+        i++;
+        j--;
+    }
+
+    qsort_swap(arr + i * size, arr + right * size, size);
+
+    if (i > left) qsort_impl(base, left, i - 1, size, compar);
+    if (i < right) qsort_impl(base, i + 1, right, size, compar);
+}
+
+void qsort(void* base, size_t nmemb, size_t size,
+          int (*compar)(const void*, const void*)) {
+    if (nmemb <= 1 || !base || !compar) return;
+    qsort_impl(base, 0, nmemb - 1, size, compar);
+}
+
+void* bsearch(const void* key, const void* base, size_t nmemb, size_t size,
+             int (*compar)(const void*, const void*)) {
+    const unsigned char* arr = (const unsigned char*)base;
+    size_t left = 0;
+    size_t right = nmemb;
+
+    while (left < right) {
+        size_t mid = left + (right - left) / 2;
+        const void* elem = arr + mid * size;
+        int cmp = compar(key, elem);
+
+        if (cmp < 0) {
+            right = mid;
+        } else if (cmp > 0) {
+            left = mid + 1;
+        } else {
+            return (void*)elem;
+        }
+    }
+
+    return NULL;
+}
+
 /* Random number generation */
 static unsigned long g_rand_seed = 1;
 
