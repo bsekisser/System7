@@ -1357,15 +1357,41 @@ void TextFace(short face) {
 /* Alert stub for trash_folder */
 
 void Delay(UInt32 numTicks, UInt32* finalTicks) {
-    /* Wait for specified number of ticks */
+    /* Wait for specified number of ticks with cooperative multitasking
+     *
+     * Timing:
+     * - One tick = 1/60th second (16.67 ms) on most Macs
+     * - Some systems use 1/50th second (PAL regions)
+     * - Query actual tick rate with TickCount() frequency
+     *
+     * Cooperative Multitasking:
+     * - Calls SystemTask() during wait to service Desk Accessories
+     * - Allows DA windows to update, respond to events
+     * - Critical for responsive UI during delays
+     *
+     * Common uses:
+     * - Animation frame delays (e.g., 3 ticks = ~50ms)
+     * - Double-click detection timeouts
+     * - Debouncing user input
+     * - Pacing Finder operations (icon dragging, etc.)
+     *
+     * Parameters:
+     * - numTicks: Number of ticks to wait (60 ticks = 1 second)
+     * - finalTicks: Optional output of actual final tick count
+     *
+     * Note: Not suitable for precise timing due to cooperative scheduling
+     * overhead. For animations, use actual elapsed time calculations.
+     */
     extern UInt32 TickCount(void);
+    extern void SystemTask(void);
 
     UInt32 startTicks = TickCount();
     UInt32 targetTicks = startTicks + numTicks;
 
     /* Wait until target tick count reached */
     while (TickCount() < targetTicks) {
-        /* Busy wait - could call SystemTask() here for cooperative multitasking */
+        /* Call SystemTask to allow DAs to run during delay */
+        SystemTask();
     }
 
     if (finalTicks) {
