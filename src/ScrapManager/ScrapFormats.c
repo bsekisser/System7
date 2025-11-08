@@ -218,9 +218,14 @@ OSErr MacTextToUTF8(Handle macText, Handle *utf8Text)
         return paramErr;
     }
 
-    /* For simplicity, assume 1:1 mapping for now */
-    /* Real implementation would use proper character encoding conversion */
-    utf8Size = macSize;
+    /* Convert Mac Roman to UTF-8
+     * ASCII (0x00-0x7F) maps directly (1 byte)
+     * Mac Roman extended (0x80-0xFF) requires 2-3 byte UTF-8 encoding
+     *
+     * Worst case: every byte is 0x80-0xFF requiring 3 bytes each
+     * Allocate 3x size to handle worst case, will resize down after conversion
+     */
+    utf8Size = macSize * 3;
 
     *utf8Text = NewHandle(utf8Size);
     if (*utf8Text == NULL) {
@@ -233,11 +238,65 @@ OSErr MacTextToUTF8(Handle macText, Handle *utf8Text)
     macPtr = *macText;
     utf8Ptr = **utf8Text;
 
-    /* Simple character mapping - real implementation would be more complex */
-    memcpy(utf8Ptr, macPtr, macSize);
+    /* Convert Mac Roman to UTF-8 character by character */
+    SInt32 utf8Pos = 0;
+    for (SInt32 i = 0; i < macSize; i++) {
+        unsigned char ch = (unsigned char)macPtr[i];
+
+        if (ch < 0x80) {
+            /* ASCII: direct copy */
+            utf8Ptr[utf8Pos++] = ch;
+        } else {
+            /* Mac Roman extended characters
+             * Common mappings (subset for essential characters):
+             * 0xA0 = dagger (U+2020) = E2 80 A0
+             * 0xA9 = copyright (U+00A9) = C2 A9
+             * 0xAE = registered (U+00AE) = C2 AE
+             * 0xD0 = em dash (U+2014) = E2 80 94
+             * 0xD1 = en dash (U+2013) = E2 80 93
+             * 0xD2 = left quote (U+201C) = E2 80 9C
+             * 0xD3 = right quote (U+201D) = E2 80 9D
+             * 0xD4 = left single quote (U+2018) = E2 80 98
+             * 0xD5 = right single quote (U+2019) = E2 80 99
+             * Most 0x80-0xFF map to Latin-1 Supplement (U+0080-U+00FF)
+             */
+
+            /* For simplicity, map most Mac Roman high chars to Latin-1 */
+            /* This covers 0xA0-0xFF range reasonably */
+            UInt16 unicode = ch; /* Direct map for most chars */
+
+            /* Special Mac Roman characters that need mapping */
+            switch (ch) {
+                case 0xD0: unicode = 0x2014; break; /* em dash */
+                case 0xD1: unicode = 0x2013; break; /* en dash */
+                case 0xD2: unicode = 0x201C; break; /* left double quote */
+                case 0xD3: unicode = 0x201D; break; /* right double quote */
+                case 0xD4: unicode = 0x2018; break; /* left single quote */
+                case 0xD5: unicode = 0x2019; break; /* right single quote */
+                /* Others use direct mapping */
+            }
+
+            /* Encode Unicode to UTF-8 */
+            if (unicode < 0x80) {
+                utf8Ptr[utf8Pos++] = (unsigned char)unicode;
+            } else if (unicode < 0x800) {
+                /* 2-byte encoding */
+                utf8Ptr[utf8Pos++] = 0xC0 | (unicode >> 6);
+                utf8Ptr[utf8Pos++] = 0x80 | (unicode & 0x3F);
+            } else {
+                /* 3-byte encoding */
+                utf8Ptr[utf8Pos++] = 0xE0 | (unicode >> 12);
+                utf8Ptr[utf8Pos++] = 0x80 | ((unicode >> 6) & 0x3F);
+                utf8Ptr[utf8Pos++] = 0x80 | (unicode & 0x3F);
+            }
+        }
+    }
 
     HUnlock(*utf8Text);
     HUnlock(macText);
+
+    /* Resize handle to actual UTF-8 size */
+    SetHandleSize(*utf8Text, utf8Pos);
 
     return noErr;
 }
@@ -257,7 +316,10 @@ OSErr UTF8ToMacText(Handle utf8Text, Handle *macText)
         return paramErr;
     }
 
-    /* For simplicity, assume 1:1 mapping for now */
+    /* Convert UTF-8 to Mac Roman
+     * UTF-8 can be 1-4 bytes per character, Mac Roman is always 1 byte
+     * Allocate same size as UTF-8 (will be equal or smaller after conversion)
+     */
     macSize = utf8Size;
 
     *macText = NewHandle(macSize);
@@ -271,11 +333,70 @@ OSErr UTF8ToMacText(Handle utf8Text, Handle *macText)
     utf8Ptr = *utf8Text;
     macPtr = **macText;
 
-    /* Simple character mapping */
-    memcpy(macPtr, utf8Ptr, utf8Size);
+    /* Convert UTF-8 to Mac Roman character by character */
+    SInt32 macPos = 0;
+    SInt32 i = 0;
+    while (i < utf8Size) {
+        unsigned char ch = (unsigned char)utf8Ptr[i];
+
+        if (ch < 0x80) {
+            /* ASCII: direct copy */
+            macPtr[macPos++] = ch;
+            i++;
+        } else if ((ch & 0xE0) == 0xC0) {
+            /* 2-byte UTF-8 sequence */
+            if (i + 1 >= utf8Size) break;
+
+            UInt16 unicode = ((ch & 0x1F) << 6) | (utf8Ptr[i+1] & 0x3F);
+
+            /* Map to Mac Roman (most Latin-1 chars map directly) */
+            if (unicode < 0x100) {
+                macPtr[macPos++] = (unsigned char)unicode;
+            } else {
+                /* Unmappable character, use question mark */
+                macPtr[macPos++] = '?';
+            }
+            i += 2;
+        } else if ((ch & 0xF0) == 0xE0) {
+            /* 3-byte UTF-8 sequence */
+            if (i + 2 >= utf8Size) break;
+
+            UInt16 unicode = ((ch & 0x0F) << 12) |
+                           ((utf8Ptr[i+1] & 0x3F) << 6) |
+                           (utf8Ptr[i+2] & 0x3F);
+
+            /* Map special Unicode characters back to Mac Roman */
+            unsigned char macChar = '?';
+            switch (unicode) {
+                case 0x2014: macChar = 0xD0; break; /* em dash */
+                case 0x2013: macChar = 0xD1; break; /* en dash */
+                case 0x201C: macChar = 0xD2; break; /* left double quote */
+                case 0x201D: macChar = 0xD3; break; /* right double quote */
+                case 0x2018: macChar = 0xD4; break; /* left single quote */
+                case 0x2019: macChar = 0xD5; break; /* right single quote */
+                case 0x2020: macChar = 0xA0; break; /* dagger */
+                /* Add more mappings as needed */
+                default:
+                    /* Unmappable, use question mark */
+                    break;
+            }
+            macPtr[macPos++] = macChar;
+            i += 3;
+        } else if ((ch & 0xF8) == 0xF0) {
+            /* 4-byte UTF-8 sequence - Mac Roman can't represent these */
+            macPtr[macPos++] = '?';
+            i += 4;
+        } else {
+            /* Invalid UTF-8, skip byte */
+            i++;
+        }
+    }
 
     HUnlock(*macText);
     HUnlock(utf8Text);
+
+    /* Resize handle to actual Mac Roman size */
+    SetHandleSize(*macText, macPos);
 
     return noErr;
 }
