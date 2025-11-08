@@ -610,10 +610,49 @@ static Boolean IsImageData(const void *data, SInt32 size)
 
 static OSErr ValidateTextData(const void *data, SInt32 size)
 {
-    /* Text data is generally valid if it doesn't contain control characters */
-    /* except for common whitespace characters */
+    /* Text data is generally valid if it doesn't contain control characters
+     * except for common whitespace characters (tab, newline, carriage return)
+     *
+     * Valid characters:
+     * - Printable ASCII (0x20-0x7E)
+     * - Tab (0x09)
+     * - Newline (0x0A)
+     * - Carriage return (0x0D)
+     * - High-bit characters (0x80-0xFF) for extended ASCII/Mac Roman
+     *
+     * Invalid control characters (0x00-0x08, 0x0B-0x0C, 0x0E-0x1F) indicate
+     * corrupted or binary data that isn't valid text.
+     */
 
-    return noErr; /* Assume valid for now */
+    if (!data || size <= 0) {
+        return paramErr;
+    }
+
+    const unsigned char *text = (const unsigned char *)data;
+
+    for (SInt32 i = 0; i < size; i++) {
+        unsigned char ch = text[i];
+
+        /* Allow common whitespace */
+        if (ch == 0x09 || ch == 0x0A || ch == 0x0D) {
+            continue;
+        }
+
+        /* Allow printable ASCII */
+        if (ch >= 0x20 && ch <= 0x7E) {
+            continue;
+        }
+
+        /* Allow high-bit characters (Mac Roman extended ASCII) */
+        if (ch >= 0x80) {
+            continue;
+        }
+
+        /* Reject control characters */
+        return -1;  /* Invalid text data */
+    }
+
+    return noErr;
 }
 
 static OSErr ValidatePICTData(const void *data, SInt32 size)
