@@ -518,6 +518,38 @@ char* strncat(char* dest, const char* src, size_t n) {
     return dest;
 }
 
+size_t strlcpy(char* dst, const char* src, size_t size) {
+    /* Safe copy with guaranteed NUL termination (OpenBSD) */
+    size_t src_len = strlen(src);
+
+    if (size > 0) {
+        size_t copy_len = (src_len >= size) ? size - 1 : src_len;
+        memcpy(dst, src, copy_len);
+        dst[copy_len] = '\0';
+    }
+
+    return src_len;  /* Return total length of source */
+}
+
+size_t strlcat(char* dst, const char* src, size_t size) {
+    /* Safe concatenation with guaranteed NUL termination (OpenBSD) */
+    size_t dst_len = strlen(dst);
+    size_t src_len = strlen(src);
+
+    if (dst_len >= size) {
+        /* Buffer already full or size too small */
+        return size + src_len;
+    }
+
+    size_t available = size - dst_len - 1;
+    size_t copy_len = (src_len > available) ? available : src_len;
+
+    memcpy(dst + dst_len, src, copy_len);
+    dst[dst_len + copy_len] = '\0';
+
+    return dst_len + src_len;  /* Return total length attempted */
+}
+
 char* strchr(const char* s, int c) {
     while (*s) {
         if (*s == c) {
