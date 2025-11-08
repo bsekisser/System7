@@ -62,7 +62,7 @@ static SInt16 RunAlertDialog(SInt16 alertID, ModalFilterProcPtr filterProc, SInt
 static DialogPtr CreateAlertDialogFromTemplate(const AlertTemplate* alertTemplate);
 static void PlayAlertSoundForStage(SInt16 alertType, SInt16 stage);
 static void PositionAlertDialog(DialogPtr alertDialog);
-static void SubstituteParameters(unsigned char* text);
+/* Forward declarations */
 static void DrawAlertIcon(DialogPtr alertDialog, SInt16 iconType);
 static OSErr BuildFallbackDLOG(const BuiltInAlertSpec* spec, DialogTemplate** outDLOG);
 static OSErr BuildFallbackDITL(SInt16 pseudoId, SInt16 iconKind, Handle* outDITL);
@@ -780,13 +780,45 @@ static void PositionAlertDialog(DialogPtr alertDialog)
     // printf("Positioning alert dialog at %p\n", (void*)alertDialog);
 }
 
-static void SubstituteParameters(unsigned char* text)
+void SubstituteAlertParameters(unsigned char* text)
 {
-    /* This would substitute ^0, ^1, ^2, ^3 with parameter text */
-    /* For now, stub */
-    if (!text) {
+    if (!text || !gAlertState.initialized) {
         return;
     }
+
+    unsigned char result[256];
+    unsigned char textLen = text[0];
+    unsigned char resultLen = 0;
+
+    for (unsigned char i = 1; i <= textLen && resultLen < 255; i++) {
+        if (text[i] == '^' && i < textLen) {
+            /* Check next character */
+            unsigned char nextChar = text[i + 1];
+            if (nextChar >= '0' && nextChar <= '3') {
+                /* Substitute parameter */
+                SInt16 paramIndex = nextChar - '0';
+                unsigned char paramLen = gAlertState.paramText[paramIndex][0];
+
+                /* Copy parameter text */
+                for (unsigned char j = 0; j < paramLen && resultLen < 255; j++) {
+                    result[resultLen + 1] = gAlertState.paramText[paramIndex][j + 1];
+                    resultLen++;
+                }
+
+                /* Skip the caret and digit */
+                i++;
+                continue;
+            }
+        }
+
+        /* Copy normal character */
+        result[resultLen + 1] = text[i];
+        resultLen++;
+    }
+
+    /* Update original text with substituted result */
+    result[0] = resultLen;
+    memcpy(text, result, resultLen + 1);
 }
 
 static void DrawAlertIcon(DialogPtr alertDialog, SInt16 iconType)
@@ -859,8 +891,42 @@ void ProcessAlertStages(SInt16 alertType, SInt16 stage)
 
 void SubstituteParamText(char* text, size_t textSize)
 {
-    if (!text) {
+    if (!text || textSize == 0 || !gAlertState.initialized) {
         return;
     }
-    /* Stub - would substitute ^0, ^1, ^2, ^3 with parameter text */
+
+    char result[512];
+    size_t srcIdx = 0;
+    size_t dstIdx = 0;
+    size_t srcLen = strlen(text);
+
+    while (srcIdx < srcLen && dstIdx < sizeof(result) - 1) {
+        if (text[srcIdx] == '^' && srcIdx + 1 < srcLen) {
+            char nextChar = text[srcIdx + 1];
+            if (nextChar >= '0' && nextChar <= '3') {
+                /* Substitute parameter */
+                SInt16 paramIndex = nextChar - '0';
+                unsigned char paramLen = gAlertState.paramText[paramIndex][0];
+
+                /* Convert Pascal string to C string and copy */
+                for (unsigned char i = 0; i < paramLen && dstIdx < sizeof(result) - 1; i++) {
+                    result[dstIdx++] = gAlertState.paramText[paramIndex][i + 1];
+                }
+
+                /* Skip the caret and digit */
+                srcIdx += 2;
+                continue;
+            }
+        }
+
+        /* Copy normal character */
+        result[dstIdx++] = text[srcIdx++];
+    }
+
+    /* Null terminate and copy back to original buffer */
+    result[dstIdx] = '\0';
+
+    size_t copyLen = (dstIdx < textSize - 1) ? dstIdx : textSize - 1;
+    memcpy(text, result, copyLen);
+    text[copyLen] = '\0';
 }

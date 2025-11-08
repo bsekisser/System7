@@ -372,6 +372,7 @@ OSErr LoadAlertTemplate(SInt16 alertID, AlertTemplate** alertTemplate);
 DialogPtr CreateAlertDialog(const AlertTemplate* alertTemplate);
 void ProcessAlertStages(SInt16 alertType, SInt16 stage);
 void SubstituteParamText(char* text, size_t textSize);
+void SubstituteAlertParameters(unsigned char* text);
 
 /* Backwards compatibility aliases */
 #define GetAlrtStage    GetAlertStage

@@ -17,6 +17,7 @@
 #include "DialogManager/DialogManagerInternal.h"  /* For DialogItemEx */
 #include "DialogManager/DialogManagerStateExt.h"   /* For extended state with focus tracking */
 #include "DialogManager/DialogLogging.h"
+#include "DialogManager/AlertDialogs.h"  /* For SubstituteAlertParameters */
 
 /* External QuickDraw dependencies */
 extern void SetPort(GrafPtr port);
@@ -218,6 +219,7 @@ void DrawDialogStaticText(DialogPtr theDialog, const Rect* bounds, const unsigne
                          Boolean isEnabled) {
     SInt16 textV;
     GrafPtr savePort;
+    unsigned char substitutedText[256];
 
     GetPort(&savePort);
     if (theDialog) {
@@ -230,6 +232,13 @@ void DrawDialogStaticText(DialogPtr theDialog, const Rect* bounds, const unsigne
     }
 
     // DIALOG_LOG_DEBUG("Dialog: DrawStaticText '%.*s'\n", text[0], (const char*)&text[1]);
+
+    /* Make a copy and perform parameter substitution (^0, ^1, ^2, ^3) */
+    if (text[0] < 256) {
+        memcpy(substitutedText, text, text[0] + 1);
+        SubstituteAlertParameters(substitutedText);
+        text = substitutedText;
+    }
 
     /* Erase background */
     EraseRect(bounds);
