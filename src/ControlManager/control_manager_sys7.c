@@ -207,7 +207,11 @@ void DrawControl_Sys7(ControlHandle control) {
     }
 
     /* Set up drawing context */
-    /* This would normally set up the graphics port */
+    /* Set the current port to the control's owner window */
+    if (ctlRec->contrlOwner != NULL) {
+        extern void SetPort(GrafPtr port);
+        SetPort((GrafPtr)ctlRec->contrlOwner);
+    }
 
     /* Call CDEF to draw the control */
     CallControlDef_Sys7(control, drawCntl, 0);
