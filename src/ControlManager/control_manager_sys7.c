@@ -161,7 +161,8 @@ SInt16 TrackControl_Sys7(ControlHandle control, Point pt, void *actionProc) {
 
         while (stillTracking) {
             /* Get current mouse position */
-            /* This would normally call GetMouse or similar */
+            extern void GetMouse(Point* mouseLoc);
+            GetMouse(&currentPt);
 
             /* Test current part */
             SInt16 currentPart = CallControlDef_Sys7(control, testCntl, *(SInt32*)&currentPt);
