@@ -1038,7 +1038,37 @@ OSErr ShowConfirmDialog(StringPtr message, Boolean* confirmed) {
 }
 
 OSErr CloseAllWindows(void) {
-    /* Close all windows from front to back */
+    /* Close all open windows iteratively from front to back
+     *
+     * Iterates through the window list and closes each window in order,
+     * starting with the frontmost window. Continues until all windows
+     * are closed or a window refuses to close.
+     *
+     * Behavior:
+     * - Calls FrontWindow() to get the topmost visible window
+     * - Calls CloseWindow() to close it
+     * - Repeats until FrontWindow() returns NULL (no windows left)
+     * - Includes safety check to prevent infinite loop if close fails
+     *
+     * Window closing order:
+     * - Frontmost to rearmost (z-order)
+     * - Each CloseWindow may trigger save dialogs for modified documents
+     * - User can cancel individual window closes
+     * - Loop terminates if a window refuses to close
+     *
+     * Safety mechanism:
+     * - After CloseWindow, checks if window is still front window
+     * - If window didn't close, breaks loop to prevent hang
+     * - This handles cases where window close is vetoed or fails
+     *
+     * Common uses:
+     * - Application quit (close all document windows)
+     * - Finder restart
+     * - System shutdown sequence
+     * - Testing/cleanup scenarios
+     *
+     * Returns noErr always (doesn't report which windows failed to close)
+     */
     extern WindowPtr FrontWindow(void);
     extern void CloseWindow(WindowPtr theWindow);
 
