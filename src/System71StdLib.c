@@ -365,6 +365,30 @@ int tolower(int c) {
     return c;
 }
 
+int isxdigit(int c) {
+    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+}
+
+int isprint(int c) {
+    return c >= 0x20 && c <= 0x7E;
+}
+
+int isgraph(int c) {
+    return c > 0x20 && c <= 0x7E;
+}
+
+int iscntrl(int c) {
+    return (c >= 0 && c < 0x20) || c == 0x7F;
+}
+
+int ispunct(int c) {
+    return isgraph(c) && !isalnum(c);
+}
+
+int isblank(int c) {
+    return c == ' ' || c == '\t';
+}
+
 /* Conversion functions */
 int atoi(const char* str) {
     int result = 0;
