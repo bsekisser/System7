@@ -80,6 +80,21 @@ void Platform_CleanupMenuSystem(void) {
      */
 }
 
+void Platform_EraseMenuBar(void) {
+    /* Platform-specific menu bar erasing
+     *
+     * In a full implementation, this would:
+     * - Erase the menu bar area on screen (typically top 20 pixels)
+     * - Fill with desktop pattern or white background
+     * - Called before redrawing the menu bar
+     * - May invalidate menu bar region for update
+     *
+     * For the kernel environment, menu bar erasing is handled
+     * by MenuDisplay.c which directly manipulates the framebuffer,
+     * so this is a no-op.
+     */
+}
+
 /* Resource Manager */
 #ifndef ENABLE_RESOURCES
 void InitResourceManager(void) {
