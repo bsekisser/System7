@@ -337,6 +337,62 @@ void perror(const char* s) {
     serial_puts("\n");
 }
 
+/* POSIX file I/O stubs (bare-metal environment) */
+int open(const char* pathname, int flags, ...) {
+    /* Stub: no file system in bare-metal */
+    (void)pathname;
+    (void)flags;
+    extern int errno;
+    errno = 2;  /* ENOENT */
+    return -1;
+}
+
+int close(int fd) {
+    /* Stub: no file descriptors */
+    (void)fd;
+    extern int errno;
+    errno = 9;  /* EBADF */
+    return -1;
+}
+
+ssize_t read(int fd, void* buf, size_t count) {
+    /* Stub: no file I/O */
+    (void)fd;
+    (void)buf;
+    (void)count;
+    extern int errno;
+    errno = 9;  /* EBADF */
+    return -1;
+}
+
+ssize_t write(int fd, const void* buf, size_t count) {
+    /* Stub: only support stdout/stderr to serial */
+    if (fd == 1 || fd == 2) {
+        /* stdout or stderr - write to serial console */
+        const char* str = (const char*)buf;
+        for (size_t i = 0; i < count; i++) {
+            serial_putchar(str[i]);
+        }
+        return count;
+    }
+
+    /* Other file descriptors not supported */
+    (void)buf;
+    extern int errno;
+    errno = 9;  /* EBADF */
+    return -1;
+}
+
+off_t lseek(int fd, off_t offset, int whence) {
+    /* Stub: no seekable file I/O */
+    (void)fd;
+    (void)offset;
+    (void)whence;
+    extern int errno;
+    errno = 9;  /* EBADF */
+    return -1;
+}
+
 /* Time and delay functions */
 unsigned int sleep(unsigned int seconds) {
     /* Simple busy-wait sleep (not accurate, cooperative) */
