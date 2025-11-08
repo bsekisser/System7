@@ -70,6 +70,19 @@ int memcmp(const void* s1, const void* s2, size_t n) {
     return 0;
 }
 
+void* memchr(const void* s, int c, size_t n) {
+    const unsigned char* p = (const unsigned char*)s;
+    unsigned char ch = (unsigned char)c;
+
+    while (n--) {
+        if (*p == ch) {
+            return (void*)p;
+        }
+        p++;
+    }
+    return NULL;
+}
+
 /* Mac Toolbox utility functions */
 SInt16 HiWord(SInt32 x) {
     return (x >> 16) & 0xFFFF;
@@ -399,6 +412,74 @@ long atol(const char* str) {
     return result * sign;
 }
 
+double atof(const char* str) {
+    double result = 0.0;
+    double fraction = 0.0;
+    int sign = 1;
+    int exponent = 0;
+    int exp_sign = 1;
+    double divisor = 1.0;
+
+    /* Skip whitespace */
+    while (*str == ' ' || *str == '\t') {
+        str++;
+    }
+
+    /* Handle sign */
+    if (*str == '-') {
+        sign = -1;
+        str++;
+    } else if (*str == '+') {
+        str++;
+    }
+
+    /* Parse integer part */
+    while (*str >= '0' && *str <= '9') {
+        result = result * 10.0 + (*str - '0');
+        str++;
+    }
+
+    /* Parse fractional part */
+    if (*str == '.') {
+        str++;
+        while (*str >= '0' && *str <= '9') {
+            fraction = fraction * 10.0 + (*str - '0');
+            divisor *= 10.0;
+            str++;
+        }
+        result += fraction / divisor;
+    }
+
+    /* Parse exponent */
+    if (*str == 'e' || *str == 'E') {
+        str++;
+        if (*str == '-') {
+            exp_sign = -1;
+            str++;
+        } else if (*str == '+') {
+            str++;
+        }
+
+        while (*str >= '0' && *str <= '9') {
+            exponent = exponent * 10 + (*str - '0');
+            str++;
+        }
+
+        /* Apply exponent using repeated multiplication/division */
+        if (exp_sign > 0) {
+            for (int i = 0; i < exponent; i++) {
+                result *= 10.0;
+            }
+        } else {
+            for (int i = 0; i < exponent; i++) {
+                result /= 10.0;
+            }
+        }
+    }
+
+    return result * sign;
+}
+
 /* Math functions */
 int abs(int n) {
     return n < 0 ? -n : n;
@@ -406,6 +487,30 @@ int abs(int n) {
 
 long labs(long n) {
     return n < 0 ? -n : n;
+}
+
+typedef struct {
+    int quot;
+    int rem;
+} div_t;
+
+typedef struct {
+    long quot;
+    long rem;
+} ldiv_t;
+
+div_t div(int numer, int denom) {
+    div_t result;
+    result.quot = numer / denom;
+    result.rem = numer % denom;
+    return result;
+}
+
+ldiv_t ldiv(long numer, long denom) {
+    ldiv_t result;
+    result.quot = numer / denom;
+    result.rem = numer % denom;
+    return result;
 }
 
 /* Random number generation */
