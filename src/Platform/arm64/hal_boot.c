@@ -64,44 +64,39 @@ void arm64_boot_main(void *dtb_ptr) {
 
     /* Report DTB location */
     if (dtb_ptr) {
-        snprintf(buf, sizeof(buf), "[ARM64] Device Tree Blob at: 0x%016llx\n", (uint64_t)dtb_ptr);
-        uart_puts(buf);
+        uart_puts("[ARM64] Device Tree Blob provided\n");
     } else {
         uart_puts("[ARM64] Warning: No Device Tree provided\n");
     }
 
     /* Report timer frequency */
-    uint64_t timer_freq = timer_get_freq();
-    snprintf(buf, sizeof(buf), "[ARM64] Timer frequency: %llu Hz\n", timer_freq);
-    uart_puts(buf);
+    uart_puts("[ARM64] Timer initialized\n");
 
     /* Initialize DTB parser */
-    if (dtb_ptr && dtb_init(dtb_ptr)) {
-        uart_puts("[ARM64] Device Tree initialized\n");
+    uart_puts("[ARM64] Checking Device Tree...\n");
+    if (dtb_ptr) {
+        uart_puts("[ARM64] DTB pointer provided, attempting init...\n");
+        if (dtb_init(dtb_ptr)) {
+            uart_puts("[ARM64] Device Tree initialized\n");
 
-        /* Get model string */
-        const char *model = dtb_get_model();
-        if (model) {
-            snprintf(buf, sizeof(buf), "[ARM64] Board Model: %s\n", model);
-            uart_puts(buf);
-            strncpy(boot_info.board_model, model, sizeof(boot_info.board_model) - 1);
-        }
-
-        /* Get memory from DTB */
-        uint64_t mem_base, mem_size;
-        if (dtb_get_memory(&mem_base, &mem_size)) {
-            boot_info.memory_base = mem_base;
-            boot_info.memory_size = mem_size;
-            snprintf(buf, sizeof(buf), "[ARM64] Memory: 0x%016llx - 0x%016llx (%llu MB)\n",
-                     mem_base, mem_base + mem_size, mem_size / (1024 * 1024));
-            uart_puts(buf);
+            /* Skip model and memory parsing for now - just use defaults */
+            boot_info.memory_base = 0x00000000;
+            boot_info.memory_size = 1024 * 1024 * 1024;  /* 1GB default */
+        } else {
+            uart_puts("[ARM64] DTB init failed\n");
+            boot_info.memory_base = 0x00000000;
+            boot_info.memory_size = 1024 * 1024 * 1024;  /* 1GB default */
         }
     } else {
-        uart_puts("[ARM64] Warning: Could not initialize Device Tree\n");
-        /* Set default memory parameters */
+        uart_puts("[ARM64] No DTB pointer\n");
+        uart_puts("[ARM64] Setting default memory base...\n");
         boot_info.memory_base = 0x00000000;
+        uart_puts("[ARM64] Setting default memory size...\n");
         boot_info.memory_size = 1024 * 1024 * 1024;  /* 1GB default */
+        uart_puts("[ARM64] Default memory set\n");
     }
+
+    uart_puts("[ARM64] Memory setup complete\n");
 
 #ifndef QEMU_BUILD
     /* Initialize mailbox (not available in QEMU virt) */
@@ -112,16 +107,13 @@ void arm64_boot_main(void *dtb_ptr) {
         uint32_t revision;
         if (mailbox_get_board_revision(&revision)) {
             boot_info.board_revision = revision;
-            snprintf(buf, sizeof(buf), "[ARM64] Board Revision: 0x%08x\n", revision);
-            uart_puts(buf);
+            uart_puts("[ARM64] Board Revision detected\n");
         }
 
         /* Get ARM memory info from mailbox as well */
         uint32_t arm_base, arm_size;
         if (mailbox_get_arm_memory(&arm_base, &arm_size)) {
-            snprintf(buf, sizeof(buf), "[ARM64] ARM Memory (mailbox): Base 0x%08x Size %u MB\n",
-                     arm_base, arm_size / (1024 * 1024));
-            uart_puts(buf);
+            uart_puts("[ARM64] ARM Memory info from mailbox\n");
         }
     }
 
@@ -137,25 +129,17 @@ void arm64_boot_main(void *dtb_ptr) {
     uint64_t midr_el1;
     __asm__ volatile("mrs %0, midr_el1" : "=r"(midr_el1));
     uint32_t implementer = (midr_el1 >> 24) & 0xFF;
-    uint32_t variant = (midr_el1 >> 20) & 0xF;
-    uint32_t architecture = (midr_el1 >> 16) & 0xF;
     uint32_t partnum = (midr_el1 >> 4) & 0xFFF;
-    uint32_t revision = midr_el1 & 0xF;
-
-    snprintf(buf, sizeof(buf), "[ARM64] CPU Implementer: 0x%02x Variant: 0x%x Arch: 0x%x\n",
-             implementer, variant, architecture);
-    uart_puts(buf);
-    snprintf(buf, sizeof(buf), "[ARM64] CPU Part: 0x%03x Revision: 0x%x\n", partnum, revision);
-    uart_puts(buf);
 
     /* Detect Cortex-A53/A72/A76 */
     if (implementer == 0x41) {  /* ARM */
-        const char *cpu_name = "Unknown ARM CPU";
-        if (partnum == 0xD03) cpu_name = "Cortex-A53";
-        else if (partnum == 0xD08) cpu_name = "Cortex-A72";
-        else if (partnum == 0xD0B) cpu_name = "Cortex-A76";
-        snprintf(buf, sizeof(buf), "[ARM64] Detected: %s\n", cpu_name);
-        uart_puts(buf);
+        uart_puts("[ARM64] CPU: ");
+        if (partnum == 0xD03) uart_puts("Cortex-A53\n");
+        else if (partnum == 0xD08) uart_puts("Cortex-A72\n");
+        else if (partnum == 0xD0B) uart_puts("Cortex-A76\n");
+        else uart_puts("ARM CPU\n");
+    } else {
+        uart_puts("[ARM64] CPU detected\n");
     }
 
     uart_puts("[ARM64] Early boot complete, entering kernel...\n");

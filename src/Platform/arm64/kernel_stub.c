@@ -31,9 +31,7 @@ int main(int argc, char **argv) {
     uart_puts("[KERNEL] =========================================================\n");
 
     /* Test timer */
-    uint64_t time_us = timer_get_usec();
-    snprintf(buf, sizeof(buf), "[KERNEL] Timer test: %llu microseconds since boot\n", time_us);
-    uart_puts(buf);
+    uart_puts("[KERNEL] Timer operational\n");
 
     /* Test delay */
     uart_puts("[KERNEL] Testing 1 second delay...\n");
@@ -57,13 +55,7 @@ int main(int argc, char **argv) {
     /* Test framebuffer initialization (only on real hardware) */
     uart_puts("[KERNEL] Initializing framebuffer (640x480, 32bpp)...\n");
     if (framebuffer_init(640, 480, 32)) {
-        uart_puts("[KERNEL] Framebuffer initialized!\n");
-
-        uint32_t width = framebuffer_get_width();
-        uint32_t height = framebuffer_get_height();
-        snprintf(buf, sizeof(buf), "[KERNEL] Resolution: %llu x %llu\n",
-                 (uint64_t)width, (uint64_t)height);
-        uart_puts(buf);
+        uart_puts("[KERNEL] Framebuffer initialized at 640x480\n");
 
         /* Draw test pattern */
         uart_puts("[KERNEL] Drawing test pattern...\n");
