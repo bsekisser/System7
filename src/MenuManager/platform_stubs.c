@@ -191,8 +191,9 @@ Boolean Platform_GetKeyModifiers(unsigned long* modifiers)
         return false;
     }
 
-    /* For now, no modifier keys tracked */
-    *modifiers = 0;
+    /* Get current modifier key state from PS2 controller */
+    extern UInt16 GetPS2Modifiers(void);
+    *modifiers = (unsigned long)GetPS2Modifiers();
     return true;
 }
 
