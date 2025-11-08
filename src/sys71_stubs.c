@@ -430,7 +430,28 @@ void DoBackgroundTasks(void) {
  */
 
 OSErr ShowConfirmDialog(StringPtr message, Boolean* confirmed) {
-    if (confirmed) *confirmed = true;  /* Always confirm for testing */
+    if (!confirmed) {
+        return paramErr;
+    }
+
+    /* Show confirmation dialog with OK and Cancel buttons */
+    extern void ParamText(ConstStr255Param param0, ConstStr255Param param1,
+                         ConstStr255Param param2, ConstStr255Param param3);
+    extern short CautionAlert(short alertID, void* filterProc);
+
+    const unsigned char emptyMsg[] = "\p";
+
+    /* Set the message text */
+    if (message && message[0] > 0) {
+        ParamText(message, emptyMsg, emptyMsg, emptyMsg);
+    }
+
+    /* Show caution alert (returns 1 for OK, 2 for Cancel) */
+    short result = CautionAlert(128, NULL);
+
+    /* OK button = 1, Cancel button = 2 */
+    *confirmed = (result == 1);
+
     return noErr;
 }
 
