@@ -8,8 +8,11 @@
 #include "uart.h"
 #include "timer.h"
 #include "dtb.h"
+
+#ifndef QEMU_BUILD
 #include "mailbox.h"
 #include "gic.h"
+#endif
 
 /* Minimal snprintf declaration */
 extern int snprintf(char *str, size_t size, const char *format, ...);
@@ -96,7 +99,8 @@ void arm64_boot_main(void *dtb_ptr) {
         boot_info.memory_size = 1024 * 1024 * 1024;  /* 1GB default */
     }
 
-    /* Initialize mailbox */
+#ifndef QEMU_BUILD
+    /* Initialize mailbox (not available in QEMU virt) */
     if (mailbox_init()) {
         uart_puts("[ARM64] Mailbox initialized\n");
 
@@ -117,10 +121,13 @@ void arm64_boot_main(void *dtb_ptr) {
         }
     }
 
-    /* Initialize GIC */
+    /* Initialize GIC (not available in QEMU virt) */
     if (gic_init()) {
         uart_puts("[ARM64] GIC interrupt controller initialized\n");
     }
+#else
+    uart_puts("[ARM64] Running in QEMU - skipping mailbox and GIC\n");
+#endif
 
     /* Report processor features */
     uint64_t midr_el1;

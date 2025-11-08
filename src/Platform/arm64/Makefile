@@ -22,6 +22,11 @@ CFLAGS = -Wall -Wextra -O2 -ffreestanding -nostdlib -nostartfiles
 CFLAGS += -mcpu=cortex-a53 -mtune=cortex-a53
 CFLAGS += -I$(SRC_DIR) -I$(STDLIB_DIR)
 
+# Add QEMU define if building for QEMU
+ifdef QEMU
+CFLAGS += -DQEMU_BUILD
+endif
+
 # Assembler flags
 ASFLAGS = -mcpu=cortex-a53
 
@@ -30,7 +35,13 @@ LDFLAGS = -T link.ld -nostdlib
 
 # Source files
 ASM_SOURCES = platform_boot.S
+
+# QEMU build uses different UART addresses
+ifdef QEMU
+C_SOURCES = hal_boot.c uart_qemu.c timer.c gic.c dtb.c cache.c mmu.c string.c
+else
 C_SOURCES = hal_boot.c uart.c timer.c gic.c mailbox.c framebuffer.c dtb.c cache.c mmu.c string.c
+endif
 
 # Add minimal kernel stub for testing
 C_SOURCES += kernel_stub.c
@@ -45,9 +56,14 @@ TARGET = kernel8
 IMAGE = $(BUILD_DIR)/$(TARGET).img
 ELF = $(BUILD_DIR)/$(TARGET).elf
 
-.PHONY: all clean qemu
+.PHONY: all clean qemu qemu-build qemu-virt
 
 all: $(IMAGE)
+
+# Build for QEMU
+qemu-build:
+	$(MAKE) clean
+	$(MAKE) QEMU=1
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
@@ -67,16 +83,12 @@ $(IMAGE): $(ELF)
 clean:
 	rm -rf $(BUILD_DIR)
 
-# QEMU testing on Apple Silicon Mac
-qemu: $(IMAGE)
-	qemu-system-aarch64 \
-		-M raspi3b \
-		-kernel $(IMAGE) \
-		-serial stdio \
-		-display none
-
-# QEMU with virtual machine (virt)
-qemu-virt: $(IMAGE)
+# QEMU testing - build and run on virt machine
+qemu-virt: qemu-build
+	@echo ""
+	@echo "Starting QEMU virt machine..."
+	@echo "Press Ctrl-A then X to exit QEMU"
+	@echo ""
 	qemu-system-aarch64 \
 		-M virt \
 		-cpu cortex-a53 \
@@ -84,3 +96,6 @@ qemu-virt: $(IMAGE)
 		-kernel $(ELF) \
 		-serial stdio \
 		-display none
+
+# Alias for qemu-virt
+qemu: qemu-virt

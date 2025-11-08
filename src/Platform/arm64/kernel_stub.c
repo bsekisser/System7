@@ -7,8 +7,11 @@
 #include <stddef.h>
 #include "uart.h"
 #include "timer.h"
-#include "framebuffer.h"
 #include "mmu.h"
+
+#ifndef QEMU_BUILD
+#include "framebuffer.h"
+#endif
 
 /*
  * Simple implementations for testing
@@ -128,7 +131,8 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* Test framebuffer initialization */
+#ifndef QEMU_BUILD
+    /* Test framebuffer initialization (only on real hardware) */
     uart_puts("[KERNEL] Initializing framebuffer (640x480, 32bpp)...\n");
     if (framebuffer_init(640, 480, 32)) {
         uart_puts("[KERNEL] Framebuffer initialized!\n");
@@ -147,8 +151,9 @@ int main(int argc, char **argv) {
         framebuffer_draw_rect(350, 50, 100, 100, 0xFF0000FF); /* Blue square */
         uart_puts("[KERNEL] Test pattern complete\n");
     } else {
-        uart_puts("[KERNEL] Framebuffer initialization failed (normal in QEMU)\n");
+        uart_puts("[KERNEL] Framebuffer initialization failed\n");
     }
+#endif
 
     uart_puts("\n");
     uart_puts("[KERNEL] ═══════════════════════════════════════════════════════\n");
