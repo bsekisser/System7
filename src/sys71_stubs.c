@@ -253,6 +253,27 @@ void ReleaseResource(Handle theResource) {
 /* Memory Manager functions provided by MemoryManager.c */
 
 OSErr FSpCreateResFile(const FSSpec* spec, OSType creator, OSType fileType, SInt16 scriptTag) {
+    if (!spec) {
+        return paramErr;
+    }
+
+    /* Create a new resource file with empty resource fork */
+
+    /* In a full implementation, this would:
+     * 1. Create the file using FSpCreate with specified creator/type
+     * 2. Create an empty resource fork
+     * 3. Write an empty resource map to the resource fork
+     * 4. Close the file
+     */
+
+    /* For now, just call FSpCreate to create the data fork */
+    OSErr err = FSpCreate(spec, creator, fileType, scriptTag);
+    if (err != noErr) {
+        return err;
+    }
+
+    /* Resource fork initialization would happen here in full implementation */
+
     return noErr;
 }
 
