@@ -657,9 +657,54 @@ static OSErr ValidateTextData(const void *data, SInt32 size)
 
 static OSErr ValidatePICTData(const void *data, SInt32 size)
 {
-    /* PICT validation would check for valid opcodes and structure */
+    /* PICT validation checks for valid QuickDraw picture structure
+     *
+     * PICT format structure:
+     * - Picture size (2 bytes) - always 0 for PICT version 2
+     * - Picture frame rectangle (8 bytes)
+     * - Version opcode (2 bytes):
+     *   - 0x0011 = PICT version 2 (extended)
+     *   - 0x1101 = PICT version 1 (obsolete)
+     * - Header opcode 0x0C00 for version 2
+     * - Drawing opcodes until end opcode 0x00FF
+     *
+     * Minimum valid PICT is ~12 bytes (size + frame + version + end)
+     */
 
-    return noErr; /* Assume valid for now */
+    if (!data || size < 12) {
+        return paramErr;
+    }
+
+    const unsigned char *pict = (const unsigned char *)data;
+
+    /* Check picture frame rectangle (bytes 2-9) is reasonable
+     * Frame should have positive dimensions and not be absurdly large */
+    /* Top-Left-Bottom-Right as signed 16-bit values */
+    SInt16 top = (pict[2] << 8) | pict[3];
+    SInt16 left = (pict[4] << 8) | pict[5];
+    SInt16 bottom = (pict[6] << 8) | pict[7];
+    SInt16 right = (pict[8] << 8) | pict[9];
+
+    /* Validate frame dimensions */
+    if (bottom <= top || right <= left) {
+        return -1;  /* Invalid frame rectangle */
+    }
+
+    /* Check dimensions aren't absurdly large (> 32K pixels) */
+    if ((bottom - top) > 32000 || (right - left) > 32000) {
+        return -1;  /* Suspiciously large dimensions */
+    }
+
+    /* Check for version opcode at byte 10-11 */
+    UInt16 version = (pict[10] << 8) | pict[11];
+
+    /* Valid versions: 0x0011 (PICT v2) or 0x1101 (PICT v1) */
+    if (version == 0x0011 || version == 0x1101) {
+        return noErr;  /* Valid PICT signature */
+    }
+
+    /* Invalid or unknown PICT version */
+    return -1;
 }
 
 static OSErr ValidateSoundData(const void *data, SInt32 size)
