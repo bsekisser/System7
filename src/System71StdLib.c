@@ -480,6 +480,128 @@ double atof(const char* str) {
     return result * sign;
 }
 
+long strtol(const char* str, char** endptr, int base) {
+    long result = 0;
+    int sign = 1;
+    const char* start = str;
+
+    /* Skip whitespace */
+    while (*str == ' ' || *str == '\t') {
+        str++;
+    }
+
+    /* Handle sign */
+    if (*str == '-') {
+        sign = -1;
+        str++;
+    } else if (*str == '+') {
+        str++;
+    }
+
+    /* Auto-detect base if base is 0 */
+    if (base == 0) {
+        if (*str == '0') {
+            if (str[1] == 'x' || str[1] == 'X') {
+                base = 16;
+                str += 2;
+            } else {
+                base = 8;
+                str++;
+            }
+        } else {
+            base = 10;
+        }
+    } else if (base == 16 && *str == '0' && (str[1] == 'x' || str[1] == 'X')) {
+        str += 2;
+    }
+
+    /* Parse digits */
+    while (*str) {
+        int digit;
+        if (*str >= '0' && *str <= '9') {
+            digit = *str - '0';
+        } else if (*str >= 'a' && *str <= 'z') {
+            digit = *str - 'a' + 10;
+        } else if (*str >= 'A' && *str <= 'Z') {
+            digit = *str - 'A' + 10;
+        } else {
+            break;
+        }
+
+        if (digit >= base) {
+            break;
+        }
+
+        result = result * base + digit;
+        str++;
+    }
+
+    if (endptr) {
+        *endptr = (str == start) ? (char*)start : (char*)str;
+    }
+
+    return result * sign;
+}
+
+unsigned long strtoul(const char* str, char** endptr, int base) {
+    unsigned long result = 0;
+    const char* start = str;
+
+    /* Skip whitespace */
+    while (*str == ' ' || *str == '\t') {
+        str++;
+    }
+
+    /* Skip optional + sign (no negative for unsigned) */
+    if (*str == '+') {
+        str++;
+    }
+
+    /* Auto-detect base if base is 0 */
+    if (base == 0) {
+        if (*str == '0') {
+            if (str[1] == 'x' || str[1] == 'X') {
+                base = 16;
+                str += 2;
+            } else {
+                base = 8;
+                str++;
+            }
+        } else {
+            base = 10;
+        }
+    } else if (base == 16 && *str == '0' && (str[1] == 'x' || str[1] == 'X')) {
+        str += 2;
+    }
+
+    /* Parse digits */
+    while (*str) {
+        int digit;
+        if (*str >= '0' && *str <= '9') {
+            digit = *str - '0';
+        } else if (*str >= 'a' && *str <= 'z') {
+            digit = *str - 'a' + 10;
+        } else if (*str >= 'A' && *str <= 'Z') {
+            digit = *str - 'A' + 10;
+        } else {
+            break;
+        }
+
+        if (digit >= base) {
+            break;
+        }
+
+        result = result * base + digit;
+        str++;
+    }
+
+    if (endptr) {
+        *endptr = (str == start) ? (char*)start : (char*)str;
+    }
+
+    return result;
+}
+
 /* Math functions */
 int abs(int n) {
     return n < 0 ? -n : n;
