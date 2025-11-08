@@ -1,6 +1,7 @@
 /* HFS File Operations Implementation */
 #include "../../include/FS/hfs_file.h"
 #include "../../include/FS/hfs_endian.h"
+#include "../../include/FS/hfs_btree.h"
 #include "../../include/MemoryMgr/MemoryManager.h"
 #include <string.h>
 #include "FS/FSLogging.h"
@@ -119,12 +120,62 @@ static bool read_from_extents(HFS_Volume* vol, const HFS_Extent* extents,
         currentOffset += extentBytes;
     }
 
-    /* TODO: Handle overflow extents for large files */
-    if (remaining > 0 && *bytesRead == 0) {
-        /* FS_LOG_DEBUG("HFS File: Need overflow extents (not implemented)\n"); */
+    return true;
+}
+
+/* Read data from overflow extents B-tree */
+static bool read_from_overflow_extents(HFS_Volume* vol, FileID fileID,
+                                       bool isResource, uint32_t fileSize,
+                                       uint32_t offset, void* buffer,
+                                       uint32_t length, uint32_t* bytesRead,
+                                       uint32_t firstThreeExtentsSize) {
+    if (!vol || !buffer || !bytesRead) return false;
+
+    *bytesRead = 0;
+
+    /* Skip if read is within first 3 extents */
+    if (offset < firstThreeExtentsSize) return true;
+
+    /* Initialize extents B-tree */
+    HFS_BTree extBTree;
+    if (!HFS_BT_Init(&extBTree, vol, kBTreeExtents)) {
+        return false;
     }
 
-    return true;
+    bool foundExtents = false;
+
+    /* Search for overflow extents starting at file block 0 of overflow */
+    uint32_t searchBlock = firstThreeExtentsSize / vol->alBlkSize;
+
+    /* Build extent key: keyLen + reserved + fileID + forkType + startBlock */
+    uint8_t extKey[9];
+    extKey[0] = 7;  /* key length excluding first byte */
+    extKey[1] = 0;  /* reserved */
+    be32_write(extKey + 2, fileID);
+    extKey[6] = isResource ? 0xFF : 0x00;
+    be16_write(extKey + 7, (uint16_t)searchBlock);
+
+    /* Look up extent record */
+    uint8_t recordBuffer[32];
+    uint16_t recordLen = 0;
+
+    if (HFS_BT_FindRecord(&extBTree, extKey, 9, recordBuffer, &recordLen)) {
+        /* Found overflow extent record - it contains 3 more extents */
+        if (recordLen >= 12) {  /* 3 extents * 4 bytes each */
+            HFS_Extent overflowExtents[3];
+            for (int i = 0; i < 3; i++) {
+                overflowExtents[i].startBlock = be16_read(recordBuffer + i * 4);
+                overflowExtents[i].blockCount = be16_read(recordBuffer + i * 4 + 2);
+            }
+
+            /* Read from overflow extents */
+            foundExtents = read_from_extents(vol, overflowExtents, fileSize,
+                                           offset, buffer, length, bytesRead);
+        }
+    }
+
+    HFS_BT_Close(&extBTree);
+    return foundExtents;
 }
 
 HFSFile* HFS_FileOpen(HFS_Catalog* cat, FileID id, bool resourceFork) {
@@ -256,11 +307,34 @@ bool HFS_FileRead(HFSFile* file, void* buffer, uint32_t length, uint32_t* bytesR
 
     const HFS_Extent* extents = file->isResource ? file->rsrcExtents : file->dataExtents;
     uint32_t fileSize = file->isResource ? file->rsrcSize : file->dataSize;
+    uint32_t initialBytesRead = 0;
 
+    /* First, try to read from the first 3 extents */
     bool result = read_from_extents(file->vol, extents, fileSize,
-                                   file->position, buffer, length, bytesRead);
+                                   file->position, buffer, length, &initialBytesRead);
 
-    if (result) {
+    *bytesRead = initialBytesRead;
+
+    /* If we didn't get all requested bytes and haven't read anything yet,
+     * try overflow extents for large files */
+    if (result && initialBytesRead < length && initialBytesRead == 0) {
+        /* Calculate size covered by first 3 extents */
+        uint32_t firstThreeSize = 0;
+        for (int i = 0; i < 3; i++) {
+            if (extents[i].blockCount == 0) break;
+            firstThreeSize += extents[i].blockCount * file->vol->alBlkSize;
+        }
+
+        /* Try reading from overflow extents */
+        uint32_t overflowBytesRead = 0;
+        if (read_from_overflow_extents(file->vol, file->id, file->isResource,
+                                      fileSize, file->position, buffer,
+                                      length, &overflowBytesRead, firstThreeSize)) {
+            *bytesRead += overflowBytesRead;
+        }
+    }
+
+    if (result && *bytesRead > 0) {
         file->position += *bytesRead;
     }
 
