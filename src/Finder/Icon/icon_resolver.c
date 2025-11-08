@@ -6,11 +6,151 @@
 #include "Finder/Icon/icon_resources.h"
 #include "Finder/Icon/icon_system.h"
 #include <stddef.h>
+#include <string.h>
+
+/* Icon cache for performance */
+#define ICON_CACHE_SIZE 32
+
+typedef struct IconCacheEntry {
+    uint32_t type;
+    uint32_t creator;
+    int16_t rsrcID;
+    IconFamily family;
+    bool valid;
+    uint32_t lastAccess;  /* For LRU eviction */
+} IconCacheEntry;
+
+static IconCacheEntry gIconCache[ICON_CACHE_SIZE];
+static uint32_t gCacheAccessCounter = 0;
+static bool gIconSystemInitialized = false;
+
+/* System icon resource IDs (standard System 7 icon IDs) */
+#define ICON_ID_GENERIC_FOLDER    128
+#define ICON_ID_GENERIC_DOCUMENT  129
+#define ICON_ID_GENERIC_APP       130
+#define ICON_ID_SYSTEM_FOLDER     131
+#define ICON_ID_TRASH_EMPTY       132
+#define ICON_ID_TRASH_FULL        133
+#define ICON_ID_HARD_DISK         134
 
 /* Initialize icon system */
 bool Icon_Init(void) {
-    /* TODO: Load system icon resources, initialize cache, etc. */
+    if (gIconSystemInitialized) {
+        return true;  /* Already initialized */
+    }
+
+    /* Clear icon cache */
+    memset(gIconCache, 0, sizeof(gIconCache));
+    gCacheAccessCounter = 0;
+
+    /* Pre-load common system icons from resources if available */
+    /* This improves performance by caching frequently used icons */
+
+    /* Try to load generic folder icon */
+    IconFamily tempFamily;
+    if (IconRes_LoadFamilyByID(ICON_ID_GENERIC_FOLDER, &tempFamily)) {
+        /* Cache the folder icon for quick access */
+        gIconCache[0].type = 'fold';
+        gIconCache[0].creator = 0;
+        gIconCache[0].rsrcID = ICON_ID_GENERIC_FOLDER;
+        gIconCache[0].family = tempFamily;
+        gIconCache[0].valid = true;
+        gIconCache[0].lastAccess = ++gCacheAccessCounter;
+    }
+
+    /* Try to load generic document icon */
+    if (IconRes_LoadFamilyByID(ICON_ID_GENERIC_DOCUMENT, &tempFamily)) {
+        gIconCache[1].type = 'TEXT';
+        gIconCache[1].creator = 0;
+        gIconCache[1].rsrcID = ICON_ID_GENERIC_DOCUMENT;
+        gIconCache[1].family = tempFamily;
+        gIconCache[1].valid = true;
+        gIconCache[1].lastAccess = ++gCacheAccessCounter;
+    }
+
+    /* Try to load generic application icon */
+    if (IconRes_LoadFamilyByID(ICON_ID_GENERIC_APP, &tempFamily)) {
+        gIconCache[2].type = 'APPL';
+        gIconCache[2].creator = 0;
+        gIconCache[2].rsrcID = ICON_ID_GENERIC_APP;
+        gIconCache[2].family = tempFamily;
+        gIconCache[2].valid = true;
+        gIconCache[2].lastAccess = ++gCacheAccessCounter;
+    }
+
+    /* Try to load trash icons */
+    if (IconRes_LoadFamilyByID(ICON_ID_TRASH_EMPTY, &tempFamily)) {
+        gIconCache[3].type = 'trsh';
+        gIconCache[3].creator = 'emty';
+        gIconCache[3].rsrcID = ICON_ID_TRASH_EMPTY;
+        gIconCache[3].family = tempFamily;
+        gIconCache[3].valid = true;
+        gIconCache[3].lastAccess = ++gCacheAccessCounter;
+    }
+
+    if (IconRes_LoadFamilyByID(ICON_ID_TRASH_FULL, &tempFamily)) {
+        gIconCache[4].type = 'trsh';
+        gIconCache[4].creator = 'full';
+        gIconCache[4].rsrcID = ICON_ID_TRASH_FULL;
+        gIconCache[4].family = tempFamily;
+        gIconCache[4].valid = true;
+        gIconCache[4].lastAccess = ++gCacheAccessCounter;
+    }
+
+    gIconSystemInitialized = true;
     return true;
+}
+
+/* Look up icon in cache */
+static IconCacheEntry* Icon_FindInCache(uint32_t type, uint32_t creator, int16_t rsrcID) {
+    for (int i = 0; i < ICON_CACHE_SIZE; i++) {
+        if (gIconCache[i].valid &&
+            gIconCache[i].type == type &&
+            gIconCache[i].creator == creator &&
+            gIconCache[i].rsrcID == rsrcID) {
+            gIconCache[i].lastAccess = ++gCacheAccessCounter;
+            return &gIconCache[i];
+        }
+    }
+    return NULL;
+}
+
+/* Add icon to cache (LRU eviction) */
+static IconCacheEntry* Icon_AddToCache(uint32_t type, uint32_t creator, int16_t rsrcID, const IconFamily* family) {
+    IconCacheEntry* entry = NULL;
+
+    /* Find empty slot */
+    for (int i = 0; i < ICON_CACHE_SIZE; i++) {
+        if (!gIconCache[i].valid) {
+            entry = &gIconCache[i];
+            break;
+        }
+    }
+
+    /* If no empty slot, evict LRU entry */
+    if (!entry) {
+        uint32_t minAccess = gCacheAccessCounter;
+        int lruIndex = 0;
+
+        for (int i = 0; i < ICON_CACHE_SIZE; i++) {
+            if (gIconCache[i].lastAccess < minAccess) {
+                minAccess = gIconCache[i].lastAccess;
+                lruIndex = i;
+            }
+        }
+
+        entry = &gIconCache[lruIndex];
+    }
+
+    /* Fill cache entry */
+    entry->type = type;
+    entry->creator = creator;
+    entry->rsrcID = rsrcID;
+    entry->family = *family;
+    entry->valid = true;
+    entry->lastAccess = ++gCacheAccessCounter;
+
+    return entry;
 }
 
 /* Resolve icon for file/folder */
@@ -22,7 +162,7 @@ bool Icon_ResolveForNode(const FileKind* fk, IconHandle* out) {
     /* 1) Custom icon (folder/file flag + "Icon\r") */
     if (fk->hasCustomIcon && fk->path) {
         if (IconRes_LoadCustomIconForPath(fk->path, &tempFam)) {
-            out->fam = &tempFam;  /* Should cache this */
+            out->fam = &tempFam;
             out->selected = false;
             return true;
         }
@@ -31,8 +171,23 @@ bool Icon_ResolveForNode(const FileKind* fk, IconHandle* out) {
     /* 2) Bundles: BNDL/FREF by creator/type */
     int16_t iconID = 0;
     if (IconRes_MapTypeCreatorToIcon(fk->type, fk->creator, &iconID)) {
+        /* Check cache first */
+        IconCacheEntry* cached = Icon_FindInCache(fk->type, fk->creator, iconID);
+        if (cached) {
+            out->fam = &cached->family;
+            out->selected = false;
+            return true;
+        }
+
+        /* Not in cache - load from resources */
         if (IconRes_LoadFamilyByID(iconID, &tempFam)) {
-            out->fam = &tempFam;  /* Should cache this */
+            /* Add to cache for future lookups */
+            IconCacheEntry* entry = Icon_AddToCache(fk->type, fk->creator, iconID, &tempFam);
+            if (entry) {
+                out->fam = &entry->family;
+            } else {
+                out->fam = &tempFam;
+            }
             out->selected = false;
             return true;
         }
