@@ -634,13 +634,42 @@ void MacPaint_CloseBrushEditorDialog(void)
  */
 int MacPaint_CanAcceptDraggedFile(const char *filename)
 {
-    /* TODO: Check if filename is valid MacPaint format
-     * - Check extension (.paint, .pict, .bmp, etc)
-     * - Verify file header if it's a MacPaint file
-     * - Return 1 if acceptable, 0 otherwise
-     */
+    if (!filename) {
+        return 0;
+    }
 
-    return 0;  /* Placeholder */
+    /* Find file extension */
+    const char *ext = strrchr(filename, '.');
+    if (!ext) {
+        /* No extension - check if it could be a classic MacPaint file */
+        /* Classic MacPaint files had no extension */
+        return 1;
+    }
+
+    /* Check for supported extensions (case-insensitive) */
+    ext++;  /* Skip the dot */
+
+    /* MacPaint format */
+    if (strcasecmp(ext, "paint") == 0 || strcasecmp(ext, "pnt") == 0) {
+        return 1;
+    }
+
+    /* PICT format */
+    if (strcasecmp(ext, "pict") == 0 || strcasecmp(ext, "pct") == 0) {
+        return 1;
+    }
+
+    /* BMP format */
+    if (strcasecmp(ext, "bmp") == 0) {
+        return 1;
+    }
+
+    /* PNG format */
+    if (strcasecmp(ext, "png") == 0) {
+        return 1;
+    }
+
+    return 0;  /* Unsupported format */
 }
 
 /**
