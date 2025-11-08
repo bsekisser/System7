@@ -34,13 +34,13 @@ ASFLAGS = -mcpu=cortex-a53
 LDFLAGS = -T link.ld -nostdlib
 
 # Source files
-ASM_SOURCES = platform_boot.S
+ASM_SOURCES = platform_boot.S exceptions.S
 
 # QEMU build uses different UART addresses
 ifdef QEMU
-C_SOURCES = hal_boot.c uart_qemu.c timer.c gic.c dtb.c cache.c mmu.c string.c printf.c
+C_SOURCES = hal_boot.c uart_qemu.c timer.c gic.c dtb.c cache.c mmu.c string.c printf.c exception_handlers.c
 else
-C_SOURCES = hal_boot.c uart.c timer.c gic.c mailbox.c framebuffer.c dtb.c cache.c mmu.c string.c printf.c
+C_SOURCES = hal_boot.c uart.c timer.c gic.c mailbox.c framebuffer.c dtb.c cache.c mmu.c string.c printf.c exception_handlers.c
 endif
 
 # Add minimal kernel stub for testing

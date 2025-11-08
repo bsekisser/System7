@@ -42,6 +42,10 @@ void arm64_boot_main(void *dtb_ptr) {
     /* Initialize timer */
     timer_init();
 
+    /* Initialize exception handlers */
+    extern void exceptions_init(void);
+    exceptions_init();
+
     /* Save DTB address */
     boot_info.dtb_address = (uint64_t)dtb_ptr;
 
@@ -146,8 +150,10 @@ void arm64_boot_main(void *dtb_ptr) {
     uart_puts("[ARM64] ==========================================================\n");
 
     /* Jump to main kernel entry point */
+    uart_puts("[ARM64] About to call main()...\n");
     extern int main(int argc, char **argv);
     main(0, NULL);
+    uart_puts("[ARM64] main() returned\n");
 
     /* Should not return */
     while (1) {

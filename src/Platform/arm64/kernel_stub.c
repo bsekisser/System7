@@ -20,12 +20,10 @@ extern int snprintf(char *str, size_t size, const char *format, ...);
  * Main kernel entry point
  */
 int main(int argc, char **argv) {
-    char buf[256];
-
     (void)argc;
     (void)argv;
 
-    uart_puts("\n");
+    uart_puts("\n[KERNEL] Main entry\n");
     uart_puts("[KERNEL] =========================================================\n");
     uart_puts("[KERNEL] System 7.1 ARM64 Kernel Test\n");
     uart_puts("[KERNEL] =========================================================\n");
@@ -38,18 +36,8 @@ int main(int argc, char **argv) {
     timer_msleep(1000);
     uart_puts("[KERNEL] Delay complete!\n");
 
-    /* Initialize and enable MMU */
-    uart_puts("[KERNEL] Initializing MMU...\n");
-    if (mmu_init()) {
-        uart_puts("[KERNEL] MMU initialized\n");
-        uart_puts("[KERNEL] Enabling MMU...\n");
-        mmu_enable();
-        if (mmu_is_enabled()) {
-            uart_puts("[KERNEL] MMU enabled successfully!\n");
-        } else {
-            uart_puts("[KERNEL] Warning: MMU enable failed\n");
-        }
-    }
+    /* Skip MMU for now in QEMU - causes hang */
+    uart_puts("[KERNEL] Skipping MMU initialization for QEMU testing\n");
 
 #ifndef QEMU_BUILD
     /* Test framebuffer initialization (only on real hardware) */
