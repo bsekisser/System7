@@ -10,7 +10,7 @@
 #include "mmu.h"
 
 #ifdef QEMU_BUILD
-#include "ramfb.h"
+#include "virtio_gpu.h"
 #else
 #include "framebuffer.h"
 #endif
@@ -51,28 +51,31 @@ int main(int argc, char **argv) {
 #endif
 
 #ifdef QEMU_BUILD
-    uart_puts("[KERNEL] Initializing graphics (320x240 ramfb)...\n");
-    if (ramfb_init()) {
+    uart_puts("[KERNEL] Initializing graphics (320x240 virtio-gpu)...\n");
+    if (virtio_gpu_init()) {
         uart_puts("[KERNEL] Graphics OK - drawing test pattern...\n");
 
         /* Clear to dark blue background */
-        ramfb_clear(0xFF001040);
+        virtio_gpu_clear(0xFF001040);
 
         /* Draw title bar */
-        ramfb_draw_rect(0, 0, 320, 24, 0xFFCCCCCC);
+        virtio_gpu_draw_rect(0, 0, 320, 24, 0xFFCCCCCC);
 
         /* Draw colored status boxes */
-        ramfb_draw_rect(20, 40, 80, 60, 0xFFFF0000);   /* Red - UART */
-        ramfb_draw_rect(120, 40, 80, 60, 0xFF00FF00);  /* Green - Timer */
-        ramfb_draw_rect(220, 40, 80, 60, 0xFF0000FF);  /* Blue - Boot */
+        virtio_gpu_draw_rect(20, 40, 80, 60, 0xFFFF0000);   /* Red - UART */
+        virtio_gpu_draw_rect(120, 40, 80, 60, 0xFF00FF00);  /* Green - Timer */
+        virtio_gpu_draw_rect(220, 40, 80, 60, 0xFF0000FF);  /* Blue - Boot */
 
         /* Draw status panel */
-        ramfb_draw_rect(20, 120, 280, 100, 0xFFFFFFFF); /* White box */
-        ramfb_draw_rect(24, 124, 272, 92, 0xFF000000);  /* Black interior */
+        virtio_gpu_draw_rect(20, 120, 280, 100, 0xFFFFFFFF); /* White box */
+        virtio_gpu_draw_rect(24, 124, 272, 92, 0xFF000000);  /* Black interior */
+
+        /* Flush to display */
+        virtio_gpu_flush();
 
         uart_puts("[KERNEL] Graphics initialized - 320x240 framebuffer active\n");
     } else {
-        uart_puts("[KERNEL] Graphics init failed (need -device ramfb)\n");
+        uart_puts("[KERNEL] Graphics init failed (need -device virtio-gpu-device)\n");
     }
 #endif
 

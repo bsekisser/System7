@@ -63,8 +63,10 @@ setup_el1:
     mov sp, x0
 
     /* Clear BSS section */
-    adr x0, __bss_start
-    adr x1, __bss_end
+    adrp x0, __bss_start
+    add x0, x0, :lo12:__bss_start
+    adrp x1, __bss_end
+    add x1, x1, :lo12:__bss_end
 
 clear_bss:
     cmp x0, x1
