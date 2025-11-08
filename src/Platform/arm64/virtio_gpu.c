@@ -10,8 +10,11 @@
 #include "uart.h"
 
 /* VirtIO GPU MMIO base (from QEMU virt machine) */
-#define VIRTIO_MMIO_BASE    0x0a000000
-#define VIRTIO_MMIO_SIZE    0x200
+#define VIRTIO_MMIO_BASE_START  0x0a000000
+#define VIRTIO_MMIO_SLOT_SIZE   0x200
+#define VIRTIO_MMIO_MAX_SLOTS   32
+
+static uintptr_t virtio_gpu_base = 0;
 
 /* VirtIO MMIO registers */
 #define VIRTIO_MMIO_MAGIC           0x000
@@ -164,7 +167,7 @@ struct virtqueue {
 } __attribute__((aligned(4096)));
 
 /* Driver state */
-static volatile uint32_t *virtio_base = (volatile uint32_t *)VIRTIO_MMIO_BASE;
+static volatile uint32_t *virtio_base = NULL;
 static struct virtqueue controlq __attribute__((aligned(4096)));
 static uint32_t framebuffer[FB_WIDTH * FB_HEIGHT] __attribute__((aligned(4096)));
 static bool initialized = false;
@@ -179,6 +182,25 @@ static inline uint32_t virtio_read32(uint32_t offset) {
 /* Helper to write MMIO register */
 static inline void virtio_write32(uint32_t offset, uint32_t value) {
     *(volatile uint32_t *)((uintptr_t)virtio_base + offset) = value;
+}
+
+/* Helper to print hex digit */
+static char hex_digit(unsigned int value) {
+    value &= 0xF;
+    if (value < 10) return '0' + value;
+    return 'A' + (value - 10);
+}
+
+/* Helper to print hex value */
+static void uart_put_hex(uint32_t value) {
+    uart_putc(hex_digit(value >> 28));
+    uart_putc(hex_digit(value >> 24));
+    uart_putc(hex_digit(value >> 20));
+    uart_putc(hex_digit(value >> 16));
+    uart_putc(hex_digit(value >> 12));
+    uart_putc(hex_digit(value >> 8));
+    uart_putc(hex_digit(value >> 4));
+    uart_putc(hex_digit(value));
 }
 
 /* Send GPU command and wait for response */
@@ -221,20 +243,68 @@ bool virtio_gpu_init(void) {
 
     uart_puts("[VIRTIO-GPU] Initializing virtio-gpu driver\n");
 
+    /* For now, hardcode to slot 0 - QEMU virt places virtio-gpu here
+     * when using -device virtio-gpu-device */
+    uart_puts("[VIRTIO-GPU] Checking slot 0 for GPU...\n");
+
+    virtio_base = (volatile uint32_t *)VIRTIO_MMIO_BASE_START;
+    magic = virtio_read32(VIRTIO_MMIO_MAGIC);
+    uart_puts("[VIRTIO-GPU] Magic: 0x");
+    uart_put_hex(magic);
+    uart_puts("\n");
+
+    if (magic == 0x74726976) {
+        device_id = virtio_read32(VIRTIO_MMIO_DEVICE_ID);
+        uart_puts("[VIRTIO-GPU] Device ID: ");
+        uart_put_hex(device_id);
+        uart_puts("\n");
+
+        /* Device ID 0 might mean the device is there but not initialized,
+         * or QEMU hasn't fully set it up. Try using it anyway. */
+        uart_puts("[VIRTIO-GPU] Using device at slot 0\n");
+        virtio_gpu_base = VIRTIO_MMIO_BASE_START;
+    } else {
+        uart_puts("[VIRTIO-GPU] No valid VirtIO device at slot 0\n");
+    }
+
+    uart_puts("[VIRTIO-GPU] Scan complete\n");
+
+    if (virtio_gpu_base == 0) {
+        uart_puts("[VIRTIO-GPU] No GPU device found\n");
+        return false;
+    }
+
+    uart_puts("[VIRTIO-GPU] Using base: 0x");
+    uart_put_hex(virtio_gpu_base);
+    uart_puts("\n");
+
+    virtio_base = (volatile uint32_t *)virtio_gpu_base;
+
+    uart_puts("[VIRTIO-GPU] Reading magic...\n");
     /* Check VirtIO magic */
     magic = virtio_read32(VIRTIO_MMIO_MAGIC);
+    uart_puts("[VIRTIO-GPU] Magic read complete\n");
+    uart_puts("[VIRTIO-GPU] Magic: 0x");
+    uart_put_hex(magic);
+    uart_puts("\n");
     if (magic != 0x74726976) {  /* 'virt' */
         uart_puts("[VIRTIO-GPU] Invalid magic number\n");
         return false;
     }
 
     version = virtio_read32(VIRTIO_MMIO_VERSION);
+    uart_puts("[VIRTIO-GPU] Version: 0x");
+    uart_put_hex(version);
+    uart_puts("\n");
     if (version != 2) {
-        uart_puts("[VIRTIO-GPU] Unsupported version\n");
+        uart_puts("[VIRTIO-GPU] Unsupported version (expected 2)\n");
         return false;
     }
 
     device_id = virtio_read32(VIRTIO_MMIO_DEVICE_ID);
+    uart_puts("[VIRTIO-GPU] Device ID: 0x");
+    uart_put_hex(device_id);
+    uart_puts("\n");
     if (device_id != VIRTIO_ID_GPU) {
         uart_puts("[VIRTIO-GPU] Not a GPU device\n");
         return false;
