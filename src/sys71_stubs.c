@@ -142,7 +142,29 @@ void InitFonts(void) {
 
 /* List Manager */
 void InitListManager(void) {
-    /* Initialize List Manager dialog-list registry */
+    /* Initialize List Manager for displaying scrollable lists
+     *
+     * The List Manager provides utilities for creating and managing
+     * scrollable lists in dialogs and windows. It handles:
+     * - List creation and disposal (LNew, LDispose)
+     * - Cell selection and highlighting
+     * - Scrolling and updating
+     * - Drawing list contents
+     * - Mouse tracking in lists
+     *
+     * Used extensively in:
+     * - Standard File dialogs (file/folder lists)
+     * - Font selection dialogs
+     * - Color picker lists
+     * - Custom application lists
+     *
+     * This initialization:
+     * 1. Sets up internal dialog-list registry via InitRegistryIfNeeded()
+     * 2. Prepares data structures for LNew() calls
+     * 3. Initializes list manager globals
+     *
+     * After this call, applications can use LNew() to create lists.
+     */
     extern void InitRegistryIfNeeded(void);
 
     /* Set up internal registry for dialog-attached lists */
