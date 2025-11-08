@@ -535,18 +535,53 @@ OSErr AEGetKeyPtr(const AERecord* theAERecord, AEKeyword theAEKeyword, DescType 
         AEListItem* item = (AEListItem*)currentPos;
         if (item->keyword == theAEKeyword) {
             /* Found the key */
+
+            /* Handle type coercion if needed */
+            if (desiredType != typeWildCard && desiredType != item->descriptorType) {
+                /* Need to coerce the data */
+                extern OSErr AECoerceDesc(const AEDesc* theAEDesc, DescType toType, AEDesc* result);
+                extern OSErr AECreateDesc(DescType typeCode, const void* dataPtr, Size dataSize, AEDesc* result);
+                extern OSErr AEDisposeDesc(AEDesc* desc);
+
+                /* Create descriptor from source data */
+                AEDesc sourceDesc;
+                OSErr err = AECreateDesc(item->descriptorType, (char*)item + sizeof(AEListItem),
+                                        item->dataSize, &sourceDesc);
+                if (err != noErr) return err;
+
+                /* Coerce to desired type */
+                AEDesc coercedDesc;
+                err = AECoerceDesc(&sourceDesc, desiredType, &coercedDesc);
+                AEDisposeDesc(&sourceDesc);
+                if (err != noErr) return err;
+
+                /* Update typeCode and actualSize to reflect coerced data */
+                if (typeCode) *typeCode = desiredType;
+                extern Size AEGetDescDataSize(const AEDesc* desc);
+                Size coercedSize = AEGetDescDataSize(&coercedDesc);
+                *actualSize = coercedSize;
+
+                /* Copy coerced data to output buffer */
+                if (dataPtr && maximumSize > 0) {
+                    Size copySize = (coercedSize < maximumSize) ? coercedSize : maximumSize;
+                    extern void* AEGetDescDataPtr(const AEDesc* desc);
+                    void* coercedData = AEGetDescDataPtr(&coercedDesc);
+                    if (coercedData) {
+                        memcpy(dataPtr, coercedData, copySize);
+                    }
+                }
+
+                AEDisposeDesc(&coercedDesc);
+                return noErr;
+            }
+
+            /* No coercion needed - copy data directly */
             if (typeCode) *typeCode = item->descriptorType;
             *actualSize = item->dataSize;
 
             if (dataPtr && maximumSize > 0) {
                 Size copySize = (item->dataSize < maximumSize) ? item->dataSize : maximumSize;
                 memcpy(dataPtr, (char*)item + sizeof(AEListItem), copySize);
-            }
-
-            /* Handle type coercion if needed */
-            if (desiredType != typeWildCard && desiredType != item->descriptorType) {
-                /* TODO: Implement coercion */
-                return errAECoercionFail;
             }
 
             return noErr;
