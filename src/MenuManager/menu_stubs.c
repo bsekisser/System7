@@ -43,7 +43,11 @@ short CountMenuItems(MenuHandle menu) { return 0; }
 MenuHandle GetMenuHandle(short menuID) { return NULL; }
 void SetMenuFlash(short count) {}
 void FlashMenuBar(short menuID) {}
-Boolean IsMenuItemEnabled(MenuHandle menu, short item) { return false; }
+Boolean IsMenuItemEnabled(MenuHandle menu, short item) {
+    /* Public API wrapper - delegates to internal CheckMenuItemEnabled */
+    extern Boolean CheckMenuItemEnabled(MenuHandle theMenu, short item);
+    return CheckMenuItemEnabled(menu, item);
+}
 void CalcMenuSize(MenuHandle theMenu) {}
 
 /* Standard menu commands */
