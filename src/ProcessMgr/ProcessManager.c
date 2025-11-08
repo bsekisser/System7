@@ -475,26 +475,64 @@ ProcessSerialNumber ProcessManager_GetFrontProcess(void) {
  * Set front process - bring app to front (used by AppSwitcher)
  */
 OSErr ProcessManager_SetFrontProcess(ProcessSerialNumber psn) {
-    /* TODO: Implement full process switching */
-    /* For now, just find the process and mark it as current */
+    extern UInt32 TickCount(void);
+    ProcessControlBlock* oldFrontProcess;
+    ProcessControlBlock* newFrontProcess;
+
     if (!gProcessQueue) return noErr;
 
-    ProcessControlBlock* process = gProcessQueue->queueHead;
-    while (process) {
-        if (process->processID.highLongOfPSN == psn.highLongOfPSN &&
-            process->processID.lowLongOfPSN == psn.lowLongOfPSN) {
-            gCurrentProcess = process;
-            serial_printf("[ProcessManager] Set front process: signature=%c%c%c%c\n",
-                         (process->processSignature >> 24) & 0xFF,
-                         (process->processSignature >> 16) & 0xFF,
-                         (process->processSignature >> 8) & 0xFF,
-                         process->processSignature & 0xFF);
-            return noErr;
+    /* Save old front process */
+    oldFrontProcess = gCurrentProcess;
+
+    /* Find the process to make front */
+    newFrontProcess = gProcessQueue->queueHead;
+    while (newFrontProcess) {
+        if (newFrontProcess->processID.highLongOfPSN == psn.highLongOfPSN &&
+            newFrontProcess->processID.lowLongOfPSN == psn.lowLongOfPSN) {
+            break;
         }
-        process = process->processNextProcess;
+        newFrontProcess = newFrontProcess->processNextProcess;
     }
 
-    return noErr;  /* Return noErr even if not found */
+    /* Process not found */
+    if (!newFrontProcess) {
+        return procNotFound;
+    }
+
+    /* Already front process */
+    if (newFrontProcess == oldFrontProcess) {
+        return noErr;
+    }
+
+    /* Update current process */
+    gCurrentProcess = newFrontProcess;
+
+    /* Update process state to foreground if it was background */
+    if (newFrontProcess->processMode == PM_BACKGROUND) {
+        newFrontProcess->processMode = PM_FOREGROUND;
+    }
+
+    /* Update last event time */
+    newFrontProcess->processLastEventTime = TickCount();
+
+    /* Send deactivate event to old front process if it exists */
+    if (oldFrontProcess) {
+        /* Post deactivate event */
+        extern OSErr Proc_PostEvent(EventMask what, UInt32 message);
+        Proc_PostEvent(activateEvt, 0);  /* message=0 means deactivate */
+    }
+
+    /* Send activate event to new front process */
+    extern OSErr Proc_PostEvent(EventMask what, UInt32 message);
+    Proc_PostEvent(activateEvt, 1);  /* message=1 means activate */
+
+    serial_printf("[ProcessManager] Switched to front process: signature=%c%c%c%c\n",
+                 (newFrontProcess->processSignature >> 24) & 0xFF,
+                 (newFrontProcess->processSignature >> 16) & 0xFF,
+                 (newFrontProcess->processSignature >> 8) & 0xFF,
+                 newFrontProcess->processSignature & 0xFF);
+
+    return noErr;
 }
 
 /**
