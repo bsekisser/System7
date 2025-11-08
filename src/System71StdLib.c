@@ -411,6 +411,40 @@ void PLstrcat(unsigned char* dst, const unsigned char* src) {
     dst[0] = newLen;
 }
 
+/* Byte swapping and endianness conversion */
+uint16_t SwapInt16(uint16_t value) {
+    return ((value & 0xFF00) >> 8) | ((value & 0x00FF) << 8);
+}
+
+uint32_t SwapInt32(uint32_t value) {
+    return ((value & 0xFF000000) >> 24) |
+           ((value & 0x00FF0000) >> 8) |
+           ((value & 0x0000FF00) << 8) |
+           ((value & 0x000000FF) << 24);
+}
+
+/* Network byte order conversion (big-endian)
+ * Mac is already big-endian, so these are identity functions */
+uint16_t htons(uint16_t hostshort) {
+    /* Host to network short - Mac is big-endian, network is big-endian */
+    return hostshort;
+}
+
+uint32_t htonl(uint32_t hostlong) {
+    /* Host to network long - Mac is big-endian, network is big-endian */
+    return hostlong;
+}
+
+uint16_t ntohs(uint16_t netshort) {
+    /* Network to host short - Mac is big-endian, network is big-endian */
+    return netshort;
+}
+
+uint32_t ntohl(uint32_t netlong) {
+    /* Network to host long - Mac is big-endian, network is big-endian */
+    return netlong;
+}
+
 /* Character classification functions */
 int isdigit(int c) {
     return (c >= '0' && c <= '9');
