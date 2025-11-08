@@ -151,42 +151,107 @@ extern void GenerateSystemEvent(short eventType, int message, Point where, short
 
 /* External functions we use */
 
-/* ExpandMem stubs for SystemInit */
+/* ExpandMem stubs for SystemInit
+ * These functions manage the Expanded Memory structure introduced in System 7.
+ * ExpandMem contains global state and handles that don't fit in the original
+ * 256-byte low memory area. It's allocated in the system heap during boot. */
+
 void ExpandMemInit(void) {
     SYSTEM_LOG_DEBUG("ExpandMemInit: Initializing expanded memory\n");
-    /* Set up expanded memory globals if needed */
+    /* In a full implementation, this would:
+     * 1. Allocate ExpandMem handle in system heap (typically ~512 bytes)
+     * 2. Initialize ExpandMem structure with magic number 'expm'
+     * 3. Set up pointers to low-memory globals
+     * 4. Initialize expansion slots and device structures
+     * 5. Store handle in low-memory global at 0x02B6 (ExpandMemRec)
+     *
+     * For kernel environment, expanded memory is managed elsewhere */
 }
+
 void ExpandMemInitKeyboard(void) {
     SYSTEM_LOG_DEBUG("ExpandMemInitKeyboard: Initializing keyboard expanded memory\n");
-    /* Initialize keyboard-specific memory areas */
+    /* In a full implementation, this would:
+     * 1. Set up keyboard state in ExpandMem
+     * 2. Initialize keyboard repeat rate (ExpandMem+0x1A)
+     * 3. Set keyboard type (ExpandMem+0x1C)
+     * 4. Configure dead key state for international keyboards
+     *
+     * For kernel environment, keyboard state is in EventManager globals */
 }
+
 void ExpandMemSetAppleTalkInactive(void) {
     SYSTEM_LOG_DEBUG("ExpandMemSetAppleTalkInactive: Disabling AppleTalk\n");
-    /* Mark AppleTalk as inactive in expanded memory */
+    /* In a full implementation, this would:
+     * 1. Clear AppleTalk active flag in ExpandMem+0x4E
+     * 2. Mark AppleTalk driver as inactive
+     * 3. Prevent AppleTalk from loading at system startup
+     *
+     * For kernel environment without networking, this is a no-op */
 }
 void SetAutoDecompression(Boolean enable) {
     SYSTEM_LOG_DEBUG("SetAutoDecompression: %s\n", enable ? "Enabled" : "Disabled");
-    /* Set resource decompression flag */
+    /* In a full implementation, this would:
+     * 1. Set resource decompression flag in ExpandMem
+     * 2. Control automatic decompression of compressed resources
+     * 3. Used by Resource Manager when loading 'dcmp' resources
+     *
+     * For kernel environment, resources are not compressed */
+    (void)enable;
 }
+
 void ResourceManager_SetDecompressionCacheSize(Size size) {
     SYSTEM_LOG_DEBUG("ResourceManager_SetDecompressionCacheSize: Setting cache to %lu bytes\n", (unsigned long)size);
-    /* Configure decompression cache */
+    /* In a full implementation, this would:
+     * 1. Allocate decompression cache in system heap
+     * 2. Configure cache size for decompressed resource data
+     * 3. Improve performance for frequently-accessed compressed resources
+     *
+     * For kernel environment, no compression cache needed */
+    (void)size;
 }
+
 void InstallDecompressHook(DecompressHookProc proc) {
     SYSTEM_LOG_DEBUG("InstallDecompressHook: Installing hook at %p\n", proc);
-    /* Install custom decompression routine */
+    /* In a full implementation, this would:
+     * 1. Store decompression hook pointer in ExpandMem
+     * 2. Allow custom decompression algorithms
+     * 3. Called by Resource Manager for 'dcmp' resources
+     *
+     * For kernel environment, no custom decompression */
+    (void)proc;
 }
+
 void ExpandMemInstallDecompressor(void) {
     SYSTEM_LOG_DEBUG("ExpandMemInstallDecompressor: Installing default decompressor\n");
-    /* Install default resource decompressor */
+    /* In a full implementation, this would:
+     * 1. Install default resource decompressor hook
+     * 2. Support standard System 7 compression algorithms
+     * 3. Register with Resource Manager for automatic decompression
+     *
+     * For kernel environment, resources are not compressed */
 }
+
 void ExpandMemCleanup(void) {
     SYSTEM_LOG_DEBUG("ExpandMemCleanup: Cleaning up expanded memory\n");
-    /* Release expanded memory resources */
+    /* In a full implementation, this would:
+     * 1. Dispose ExpandMem handle from system heap
+     * 2. Clear low-memory global at 0x02B6
+     * 3. Release any expansion slot structures
+     * 4. Called during system shutdown
+     *
+     * For kernel environment, cleanup handled by memory manager */
 }
+
 void ExpandMemDump(void) {
     SYSTEM_LOG_DEBUG("ExpandMemDump: Dumping expanded memory state\n");
-    /* Debug dump of expanded memory contents */
+    /* Debug function to dump ExpandMem contents
+     * In a full implementation, this would:
+     * 1. Print ExpandMem structure contents to debugger
+     * 2. Show magic number, size, version
+     * 3. Display keyboard state, AppleTalk flags, etc.
+     * 4. Useful for debugging system initialization issues
+     *
+     * For kernel environment, this is a no-op */
 }
 Boolean ExpandMemValidate(void) {
     /* Validate expanded memory structure integrity */
