@@ -326,6 +326,27 @@ OSErr HandleGetInfo(void) {
 /* ShowFind and FindAgain implemented in src/Finder/Find.c */
 
 OSErr ShowAboutFinder(void) {
+    /* Show About Finder dialog */
+    extern short Alert(short alertID, void* filterProc);
+
+    /* Display About box with simple message */
+    /* Alert ID 128 is typically used for About boxes */
+    /* For now, we'll use a generic alert since we don't have resources */
+
+    extern void ParamText(ConstStr255Param param0, ConstStr255Param param1,
+                         ConstStr255Param param2, ConstStr255Param param3);
+    extern short NoteAlert(short alertID, void* filterProc);
+
+    /* Set up message text */
+    const unsigned char aboutMsg[] = "\pSystem 7.1 Finder";
+    const unsigned char versionMsg[] = "\pVersion 7.1";
+    const unsigned char emptyMsg[] = "\p";
+
+    ParamText(aboutMsg, versionMsg, emptyMsg, emptyMsg);
+
+    /* Show note alert (info icon) */
+    NoteAlert(128, NULL);
+
     return noErr;
 }
 
