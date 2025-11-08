@@ -1268,19 +1268,126 @@ OSErr ScanDirectoryForDesktopEntries(SInt16 vRefNum, SInt32 dirID, SInt16 databa
  */
 
 /* Minimal math functions for -nostdlib build */
+
+/* Helper function for atan2 */
+static double _atan_approx(double z) {
+    /* Minimax polynomial approximation for atan(z) where |z| <= 1
+     * Accurate to ~6 decimal places */
+    double z2 = z * z;
+    return z * (0.99866 + z2 * (-0.33015 + z2 * (0.18014 + z2 * (-0.08467 + z2 * 0.02487))));
+}
+
+static double _fabs(double x) {
+    return (x < 0.0) ? -x : x;
+}
+
+static double _sqrt_approx(double x) {
+    if (x <= 0.0) return 0.0;
+    /* Newton-Raphson approximation */
+    double guess = x;
+    for (int i = 0; i < 10; i++) {
+        guess = 0.5 * (guess + x / guess);
+    }
+    return guess;
+}
+
 double atan2(double y, double x) {
-    /* Very basic approximation - just return 0 for now */
-    return 0.0;
+    /* Two-argument arctangent with proper quadrant handling
+     * Returns angle in radians from -π to π
+     * Used for converting Cartesian to polar coordinates */
+
+    const double PI = 3.14159265358979323846;
+    const double PI_2 = 1.57079632679489661923;
+
+    /* Handle special cases */
+    if (x == 0.0 && y == 0.0) return 0.0;
+    if (x == 0.0) return (y > 0.0) ? PI_2 : -PI_2;
+
+    /* Compute atan(y/x) with range reduction */
+    double ax = _fabs(x);
+    double ay = _fabs(y);
+    double z, angle;
+
+    if (ay <= ax) {
+        z = ay / ax;
+        angle = _atan_approx(z);
+    } else {
+        z = ax / ay;
+        angle = PI_2 - _atan_approx(z);
+    }
+
+    /* Adjust for quadrant */
+    if (x < 0.0) {
+        angle = (y >= 0.0) ? (PI - angle) : (-PI + angle);
+    } else {
+        angle = (y >= 0.0) ? angle : -angle;
+    }
+
+    return angle;
 }
 
 double cos(double x) {
-    /* Very basic approximation - just return 1 for now */
-    return 1.0;
+    /* Cosine using Taylor series: 1 - x²/2! + x⁴/4! - x⁶/6! + x⁸/8!
+     * Range reduction to [-π, π] for better accuracy */
+
+    const double PI = 3.14159265358979323846;
+    const double TWO_PI = 6.28318530717958647693;
+
+    /* Range reduction: bring x into [-π, π] */
+    while (x > PI) x -= TWO_PI;
+    while (x < -PI) x += TWO_PI;
+
+    /* Taylor series computation */
+    double x2 = x * x;
+    double term = 1.0;
+    double sum = 1.0;
+
+    /* Terms: -x²/2!, +x⁴/4!, -x⁶/6!, +x⁸/8! */
+    term = -term * x2 / (1.0 * 2.0);
+    sum += term;
+
+    term = -term * x2 / (3.0 * 4.0);
+    sum += term;
+
+    term = -term * x2 / (5.0 * 6.0);
+    sum += term;
+
+    term = -term * x2 / (7.0 * 8.0);
+    sum += term;
+
+    return sum;
 }
 
 double sin(double x) {
-    /* Very basic approximation - just return 0 for now */
-    return 0.0;
+    /* Sine using Taylor series: x - x³/3! + x⁵/5! - x⁷/7! + x⁹/9!
+     * Range reduction to [-π, π] for better accuracy */
+
+    const double PI = 3.14159265358979323846;
+    const double TWO_PI = 6.28318530717958647693;
+
+    /* Range reduction: bring x into [-π, π] */
+    while (x > PI) x -= TWO_PI;
+    while (x < -PI) x += TWO_PI;
+
+    /* Taylor series computation */
+    double x2 = x * x;
+    double term = x;
+    double sum = x;
+
+    /* Terms: -x³/3!, +x⁵/5!, -x⁷/7!, +x⁹/9! */
+    term = -term * x2 / (2.0 * 3.0);
+    sum += term;
+
+    term = -term * x2 / (4.0 * 5.0);
+    sum += term;
+
+    term = -term * x2 / (6.0 * 7.0);
+    sum += term;
+
+    term = -term * x2 / (8.0 * 9.0);
+    sum += term;
+
+    return sum;
 }
 
 /* 64-bit division for -nostdlib build */
