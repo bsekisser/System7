@@ -869,6 +869,30 @@ OSErr HandleGrowWindow(WindowPtr window, EventRecord* event) {
 /* DoUpdate moved to Finder/finder_main.c */
 
 void DoActivate(WindowPtr window, Boolean activate) {
+    /* Handle window activation/deactivation events
+     *
+     * Called when a window gains or loses focus. Updates the visual
+     * state of all controls in the window to reflect active/inactive status.
+     *
+     * Parameters:
+     *   window - Window being activated or deactivated
+     *   activate - true to activate, false to deactivate
+     *
+     * Activation behavior:
+     * - Active windows: Controls drawn normally (hilite = 0)
+     * - Inactive windows: Controls drawn dimmed (hilite = 255)
+     * - Title bar appearance changes (handled by Window Manager)
+     * - Scroll bars change from active to inactive appearance
+     *
+     * This is typically called in response to:
+     * - activateEvt event with activeFlag bit set/clear
+     * - User clicking on a different window
+     * - Application switching (suspend/resume events)
+     *
+     * The function walks the window's control list and updates each
+     * control's hilite state, then redraws all controls to show the
+     * new visual state.
+     */
     if (!window) return;
 
     /* Hilite or unhilite all controls in the window */
