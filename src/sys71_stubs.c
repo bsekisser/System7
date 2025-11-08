@@ -280,15 +280,37 @@ void ExpandMemCleanup(void) {
 }
 
 void ExpandMemDump(void) {
-    SYSTEM_LOG_DEBUG("ExpandMemDump: Dumping expanded memory state\n");
-    /* Debug function to dump ExpandMem contents
-     * In a full implementation, this would:
-     * 1. Print ExpandMem structure contents to debugger
-     * 2. Show magic number, size, version
-     * 3. Display keyboard state, AppleTalk flags, etc.
-     * 4. Useful for debugging system initialization issues
+    /* Debug function to dump ExpandMem contents to serial output
+     * This is a wrapper around ExpandMemDump(ExpandMemRec*, output_func)
      *
-     * For kernel environment, this is a no-op */
+     * Displays:
+     * - Version and size information
+     * - Keyboard: type, script, key cache pointer
+     * - Processes: count, current process, process list
+     * - Memory: physical/logical RAM sizes
+     * - Network: AppleTalk status, config
+     * - VM: enabled status, page size
+     * - Resources: cache, decompressor, flags
+     * - Display: screen count, color table
+     * - Sound: channel count, globals
+     * - Errors: last error code, error handler
+     * - FileSystem: default and boot volumes
+     *
+     * Useful for debugging system initialization and state issues
+     */
+
+    extern ExpandMemRec* ExpandMemGet(void);
+    extern void ExpandMemDump(const ExpandMemRec* em, void (*output_func)(const char* text));
+    extern void serial_puts(const char* s);
+
+    ExpandMemRec* em = ExpandMemGet();
+    if (!em) {
+        serial_puts("ExpandMemDump: ExpandMem not initialized\n");
+        return;
+    }
+
+    /* Delegate to real implementation with serial output */
+    ExpandMemDump(em, serial_puts);
 }
 Boolean ExpandMemValidate(void) {
     /* Validate expanded memory structure integrity
