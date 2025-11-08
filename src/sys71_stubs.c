@@ -118,9 +118,7 @@ void InitListManager(void) {
 }
 
 /* Event Manager */
-SInt16 InitEvents(SInt16 numEvents) {
-    return 0;  /* Success */
-}
+/* InitEvents now implemented in EventManager/EventManagerCore.c */
 
 /* Removed DISABLED GetNextEvent stub (real implementation lives in EventManager) */
 
