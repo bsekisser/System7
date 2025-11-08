@@ -6,8 +6,12 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <string.h>
 #include "uart.h"
 #include "timer.h"
+#include "dtb.h"
+#include "mailbox.h"
+#include "gic.h"
 
 /* ARM64-specific boot information */
 typedef struct {
@@ -62,10 +66,59 @@ void arm64_boot_main(void *dtb_ptr) {
     snprintf(buf, sizeof(buf), "[ARM64] Timer frequency: %llu Hz\n", timer_freq);
     uart_puts(buf);
 
-    /* Set default memory parameters
-     * Will be updated from DTB parsing */
-    boot_info.memory_base = 0x00000000;
-    boot_info.memory_size = 1024 * 1024 * 1024;  /* 1GB default */
+    /* Initialize DTB parser */
+    if (dtb_ptr && dtb_init(dtb_ptr)) {
+        uart_puts("[ARM64] Device Tree initialized\n");
+
+        /* Get model string */
+        const char *model = dtb_get_model();
+        if (model) {
+            snprintf(buf, sizeof(buf), "[ARM64] Board Model: %s\n", model);
+            uart_puts(buf);
+            strncpy(boot_info.board_model, model, sizeof(boot_info.board_model) - 1);
+        }
+
+        /* Get memory from DTB */
+        uint64_t mem_base, mem_size;
+        if (dtb_get_memory(&mem_base, &mem_size)) {
+            boot_info.memory_base = mem_base;
+            boot_info.memory_size = mem_size;
+            snprintf(buf, sizeof(buf), "[ARM64] Memory: 0x%016llx - 0x%016llx (%llu MB)\n",
+                     mem_base, mem_base + mem_size, mem_size / (1024 * 1024));
+            uart_puts(buf);
+        }
+    } else {
+        uart_puts("[ARM64] Warning: Could not initialize Device Tree\n");
+        /* Set default memory parameters */
+        boot_info.memory_base = 0x00000000;
+        boot_info.memory_size = 1024 * 1024 * 1024;  /* 1GB default */
+    }
+
+    /* Initialize mailbox */
+    if (mailbox_init()) {
+        uart_puts("[ARM64] Mailbox initialized\n");
+
+        /* Get board revision */
+        uint32_t revision;
+        if (mailbox_get_board_revision(&revision)) {
+            boot_info.board_revision = revision;
+            snprintf(buf, sizeof(buf), "[ARM64] Board Revision: 0x%08x\n", revision);
+            uart_puts(buf);
+        }
+
+        /* Get ARM memory info from mailbox as well */
+        uint32_t arm_base, arm_size;
+        if (mailbox_get_arm_memory(&arm_base, &arm_size)) {
+            snprintf(buf, sizeof(buf), "[ARM64] ARM Memory (mailbox): Base 0x%08x Size %u MB\n",
+                     arm_base, arm_size / (1024 * 1024));
+            uart_puts(buf);
+        }
+    }
+
+    /* Initialize GIC */
+    if (gic_init()) {
+        uart_puts("[ARM64] GIC interrupt controller initialized\n");
+    }
 
     /* Report processor features */
     uint64_t midr_el1;
