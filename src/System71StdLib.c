@@ -2195,6 +2195,58 @@ int snprintf(char* str, size_t size, const char* format, ...) {
     return result;
 }
 
+int vasprintf(char** strp, const char* format, va_list args) {
+    /* Allocate and format string dynamically */
+    if (!strp) return -1;
+
+    /* Try with initial buffer size */
+    size_t size = 256;
+    char* buf = (char*)malloc(size);
+    if (!buf) {
+        *strp = NULL;
+        return -1;
+    }
+
+    /* Format with va_list */
+    va_list args_copy;
+    va_copy(args_copy, args);
+    int needed = vsnprintf(buf, size, format, args_copy);
+    va_end(args_copy);
+
+    if (needed < 0) {
+        free(buf);
+        *strp = NULL;
+        return -1;
+    }
+
+    /* Check if buffer was large enough */
+    if ((size_t)needed >= size) {
+        /* Reallocate with exact size needed */
+        char* newbuf = (char*)realloc(buf, needed + 1);
+        if (!newbuf) {
+            free(buf);
+            *strp = NULL;
+            return -1;
+        }
+        buf = newbuf;
+
+        /* Format again with correct size */
+        vsnprintf(buf, needed + 1, format, args);
+    }
+
+    *strp = buf;
+    return needed;
+}
+
+int asprintf(char** strp, const char* format, ...) {
+    /* Allocate and format string with variadic arguments */
+    va_list args;
+    va_start(args, format);
+    int result = vasprintf(strp, format, args);
+    va_end(args);
+    return result;
+}
+
 /* Assert implementation */
 void __assert_fail(const char* expr, const char* file, int line, const char* func) {
     serial_printf("Assertion failed: %s at %s:%d in %s\n", expr, file, line, func);
