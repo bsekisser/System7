@@ -97,6 +97,19 @@ void BlockMoveData(const void* srcPtr, void* destPtr, Size byteCount) {
     memmove(destPtr, srcPtr, byteCount);
 }
 
+/* BSD compatibility functions */
+void bzero(void* s, size_t n) {
+    memset(s, 0, n);
+}
+
+void bcopy(const void* src, void* dst, size_t n) {
+    memmove(dst, src, n);
+}
+
+int bcmp(const void* s1, const void* s2, size_t n) {
+    return memcmp(s1, s2, n);
+}
+
 /* String functions */
 size_t strlen(const char* s) {
     size_t len = 0;
