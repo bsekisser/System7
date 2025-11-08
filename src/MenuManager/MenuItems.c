@@ -755,7 +755,9 @@ void CalcMenuSize(MenuHandle theMenu) {
             maxWidth = itemWidth;
         }
 
-        totalHeight += 16; /* Standard item height */
+        /* Use actual item height (separators are shorter) */
+        short itemHeight = extData->items[i].isSeparator ? 10 : 16;
+        totalHeight += itemHeight;
     }
 
     menu->menuWidth = maxWidth;

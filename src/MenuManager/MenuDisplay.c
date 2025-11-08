@@ -691,8 +691,11 @@ void CalcMenuRect(MenuHandle theMenu, Point location, Rect* menuRect)
     /* Add margins */
     menuWidth += 32; /* Left and right margins */
 
-    /* Calculate menu height */
-    menuHeight = itemCount * menuItemStdHeight + 8; /* Top and bottom margins */
+    /* Calculate menu height - sum actual item heights */
+    menuHeight = 8; /* Top and bottom margins */
+    for (short i = 1; i <= itemCount; i++) {
+        menuHeight += GetMenuItemHeight(theMenu, i);
+    }
 
     /* Set up rectangle */
     menuRect->left = location.h;
@@ -711,14 +714,23 @@ void CalcMenuRect(MenuHandle theMenu, Point location, Rect* menuRect)
 void CalcMenuItemRect(MenuHandle theMenu, short item, const Rect* menuRect,
                      Rect* itemRect)
 {
+    short i;
+    short yOffset;
+
     if (theMenu == NULL || menuRect == NULL || itemRect == NULL || item < 1) {
         return;
     }
 
+    /* Calculate cumulative height of items before this one */
+    yOffset = 4; /* Top margin */
+    for (i = 1; i < item; i++) {
+        yOffset += GetMenuItemHeight(theMenu, i);
+    }
+
     itemRect->left = menuRect->left + 4; /* Left margin */
     itemRect->right = menuRect->right - 4; /* Right margin */
-    itemRect->top = menuRect->top + 4 + (item - 1) * menuItemStdHeight; /* Top margin + item offset */
-    itemRect->bottom = itemRect->top + menuItemStdHeight;
+    itemRect->top = menuRect->top + yOffset;
+    itemRect->bottom = itemRect->top + GetMenuItemHeight(theMenu, item);
 }
 
 /*
@@ -775,11 +787,19 @@ void MeasureMenuText(ConstStr255Param text, Style textStyle, short textSize,
  */
 short GetMenuItemHeight(MenuHandle theMenu, short item)
 {
+    extern Boolean CheckMenuItemSeparator(MenuHandle theMenu, short item);
+
     if (theMenu == NULL || item < 1) {
         return 0;
     }
 
-    /* TODO: Check for custom item heights */
+    /* Check if this item is a separator */
+    if (CheckMenuItemSeparator(theMenu, item)) {
+        /* Separators are typically about half height */
+        return 10;
+    }
+
+    /* Standard menu item height */
     return menuItemStdHeight;
 }
 

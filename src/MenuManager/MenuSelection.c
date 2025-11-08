@@ -964,6 +964,10 @@ static short FindMenuAtPoint(Point pt)
  */
 static short FindMenuItemAtPoint(MenuHandle theMenu, Point pt, const Rect* menuRect)
 {
+    extern short GetMenuItemHeight(MenuHandle theMenu, short item);
+    short itemCount, i;
+    short currentY;
+
     if (theMenu == NULL || menuRect == NULL) {
         return 0;
     }
@@ -972,28 +976,22 @@ static short FindMenuItemAtPoint(MenuHandle theMenu, Point pt, const Rect* menuR
         return 0;
     }
 
-    /* Calculate which item is at this point */
-    short itemCount = CountMItems(theMenu);
-    short itemHeight = menuItemStdHeight;
-    short itemY = pt.v - menuRect->top - 4; /* Account for top margin */
+    /* Find which item contains this point by accumulating heights */
+    itemCount = CountMItems(theMenu);
+    currentY = menuRect->top + 4; /* Start after top margin */
 
-    if (itemY < 0) {
-        return 0;
+    for (i = 1; i <= itemCount; i++) {
+        short itemHeight = GetMenuItemHeight(theMenu, i);
+
+        /* Check if point falls within this item's bounds */
+        if (pt.v >= currentY && pt.v < currentY + itemHeight) {
+            return i;
+        }
+
+        currentY += itemHeight;
     }
 
-    /* Prevent division by zero */
-    if (itemHeight == 0) {
-        return 0;  /* Invalid menu configuration */
-    }
-
-    short item = (itemY / itemHeight) + 1;
-
-    /* More explicit bounds check to prevent off-by-one errors */
-    if (item < 1 || item > itemCount) {
-        return 0;
-    }
-
-    return item;
+    return 0; /* Not in any item */
 }
 
 /*
