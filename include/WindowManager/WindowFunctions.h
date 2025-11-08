@@ -50,6 +50,10 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect);
 void GrowWindow(WindowPtr theWindow, Point startPt, const Rect* bBox);
 void ZoomWindow(WindowPtr theWindow, short partCode, Boolean front);
 
+/* Custom window drag constraints */
+typedef Point (*DragConstraintProc)(Point proposedPos, WindowPtr window, void* refCon);
+void SetDragConstraintProc(DragConstraintProc constraintProc, void* refCon);
+
 /* Window drawing and updating */
 void InvalRect(const Rect* badRect);
 void InvalRgn(RgnHandle badRgn);

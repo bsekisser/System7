@@ -88,6 +88,11 @@ typedef enum {
     kDragConstraintCustom = 3    /* Custom constraint function */
 } DragConstraintMode;
 
+/* Custom constraint callback function type */
+/* The callback receives the proposed window position and can modify it */
+/* Returns the constrained position */
+typedef Point (*DragConstraintProc)(Point proposedPos, WindowPtr window, void* refCon);
+
 /* Drag state structure */
 typedef struct DragState {
     WindowPtr window;           /* Window being dragged */
@@ -102,13 +107,15 @@ typedef struct DragState {
     Boolean hasMoved;           /* True if window has moved */
     RgnHandle dragRgn;          /* Region for drag feedback */
     unsigned long lastUpdate;   /* Last update time */
+    DragConstraintProc constraintProc; /* Custom constraint callback */
+    void* constraintRefCon;     /* Refcon for custom constraint */
 } DragState;
 
 /* Global drag state */
 static DragState g_dragState = {
     NULL, {0, 0}, {0, 0}, {0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0},
     kDragFeedbackOutline, kDragConstraintScreen, false, false,
-    NULL, 0
+    NULL, 0, NULL, NULL
 };
 #endif /* Drag state system */
 
@@ -719,6 +726,43 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     WM_LOG_TRACE("DragWindow EXIT: moved=%d\n", moved);
 }
 
+/**
+ * SetDragConstraintProc - Set custom constraint callback for window dragging
+ *
+ * Allows applications to provide custom constraint logic during window drag operations.
+ * The callback receives the proposed window position and can modify it to enforce
+ * application-specific constraints.
+ *
+ * @param constraintProc Callback function to constrain window position (NULL to disable)
+ * @param refCon Application-defined reference constant passed to callback
+ *
+ * Example usage:
+ *   Point MyConstraintProc(Point proposedPos, WindowPtr window, void* refCon) {
+ *       // Keep window on left half of screen
+ *       if (proposedPos.h > 320) proposedPos.h = 320;
+ *       return proposedPos;
+ *   }
+ *   SetDragConstraintProc(MyConstraintProc, NULL);
+ */
+void SetDragConstraintProc(DragConstraintProc constraintProc, void* refCon) {
+    #if 1  /* Drag state system - matches #if 0 block where DragState is defined */
+    g_dragState.constraintProc = constraintProc;
+    g_dragState.constraintRefCon = refCon;
+
+    /* If a callback is set, switch to custom constraint mode */
+    if (constraintProc) {
+        g_dragState.constraint = kDragConstraintCustom;
+    } else {
+        /* Revert to default screen constraint if callback cleared */
+        g_dragState.constraint = kDragConstraintScreen;
+    }
+    #else
+    (void)constraintProc;
+    (void)refCon;
+    /* Custom constraints require drag state system to be enabled */
+    #endif
+}
+
 /* ============================================================================
  * Drag State Management
  * ============================================================================ */
@@ -920,7 +964,11 @@ static Point Local_CalculateConstrainedWindowPosition(Point mousePt) {
             break;
 
         case kDragConstraintCustom:
-            /* TODO: Implement custom constraint callbacks */
+            /* Call custom constraint callback if set */
+            if (g_dragState.constraintProc) {
+                windowPos = g_dragState.constraintProc(windowPos, g_dragState.window,
+                                                       g_dragState.constraintRefCon);
+            }
             break;
 
         case kDragConstraintNone:
