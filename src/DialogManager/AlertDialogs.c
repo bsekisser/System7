@@ -828,15 +828,110 @@ static void DrawAlertIcon(DialogPtr alertDialog, SInt16 iconType)
     }
 
     /* In System 7, alerts have standard icons:
-     * Stop = stop sign icon
-     * Note = information icon
-     * Caution = exclamation point icon
+     * Stop (0) = stop sign icon (octagon with hand)
+     * Note (1) = information icon (speech bubble or note)
+     * Caution (2) = exclamation point icon (triangle with !)
      */
 
-    /* This would draw the appropriate icon in the alert dialog */
-    /* Typically in the first item (or a specific user item) */
+    /* Draw icon in standard location (left side of alert, typically 20x20 at 20,20) */
+    extern void SetPort(GrafPtr port);
+    extern void GetPort(GrafPtr *port);
+    extern void PaintRect(const Rect *r);
+    extern void FrameRect(const Rect *r);
+    extern void FrameOval(const Rect *r);
+    extern void MoveTo(SInt16 h, SInt16 v);
+    extern void LineTo(SInt16 h, SInt16 v);
 
-    // printf("Drawing alert icon type %d in dialog %p\n", iconType, (void*)alertDialog);
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort((GrafPtr)alertDialog);
+
+    Rect iconRect;
+    iconRect.left = 20;
+    iconRect.top = 20;
+    iconRect.right = 52;  /* 32x32 icon */
+    iconRect.bottom = 52;
+
+    switch (iconType) {
+        case 0:  /* Stop Alert - draw octagonal stop sign */
+        {
+            /* Draw octagon approximation using rectangle and corners */
+            Rect innerRect = iconRect;
+            FrameOval(&innerRect);  /* Circle for stop sign */
+
+            /* Draw X or hand symbol inside */
+            SInt16 centerH = (iconRect.left + iconRect.right) / 2;
+            SInt16 centerV = (iconRect.top + iconRect.bottom) / 2;
+            SInt16 offset = 8;
+
+            /* Draw X */
+            MoveTo(centerH - offset, centerV - offset);
+            LineTo(centerH + offset, centerV + offset);
+            MoveTo(centerH + offset, centerV - offset);
+            LineTo(centerH - offset, centerV + offset);
+            break;
+        }
+
+        case 1:  /* Note Alert - draw note/info icon */
+        {
+            /* Draw circle */
+            FrameOval(&iconRect);
+
+            /* Draw lowercase 'i' in center */
+            SInt16 centerH = (iconRect.left + iconRect.right) / 2;
+            SInt16 topV = iconRect.top + 12;
+            SInt16 bottomV = iconRect.bottom - 8;
+
+            /* Dot of 'i' */
+            Rect dotRect;
+            dotRect.left = centerH - 2;
+            dotRect.right = centerH + 2;
+            dotRect.top = topV;
+            dotRect.bottom = topV + 4;
+            PaintRect(&dotRect);
+
+            /* Stem of 'i' */
+            MoveTo(centerH, topV + 6);
+            LineTo(centerH, bottomV);
+            break;
+        }
+
+        case 2:  /* Caution Alert - draw triangle with exclamation */
+        {
+            /* Draw triangle */
+            SInt16 topH = (iconRect.left + iconRect.right) / 2;
+            SInt16 topV = iconRect.top + 4;
+            SInt16 leftH = iconRect.left + 4;
+            SInt16 rightH = iconRect.right - 4;
+            SInt16 bottomV = iconRect.bottom - 4;
+
+            MoveTo(topH, topV);
+            LineTo(leftH, bottomV);
+            LineTo(rightH, bottomV);
+            LineTo(topH, topV);
+
+            /* Draw exclamation point */
+            SInt16 centerH = (iconRect.left + iconRect.right) / 2;
+            MoveTo(centerH, topV + 8);
+            LineTo(centerH, bottomV - 12);
+
+            /* Dot at bottom */
+            Rect dotRect;
+            dotRect.left = centerH - 2;
+            dotRect.right = centerH + 2;
+            dotRect.top = bottomV - 8;
+            dotRect.bottom = bottomV - 4;
+            PaintRect(&dotRect);
+            break;
+        }
+
+        default:
+            /* Unknown icon type - draw placeholder rectangle */
+            FrameRect(&iconRect);
+            break;
+    }
+
+    SetPort(savePort);
 }
 
 /* Stub implementations for additional alert functions */
