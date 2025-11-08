@@ -683,6 +683,25 @@ void InvalRect(const Rect* badRect) {
 #endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
 
 OSErr ScanDirectoryForDesktopEntries(SInt16 vRefNum, SInt32 dirID, SInt16 databaseRefNum) {
+    /* Scan a directory and add file/folder entries to desktop database */
+
+    /* In a full implementation, this would:
+     * 1. Enumerate all files and folders in the directory using PBGetCatInfo
+     * 2. For each file, extract creator, type, icon, and comment info
+     * 3. Add entries to the desktop database file
+     * 4. Update the database index for fast lookups
+     * 5. Handle subdirectories recursively if needed
+     */
+
+    /* Validate parameters */
+    if (vRefNum == 0 || databaseRefNum <= 0) {
+        return paramErr;
+    }
+
+    /* For now, return success without scanning */
+    /* Real implementation would iterate directory entries */
+    (void)dirID;
+
     return noErr;
 }
 
