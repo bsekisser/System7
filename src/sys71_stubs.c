@@ -1022,17 +1022,11 @@ void EndUpdate(WindowPtr theWindow) {
 
 /* SetDeskHook moved to WindowManager/WindowDisplay.c */
 
-/* [WM-053] QuickDraw region drawing functions - real implementations in QuickDraw/Regions.c */
-#if !defined(SYS71_STUBS_DISABLED)
-void FillRgn(RgnHandle rgn, ConstPatternParam pat) {
-    /* Stub - would fill region with pattern */
-}
-
-Boolean RectInRgn(const Rect *r, RgnHandle rgn) {
-    /* Stub - check if rectangle intersects region */
-    return true;
-}
-#endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
+/* [WM-053] QuickDraw region drawing functions
+ * Removed stubs (now disabled by default via SYS71_STUBS_DISABLED=1):
+ * - FillRgn - implemented in QuickDraw/Regions.c:621
+ * - RectInRgn - implemented in QuickDraw/Regions.c:557
+ */
 
 /* sqrt() moved to System71StdLib.c */
 /* QDPlatform_DrawRegion() moved to QuickDraw/QuickDrawPlatform.c */
