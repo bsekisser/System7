@@ -33,6 +33,7 @@ typedef struct NotificationQueueEntry {
     struct NotificationQueueEntry* next;
     NMRec notification;
     Boolean active;
+    UInt32 installTime;  /* Tick count when installed */
 } NotificationQueueEntry;
 
 static struct {
@@ -44,6 +45,9 @@ static struct {
 
 /* Maximum active notifications */
 #define MAX_NOTIFICATIONS 16
+
+/* Notification timeout in ticks (60 ticks = 1 second, 300 seconds = 5 minutes) */
+#define NOTIFICATION_TIMEOUT_TICKS (60 * 300)
 
 /*
  * InitNotificationManager - Initialize the Notification Manager
@@ -62,6 +66,54 @@ void InitNotificationManager(void) {
 }
 
 /*
+ * CleanupExpiredNotifications - Remove notifications that have timed out
+ *
+ * Automatically removes notifications that have been in the queue longer
+ * than NOTIFICATION_TIMEOUT_TICKS to prevent resource leaks.
+ */
+static void CleanupExpiredNotifications(void) {
+    extern UInt32 TickCount(void);
+    UInt32 currentTime = TickCount();
+    NotificationQueueEntry* prev = NULL;
+    NotificationQueueEntry* current = gNMState.queueHead;
+    UInt16 removedCount = 0;
+
+    while (current != NULL) {
+        NotificationQueueEntry* next = current->next;
+
+        /* Check if notification has expired */
+        UInt32 age = currentTime - current->installTime;
+        if (age > NOTIFICATION_TIMEOUT_TICKS) {
+            /* Remove expired notification */
+            if (prev == NULL) {
+                gNMState.queueHead = next;
+            } else {
+                prev->next = next;
+            }
+
+            /* Update tail if removing last item */
+            if (current == gNMState.queueTail) {
+                gNMState.queueTail = prev;
+            }
+
+            /* Free entry */
+            DisposePtr((Ptr)current);
+            gNMState.notificationCount--;
+            removedCount++;
+
+            current = next;
+        } else {
+            prev = current;
+            current = next;
+        }
+    }
+
+    if (removedCount > 0) {
+        NM_LOG("CleanupExpiredNotifications: Removed %d expired notifications\n", removedCount);
+    }
+}
+
+/*
  * NMInstall - Install a notification request
  *
  * This function adds a notification to the notification queue.
@@ -69,6 +121,7 @@ void InitNotificationManager(void) {
  * the settings in the NMRec structure.
  */
 OSErr NMInstall(NMRecPtr nmReqPtr) {
+    extern UInt32 TickCount(void);
     NotificationQueueEntry* entry;
     NotificationQueueEntry* tail;
 
@@ -79,6 +132,9 @@ OSErr NMInstall(NMRecPtr nmReqPtr) {
     if (!nmReqPtr) {
         return paramErr;
     }
+
+    /* Clean up expired notifications to free space */
+    CleanupExpiredNotifications();
 
     /* Check if we've reached the maximum */
     if (gNMState.notificationCount >= MAX_NOTIFICATIONS) {
@@ -96,6 +152,7 @@ OSErr NMInstall(NMRecPtr nmReqPtr) {
     memcpy(&entry->notification, nmReqPtr, sizeof(NMRec));
     entry->next = NULL;
     entry->active = true;
+    entry->installTime = TickCount();  /* Record installation time for timeout */
 
     /* Add to queue using tail pointer for O(1) insertion */
     if (gNMState.queueHead == NULL) {
@@ -107,10 +164,6 @@ OSErr NMInstall(NMRecPtr nmReqPtr) {
     }
 
     gNMState.notificationCount++;
-
-    /* NOTE: Applications should call NMRemove() to clean up notifications.
-     * Abandoned notifications will eventually hit MAX_NOTIFICATIONS limit.
-     * TODO: Add timeout-based automatic cleanup for better resource management. */
 
     NM_LOG("NMInstall: Installed notification (count=%d)\n", gNMState.notificationCount);
 
