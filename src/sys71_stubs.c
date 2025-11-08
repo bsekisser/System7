@@ -169,7 +169,20 @@ void ExpandMemDump(void) {
     SYSTEM_LOG_DEBUG("ExpandMemDump: Dumping expanded memory state\n");
     /* Debug dump of expanded memory contents */
 }
-Boolean ExpandMemValidate(void) { return true; }
+Boolean ExpandMemValidate(void) {
+    /* Validate expanded memory structure integrity */
+
+    /* In a full implementation, this would:
+     * 1. Check expanded memory magic number/signature
+     * 2. Verify critical low-memory globals are non-null
+     * 3. Validate memory pointers are within valid ranges
+     * 4. Check for memory corruption indicators
+     */
+
+    /* For now, always return valid */
+    /* Real implementation would perform sanity checks */
+    return true;
+}
 
 /* Serial stubs */
 #include <stdarg.h>
