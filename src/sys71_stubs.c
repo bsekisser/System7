@@ -354,6 +354,21 @@ OSErr FSpOpenResFile(const FSSpec* spec, SInt16 permission) {
 }
 
 OSErr FSpDelete(const FSSpec* spec) {
+    if (!spec) {
+        return paramErr;
+    }
+
+    /* Delete a file or empty directory */
+
+    /* In a full implementation, this would:
+     * 1. Validate the FSSpec points to an existing file or directory
+     * 2. Check if item is a directory - if so, verify it's empty
+     * 3. Remove the item from its parent directory
+     * 4. Release disk space allocated to the item
+     * 5. Update the volume's free space count
+     */
+
+    /* For now, return success */
     return noErr;
 }
 
