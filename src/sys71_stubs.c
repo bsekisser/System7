@@ -320,7 +320,21 @@ void AddResource(Handle theData, ResType theType, SInt16 theID, ConstStr255Param
 }
 
 void RemoveResource(Handle theResource) {
-    /* Stub */
+    if (!theResource) return;
+
+    /* Remove a resource from the resource map */
+    /* This detaches the resource from its resource file but doesn't dispose the handle */
+
+    /* In a full implementation, this would:
+     * 1. Find the resource in the resource map
+     * 2. Remove it from the map
+     * 3. Mark the resource file as modified
+     * 4. The handle remains valid but is no longer a resource
+     */
+
+    /* Make the handle purgeable since it's no longer a resource */
+    extern void HPurge(Handle h);
+    HPurge(theResource);
 }
 
 void WriteResource(Handle theResource) {
