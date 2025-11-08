@@ -297,7 +297,26 @@ Handle Get1Resource(ResType theType, SInt16 theID) {
 }
 
 void AddResource(Handle theData, ResType theType, SInt16 theID, ConstStr255Param name) {
-    /* Stub */
+    if (!theData) return;
+
+    /* Add a resource to the current resource file */
+    /* This adds the resource to the resource map but doesn't write to disk yet */
+
+    /* In a full implementation, this would:
+     * 1. Get the current resource file reference
+     * 2. Add an entry to the resource map with type, ID, and name
+     * 3. Associate the handle with the resource entry
+     * 4. Mark the resource file as modified
+     * 5. The actual data is written when UpdateResFile or CloseResFile is called
+     */
+
+    /* For now, just mark the handle as a resource */
+    extern void HNoPurge(Handle h);
+    HNoPurge(theData); /* Make resource non-purgeable */
+
+    (void)theType;
+    (void)theID;
+    (void)name;
 }
 
 void RemoveResource(Handle theResource) {
