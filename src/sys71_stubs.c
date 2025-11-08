@@ -412,11 +412,27 @@ OSErr FSpCatMove(const FSSpec* source, const FSSpec* dest) {
 
 
 OSErr PBHGetVInfoSync(void *paramBlock) {
-    HParamBlockRec* pb = (HParamBlockRec*)paramBlock;
-    if (pb) {
-        pb->u.volumeParam.ioVAlBlkSiz = 512;
-        pb->u.volumeParam.ioVNmAlBlks = 800;  /* Simulate 400K disk */
+    if (!paramBlock) {
+        return paramErr;
     }
+
+    HParamBlockRec* pb = (HParamBlockRec*)paramBlock;
+
+    /* Get volume information synchronously */
+
+    /* In a full implementation, this would:
+     * 1. Validate the volume reference number
+     * 2. Retrieve actual volume parameters from the volume control block
+     * 3. Fill in allocation block size, total blocks, free blocks
+     * 4. Set volume name, creation date, modification date
+     * 5. Return volume attributes (locked, ejectable, etc.)
+     */
+
+    /* Fill in simulated volume info for 400K floppy disk */
+    pb->u.volumeParam.ioVAlBlkSiz = 512;     /* Allocation block size in bytes */
+    pb->u.volumeParam.ioVNmAlBlks = 800;     /* Total allocation blocks (400K) */
+    pb->u.volumeParam.ioVFrBlk = 400;        /* Free blocks (50% free) */
+
     return noErr;
 }
 
