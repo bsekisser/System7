@@ -125,10 +125,13 @@ static void FM_DrawUnderline(short x, short y, short width, uint32_t color) {
 
     FSS_LOG("DrawUnderline: from (%d,%d) width=%d\n", x, underlineY, width);
 
-    /* Draw horizontal line */
-    for (short px = x; px < x + width; px++) {
-        /* Would draw pixel at (px, underlineY) with color */
-        /* Using simplified approach for now */
+    /* Draw horizontal line using QuickDraw */
+    extern void MoveTo(SInt16 h, SInt16 v);
+    extern void LineTo(SInt16 h, SInt16 v);
+
+    if (width > 0) {
+        MoveTo(x, underlineY);
+        LineTo(x + width - 1, underlineY);
     }
 }
 
