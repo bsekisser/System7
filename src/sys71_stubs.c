@@ -713,6 +713,21 @@ void CloseResFile(SInt16 refNum) {
 }
 
 OSErr ResError(void) {
+    /* Return most recent Resource Manager error code
+     *
+     * In a full implementation (see ResourceMgr.c), this would:
+     * 1. Return the last error code from gResMgr.resError
+     * 2. Clear the error code after reading (one-time read)
+     * 3. Track errors from GetResource, OpenResFile, etc.
+     * 4. Return noErr if no error occurred
+     *
+     * Error codes include:
+     * - resNotFound (-192): Resource not found
+     * - mapReadErr (-199): Map inconsistent with operation
+     * - resFNotFound (-193): Resource file not found
+     * - addResFailed (-194): AddResource failed
+     *
+     * For builds without ENABLE_RESOURCES, always return noErr */
     return noErr;
 }
 #endif
