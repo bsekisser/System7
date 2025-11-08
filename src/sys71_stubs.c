@@ -1211,14 +1211,39 @@ OSErr CleanUpBy(WindowPtr window, SInt16 sortType) {
 /* InvalRect removed - implemented in WindowManager/WindowEvents.c:348 */
 
 OSErr ScanDirectoryForDesktopEntries(SInt16 vRefNum, SInt32 dirID, SInt16 databaseRefNum) {
-    /* Scan a directory and add file/folder entries to desktop database */
-
-    /* In a full implementation, this would:
-     * 1. Enumerate all files and folders in the directory using PBGetCatInfo
-     * 2. For each file, extract creator, type, icon, and comment info
-     * 3. Add entries to the desktop database file
-     * 4. Update the database index for fast lookups
-     * 5. Handle subdirectories recursively if needed
+    /* Scan directory and populate Desktop Database with file metadata
+     *
+     * Desktop Database tracks file associations, custom icons, and comments:
+     * - Creator/Type codes for "Open With" application launching
+     * - Custom icon resources (ICON, ICN#, icl4, icl8)
+     * - Get Info comments for search and display
+     * - Bundle bit flags and custom icon flags
+     * - Application version info for version tracking
+     *
+     * Database structure (Desktop DB and Desktop DF files):
+     * - DB file: B-tree indexed by creator/type for fast lookups
+     * - DF file: Icon family resources and comments
+     *
+     * Full implementation algorithm:
+     * 1. Call PBGetCatInfo iteratively (index 1..N) to enumerate entries
+     * 2. For each file/folder, extract FInfo (finder info structure)
+     * 3. If custom icon bit set, read icon resources from file
+     * 4. Read desktop comment from file's resource fork
+     * 5. Insert/update entry in database B-tree by creator+type key
+     * 6. Store icon resources in DF file, reference in DB entry
+     * 7. Recurse into subdirectories to scan entire volume
+     *
+     * Parameters:
+     * - vRefNum: Volume reference number to scan
+     * - dirID: Directory ID (root = 2, use PBGetCatInfo for subdirs)
+     * - databaseRefNum: Open file refnum of Desktop DB file
+     *
+     * Returns: noErr on success, paramErr for invalid parameters
+     *
+     * Used by Finder during:
+     * - Volume mount to rebuild database
+     * - Rebuild Desktop command (Command-Option at boot)
+     * - Background update when files change
      */
 
     /* Validate parameters */
