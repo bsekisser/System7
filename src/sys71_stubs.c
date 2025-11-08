@@ -332,7 +332,29 @@ OSErr InitializeWindowManager(void) {
 /* InitializeTrashFolder provided by trash_folder.c */
 
 OSErr HandleGetInfo(void) {
-    return noErr;
+    /* Show Get Info dialog for selected items in front window */
+    extern WindowPtr FrontWindow(void);
+    extern OSErr ShowGetInfo(FSSpec *items, short count);
+
+    WindowPtr window = FrontWindow();
+    if (!window) {
+        return paramErr;
+    }
+
+    /* In a full implementation, this would:
+     * 1. Get selected items from the front window
+     * 2. Build an array of FSSpec for selected items
+     * 3. Call ShowGetInfo with the array
+     */
+
+    /* For now, show Get Info for a dummy item */
+    /* Real implementation would get selection from window */
+    FSSpec dummyItem;
+    dummyItem.vRefNum = 0;
+    dummyItem.parID = 0;
+    dummyItem.name[0] = 0;
+
+    return ShowGetInfo(&dummyItem, 1);
 }
 
 /* ShowFind and FindAgain implemented in src/Finder/Find.c */
