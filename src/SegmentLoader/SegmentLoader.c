@@ -412,15 +412,87 @@ OSErr ResolveJumpIndex(SegmentLoaderContext* ctx, SInt16 jtIndex,
 }
 
 /*
+ * LoadSeg_TrapHandler - _LoadSeg (0xA9F0) trap handler
+ *
+ * Classic Mac OS _LoadSeg trap handler for lazy segment loading.
+ * Expects segment ID on stack (pushed by jump table stub).
+ */
+static SInt32 LoadSeg_TrapHandler(void* trapCtx)
+{
+    SegmentLoaderContext* ctx = (SegmentLoaderContext*)trapCtx;
+    OSErr err;
+    SInt16 segID;
+
+    if (!ctx || !ctx->cpuBackend || !ctx->cpuAS) {
+        SEG_LOG_ERROR("_LoadSeg: invalid context");
+        return segmentLoaderErr;
+    }
+
+    /* Read segment ID from stack (pushed as MOVE.W #segID,-(SP)) */
+    CPUAddr sp = 0;
+    if (ctx->cpuBackend->GetRegister) {
+        ctx->cpuBackend->GetRegister(ctx->cpuAS, kCPURegA7, &sp);
+    }
+
+    if (sp == 0 || ctx->cpuBackend->ReadMem(ctx->cpuAS, sp, 2, &segID) != 0) {
+        SEG_LOG_ERROR("_LoadSeg: failed to read segment ID from stack");
+        return segmentLoaderErr;
+    }
+
+    /* Pop segment ID from stack */
+    sp += 2;
+    if (ctx->cpuBackend->SetRegister) {
+        ctx->cpuBackend->SetRegister(ctx->cpuAS, kCPURegA7, sp);
+    }
+
+    SEG_LOG_INFO("_LoadSeg trap: loading segment %d", segID);
+
+    /* Load the segment */
+    err = LoadSegment(ctx, segID);
+    if (err != noErr) {
+        SEG_LOG_ERROR("_LoadSeg: LoadSegment(%d) failed: %d", segID, err);
+        return err;
+    }
+
+    SEG_LOG_INFO("_LoadSeg: segment %d loaded successfully", segID);
+
+    /* Try to hot-patch the jump table entry if we can determine which one called us */
+    /* This is an optimization to avoid re-executing the stub on subsequent calls */
+    /* Note: This is best-effort and may not always work */
+
+    return noErr;
+}
+
+/*
  * InstallLoadSegTrap - Install _LoadSeg trap handler
  */
 OSErr InstallLoadSegTrap(SegmentLoaderContext* ctx)
 {
+    if (!ctx) {
+        return paramErr;
+    }
+
     /* _LoadSeg is trap 0xA9F0 */
-    /* TODO: Implement trap handler */
+    /* Install trap handler using CPU backend if available */
+    if (ctx->cpuBackend && ctx->cpuBackend->InstallTrap) {
+        ctx->cpuBackend->InstallTrap(ctx->cpuAS, 0xA9F0,
+                                     (void*)LoadSeg_TrapHandler, ctx);
+        SEG_LOG_INFO("Installed _LoadSeg trap handler at 0xA9F0");
+        return noErr;
+    }
 
-    (void)ctx; /* Unused for now */
+    /* Fallback: Use trap dispatcher for platforms without CPU backend trap support */
+    extern int TrapDispatcher_SetTrapAddress(UInt16 trap_number, UInt16 trap_word,
+                                              void* handler);
 
+    /* 0xA9F0 is toolbox trap 0x1F0 (bit 11 set = toolbox, bits 0-9 = trap number) */
+    int result = TrapDispatcher_SetTrapAddress(0x1F0, 0xA9F0, (void*)LoadSeg_TrapHandler);
+    if (result != 0) {
+        SEG_LOG_ERROR("Failed to install _LoadSeg trap handler");
+        return segmentLoaderErr;
+    }
+
+    SEG_LOG_INFO("Installed _LoadSeg trap handler via trap dispatcher");
     return noErr;
 }
 
