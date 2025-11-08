@@ -337,6 +337,32 @@ void perror(const char* s) {
     serial_puts("\n");
 }
 
+/* Time and delay functions */
+unsigned int sleep(unsigned int seconds) {
+    /* Simple busy-wait sleep (not accurate, cooperative) */
+    extern void Delay(UInt32 numTicks, UInt32* finalTicks);
+
+    /* Mac ticks are ~60Hz, so multiply by 60 to get approximate seconds */
+    UInt32 ticks = seconds * 60;
+    UInt32 finalTicks;
+    Delay(ticks, &finalTicks);
+
+    return 0;  /* Full sleep completed */
+}
+
+int usleep(unsigned int usec) {
+    /* Microsecond sleep - convert to ticks (1 tick ≈ 16667 μs at 60Hz) */
+    extern void Delay(UInt32 numTicks, UInt32* finalTicks);
+
+    UInt32 ticks = (usec + 16666) / 16667;  /* Round up */
+    if (ticks == 0) ticks = 1;  /* At least 1 tick */
+
+    UInt32 finalTicks;
+    Delay(ticks, &finalTicks);
+
+    return 0;  /* Success */
+}
+
 /* String functions */
 size_t strlen(const char* s) {
     size_t len = 0;
