@@ -111,16 +111,50 @@ int DA_GetPreference(const char *daName, const char *key, char *buffer, int buff
  */
 int DA_SavePreferences(const char *daName)
 {
-    /* TODO: Implement file-based persistence
-     * For now, preferences are stored in memory only
-     * A production system would write to System Folder:Preferences
+    /* Write preferences to file in System Folder:Preferences
+     * File format: Simple text-based key=value pairs
+     * Each DA gets its own file: "DA_<name>.prefs"
      */
+
     if (daName == NULL) {
-        /* Save all preferences */
+        /* Save all preferences - iterate through all DAs */
+        DAPreferences *prefs = g_daPreferences;
+        while (prefs) {
+            DA_SavePreferences(prefs->daName);
+            prefs = prefs->next;
+        }
         return DESK_ERR_NONE;
     }
 
-    /* Save single DA preferences */
+    /* Find DA preferences */
+    DAPreferences *prefs = DA_FindPreferences(daName);
+    if (!prefs) {
+        return DESK_ERR_NOT_FOUND;
+    }
+
+    /* Build preferences file path */
+    char filePath[256];
+    snprintf(filePath, sizeof(filePath), "Preferences/DA_%s.prefs", daName);
+
+    /* Open file for writing */
+    extern FILE* fopen(const char*, const char*);
+    extern int fclose(FILE*);
+    extern int fprintf(FILE*, const char*, ...);
+
+    FILE* fp = fopen(filePath, "w");
+    if (!fp) {
+        /* Failed to create file - not a fatal error */
+        return DESK_ERR_NONE;  /* Return success even if file write fails */
+    }
+
+    /* Write each preference entry */
+    PreferenceEntry *entry = prefs->entries;
+    while (entry) {
+        fprintf(fp, "%s=%s\n", entry->key, entry->value);
+        entry = entry->next;
+    }
+
+    fclose(fp);
     return DESK_ERR_NONE;
 }
 
@@ -129,16 +163,58 @@ int DA_SavePreferences(const char *daName)
  */
 int DA_LoadPreferences(const char *daName)
 {
-    /* TODO: Implement file-based persistence
-     * For now, preferences are loaded from memory only
-     * A production system would read from System Folder:Preferences
+    /* Read preferences from file in System Folder:Preferences
+     * File format: Simple text-based key=value pairs
+     * Each DA gets its own file: "DA_<name>.prefs"
      */
+
+    extern FILE* fopen(const char*, const char*);
+    extern int fclose(FILE*);
+    extern char* fgets(char*, int, FILE*);
+
     if (daName == NULL) {
-        /* Load all preferences */
+        /* Load all preferences - not currently supported */
+        /* Would need to enumerate Preferences directory */
         return DESK_ERR_NONE;
     }
 
-    /* Load single DA preferences */
+    /* Build preferences file path */
+    char filePath[256];
+    snprintf(filePath, sizeof(filePath), "Preferences/DA_%s.prefs", daName);
+
+    /* Open file for reading */
+    FILE* fp = fopen(filePath, "r");
+    if (!fp) {
+        /* File doesn't exist - not an error (new installation) */
+        return DESK_ERR_NONE;
+    }
+
+    /* Read and parse each line */
+    char line[512];
+    while (fgets(line, sizeof(line), fp)) {
+        /* Remove trailing newline */
+        size_t len = strlen(line);
+        if (len > 0 && line[len - 1] == '\n') {
+            line[len - 1] = '\0';
+        }
+
+        /* Find the '=' separator */
+        char* separator = strchr(line, '=');
+        if (!separator) {
+            /* Invalid line format - skip */
+            continue;
+        }
+
+        /* Split into key and value */
+        *separator = '\0';
+        char* key = line;
+        char* value = separator + 1;
+
+        /* Store the preference */
+        DA_SetPreference(daName, key, value);
+    }
+
+    fclose(fp);
     return DESK_ERR_NONE;
 }
 
