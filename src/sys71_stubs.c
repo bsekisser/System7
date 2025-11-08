@@ -340,7 +340,24 @@ OSErr HandleGrowWindow(WindowPtr window, EventRecord* event) {
 /* DoUpdate moved to Finder/finder_main.c */
 
 void DoActivate(WindowPtr window, Boolean activate) {
-    /* Stub */
+    if (!window) return;
+
+    /* Hilite or unhilite all controls in the window */
+    extern void HiliteControl(ControlHandle theControl, SInt16 hiliteState);
+
+    ControlHandle control = window->controlList;
+    while (control) {
+        /* Hilite value: 0 = active, 255 = inactive */
+        SInt16 hiliteState = activate ? 0 : 255;
+        HiliteControl(control, hiliteState);
+
+        /* Move to next control */
+        control = (*control)->nextControl;
+    }
+
+    /* Redraw controls to show new hilite state */
+    extern void DrawControls(WindowPtr theWindow);
+    DrawControls(window);
 }
 
 void DoBackgroundTasks(void) {
