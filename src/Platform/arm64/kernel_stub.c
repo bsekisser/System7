@@ -9,7 +9,9 @@
 #include "timer.h"
 #include "mmu.h"
 
-#ifndef QEMU_BUILD
+#ifdef QEMU_BUILD
+#include "simple_fb.h"
+#else
 #include "framebuffer.h"
 #endif
 
@@ -46,6 +48,32 @@ int main(int argc, char **argv) {
 #ifdef TEST_EXCEPTION_HANDLER
     uart_puts("[KERNEL] Triggering test exception...\n");
     __asm__ volatile("brk #0");  /* Trigger breakpoint exception */
+#endif
+
+#ifdef QEMU_BUILD
+    uart_puts("[KERNEL] Initializing graphics (160x120)...\n");
+    if (simple_fb_init()) {
+        uart_puts("[KERNEL] Graphics OK - drawing test pattern...\n");
+
+        /* Clear to dark blue background */
+        simple_fb_clear(0xFF001040);
+
+        /* Draw title bar */
+        simple_fb_draw_rect(0, 0, 160, 12, 0xFFCCCCCC);
+
+        /* Draw colored status boxes */
+        simple_fb_draw_rect(10, 20, 40, 30, 0xFFFF0000);   /* Red - UART */
+        simple_fb_draw_rect(60, 20, 40, 30, 0xFF00FF00);   /* Green - Timer */
+        simple_fb_draw_rect(110, 20, 40, 30, 0xFF0000FF);  /* Blue - Boot */
+
+        /* Draw status panel */
+        simple_fb_draw_rect(10, 60, 140, 50, 0xFFFFFFFF);  /* White box */
+        simple_fb_draw_rect(12, 62, 136, 46, 0xFF000000);  /* Black interior */
+
+        uart_puts("[KERNEL] Graphics initialized - 160x120 framebuffer ready\n");
+    } else {
+        uart_puts("[KERNEL] Graphics init failed\n");
+    }
 #endif
 
 #ifndef QEMU_BUILD
