@@ -361,7 +361,17 @@ void DoActivate(WindowPtr window, Boolean activate) {
 }
 
 void DoBackgroundTasks(void) {
-    /* Stub */
+    /* Perform idle-time system tasks */
+    extern void SystemTask(void);
+
+    /* Call SystemTask to handle desk accessories and other background processing */
+    SystemTask();
+
+    /* Could add other background tasks here:
+     * - Check for disk insertions
+     * - Update network status
+     * - Perform deferred cleanup
+     */
 }
 
 /* WaitNextEvent now implemented in EventManager/event_manager.c */
