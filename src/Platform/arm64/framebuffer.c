@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include "mailbox.h"
 
 /* Mailbox property tag structure */
 typedef struct {
@@ -70,9 +71,6 @@ static framebuffer_t fb = {0};
 
 /* Mailbox buffer for framebuffer setup */
 static fb_mailbox_t __attribute__((aligned(16))) fb_msg;
-
-/* External mailbox call function */
-extern bool mailbox_call(uint32_t channel);
 
 /* Mailbox channel for property tags */
 #define MBOX_CH_PROP    8
@@ -151,7 +149,6 @@ bool framebuffer_init(uint32_t width, uint32_t height, uint32_t depth) {
     /* Call mailbox - need to pass address of our message buffer */
     /* The mailbox_call implementation expects the buffer at a fixed location
      * We'll need to copy our message to the mailbox buffer */
-    extern uint32_t mailbox_buffer[256];
     memcpy(mailbox_buffer, &fb_msg, sizeof(fb_msg));
 
     if (!mailbox_call(MBOX_CH_PROP)) {

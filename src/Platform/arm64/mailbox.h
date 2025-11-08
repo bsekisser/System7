@@ -9,6 +9,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+/* Mailbox buffer - shared with framebuffer driver */
+extern uint32_t mailbox_buffer[256];
+
 /* Initialize mailbox */
 bool mailbox_init(void);
 

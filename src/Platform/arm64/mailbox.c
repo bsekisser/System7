@@ -70,8 +70,9 @@
 /* Mailbox base address */
 static uint64_t mailbox_base = 0;
 
-/* Mailbox buffer - must be 16-byte aligned */
-static uint32_t __attribute__((aligned(16))) mailbox_buffer[256];
+/* Mailbox buffer - must be 16-byte aligned
+ * Exposed globally for framebuffer driver */
+uint32_t __attribute__((aligned(16))) mailbox_buffer[256];
 
 /*
  * Detect mailbox base address
