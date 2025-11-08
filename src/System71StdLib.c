@@ -141,6 +141,74 @@ void abort(void) {
     while (1) {}
 }
 
+/* Environment variables (bare-metal stub implementation) */
+#define MAX_ENV_VARS 32
+static struct {
+    char* name;
+    char* value;
+} env_vars[MAX_ENV_VARS];
+static int env_count = 0;
+
+char* getenv(const char* name) {
+    if (!name) return NULL;
+
+    for (int i = 0; i < env_count; i++) {
+        if (env_vars[i].name && strcmp(env_vars[i].name, name) == 0) {
+            return env_vars[i].value;
+        }
+    }
+    return NULL;
+}
+
+int setenv(const char* name, const char* value, int overwrite) {
+    if (!name || !value) return -1;
+
+    /* Check if variable already exists */
+    for (int i = 0; i < env_count; i++) {
+        if (env_vars[i].name && strcmp(env_vars[i].name, name) == 0) {
+            if (!overwrite) return 0;
+
+            /* Free old value and set new one */
+            extern void free(void* ptr);
+            if (env_vars[i].value) free(env_vars[i].value);
+            env_vars[i].value = strdup(value);
+            return env_vars[i].value ? 0 : -1;
+        }
+    }
+
+    /* Add new variable */
+    if (env_count >= MAX_ENV_VARS) return -1;
+
+    env_vars[env_count].name = strdup(name);
+    env_vars[env_count].value = strdup(value);
+    if (!env_vars[env_count].name || !env_vars[env_count].value) {
+        return -1;
+    }
+    env_count++;
+    return 0;
+}
+
+int unsetenv(const char* name) {
+    if (!name) return -1;
+
+    extern void free(void* ptr);
+    for (int i = 0; i < env_count; i++) {
+        if (env_vars[i].name && strcmp(env_vars[i].name, name) == 0) {
+            /* Free name and value */
+            if (env_vars[i].name) free(env_vars[i].name);
+            if (env_vars[i].value) free(env_vars[i].value);
+
+            /* Shift remaining entries down */
+            for (int j = i; j < env_count - 1; j++) {
+                env_vars[j] = env_vars[j + 1];
+            }
+            env_count--;
+            return 0;
+        }
+    }
+    return 0;  /* Not found is not an error */
+}
+
 /* String functions */
 size_t strlen(const char* s) {
     size_t len = 0;
