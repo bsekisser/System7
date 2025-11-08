@@ -340,7 +340,18 @@ static void *GetControlDefProc_Sys7(SInt16 procID) {
 
 static void LinkControlToWindow_Sys7(ControlHandle control, WindowPtr window) {
     /* Link control into window's control list */
-    /* This would manipulate the window's control list */
+    if (control == NULL || *control == NULL || window == NULL) {
+        return;
+    }
+
+    ControlPtr controlPtr = *control;
+
+    /* Set control's owner to this window */
+    controlPtr->contrlOwner = window;
+
+    /* Insert control at head of window's control list */
+    controlPtr->nextControl = window->controlList;
+    window->controlList = control;
 }
 
 static Boolean HasScrollThumb_Sys7(ControlHandle control) {
