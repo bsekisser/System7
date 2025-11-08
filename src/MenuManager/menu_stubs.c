@@ -15,23 +15,89 @@
 #include "MenuManager/menu_private.h"
 #include "../../include/SystemTypes.h"
 
-/* Standard menu commands - not yet implemented */
+/* Standard menu commands */
+
+/*
+ * AddResMenu - Add resource names to menu
+ *
+ * Enumerates resources of the specified type and adds each resource name
+ * as a menu item. Commonly used for:
+ * - Font menus (type 'FONT')
+ * - Desk Accessory menus (type 'DRVR')
+ * - Sound menus (type 'snd ')
+ */
 void AddResMenu(MenuHandle theMenu, ResType theType) {
-    /* In a full implementation, this would:
-     * - Enumerate resources of type 'theType' from resource fork
-     * - Add each resource name as a menu item
-     * - Used for Font menu (FONT), Desk Accessories (DRVR), etc.
-     * See sys71_stubs.c:AddResMenu for documentation */
-    (void)theMenu;
-    (void)theType;
+    if (!theMenu) return;
+
+    /* Resource Manager functions */
+    extern SInt16 Count1Resources(ResType theType);
+    extern Handle Get1IndResource(ResType theType, SInt16 index);
+    extern void GetResInfo(Handle theResource, ResID* theID, ResType* theType, char* name);
+    extern void AppendMenu(MenuHandle menu, const unsigned char* data);
+
+    /* Count resources of specified type */
+    SInt16 count = Count1Resources(theType);
+    if (count <= 0) {
+        return; /* No resources of this type */
+    }
+
+    /* Add each resource name to menu */
+    for (SInt16 i = 1; i <= count; i++) {
+        Handle resHandle = Get1IndResource(theType, i);
+        if (resHandle) {
+            ResID resID;
+            ResType resType;
+            unsigned char name[256];
+
+            /* Get resource name */
+            GetResInfo(resHandle, &resID, &resType, (char*)name);
+
+            /* Only add if resource has a name */
+            if (name[0] > 0) {
+                AppendMenu(theMenu, name);
+            }
+        }
+    }
 }
 
+/*
+ * InsertResMenu - Insert resource names into menu
+ *
+ * Similar to AddResMenu but inserts resources after a specific menu item.
+ * Allows building menus with resources placed at specific positions.
+ */
 void InsertResMenu(MenuHandle theMenu, ResType theType, short afterItem) {
-    /* In a full implementation, this would:
-     * - Enumerate resources of type 'theType' from resource fork
-     * - Insert each resource name as a menu item after 'afterItem'
-     * - Similar to AddResMenu but allows insertion at specific position */
-    (void)theMenu;
-    (void)theType;
-    (void)afterItem;
+    if (!theMenu) return;
+
+    /* Resource Manager functions */
+    extern SInt16 Count1Resources(ResType theType);
+    extern Handle Get1IndResource(ResType theType, SInt16 index);
+    extern void GetResInfo(Handle theResource, ResID* theID, ResType* theType, char* name);
+    extern void InsertMenuItem(MenuHandle menu, const unsigned char* itemString, short afterItem);
+
+    /* Count resources of specified type */
+    SInt16 count = Count1Resources(theType);
+    if (count <= 0) {
+        return; /* No resources of this type */
+    }
+
+    /* Insert each resource name after the specified item */
+    short insertAfter = afterItem;
+    for (SInt16 i = 1; i <= count; i++) {
+        Handle resHandle = Get1IndResource(theType, i);
+        if (resHandle) {
+            ResID resID;
+            ResType resType;
+            unsigned char name[256];
+
+            /* Get resource name */
+            GetResInfo(resHandle, &resID, &resType, (char*)name);
+
+            /* Only insert if resource has a name */
+            if (name[0] > 0) {
+                InsertMenuItem(theMenu, name, insertAfter);
+                insertAfter++; /* Next item goes after this one */
+            }
+        }
+    }
 }
