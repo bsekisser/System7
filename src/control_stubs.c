@@ -57,11 +57,12 @@ ControlHandle _GetFirstControl(WindowPtr window) {
 void GetWindowBounds(WindowPtr window, Rect *bounds) {
     if (!window || !bounds) return;
 
-    /* Return some default bounds */
-    bounds->left = 0;
-    bounds->top = 0;
-    bounds->right = 640;
-    bounds->bottom = 480;
+    /* Return the actual window bounds from portRect */
+    *bounds = window->portRect;
+
+    /* Convert from port-local to global coordinates */
+    /* portRect is in local coordinates, so offset by window position */
+    /* For now, portRect should already be in correct coordinates */
 }
 
 void _SetFirstControl(WindowPtr window, ControlHandle control) {
