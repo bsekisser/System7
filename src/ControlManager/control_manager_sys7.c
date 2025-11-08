@@ -306,8 +306,9 @@ static void CallActionProc_Sys7(void *actionProc, ControlHandle control, SInt16 
 }
 
 static Boolean IsMouseButtonDown_Sys7(void) {
-    /* This would normally call Button() trap */
-    return false; /* Simplified for evidence-based implementation */
+    /* Call Button() trap to check mouse button state */
+    extern Boolean Button(void);
+    return Button();
 }
 
 static SInt32 DrawControlThumbOutline_Sys7(ControlHandle control, SInt32 param) {
