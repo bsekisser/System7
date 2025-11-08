@@ -63,7 +63,11 @@ static Pattern gPatterns[MACPAINT_PATTERN_COUNT];
 #define MACPAINT_DOC_HEIGHT 720
 #define MACPAINT_BUFFER_SIZE ((MACPAINT_DOC_WIDTH / 8) * MACPAINT_DOC_HEIGHT)
 BitMap gPaintBuffer;  /* Exposed for tools module */
-static unsigned char gPaintBufferData[MACPAINT_BUFFER_SIZE];  /* Static buffer instead of dynamic allocation */
+unsigned char gPaintBufferData[MACPAINT_BUFFER_SIZE];  /* Exposed for file I/O module */
+
+/* Undo Buffer */
+unsigned char gUndoBufferData[MACPAINT_BUFFER_SIZE];  /* Exposed for file I/O module - backup buffer for undo */
+int gUndoAvailable = 0;  /* Exposed for file I/O module - flag indicating whether undo buffer contains valid data */
 
 /*
  * Forward Declarations for Assembly-converted functions

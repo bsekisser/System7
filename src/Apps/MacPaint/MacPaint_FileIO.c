@@ -363,15 +363,35 @@ void MacPaint_GetDocumentInfo(char *filename, int *isDirty, int *modCount)
  * BACKUP AND UNDO SUPPORT
  */
 
+/* External references to paint buffers defined in MacPaint_Core.c */
+extern BitMap gPaintBuffer;
+extern unsigned char gPaintBufferData[];
+extern unsigned char gUndoBufferData[];
+extern int gUndoAvailable;
+extern int gDocDirty;
+
 /**
  * MacPaint_CreateBackup - Save current state to backup
  * Used for undo functionality
  */
 OSErr MacPaint_CreateBackup(void)
 {
-    /* TODO: Implement undo buffer backup
-     * Store copy of current bitmap for undo operation
-     */
+    /* Calculate buffer size from bitmap structure */
+    size_t bufferSize = gPaintBuffer.rowBytes *
+                        (gPaintBuffer.bounds.bottom - gPaintBuffer.bounds.top);
+
+    /* Sanity check buffer size */
+    #define MACPAINT_BUFFER_SIZE ((576 / 8) * 720)
+    if (bufferSize != MACPAINT_BUFFER_SIZE) {
+        return paramErr;
+    }
+
+    /* Copy current bitmap to undo buffer */
+    memcpy(gUndoBufferData, gPaintBufferData, bufferSize);
+
+    /* Mark undo as available */
+    gUndoAvailable = 1;
+
     return noErr;
 }
 
@@ -380,9 +400,27 @@ OSErr MacPaint_CreateBackup(void)
  */
 OSErr MacPaint_RestoreBackup(void)
 {
-    /* TODO: Implement undo restore
-     * Restore previous bitmap state
-     */
+    /* Check if undo buffer contains valid data */
+    if (!gUndoAvailable) {
+        return memFullErr;  /* No undo data available */
+    }
+
+    /* Calculate buffer size from bitmap structure */
+    size_t bufferSize = gPaintBuffer.rowBytes *
+                        (gPaintBuffer.bounds.bottom - gPaintBuffer.bounds.top);
+
+    /* Sanity check buffer size */
+    #define MACPAINT_BUFFER_SIZE ((576 / 8) * 720)
+    if (bufferSize != MACPAINT_BUFFER_SIZE) {
+        return paramErr;
+    }
+
+    /* Copy undo buffer to current bitmap */
+    memcpy(gPaintBufferData, gUndoBufferData, bufferSize);
+
+    /* Mark document as dirty since we changed it */
+    gDocDirty = 1;
+
     return noErr;
 }
 
