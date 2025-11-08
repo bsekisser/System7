@@ -102,6 +102,31 @@ void bzero(void* s, size_t n) {
     memset(s, 0, n);
 }
 
+void explicit_bzero(void* s, size_t n) {
+    /* Secure memory clearing that won't be optimized away */
+    volatile unsigned char* p = (volatile unsigned char*)s;
+    while (n--) {
+        *p++ = 0;
+    }
+}
+
+int memset_s(void* s, size_t smax, int c, size_t n) {
+    /* C11 Annex K secure memset with bounds checking */
+    if (s == NULL) return 1;
+    if (smax > SIZE_MAX) return 1;
+    if (n > smax) return 1;
+
+    /* Secure fill using volatile to prevent optimization */
+    volatile unsigned char* p = (volatile unsigned char*)s;
+    unsigned char value = (unsigned char)c;
+
+    for (size_t i = 0; i < n; i++) {
+        p[i] = value;
+    }
+
+    return 0;
+}
+
 void bcopy(const void* src, void* dst, size_t n) {
     memmove(dst, src, n);
 }
