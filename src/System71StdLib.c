@@ -110,6 +110,37 @@ int bcmp(const void* s1, const void* s2, size_t n) {
     return memcmp(s1, s2, n);
 }
 
+/* Program termination */
+#define MAX_ATEXIT_HANDLERS 32
+static void (*atexit_handlers[MAX_ATEXIT_HANDLERS])(void);
+static int atexit_count = 0;
+
+int atexit(void (*func)(void)) {
+    if (atexit_count >= MAX_ATEXIT_HANDLERS) {
+        return -1;  /* Too many handlers */
+    }
+    atexit_handlers[atexit_count++] = func;
+    return 0;
+}
+
+void exit(int status) {
+    /* Call all registered exit handlers in reverse order */
+    for (int i = atexit_count - 1; i >= 0; i--) {
+        if (atexit_handlers[i]) {
+            atexit_handlers[i]();
+        }
+    }
+
+    /* Halt the system */
+    while (1) {}
+}
+
+void abort(void) {
+    extern void serial_puts(const char* s);
+    serial_puts("ABORT: Program terminated abnormally\n");
+    while (1) {}
+}
+
 /* String functions */
 size_t strlen(const char* s) {
     size_t len = 0;
