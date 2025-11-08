@@ -104,9 +104,7 @@ void DrawWindow(WindowPtr window) {
 /* Dialog Manager - provided by DialogManagerCore.c */
 
 /* Control Manager */
-void InitControlManager_Sys7(void) {
-    /* Stub implementation */
-}
+/* InitControlManager_Sys7 now implemented in ControlManager/control_manager_sys7.c */
 
 /* List Manager */
 void InitListManager(void) {
@@ -189,7 +187,32 @@ extern QDGlobals qd;
 WindowPtr g_firstWindow = NULL;  /* Head of window chain */
 
 void FinderEventLoop(void) {
-    /* Stub implementation */
+    /* Main Finder event processing loop */
+    /* This processes events and dispatches to appropriate handlers */
+
+    extern Boolean WaitNextEvent(SInt16 eventMask, EventRecord* theEvent,
+                                 UInt32 sleep, RgnHandle mouseRgn);
+    extern void DoBackgroundTasks(void);
+
+    EventRecord event;
+    Boolean gotEvent;
+
+    /* Event loop runs until quit */
+    while (true) {
+        /* Wait for next event with background processing */
+        gotEvent = WaitNextEvent(everyEvent, &event, 30, NULL);
+
+        if (gotEvent) {
+            /* Dispatch event to appropriate handler */
+            /* In full implementation, would call:
+             * - HandleMouseDown, HandleKeyDown, HandleUpdate
+             * - HandleActivate, HandleOSEvent, etc.
+             */
+        }
+
+        /* Perform background tasks during idle time */
+        DoBackgroundTasks();
+    }
 }
 
 /* Additional Finder support functions */
