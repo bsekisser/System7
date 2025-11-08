@@ -338,7 +338,22 @@ void RemoveResource(Handle theResource) {
 }
 
 void WriteResource(Handle theResource) {
-    /* Stub */
+    if (!theResource) return;
+
+    /* Write changed resource data to the resource file */
+    /* This updates the resource in the resource fork */
+
+    /* In a full implementation, this would:
+     * 1. Find the resource in the resource map
+     * 2. Calculate the size and position in the resource fork
+     * 3. Write the handle data to the resource file
+     * 4. Update the resource map with new size/position
+     * 5. Mark the resource file as modified
+     */
+
+    /* For now, just mark the handle as not purgeable to ensure data is preserved */
+    extern void HNoPurge(Handle h);
+    HNoPurge(theResource);
 }
 
 void CloseResFile(SInt16 refNum) {
