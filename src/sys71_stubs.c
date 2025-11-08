@@ -509,9 +509,18 @@ void TextFace(short face) {
 /* Alert stub for trash_folder */
 
 void Delay(UInt32 numTicks, UInt32* finalTicks) {
-    /* Minimal delay stub - just return current tick count */
+    /* Wait for specified number of ticks */
+    extern UInt32 TickCount(void);
+
+    UInt32 startTicks = TickCount();
+    UInt32 targetTicks = startTicks + numTicks;
+
+    /* Wait until target tick count reached */
+    while (TickCount() < targetTicks) {
+        /* Busy wait - could call SystemTask() here for cooperative multitasking */
+    }
+
     if (finalTicks) {
-        extern UInt32 TickCount(void);
         *finalTicks = TickCount();
     }
 }
