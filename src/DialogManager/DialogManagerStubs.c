@@ -23,11 +23,9 @@ OSErr LoadAlertTemplate(SInt16 resID, Handle* alertH);
 void DisposeAlertTemplate(Handle alertH);
 void InitDialogResources(void);
 
-/* Get dialog item pointer stub */
-DialogItemInternal* GetDialogItemPtr(DialogPtr theDialog, SInt16 itemNo) {
-    /* Stub implementation */
-    return NULL;
-}
+/* GetDialogItemPtr removed - unused function
+ * Dialog items are accessed via GetDialogItemEx() in DialogItems.c
+ * which uses DialogItemCache for efficient item management */
 
 /* SysBeep - now provided by SoundManagerBareMetal.c */
 
