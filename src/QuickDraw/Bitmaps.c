@@ -896,6 +896,23 @@ void ScrollRect(const Rect *r, SInt16 dh, SInt16 dv, RgnHandle updateRgn) {
  * SEED FILL OPERATIONS
  * ================================================================ */
 
+/* Helper: Get pixel value at coordinates */
+static Boolean GetPixelBit(const UInt8 *bitmap, SInt16 rowBytes, SInt16 x, SInt16 y) {
+    const UInt16 *row = (const UInt16 *)(bitmap + y * rowBytes);
+    UInt16 wordIndex = x / 16;
+    UInt16 bitIndex = x % 16;
+    return (row[wordIndex] & (1 << (15 - bitIndex))) != 0;
+}
+
+/* Helper: Set pixel value at coordinates */
+static void SetPixelBit(UInt8 *bitmap, SInt16 rowBytes, SInt16 x, SInt16 y) {
+    UInt16 *row = (UInt16 *)(bitmap + y * rowBytes);
+    UInt16 wordIndex = x / 16;
+    UInt16 bitIndex = x % 16;
+    row[wordIndex] |= (1 << (15 - bitIndex));
+}
+
+/* Scanline flood-fill implementation */
 void SeedFill(const void *srcPtr, void *dstPtr, SInt16 srcRow, SInt16 dstRow,
               SInt16 height, SInt16 words, SInt16 seedH, SInt16 seedV) {
     assert(srcPtr != NULL);
@@ -909,11 +926,9 @@ void SeedFill(const void *srcPtr, void *dstPtr, SInt16 srcRow, SInt16 dstRow,
         return;  /* Sanity check failed */
     }
 
-    /* Simple flood-fill implementation */
-    /* This is a simplified version - a full implementation would be more complex */
-
     const UInt8 *srcBytes = (const UInt8 *)srcPtr;
     UInt8 *dstBytes = (UInt8 *)dstPtr;
+    SInt16 width = words * 16;
 
     /* Copy source to destination first */
     for (SInt16 y = 0; y < height; y++) {
@@ -922,18 +937,94 @@ void SeedFill(const void *srcPtr, void *dstPtr, SInt16 srcRow, SInt16 dstRow,
         memcpy(dstLine, srcLine, words * 2);
     }
 
-    /* Perform seed fill at specified location */
-    if (seedV >= 0 && seedV < height && seedH >= 0 && seedH < words * 16) {
-        UInt16 *seedLine = (UInt16 *)(dstBytes + seedV * dstRow);
-        UInt16 wordIndex = seedH / 16;
-        UInt16 bitIndex = seedH % 16;
+    /* Validate seed point */
+    if (seedV < 0 || seedV >= height || seedH < 0 || seedH >= width) {
+        return;
+    }
 
-        /* Bounds check wordIndex */
-        if (wordIndex < words) {
-            /* Set the seed bit */
-            seedLine[wordIndex] |= (1 << (15 - bitIndex));
+    /* Get the target pixel value at seed point */
+    Boolean targetValue = GetPixelBit(srcBytes, srcRow, seedH, seedV);
+
+    /* Allocate scanline stack for flood-fill (limit to reasonable size) */
+    typedef struct { SInt16 y, xLeft, xRight, dy; } ScanlineSegment;
+    ScanlineSegment *stack = (ScanlineSegment *)NewPtr(sizeof(ScanlineSegment) * 1024);
+    if (!stack) return;
+
+    SInt16 stackTop = 0;
+
+    /* Push initial seed scanline */
+    stack[stackTop].y = seedV;
+    stack[stackTop].xLeft = seedH;
+    stack[stackTop].xRight = seedH;
+    stack[stackTop].dy = 0;
+    stackTop++;
+
+    while (stackTop > 0 && stackTop < 1024) {
+        /* Pop scanline from stack */
+        stackTop--;
+        SInt16 y = stack[stackTop].y;
+        SInt16 xLeft = stack[stackTop].xLeft;
+        SInt16 xRight = stack[stackTop].xRight;
+        SInt16 dy = stack[stackTop].dy;
+
+        /* Move to next scanline */
+        y += dy;
+        if (y < 0 || y >= height) continue;
+
+        /* Find left and right extent of this scanline */
+        SInt16 xStart = xLeft;
+        while (xStart >= 0 && GetPixelBit(srcBytes, srcRow, xStart, y) == targetValue) {
+            xStart--;
+        }
+        xStart++;
+
+        SInt16 xEnd = xRight;
+        while (xEnd < width && GetPixelBit(srcBytes, srcRow, xEnd, y) == targetValue) {
+            xEnd++;
+        }
+        xEnd--;
+
+        /* Fill this scanline in destination */
+        for (SInt16 x = xStart; x <= xEnd; x++) {
+            SetPixelBit(dstBytes, dstRow, x, y);
+        }
+
+        /* Check adjacent scanlines above and below */
+        for (SInt16 direction = -1; direction <= 1; direction += 2) {
+            SInt16 nextY = y + direction;
+            if (nextY < 0 || nextY >= height) continue;
+
+            /* Scan this segment for fillable regions */
+            SInt16 x = xStart;
+            while (x <= xEnd) {
+                /* Skip non-matching pixels */
+                while (x <= xEnd && GetPixelBit(srcBytes, srcRow, x, nextY) != targetValue) {
+                    x++;
+                }
+                if (x > xEnd) break;
+
+                /* Found start of fillable region */
+                SInt16 segStart = x;
+
+                /* Find end of fillable region */
+                while (x <= xEnd && GetPixelBit(srcBytes, srcRow, x, nextY) == targetValue) {
+                    x++;
+                }
+                SInt16 segEnd = x - 1;
+
+                /* Push this segment to stack */
+                if (stackTop < 1024) {
+                    stack[stackTop].y = y;
+                    stack[stackTop].xLeft = segStart;
+                    stack[stackTop].xRight = segEnd;
+                    stack[stackTop].dy = direction;
+                    stackTop++;
+                }
+            }
         }
     }
+
+    DisposePtr((Ptr)stack);
 }
 
 void CalcMask(const void *srcPtr, void *dstPtr, SInt16 srcRow, SInt16 dstRow,
