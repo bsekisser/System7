@@ -172,10 +172,11 @@ Boolean Platform_TrackMouse(Point* mousePt, Boolean* isMouseDown)
     }
 
     /* Get current mouse state from system */
-    /* For now, provide default values - actual implementation would use system globals */
-    mousePt->h = 0;
-    mousePt->v = 0;
-    *isMouseDown = false;
+    extern void GetMouse(Point* mouseLoc);
+    extern Boolean Button(void);
+
+    GetMouse(mousePt);
+    *isMouseDown = Button();
 
     return true;
 }
