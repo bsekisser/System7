@@ -530,6 +530,41 @@ void serial_print_hex(uint32_t value) {
     }
 }
 
+/* Standard I/O wrappers for serial console */
+int putchar(int c) {
+    serial_putchar((char)c);
+    return c;
+}
+
+int puts(const char* str) {
+    if (!str) return -1;
+    serial_puts(str);
+    serial_putchar('\n');  /* puts adds newline */
+    return 0;
+}
+
+int getchar(void) {
+    return (int)(unsigned char)serial_getchar();
+}
+
+char* gets(char* str) {
+    /* gets() is deprecated and unsafe - but provided for compatibility
+     * Reads until newline or EOF, discards newline, null-terminates
+     * NOTE: No buffer overflow protection - caller must ensure adequate buffer */
+    if (!str) return NULL;
+
+    char* p = str;
+    while (1) {
+        int c = getchar();
+        if (c == '\n' || c == '\r' || c == 0) {
+            break;
+        }
+        *p++ = (char)c;
+    }
+    *p = '\0';
+    return str;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Logging infrastructure */
 
