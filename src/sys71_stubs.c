@@ -254,7 +254,38 @@ void FinderEventLoop(void) {
  */
 
 /* System stubs */
-long sysconf(int name) { return -1; }
+long sysconf(int name) {
+    /* POSIX system configuration query function
+     * Returns runtime configuration limits and options */
+
+    /* Common sysconf constants (from POSIX unistd.h) */
+    #define _SC_PAGESIZE 1
+    #define _SC_CLK_TCK 2
+    #define _SC_OPEN_MAX 4
+    #define _SC_NPROCESSORS_ONLN 58
+
+    switch (name) {
+        case _SC_PAGESIZE:
+            /* Memory page size in bytes */
+            return 4096;
+
+        case _SC_CLK_TCK:
+            /* Clock ticks per second for times() function */
+            return 60;  /* 60 Hz for Mac System 7 */
+
+        case _SC_OPEN_MAX:
+            /* Maximum number of open files per process */
+            return 256;
+
+        case _SC_NPROCESSORS_ONLN:
+            /* Number of online processors */
+            return 1;  /* Single-processor system */
+
+        default:
+            /* Unknown configuration parameter */
+            return -1;
+    }
+}
 
 /* Resource Manager functions provided by Memory Manager */
 
