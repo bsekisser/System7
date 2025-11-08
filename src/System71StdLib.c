@@ -533,6 +533,50 @@ char* strndup(const char* s, size_t n) {
     return dup;
 }
 
+char* strupr(char* s) {
+    /* Convert string to uppercase (in-place) */
+    if (!s) return NULL;
+
+    char* p = s;
+    while (*p) {
+        *p = toupper(*p);
+        p++;
+    }
+    return s;
+}
+
+char* strlwr(char* s) {
+    /* Convert string to lowercase (in-place) */
+    if (!s) return NULL;
+
+    char* p = s;
+    while (*p) {
+        *p = tolower(*p);
+        p++;
+    }
+    return s;
+}
+
+char* strrev(char* s) {
+    /* Reverse string (in-place) */
+    if (!s) return NULL;
+
+    size_t len = strlen(s);
+    if (len <= 1) return s;
+
+    char* start = s;
+    char* end = s + len - 1;
+
+    while (start < end) {
+        char temp = *start;
+        *start = *end;
+        *end = temp;
+        start++;
+        end--;
+    }
+    return s;
+}
+
 size_t strspn(const char* s, const char* accept) {
     /* Count initial characters in s that are in accept set */
     const char* p = s;
