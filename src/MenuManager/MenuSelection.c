@@ -779,8 +779,28 @@ void AnimateMenuSelection(const MenuSelection* selection, short animation)
     MENU_LOG_TRACE("Animating menu selection: menu %d, item %d (animation %d)\n",
            selection->menuID, selection->itemID, animation);
 
-    /* Animation stub - full implementation requires menu item rectangle calculation */
-    /* In a complete implementation, this would flash or highlight the selected menu item */
+    /* Get menu handle */
+    MenuHandle theMenu = GetMenuHandle(selection->menuID);
+    if (theMenu == NULL || selection->itemID < 1) {
+        return;
+    }
+
+    /* Use animation parameter as flash count (default to 3 if 0) */
+    short flashes = (animation > 0) ? animation : 3;
+
+    /* Flash menu title in menu bar */
+    for (short i = 0; i < flashes; i++) {
+        HiliteMenu(selection->menuID);
+        WaitForMouseChange(2);
+        HiliteMenu(0);
+        if (i < flashes - 1) {
+            WaitForMouseChange(2);
+        }
+    }
+
+    /* Flash the menu item itself (if menu is currently shown) */
+    extern void FlashMenuItem(MenuHandle theMenu, short item, short flashes);
+    FlashMenuItem(theMenu, selection->itemID, flashes);
 }
 
 /*
