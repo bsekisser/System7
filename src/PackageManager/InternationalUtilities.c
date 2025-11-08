@@ -74,6 +74,12 @@ typedef struct {
     SInt16    intl0Vers;          /* International resource version */
 } Intl0Rec;
 
+/* Intl1 structure (Sorting and collation tables) */
+typedef struct {
+    UInt8     collTable[256];     /* Collation table for sorting */
+    SInt16    intl1Vers;          /* International resource version */
+} Intl1Rec;
+
 /*
  * CreateDefaultIntl0 - Create default US English Intl0 resource
  *
@@ -150,6 +156,63 @@ static Handle CreateDefaultIntl0(void) {
 }
 
 /*
+ * CreateDefaultIntl1 - Create default US English Intl1 resource
+ *
+ * Creates a default international sorting/collation resource with US English
+ * character ordering for string comparison and sorting operations.
+ */
+static Handle CreateDefaultIntl1(void) {
+    Handle h;
+    Intl1Rec* intlPtr;
+    int i;
+
+    /* Allocate handle for Intl1 structure */
+    h = NewHandle(sizeof(Intl1Rec));
+    if (h == NULL) {
+        INTL_LOG("CreateDefaultIntl1: Failed to allocate handle\n");
+        return NULL;
+    }
+
+    /* Lock handle and fill in default collation table */
+    HLock(h);
+    intlPtr = (Intl1Rec*)*h;
+
+    /* Build case-insensitive ASCII collation table
+     * This table maps characters to their sort order values.
+     * A-Z and a-z map to same values for case-insensitive sorting.
+     */
+
+    /* Initialize all characters to their ASCII values */
+    for (i = 0; i < 256; i++) {
+        intlPtr->collTable[i] = (UInt8)i;
+    }
+
+    /* Map uppercase letters to lowercase equivalents for sorting
+     * This makes 'A' sort the same as 'a', 'B' same as 'b', etc. */
+    for (i = 'A'; i <= 'Z'; i++) {
+        intlPtr->collTable[i] = (UInt8)(i + 32); /* Convert to lowercase */
+    }
+
+    /* Control characters sort before printable characters */
+    for (i = 0; i < 32; i++) {
+        intlPtr->collTable[i] = (UInt8)i;
+    }
+
+    /* Space and punctuation sort before letters */
+    /* Numbers sort before letters */
+    /* Letters sort in alphabetical order (lowercase) */
+    /* Extended ASCII characters sort after standard ASCII */
+
+    /* Version */
+    intlPtr->intl1Vers = 0;
+
+    HUnlock(h);
+
+    INTL_LOG("CreateDefaultIntl1: Created default US English Intl1\n");
+    return h;
+}
+
+/*
  * IUGetIntl - Get international resource handle
  *
  * Returns a handle to the specified international resource. These resources
@@ -186,8 +249,7 @@ Handle IUGetIntl(SInt16 theID) {
         case kIntl1ResID:
             /* Sorting and collation tables */
             if (g_intl1Handle == NULL) {
-                /* TODO: Create default Intl1 resource */
-                INTL_LOG("IUGetIntl: Intl1 not implemented yet\n");
+                g_intl1Handle = CreateDefaultIntl1();
             }
             result = g_intl1Handle;
             break;
@@ -269,6 +331,26 @@ void IUSetIntl(SInt16 refNum, SInt16 theID, const void* intlParam) {
             break;
 
         case kIntl1ResID:
+            dataSize = sizeof(Intl1Rec);
+
+            /* Dispose old handle if it exists */
+            if (g_intl1Handle != NULL) {
+                DisposeHandle(g_intl1Handle);
+            }
+
+            /* Create new handle and copy data */
+            h = NewHandle(dataSize);
+            if (h != NULL) {
+                HLock(h);
+                memcpy(*h, intlParam, dataSize);
+                HUnlock(h);
+                g_intl1Handle = h;
+                INTL_LOG("IUSetIntl: Successfully set Intl1\n");
+            } else {
+                INTL_LOG("IUSetIntl: Failed to allocate handle\n");
+            }
+            break;
+
         case kIntl2ResID:
         case kIntl3ResID:
             /* TODO: Implement other resource types */
