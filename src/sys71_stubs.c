@@ -218,7 +218,21 @@ long sysconf(int name) { return -1; }
 
 #ifndef ENABLE_RESOURCES
 void ReleaseResource(Handle theResource) {
-    /* Stub */
+    if (!theResource) return;
+
+    /* Release a resource handle loaded from resource fork */
+    /* Marks the resource as purgeable so Memory Manager can free it if needed */
+
+    extern void HPurge(Handle h);
+
+    /* Make the resource purgeable */
+    HPurge(theResource);
+
+    /* In a full implementation, this would also:
+     * - Update resource map to mark resource as not loaded
+     * - Clear any resource attributes set during loading
+     * - Allow the handle to be purged by Memory Manager
+     */
 }
 #endif
 
