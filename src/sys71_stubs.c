@@ -89,13 +89,8 @@ void InitFonts(void) {
  * Policy: Stubs compile only if SYS71_PROVIDE_FINDER_TOOLBOX is undefined
  * Real WM always wins; no dual definitions
  */
-#if !defined(SYS71_STUBS_DISABLED)
-
-void DrawWindow(WindowPtr window) {
-    /* Window chrome is drawn automatically by ShowWindow/SelectWindow */
-    /* This stub exists for DialogManager compatibility */
-}
-#endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
+/* DrawWindow removed - implemented in WindowManager/WindowDisplay.c:919
+ * Window chrome is drawn by real implementation, not this disabled stub */
 
 /* Menu Manager - Most functions now provided by MenuManagerCore.c */
 
@@ -915,11 +910,7 @@ OSErr CleanUpBy(WindowPtr window, SInt16 sortType) {
 
 /* HiWord and LoWord moved to System71StdLib.c */
 
-#if !defined(SYS71_STUBS_DISABLED)
-void InvalRect(const Rect* badRect) {
-    /* Stub */
-}
-#endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
+/* InvalRect removed - implemented in WindowManager/WindowEvents.c:348 */
 
 OSErr ScanDirectoryForDesktopEntries(SInt16 vRefNum, SInt32 dirID, SInt16 databaseRefNum) {
     /* Scan a directory and add file/folder entries to desktop database */
@@ -1010,15 +1001,10 @@ extern void* framebuffer;
 /* WM_Update, WM_InvalidateDisplay, SetDeskHook, and g_deskHook moved to WindowManager/WindowDisplay.c */
 
 /* [WM-050] Stub quarantine: real BeginUpdate/EndUpdate in WindowEvents.c */
-#if !defined(SYS71_STUBS_DISABLED)
-void BeginUpdate(WindowPtr theWindow) {
-    /* Stub - would save port and set up clipping */
-}
-
-void EndUpdate(WindowPtr theWindow) {
-    /* Stub - would restore port and clear update region */
-}
-#endif /* !SYS71_PROVIDE_FINDER_TOOLBOX */
+/* BeginUpdate and EndUpdate removed - implemented in WindowManager/WindowEvents.c
+ * - BeginUpdate at line 499
+ * - EndUpdate at line 650
+ */
 
 /* SetDeskHook moved to WindowManager/WindowDisplay.c */
 
