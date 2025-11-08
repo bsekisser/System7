@@ -477,10 +477,56 @@ OSErr CloseAllWindows(void) {
 }
 
 OSErr CleanUpSelection(WindowPtr window) {
+    if (!window) {
+        return paramErr;
+    }
+
+    /* Arrange selected icons in a grid pattern */
+    /* In a full implementation, this would:
+     * 1. Find all selected icons in the window
+     * 2. Calculate grid positions based on icon size
+     * 3. Move icons to grid positions
+     * 4. Update icon positions in window data
+     */
+
+    /* For now, just invalidate the window to trigger redraw */
+    extern void InvalRect(const Rect* badRect);
+
+    Rect windowRect = window->portRect;
+    InvalRect(&windowRect);
+
     return noErr;
 }
 
 OSErr CleanUpBy(WindowPtr window, SInt16 sortType) {
+    if (!window) {
+        return paramErr;
+    }
+
+    /* Arrange all icons by specified sort order and snap to grid */
+    /* Sort types from finder.h:
+     * kCleanUpByName = 0
+     * kCleanUpByDate = 1
+     * kCleanUpBySize = 2
+     * kCleanUpByKind = 3
+     * kCleanUpByLabel = 4
+     */
+
+    /* In a full implementation, this would:
+     * 1. Get all icons in the window
+     * 2. Sort icons by the specified criteria
+     * 3. Arrange in grid pattern from top-left
+     * 4. Update icon positions in window data
+     */
+
+    /* For now, just invalidate the window to trigger redraw */
+    extern void InvalRect(const Rect* badRect);
+
+    Rect windowRect = window->portRect;
+    InvalRect(&windowRect);
+
+    (void)sortType; /* Unused for now */
+
     return noErr;
 }
 
