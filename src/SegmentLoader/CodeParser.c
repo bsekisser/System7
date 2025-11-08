@@ -172,16 +172,44 @@ OSErr BuildRelocationTable(const void* codeData, Size size, SInt16 segID,
 
     const UInt8* data = (const UInt8*)codeData;
 
-    /* For MVP, create minimal relocation table */
-    /* TODO: Implement pattern scanning for relocations */
+    /* Scan for 68K relocation patterns:
+     * - JMP/JSR absolute.L (jump table or segment references)
+     * - PEA absolute.L (push effective address)
+     * - MOVE.L absolute.L (absolute data references)
+     * - LEA/MOVE with A5-relative addressing (globals)
+     */
 
-    /* Count potential relocations (simple scan for now) */
+    /* Count potential relocations */
     UInt16 count = 0;
     for (Size i = 0; i + 6 < size; i += 2) {
         UInt16 opcode = BE_Read16(data + i);
 
-        /* Check for JMP absolute.L (0x4EF9) or JSR absolute.L (0x4EB9) */
+        /* JMP absolute.L (0x4EF9) or JSR absolute.L (0x4EB9) */
         if (opcode == 0x4EF9 || opcode == 0x4EB9) {
+            count++;
+        }
+        /* PEA absolute.L (0x4879) */
+        else if (opcode == 0x4879) {
+            count++;
+        }
+        /* MOVE.L absolute.L,Dn (0x20xx, 0x22xx, etc. with mode 111 reg 001) */
+        else if ((opcode & 0xF1FF) == 0x2039 || (opcode & 0xF1FF) == 0x2139) {
+            count++;
+        }
+        /* MOVE.L Dn,absolute.L (0x23C0-0x23C7) */
+        else if ((opcode & 0xFFF8) == 0x23C0) {
+            count++;
+        }
+        /* LEA d16(A5),An (0x4xED where x=dest reg) */
+        else if ((opcode & 0xF0FF) == 0x40ED) {
+            count++;
+        }
+        /* MOVE.L d16(A5),Dn (0x202D, 0x222D, etc.) */
+        else if ((opcode & 0xF1FF) == 0x202D) {
+            count++;
+        }
+        /* MOVE.L Dn,d16(A5) (0x2B40-0x2B47) */
+        else if ((opcode & 0xFFF8) == 0x2B40) {
             count++;
         }
     }
@@ -202,6 +230,7 @@ OSErr BuildRelocationTable(const void* codeData, Size size, SInt16 segID,
         for (Size i = 0; i + 6 < size && idx < count; i += 2) {
             UInt16 opcode = BE_Read16(data + i);
 
+            /* JMP/JSR absolute.L */
             if (opcode == 0x4EF9 || opcode == 0x4EB9) {
                 UInt32 target = BE_Read32(data + i + 2);
 
@@ -212,7 +241,7 @@ OSErr BuildRelocationTable(const void* codeData, Size size, SInt16 segID,
                     relocTable->entries[idx].atOffset = i + 2;
                     relocTable->entries[idx].addend = 0;
                     relocTable->entries[idx].targetSegment = 0;
-                    relocTable->entries[idx].jtIndex = target / 8; /* Rough guess */
+                    relocTable->entries[idx].jtIndex = target / 8;
                 } else {
                     /* Assume absolute segment reference */
                     relocTable->entries[idx].kind = kRelocAbsSegBase;
@@ -221,7 +250,66 @@ OSErr BuildRelocationTable(const void* codeData, Size size, SInt16 segID,
                     relocTable->entries[idx].targetSegment = segID;
                     relocTable->entries[idx].jtIndex = 0;
                 }
-
+                idx++;
+            }
+            /* PEA absolute.L */
+            else if (opcode == 0x4879) {
+                UInt32 target = BE_Read32(data + i + 2);
+                relocTable->entries[idx].kind = kRelocAbsSegBase;
+                relocTable->entries[idx].atOffset = i + 2;
+                relocTable->entries[idx].addend = target;
+                relocTable->entries[idx].targetSegment = segID;
+                relocTable->entries[idx].jtIndex = 0;
+                idx++;
+            }
+            /* MOVE.L absolute.L,Dn */
+            else if ((opcode & 0xF1FF) == 0x2039 || (opcode & 0xF1FF) == 0x2139) {
+                UInt32 target = BE_Read32(data + i + 2);
+                relocTable->entries[idx].kind = kRelocAbsSegBase;
+                relocTable->entries[idx].atOffset = i + 2;
+                relocTable->entries[idx].addend = target;
+                relocTable->entries[idx].targetSegment = segID;
+                relocTable->entries[idx].jtIndex = 0;
+                idx++;
+            }
+            /* MOVE.L Dn,absolute.L */
+            else if ((opcode & 0xFFF8) == 0x23C0) {
+                UInt32 target = BE_Read32(data + i + 2);
+                relocTable->entries[idx].kind = kRelocAbsSegBase;
+                relocTable->entries[idx].atOffset = i + 2;
+                relocTable->entries[idx].addend = target;
+                relocTable->entries[idx].targetSegment = segID;
+                relocTable->entries[idx].jtIndex = 0;
+                idx++;
+            }
+            /* LEA d16(A5),An - A5-relative */
+            else if ((opcode & 0xF0FF) == 0x40ED) {
+                SInt16 offset = (SInt16)BE_Read16(data + i + 2);
+                relocTable->entries[idx].kind = kRelocA5Relative;
+                relocTable->entries[idx].atOffset = i + 2;
+                relocTable->entries[idx].addend = offset;
+                relocTable->entries[idx].targetSegment = 0;
+                relocTable->entries[idx].jtIndex = 0;
+                idx++;
+            }
+            /* MOVE.L d16(A5),Dn - A5-relative */
+            else if ((opcode & 0xF1FF) == 0x202D) {
+                SInt16 offset = (SInt16)BE_Read16(data + i + 2);
+                relocTable->entries[idx].kind = kRelocA5Relative;
+                relocTable->entries[idx].atOffset = i + 2;
+                relocTable->entries[idx].addend = offset;
+                relocTable->entries[idx].targetSegment = 0;
+                relocTable->entries[idx].jtIndex = 0;
+                idx++;
+            }
+            /* MOVE.L Dn,d16(A5) - A5-relative */
+            else if ((opcode & 0xFFF8) == 0x2B40) {
+                SInt16 offset = (SInt16)BE_Read16(data + i + 2);
+                relocTable->entries[idx].kind = kRelocA5Relative;
+                relocTable->entries[idx].atOffset = i + 2;
+                relocTable->entries[idx].addend = offset;
+                relocTable->entries[idx].targetSegment = 0;
+                relocTable->entries[idx].jtIndex = 0;
                 idx++;
             }
         }
