@@ -1089,17 +1089,41 @@ OSErr CloseAllWindows(void) {
 }
 
 OSErr CleanUpSelection(WindowPtr window) {
+    /* Arrange selected icons in a neat grid pattern
+     *
+     * Finder menu command "Clean Up Selection" - arranges only the
+     * selected icons in a window, snapping them to an invisible grid
+     * while leaving unselected icons in their current positions.
+     *
+     * Parameters:
+     *   window - Finder window containing icons to arrange
+     *
+     * Grid layout behavior:
+     * - Icons snap to grid points (typically 80x80 pixel spacing)
+     * - Only selected icons are moved
+     * - Icons maintain relative order where possible
+     * - Grid starts from current window scroll position
+     * - Prevents overlapping icons
+     *
+     * Full implementation would:
+     * 1. Enumerate window's icon list to find selected items
+     * 2. Calculate grid spacing based on icon view settings
+     * 3. Determine available grid positions (avoiding unselected icons)
+     * 4. Move each selected icon to nearest available grid point
+     * 5. Update icon positions in window data structure
+     * 6. Mark window content as modified
+     * 7. Invalidate affected regions to trigger redraw
+     *
+     * This stub implementation just invalidates the entire window
+     * to trigger a redraw, without actually moving any icons.
+     *
+     * Returns:
+     *   paramErr if window is NULL
+     *   noErr on success
+     */
     if (!window) {
         return paramErr;
     }
-
-    /* Arrange selected icons in a grid pattern */
-    /* In a full implementation, this would:
-     * 1. Find all selected icons in the window
-     * 2. Calculate grid positions based on icon size
-     * 3. Move icons to grid positions
-     * 4. Update icon positions in window data
-     */
 
     /* For now, just invalidate the window to trigger redraw */
     extern void InvalRect(const Rect* badRect);
@@ -1111,25 +1135,53 @@ OSErr CleanUpSelection(WindowPtr window) {
 }
 
 OSErr CleanUpBy(WindowPtr window, SInt16 sortType) {
+    /* Arrange all icons sorted by specified criteria
+     *
+     * Finder menu commands "Clean Up by Name", "Clean Up by Date", etc.
+     * Sorts all icons in the window and arranges them in a neat grid
+     * pattern from top-left to bottom-right.
+     *
+     * Parameters:
+     *   window - Finder window containing icons to arrange
+     *   sortType - Sort criterion (from finder.h):
+     *     kCleanUpByName = 0   (alphabetical by file/folder name)
+     *     kCleanUpByDate = 1   (chronological by modification date)
+     *     kCleanUpBySize = 2   (by file size, largest first)
+     *     kCleanUpByKind = 3   (grouped by type/kind)
+     *     kCleanUpByLabel = 4  (grouped by Finder label color)
+     *
+     * Sort and arrangement behavior:
+     * - All icons (not just selected) are affected
+     * - Icons sorted according to sortType criterion
+     * - Folders typically sorted before files
+     * - Arranged left-to-right, top-to-bottom in grid
+     * - Grid spacing typically 80x80 pixels
+     * - Starts from top-left of window content area
+     *
+     * Full implementation would:
+     * 1. Enumerate all icons in the window
+     * 2. Sort icon list by specified criterion
+     * 3. Calculate grid positions (rows and columns)
+     * 4. Assign each sorted icon to next grid position
+     * 5. Update icon positions in window data structure
+     * 6. Mark window content as modified
+     * 7. Invalidate window to trigger redraw
+     *
+     * Common use cases:
+     * - Organize messy desktop or folder window
+     * - Prepare folder for screenshots
+     * - Find files more easily with consistent layout
+     *
+     * This stub implementation just invalidates the window without
+     * actually sorting or moving any icons.
+     *
+     * Returns:
+     *   paramErr if window is NULL
+     *   noErr on success
+     */
     if (!window) {
         return paramErr;
     }
-
-    /* Arrange all icons by specified sort order and snap to grid */
-    /* Sort types from finder.h:
-     * kCleanUpByName = 0
-     * kCleanUpByDate = 1
-     * kCleanUpBySize = 2
-     * kCleanUpByKind = 3
-     * kCleanUpByLabel = 4
-     */
-
-    /* In a full implementation, this would:
-     * 1. Get all icons in the window
-     * 2. Sort icons by the specified criteria
-     * 3. Arrange in grid pattern from top-left
-     * 4. Update icon positions in window data
-     */
 
     /* For now, just invalidate the window to trigger redraw */
     extern void InvalRect(const Rect* badRect);
