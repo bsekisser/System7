@@ -10,7 +10,7 @@
 #include "mmu.h"
 
 #ifdef QEMU_BUILD
-#include "simple_fb.h"
+#include "ramfb.h"
 #else
 #include "framebuffer.h"
 #endif
@@ -51,28 +51,28 @@ int main(int argc, char **argv) {
 #endif
 
 #ifdef QEMU_BUILD
-    uart_puts("[KERNEL] Initializing graphics (160x120)...\n");
-    if (simple_fb_init()) {
+    uart_puts("[KERNEL] Initializing graphics (320x240 ramfb)...\n");
+    if (ramfb_init()) {
         uart_puts("[KERNEL] Graphics OK - drawing test pattern...\n");
 
         /* Clear to dark blue background */
-        simple_fb_clear(0xFF001040);
+        ramfb_clear(0xFF001040);
 
         /* Draw title bar */
-        simple_fb_draw_rect(0, 0, 160, 12, 0xFFCCCCCC);
+        ramfb_draw_rect(0, 0, 320, 24, 0xFFCCCCCC);
 
         /* Draw colored status boxes */
-        simple_fb_draw_rect(10, 20, 40, 30, 0xFFFF0000);   /* Red - UART */
-        simple_fb_draw_rect(60, 20, 40, 30, 0xFF00FF00);   /* Green - Timer */
-        simple_fb_draw_rect(110, 20, 40, 30, 0xFF0000FF);  /* Blue - Boot */
+        ramfb_draw_rect(20, 40, 80, 60, 0xFFFF0000);   /* Red - UART */
+        ramfb_draw_rect(120, 40, 80, 60, 0xFF00FF00);  /* Green - Timer */
+        ramfb_draw_rect(220, 40, 80, 60, 0xFF0000FF);  /* Blue - Boot */
 
         /* Draw status panel */
-        simple_fb_draw_rect(10, 60, 140, 50, 0xFFFFFFFF);  /* White box */
-        simple_fb_draw_rect(12, 62, 136, 46, 0xFF000000);  /* Black interior */
+        ramfb_draw_rect(20, 120, 280, 100, 0xFFFFFFFF); /* White box */
+        ramfb_draw_rect(24, 124, 272, 92, 0xFF000000);  /* Black interior */
 
-        uart_puts("[KERNEL] Graphics initialized - 160x120 framebuffer ready\n");
+        uart_puts("[KERNEL] Graphics initialized - 320x240 framebuffer active\n");
     } else {
-        uart_puts("[KERNEL] Graphics init failed\n");
+        uart_puts("[KERNEL] Graphics init failed (need -device ramfb)\n");
     }
 #endif
 

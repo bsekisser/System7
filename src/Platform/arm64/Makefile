@@ -43,7 +43,7 @@ ASM_SOURCES = platform_boot.S exceptions.S
 
 # QEMU build uses different UART addresses
 ifdef QEMU
-C_SOURCES = hal_boot.c uart_qemu.c timer.c gic.c dtb.c cache.c mmu.c string.c printf.c exception_handlers.c simple_fb.c
+C_SOURCES = hal_boot.c uart_qemu.c timer.c gic.c dtb.c cache.c mmu.c string.c printf.c exception_handlers.c ramfb.c
 else
 C_SOURCES = hal_boot.c uart.c timer.c gic.c mailbox.c framebuffer.c dtb.c cache.c mmu.c string.c printf.c exception_handlers.c
 endif
@@ -102,5 +102,20 @@ qemu-virt: qemu-build
 		-serial stdio \
 		-display none
 
-# Alias for qemu-virt
-qemu: qemu-virt
+# QEMU with graphics display
+qemu-graphics: qemu-build
+	@echo ""
+	@echo "Starting QEMU with graphics (ramfb)..."
+	@echo "Press Ctrl-A then X to exit QEMU"
+	@echo ""
+	qemu-system-aarch64 \
+		-M virt \
+		-cpu cortex-a53 \
+		-m 1G \
+		-kernel $(ELF) \
+		-device ramfb \
+		-serial stdio \
+		-display cocoa
+
+# Alias for qemu-graphics
+qemu: qemu-graphics
