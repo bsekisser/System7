@@ -86,9 +86,10 @@ bss_done:
     isb
 
     /* Set up system control
-     * Enable caches and MMU later, for now run uncached */
+     * Disable data cache for proper MMIO access without MMU
+     * Keep instruction cache for performance */
     mrs x0, sctlr_el1
-    orr x0, x0, #(1 << 2)       /* C bit - enable data cache */
+    bic x0, x0, #(1 << 2)       /* C bit - DISABLE data cache (needed for MMIO) */
     orr x0, x0, #(1 << 12)      /* I bit - enable instruction cache */
     msr sctlr_el1, x0
     isb

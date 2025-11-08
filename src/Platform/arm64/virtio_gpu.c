@@ -166,7 +166,7 @@ struct virtqueue {
     struct virtq_used used;
 } __attribute__((aligned(4096)));
 
-/* Driver state */
+/* Driver state - use smaller buffers to avoid BSS issues */
 static volatile uint32_t *virtio_base = NULL;
 static struct virtqueue controlq __attribute__((aligned(4096)));
 static uint32_t framebuffer[FB_WIDTH * FB_HEIGHT] __attribute__((aligned(4096)));
@@ -238,6 +238,8 @@ static bool virtio_gpu_send_cmd(void *cmd, size_t cmd_len, void *resp, size_t re
 }
 
 bool virtio_gpu_init(void) {
+    uart_puts("[VIRTIO-GPU] Entry\n");
+
     uint32_t magic, version, device_id;
     struct virtio_gpu_ctrl_hdr resp_hdr;
 
@@ -257,20 +259,33 @@ bool virtio_gpu_init(void) {
 
         /* Found a VirtIO device */
         uart_puts("[VIRTIO-GPU] Slot ");
-        uart_putc('0' + slot);
-        uart_puts(" - VirtIO device, reading ID...\n");
+        if (slot < 10) {
+            uart_putc('0' + slot);
+        } else {
+            uart_putc('0' + (slot / 10));
+            uart_putc('0' + (slot % 10));
+        }
+        uart_puts("\n");
 
+        /* Read version and device ID */
         version = virtio_read32(VIRTIO_MMIO_VERSION);
         device_id = virtio_read32(VIRTIO_MMIO_DEVICE_ID);
 
-        uart_puts("[VIRTIO-GPU] Device ID: ");
+        uart_puts("  Version: ");
+        uart_put_hex(version);
+        uart_puts(", Device ID: ");
         uart_put_hex(device_id);
-        uart_puts(" (GPU=");
-        uart_put_hex(VIRTIO_ID_GPU);
-        uart_puts(")\n");
+        uart_puts("\n");
 
         if (device_id == VIRTIO_ID_GPU) {
-            uart_puts("[VIRTIO-GPU] Found GPU!\n");
+            uart_puts("[VIRTIO-GPU] Found GPU at slot ");
+            if (slot < 10) {
+                uart_putc('0' + slot);
+            } else {
+                uart_putc('0' + (slot / 10));
+                uart_putc('0' + (slot % 10));
+            }
+            uart_puts("!\n");
             virtio_gpu_base = base;
             break;
         }
