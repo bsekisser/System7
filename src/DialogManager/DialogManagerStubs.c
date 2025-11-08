@@ -14,14 +14,8 @@
 
 /* DialogItemInternal is now defined in DialogManagerStateExt.h */
 
-/* Forward declarations for stub functions with simplified signatures */
-OSErr LoadDialogTemplate(SInt16 resID, Handle* templateH);
-OSErr LoadDialogItemList(SInt16 resID, Handle* itemListH);
-void DisposeDialogTemplate(Handle templateH);
-void DisposeDialogItemList(Handle itemListH);
-OSErr LoadAlertTemplate(SInt16 resID, Handle* alertH);
-void DisposeAlertTemplate(Handle alertH);
-void InitDialogResources(void);
+/* Note: All Dialog Manager functions previously stubbed here are now
+ * implemented in their respective modules (see comments below) */
 
 /* GetDialogItemPtr removed - unused function
  * Dialog items are accessed via GetDialogItemEx() in DialogItems.c
@@ -65,41 +59,15 @@ void InitDialogResources(void);
 
 /* Resource stubs - provided by simple_resource_manager.c and sys71_stubs.c */
 
-/* Temporary stubs for unimplemented Dialog Manager functions */
-OSErr LoadDialogTemplate(SInt16 resID, Handle* templateH) {
-    *templateH = NULL;
-    return -1; /* resNotFound */
-}
-
-OSErr LoadDialogItemList(SInt16 resID, Handle* itemListH) {
-    *itemListH = NULL;
-    return -1; /* resNotFound */
-}
-
-void DisposeDialogTemplate(Handle templateH) {
-    if (templateH) {
-        DisposeHandle(templateH);
-    }
-}
-
-void DisposeDialogItemList(Handle itemListH) {
-    if (itemListH) {
-        DisposeHandle(itemListH);
-    }
-}
-
-OSErr LoadAlertTemplate(SInt16 resID, Handle* alertH) {
-    *alertH = NULL;
-    return -1; /* resNotFound */
-}
-
-void DisposeAlertTemplate(Handle alertH) {
-    if (alertH) {
-        DisposeHandle(alertH);
-    }
-}
-/* Window Manager stubs for Dialog Manager */
-
-void InitDialogResources(void) {
-    /* Stub - would initialize dialog resource management */
-}
+/* All Dialog Manager resource functions now implemented in DialogResources.c:
+ * - LoadDialogTemplate() - Load DLOG resource
+ * - LoadDialogItemList() - Load DITL resource
+ * - LoadAlertTemplate() - Load ALRT resource
+ * - DisposeDialogTemplate() - Dispose dialog template
+ * - DisposeDialogItemList() - Dispose item list
+ * - DisposeAlertTemplate() - Dispose alert template
+ * - InitDialogResources() - Initialize resource management
+ *
+ * Previous stubs that returned -1/NULL have been removed to avoid
+ * shadowing real implementations.
+ */
