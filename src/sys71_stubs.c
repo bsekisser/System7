@@ -291,18 +291,29 @@ void ExpandMemDump(void) {
      * For kernel environment, this is a no-op */
 }
 Boolean ExpandMemValidate(void) {
-    /* Validate expanded memory structure integrity */
-
-    /* In a full implementation, this would:
-     * 1. Check expanded memory magic number/signature
-     * 2. Verify critical low-memory globals are non-null
-     * 3. Validate memory pointers are within valid ranges
+    /* Validate expanded memory structure integrity
+     * This is a wrapper around the full ExpandMemValidate(ExpandMemRec*) function
+     *
+     * Validation checks performed by real implementation:
+     * 1. Check ExpandMem pointer is non-NULL
+     * 2. Verify version number matches EM_CURRENT_VERSION
+     * 3. Validate size is within reasonable bounds (sizeof(ExpandMemRec) to 2*EM_EXTENDED_SIZE)
      * 4. Check for memory corruption indicators
+     *
+     * Returns: true if ExpandMem is valid, false otherwise
      */
 
-    /* For now, always return valid */
-    /* Real implementation would perform sanity checks */
-    return true;
+    extern ExpandMemRec* ExpandMemGet(void);
+    extern Boolean ExpandMemValidate(const ExpandMemRec* em);
+
+    ExpandMemRec* em = ExpandMemGet();
+    if (!em) {
+        /* No ExpandMem allocated yet - this is valid during early boot */
+        return true;
+    }
+
+    /* Delegate to real implementation */
+    return ExpandMemValidate(em);
 }
 
 /* Serial stubs */
