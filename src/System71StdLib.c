@@ -1596,3 +1596,80 @@ double sqrt(double x) {
 
     return guess;
 }
+
+double frexp(double value, int* exp) {
+    /* Split floating point into mantissa and exponent
+     * value = mantissa * 2^exp, where 0.5 <= |mantissa| < 1.0 */
+
+    if (value == 0.0) {
+        *exp = 0;
+        return 0.0;
+    }
+
+    int sign = 1;
+    if (value < 0.0) {
+        sign = -1;
+        value = -value;
+    }
+
+    int e = 0;
+
+    /* Normalize to range [0.5, 1.0) */
+    while (value >= 1.0) {
+        value /= 2.0;
+        e++;
+    }
+    while (value < 0.5) {
+        value *= 2.0;
+        e--;
+    }
+
+    *exp = e;
+    return value * sign;
+}
+
+double ldexp(double value, int exp) {
+    /* Multiply value by 2^exp */
+    if (exp > 0) {
+        while (exp--) {
+            value *= 2.0;
+        }
+    } else if (exp < 0) {
+        while (exp++) {
+            value /= 2.0;
+        }
+    }
+    return value;
+}
+
+double modf(double value, double* iptr) {
+    /* Split value into integer and fractional parts */
+    double int_part;
+
+    if (value >= 0.0) {
+        int_part = (double)(long)value;
+    } else {
+        int_part = -(double)(long)(-value);
+    }
+
+    *iptr = int_part;
+    return value - int_part;
+}
+
+double hypot(double x, double y) {
+    /* Compute sqrt(x^2 + y^2) with overflow protection */
+    if (x < 0.0) x = -x;
+    if (y < 0.0) y = -y;
+
+    if (x == 0.0) return y;
+    if (y == 0.0) return x;
+
+    /* Use larger value to scale and avoid overflow */
+    if (x > y) {
+        double ratio = y / x;
+        return x * sqrt(1.0 + ratio * ratio);
+    } else {
+        double ratio = x / y;
+        return y * sqrt(1.0 + ratio * ratio);
+    }
+}
