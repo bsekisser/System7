@@ -563,6 +563,116 @@ static SInt32 RadioButtonCDEF_Sys7(ControlHandle control, SInt16 message, SInt32
             return 0;
     }
 }
-static SInt32 ScrollBarCDEF_Sys7(ControlHandle control, SInt16 message, SInt32 param) { return 0; }
+static SInt32 ScrollBarCDEF_Sys7(ControlHandle control, SInt16 message, SInt32 param) {
+    if (!control || !*control) return 0;
+
+    ControlRecord *ctlRec = *control;
+
+    switch (message) {
+        case drawCntl: {
+            /* Draw scroll bar with up/down arrows and thumb */
+            extern void FrameRect(const Rect *r);
+            extern void PaintRect(const Rect *r);
+            extern void MoveTo(SInt16 h, SInt16 v);
+            extern void LineTo(SInt16 h, SInt16 v);
+
+            Rect r = ctlRec->contrlRect;
+            FrameRect(&r);
+
+            /* Determine if vertical or horizontal based on aspect ratio */
+            SInt16 width = r.right - r.left;
+            SInt16 height = r.bottom - r.top;
+            Boolean isVertical = (height > width);
+
+            if (isVertical) {
+                /* Draw up arrow at top */
+                Rect upRect = {r.top + 1, r.left + 1, r.top + 16, r.right - 1};
+                FrameRect(&upRect);
+                /* Draw simple up arrow */
+                SInt16 midX = (upRect.left + upRect.right) / 2;
+                MoveTo(midX, upRect.top + 4);
+                LineTo(midX - 3, upRect.top + 10);
+                MoveTo(midX, upRect.top + 4);
+                LineTo(midX + 3, upRect.top + 10);
+
+                /* Draw down arrow at bottom */
+                Rect downRect = {r.bottom - 16, r.left + 1, r.bottom - 1, r.right - 1};
+                FrameRect(&downRect);
+                /* Draw simple down arrow */
+                midX = (downRect.left + downRect.right) / 2;
+                MoveTo(midX, downRect.bottom - 4);
+                LineTo(midX - 3, downRect.bottom - 10);
+                MoveTo(midX, downRect.bottom - 4);
+                LineTo(midX + 3, downRect.bottom - 10);
+
+                /* Draw thumb if there's a range */
+                if (ctlRec->contrlMax > ctlRec->contrlMin) {
+                    SInt16 trackHeight = height - 34; /* Subtract arrow heights */
+                    SInt16 thumbHeight = 16;
+                    SInt16 range = ctlRec->contrlMax - ctlRec->contrlMin;
+                    SInt16 thumbTop = r.top + 17 +
+                        ((ctlRec->contrlValue - ctlRec->contrlMin) * (trackHeight - thumbHeight)) / range;
+
+                    Rect thumbRect = {thumbTop, r.left + 1, thumbTop + thumbHeight, r.right - 1};
+                    PaintRect(&thumbRect);
+                }
+            }
+            return 0;
+        }
+
+        case testCntl: {
+            /* Test which part of scroll bar was hit */
+            extern Boolean PtInRect(Point pt, const Rect *r);
+            Point testPt = *(Point*)&param;
+
+            if (!PtInRect(testPt, &ctlRec->contrlRect)) {
+                return 0;
+            }
+
+            Rect r = ctlRec->contrlRect;
+            SInt16 width = r.right - r.left;
+            SInt16 height = r.bottom - r.top;
+            Boolean isVertical = (height > width);
+
+            if (isVertical) {
+                /* Check up arrow */
+                if (testPt.v < r.top + 16) {
+                    return inUpButton;
+                }
+                /* Check down arrow */
+                if (testPt.v > r.bottom - 16) {
+                    return inDownButton;
+                }
+                /* Check thumb position */
+                if (ctlRec->contrlMax > ctlRec->contrlMin) {
+                    SInt16 trackHeight = height - 34;
+                    SInt16 thumbHeight = 16;
+                    SInt16 range = ctlRec->contrlMax - ctlRec->contrlMin;
+                    SInt16 thumbTop = r.top + 17 +
+                        ((ctlRec->contrlValue - ctlRec->contrlMin) * (trackHeight - thumbHeight)) / range;
+
+                    if (testPt.v >= thumbTop && testPt.v < thumbTop + thumbHeight) {
+                        return inThumb;
+                    }
+                }
+                /* Check page up/down */
+                SInt16 midThumb = r.top + 17 + (height - 34) / 2;
+                return (testPt.v < midThumb) ? inPageUp : inPageDown;
+            }
+            return 0;
+        }
+
+        case initCntl:
+            /* Initialize scroll bar state */
+            return 0;
+
+        case dispCntl:
+            /* Dispose scroll bar resources */
+            return 0;
+
+        default:
+            return 0;
+    }
+}
 
 /**
