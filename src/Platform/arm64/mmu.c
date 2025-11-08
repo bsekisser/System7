@@ -5,7 +5,9 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <string.h>
+
+/* String function declaration */
+extern void *memset(void *s, int c, size_t n);
 
 /* Page table entry attributes */
 #define PTE_VALID           (1ULL << 0)

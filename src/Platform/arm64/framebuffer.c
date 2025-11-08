@@ -5,8 +5,11 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <string.h>
 #include "mailbox.h"
+
+/* String function declarations */
+extern void *memcpy(void *dest, const void *src, size_t n);
+extern void *memset(void *s, int c, size_t n);
 
 /* Mailbox property tag structure */
 typedef struct {

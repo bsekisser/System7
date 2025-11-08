@@ -5,7 +5,10 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <string.h>
+
+/* String function declarations */
+extern size_t strlen(const char *s);
+extern int strcmp(const char *s1, const char *s2);
 
 /* DTB header structure */
 typedef struct {

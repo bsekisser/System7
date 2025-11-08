@@ -5,13 +5,15 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <stdio.h>
-#include <string.h>
 #include "uart.h"
 #include "timer.h"
 #include "dtb.h"
 #include "mailbox.h"
 #include "gic.h"
+
+/* Minimal snprintf declaration */
+extern int snprintf(char *str, size_t size, const char *format, ...);
+extern char *strncpy(char *dest, const char *src, size_t n);
 
 /* ARM64-specific boot information */
 typedef struct {

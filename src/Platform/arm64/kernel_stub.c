@@ -4,7 +4,7 @@
  */
 
 #include <stdint.h>
-#include <stdio.h>
+#include <stddef.h>
 #include "uart.h"
 #include "timer.h"
 #include "framebuffer.h"
