@@ -981,6 +981,37 @@ void DoBackgroundTasks(void) {
  */
 
 OSErr ShowConfirmDialog(StringPtr message, Boolean* confirmed) {
+    /* Display confirmation dialog with OK and Cancel buttons
+     *
+     * Shows a caution alert (yellow warning icon) with a custom message
+     * and OK/Cancel buttons. Used to confirm destructive or important
+     * operations before proceeding.
+     *
+     * Parameters:
+     *   message - Pascal string with message to display (can be NULL)
+     *   confirmed - Returns true if user clicked OK, false if Cancel
+     *
+     * Alert behavior:
+     * - Displays caution icon (yellow triangle with exclamation)
+     * - Shows message text via ParamText substitution (^0)
+     * - Presents OK and Cancel buttons
+     * - OK button is default (Return/Enter key)
+     * - Cancel button responds to Escape/Command-. keys
+     * - Modal dialog blocks until user responds
+     *
+     * Common uses:
+     * - Confirm file deletion ("Really delete this file?")
+     * - Confirm folder emptying ("Empty the Trash?")
+     * - Confirm application quit with unsaved changes
+     * - Confirm irreversible operations
+     *
+     * Alert ID 128 is typically used for basic confirmation dialogs.
+     * The ALRT resource template defines button layout and icon type.
+     *
+     * Returns:
+     *   paramErr if confirmed pointer is NULL
+     *   noErr on success (confirmed set to user's choice)
+     */
     if (!confirmed) {
         return paramErr;
     }
