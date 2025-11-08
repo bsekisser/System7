@@ -573,10 +573,41 @@ static Boolean IsSoundData(const void *data, SInt32 size)
         return false;
     }
 
-    /* Check for sound resource header - simplified */
-    /* Real sound resource validation would be more thorough */
+    /* Check for sound resource header using same logic as ValidateSoundData
+     * Sound resource format:
+     * - Format type (2 bytes): 0x0001 or 0x0002
+     * - Data type count (2 bytes): reasonable value
+     * - Sample rate validation for format 1
+     */
 
-    return false; /* For now, don't auto-detect sound */
+    /* Check format type (bytes 0-1) */
+    UInt16 format = (bytes[0] << 8) | bytes[1];
+
+    /* Valid formats: 0x0001 (standard) or 0x0002 (HyperCard) */
+    if (format != 0x0001 && format != 0x0002) {
+        return false;
+    }
+
+    /* Check data type count (bytes 2-3) */
+    UInt16 typeCount = (bytes[2] << 8) | bytes[3];
+
+    /* Type count should be reasonable (typically 1-16) */
+    if (typeCount == 0 || typeCount > 100) {
+        return false;
+    }
+
+    /* For format 1, validate sample rate if enough data */
+    if (format == 0x0001 && size >= 8) {
+        UInt32 sampleRate = (bytes[4] << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7];
+        UInt16 rateInt = sampleRate >> 16;
+
+        /* Sample rate should be reasonable (1 kHz to 100 kHz) */
+        if (rateInt < 1000 || rateInt > 100000) {
+            return false;
+        }
+    }
+
+    return true;  /* Looks like valid sound data */
 }
 
 static Boolean IsImageData(const void *data, SInt32 size)
