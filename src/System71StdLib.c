@@ -803,6 +803,14 @@ int isblank(int c) {
     return c == ' ' || c == '\t';
 }
 
+int isascii(int c) {
+    return c >= 0 && c <= 0x7F;
+}
+
+int toascii(int c) {
+    return c & 0x7F;
+}
+
 /* Conversion functions */
 int atoi(const char* str) {
     int result = 0;
