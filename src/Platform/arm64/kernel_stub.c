@@ -42,6 +42,12 @@ int main(int argc, char **argv) {
     /* System ready - all core functionality operational */
     uart_puts("[KERNEL] Core boot sequence successful\n");
 
+    /* Test exception handler (optional - comment out for normal operation) */
+#ifdef TEST_EXCEPTION_HANDLER
+    uart_puts("[KERNEL] Triggering test exception...\n");
+    __asm__ volatile("brk #0");  /* Trigger breakpoint exception */
+#endif
+
 #ifndef QEMU_BUILD
     /* Test framebuffer initialization (only on real hardware) */
     uart_puts("[KERNEL] Initializing framebuffer (640x480, 32bpp)...\n");

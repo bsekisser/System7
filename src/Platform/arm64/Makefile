@@ -27,6 +27,11 @@ ifdef QEMU
 CFLAGS += -DQEMU_BUILD
 endif
 
+# Add test exception handler flag if requested
+ifdef TEST_EXCEPTIONS
+CFLAGS += -DTEST_EXCEPTION_HANDLER
+endif
+
 # Assembler flags
 ASFLAGS = -mcpu=cortex-a53
 
