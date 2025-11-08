@@ -98,7 +98,13 @@ void InitControlManager_Sys7(void) {
 
 /* List Manager */
 void InitListManager(void) {
-    /* Stub implementation */
+    /* Initialize List Manager dialog-list registry */
+    extern void InitRegistryIfNeeded(void);
+
+    /* Set up internal registry for dialog-attached lists */
+    InitRegistryIfNeeded();
+
+    /* List Manager is now ready for LNew() calls */
 }
 
 /* Event Manager */
