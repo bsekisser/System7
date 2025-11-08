@@ -422,6 +422,25 @@ OSErr PBHGetVInfoSync(void *paramBlock) {
 
 
 OSErr SetEOF(short refNum, long logEOF) {
+    if (refNum <= 0) {
+        return paramErr;
+    }
+
+    if (logEOF < 0) {
+        return paramErr;
+    }
+
+    /* Set the logical end-of-file for an open file */
+
+    /* In a full implementation, this would:
+     * 1. Validate the file reference number
+     * 2. If growing file, allocate additional disk blocks
+     * 3. If shrinking file, release unused disk blocks
+     * 4. Update the file control block with new EOF
+     * 5. Update directory entry if needed
+     */
+
+    /* For now, return success */
     return noErr;
 }
 
