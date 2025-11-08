@@ -754,6 +754,36 @@ long labs(long n) {
     return n < 0 ? -n : n;
 }
 
+int min(int a, int b) {
+    return a < b ? a : b;
+}
+
+int max(int a, int b) {
+    return a > b ? a : b;
+}
+
+long lmin(long a, long b) {
+    return a < b ? a : b;
+}
+
+long lmax(long a, long b) {
+    return a > b ? a : b;
+}
+
+double fmin(double a, double b) {
+    return a < b ? a : b;
+}
+
+double fmax(double a, double b) {
+    return a > b ? a : b;
+}
+
+int clamp(int value, int min_val, int max_val) {
+    if (value < min_val) return min_val;
+    if (value > max_val) return max_val;
+    return value;
+}
+
 typedef struct {
     int quot;
     int rem;
