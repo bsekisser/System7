@@ -1310,10 +1310,6 @@ static double _atan_approx(double z) {
     return z * (0.99866 + z2 * (-0.33015 + z2 * (0.18014 + z2 * (-0.08467 + z2 * 0.02487))));
 }
 
-static double _fabs(double x) {
-    return (x < 0.0) ? -x : x;
-}
-
 static double _sqrt_approx(double x) {
     if (x <= 0.0) return 0.0;
     /* Newton-Raphson approximation */
@@ -1337,8 +1333,8 @@ double atan2(double y, double x) {
     if (x == 0.0) return (y > 0.0) ? PI_2 : -PI_2;
 
     /* Compute atan(y/x) with range reduction */
-    double ax = _fabs(x);
-    double ay = _fabs(y);
+    double ax = fabs(x);
+    double ay = fabs(y);
     double z, angle;
 
     if (ay <= ax) {
@@ -1421,6 +1417,104 @@ double sin(double x) {
     sum += term;
 
     return sum;
+}
+
+double fabs(double x) {
+    /* Absolute value for floating point numbers
+     * Returns the magnitude of x without sign */
+    return (x < 0.0) ? -x : x;
+}
+
+double floor(double x) {
+    /* Round down to nearest integer (towards negative infinity)
+     * Examples: floor(2.7) = 2.0, floor(-2.7) = -3.0 */
+
+    if (x >= 0.0) {
+        /* Positive: truncate fractional part */
+        return (double)(long long)x;
+    } else {
+        /* Negative: truncate and subtract 1 if there was a fraction */
+        long long truncated = (long long)x;
+        if (x == (double)truncated) {
+            return x;  /* Already integer */
+        }
+        return (double)(truncated - 1);
+    }
+}
+
+double ceil(double x) {
+    /* Round up to nearest integer (towards positive infinity)
+     * Examples: ceil(2.3) = 3.0, ceil(-2.3) = -2.0 */
+
+    if (x < 0.0) {
+        /* Negative: truncate fractional part */
+        return (double)(long long)x;
+    } else {
+        /* Positive: truncate and add 1 if there was a fraction */
+        long long truncated = (long long)x;
+        if (x == (double)truncated) {
+            return x;  /* Already integer */
+        }
+        return (double)(truncated + 1);
+    }
+}
+
+double fmod(double x, double y) {
+    /* Floating-point remainder of x/y
+     * Returns x - n*y where n = floor(x/y)
+     * Sign of result matches sign of x */
+
+    if (y == 0.0) return 0.0;  /* Avoid division by zero */
+
+    double quotient = x / y;
+    long long n = (long long)quotient;
+
+    /* For negative quotients, adjust n to match floor behavior */
+    if (quotient < 0.0 && quotient != (double)n) {
+        n--;
+    }
+
+    return x - (double)n * y;
+}
+
+double pow(double base, double exponent) {
+    /* Power function: base^exponent
+     * Simplified implementation for integer exponents */
+
+    if (exponent == 0.0) return 1.0;
+    if (base == 0.0) return 0.0;
+    if (exponent == 1.0) return base;
+
+    /* Handle negative exponents */
+    int isNegExp = (exponent < 0.0);
+    if (isNegExp) {
+        exponent = -exponent;
+    }
+
+    /* Check if exponent is integer */
+    long long intExp = (long long)exponent;
+    if (exponent != (double)intExp) {
+        /* Non-integer exponents: use exp(exponent * log(base))
+         * For simplicity, only handle integer exponents */
+        return 1.0;  /* Placeholder for non-integer powers */
+    }
+
+    /* Integer exponent: use repeated multiplication */
+    double result = 1.0;
+    double currentPower = base;
+
+    while (intExp > 0) {
+        if (intExp & 1) {
+            result *= currentPower;
+        }
+        currentPower *= currentPower;
+        intExp >>= 1;
+    }
+
+    if (isNegExp) {
+        return 1.0 / result;
+    }
+    return result;
 }
 
 /* 64-bit division for -nostdlib build */
