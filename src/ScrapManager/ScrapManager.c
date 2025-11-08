@@ -61,6 +61,26 @@ static ScrapItem* FindScrapItem(ResType type);
 static ScrapItem* AllocateScrapItem(ResType type);
 
 /*
+ * ScrapGestaltProc - Gestalt function for scrap manager capabilities
+ *
+ * Returns a bitmask indicating scrap manager features:
+ * bit 0: Scrap Manager present
+ * bit 1: TEXT format supported
+ * bit 2: PICT format supported
+ * bit 3: Advanced clipboard features available
+ */
+OSErr ScrapGestaltProc(long *response) {
+    if (!response) {
+        return paramErr;
+    }
+
+    /* Return capability bits */
+    *response = 0x07;  /* bits 0, 1, 2 set = present, TEXT, PICT supported */
+
+    return noErr;
+}
+
+/*
  * InitScrapIfNeeded - Initialize scrap on first use
  */
 static void InitScrapIfNeeded(void)
@@ -82,15 +102,17 @@ static void InitScrapIfNeeded(void)
         gScrap.items[i].data = NULL;
     }
 
-    /* Register with Gestalt - commented out as function doesn't exist yet */
-    /* 'scra' - bit0: present, bit1: TEXT supported, bit2: PICT stored */
-    /* TODO: Implement Gestalt_RegisterSelector or use NewGestalt */
-    /*
-    OSErr err = Gestalt_RegisterSelector('scra', 0x03);
+    /* Register with Gestalt */
+    /* 'scra' - bit0: present, bit1: TEXT supported, bit2: PICT supported */
+    extern OSErr NewGestalt(OSType selector, OSErr (*proc)(long *response));
+    extern OSErr ScrapGestaltProc(long *response);
+
+    OSErr err = NewGestalt('scra', ScrapGestaltProc);
     if (err == noErr) {
         SCRAP_LOG("Registered with Gestalt\n");
+    } else if (err == gestaltDupSelectorErr) {
+        SCRAP_LOG("Scrap already registered with Gestalt\n");
     }
-    */
 
     gScrap.inited = true;
 }
