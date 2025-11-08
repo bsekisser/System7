@@ -359,6 +359,58 @@ char* CopyPascalStringToC(const unsigned char* src, char* dst) {
     return dst;
 }
 
+unsigned char PLstrlen(const unsigned char* str) {
+    /* Get Pascal string length */
+    return str ? str[0] : 0;
+}
+
+int PLstrcmp(const unsigned char* str1, const unsigned char* str2) {
+    /* Compare two Pascal strings */
+    if (!str1 || !str2) return 0;
+
+    unsigned char len1 = str1[0];
+    unsigned char len2 = str2[0];
+    unsigned char minLen = (len1 < len2) ? len1 : len2;
+
+    /* Compare the strings byte by byte */
+    for (unsigned char i = 1; i <= minLen; i++) {
+        if (str1[i] != str2[i]) {
+            return str1[i] - str2[i];
+        }
+    }
+
+    /* If all compared bytes are equal, shorter string is less */
+    return len1 - len2;
+}
+
+void PLstrcpy(unsigned char* dst, const unsigned char* src) {
+    /* Copy Pascal string */
+    if (!dst || !src) return;
+
+    unsigned char len = src[0];
+    dst[0] = len;
+    memcpy(dst + 1, src + 1, len);
+}
+
+void PLstrcat(unsigned char* dst, const unsigned char* src) {
+    /* Concatenate Pascal strings */
+    if (!dst || !src) return;
+
+    unsigned char dstLen = dst[0];
+    unsigned char srcLen = src[0];
+    unsigned char newLen = dstLen + srcLen;
+
+    /* Limit to 255 characters */
+    if (newLen > 255) {
+        newLen = 255;
+        srcLen = newLen - dstLen;
+    }
+
+    /* Copy source string data after destination */
+    memcpy(dst + 1 + dstLen, src + 1, srcLen);
+    dst[0] = newLen;
+}
+
 /* Character classification functions */
 int isdigit(int c) {
     return (c >= '0' && c <= '9');
