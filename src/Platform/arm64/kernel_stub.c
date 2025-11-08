@@ -13,86 +13,8 @@
 #include "framebuffer.h"
 #endif
 
-/*
- * Simple implementations for testing
- */
-int snprintf(char *str, size_t size, const char *format, ...) {
-    /* Very basic snprintf for integer formatting */
-    const char *src = format;
-    char *dst = str;
-    size_t remaining = size - 1;
-
-    __builtin_va_list args;
-    __builtin_va_start(args, format);
-
-    while (*src && remaining > 0) {
-        if (*src == '%') {
-            src++;
-            if (*src == 'l') {
-                src++;
-                if (*src == 'l') src++;  /* Handle %llu */
-            }
-
-            if (*src == 'u' || *src == 'd') {
-                uint64_t val = __builtin_va_arg(args, uint64_t);
-                char temp[32];
-                int i = 0;
-
-                if (val == 0) {
-                    temp[i++] = '0';
-                } else {
-                    while (val > 0 && i < 31) {
-                        temp[i++] = '0' + (val % 10);
-                        val /= 10;
-                    }
-                }
-
-                while (i > 0 && remaining > 0) {
-                    *dst++ = temp[--i];
-                    remaining--;
-                }
-            } else if (*src == 'x') {
-                uint64_t val = __builtin_va_arg(args, uint64_t);
-                char temp[32];
-                int i = 0;
-
-                if (val == 0) {
-                    temp[i++] = '0';
-                } else {
-                    while (val > 0 && i < 31) {
-                        int digit = val & 0xF;
-                        temp[i++] = digit < 10 ? '0' + digit : 'a' + digit - 10;
-                        val >>= 4;
-                    }
-                }
-
-                while (i > 0 && remaining > 0) {
-                    *dst++ = temp[--i];
-                    remaining--;
-                }
-            } else if (*src == 's') {
-                const char *s = __builtin_va_arg(args, const char *);
-                while (*s && remaining > 0) {
-                    *dst++ = *s++;
-                    remaining--;
-                }
-            } else {
-                if (remaining > 0) {
-                    *dst++ = *src;
-                    remaining--;
-                }
-            }
-            src++;
-        } else {
-            *dst++ = *src++;
-            remaining--;
-        }
-    }
-
-    *dst = '\0';
-    __builtin_va_end(args);
-    return dst - str;
-}
+/* External printf function */
+extern int snprintf(char *str, size_t size, const char *format, ...);
 
 /*
  * Main kernel entry point
@@ -104,9 +26,9 @@ int main(int argc, char **argv) {
     (void)argv;
 
     uart_puts("\n");
-    uart_puts("[KERNEL] ═══════════════════════════════════════════════════════\n");
+    uart_puts("[KERNEL] =========================================================\n");
     uart_puts("[KERNEL] System 7.1 ARM64 Kernel Test\n");
-    uart_puts("[KERNEL] ═══════════════════════════════════════════════════════\n");
+    uart_puts("[KERNEL] =========================================================\n");
 
     /* Test timer */
     uint64_t time_us = timer_get_usec();
@@ -156,9 +78,9 @@ int main(int argc, char **argv) {
 #endif
 
     uart_puts("\n");
-    uart_puts("[KERNEL] ═══════════════════════════════════════════════════════\n");
+    uart_puts("[KERNEL] =========================================================\n");
     uart_puts("[KERNEL] All tests complete - entering idle loop\n");
-    uart_puts("[KERNEL] ═══════════════════════════════════════════════════════\n");
+    uart_puts("[KERNEL] =========================================================\n");
     uart_puts("\n");
 
     /* Idle loop */

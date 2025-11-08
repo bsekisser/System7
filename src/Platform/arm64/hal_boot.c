@@ -47,16 +47,20 @@ void arm64_boot_main(void *dtb_ptr) {
 
     /* Early serial output */
     uart_puts("\n");
-    uart_puts("[ARM64] ══════════════════════════════════════════════════════════\n");
+    uart_puts("[ARM64] ==========================================================\n");
     uart_puts("[ARM64] System 7.1 Portable - ARM64/AArch64 Boot\n");
-    uart_puts("[ARM64] ══════════════════════════════════════════════════════════\n");
+    uart_puts("[ARM64] ==========================================================\n");
 
     /* Report exception level */
     uint64_t current_el;
     __asm__ volatile("mrs %0, CurrentEL" : "=r"(current_el));
     current_el = (current_el >> 2) & 3;
-    snprintf(buf, sizeof(buf), "[ARM64] Running at Exception Level: EL%llu\n", current_el);
-    uart_puts(buf);
+
+    uart_puts("[ARM64] Running at Exception Level: EL");
+    if (current_el == 0) uart_puts("0\n");
+    else if (current_el == 1) uart_puts("1\n");
+    else if (current_el == 2) uart_puts("2\n");
+    else uart_puts("3\n");
 
     /* Report DTB location */
     if (dtb_ptr) {
@@ -155,7 +159,7 @@ void arm64_boot_main(void *dtb_ptr) {
     }
 
     uart_puts("[ARM64] Early boot complete, entering kernel...\n");
-    uart_puts("[ARM64] ══════════════════════════════════════════════════════════\n");
+    uart_puts("[ARM64] ==========================================================\n");
 
     /* Jump to main kernel entry point */
     extern int main(int argc, char **argv);
