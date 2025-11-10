@@ -350,15 +350,19 @@ bool virtio_gpu_init(void) {
         /* Read device ID */
         device_id = virtio_read32(VIRTIO_MMIO_DEVICE_ID);
 
+        uart_puts("[VIRTIO-GPU] Slot ");
+        if (slot < 10) {
+            uart_putc('0' + slot);
+        } else {
+            uart_putc('0' + (slot / 10));
+            uart_putc('0' + (slot % 10));
+        }
+        uart_puts(": DeviceID=");
+        uart_put_hex(device_id);
+        uart_puts("\n");
+
         if (device_id == VIRTIO_ID_GPU) {
-            uart_puts("[VIRTIO-GPU] Found GPU at MMIO slot ");
-            if (slot < 10) {
-                uart_putc('0' + slot);
-            } else {
-                uart_putc('0' + (slot / 10));
-                uart_putc('0' + (slot % 10));
-            }
-            uart_puts("!\n");
+            uart_puts("[VIRTIO-GPU] Found GPU at this slot!\n");
             virtio_gpu_base = base;
             break;
         }
