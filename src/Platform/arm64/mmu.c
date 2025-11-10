@@ -122,6 +122,12 @@ bool mmu_init(void) {
         ttb_l2[3][i] = mmu_create_block_entry(addr, attr);
     }
 
+    /* Map PCI ECAM region at 0x4010000000 using 1GB block entry
+     * This covers 256GB-257GB range for PCI configuration space access */
+    uint64_t pci_ecam_addr = 0x4000000000ULL;  /* 256GB */
+    uint64_t pci_attr = PTE_ATTR_DEVICE_nGnRnE | PTE_AP_RW_EL1;
+    ttb_l1[256] = mmu_create_block_entry(pci_ecam_addr, pci_attr);
+
     /* Set up MAIR (Memory Attribute Indirection Register) */
     uint64_t mair =
         (0x00ULL << 0)  |  /* Attr0: Device nGnRnE */

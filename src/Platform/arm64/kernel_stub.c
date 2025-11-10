@@ -38,8 +38,10 @@ int main(int argc, char **argv) {
     timer_msleep(1000);
     uart_puts("[KERNEL] Delay complete!\n");
 
-    /* Skip MMU for now in QEMU - causes hang */
-    uart_puts("[KERNEL] Skipping MMU initialization for QEMU testing\n");
+    /* Skip MMU for now - enabling MMU while code is running causes issues
+     * TODO: Enable MMU early in boot before jumping to C code
+     * Required for PCI ECAM access at 0x4010000000 */
+    uart_puts("[KERNEL] Skipping MMU (requires early boot enablement for PCI)\n");
 
     /* System ready - all core functionality operational */
     uart_puts("[KERNEL] Core boot sequence successful\n");
