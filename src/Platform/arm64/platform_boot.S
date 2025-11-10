@@ -37,6 +37,11 @@ setup_el2:
     /* Running at EL2 (Hypervisor mode)
      * Drop to EL1 for kernel execution */
 
+    /* Disable FP/SIMD trapping from EL1 to EL2 */
+    mrs x0, cptr_el2
+    bic x0, x0, #(1 << 10)      /* TFP = 0 (don't trap FP/SIMD) */
+    msr cptr_el2, x0
+
     /* Enable AArch64 in EL1 */
     mov x0, #(1 << 31)          /* RW = 1 (AArch64) */
     msr hcr_el2, x0
