@@ -9,10 +9,17 @@
 #include "virtio_gpu.h"
 #include "uart.h"
 
-/* VirtIO GPU MMIO base (from QEMU virt machine) */
-#define VIRTIO_MMIO_BASE_START  0x0a000000
-#define VIRTIO_MMIO_SLOT_SIZE   0x200  /* QEMU virt uses 0x200 byte regions */
-#define VIRTIO_MMIO_MAX_SLOTS   32
+/* PCI configuration for QEMU virt machine */
+#define PCI_ECAM_BASE           0x4010000000UL  /* PCI ECAM base address */
+#define PCI_VENDOR_VIRTIO       0x1AF4
+#define PCI_DEVICE_VIRTIO_GPU   0x1050
+
+/* VirtIO PCI capability offsets */
+#define PCI_VENDOR_ID           0x00
+#define PCI_DEVICE_ID           0x02
+#define PCI_COMMAND             0x04
+#define PCI_STATUS              0x06
+#define PCI_BAR0                0x10
 
 static uintptr_t virtio_gpu_base = 0;
 
@@ -38,6 +45,10 @@ static uintptr_t virtio_gpu_base = 0;
 #define VIRTIO_MMIO_QUEUE_USED_LOW  0x0a0
 #define VIRTIO_MMIO_QUEUE_USED_HIGH 0x0a4
 #define VIRTIO_MMIO_CONFIG_GENERATION 0x0fc
+
+/* VirtIO MMIO device region (for QEMU virt machine) */
+#define VIRTIO_MMIO_BASE_START      0x0a000000
+#define VIRTIO_MMIO_SLOT_SIZE       0x00000200
 
 /* VirtIO device IDs */
 #define VIRTIO_ID_GPU       16
@@ -203,6 +214,25 @@ static void uart_put_hex(uint32_t value) {
     uart_putc(hex_digit(value));
 }
 
+/* PCI configuration space access helpers */
+static inline uint32_t pci_config_read32(uint32_t bus, uint32_t device, uint32_t function, uint32_t offset) {
+    uintptr_t addr = PCI_ECAM_BASE + ((uint64_t)bus << 20) + ((uint64_t)device << 15) +
+                     ((uint64_t)function << 12) + offset;
+    return *(volatile uint32_t *)addr;
+}
+
+static inline uint16_t pci_config_read16(uint32_t bus, uint32_t device, uint32_t function, uint32_t offset) {
+    uintptr_t addr = PCI_ECAM_BASE + ((uint64_t)bus << 20) + ((uint64_t)device << 15) +
+                     ((uint64_t)function << 12) + offset;
+    return *(volatile uint16_t *)addr;
+}
+
+static inline void pci_config_write16(uint32_t bus, uint32_t device, uint32_t function, uint32_t offset, uint16_t value) {
+    uintptr_t addr = PCI_ECAM_BASE + ((uint64_t)bus << 20) + ((uint64_t)device << 15) +
+                     ((uint64_t)function << 12) + offset;
+    *(volatile uint16_t *)addr = value;
+}
+
 /* Send GPU command and wait for response */
 static bool virtio_gpu_send_cmd(void *cmd, size_t cmd_len, void *resp, size_t resp_len) {
     uint16_t desc_idx = avail_idx % 32;
@@ -245,8 +275,68 @@ bool virtio_gpu_init(void) {
 
     uart_puts("[VIRTIO-GPU] Initializing virtio-gpu driver\n");
 
-    /* Scan VirtIO MMIO slots - QEMU virt places devices sequentially */
-    uart_puts("[VIRTIO-GPU] Scanning VirtIO devices...\n");
+#ifdef USE_VIRTIO_PCI
+    /* PCI transport - requires MMU to access ECAM at 0x4010000000 */
+    uart_puts("[VIRTIO-GPU] Scanning PCI bus...\n");
+
+    for (uint32_t device = 0; device < 32; device++) {
+        uint16_t vendor_id = pci_config_read16(0, device, 0, PCI_VENDOR_ID);
+
+        /* No device present */
+        if (vendor_id == 0xFFFF) continue;
+
+        uint16_t device_id = pci_config_read16(0, device, 0, PCI_DEVICE_ID);
+
+        /* Debug output */
+        uart_puts("[VIRTIO-GPU] PCI ");
+        if (device < 10) {
+            uart_putc('0' + device);
+        } else {
+            uart_putc('0' + (device / 10));
+            uart_putc('0' + (device % 10));
+        }
+        uart_puts(": Vendor=0x");
+        uart_put_hex(vendor_id);
+        uart_puts(" Device=0x");
+        uart_put_hex(device_id);
+        uart_puts("\n");
+
+        /* Check for VirtIO GPU */
+        if (vendor_id == PCI_VENDOR_VIRTIO && device_id == PCI_DEVICE_VIRTIO_GPU) {
+            uart_puts("[VIRTIO-GPU] Found VirtIO GPU at PCI device ");
+            if (device < 10) {
+                uart_putc('0' + device);
+            } else {
+                uart_putc('0' + (device / 10));
+                uart_putc('0' + (device % 10));
+            }
+            uart_puts("!\n");
+
+            /* Read BAR0 to get MMIO base address */
+            uint32_t bar0 = pci_config_read32(0, device, 0, PCI_BAR0);
+            virtio_gpu_base = (uintptr_t)(bar0 & 0xFFFFFFF0); /* Clear flag bits */
+
+            uart_puts("[VIRTIO-GPU] BAR0: 0x");
+            uart_put_hex(bar0);
+            uart_puts("\n");
+            uart_puts("[VIRTIO-GPU] MMIO base: 0x");
+            uart_put_hex(virtio_gpu_base);
+            uart_puts("\n");
+
+            /* Enable PCI device (Memory Space Enable + Bus Master Enable) */
+            uint16_t command = pci_config_read16(0, device, 0, PCI_COMMAND);
+            command |= 0x0006; /* Memory Space + Bus Master */
+            pci_config_write16(0, device, 0, PCI_COMMAND, command);
+
+            uart_puts("[VIRTIO-GPU] PCI device enabled\n");
+            break;
+        }
+    }
+
+    uart_puts("[VIRTIO-GPU] PCI scan complete\n");
+#else
+    /* MMIO transport - works without MMU */
+    uart_puts("[VIRTIO-GPU] Scanning VirtIO MMIO devices...\n");
 
     for (int slot = 0; slot < 32; slot++) {
         uintptr_t base = VIRTIO_MMIO_BASE_START + (slot * VIRTIO_MMIO_SLOT_SIZE);
@@ -257,36 +347,11 @@ bool virtio_gpu_init(void) {
         /* No device at this slot */
         if (magic != 0x74726976) continue;
 
-        /* Found a VirtIO device */
-        uart_puts("[VIRTIO-GPU] Slot ");
-        if (slot < 10) {
-            uart_putc('0' + slot);
-        } else {
-            uart_putc('0' + (slot / 10));
-            uart_putc('0' + (slot % 10));
-        }
-        uart_puts("\n");
-
-        /* Read version and device ID */
-        version = virtio_read32(VIRTIO_MMIO_VERSION);
+        /* Read device ID */
         device_id = virtio_read32(VIRTIO_MMIO_DEVICE_ID);
 
-        /* Print device ID for debugging */
-        uart_puts("  Device ID: ");
-        if (device_id < 10) {
-            uart_putc('0' + device_id);
-        } else if (device_id < 100) {
-            uart_putc('0' + (device_id / 10));
-            uart_putc('0' + (device_id % 10));
-        } else {
-            uart_putc('0' + (device_id / 100));
-            uart_putc('0' + ((device_id / 10) % 10));
-            uart_putc('0' + (device_id % 10));
-        }
-        uart_puts("\n");
-
         if (device_id == VIRTIO_ID_GPU) {
-            uart_puts("[VIRTIO-GPU] Found GPU at slot ");
+            uart_puts("[VIRTIO-GPU] Found GPU at MMIO slot ");
             if (slot < 10) {
                 uart_putc('0' + slot);
             } else {
@@ -299,7 +364,8 @@ bool virtio_gpu_init(void) {
         }
     }
 
-    uart_puts("[VIRTIO-GPU] Scan complete\n");
+    uart_puts("[VIRTIO-GPU] MMIO scan complete\n");
+#endif
 
     if (virtio_gpu_base == 0) {
         uart_puts("[VIRTIO-GPU] No GPU device found\n");
