@@ -85,23 +85,15 @@ bss_done:
     msr cpacr_el1, x0
     isb
 
-    /* Initialize MMU early for PCI access */
-    bl mmu_init                 /* Set up page tables */
-    cmp x0, #0                  /* Check return value */
-    beq skip_mmu                /* Skip if init failed */
-
-    bl mmu_enable               /* Enable MMU and caches */
-    b mmu_done
-
-skip_mmu:
-    /* MMU init failed - configure for no MMU */
+    /* Set up system control for C code entry
+     * Disable data cache until MMU is enabled
+     * Keep instruction cache for performance */
     mrs x0, sctlr_el1
     bic x0, x0, #(1 << 2)       /* C bit - DISABLE data cache */
     orr x0, x0, #(1 << 12)      /* I bit - enable instruction cache */
     msr sctlr_el1, x0
     isb
 
-mmu_done:
     /* Call C entry point
      * AAPCS64 calling convention: first arg in x0 */
     mov x0, x19                 /* DTB address */
