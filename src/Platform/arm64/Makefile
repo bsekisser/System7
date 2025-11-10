@@ -24,7 +24,7 @@ CFLAGS += -I$(SRC_DIR) -I$(STDLIB_DIR)
 
 # Add QEMU define if building for QEMU
 ifdef QEMU
-CFLAGS += -DQEMU_BUILD
+CFLAGS += -DQEMU_BUILD -DUSE_VIRTIO_PCI
 endif
 
 # Add test exception handler flag if requested
@@ -105,7 +105,7 @@ qemu-virt: qemu-build
 # QEMU with graphics display
 qemu-graphics: qemu-build
 	@echo ""
-	@echo "Starting QEMU with graphics (virtio-gpu)..."
+	@echo "Starting QEMU with graphics (virtio-gpu-pci)..."
 	@echo "Press Ctrl-A then X to exit QEMU"
 	@echo ""
 	qemu-system-aarch64 \
@@ -113,7 +113,7 @@ qemu-graphics: qemu-build
 		-cpu cortex-a53 \
 		-m 1G \
 		-kernel $(ELF) \
-		-device virtio-gpu-device \
+		-device virtio-gpu-pci \
 		-serial stdio \
 		-display cocoa
 

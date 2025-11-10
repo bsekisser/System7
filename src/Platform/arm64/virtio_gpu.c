@@ -10,7 +10,7 @@
 #include "uart.h"
 
 /* PCI configuration for QEMU virt machine */
-#define PCI_ECAM_BASE           0x4010000000UL  /* PCI ECAM base address */
+#define PCI_ECAM_BASE           0x10000000UL  /* PCI ECAM base address (low 32-bit alias) */
 #define PCI_VENDOR_VIRTIO       0x1AF4
 #define PCI_DEVICE_VIRTIO_GPU   0x1050
 
