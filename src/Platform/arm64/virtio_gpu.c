@@ -11,7 +11,7 @@
 
 /* VirtIO GPU MMIO base (from QEMU virt machine) */
 #define VIRTIO_MMIO_BASE_START  0x0a000000
-#define VIRTIO_MMIO_SLOT_SIZE   0x200
+#define VIRTIO_MMIO_SLOT_SIZE   0x200  /* QEMU virt uses 0x200 byte regions */
 #define VIRTIO_MMIO_MAX_SLOTS   32
 
 static uintptr_t virtio_gpu_base = 0;
@@ -166,7 +166,7 @@ struct virtqueue {
     struct virtq_used used;
 } __attribute__((aligned(4096)));
 
-/* Driver state - use smaller buffers to avoid BSS issues */
+/* Driver state - using static allocation with smaller buffers for testing */
 static volatile uint32_t *virtio_base = NULL;
 static struct virtqueue controlq __attribute__((aligned(4096)));
 static uint32_t framebuffer[FB_WIDTH * FB_HEIGHT] __attribute__((aligned(4096)));
@@ -238,7 +238,7 @@ static bool virtio_gpu_send_cmd(void *cmd, size_t cmd_len, void *resp, size_t re
 }
 
 bool virtio_gpu_init(void) {
-    uart_puts("[VIRTIO-GPU] Entry\n");
+    uart_puts("[VIRTIO-GPU] ENTRY\n");
 
     uint32_t magic, version, device_id;
     struct virtio_gpu_ctrl_hdr resp_hdr;
@@ -271,10 +271,18 @@ bool virtio_gpu_init(void) {
         version = virtio_read32(VIRTIO_MMIO_VERSION);
         device_id = virtio_read32(VIRTIO_MMIO_DEVICE_ID);
 
-        uart_puts("  Version: ");
-        uart_put_hex(version);
-        uart_puts(", Device ID: ");
-        uart_put_hex(device_id);
+        /* Print device ID for debugging */
+        uart_puts("  Device ID: ");
+        if (device_id < 10) {
+            uart_putc('0' + device_id);
+        } else if (device_id < 100) {
+            uart_putc('0' + (device_id / 10));
+            uart_putc('0' + (device_id % 10));
+        } else {
+            uart_putc('0' + (device_id / 100));
+            uart_putc('0' + ((device_id / 10) % 10));
+            uart_putc('0' + (device_id % 10));
+        }
         uart_puts("\n");
 
         if (device_id == VIRTIO_ID_GPU) {
@@ -320,8 +328,8 @@ bool virtio_gpu_init(void) {
     uart_puts("[VIRTIO-GPU] Version: 0x");
     uart_put_hex(version);
     uart_puts("\n");
-    if (version != 2) {
-        uart_puts("[VIRTIO-GPU] Unsupported version (expected 2)\n");
+    if (version != 1 && version != 2) {
+        uart_puts("[VIRTIO-GPU] Unsupported version (expected 1 or 2)\n");
         return false;
     }
 
