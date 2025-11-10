@@ -150,8 +150,8 @@ vector_table_el1:
     .align 7
     b halt                      /* SError */
 
-/* Stack allocation */
-.section .bss
+/* Stack allocation - separate section to avoid BSS clearing */
+.section .stack, "aw", @nobits
 .align 16
 stack_bottom:
     .space 65536                /* 64KB stack */

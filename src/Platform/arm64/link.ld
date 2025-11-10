@@ -32,6 +32,10 @@ SECTIONS
         __bss_end = .;
     }
 
+    .stack (NOLOAD) : {
+        *(.stack)
+    }
+
     /* Discard unneeded sections */
     /DISCARD/ : {
         *(.comment)
