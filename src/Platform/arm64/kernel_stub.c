@@ -38,8 +38,7 @@ int main(int argc, char **argv) {
     timer_msleep(1000);
     uart_puts("[KERNEL] Delay complete!\n");
 
-    /* Skip MMU - using low 32-bit PCI ECAM address */
-    uart_puts("[KERNEL] Skipping MMU (using low memory PCI ECAM)\n");
+    /* MMU initialized early in boot for PCI access */
 
     /* System ready - all core functionality operational */
     uart_puts("[KERNEL] Core boot sequence successful\n");
