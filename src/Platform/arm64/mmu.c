@@ -145,20 +145,20 @@ bool mmu_init(void) {
     __asm__ volatile("msr mair_el1, %0" :: "r"(mair));
 
     /* Set up TCR (Translation Control Register) for EL1
-     * T0SZ = 16 (48-bit address space)
+     * T0SZ = 25 (39-bit address space, L1 table as top level)
      * TG0 = 00 (4KB granule)
      * SH0 = 11 (Inner shareable)
      * ORGN0 = 01 (Normal, Outer write-back cacheable)
      * IRGN0 = 01 (Normal, Inner write-back cacheable) */
     uint64_t tcr =
-        (16ULL << 0)  |    /* T0SZ */
+        (25ULL << 0)  |    /* T0SZ: 39-bit VA */
         (0ULL << 14)  |    /* TG0: 4KB */
         (3ULL << 12)  |    /* SH0: Inner shareable */
         (1ULL << 10)  |    /* ORGN0: Write-back */
         (1ULL << 8)   |    /* IRGN0: Write-back */
-        (16ULL << 16) |    /* T1SZ */
+        (25ULL << 16) |    /* T1SZ: 39-bit VA */
         (0ULL << 30)  |    /* TG1: 4KB */
-        (25ULL << 32);     /* IPS: 48-bit physical address */
+        (2ULL << 32);      /* IPS: 010b = 40-bit PA (1TB) */
 
     __asm__ volatile("msr tcr_el1, %0" :: "r"(tcr));
 
