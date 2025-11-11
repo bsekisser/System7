@@ -335,27 +335,29 @@ bool virtio_gpu_init(void) {
 
     uart_puts("[VIRTIO-GPU] PCI scan complete\n");
 #else
-    /* MMIO transport - scan limited slots to avoid exceptions without MMU */
-    uart_puts("[VIRTIO-GPU] Scanning VirtIO MMIO devices (limited scan)...\n");
+    /* MMIO transport - scan all slots with MMU enabled */
+    uart_puts("[VIRTIO-GPU] Scanning VirtIO MMIO devices...\n");
 
-    /* Only scan first slot to avoid MMIO exceptions without MMU enabled */
-    for (int slot = 0; slot < 1; slot++) {
+    /* Scan all 32 MMIO slots for GPU device */
+    for (int slot = 0; slot < 32; slot++) {
         uintptr_t base = VIRTIO_MMIO_BASE_START + (slot * VIRTIO_MMIO_SLOT_SIZE);
         virtio_base = (volatile uint32_t *)base;
 
         magic = virtio_read32(VIRTIO_MMIO_MAGIC);
 
         /* No device at this slot */
-        if (magic != 0x74726976) {
-            uart_puts("[VIRTIO-GPU] Slot 0: No VirtIO device\n");
-            continue;
-        }
+        if (magic != 0x74726976) continue;
 
         /* Read device ID */
         device_id = virtio_read32(VIRTIO_MMIO_DEVICE_ID);
 
         uart_puts("[VIRTIO-GPU] Slot ");
-        uart_putc('0' + slot);
+        if (slot < 10) {
+            uart_putc('0' + slot);
+        } else {
+            uart_putc('0' + (slot / 10));
+            uart_putc('0' + (slot % 10));
+        }
         uart_puts(": DeviceID=");
         uart_put_hex(device_id);
         uart_puts("\n");
@@ -364,8 +366,6 @@ bool virtio_gpu_init(void) {
             uart_puts("[VIRTIO-GPU] Found GPU at this slot!\n");
             virtio_gpu_base = base;
             break;
-        } else {
-            uart_puts("[VIRTIO-GPU] Device is not GPU (expected ID 16)\n");
         }
     }
 

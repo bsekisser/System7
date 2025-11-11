@@ -146,8 +146,18 @@ void arm64_boot_main(void *dtb_ptr) {
         uart_puts("[ARM64] CPU detected\n");
     }
 
-    /* MMU disabled - causes hang, needs investigation */
-    uart_puts("[ARM64] MMU disabled - running with identity mapping\n");
+    /* Initialize MMU with fixed TCR configuration */
+    extern bool mmu_init(void);
+    extern void mmu_enable(void);
+
+    uart_puts("[ARM64] Initializing MMU...\n");
+    if (mmu_init()) {
+        uart_puts("[ARM64] MMU page tables configured\n");
+        mmu_enable();
+        uart_puts("[ARM64] MMU enabled - virtual memory active\n");
+    } else {
+        uart_puts("[ARM64] MMU init failed\n");
+    }
 
     uart_puts("[ARM64] Early boot complete, entering kernel...\n");
     uart_puts("[ARM64] ==========================================================\n");
