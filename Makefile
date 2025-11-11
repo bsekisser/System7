@@ -149,6 +149,14 @@ ifeq ($(PLATFORM),arm)
           GESTALT_MACHINE_TYPE := arm_pi3
         endif
     endif
+else ifeq ($(PLATFORM),arm64)
+    # ARM 64-bit (AArch64) for QEMU virt machine
+    CFLAGS = $(COMMON_CFLAGS) -march=armv8-a -DQEMU_BUILD
+    ASFLAGS =
+    LDFLAGS = -nostdlib -no-pie
+    ifeq ($(strip $(GESTALT_MACHINE_TYPE)),)
+      GESTALT_MACHINE_TYPE := arm64_virt
+    endif
 else ifeq ($(PLATFORM),ppc)
     # PowerPC 32-bit big-endian
     CFLAGS = $(COMMON_CFLAGS) -mbig-endian -mno-toc -mno-sdata
@@ -608,7 +616,11 @@ vpath %.S $(HAL_DIR)
 $(OBJ_DIR)/%.o: %.S | $(OBJ_DIR)
 	@mkdir -p $(dir $@)
 	@echo "AS $<"
+ifeq ($(PLATFORM),arm64)
+	@$(CC) $(CFLAGS) -c $< -o $@
+else
 	@$(AS) $(ASFLAGS) $< -o $@
+endif
 
 # Compile C files (single rule for all directories via vpath)
 $(OBJ_DIR)/%.o: %.c | $(OBJ_DIR)
