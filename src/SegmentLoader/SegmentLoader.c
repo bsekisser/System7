@@ -299,7 +299,7 @@ OSErr LoadSegment(SegmentLoaderContext* ctx, SInt16 segID)
     if (segID >= ctx->numSegments) {
         /* Initialize any skipped segments to prevent access to uninitialized memory */
         for (UInt16 i = ctx->numSegments; i < segID; i++) {
-            memset(&ctx->segments[i], 0, sizeof(SegmentDescriptor));
+            memset(&ctx->segments[i], 0, sizeof(CodeSegment));
         }
         ctx->numSegments = segID + 1;
     }
@@ -416,7 +416,17 @@ OSErr ResolveJumpIndex(SegmentLoaderContext* ctx, SInt16 jtIndex,
  *
  * Classic Mac OS _LoadSeg trap handler for lazy segment loading.
  * Expects segment ID on stack (pushed by jump table stub).
+ * Only available for 68K-based systems (not ARM64).
  */
+#ifdef __aarch64__
+/* ARM64: Skip 68K trap handler */
+static SInt32 LoadSeg_TrapHandler(void* trapCtx)
+{
+    /* Not supported on ARM64 */
+    SEG_LOG_ERROR("_LoadSeg: not supported on ARM64");
+    return segmentLoaderErr;
+}
+#else
 static SInt32 LoadSeg_TrapHandler(void* trapCtx)
 {
     SegmentLoaderContext* ctx = (SegmentLoaderContext*)trapCtx;
@@ -462,6 +472,7 @@ static SInt32 LoadSeg_TrapHandler(void* trapCtx)
 
     return noErr;
 }
+#endif /* __aarch64__ */
 
 /*
  * InstallLoadSegTrap - Install _LoadSeg trap handler

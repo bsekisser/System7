@@ -40,10 +40,19 @@ static uint64_t arm_read_timer(void) {
      * CNTVCT (Counter Virtual Count register)
      * This is the virtual count - works at EL0 (user mode)
      */
+#if defined(__aarch64__)
+    /* ARM64 (AArch64): Direct 64-bit register read */
+    __asm__ __volatile__ (
+        "mrs %0, cntvct_el0"  /* Read CNTVCT_EL0 -> x0 */
+        : "=r"(count)
+    );
+#else
+    /* ARM32 (ARMv7): Split 32-bit read from coprocessor */
     __asm__ __volatile__ (
         "mrrc p15, 1, %0, %1, c14"  /* CNTVCT_EL0 -> r0:r1 */
         : "=r"(*(uint32_t *)&count), "=r"(*(((uint32_t *)&count) + 1))
     );
+#endif
 
     return count;
 }

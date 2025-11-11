@@ -726,6 +726,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     WM_LOG_TRACE("DragWindow EXIT: moved=%d\n", moved);
 }
 
+#if 0  /* Drag constraint system - disabled, requires drag state system */
 /**
  * SetDragConstraintProc - Set custom constraint callback for window dragging
  *
@@ -745,7 +746,6 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
  *   SetDragConstraintProc(MyConstraintProc, NULL);
  */
 void SetDragConstraintProc(DragConstraintProc constraintProc, void* refCon) {
-    #if 1  /* Drag state system - matches #if 0 block where DragState is defined */
     g_dragState.constraintProc = constraintProc;
     g_dragState.constraintRefCon = refCon;
 
@@ -756,12 +756,8 @@ void SetDragConstraintProc(DragConstraintProc constraintProc, void* refCon) {
         /* Revert to default screen constraint if callback cleared */
         g_dragState.constraint = kDragConstraintScreen;
     }
-    #else
-    (void)constraintProc;
-    (void)refCon;
-    /* Custom constraints require drag state system to be enabled */
-    #endif
 }
+#endif  /* Drag constraint system disabled */
 
 /* ============================================================================
  * Drag State Management

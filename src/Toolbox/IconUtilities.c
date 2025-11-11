@@ -16,6 +16,7 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "QuickDraw/QuickDraw.h"
+#include "QuickDrawConstants.h"
 #include "ResourceManager.h"
 
 /* Icon alignment types */

@@ -58,4 +58,9 @@ static inline void mmio_modify(uint32_t addr, uint32_t mask, uint32_t value) {
     mmio_write32(addr, current);
 }
 
+/* Non-inlined MMIO operations defined in mmio.c */
+void mmio_busywait(uint32_t cycles);
+void mmio_memory_barrier(void);
+void mmio_instruction_barrier(void);
+
 #endif /* ARM_MMIO_H */

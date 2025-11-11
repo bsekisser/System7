@@ -9,6 +9,7 @@
 #include "Resources/icons_generated.h"
 #include "ResourceManager.h"
 #include "SystemTypes.h"
+#include "MemoryMgr/MemoryManager.h"
 
 /* Resource types */
 #define FOUR_CHAR_CODE(x) ((UInt32)(x))

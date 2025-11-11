@@ -20,6 +20,7 @@
 #include "QuickDraw/QuickDraw.h"
 #include "FontManager/FontManager.h"
 #include "System71StdLib.h"
+#include "MemoryMgr/MemoryManager.h"
 #include <string.h>
 
 /* Tool state tracking */

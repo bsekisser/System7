@@ -154,20 +154,22 @@ static void freelist_unlink_node_sc(ZoneInfo* z, u32 sc, FreeNode* n) {
     n->next = n->prev = NULL;
 }
 
+/* Helper for on-demand hex dumping without printf */
+static void dump_bytes(const u8* p, u32 len) {
+    extern void serial_putchar(char c);
+    for (u32 i = 0; i < len; i++) {
+        u8 byte = p[i];
+        const char hex[] = "0123456789ABCDEF";
+        serial_putchar(hex[(byte >> 4) & 0xF]);
+        serial_putchar(hex[byte & 0xF]);
+        if ((i & 0xF) == 0xF) serial_putchar(' ');
+    }
+    serial_putchar('\n');
+}
+
 /* Validate block header integrity */
 static inline bool validate_block(ZoneInfo* z, BlockHeader* b) {
     extern void serial_puts(const char* str);
-    /* Local helpers for on-demand hex dumping without printf */
-    auto void dump_bytes(const u8* p, u32 len) {
-        for (u32 i = 0; i < len; i++) {
-            u8 byte = p[i];
-            const char hex[] = "0123456789ABCDEF";
-            serial_putchar(hex[(byte >> 4) & 0xF]);
-            serial_putchar(hex[byte & 0xF]);
-            if ((i & 0xF) == 0xF) serial_putchar(' ');
-        }
-        serial_putchar('\n');
-    }
 
     if (!b || !z) {
         serial_puts("[HEAP] validate_block: NULL block or zone\n");

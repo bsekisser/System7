@@ -5,7 +5,23 @@
 #include "SystemInternal.h"
 
 #include <stdbool.h>
-#include <string.h>
+
+/* Define off_t for freestanding environment */
+#if !defined(_OFF_T) && !defined(__OFF_T)
+#define _OFF_T
+typedef long off_t;
+#endif
+
+/* Define ssize_t if not already defined */
+#if !defined(_SSIZE_T) && !defined(__ssize_t_defined)
+#define _SSIZE_T
+#define __ssize_t_defined
+typedef long ssize_t;
+#endif
+
+/* Forward declarations for character classification functions */
+int tolower(int c);
+int toupper(int c);
 
 #if defined(__powerpc__) || defined(__powerpc64__)
 #include "Platform/PowerPC/OpenFirmware.h"
@@ -308,7 +324,8 @@ int getopt(int argc, char* const argv[], const char* optstring) {
 }
 
 /* Error reporting */
-const char* strerror(int errnum) {
+/* Provide our own strerror to avoid linking to system libraries */
+const char* sys71_strerror(int errnum) {
     /* Simple error message lookup */
     switch (errnum) {
         case 0: return "Success";
@@ -358,7 +375,11 @@ void perror(const char* s) {
         serial_puts(s);
         serial_puts(": ");
     }
+#if defined(__aarch64__) && defined(__APPLE__)
+    serial_puts(sys71_strerror(errno));
+#else
     serial_puts(strerror(errno));
+#endif
     serial_puts("\n");
 }
 
@@ -1031,6 +1052,21 @@ uint32_t SwapInt32(uint32_t value) {
 
 /* Network byte order conversion (big-endian)
  * Mac is already big-endian, so these are identity functions */
+
+/* Undefine macOS system macros that conflict with our implementations */
+#ifdef htons
+#undef htons
+#endif
+#ifdef htonl
+#undef htonl
+#endif
+#ifdef ntohs
+#undef ntohs
+#endif
+#ifdef ntohl
+#undef ntohl
+#endif
+
 uint16_t htons(uint16_t hostshort) {
     /* Host to network short - Mac is big-endian, network is big-endian */
     return hostshort;
@@ -1398,15 +1434,21 @@ int clamp(int value, int min_val, int max_val) {
     return value;
 }
 
+/* Define div_t and ldiv_t only if not already defined by system headers
+ * On ARM64 Darwin with stdlib.h included, these are already defined */
+#if !defined(__div_t_defined) && !defined(_DIV_T) && !defined(__DARWIN_UNIX03)
 typedef struct {
     int quot;
     int rem;
 } div_t;
+#endif
 
+#if !defined(__ldiv_t_defined) && !defined(_LDIV_T) && !defined(__DARWIN_UNIX03)
 typedef struct {
     long quot;
     long rem;
 } ldiv_t;
+#endif
 
 div_t div(int numer, int denom) {
     div_t result;

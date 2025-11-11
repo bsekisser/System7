@@ -290,6 +290,16 @@ static UInt16 GetModifiers(void) {
 }
 
 /*
+ * GetCurrentModifiers - Get current keyboard modifier state
+ * Stub implementation for bare-metal environment
+ */
+UInt16 GetCurrentModifiers(void) {
+    /* TODO: Integrate with actual keyboard driver when available
+     * For now, return no modifiers (0) as we don't have keyboard input in bare-metal */
+    return 0;
+}
+
+/*
  * Event queue management
  */
 void Event_InitQueue(void) {

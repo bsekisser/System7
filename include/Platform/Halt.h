@@ -14,9 +14,9 @@ static inline void platform_halt(void) {
 }
 #elif defined(__arm__) || defined(__aarch64__)
 static inline void platform_halt(void) {
-    /* Wait for event keeps core in low-power loop on ARM */
+    /* Busy loop for ARM architectures */
     for (;;) {
-        __asm__ volatile("wfe");
+        __asm__ volatile("nop");
     }
 }
 #else

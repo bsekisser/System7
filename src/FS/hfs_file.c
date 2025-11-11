@@ -8,6 +8,34 @@
 
 /* Serial debug output */
 
+/* Context for find_file_record callback */
+typedef struct {
+    FileID target;
+    HFS_CatFileRec* result;
+    bool found;
+} FindContext;
+
+/* Callback for B-tree iteration during file lookup */
+static bool find_file_callback(void* keyPtr, uint16_t keyLen,
+                               void* dataPtr, uint16_t dataLen,
+                               void* context) {
+    FindContext* findCtx = (FindContext*)context;
+    uint16_t recordType = be16_read(dataPtr);
+
+    if (recordType == kHFS_FileRecord) {
+        HFS_CatFileRec* rec = (HFS_CatFileRec*)dataPtr;
+        uint32_t fileID = be32_read(&rec->fileID);
+
+        if (fileID == findCtx->target) {
+            memcpy(findCtx->result, rec, sizeof(HFS_CatFileRec));
+            findCtx->found = true;
+            return false;  /* Stop iteration */
+        }
+    }
+
+    return true;  /* Continue */
+}
+
 /* Find file record in catalog by ID */
 static bool find_file_record(HFS_Catalog* cat, FileID id, HFS_CatFileRec* fileRec) {
     /* This is a simplified version - in reality we'd search the B-tree directly */
@@ -15,36 +43,9 @@ static bool find_file_record(HFS_Catalog* cat, FileID id, HFS_CatFileRec* fileRe
     /* Build a thread record key to find the file */
     /* For now, do a linear search through catalog */
 
-    typedef struct {
-        FileID target;
-        HFS_CatFileRec* result;
-        bool found;
-    } FindContext;
-
     FindContext ctx = { .target = id, .result = fileRec, .found = false };
 
-    /* Callback for B-tree iteration */
-    bool find_callback(void* keyPtr, uint16_t keyLen,
-                      void* dataPtr, uint16_t dataLen,
-                      void* context) {
-        FindContext* findCtx = (FindContext*)context;
-        uint16_t recordType = be16_read(dataPtr);
-
-        if (recordType == kHFS_FileRecord) {
-            HFS_CatFileRec* rec = (HFS_CatFileRec*)dataPtr;
-            uint32_t fileID = be32_read(&rec->fileID);
-
-            if (fileID == findCtx->target) {
-                memcpy(findCtx->result, rec, sizeof(HFS_CatFileRec));
-                findCtx->found = true;
-                return false;  /* Stop iteration */
-            }
-        }
-
-        return true;  /* Continue */
-    }
-
-    HFS_BT_IterateLeaves(&cat->bt, find_callback, &ctx);
+    HFS_BT_IterateLeaves(&cat->bt, find_file_callback, &ctx);
     return ctx.found;
 }
 

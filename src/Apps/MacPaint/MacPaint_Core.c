@@ -230,7 +230,7 @@ void MacPaint_FillRect(Rect *rect)
     for (int y = rect->top; y < rect->bottom; y++) {
         /* Get pattern row (pattern repeats every 8 rows) */
         int patternRow = y % 8;
-        unsigned char patternByte = gCurrentPattern[patternRow];
+        unsigned char patternByte = gCurrentPattern.pat[patternRow];
 
         for (int x = rect->left; x < rect->right; x++) {
             /* Get pattern bit (pattern repeats every 8 columns) */

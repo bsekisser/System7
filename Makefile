@@ -11,6 +11,11 @@
 # Platform configuration
 PLATFORM ?= x86
 
+# If QEMU=1 is passed, automatically set PLATFORM to arm64
+ifeq ($(QEMU),1)
+  PLATFORM = arm64
+endif
+
 # Raspberry Pi model selection (for ARM platform builds)
 # Valid values: pi3, pi4, pi5 (or leave empty for runtime detection)
 PI_MODEL ?=
@@ -151,9 +156,15 @@ ifeq ($(PLATFORM),arm)
     endif
 else ifeq ($(PLATFORM),arm64)
     # ARM 64-bit (AArch64) for QEMU virt machine
-    CFLAGS = $(COMMON_CFLAGS) -march=armv8-a -DQEMU_BUILD
-    ASFLAGS =
-    LDFLAGS = -nostdlib -no-pie
+    # Use aarch64-elf-gcc cross-compiler for bare-metal development
+    CC = aarch64-elf-gcc
+    AS = aarch64-elf-as
+    LD = aarch64-elf-ld
+    AR = aarch64-elf-ar
+    CFLAGS = $(COMMON_CFLAGS) -march=armv8-a -ffreestanding -DQEMU_BUILD
+    ASFLAGS = -march=armv8-a
+    LDFLAGS = -nostdlib -no-pie -Wl,--allow-multiple-definition
+    LINKER_SCRIPT := $(HAL_DIR)/link.ld
     ifeq ($(strip $(GESTALT_MACHINE_TYPE)),)
       GESTALT_MACHINE_TYPE := arm64_virt
     endif
@@ -216,6 +227,7 @@ C_SOURCES = src/main.c \
             src/SystemInit.c \
             src/sys71_stubs.c \
             src/System71StdLib.c \
+            src/lib/string.c \
             src/runtime_stubs.c \
             src/System/SystemTheme.c \
             src/ToolboxCompat.c \
@@ -228,6 +240,7 @@ C_SOURCES = src/main.c \
             src/Finder/AboutThisMac.c \
             src/Finder/GetInfo.c \
             src/Finder/Find.c \
+            src/ExpandMem.c \
             src/QuickDraw/QuickDrawCore.c \
             src/QuickDraw/Bitmaps.c \
             src/QuickDraw/QuickDrawPlatform.c \
@@ -251,7 +264,7 @@ C_SOURCES = src/main.c \
             src/OSUtils/MemoryUtilities.c \
             src/OSUtils/DebugUtils.c \
             src/Platform/WindowPlatform.c \
-            $(if $(filter arm,$(PLATFORM)), \
+            $(if $(filter arm arm64,$(PLATFORM)), \
               src/Platform/arm/hal_boot.c \
               src/Platform/arm/io.c \
               src/Platform/arm/device_tree.c \
@@ -269,7 +282,8 @@ C_SOURCES = src/main.c \
               src/Platform/arm/dwcotg.c \
               src/Platform/arm/usb_controller.c \
               src/Platform/arm/hid_input.c \
-              src/Platform/arm/input_stubs.c, \
+              src/Platform/arm/input_stubs.c \
+              src/Platform/arm64/uart_qemu.c, \
               $(if $(filter ppc,$(PLATFORM)), \
                 src/Platform/ppc/hal_boot.c \
                 src/Platform/ppc/io.c \
@@ -305,6 +319,7 @@ C_SOURCES = src/main.c \
             src/MenuManager/MenuItems.c \
             src/MenuManager/MenuResources.c \
             src/MenuManager/platform_stubs.c \
+            src/MenuManager/menu_stubs.c \
             src/MenuCommands.c \
             src/Finder/Icon/icon_system.c \
             src/Finder/Icon/icon_resources.c \
@@ -590,7 +605,9 @@ src/patterns_rsrc.c: $(RSRC_BIN)
 # Link kernel
 $(KERNEL): $(OBJECTS) | $(BUILD_DIR)
 	@echo "LD $(KERNEL)"
-	@if [ "$(PLATFORM)" = "arm" ]; then \
+	@if [ "$(PLATFORM)" = "arm64" ]; then \
+        $(CC) $(LDFLAGS) -Wl,-T,$(LINKER_SCRIPT) -nostdlib -static -o $(KERNEL) $(OBJECTS); \
+    elif [ "$(PLATFORM)" = "arm" ]; then \
         $(CC) $(LDFLAGS) -Wl,-T,$(LINKER_SCRIPT) -nostdlib -static -o $(KERNEL) $(OBJECTS) -lm -lgcc; \
     else \
         $(CC) -m32 -Wl,-T,$(LINKER_SCRIPT) -nostdlib -no-pie -static -o $(KERNEL) $(OBJECTS) -lm -lgcc; \
@@ -617,7 +634,7 @@ $(OBJ_DIR)/%.o: %.S | $(OBJ_DIR)
 	@mkdir -p $(dir $@)
 	@echo "AS $<"
 ifeq ($(PLATFORM),arm64)
-	@$(CC) $(CFLAGS) -c $< -o $@
+	@/opt/homebrew/bin/aarch64-elf-gcc -E -DQEMU_BUILD $< | /opt/homebrew/bin/aarch64-elf-as -march=armv8-a - -o $@
 else
 	@$(AS) $(ASFLAGS) $< -o $@
 endif

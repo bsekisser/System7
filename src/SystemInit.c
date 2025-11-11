@@ -237,7 +237,7 @@ static SystemError DetectHardwareCapabilities(void) {
 
     /* Detect CPU architecture */
 #ifdef __aarch64__
-    caps->cpu_type = 0xARM64;  /* ARM64 */
+    caps->cpu_type = 0xAA64;  /* ARM64 */
 #elif defined(__x86_64__)
     caps->cpu_type = 0x8664;   /* x86-64 */
 #elif defined(__i386__)

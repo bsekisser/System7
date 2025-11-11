@@ -11,6 +11,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "DeskManager/DeskManager.h"

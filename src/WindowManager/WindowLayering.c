@@ -21,6 +21,7 @@
 
 // #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
+#include <limits.h>
 
 #include "WindowManager/WindowManagerInternal.h"
 

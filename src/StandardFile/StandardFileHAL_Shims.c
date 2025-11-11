@@ -101,7 +101,7 @@ static OSErr StandardFile_HAL_CreateListControl(DialogPtr dialog, ListHandle *ou
 /*
  * StandardFile_HAL_Init - Initialize HAL subsystem
  */
-void StandardFile_HAL_Init(void) {
+OSErr StandardFile_HAL_Init(void) {
     if (!gHALInitialized) {
         SF_HAL_LOG_DEBUG("StandardFile HAL: Initializing\n");
 

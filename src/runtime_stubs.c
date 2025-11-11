@@ -42,8 +42,8 @@ int raise(int signum) {
     return 0;  /* Never reached for fatal signals */
 }
 
-/* errno stub for static linking - must be TLS for libm compatibility */
-__thread int errno = 0;
+/* errno stub for static linking */
+int errno = 0;
 
 /* Stack protection stubs */
 void __stack_chk_fail(void) {

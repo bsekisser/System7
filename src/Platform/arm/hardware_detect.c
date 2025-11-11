@@ -116,8 +116,11 @@ rpi_model_t hardware_detect_model(char *model_string, uint32_t string_len) {
 
         /* Read hardware revision register
          * Note: May not work on all models, but works on Pi 3/4
+         * ARM32-specific instruction, skip on ARM64
          */
+#if !defined(__aarch64__)
         __asm__ __volatile__("mrc p15, 0, %0, c0, c0, 5" : "=r"(hw_revision));
+#endif
 
         if (hw_revision != 0 && hw_revision != 0xFFFFFFFF) {
             rpi_model_t model = parse_hw_revision(hw_revision);

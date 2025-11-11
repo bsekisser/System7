@@ -14,6 +14,7 @@
 #define _SPEECHCHANNELS_H_
 
 #include "SystemTypes.h"
+#include <stdio.h>
 
 /* Forward declarations */
 

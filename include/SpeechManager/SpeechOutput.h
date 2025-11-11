@@ -14,6 +14,7 @@
 #define _SPEECHOUTPUT_H_
 
 #include "SystemTypes.h"
+#include <stdio.h>
 
 /* Forward declarations */
 

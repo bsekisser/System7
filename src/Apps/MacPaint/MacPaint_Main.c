@@ -27,7 +27,7 @@
  * - argv[1] may contain path to document file to open
  * - argc > 1 indicates file was passed from Finder
  */
-int MacPaintMain(int argc, const char **argv)
+int MacPaintMain(int argc, char **argv)
 {
     OSErr err;
 
@@ -319,7 +319,7 @@ void MacPaint_OpenFile(const char* path)
             int argc = 2;
             const char *argv[3] = { "MacPaint", path, NULL };
             gMacPaintIsRunning = 1;
-            MacPaintMain(argc, argv);
+            MacPaintMain(argc, (char **)argv);
             gMacPaintIsRunning = 0;
         }
     }

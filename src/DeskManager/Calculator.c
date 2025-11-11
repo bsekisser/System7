@@ -76,12 +76,12 @@ static Boolean Calculator_IsValidDigitForBase(int digit, CalcBase base);
 
 /* Calculator Interface Functions */
 static int Calculator_DAOpen(DeskAccessory *da);
-static int Calculator_DAClose(DeskAccessory *da);
+static void Calculator_DAClose(DeskAccessory *da);
 static int Calculator_DAEvent(DeskAccessory *da, const EventRecord *event);
-static int Calculator_DAMenu(DeskAccessory *da, int menuID, int itemID);
-static int Calculator_DAIdle(DeskAccessory *da);
-static int Calculator_DAActivate(DeskAccessory *da, Boolean active);
-static int Calculator_DAUpdate(DeskAccessory *da);
+static int Calculator_DAMenu(DeskAccessory *da, short menuID, short itemID);
+static void Calculator_DAIdle(DeskAccessory *da);
+static void Calculator_DAActivate(DeskAccessory *da, Boolean active);
+static void Calculator_DAUpdate(DeskAccessory *da);
 
 /* Calculator DA Interface */
 static DAInterface g_calculatorInterface = {
@@ -355,9 +355,26 @@ int Calculator_PerformOperation(Calculator *calc, CalcOperation operation)
                     return CALC_ERR_DOMAIN;
                 }
 
+                /* Create CalcNumber structures for history */
+                CalcNumber op1, op2, resultNum;
+                op1.value = calc->accumulator;
+                op1.intValue = (SInt64)calc->accumulator;
+                op1.base = calc->base;
+                op1.isInteger = calc->isInteger;
+
+                op2.value = calc->value;
+                op2.intValue = calc->intValue;
+                op2.base = calc->base;
+                op2.isInteger = calc->isInteger;
+
+                resultNum.value = result;
+                resultNum.intValue = (SInt64)result;
+                resultNum.base = calc->base;
+                resultNum.isInteger = calc->isInteger;
+
                 /* Add to history */
-                Calculator_AddToHistory(calc, &calc->accumulator, &calc->display,
-                                      calc->pendingOp, &calc->display);
+                Calculator_AddToHistory(calc, &op1, &op2,
+                                      calc->pendingOp, &resultNum);
 
                 (calc)->value = result;
                 (calc)->value = result;
@@ -742,8 +759,16 @@ void Calculator_UpdateDisplay(Calculator *calc)
 {
     if (!calc) return;
 
-    Calculator_FormatNumber(&calc->display, (calc)->display,
-                          sizeof((calc)->display));
+    /* Create a CalcNumber from the current calculator state */
+    CalcNumber number;
+    number.value = calc->value;
+    number.intValue = calc->intValue;
+    number.base = calc->base;
+    number.isInteger = calc->isInteger;
+
+    /* Format the number for display */
+    Calculator_FormatNumber(&number, calc->display,
+                          sizeof(calc->display));
 }
 
 /*
@@ -1018,13 +1043,12 @@ static int Calculator_DAOpen(DeskAccessory *da)
     return DA_CreateWindow(da, &attr);
 }
 
-static int Calculator_DAClose(DeskAccessory *da)
+static void Calculator_DAClose(DeskAccessory *da)
 {
-    if (!da) return DESK_ERR_INVALID_PARAM;
+    if (!da) return;
 
     Calculator_Shutdown((Calculator *)da->driverData);
     DA_DestroyWindow(da);
-    return DESK_ERR_NONE;
 }
 
 static int Calculator_DAEvent(DeskAccessory *da, const EventRecord *event)
@@ -1036,7 +1060,7 @@ static int Calculator_DAEvent(DeskAccessory *da, const EventRecord *event)
     return DESK_ERR_NONE;
 }
 
-static int Calculator_DAMenu(DeskAccessory *da, int menuID, int itemID)
+static int Calculator_DAMenu(DeskAccessory *da, short menuID, short itemID)
 {
     if (!da) return DESK_ERR_INVALID_PARAM;
 
@@ -1044,30 +1068,27 @@ static int Calculator_DAMenu(DeskAccessory *da, int menuID, int itemID)
     return DESK_ERR_NONE;
 }
 
-static int Calculator_DAIdle(DeskAccessory *da)
+static void Calculator_DAIdle(DeskAccessory *da)
 {
-    if (!da) return DESK_ERR_INVALID_PARAM;
+    if (!da) return;
 
     /* Periodic processing */
-    return DESK_ERR_NONE;
 }
 
-static int Calculator_DAActivate(DeskAccessory *da, Boolean active)
+static void Calculator_DAActivate(DeskAccessory *da, Boolean active)
 {
-    if (!da) return DESK_ERR_INVALID_PARAM;
+    if (!da) return;
 
     /* Handle activation/deactivation */
-    return DESK_ERR_NONE;
 }
 
-static int Calculator_DAUpdate(DeskAccessory *da)
+static void Calculator_DAUpdate(DeskAccessory *da)
 {
-    if (!da) return DESK_ERR_INVALID_PARAM;
+    if (!da) return;
 
     /* Update display */
     Calculator *calc = (Calculator *)da->driverData;
     if (calc) {
         Calculator_UpdateDisplay(calc);
     }
-    return DESK_ERR_NONE;
 }

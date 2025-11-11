@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 /* HAL Initialization */
-void StandardFile_HAL_Init(void);
+OSErr StandardFile_HAL_Init(void);
 
 /* Dialog Creation/Disposal */
 OSErr StandardFile_HAL_CreateOpenDialog(DialogPtr *outDialog, ConstStr255Param prompt);

@@ -17,6 +17,7 @@
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 #include "QuickDrawConstants.h"
+#include "MemoryMgr/MemoryManager.h"
 
 #include "QuickDraw/QuickDraw.h"
 #include "QuickDraw/ColorQuickDraw.h"

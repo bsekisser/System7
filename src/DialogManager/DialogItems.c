@@ -3,6 +3,7 @@
 #include "DialogManager/DialogInternal.h"
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 /*
  * DialogItems.c - Dialog Item Management Implementation
  *

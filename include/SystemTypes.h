@@ -4,19 +4,20 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+
+/* Include string and stdlib headers
+   For ARM64: use our custom bare-metal versions
+   For other platforms: use system headers */
 #include <string.h>
 #include <stdlib.h>
+
 /* #include <stdio.h> - not included for bare metal */
 
 /* Pascal calling convention keyword - not used in x86 reimplementation */
 #define pascal
 
-// Stub FILE type for bare metal compatibility
-// Only define if stdio.h hasn't been included
-#if !defined(_STDIO_H) && !defined(_FILE_DEFINED)
-#define _FILE_DEFINED
-typedef struct FILE FILE;
-#endif
+// FILE type is provided by system headers if needed
+// In freestanding environments, we don't define it since it's not used
 
 // Base types
 typedef uint8_t  UInt8;
@@ -2232,12 +2233,77 @@ typedef struct SystemGlobals {
 // ExpandMem Types
 // ============================================================================
 typedef struct ExpandMemRec {
-    UInt32 signature;
-    UInt32 size;
+    /* Basic info */
+    UInt32 emVersion;
+    UInt32 emSize;
+
+    /* Keyboard globals */
     void* emKeyboardGlobals;
+    void* emKeyCache;
+    UInt16 emKeyboardType;
+    UInt16 emScriptCode;
+    char emKeyDeadState[16];  /* Dead key state buffer */
+
+    /* File system */
+    void* emFSQueueHook;
+    void* emFSSpecCache;
+
+    /* Process management */
+    void* emProcessMgrGlobals;
+    void* emCurrentProcess;
+    void* emProcessList;
+    UInt32 emProcessCount;
+
+    /* Memory & VM */
     void* emAppleTalkInactive;
     void* emResourceDecompressor;
-    void* reserved[64];
+    void* emResourceCache;
+    UInt32 emResourceLoadFlags;
+    Boolean emVMEnabled;
+    UInt32 emVMPageSize;
+    UInt32 emPhysicalRAMSize;
+    UInt32 emLogicalRAMSize;
+
+    /* Graphics & display */
+    void* emQDExtensions;
+    void* emColorTable;
+    UInt16 emScreenCount;
+    void* emDisplayMgrGlobals;
+
+    /* Sound */
+    void* emSoundGlobals;
+    UInt16 emSoundChannels;
+
+    /* System globals */
+    void* emDecompressor;
+    void* emPowerMgrGlobals;
+    void* emAliasGlobals;
+    void* emEditionGlobals;
+    void* emComponentGlobals;
+    void* emThreadGlobals;
+    void* emSystemErrorProc;
+    void* emDebuggerGlobals;
+    void* emGestaltTable;
+    void* emTimeMgrExtensions;
+    void* emNotificationGlobals;
+    void* emHelpGlobals;
+    void* emPPCGlobals;
+    void* emVMGlobals;
+
+    /* AppleTalk */
+    void* emATalkGlobals;
+    Boolean emAppleTalkInactiveOnBoot;
+    UInt32 emNetworkConfig;
+
+    /* Error tracking */
+    UInt32 emLastSystemError;
+
+    /* Volume info */
+    UInt32 emDefaultVolume;
+    UInt32 emBootVolume;
+
+    /* Reserved for future expansion */
+    void* reserved[32];
 } ExpandMemRec;
 
 // ============================================================================
