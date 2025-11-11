@@ -89,22 +89,30 @@ bool mmu_init(void) {
         ttb_l1[i] = mmu_create_table_entry((uint64_t)&ttb_l2[i]);
     }
 
-    /* Map first 4GB with 2MB granularity
-     * 0x00000000 - 0x3FFFFFFF: Normal cacheable memory (1GB)
-     * 0x40000000 - 0x7FFFFFFF: Device memory (peripherals) (1GB)
-     * 0x80000000 - 0xFFFFFFFF: Normal cacheable memory (2GB) */
+    /* Map first 4GB with 2MB granularity for QEMU virt machine:
+     * 0x00000000 - 0x07FFFFFF: Normal cacheable memory (128MB - Flash/ROM)
+     * 0x08000000 - 0x3FFFFFFF: Device memory (896MB - Peripherals including UART)
+     * 0x40000000 - 0x7FFFFFFF: Normal cacheable memory (1GB - Main RAM, kernel loaded here)
+     * 0x80000000 - 0xFFFFFFFF: Normal cacheable memory (2GB - Additional RAM) */
 
-    /* First 1GB: Normal memory (0x00000000 - 0x3FFFFFFF) */
-    for (int i = 0; i < 512; i++) {
+    /* First 1GB broken down:
+     * 0x00000000 - 0x07FFFFFF: Normal memory (first 64 x 2MB blocks)
+     * 0x08000000 - 0x3FFFFFFF: Device memory (remaining 448 x 2MB blocks) */
+    for (int i = 0; i < 64; i++) {
         uint64_t addr = (uint64_t)i * PAGE_SIZE_2M;
         uint64_t attr = PTE_ATTR_NORMAL | PTE_AP_RW_EL1 | PTE_SH_INNER;
         ttb_l2[0][i] = mmu_create_block_entry(addr, attr);
     }
+    for (int i = 64; i < 512; i++) {
+        uint64_t addr = (uint64_t)i * PAGE_SIZE_2M;
+        uint64_t attr = PTE_ATTR_DEVICE_nGnRnE | PTE_AP_RW_EL1;
+        ttb_l2[0][i] = mmu_create_block_entry(addr, attr);
+    }
 
-    /* Second 1GB: Device memory (0x40000000 - 0x7FFFFFFF) */
+    /* Second 1GB: Normal memory (0x40000000 - 0x7FFFFFFF) - Main RAM */
     for (int i = 0; i < 512; i++) {
         uint64_t addr = 0x40000000ULL + (uint64_t)i * PAGE_SIZE_2M;
-        uint64_t attr = PTE_ATTR_DEVICE_nGnRnE | PTE_AP_RW_EL1;
+        uint64_t attr = PTE_ATTR_NORMAL | PTE_AP_RW_EL1 | PTE_SH_INNER;
         ttb_l2[1][i] = mmu_create_block_entry(addr, attr);
     }
 
