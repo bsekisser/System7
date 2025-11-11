@@ -24,7 +24,9 @@ CFLAGS += -I$(SRC_DIR) -I$(STDLIB_DIR)
 
 # Add QEMU define if building for QEMU
 ifdef QEMU
-CFLAGS += -DQEMU_BUILD -DUSE_VIRTIO_PCI
+CFLAGS += -DQEMU_BUILD
+# Note: Using MMIO transport (virtio-gpu-device) instead of PCI
+# PCI transport would require MMU for ECAM access at high addresses
 endif
 
 # Add test exception handler flag if requested
