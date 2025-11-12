@@ -59,6 +59,7 @@ static struct {
 static void InitScrapIfNeeded(void);
 static ScrapItem* FindScrapItem(ResType type);
 static ScrapItem* AllocateScrapItem(ResType type);
+static OSErr ScrapGestaltProc(long *response);
 
 /*
  * ScrapGestaltProc - Gestalt function for scrap manager capabilities

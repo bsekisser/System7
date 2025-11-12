@@ -123,7 +123,6 @@ static void CleanupExpiredNotifications(void) {
 OSErr NMInstall(NMRecPtr nmReqPtr) {
     extern UInt32 TickCount(void);
     NotificationQueueEntry* entry;
-    NotificationQueueEntry* tail;
 
     if (!gNMState.initialized) {
         InitNotificationManager();
