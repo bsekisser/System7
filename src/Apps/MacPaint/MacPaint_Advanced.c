@@ -65,7 +65,7 @@ OSErr MacPaint_InitializeUndo(void)
         }
         gUndoBuffer.frames[i].dataSize = 0;
         gUndoBuffer.frames[i].timestamp = 0;
-        strcpy(gUndoBuffer.frames[i].description, "");
+        gUndoBuffer.frames[i].description[0] = '\0';
     }
 
     gUndoBuffer.currentFrame = 0;
@@ -133,7 +133,7 @@ OSErr MacPaint_SaveUndoState(const char *description)
         strncpy(frame->description, description, sizeof(frame->description) - 1);
         frame->description[sizeof(frame->description) - 1] = '\0';
     } else {
-        strcpy(frame->description, "");
+        frame->description[0] = '\0';
     }
 
     gUndoBuffer.undoPosition = gUndoBuffer.currentFrame;
