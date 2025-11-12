@@ -120,7 +120,8 @@ int Calculator_Initialize(Calculator *calc)
     (calc)->value = 0.0;
     (calc)->base = CALC_BASE_DECIMAL;
     (calc)->isInteger = false;
-    strcpy((calc)->display, "0");
+    strncpy((calc)->display, "0", sizeof((calc)->display) - 1);
+    (calc)->display[sizeof((calc)->display) - 1] = '\0';
 
     /* Initialize window bounds */
     (calc)->left = 100;
@@ -805,7 +806,8 @@ void Calculator_FormatNumber(const CalcNumber *number, char *buffer, int bufferS
                 int i = 0;
 
                 if (val == 0) {
-                    strcpy(buffer, "0");
+                    strncpy(buffer, "0", bufferSize - 1);
+                    buffer[bufferSize - 1] = '\0';
                     return;
                 }
 
@@ -829,7 +831,8 @@ void Calculator_FormatNumber(const CalcNumber *number, char *buffer, int bufferS
             break;
 
         default:
-            strcpy(buffer, "Error");
+            strncpy(buffer, "Error", bufferSize - 1);
+            buffer[bufferSize - 1] = '\0';
             break;
     }
 }
@@ -840,7 +843,8 @@ void Calculator_FormatNumber(const CalcNumber *number, char *buffer, int bufferS
 int Calculator_RegisterDA(void)
 {
     DARegistryEntry entry = {0};
-    strcpy(entry.name, "Calculator");
+    strncpy(entry.name, "Calculator", sizeof(entry.name) - 1);
+    entry.name[sizeof(entry.name) - 1] = '\0';
     entry.type = DA_TYPE_CALCULATOR;
     entry.resourceID = DA_RESID_CALCULATOR;
     entry.flags = DA_FLAG_NEEDS_EVENTS | DA_FLAG_NEEDS_MENU;
@@ -889,7 +893,8 @@ static void Calculator_ClearDisplay(Calculator *calc)
     if (calc) {
         (calc)->value = 0.0;
         (calc)->intValue = 0;
-        strcpy((calc)->display, "0");
+        strncpy((calc)->display, "0", sizeof((calc)->display) - 1);
+        (calc)->display[sizeof((calc)->display) - 1] = '\0';
     }
 }
 
@@ -905,7 +910,8 @@ static void Calculator_SetError(Calculator *calc, int errorCode, const char *mes
     strncpy(calc->errorMessage, message ? message : "Error",
             sizeof(calc->errorMessage) - 1);
     calc->errorMessage[sizeof(calc->errorMessage) - 1] = '\0';
-    strcpy((calc)->display, "Error");
+    strncpy((calc)->display, "Error", sizeof((calc)->display) - 1);
+    (calc)->display[sizeof((calc)->display) - 1] = '\0';
 }
 
 /*
@@ -1038,7 +1044,8 @@ static int Calculator_DAOpen(DeskAccessory *da)
     /* Create window */
     DAWindowAttr attr;
     DA_LoadWindowTemplate(DA_RESID_CALCULATOR, &attr);
-    strcpy(attr.title, "Calculator");
+    strncpy(attr.title, "Calculator", sizeof(attr.title) - 1);
+    attr.title[sizeof(attr.title) - 1] = '\0';
 
     return DA_CreateWindow(da, &attr);
 }
