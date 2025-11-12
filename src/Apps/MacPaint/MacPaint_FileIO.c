@@ -122,6 +122,11 @@ UInt32 MacPaint_PackBits(const unsigned char *src, int srcLen,
             }
 
             if (literalLen > 0) {
+                /* Bounds check before writing literals to prevent buffer overflow */
+                if (dstPos + 1 + literalLen > dstLen) {
+                    /* Not enough space for header + literals */
+                    return 0;
+                }
                 dst[dstPos++] = literalLen - 1;  /* Header: literal count - 1 */
                 memcpy(&dst[dstPos], &src[literalStart], literalLen);
                 dstPos += literalLen;
