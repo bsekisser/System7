@@ -202,6 +202,12 @@ VarTable* VarTable_Create(size_t ratio, size_t unpackedSize) {
     VarTable* table = (VarTable*)NewPtrClear(sizeof(VarTable));
     if (!table) return NULL;
 
+    /* Check for integer overflow before multiplication */
+    if (unpackedSize > SIZE_MAX / (ratio + 1)) {
+        DisposePtr((Ptr)table);
+        return NULL;
+    }
+
     /* Calculate table size based on ratio */
     size_t tableSize = ((unpackedSize * (ratio + 1)) >> 8) + sizeof(VarTableEntry);
 
