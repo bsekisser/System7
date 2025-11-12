@@ -1151,13 +1151,18 @@ void SetWTitle(WindowPtr window, ConstStr255Param title) {
 
             WM_LOG_DEBUG("SetWTitle: Allocated titleHandle=%p (using NewHandle), string=%p\n",
                          window->titleHandle, *window->titleHandle);
-        }
-    }
 
-    /* Calculate title width for title bar rendering */
-    extern SInt16 StringWidth(ConstStr255Param s);
-    if (len > 0) {
-        window->titleWidth = StringWidth(title) + 40;  /* Add margins for close box and padding */
+            /* Calculate title width for title bar rendering (only if allocation succeeded) */
+            extern SInt16 StringWidth(ConstStr255Param s);
+            window->titleWidth = StringWidth(title) + 40;  /* Add margins for close box and padding */
+        } else {
+            /* Allocation failed - handle error gracefully */
+            WM_LOG_ERROR("SetWTitle: Failed to allocate titleHandle for window title\n");
+            #ifdef DEBUG_WINDOW_MANAGER
+            printf("SetWTitle: Memory allocation failed for title\n");
+            #endif
+            window->titleWidth = 0;
+        }
     } else {
         window->titleWidth = 0;
     }
