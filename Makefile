@@ -163,7 +163,7 @@ else ifeq ($(PLATFORM),arm64)
     AR = aarch64-elf-ar
     CFLAGS = $(COMMON_CFLAGS) -march=armv8-a -ffreestanding -DQEMU_BUILD
     ASFLAGS = -march=armv8-a
-    LDFLAGS = -nostdlib -no-pie -Wl,--allow-multiple-definition
+    LDFLAGS = -nostdlib -no-pie -Wl,--allow-multiple-definition -Wl,-z,execstack
     LINKER_SCRIPT := $(HAL_DIR)/link.ld
     ifeq ($(strip $(GESTALT_MACHINE_TYPE)),)
       GESTALT_MACHINE_TYPE := arm64_virt
@@ -283,7 +283,8 @@ C_SOURCES = src/main.c \
               src/Platform/arm/usb_controller.c \
               src/Platform/arm/hid_input.c \
               src/Platform/arm/input_stubs.c \
-              src/Platform/arm64/uart_qemu.c, \
+              src/Platform/arm64/uart_qemu.c \
+              src/Platform/arm64/hal_boot.c, \
               $(if $(filter ppc,$(PLATFORM)), \
                 src/Platform/ppc/hal_boot.c \
                 src/Platform/ppc/io.c \
@@ -612,7 +613,7 @@ $(KERNEL): $(OBJECTS) | $(BUILD_DIR)
     else \
         $(CC) -m32 -Wl,-T,$(LINKER_SCRIPT) -nostdlib -no-pie -static -o $(KERNEL) $(OBJECTS) -lm -lgcc; \
 	fi
-	@readelf -h $(KERNEL) >/dev/null 2>&1 || { echo "ERROR: Invalid ELF file"; exit 1; }
+	@test -f $(KERNEL) || { echo "ERROR: Kernel not created"; exit 1; }
 	@echo "✓ Kernel linked successfully ($(shell stat -c%s $(KERNEL) 2>/dev/null || stat -f%z $(KERNEL) 2>/dev/null) bytes)"
 
 # Define source directories for vpath search

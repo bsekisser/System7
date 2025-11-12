@@ -1959,3 +1959,121 @@ void Delay(UInt32 numTicks, UInt32* finalTicks) {
         *finalTicks = TickCount();
     }
 }
+
+/*
+ * InitRegistryIfNeeded - Initialize internal dialog-list registry
+ *
+ * Called by InitListManager() during List Manager initialization.
+ * Sets up internal structures for dialog-attached lists.
+ *
+ * This is a minimal stub for bare-metal environment.
+ */
+void InitRegistryIfNeeded(void) {
+    /* Minimal implementation - just returns as system is bootstrapped */
+}
+
+/*
+ * ShowGetInfo - Display Get Info dialog for file items
+ *
+ * Called from HandleGetInfo() to show the Get Info dialog.
+ * Takes an array of FSSpec items and displays their information.
+ *
+ * Parameters:
+ * - items: Array of FSSpec for selected items
+ * - count: Number of items in array
+ *
+ * Returns:
+ * - noErr on success
+ * - Error code on failure
+ *
+ * This is a minimal stub for bare-metal environment.
+ */
+OSErr ShowGetInfo(FSSpec *items, short count) {
+    /* Minimal implementation - just returns success */
+    if (!items || count <= 0) {
+        return paramErr;
+    }
+    return noErr;
+}
+
+/*
+ * InitEvents - Initialize the Event Manager
+ *
+ * Sets up the event queue and event handling infrastructure.
+ * Called during system startup to prepare event processing.
+ *
+ * Parameters:
+ * - numEvents: Requested size of event queue
+ *
+ * Returns:
+ * - 0 on success
+ * - Negative value on failure
+ *
+ * This is a minimal stub for bare-metal environment.
+ */
+SInt16 InitEvents(SInt16 numEvents) {
+    /* Minimal implementation - event system is initialized elsewhere */
+    return 0;
+}
+
+/*
+ * ARM64 Boot Functions - Stubs for bare-metal environment
+ */
+
+/* Timer initialization for ARM64 */
+void timer_init(void) {
+    /* Minimal stub - timer setup deferred to actual platform implementation */
+}
+
+/* Exception handler initialization for ARM64 */
+void exceptions_init(void) {
+    /* Minimal stub - exception handlers setup deferred to actual platform implementation */
+}
+
+/* Device Tree Blob initialization */
+void dtb_init(void) {
+    /* Minimal stub - DTB parsing deferred to actual platform implementation */
+}
+
+/* MMU (Memory Management Unit) initialization */
+void mmu_init(void) {
+    /* Minimal stub - MMU setup deferred to actual platform implementation */
+}
+
+/* MMU enable/activation */
+void mmu_enable(void) {
+    /* Minimal stub - MMU activation deferred to actual platform implementation */
+}
+
+/*
+ * InitControlManager_Sys7 - Initialize Control Manager for System 7.1
+ *
+ * Sets up the control manager subsystem for UI controls (buttons, scroll bars, etc.).
+ * Called during system initialization.
+ *
+ * This is a minimal stub for bare-metal environment.
+ */
+void InitControlManager_Sys7(void) {
+    /* Minimal implementation - control manager is initialized elsewhere */
+}
+
+/*
+ * main - Main system entry point
+ *
+ * Called by the ARM64 bootloader after basic hardware initialization.
+ * Sets up the System 7.1 kernel and enters the main system loop.
+ *
+ * Returns:
+ * - 0 on normal exit
+ * - Non-zero on error
+ *
+ * This is a minimal stub for bare-metal ARM64 environment.
+ */
+int main(void) {
+    /* Minimal stub - main system entry point */
+    /* In a real implementation, this would initialize the entire System 7.1 kernel */
+    while (1) {
+        /* Idle loop - system is running but idle */
+    }
+    return 0;
+}

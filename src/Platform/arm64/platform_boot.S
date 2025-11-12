@@ -51,7 +51,8 @@ setup_el2:
     msr spsr_el2, x0
 
     /* Set EL1 entry point */
-    adr x0, setup_el1
+    adrp x0, setup_el1
+    add x0, x0, :lo12:setup_el1
     msr elr_el2, x0
 
     /* Drop to EL1 */
@@ -64,7 +65,8 @@ setup_el1:
     msr daifset, #0xF           /* Mask D,A,I,F */
 
     /* Set up stack pointer for EL1 */
-    adr x0, stack_top
+    adrp x0, stack_top
+    add x0, x0, :lo12:stack_top
     mov sp, x0
 
     /* Clear BSS section */
@@ -81,7 +83,8 @@ clear_bss:
 
 bss_done:
     /* Initialize vector table for EL1 */
-    adr x0, vector_table_el1
+    adrp x0, vector_table_el1
+    add x0, x0, :lo12:vector_table_el1
     msr vbar_el1, x0
 
     /* Enable floating point */
