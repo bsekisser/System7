@@ -432,10 +432,13 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
 
         /* Allocate selection array */
         state->selectedItems = (Boolean*)NewPtr(count * sizeof(Boolean));
-        if (state->selectedItems) {
-            for (int i = 0; i < count; i++) {
-                state->selectedItems[i] = false;
-            }
+        if (!state->selectedItems) {
+            FINDER_LOG_DEBUG("InitializeFolderContentsEx: Failed to allocate selectedItems for trash folder\n");
+            state->itemCount = 0;
+            return;
+        }
+        for (int i = 0; i < count; i++) {
+            state->selectedItems[i] = false;
         }
 
         FINDER_LOG_DEBUG("InitializeFolderContentsEx: trash folder populated with %d items\n", count);
@@ -496,10 +499,13 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
 
         /* Allocate selection array */
         state->selectedItems = (Boolean*)NewPtr(sizeof(Boolean) * state->itemCount);
-        if (state->selectedItems) {
-            for (int i = 0; i < state->itemCount; i++) {
-                state->selectedItems[i] = false;
-            }
+        if (!state->selectedItems) {
+            FINDER_LOG_DEBUG("InitializeFolderContentsEx: Failed to allocate selectedItems for Applications folder\n");
+            state->itemCount = 0;
+            return;
+        }
+        for (int i = 0; i < state->itemCount; i++) {
+            state->selectedItems[i] = false;
         }
 
         FINDER_LOG_DEBUG("InitializeFolderContentsEx: populated Applications folder with %d items\n",
@@ -589,10 +595,13 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
 
         /* Allocate selection array */
         state->selectedItems = (Boolean*)NewPtr(sizeof(Boolean) * state->itemCount);
-        if (state->selectedItems) {
-            for (int i = 0; i < state->itemCount; i++) {
-                state->selectedItems[i] = false;
-            }
+        if (!state->selectedItems) {
+            FINDER_LOG_DEBUG("InitializeFolderContentsEx: Failed to allocate selectedItems for Control Panels folder\n");
+            state->itemCount = 0;
+            return;
+        }
+        for (int i = 0; i < state->itemCount; i++) {
+            state->selectedItems[i] = false;
         }
 
         FINDER_LOG_DEBUG("InitializeFolderContentsEx: populated Control Panels folder with %d items\n",
@@ -687,10 +696,13 @@ void InitializeFolderContentsEx(WindowPtr w, Boolean isTrash, VRefNum vref, DirI
 
         /* Allocate selection array */
         state->selectedItems = (Boolean*)NewPtr(sizeof(Boolean) * state->itemCount);
-        if (state->selectedItems) {
-            for (int i = 0; i < state->itemCount; i++) {
-                state->selectedItems[i] = false;
-            }
+        if (!state->selectedItems) {
+            FINDER_LOG_DEBUG("InitializeFolderContentsEx: Failed to allocate selectedItems for VFS directory\n");
+            state->itemCount = 0;
+            return;
+        }
+        for (int i = 0; i < state->itemCount; i++) {
+            state->selectedItems[i] = false;
         }
 
         FINDER_LOG_DEBUG("FW: Initialized %d items from VFS\n", count);
@@ -1727,41 +1739,44 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
                     /* Add to items array - reallocate if needed */
                     Size oldItemsSize = state->itemCount * sizeof(FolderItem);
                     FolderItem* newItems = (FolderItem*)NewPtr(sizeof(FolderItem) * (state->itemCount + 1));
-                    if (newItems) {
-                        if (state->items) {
-                            BlockMove(state->items, newItems, oldItemsSize);
-                            DisposePtr((Ptr)state->items);
-                        }
-                        state->items = newItems;
-
-                        /* Reallocate selectedItems array too */
-                        if (state->selectedItems) {
-                            Size oldSelectedSize = state->itemCount * sizeof(Boolean);
-                            Boolean* newSelected = (Boolean*)NewPtr(sizeof(Boolean) * (state->itemCount + 1));
-                            if (newSelected) {
-                                BlockMove(state->selectedItems, newSelected, oldSelectedSize);
-                                DisposePtr((Ptr)state->selectedItems);
-                                state->selectedItems = newSelected;
-                                state->selectedItems[state->itemCount] = false;
-                            }
-                        }
-
-                        /* Add the new item */
-                        FolderItem* newItem = &state->items[state->itemCount];
-                        strncpy(newItem->name, newEntry.name, sizeof(newItem->name) - 1);
-                        newItem->name[sizeof(newItem->name) - 1] = '\0';
-                        newItem->fileID = newID;
-                        newItem->isFolder = (newEntry.kind == kNodeDir);
-                        newItem->type = newEntry.type;
-                        newItem->creator = newEntry.creator;
-
-                        state->itemCount++;
-
-                        FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Added new item to window, count=%d\n",
-                                       state->itemCount);
-                    } else {
+                    if (!newItems) {
                         FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Failed to reallocate items array\n");
+                        continue;
                     }
+
+                    if (state->items) {
+                        BlockMove(state->items, newItems, oldItemsSize);
+                        DisposePtr((Ptr)state->items);
+                    }
+                    state->items = newItems;
+
+                    /* Reallocate selectedItems array too */
+                    if (state->selectedItems) {
+                        Size oldSelectedSize = state->itemCount * sizeof(Boolean);
+                        Boolean* newSelected = (Boolean*)NewPtr(sizeof(Boolean) * (state->itemCount + 1));
+                        if (!newSelected) {
+                            FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Failed to reallocate selectedItems array\n");
+                            continue;
+                        }
+                        BlockMove(state->selectedItems, newSelected, oldSelectedSize);
+                        DisposePtr((Ptr)state->selectedItems);
+                        state->selectedItems = newSelected;
+                        state->selectedItems[state->itemCount] = false;
+                    }
+
+                    /* Add the new item */
+                    FolderItem* newItem = &state->items[state->itemCount];
+                    strncpy(newItem->name, newEntry.name, sizeof(newItem->name) - 1);
+                    newItem->name[sizeof(newItem->name) - 1] = '\0';
+                    newItem->fileID = newID;
+                    newItem->isFolder = (newEntry.kind == kNodeDir);
+                    newItem->type = newEntry.type;
+                    newItem->creator = newEntry.creator;
+
+                    state->itemCount++;
+
+                    FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Added new item to window, count=%d\n",
+                                   state->itemCount);
                 } else {
                     FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Failed to get catalog entry for new item\n");
                 }
