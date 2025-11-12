@@ -121,7 +121,8 @@ int DeskManager_RegisterBuiltinDAs(void)
 
     /* Register Calculator */
     DARegistryEntry calculatorEntry = {0};
-    strcpy(calculatorEntry.name, "Calculator");
+    strncpy(calculatorEntry.name, "Calculator", sizeof(calculatorEntry.name) - 1);
+    calculatorEntry.name[sizeof(calculatorEntry.name) - 1] = '\0';
     calculatorEntry.type = DA_TYPE_CALCULATOR;
     calculatorEntry.resourceID = DA_RESID_CALCULATOR;
     calculatorEntry.flags = DA_FLAG_NEEDS_EVENTS | DA_FLAG_NEEDS_TIME | DA_FLAG_NEEDS_MENU;
@@ -134,7 +135,8 @@ int DeskManager_RegisterBuiltinDAs(void)
 
     /* Register Key Caps */
     DARegistryEntry keyCapsEntry = {0};
-    strcpy(keyCapsEntry.name, "Key Caps");
+    strncpy(keyCapsEntry.name, "Key Caps", sizeof(keyCapsEntry.name) - 1);
+    keyCapsEntry.name[sizeof(keyCapsEntry.name) - 1] = '\0';
     keyCapsEntry.type = DA_TYPE_KEYCAPS;
     keyCapsEntry.resourceID = DA_RESID_KEYCAPS;
     keyCapsEntry.flags = DA_FLAG_NEEDS_EVENTS | DA_FLAG_NEEDS_CURSOR;
@@ -147,7 +149,8 @@ int DeskManager_RegisterBuiltinDAs(void)
 
     /* TODO: Register Alarm Clock - requires system time library
     DARegistryEntry alarmEntry = {0};
-    strcpy(alarmEntry.name, "Alarm Clock");
+    strncpy(alarmEntry.name, "Alarm Clock", sizeof(alarmEntry.name) - 1);
+    alarmEntry.name[sizeof(alarmEntry.name) - 1] = '\0';
     alarmEntry.type = DA_TYPE_ALARM;
     alarmEntry.resourceID = DA_RESID_ALARM;
     alarmEntry.flags = DA_FLAG_NEEDS_EVENTS | DA_FLAG_NEEDS_TIME;
@@ -161,7 +164,8 @@ int DeskManager_RegisterBuiltinDAs(void)
 
     /* TODO: Register Chooser - requires network/device enumeration
     DARegistryEntry chooserEntry = {0};
-    strcpy(chooserEntry.name, "Chooser");
+    strncpy(chooserEntry.name, "Chooser", sizeof(chooserEntry.name) - 1);
+    chooserEntry.name[sizeof(chooserEntry.name) - 1] = '\0';
     chooserEntry.type = DA_TYPE_CHOOSER;
     chooserEntry.resourceID = DA_RESID_CHOOSER;
     chooserEntry.flags = DA_FLAG_NEEDS_EVENTS;
@@ -210,7 +214,8 @@ static int Calculator_DAInitialize(DeskAccessory *da, const DADriverHeader *head
     attr.visible = true;
     attr.hasGoAway = true;
     attr.refCon = 0;
-    strcpy(attr.title, "Calculator");
+    strncpy(attr.title, "Calculator", sizeof(attr.title) - 1);
+    attr.title[sizeof(attr.title) - 1] = '\0';
 
     return DA_CreateWindow(da, &attr);
 }
@@ -338,7 +343,8 @@ static int KeyCaps_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
     attr.visible = true;
     attr.hasGoAway = true;
     attr.refCon = 0;
-    strcpy(attr.title, "Key Caps");
+    strncpy(attr.title, "Key Caps", sizeof(attr.title) - 1);
+    attr.title[sizeof(attr.title) - 1] = '\0';
 
     return DA_CreateWindow(da, &attr);
 }
@@ -424,7 +430,8 @@ static int AlarmClock_DAInitialize(DeskAccessory *da, const DADriverHeader *head
     attr.visible = true;
     attr.hasGoAway = true;
     attr.refCon = 0;
-    strcpy(attr.title, "Alarm Clock");
+    strncpy(attr.title, "Alarm Clock", sizeof(attr.title) - 1);
+    attr.title[sizeof(attr.title) - 1] = '\0';
 
     return DA_CreateWindow(da, &attr);
 }
@@ -517,7 +524,8 @@ static int Chooser_DAInitialize(DeskAccessory *da, const DADriverHeader *header)
     attr.visible = true;
     attr.hasGoAway = true;
     attr.refCon = 0;
-    strcpy(attr.title, "Chooser");
+    strncpy(attr.title, "Chooser", sizeof(attr.title) - 1);
+    attr.title[sizeof(attr.title) - 1] = '\0';
 
     return DA_CreateWindow(da, &attr);
 }
