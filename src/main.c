@@ -372,6 +372,7 @@ void draw_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t
 void draw_icon(uint32_t x, uint32_t y, int icon_type);
 
 /* Early console output */
+__attribute__((unused))
 static void console_putchar(char c) {
 #if defined(__i386__) || defined(__x86_64__)
     /* Disable console output when in graphics mode to prevent corruption */
@@ -465,6 +466,7 @@ static void print_hex(uint32_t value) {
 }
 
 /* Parse Multiboot2 info */
+__attribute__((unused))
 static void parse_multiboot2(uint32_t magic, uint32_t* mb2_info) {
     if (magic != MULTIBOOT2_BOOTLOADER_MAGIC) {
         console_puts("Error: Invalid Multiboot2 magic! Got: ");
