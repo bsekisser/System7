@@ -1737,6 +1737,12 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
                 CatEntry newEntry;
                 if (VFS_GetByID(state->vref, newID, &newEntry)) {
                     /* Add to items array - reallocate if needed */
+                    /* Check for integer overflow: itemCount + 1 and sizeof multiplication */
+                    if (state->itemCount >= UINT16_MAX ||
+                        state->itemCount > SIZE_MAX / sizeof(FolderItem) - 1) {
+                        FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Integer overflow in items count\n");
+                        continue;
+                    }
                     Size oldItemsSize = state->itemCount * sizeof(FolderItem);
                     FolderItem* newItems = (FolderItem*)NewPtr(sizeof(FolderItem) * (state->itemCount + 1));
                     if (!newItems) {
@@ -1752,6 +1758,12 @@ void FolderWindow_DuplicateSelected(WindowPtr w) {
 
                     /* Reallocate selectedItems array too */
                     if (state->selectedItems) {
+                        /* Check for integer overflow: itemCount + 1 and sizeof multiplication */
+                        if (state->itemCount >= UINT16_MAX ||
+                            state->itemCount > SIZE_MAX / sizeof(Boolean) - 1) {
+                            FINDER_LOG_DEBUG("FolderWindow_DuplicateSelected: Integer overflow in selectedItems count\n");
+                            continue;
+                        }
                         Size oldSelectedSize = state->itemCount * sizeof(Boolean);
                         Boolean* newSelected = (Boolean*)NewPtr(sizeof(Boolean) * (state->itemCount + 1));
                         if (!newSelected) {
