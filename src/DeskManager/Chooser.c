@@ -69,7 +69,8 @@ int Chooser_Initialize(Chooser *chooser)
     /* Initialize with default zone */
     ATZone *defaultZone = NewPtr(sizeof(ATZone));
     if (defaultZone) {
-        strcpy(defaultZone->name, "*");
+        strncpy(defaultZone->name, "*", sizeof(defaultZone->name) - 1);
+        defaultZone->name[sizeof(defaultZone->name) - 1] = '\0';
         defaultZone->isDefault = true;
         defaultZone->deviceCount = 0;
         defaultZone->next = NULL;
@@ -148,18 +149,24 @@ int Chooser_ScanDevices(Chooser *chooser, DeviceType deviceType)
         /* Add dummy printer */
         DeviceInfo *printer = NewPtr(sizeof(DeviceInfo));
         if (printer) {
-            strcpy(printer->name, "LaserWriter");
-            strcpy(printer->type, "PostScript Printer");
-            strcpy(printer->driver, "LaserWriter");
+            strncpy(printer->name, "LaserWriter", sizeof(printer->name) - 1);
+            printer->name[sizeof(printer->name) - 1] = '\0';
+            strncpy(printer->type, "PostScript Printer", sizeof(printer->type) - 1);
+            printer->type[sizeof(printer->type) - 1] = '\0';
+            strncpy(printer->driver, "LaserWriter", sizeof(printer->driver) - 1);
+            printer->driver[sizeof(printer->driver) - 1] = '\0';
             printer->deviceType = DEVICE_TYPE_PRINTER;
             printer->connectionType = CONNECTION_APPLETALK;
             printer->state = DEVICE_STATE_AVAILABLE;
-            strcpy(printer->zone, "*");
-            strcpy(printer->address, "LaserWriter@*");
+            strncpy(printer->zone, "*", sizeof(printer->zone) - 1);
+            printer->zone[sizeof(printer->zone) - 1] = '\0';
+            strncpy(printer->address, "LaserWriter@*", sizeof(printer->address) - 1);
+            printer->address[sizeof(printer->address) - 1] = '\0';
             printer->canPrint = true;
             printer->supportsColor = false;
             printer->supportsDuplex = true;
-            strcpy(printer->status, "Ready");
+            strncpy(printer->status, "Ready", sizeof(printer->status) - 1);
+            printer->status[sizeof(printer->status) - 1] = '\0';
             printer->lastSeen = (SInt32)time(NULL);
             printer->isSelected = false;
             printer->iconID = 1;
@@ -176,16 +183,22 @@ int Chooser_ScanDevices(Chooser *chooser, DeviceType deviceType)
         /* Add dummy file server */
         DeviceInfo *server = NewPtr(sizeof(DeviceInfo));
         if (server) {
-            strcpy(server->name, "FileServer");
-            strcpy(server->type, "AppleShare Server");
-            strcpy(server->driver, "AppleShare");
+            strncpy(server->name, "FileServer", sizeof(server->name) - 1);
+            server->name[sizeof(server->name) - 1] = '\0';
+            strncpy(server->type, "AppleShare Server", sizeof(server->type) - 1);
+            server->type[sizeof(server->type) - 1] = '\0';
+            strncpy(server->driver, "AppleShare", sizeof(server->driver) - 1);
+            server->driver[sizeof(server->driver) - 1] = '\0';
             server->deviceType = DEVICE_TYPE_FILE_SERVER;
             server->connectionType = CONNECTION_APPLETALK;
             server->state = DEVICE_STATE_AVAILABLE;
-            strcpy(server->zone, "*");
-            strcpy(server->address, "FileServer@*");
+            strncpy(server->zone, "*", sizeof(server->zone) - 1);
+            server->zone[sizeof(server->zone) - 1] = '\0';
+            strncpy(server->address, "FileServer@*", sizeof(server->address) - 1);
+            server->address[sizeof(server->address) - 1] = '\0';
             server->canShare = true;
-            strcpy(server->status, "Available");
+            strncpy(server->status, "Available", sizeof(server->status) - 1);
+            server->status[sizeof(server->status) - 1] = '\0';
             server->lastSeen = (SInt32)time(NULL);
             server->isSelected = false;
             server->iconID = 2;
