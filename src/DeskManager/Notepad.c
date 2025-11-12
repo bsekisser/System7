@@ -488,7 +488,8 @@ static void Notepad_DrawPageIndicator(NotePadGlobals *notepad) {
     LineTo(400, 35);
 
     /* Draw page number as Pascal string */
-    len = sprintf((char*)pageText + 1, "Page %d of %d", notepad->currentPage + 1, NOTEPAD_MAX_PAGES);
+    len = snprintf((char*)pageText + 1, sizeof(pageText) - 1, "Page %d of %d", notepad->currentPage + 1, NOTEPAD_MAX_PAGES);
+    if (len >= sizeof(pageText) - 1) len = sizeof(pageText) - 2;
     pageText[0] = len;  /* Pascal string length prefix */
     MoveTo(170, 20);
     DrawString((ConstStr255Param)pageText);

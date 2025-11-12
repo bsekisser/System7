@@ -819,7 +819,8 @@ void MakeAliasOfSelectedItems(WindowPtr w) {
         /* Convert C string to Pascal string for FSMakeFSSpec */
         unsigned char pascalName[256];
         pascalName[0] = (unsigned char)strlen(aliasName);
-        strcpy((char*)&pascalName[1], aliasName);
+        strncpy((char*)&pascalName[1], aliasName, sizeof(pascalName) - 2);
+        pascalName[sizeof(pascalName) - 1] = '\0';
 
         OSErr err = FSMakeFSSpec(vref, dirID, pascalName, &aliasSpec);
         if (err != noErr && err != fnfErr) {
