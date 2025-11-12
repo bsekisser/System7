@@ -228,6 +228,10 @@ void VarTable_Init(VarTable* table) {
     if (!table) return;
 
     /* Initialize first entry to point to end of table */
+    /* Ensure allocSize fits in UInt16 to prevent truncation */
+    if (table->allocSize > UINT16_MAX) {
+        return;  /* Table size too large */
+    }
     table->entries[0].offset = (UInt16)table->allocSize;
     table->nextVarIndex = 1;
     table->dataSize = 0;
@@ -242,6 +246,11 @@ int VarTable_Remember(VarTable* table, const UInt8* data, size_t length) {
 
     /* Get previous entry's offset */
     UInt16 prevOffset = table->entries[table->nextVarIndex - 1].offset;
+
+    /* Ensure length fits in UInt16 to prevent truncation */
+    if (length > UINT16_MAX) {
+        return inputOutOfBounds;
+    }
 
     /* Calculate new offset */
     UInt16 newOffset = prevOffset - (UInt16)length;
