@@ -70,14 +70,16 @@ OSErr ParseDITL(Handle ditlHandle, DialogItemEx** items, SInt16* itemCount) {
 
     /* Read item count (stored as count-1 in resource) */
     count = ((SInt16)p[0] << 8) | p[1];
-    count += 1;  /* Actual count is stored value + 1 */
     p += 2;
 
-    if (count < 0 || count > 256) {
-        // DIALOG_LOG_DEBUG("Dialog: ParseDITL - invalid item count %d\n", count);
+    /* Validate raw count value before adding 1 to prevent integer overflow */
+    if (count < 0 || count >= 256) {
+        // DIALOG_LOG_DEBUG("Dialog: ParseDITL - invalid raw item count %d\n", count);
         HUnlock(ditlHandle);
         return -1;
     }
+
+    count += 1;  /* Actual count is stored value + 1 */
 
     *itemCount = count;
     // DIALOG_LOG_DEBUG("Dialog: Parsing DITL with %d items\n", count);
