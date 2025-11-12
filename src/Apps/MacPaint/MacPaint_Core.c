@@ -93,7 +93,8 @@ OSErr MacPaint_Initialize(void)
     gLineSize = 1;
     gSelectionActive = 0;
     gDocDirty = 0;
-    strcpy(gDocName, "Untitled");
+    strncpy(gDocName, "Untitled", sizeof(gDocName) - 1);
+    gDocName[sizeof(gDocName) - 1] = '\0';
 
     /* Initialize pattern table - will be loaded from resources */
     for (i = 0; i < MACPAINT_PATTERN_COUNT; i++) {
@@ -350,7 +351,8 @@ OSErr MacPaint_NewDocument(void)
     memset(gPaintBufferData, 0, (MACPAINT_DOC_WIDTH / 8) * MACPAINT_DOC_HEIGHT);
 
     /* Reset document state */
-    strcpy(gDocName, "Untitled");
+    strncpy(gDocName, "Untitled", sizeof(gDocName) - 1);
+    gDocName[sizeof(gDocName) - 1] = '\0';
     gDocDirty = 0;
     gSelectionActive = 0;
 
