@@ -170,8 +170,7 @@ int vasprintf(char** strp, const char* format, va_list ap)
     __attribute__((format(printf, 2, 0)));
 
 /* Character classification functions */
-/* Note: isalpha, isupper, islower defined locally in EventManager/KeyboardEvents.c
- * Other functions (isalnum, isdigit, isspace, etc.) implemented in System71StdLib.c */
+/* Note: isalpha, isupper, islower are also defined as static inline in EventManager/KeyboardEvents.c */
 int isalnum(int c);
 int isdigit(int c);
 int isspace(int c);
