@@ -462,7 +462,16 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
     UInt32 noMovementCount = 0;
     const UInt32 MAX_NO_MOVEMENT_ITERS = 60;  /* ~1 second at 60Hz */
 
-    while (StillDown() && loopCount < MAX_DRAG_ITERATIONS) {
+    /* Button state debouncing: filter out spurious release-press transitions
+     * Track how many consecutive iterations reported button released */
+    UInt32 buttonReleasedCount = 0;
+    const UInt32 BUTTON_DEBOUNCE_THRESHOLD = 3;  /* Require 3 consecutive releases */
+
+    /* Minimum drag duration to filter accidental clicks
+     * Require at least 5 iterations (~83ms at 60Hz) before honoring a release */
+    const UInt32 MIN_DRAG_ITERATIONS = 5;
+
+    while (loopCount < MAX_DRAG_ITERATIONS) {
         loopCount++;
         noMovementCount++;
 
@@ -474,10 +483,32 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
 
         GetMouse(&ptG);  /* Returns GLOBAL coords */
 
+        /* Button state debouncing: check if button is released
+         * Use StillDown() as primary check, but apply debouncing */
+        extern Boolean Button(void);
+        Boolean isButtonDown = StillDown();
+
+        if (!isButtonDown) {
+            /* Button reports released - increment debounce counter */
+            buttonReleasedCount++;
+
+            /* Only exit if:
+             * 1. Button has been released consistently (debounce threshold)
+             * 2. AND we've been dragging for minimum duration (avoid accidental clicks) */
+            if (buttonReleasedCount >= BUTTON_DEBOUNCE_THRESHOLD &&
+                loopCount >= MIN_DRAG_ITERATIONS) {
+                WM_LOG_DEBUG("DragWindow: Debounced button release after %u iterations (debounce count: %u)\n",
+                             loopCount, buttonReleasedCount);
+                break;  /* Exit drag loop normally */
+            }
+        } else {
+            /* Button reports held - reset debounce counter */
+            buttonReleasedCount = 0;
+        }
+
         /* Check if stuck in loop without any StillDown() returning false */
         if (noMovementCount > MAX_NO_MOVEMENT_ITERS) {
             /* Force exit if button tracking is completely broken */
-            extern Boolean Button(void);
             if (!Button()) {
                 /* Button was actually released, break out */
                 WM_LOG_WARN("DragWindow: Breaking out of stuck loop - button actually released after %u iterations\n", loopCount);
