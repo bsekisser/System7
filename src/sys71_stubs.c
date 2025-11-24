@@ -870,9 +870,9 @@ OSErr ShowAboutFinder(void) {
     /* Removed: ParamText and NoteAlert declared elsewhere (DialogManager) */
 
     /* Set up message text */
-    const unsigned char aboutMsg[] = "\pSystem 7.1 Finder";
-    const unsigned char versionMsg[] = "\pVersion 7.1";
-    const unsigned char emptyMsg[] = "\p";
+    const unsigned char aboutMsg[] = "System 7.1 Finder";
+    const unsigned char versionMsg[] = "Version 7.1";
+    const unsigned char emptyMsg[] = "";
 
     ParamText(aboutMsg, versionMsg, emptyMsg, emptyMsg);
 
@@ -1070,7 +1070,7 @@ OSErr ShowConfirmDialog(StringPtr message, Boolean* confirmed) {
     /* extern short CautionAlert(short alertID, void* filterProc); */
     /* Removed: ParamText and CautionAlert declared in DialogManager headers */
 
-    const unsigned char emptyMsg[] = "\p";
+    const unsigned char emptyMsg[] = "";
 
     /* Set the message text */
     if (message && message[0] > 0) {
