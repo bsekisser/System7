@@ -112,7 +112,11 @@ DragWindow() -> EventPumpYield() -> ProcessModernInput() -> updates gCurrentButt
 
 **Resolution**: No changes needed. All region management is correct. WindowRegions.h provides AutoRgnHandle pattern for future code.
 
-**AutoRgnHandle Conversion Attempt (2025-01-24)**: Attempted to convert all 6 temporary regions to AutoRgnHandle pattern but discovered critical bug: `SetClip()` stores region handle by reference, not by value. Disposing regions immediately after `SetClip()` causes clip region corruption, breaking text rendering and window dragging. **Decision**: Keep manual lifecycle management for regions passed to `SetClip()`. AutoRgnHandle pattern remains available for other use cases. See commit f723621 (reverted in 62586e7).
+**AutoRgnHandle Conversion (2025-01-24)**:
+- **Initial attempt** (commit f723621): Converted all 6 temporary regions but encountered regressions (text rendering, window dragging). Reverted in 62586e7.
+- **Root cause analysis**: `SetClip()` DOES copy region data via `CopyRgn()`, so disposing after is safe. The bug was elsewhere in the conversion.
+- **Successful partial conversion** (commit 0f8364d): PaintOne() and ClipAbove() SetClip regions converted to AutoRgnHandle. Tested successfully - no regressions.
+- **Remaining conversions**: ShowWindow, HideWindow, and PaintDesk regions not yet converted. One of these likely caused the original failures and needs careful analysis before conversion.
 
 ---
 
