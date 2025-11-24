@@ -112,6 +112,8 @@ DragWindow() -> EventPumpYield() -> ProcessModernInput() -> updates gCurrentButt
 
 **Resolution**: No changes needed. All region management is correct. WindowRegions.h provides AutoRgnHandle pattern for future code.
 
+**AutoRgnHandle Conversion Attempt (2025-01-24)**: Attempted to convert all 6 temporary regions to AutoRgnHandle pattern but discovered critical bug: `SetClip()` stores region handle by reference, not by value. Disposing regions immediately after `SetClip()` causes clip region corruption, breaking text rendering and window dragging. **Decision**: Keep manual lifecycle management for regions passed to `SetClip()`. AutoRgnHandle pattern remains available for other use cases. See commit f723621 (reverted in 62586e7).
+
 ---
 
 ### 5. EraseRgn Doesn't Work with Direct Framebuffer
