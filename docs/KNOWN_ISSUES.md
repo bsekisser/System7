@@ -112,11 +112,12 @@ DragWindow() -> EventPumpYield() -> ProcessModernInput() -> updates gCurrentButt
 
 **Resolution**: No changes needed. All region management is correct. WindowRegions.h provides AutoRgnHandle pattern for future code.
 
-**AutoRgnHandle Conversion (2025-01-24)**:
-- **Initial attempt** (commit f723621): Converted all 6 temporary regions but encountered regressions (text rendering, window dragging). Reverted in 62586e7.
-- **Root cause analysis**: `SetClip()` DOES copy region data via `CopyRgn()`, so disposing after is safe. The bug was elsewhere in the conversion.
-- **Successful partial conversion** (commit 0f8364d): PaintOne() and ClipAbove() SetClip regions converted to AutoRgnHandle. Tested successfully - no regressions.
-- **Remaining conversions**: ShowWindow, HideWindow, and PaintDesk regions not yet converted. One of these likely caused the original failures and needs careful analysis before conversion.
+**AutoRgnHandle Conversion (2025-01-24)** - **BLOCKED**:
+- **Initial attempt** (commit f723621): Converted all 6 temporary regions but encountered regressions (text rendering outside windows, window dragging broken). Reverted in 62586e7.
+- **Isolated test** (commit 0f8364d, reverted in bacfb06): Converted only PaintOne() and ClipAbove() SetClip regions to isolate the problem. **Same regressions occurred**.
+- **Conclusion**: The AutoRgnHandle pattern itself appears to be fundamentally broken, NOT just specific usages. Even though `SetClip()` copies region data (via `CopyRgn()`), using AutoRgnHandle causes clip region corruption.
+- **Root cause unknown**: Possible issues in WM_NewAutoRgn(), WM_DisposeAutoRgn(), region allocation timing, or compiler behavior with the struct/macro pattern.
+- **Decision**: Do NOT use AutoRgnHandle pattern until root cause is identified and fixed. Manual NewRgn()/DisposeRgn() works correctly.
 
 ---
 
