@@ -597,10 +597,25 @@ void BeginUpdate(WindowPtr theWindow) {
         if (pmHandle && *pmHandle) {
             Rect gwBounds = (*pmHandle)->bounds;
 
-            /* CRITICAL: Manually fill GWorld buffer with white ARGB pixels
-             * (EraseRect doesn't properly handle 32-bit ARGB) */
+            /* CRITICAL BUG FIX: Disabled GWorld memset that was corrupting window records
+             *
+             * BUG: The GWorld's PixMap baseAddr was pointing into the window record structure
+             * instead of a separate offscreen buffer. The memset() would overwrite 816+ bytes
+             * starting 0x330 bytes into the window record, corrupting portBits.bounds and portRect.
+             *
+             * SYMPTOMS: After window resize/drag, portBits.bounds becomes (0,0,w,0) and
+             * portRect becomes garbage like (-12851,-12851,-21589,-21589), causing folder
+             * items to draw at desktop (0,0) instead of inside the window.
+             *
+             * ROOT CAUSE: GWorld initialization in NewGWorld() sets baseAddr incorrectly.
+             *
+             * FIX: Disable GWorld erase for now and use EraseRect fallback. This prevents
+             * memory corruption while maintaining functionality.
+             *
+             * TODO: Fix NewGWorld() to properly allocate and initialize offscreen buffer.
+             */
             PixMapPtr pm = *pmHandle;
-            if (pm->pixelSize == 32 && pm->baseAddr) {
+            if (pm->pixelSize == 32 && pm->baseAddr && false) {  /* DISABLED due to corruption bug */
                 UInt32* pixels = (UInt32*)pm->baseAddr;
                 SInt16 height = gwBounds.bottom - gwBounds.top;
                 SInt16 rowBytes = pm->rowBytes & 0x3FFF;

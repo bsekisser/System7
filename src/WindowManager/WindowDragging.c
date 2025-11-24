@@ -153,8 +153,28 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
         return;
     }
 
+    /* Debug logging BEFORE applying geometry */
+    if (theWindow->refCon == 0x54525348 || theWindow->refCon == 0x4449534b) {
+        extern void serial_printf(const char* fmt, ...);
+        serial_printf("[MOVEWIN] BEFORE WM_ApplyWindowGeometry: portBits.bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
+                     theWindow->port.portBits.bounds.left, theWindow->port.portBits.bounds.top,
+                     theWindow->port.portBits.bounds.right, theWindow->port.portBits.bounds.bottom,
+                     theWindow->port.portRect.left, theWindow->port.portRect.top,
+                     theWindow->port.portRect.right, theWindow->port.portRect.bottom);
+    }
+
     /* Apply new geometry atomically - updates ALL coordinate representations */
     WM_ApplyWindowGeometry(theWindow, &newGeom);
+
+    /* Debug logging AFTER applying geometry */
+    if (theWindow->refCon == 0x54525348 || theWindow->refCon == 0x4449534b) {
+        extern void serial_printf(const char* fmt, ...);
+        serial_printf("[MOVEWIN] AFTER WM_ApplyWindowGeometry: portBits.bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
+                     theWindow->port.portBits.bounds.left, theWindow->port.portBits.bounds.top,
+                     theWindow->port.portBits.bounds.right, theWindow->port.portBits.bounds.bottom,
+                     theWindow->port.portRect.left, theWindow->port.portRect.top,
+                     theWindow->port.portRect.right, theWindow->port.portRect.bottom);
+    }
 
     /* Debug logging for specific windows */
     if (theWindow->refCon == 0x4449534b) {
