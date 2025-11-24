@@ -742,7 +742,9 @@ void Platform_SizeNativeWindow(WindowPtr window, short width, short height) {
             serial_puts(dbgbuf);
         }
 
-        Platform_CalculateWindowRegions(window);
+        /* NOTE: Do NOT call Platform_CalculateWindowRegions here!
+         * SizeWindow() already calculated the window regions correctly before calling this function.
+         * Recalculating here would overwrite those correct values and break the coordinate system. */
     }
 }
 

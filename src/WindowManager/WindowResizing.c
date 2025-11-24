@@ -149,9 +149,13 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
         Platform_CopyRgn(theWindow->strucRgn, oldStrucRgn);
     }
 
-    /* Update window's port rectangle */
-    (theWindow)->port.portRect.right = (theWindow)->port.portRect.left + w;
-    (theWindow)->port.portRect.bottom = (theWindow)->port.portRect.top + h;
+    /* Update window's port rectangle to LOCAL coordinates (0,0,w,h)
+     * portRect must be in LOCAL coordinates for proper QuickDraw operation.
+     * Global positioning is handled by portBits.bounds (updated later at line 210). */
+    (theWindow)->port.portRect.left = 0;
+    (theWindow)->port.portRect.top = 0;
+    (theWindow)->port.portRect.right = w;
+    (theWindow)->port.portRect.bottom = h;
 
     /* NOTE: Do NOT update portBits.bounds here!
      * portBits.bounds is updated later (line 212) after contRgn is recalculated.
