@@ -93,29 +93,31 @@ void VFS_Shutdown(void) {
 }
 
 bool VFS_MountBootVolume(const char* volName) {
+    extern void serial_printf(const char* fmt, ...);
+
     if (!g_vfs.initialized) {
-        /* FS_LOG_DEBUG("VFS: Not initialized\n"); */
+        serial_printf("[VFS] Mount failed: not initialized\n");
         return false;
     }
 
     /* Allocate volume slot */
     VFSVolume* vol = VFS_AllocVolume();
     if (!vol) {
-        FS_LOG_DEBUG("VFS: No free volume slots\n");
+        serial_printf("[VFS] Mount failed: no free volume slots\n");
         return false;
     }
 
-    /* Allocate volume buffer from heap */
-    uint64_t volumeSize = 4 * 1024 * 1024;  /* 4MB */
+    /* Allocate volume buffer from heap - try 1MB instead of 4MB */
+    uint64_t volumeSize = 1 * 1024 * 1024;  /* 1MB */
     void* volumeData = NewPtr(volumeSize);
     if (!volumeData) {
-        /* FS_LOG_DEBUG("VFS: Failed to allocate volume memory\n"); */
+        serial_printf("[VFS] Mount failed: NewPtr(%lu) returned NULL\n", (unsigned long)volumeSize);
         return false;
     }
 
     /* Create blank HFS volume */
     if (!HFS_CreateBlankVolume(volumeData, volumeSize, volName)) {
-        /* FS_LOG_DEBUG("VFS: Failed to create blank volume\n"); */
+        serial_printf("[VFS] Mount failed: HFS_CreateBlankVolume failed\n");
         DisposePtr((Ptr)volumeData);
         return false;
     }
@@ -125,7 +127,7 @@ bool VFS_MountBootVolume(const char* volName) {
 
     /* Mount the volume */
     if (!HFS_VolumeMountMemory(&vol->volume, volumeData, volumeSize, vol->vref)) {
-        /* FS_LOG_DEBUG("VFS: Failed to mount volume\n"); */
+        serial_printf("[VFS] Mount failed: HFS_VolumeMountMemory failed\n");
         DisposePtr((Ptr)volumeData);
         return false;
     }
@@ -134,7 +136,7 @@ bool VFS_MountBootVolume(const char* volName) {
     if (!HFS_CatalogInit(&vol->catalog, &vol->volume)) {
         HFS_VolumeUnmount(&vol->volume);
         DisposePtr((Ptr)volumeData);
-        /* FS_LOG_DEBUG("VFS: Failed to initialize catalog\n"); */
+        serial_printf("[VFS] Mount failed: HFS_CatalogInit failed\n");
         return false;
     }
 
@@ -143,7 +145,7 @@ bool VFS_MountBootVolume(const char* volName) {
     strncpy(vol->name, volName, sizeof(vol->name) - 1);
     vol->name[sizeof(vol->name) - 1] = '\0';
 
-    /* FS_LOG_DEBUG("VFS: Mounted boot volume successfully\n"); */
+    serial_printf("[VFS] Boot volume '%s' mounted successfully (1MB)\n", volName);
 
     /* Notify mount callback */
     if (g_vfs.mountCallback) {
