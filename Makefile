@@ -450,6 +450,8 @@ C_SOURCES = src/main.c \
             src/WindowManager/WindowResizing.c \
             src/WindowManager/WindowLayering.c \
             src/WindowManager/WindowParts.c \
+            src/WindowManager/WindowGeometry.c \
+            src/WindowManager/WindowRegions.c \
             src/TimeManager/PlatformTime.c \
             src/TimeManager/TimeBase.c \
             src/TimeManager/MicrosecondTimer.c \

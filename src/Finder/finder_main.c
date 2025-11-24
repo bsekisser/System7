@@ -875,13 +875,30 @@ void DoUpdate(WindowPtr window) {
         return;
     }
 
-    /* Try folder window */
+    /* Try folder window - FolderWindow_Draw handles its own port and update region */
     if (IsFolderWindow(window)) {
+        BeginUpdate(window);
         FolderWindow_Draw(window);
+        EndUpdate(window);
         return;
     }
 
-    /* Default: no-op for unknown windows */
+    /* FIXED (UPDATE-001): Generic window update handler for unknown window types
+     * Previously this was a no-op, causing content not to redraw after drag/resize.
+     * Now we properly call BeginUpdate/EndUpdate to clear the update region. */
+    GrafPtr savePort;
+    GetPort(&savePort);
+    SetPort((GrafPtr)window);
+
+    BeginUpdate(window);
+
+    /* Erase content area for unknown windows */
+    Rect contentRect = window->port.portRect;
+    EraseRect(&contentRect);
+
+    EndUpdate(window);
+
+    SetPort(savePort);
 }
 
 /*
