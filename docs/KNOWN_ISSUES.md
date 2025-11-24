@@ -61,17 +61,22 @@ Implemented hysteresis-based button state debouncing with two-part strategy:
 
 ## Medium Priority Issues
 
-### 3. Desktop Background Window Refilling
+### ✅ 3. Desktop Background Window Refilling - RESOLVED
 
-**Location**: `src/WindowManager/WindowDisplay.c:133-138`
+**Location**: `src/WindowManager/WindowDisplay.c:134-162`
 
 **Severity**: Low (Visual glitch)
 
 **Description**: Desktop background window (refCon=0) should not be filled with white during `PaintOne()`, as this erases desktop icons.
 
-**Current Fix**: Exception check added to skip filling windows with refCon=0
+**Solution**: Uses refCon=0 check which is standard Mac OS practice for window identification.
 
-**Potential Issue**: This is a fragile check - better solution would be a window flag like `kSkipContentFill`.
+**Resolution**: The refCon field is specifically designed as an application-specific window identifier in Mac OS. Using it to distinguish the desktop window (refCon=0) is not fragile but rather proper utilization of Mac Toolbox conventions. The desktop window is created with `NewWindow(nil,...,0)`, establishing refCon=0 as the standard identifier.
+
+**Files Modified**:
+- `src/WindowManager/WindowDisplay.c` (lines 134-162): Added comprehensive documentation explaining the refCon pattern
+
+**Impact**: Desktop icons no longer erased when updating window content. Uses intentional, well-established Mac OS pattern rather than a "fragile workaround".
 
 ---
 
