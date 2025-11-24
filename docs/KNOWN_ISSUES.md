@@ -6,7 +6,7 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ### 1. Mouse Button Tracking May Get Stuck (TIMEOUT-001)
 
-**Location**: `src/WindowManager/WindowDragging.c:307-352`
+**Location**: `src/WindowManager/WindowDragging.c:461-492` (drag loop timeout logic)
 
 **Severity**: Medium (Has safety timeout, but UX degradation)
 
@@ -37,8 +37,10 @@ DragWindow() -> EventPumpYield() -> ProcessModernInput() -> updates gCurrentButt
 
 **Likely Cause**: QEMU mouse emulation timing or rapid user clicks causing the loop to sample button state at exactly the wrong moment (between release and next press in a rapid click sequence).
 
-**Mitigation Applied**:
-- Reduced no-movement timeout from 1000 to 100 iterations for better responsiveness
+**Mitigation Applied** (2025-01-24):
+- Reduced no-movement timeout from 1000 to 60 iterations (~1 second at 60Hz) for improved responsiveness
+- Primary safety timeout: 100,000 iterations (~28 minutes at 60Hz) prevents infinite hangs
+- Secondary check using Button() directly after timeout triggers
 - Safety timeouts remain as defense-in-depth
 
 **To Fix Properly** (if needed):

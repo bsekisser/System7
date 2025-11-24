@@ -460,7 +460,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
 
     /* Track iterations without movement to detect stuck loop */
     UInt32 noMovementCount = 0;
-    const UInt32 MAX_NO_MOVEMENT_ITERS = 1000;
+    const UInt32 MAX_NO_MOVEMENT_ITERS = 60;  /* ~1 second at 60Hz */
 
     while (StillDown() && loopCount < MAX_DRAG_ITERATIONS) {
         loopCount++;
