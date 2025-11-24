@@ -441,14 +441,7 @@ WindowManagerState* GetWindowManagerState(void);
  * Utility Macros
  * ============================================================================ */
 
-/* Debug output macros */
-#ifdef DEBUG_WINDOW_MANAGER
-#define WM_DEBUG(fmt, ...) WM_LOG_DEBUG(fmt "\n", ##__VA_ARGS__)
-#define WM_ERROR(fmt, ...) WM_LOG_ERROR(fmt "\n", ##__VA_ARGS__)
-#else
-#define WM_DEBUG(fmt, ...)
-#define WM_ERROR(fmt, ...)
-#endif
+/* NOTE: Debug logging macros (WM_LOG_*, WM_DEBUG) are now defined in WMLogging.h */
 
 /* Assertion macro */
 #ifdef DEBUG_WINDOW_MANAGER

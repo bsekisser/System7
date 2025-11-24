@@ -68,16 +68,8 @@ static void Local_ApplyWindowSnap(WindowPtr draggedWindow, short* newLeft, short
 void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front) {
     if (theWindow == NULL) return;
 
-    WM_DEBUG("MoveWindow: Moving window to (%d, %d), front = %s",
+    WM_LOG_DEBUG("MoveWindow: Moving window to (%d, %d), front = %s",
              hGlobal, vGlobal, front ? "true" : "false");
-
-    if (theWindow->refCon == 0x4449534b) {
-        extern void serial_puts(const char *str);
-        extern int sprintf(char* buf, const char* fmt, ...);
-        char dbgbuf[256];
-        sprintf(dbgbuf, "[MOVECALL] hGlobal=%d vGlobal=%d\n", hGlobal, vGlobal);
-        serial_puts(dbgbuf);
-    }
 
     /* CRITICAL: Get current global position from strucRgn, NOT from portRect
      * portRect is ALWAYS in LOCAL coordinates (0,0,width,height)
@@ -94,17 +86,6 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
     short deltaH = hGlobal - currentGlobalBounds.left;
     short deltaV = vGlobal - currentGlobalBounds.top;
 
-    if (theWindow->refCon == 0x4449534b) {
-        extern void serial_puts(const char *str);
-        extern int sprintf(char* buf, const char* fmt, ...);
-        char dbgbuf[256];
-        sprintf(dbgbuf, "[MOVECALL] current bounds=(%d,%d,%d,%d) deltaH=%d deltaV=%d\n",
-                currentGlobalBounds.left, currentGlobalBounds.top,
-                currentGlobalBounds.right, currentGlobalBounds.bottom,
-                deltaH, deltaV);
-        serial_puts(dbgbuf);
-    }
-
     /* Check if window actually needs to move */
     if (deltaH == 0 && deltaV == 0) {
         if (front) {
@@ -118,7 +99,7 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
     WM_OffsetRect(&newBounds, deltaH, deltaV);
 
     if (!WM_ValidateWindowPosition(theWindow, &newBounds)) {
-        WM_DEBUG("MoveWindow: Invalid window position, constraining");
+        WM_LOG_DEBUG("MoveWindow: Invalid window position, constraining");
         WM_ConstrainWindowPosition(theWindow, &newBounds);
         deltaH = newBounds.left - currentGlobalBounds.left;
         deltaV = newBounds.top - currentGlobalBounds.top;
@@ -148,27 +129,13 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
 
     /* Validate new geometry */
     if (!WM_ValidateWindowGeometry(&newGeom)) {
-        WM_DEBUG("MoveWindow: New geometry is invalid");
+        WM_LOG_DEBUG("MoveWindow: New geometry is invalid");
         WM_CLEANUP_AUTO_RGN(oldStrucRgn);
         return;
     }
 
     /* Apply new geometry atomically - updates ALL coordinate representations */
     WM_ApplyWindowGeometry(theWindow, &newGeom);
-
-    /* Debug logging for specific windows */
-    if (theWindow->refCon == 0x4449534b) {
-        extern void serial_puts(const char *str);
-        extern int sprintf(char* buf, const char* fmt, ...);
-        char dbgbuf[256];
-        sprintf(dbgbuf, "[MOVWIN] Moved to global origin=(%d,%d) content=(%d,%d,%d,%d) portBits=(%d,%d,%d,%d)\n",
-                newGeom.globalOrigin.h, newGeom.globalOrigin.v,
-                newGeom.globalContent.left, newGeom.globalContent.top,
-                newGeom.globalContent.right, newGeom.globalContent.bottom,
-                theWindow->port.portBits.bounds.left, theWindow->port.portBits.bounds.top,
-                theWindow->port.portBits.bounds.right, theWindow->port.portBits.bounds.bottom);
-        serial_puts(dbgbuf);
-    }
 
     /* Move native platform window using new global position from strucRgn */
     if (theWindow->strucRgn && *(theWindow->strucRgn)) {
@@ -205,13 +172,11 @@ void MoveWindow(WindowPtr theWindow, short hGlobal, short vGlobal, Boolean front
  * ============================================================================ */
 
 void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
-    extern void serial_puts(const char *str);
-    serial_puts("[WM_DRAG] DragWindow ENTRY\n");
-
     if (theWindow == NULL) {
-        serial_puts("[WM_DRAG] DragWindow: NULL window, returning\n");
         return;
     }
+
+    WM_LOG_DEBUG("DragWindow: Starting drag from (%d, %d)", startPt.h, startPt.v);
 
     /* Get GLOBAL window bounds from strucRgn - System 7 faithful */
     Rect frameG;
@@ -435,13 +400,8 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         extern void PaintOne(WindowPtr window, RgnHandle clobberedRgn);
         extern void CalcVis(WindowPtr window);
 
-        WM_LOG_DEBUG("DragWindow: About to call NewRgn()\n");
         /* Use auto-disposing regions to prevent leaks on early returns */
-        serial_puts("[MEM] DragWindow before WM_NewAutoRgn(oldRgn)\n");
-        MemoryManager_CheckSuspectBlock("pre_NewRgn_old");
         WM_WITH_AUTO_RGN(oldRgn);
-        MemoryManager_CheckSuspectBlock("post_NewRgn_old");
-        WM_LOG_DEBUG("DragWindow: WM_NewAutoRgn() returned %p\n", oldRgn.rgn);
         if (!oldRgn.rgn) {
             WM_LOG_WARN("DragWindow: Failed to allocate oldRgn\n");
             WM_CLEANUP_AUTO_RGN(oldRgn);
@@ -461,9 +421,7 @@ void DragWindow(WindowPtr theWindow, Point startPt, const Rect* boundsRect) {
         /* Calculate the uncovered desktop region: old position minus new position */
         extern void DiffRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn);
         WM_WITH_AUTO_RGN(uncoveredRgn);
-        MemoryManager_CheckSuspectBlock("post_NewRgn_uncovered");
         WM_WITH_AUTO_RGN(newRgn);
-        MemoryManager_CheckSuspectBlock("post_NewRgn_new");
 
         if (!uncoveredRgn.rgn || !newRgn.rgn) {
             WM_LOG_WARN("DragWindow: Failed to allocate regions for uncovered area\n");
