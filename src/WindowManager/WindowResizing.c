@@ -1,4 +1,5 @@
 #include "MemoryMgr/MemoryManager.h"
+/* #include "SystemTypes.h" */
 #include <stdlib.h>
 #include <string.h>
 /*
@@ -20,12 +21,11 @@
  * Derived from System 7 ROM analysis (Ghidra) Window Manager
  */
 
+// #include "CompatibilityFix.h" // Removed
 #include "SystemTypes.h"
 #include "System71StdLib.h"
 
 #include "WindowManager/WindowManagerInternal.h"
-#include "WindowManager/WindowGeometry.h"
-#include "WindowManager/WindowRegions.h"
 #include "QuickDraw/QuickDraw.h"
 #include <math.h>
 
@@ -143,47 +143,82 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
         return;
     }
 
-    /* Use WindowGeometry abstraction for atomic coordinate updates
-     * This replaces 100+ lines of manual coordinate synchronization */
-
-    /* Save old structure region for invalidation (using auto-disposal) */
-    WM_WITH_AUTO_RGN(oldStrucRgn);
-    if (oldStrucRgn.rgn && theWindow->strucRgn) {
-        Platform_CopyRgn(theWindow->strucRgn, oldStrucRgn.rgn);
+    /* Save old structure region for invalidation */
+    RgnHandle oldStrucRgn = Platform_NewRgn();
+    if (oldStrucRgn && theWindow->strucRgn) {
+        Platform_CopyRgn(theWindow->strucRgn, oldStrucRgn);
     }
 
-    /* Get current geometry and calculate new geometry after resize */
-    WindowGeometry currentGeom, newGeom;
-    if (!WM_GetWindowGeometry(theWindow, &currentGeom)) {
-        WM_CLEANUP_AUTO_RGN(oldStrucRgn);
-        return;  /* Failed to get geometry - window is invalid */
+    /* Update window's port rectangle */
+    (theWindow)->port.portRect.right = (theWindow)->port.portRect.left + w;
+    (theWindow)->port.portRect.bottom = (theWindow)->port.portRect.top + h;
+
+    /* NOTE: Do NOT update portBits.bounds here!
+     * portBits.bounds is updated later (line 212) after contRgn is recalculated.
+     * We use Global Framebuffer approach where portBits.bounds = content's GLOBAL position.
+     * Overwriting it here with (0,0,w,h) would break the coordinate system. */
+
+    /* CRITICAL: Directly update window regions for resize
+     *
+     * Problem: Platform_CalculateWindowRegions has circular dependency - it uses
+     * Platform_GetWindowFrameRect which returns the OLD strucRgn.
+     *
+     * Solution: During resize, window position doesn't change (grow box is bottom-right),
+     * so we can directly calculate new regions from old position + new dimensions.
+     */
+    if (oldStrucRgn && *(oldStrucRgn)) {
+        Rect oldStrucRect = (**oldStrucRgn).rgnBBox;
+
+        /* Chrome dimensions */
+        const SInt16 kBorder = 1;
+        const SInt16 kTitleBar = 20;
+        const SInt16 kSeparator = 1;
+        const SInt16 kRightBorder = 2;
+
+        /* Calculate old content position */
+        SInt16 contentLeft = oldStrucRect.left + kBorder;
+        SInt16 contentTop = oldStrucRect.top + kTitleBar + kSeparator;
+
+        /* Calculate new structure rect (frame) with new dimensions */
+        Rect newStrucRect;
+        newStrucRect.left = oldStrucRect.left;
+        newStrucRect.top = oldStrucRect.top;
+        newStrucRect.right = contentLeft + w + kRightBorder;
+        newStrucRect.bottom = contentTop + h + kBorder;
+
+        /* Calculate new content rect */
+        Rect newContRect;
+        newContRect.left = contentLeft;
+        newContRect.top = contentTop;
+        newContRect.right = contentLeft + w;
+        newContRect.bottom = contentTop + h;
+
+        /* Update regions */
+        extern void Platform_SetRectRgn(RgnHandle rgn, const Rect* rect);
+        Platform_SetRectRgn(theWindow->strucRgn, &newStrucRect);
+        Platform_SetRectRgn(theWindow->contRgn, &newContRect);
     }
-
-    /* Calculate new geometry with updated content size (position unchanged) */
-    WM_ResizeWindowGeometry(&currentGeom, w, h, &newGeom);
-
-    /* Validate new geometry */
-    if (!WM_ValidateWindowGeometry(&newGeom)) {
-        WM_DEBUG("SizeWindow: New geometry is invalid");
-        WM_CLEANUP_AUTO_RGN(oldStrucRgn);
-        return;
-    }
-
-    /* Apply new geometry atomically - updates ALL coordinate representations */
-    WM_ApplyWindowGeometry(theWindow, &newGeom);
 
     /* Resize native platform window */
     Platform_SizeNativeWindow(theWindow, w, h);
 
-    /* Debug logging for specific windows */
-    if (theWindow->refCon == 0x4449534b) {
-        extern void serial_puts(const char *str);
-        extern int sprintf(char* buf, const char* fmt, ...);
-        char dbgbuf[256];
-        snprintf(dbgbuf, sizeof(dbgbuf), "[SIZEWND] Updated bounds: contentRect=(%d,%d,%d,%d)\n",
-                newGeom.globalContent.left, newGeom.globalContent.top,
-                newGeom.globalContent.right, newGeom.globalContent.bottom);
-        serial_puts(dbgbuf);
+    /* With Global Framebuffer approach, update portBits.bounds to content area's new GLOBAL position */
+    if (theWindow->contRgn && *(theWindow->contRgn)) {
+        Rect newContentBounds = (*(theWindow->contRgn))->rgnBBox;
+
+        /* Update bounds to content area's new GLOBAL position */
+        SetRect(&theWindow->port.portBits.bounds,
+                newContentBounds.left, newContentBounds.top,
+                newContentBounds.right, newContentBounds.bottom);
+
+        if (theWindow->refCon == 0x4449534b) {
+            extern void serial_puts(const char *str);
+            extern int sprintf(char* buf, const char* fmt, ...);
+            char dbgbuf[256];
+            snprintf(dbgbuf, sizeof(dbgbuf), "[SIZEWND] Updated bounds: contentRect=(%d,%d,%d,%d)\n",
+                    newContentBounds.left, newContentBounds.top, newContentBounds.right, newContentBounds.bottom);
+            serial_puts(dbgbuf);
+        }
     }
 
     /* Generate update events for newly exposed areas if requested */
@@ -195,12 +230,12 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
     if (theWindow->visible) {
         /* If window shrank, we need to erase and repaint the newly exposed desktop area */
         /* This is the area that was covered by the window before but isn't covered now */
-        if (oldStrucRgn.rgn && theWindow->strucRgn) {
-            /* Create a region for areas that were covered before but aren't now (auto-disposal) */
-            WM_WITH_AUTO_RGN(exposedDesktop);
-            if (exposedDesktop.rgn) {
+        if (oldStrucRgn && theWindow->strucRgn) {
+            /* Create a region for areas that were covered before but aren't now */
+            RgnHandle exposedDesktop = Platform_NewRgn();
+            if (exposedDesktop) {
                 /* Exposed area = old region minus new region */
-                DiffRgn(oldStrucRgn.rgn, theWindow->strucRgn, exposedDesktop.rgn);
+                DiffRgn(oldStrucRgn, theWindow->strucRgn, exposedDesktop);
 
                 /* CRITICAL: Erase the exposed desktop area with desktop pattern BEFORE repainting */
                 /* This is the same approach used in HideWindow */
@@ -214,18 +249,18 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
                 GetWMgrPort(&wmPort);
                 SetPort(wmPort);
 
-                EraseRgn(exposedDesktop.rgn);
+                EraseRgn(exposedDesktop);
 
                 SetPort(savePort);
 
                 WM_DEBUG("SizeWindow: Erased exposed desktop area");
 
-                WM_CLEANUP_AUTO_RGN(exposedDesktop);
+                Platform_DisposeRgn(exposedDesktop);
             }
         }
 
-        if (oldStrucRgn.rgn) {
-            WM_InvalidateScreenRegion(oldStrucRgn.rgn);
+        if (oldStrucRgn) {
+            WM_InvalidateScreenRegion(oldStrucRgn);
         }
         if (theWindow->strucRgn) {
             WM_InvalidateScreenRegion(theWindow->strucRgn);
@@ -238,8 +273,10 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
     /* Update window state if this was user-initiated */
     WM_UpdateWindowUserState(theWindow);
 
-    /* Clean up (auto-disposal handles region cleanup) */
-    WM_CLEANUP_AUTO_RGN(oldStrucRgn);
+    /* Clean up */
+    if (oldStrucRgn) {
+        Platform_DisposeRgn(oldStrucRgn);
+    }
 
     WM_DEBUG("SizeWindow: Window resized successfully to %dx%d", w, h);
 }
