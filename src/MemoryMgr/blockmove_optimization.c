@@ -35,16 +35,18 @@
 
 
 /* Forward declarations */
-static OSErr block_move_68020_optimized(Ptr src, Ptr dst, Size count);
-static OSErr block_move_68040_optimized(Ptr src, Ptr dst, Size count);
-static OSErr copy_incrementing_68020(Ptr src, Ptr dst, Size count);
-static OSErr copy_decrementing_68020(Ptr src, Ptr dst, Size count);
-static void copy_tail_incrementing(Ptr src, Ptr dst, Size remainingBytes);
-static Boolean check_memory_overlap(Ptr src, Ptr dst, Size count);
-static void cache_flush_if_needed(Size bytesCopied);
+/* static OSErr block_move_68020_optimized(Ptr src, Ptr dst, Size count); */ /* Future use - 68k optimization */
+/* static OSErr block_move_68040_optimized(Ptr src, Ptr dst, Size count); */ /* Future use - 68k optimization */
+/* static OSErr copy_incrementing_68020(Ptr src, Ptr dst, Size count); */ /* Future use - 68k optimization */
+/* static OSErr copy_decrementing_68020(Ptr src, Ptr dst, Size count); */ /* Future use - 68k optimization */
+/* static void copy_tail_incrementing(Ptr src, Ptr dst, Size remainingBytes); */ /* Future use - 68k optimization */
+/* static Boolean check_memory_overlap(Ptr src, Ptr dst, Size count); */ /* Future use - 68k optimization */
+/* static void cache_flush_if_needed(Size bytesCopied); */ /* Future use - 68k optimization */
 
 /* Global processor type detection */
+#if 0 /* Future use - 68k processor type unused on x86 */
 static ProcessorType g_processorType = CPU_68020;
+#endif
 
 /*
  * High-Level BlockMove Interface
@@ -55,6 +57,7 @@ static ProcessorType g_processorType = CPU_68020;
  * 2. Jump to appropriate processor-specific routine
  * 3. Handle cache coherency
  */
+#if 0 /* Future use - 68k-specific optimization unused on x86 */
 static OSErr high_level_block_move(Ptr src, Ptr dst, Size count) {
     if (!src || !dst || count <= 0) {
         return noErr;  /* Nothing to copy */
@@ -73,6 +76,7 @@ static OSErr high_level_block_move(Ptr src, Ptr dst, Size count) {
             return noErr;
     }
 }
+#endif
 
 /*
  * 68020/68030 Optimized Block Move
@@ -85,6 +89,7 @@ static OSErr high_level_block_move(Ptr src, Ptr dst, Size count) {
  * 4. Handle remaining bytes with optimized tail copy
  * 5. Flush instruction cache when needed
  */
+#if 0 /* Future use - 68k-specific optimization unused on x86 */
 static OSErr block_move_68020_optimized(Ptr src, Ptr dst, Size count) {
     /* Handle small copies (80%+ of calls are 1-31 bytes) */
     if (count <= 31) {
@@ -142,7 +147,9 @@ static OSErr block_move_68040_optimized(Ptr src, Ptr dst, Size count) {
     /* Fallback to 68020 algorithm for overlapping or small blocks */
     return copy_incrementing_68020(src, dst, count);
 }
+#endif /* block_move_68020_optimized and block_move_68040_optimized */
 
+#if 0 /* Future use - 68k helper functions called by disabled optimizations */
 /*
  * Forward (Incrementing) Copy for 68020
  * PROVENANCE: ROM $40D100 - Forward copy routine (68020 optimization)
@@ -382,10 +389,12 @@ static void cache_flush_if_needed(Size bytesCopied) {
         /* This was critical for 68020+ processors to maintain cache coherency */
     }
 }
+#endif /* 68k helper functions */
 
 /*
  * Processor Type Detection and Setup
  */
+#if 0 /* Future use - 68k processor detection unused on x86 */
 static void set_processor_type(ProcessorType processorType) {
     g_processorType = processorType;
 }
@@ -393,6 +402,7 @@ static void set_processor_type(ProcessorType processorType) {
 static ProcessorType get_processor_type(void) {
     return g_processorType;
 }
+#endif
 
 /*
  * BlockMove Statistics and Optimization Info
@@ -406,6 +416,7 @@ typedef struct BlockMoveStats {
     Size overlapCalls;    /* Overlapping copies */
 } BlockMoveStats;
 
+#if 0 /* Future use - statistics tracking not currently used */
 static BlockMoveStats g_blockMoveStats = {0};
 
 static void update_blockmove_statistics(Size bytesCopied, Boolean wasOverlap) {
@@ -427,3 +438,4 @@ static void update_blockmove_statistics(Size bytesCopied, Boolean wasOverlap) {
 static const BlockMoveStats* get_blockmove_statistics(void) {
     return &g_blockMoveStats;
 }
+#endif

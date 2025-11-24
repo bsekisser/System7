@@ -57,7 +57,7 @@ static OSErr validate_handle(Handle h);
 static ZonePtr determine_zone_for_handle(Handle h);
 static OSErr resize_handle_internal(Handle h, Size newSize, Boolean is32Bit);
 static void coalesce_free_blocks(ZonePtr zone, BlockPtr block);
-static BlockPtr find_free_block(ZonePtr zone, Size minSize);
+/* static BlockPtr find_free_block(ZonePtr zone, Size minSize); */ /* Future use */
 
 /* Public function declarations for cross-module access */
 Ptr compact_heap(ZonePtr zone, Size bytesNeeded, Size* maxFreeSize);
@@ -412,6 +412,7 @@ static void coalesce_free_blocks(ZonePtr zone, BlockPtr block) {
  * Find Free Block
  * PROVENANCE: Block scanning logic from CompactHp and allocation routines
  */
+#if 0 /* Future use - optimized free block finder not currently used */
 static BlockPtr find_free_block(ZonePtr zone, Size minSize) {
     if (!zone) {
         return NULL;
@@ -446,6 +447,7 @@ static BlockPtr find_free_block(ZonePtr zone, Size minSize) {
 
     return NULL;
 }
+#endif
 
 /*
  * SetHandleSize - Resize a handle
