@@ -170,6 +170,8 @@ int vasprintf(char** strp, const char* format, va_list ap)
     __attribute__((format(printf, 2, 0)));
 
 /* Character classification functions */
+/* Note: isalpha, isupper, islower defined locally in EventManager/KeyboardEvents.c
+ * Other functions (isalnum, isdigit, isspace, etc.) implemented in System71StdLib.c */
 int isalnum(int c);
 int isdigit(int c);
 int isspace(int c);
@@ -202,6 +204,12 @@ double frexp(double x, int* exponent);
 double ldexp(double x, int exponent);
 double modf(double x, double* intpart);
 double hypot(double x, double y);
+
+/* POSIX file I/O functions (declared in unistd.h, included via stdlib.h) */
+/* Note: open, close, read, write, lseek are already declared in system headers */
+
+/* Division functions (div and ldiv prototypes are in stdlib.h) */
+/* Implementation in System71StdLib.c provides bare-metal versions */
 
 /* Networking byte order functions */
 uint16_t htons(uint16_t hostshort);

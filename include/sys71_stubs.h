@@ -90,6 +90,10 @@ long long __divdi3(long long a, long long b);
 /* POSIX */
 int sched_yield(void);
 
+/* Runtime stubs */
+void __stack_chk_fail(void);
+void __stack_chk_fail_local(void);
+
 /* QuickDraw */
 typedef void (*DeskHookProc)(RgnHandle invalidRgn);
 void SetDeskHook(DeskHookProc proc);

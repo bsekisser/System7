@@ -56,6 +56,9 @@ void SetupMenuBar(void);
 void EnableMenuItems(void);
 void DisableMenuItems(void);
 
+/* Desktop management */
+void RefreshDesktopRect(Rect* rect);
+
 #endif /* FINDER_PROTO_H */
 
 /*
