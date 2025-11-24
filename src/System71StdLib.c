@@ -375,11 +375,7 @@ void perror(const char* s) {
         serial_puts(s);
         serial_puts(": ");
     }
-#if defined(__aarch64__) && defined(__APPLE__)
     serial_puts(sys71_strerror(errno));
-#else
-    serial_puts(strerror(errno));
-#endif
     serial_puts("\n");
 }
 

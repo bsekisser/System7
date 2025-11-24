@@ -193,6 +193,8 @@ extern void GenerateSystemEvent(short eventType, int message, Point where, short
  * ExpandMem contains global state and handles that don't fit in the original
  * 256-byte low memory area. It's allocated in the system heap during boot. */
 
+#ifndef EXPANDMEM_FULL_IMPL
+/* Stub implementations when ExpandMem.c is not included */
 void ExpandMemInit(void) {
     SYSTEM_LOG_DEBUG("ExpandMemInit: Initializing expanded memory\n");
     /* In a full implementation, this would:
@@ -225,6 +227,7 @@ void ExpandMemSetAppleTalkInactive(void) {
      *
      * For kernel environment without networking, this is a no-op */
 }
+#endif /* EXPANDMEM_FULL_IMPL */
 void SetAutoDecompression(Boolean enable) {
     SYSTEM_LOG_DEBUG("SetAutoDecompression: %s\n", enable ? "Enabled" : "Disabled");
     /* In a full implementation, this would:
@@ -258,6 +261,7 @@ void InstallDecompressHook(DecompressHookProc proc) {
     (void)proc;
 }
 
+#ifndef EXPANDMEM_FULL_IMPL
 void ExpandMemInstallDecompressor(void) {
     SYSTEM_LOG_DEBUG("ExpandMemInstallDecompressor: Installing default decompressor\n");
     /* In a full implementation, this would:
@@ -343,6 +347,7 @@ Boolean ExpandMemValidate(void) {
     /* Commented out: recursive wrapper issue - cannot call function with same name */
     return true; /* Stub: assume valid */
 }
+#endif /* EXPANDMEM_FULL_IMPL */
 
 /* Serial stubs */
 #include <stdarg.h>

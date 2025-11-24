@@ -187,6 +187,7 @@ else
 endif
 
 CFLAGS += -DDEFAULT_GESTALT_MACHINE_TYPE=$(GESTALT_MACHINE_TYPE)
+CFLAGS += -DEXPANDMEM_FULL_IMPL=1
 
 BEZEL_STYLE ?= auto
 ifeq ($(strip $(BEZEL_STYLE)),rounded)
@@ -227,7 +228,6 @@ C_SOURCES = src/main.c \
             src/SystemInit.c \
             src/sys71_stubs.c \
             src/System71StdLib.c \
-            src/lib/string.c \
             src/runtime_stubs.c \
             src/System/SystemTheme.c \
             src/ToolboxCompat.c \
