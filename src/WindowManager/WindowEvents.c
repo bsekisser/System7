@@ -656,12 +656,11 @@ void BeginUpdate(WindowPtr theWindow) {
             UInt32* framebuffer = (UInt32*)theWindow->port.portBits.baseAddr;
             UInt32 pitch_in_pixels = fb_pitch / bytes_per_pixel;
 
-            /* Fill with opaque white (0xFFFFFFFF = ARGB white) */
+            /* Fill with opaque white (0xFFFFFFFF = ARGB white) using memset for speed */
             for (SInt16 y = 0; y < height; y++) {
                 UInt32* row = framebuffer + (globalTop + y) * pitch_in_pixels + globalLeft;
-                for (SInt16 x = 0; x < width; x++) {
-                    row[x] = 0xFFFFFFFF;
-                }
+                /* memset fills bytes, so 0xFF fills all bytes to create 0xFFFFFFFF per pixel */
+                memset(row, 0xFF, width * sizeof(UInt32));
             }
         }
     }
