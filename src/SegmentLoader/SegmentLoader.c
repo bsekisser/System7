@@ -10,6 +10,7 @@
 #include "ResourceMgr/resource_manager.h"
 #include "MemoryMgr/MemoryManager.h"
 #include "EventManager/EventManager.h"
+#include "CPU/M68KInterp.h"
 #include "System71StdLib.h"
 #include <string.h>
 
@@ -430,8 +431,11 @@ static SInt32 LoadSeg_TrapHandler(void* trapCtx)
 static SInt32 LoadSeg_TrapHandler(void* trapCtx)
 {
     SegmentLoaderContext* ctx = (SegmentLoaderContext*)trapCtx;
+    M68KAddressSpace* mas;
     OSErr err;
     SInt16 segID;
+    CPUAddr sp;
+    UInt8 stackData[2];
 
     if (!ctx || !ctx->cpuBackend || !ctx->cpuAS) {
         SEG_LOG_ERROR("_LoadSeg: invalid context");
@@ -439,21 +443,20 @@ static SInt32 LoadSeg_TrapHandler(void* trapCtx)
     }
 
     /* Read segment ID from stack (pushed as MOVE.W #segID,-(SP)) */
-    CPUAddr sp = 0;
-    if (ctx->cpuBackend->GetRegister) {
-        ctx->cpuBackend->GetRegister(ctx->cpuAS, kCPURegA7, &sp);
-    }
+    /* Direct access to M68K address space structure */
+    mas = (M68KAddressSpace*)ctx->cpuAS;
+    sp = mas->regs.a[7];
 
-    if (sp == 0 || ctx->cpuBackend->ReadMem(ctx->cpuAS, sp, 2, &segID) != 0) {
+    err = ctx->cpuBackend->ReadMemory(ctx->cpuAS, sp, stackData, 2);
+    if (err != noErr) {
         SEG_LOG_ERROR("_LoadSeg: failed to read segment ID from stack");
         return segmentLoaderErr;
     }
 
+    segID = BE_Read16(stackData);
+
     /* Pop segment ID from stack */
-    sp += 2;
-    if (ctx->cpuBackend->SetRegister) {
-        ctx->cpuBackend->SetRegister(ctx->cpuAS, kCPURegA7, sp);
-    }
+    mas->regs.a[7] += 2;
 
     SEG_LOG_INFO("_LoadSeg trap: loading segment %d", segID);
 
