@@ -28,26 +28,6 @@
 
 /* External logging function */
 extern void serial_logf(SystemLogModule module, SystemLogLevel level, const char* fmt, ...);
-extern void serial_puts(const char* str);
-extern void serial_putchar(char ch);
-
-static void wm_log_hex_u32(uint32_t value) {
-    static const char hex[] = "0123456789ABCDEF";
-    for (int i = 7; i >= 0; --i) {
-        serial_putchar(hex[(value >> (i * 4)) & 0xF]);
-    }
-}
-
-static void wm_log_memfill(const char* tag, const void* base, size_t length) {
-    serial_puts(tag);
-    serial_puts(" base=0x");
-    wm_log_hex_u32((uint32_t)(uintptr_t)base);
-    serial_puts(" len=0x");
-    wm_log_hex_u32((uint32_t)length);
-    serial_puts(" end=0x");
-    wm_log_hex_u32((uint32_t)((uintptr_t)base + length));
-    serial_putchar('\n');
-}
 
 /* Forward declarations for internal helpers */
 static Boolean WM_IsMouseDown(void);
