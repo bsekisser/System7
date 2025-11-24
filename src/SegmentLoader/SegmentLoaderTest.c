@@ -190,6 +190,7 @@ OSErr LoadSeg_TrapHandler(void* context, CPUAddr* pc, CPUAddr* registers)
     M68KAddressSpace* mas;
     UInt16 segID;
     OSErr err;
+    CPUAddr sp;
 
     if (!ctx || !ctx->cpuAS) {
         SEG_LOG_ERROR("_LoadSeg: invalid context");
@@ -199,7 +200,9 @@ OSErr LoadSeg_TrapHandler(void* context, CPUAddr* pc, CPUAddr* registers)
     mas = (M68KAddressSpace*)ctx->cpuAS;
 
     /* Pop segment ID from stack (A7/USP) */
-    CPUAddr sp = mas->regs.a[7];
+    /* Direct access to M68K address space for test harness */
+    sp = mas->regs.a[7];
+
     UInt8 stackData[2];
     err = ctx->cpuBackend->ReadMemory(ctx->cpuAS, sp, stackData, 2);
     if (err != noErr) {
