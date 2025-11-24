@@ -412,16 +412,6 @@ ssize_t write(int fd, const void* buf, size_t count) {
     return -1;
 }
 
-off_t lseek(int fd, off_t offset, int whence) {
-    /* Stub: no seekable file I/O */
-    (void)fd;
-    (void)offset;
-    (void)whence;
-    extern int errno;
-    errno = 9;  /* EBADF */
-    return -1;
-}
-
 /* Time and delay functions */
 unsigned int sleep(unsigned int seconds) {
     /* Simple busy-wait sleep (not accurate, cooperative) */
@@ -1079,7 +1069,7 @@ int isspace(int c) {
     return (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v');
 }
 
-int isalpha(int c) {
+static inline int isalpha(int c) {
     return ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'));
 }
 
@@ -1087,11 +1077,11 @@ int isalnum(int c) {
     return isalpha(c) || isdigit(c);
 }
 
-int isupper(int c) {
+static inline int isupper(int c) {
     return (c >= 'A' && c <= 'Z');
 }
 
-int islower(int c) {
+static inline int islower(int c) {
     return (c >= 'a' && c <= 'z');
 }
 

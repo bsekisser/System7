@@ -209,7 +209,7 @@ int open(const char* pathname, int flags, ...);
 int close(int fd);
 ssize_t read(int fd, void* buf, size_t count);
 ssize_t write(int fd, const void* buf, size_t count);
-/* Note: lseek is declared in unistd.h (included via stdlib.h) */
+/* Note: lseek is declared in unistd.h (system header) with possibly different off_t type */
 
 /* Division functions */
 #ifndef _DIV_T
@@ -259,5 +259,9 @@ SInt16 LoWord(SInt32 x);
 #endif
 void BlockMoveData(const void* srcPtr, void* destPtr, Size byteCount);
 void LongMul(SInt32 a, SInt32 b, wide* result);
+
+/* GCC stack checking functions */
+void __stack_chk_fail(void);
+void __stack_chk_fail_local(void);
 
 #endif /* SYSTEM71_STDLIB_H */

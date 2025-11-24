@@ -41,6 +41,10 @@ extern "C" {
 
 OSErr MenuDispatch(SInt16 selector, void *params);
 
+/* Stub functions for resource-based menus */
+void AddResMenu(MenuHandle theMenu, ResType theType);
+void InsertResMenu(MenuHandle theMenu, ResType theType, short afterItem);
+
 /* Convenience wrappers for dispatch calls */
 OSErr CallInsertFontResMenu(MenuHandle theMenu, SInt16 afterItem);
 OSErr CallInsertIntlResMenu(MenuHandle theMenu, SInt16 afterItem, SInt16 scriptTag);
