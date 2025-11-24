@@ -188,7 +188,27 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
                 }
             }
 
-            FillRgn(window->contRgn, &qd.white);
+            /* OPTIMIZATION: Use dirty region to only fill/erase necessary areas
+             * If clobberedRgn is provided, intersect with window content region to minimize fill operations.
+             * This reduces framebuffer writes for incremental updates. */
+            if (clobberedRgn && *clobberedRgn) {
+                /* Calculate intersection of clobbered region with content region */
+                extern void SectRgn(RgnHandle srcRgnA, RgnHandle srcRgnB, RgnHandle dstRgn);
+                AutoRgnHandle dirtyContent = WM_NewAutoRgn();
+                if (dirtyContent.rgn) {
+                    SectRgn(clobberedRgn, window->contRgn, dirtyContent.rgn);
+                    if (dirtyContent.rgn && *(dirtyContent.rgn)) {
+                        FillRgn(dirtyContent.rgn, &qd.white);
+                    }
+                    WM_DisposeAutoRgn(&dirtyContent);
+                } else {
+                    /* Fallback: if dirty region calculation fails, fill entire content region */
+                    FillRgn(window->contRgn, &qd.white);
+                }
+            } else {
+                /* No dirty region provided, fill entire content region */
+                FillRgn(window->contRgn, &qd.white);
+            }
         }
     }
 
