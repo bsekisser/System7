@@ -3,6 +3,7 @@
 #include "SystemTypes.h"
 #include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowManagerInternal.h"
+#include "WindowManager/WindowRegions.h"
 #include "QuickDraw/QuickDraw.h"
 #include "ControlManager/ControlTypes.h"
 #include "SystemTheme.h"
@@ -120,15 +121,13 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     WM_LOG_TRACE("PaintOne: Switched to WMgr port for backfill\n");
 
     /* Reset clip in WMgr port */
-    extern RgnHandle NewRgn(void);
     extern void SetRectRgn(RgnHandle rgn, short left, short top, short right, short bottom);
-    extern void DisposeRgn(RgnHandle rgn);
-    RgnHandle fullClipWMgr = NewRgn();
-    if (fullClipWMgr) {
-        SetRectRgn(fullClipWMgr, -32768, -32768, 32767, 32767);
-        SetClip(fullClipWMgr);
-        DisposeRgn(fullClipWMgr);
+    AutoRgnHandle fullClipWMgr = WM_NewAutoRgn();
+    if (fullClipWMgr.rgn) {
+        SetRectRgn(fullClipWMgr.rgn, -32768, -32768, 32767, 32767);
+        SetClip(fullClipWMgr.rgn);
     }
+    WM_DisposeAutoRgn(&fullClipWMgr);
 
     /* CRITICAL: Fill content region with white background BEFORE drawing chrome
      * This prevents garbage/dotted patterns from appearing in the window content area
@@ -348,24 +347,24 @@ void ClipAbove(WindowPtr window) {
     WM_DEBUG("ClipAbove: Setting clip region");
 
     /* Create a region that excludes all windows above this one */
-    RgnHandle clipRgn = NewRgn();
-    if (clipRgn) {
+    AutoRgnHandle clipRgn = WM_NewAutoRgn();
+    if (clipRgn.rgn) {
         /* Start with full screen */
-        SetRectRgn(clipRgn, 0, 0, 1024, 768);
+        SetRectRgn(clipRgn.rgn, 0, 0, 1024, 768);
 
         /* Subtract regions of windows in front */
         WindowPtr frontWindow = FrontWindow();
         while (frontWindow && frontWindow != window) {
             if (frontWindow->visible && frontWindow->strucRgn) {
-                /* Would subtract frontWindow->strucRgn from clipRgn */
+                /* Would subtract frontWindow->strucRgn from clipRgn.rgn */
                 /* For now, simplified implementation */
             }
             frontWindow = frontWindow->nextWindow;
         }
 
-        SetClip(clipRgn);
-        DisposeRgn(clipRgn);
+        SetClip(clipRgn.rgn);
     }
+    WM_DisposeAutoRgn(&clipRgn);
 }
 
 void SaveOld(WindowPtr window) {
@@ -1012,14 +1011,12 @@ void ShowWindow(WindowPtr window) {
         serial_puts("[SHOWWIN] Redrawing desktop icons before window\n");
 
         /* Create region for area under window */
-        extern RgnHandle NewRgn(void);
-        extern void DisposeRgn(RgnHandle rgn);
-        RgnHandle windowRgn = NewRgn();
-        if (windowRgn) {
-            CopyRgn(window->strucRgn, windowRgn);
-            g_deskHook(windowRgn);  /* Redraw desktop icons in this region */
-            DisposeRgn(windowRgn);
+        AutoRgnHandle windowRgn = WM_NewAutoRgn();
+        if (windowRgn.rgn) {
+            CopyRgn(window->strucRgn, windowRgn.rgn);
+            g_deskHook(windowRgn.rgn);  /* Redraw desktop icons in this region */
         }
+        WM_DisposeAutoRgn(&windowRgn);
     }
 
     /* Paint the window */
@@ -1099,7 +1096,7 @@ void HideWindow(WindowPtr window) {
 
     /* Save the region that needs repainting */
     WM_LOG_DEBUG("[WM] HideWindow: About to declare clobberedRgn\n");
-    RgnHandle clobberedRgn = NULL;
+    AutoRgnHandle clobberedRgn = WM_NewAutoRgn();
     WM_LOG_DEBUG("[WM] HideWindow: clobberedRgn declared\n");
     WM_LOG_DEBUG("[WM] HideWindow: window pointer = 0x%08x\n", (unsigned int)P2UL(window));
     WM_LOG_DEBUG("[WM] HideWindow: &(window->strucRgn) = 0x%08x\n", (unsigned int)P2UL(&(window->strucRgn)));
@@ -1107,20 +1104,17 @@ void HideWindow(WindowPtr window) {
     RgnHandle strucRgn_value = window->strucRgn;
     WM_LOG_DEBUG("[WM] HideWindow: strucRgn value = 0x%08x\n", (unsigned int)P2UL(strucRgn_value));
     WM_LOG_DEBUG("[WM] HideWindow: About to check if strucRgn is NULL\n");
-    if (strucRgn_value) {
-        WM_LOG_DEBUG("[WM] HideWindow: strucRgn is NOT NULL, calling NewRgn()\n");
-        clobberedRgn = NewRgn();
-        WM_LOG_DEBUG("[WM] HideWindow: NewRgn returned 0x%08x\n", (unsigned int)P2UL(clobberedRgn));
-        if (clobberedRgn) {
-            WM_DEBUG("HideWindow: Calling CopyRgn()");
-            CopyRgn(strucRgn_value, clobberedRgn);
-            WM_DEBUG("HideWindow: CopyRgn returned");
-        }
+    if (strucRgn_value && clobberedRgn.rgn) {
+        WM_LOG_DEBUG("[WM] HideWindow: strucRgn is NOT NULL, allocation succeeded\n");
+        WM_LOG_DEBUG("[WM] HideWindow: NewRgn returned 0x%08x\n", (unsigned int)P2UL(clobberedRgn.rgn));
+        WM_DEBUG("HideWindow: Calling CopyRgn()");
+        CopyRgn(strucRgn_value, clobberedRgn.rgn);
+        WM_DEBUG("HideWindow: CopyRgn returned");
     }
 
     /* Erase the window's area with desktop pattern FIRST */
-    WM_DEBUG("HideWindow: About to erase region, clobberedRgn=0x%08x", (unsigned int)P2UL(clobberedRgn));
-    if (clobberedRgn) {
+    WM_DEBUG("HideWindow: About to erase region, clobberedRgn=0x%08x", (unsigned int)P2UL(clobberedRgn.rgn));
+    if (clobberedRgn.rgn) {
         extern void EraseRgn(RgnHandle rgn);
         extern void GetWMgrPort(GrafPtr* port);
         extern void SetPort(GrafPtr port);
@@ -1142,7 +1136,7 @@ void HideWindow(WindowPtr window) {
         }
 
         WM_DEBUG("HideWindow: Calling EraseRgn()");
-        EraseRgn(clobberedRgn);
+        EraseRgn(clobberedRgn.rgn);
         WM_DEBUG("HideWindow: EraseRgn returned");
 
         WM_DEBUG("HideWindow: Restoring port");
@@ -1152,19 +1146,15 @@ void HideWindow(WindowPtr window) {
 
     /* Recalculate visible regions */
     WM_DEBUG("HideWindow: Calling CalcVisBehind()");
-    CalcVisBehind(window->nextWindow, clobberedRgn);
+    CalcVisBehind(window->nextWindow, clobberedRgn.rgn);
     WM_DEBUG("HideWindow: CalcVisBehind returned");
 
     /* Repaint windows behind */
     WM_DEBUG("HideWindow: Calling PaintBehind()");
-    PaintBehind(window->nextWindow, clobberedRgn);
+    PaintBehind(window->nextWindow, clobberedRgn.rgn);
     WM_DEBUG("HideWindow: PaintBehind returned");
 
-    if (clobberedRgn) {
-        WM_DEBUG("HideWindow: Calling DisposeRgn()");
-        DisposeRgn(clobberedRgn);
-        WM_DEBUG("HideWindow: DisposeRgn returned");
-    }
+    WM_DisposeAutoRgn(&clobberedRgn);
 
     WM_DEBUG("HideWindow: RETURN");
 }
@@ -1597,13 +1587,13 @@ void WM_Update(void) {
     /* 2. Call DeskHook BEFORE windows to draw desktop icons behind windows */
     if (g_deskHook) {
         /* Create a region for the desktop */
-        RgnHandle desktopRgn = NewRgn();
-        if (desktopRgn) {
+        AutoRgnHandle desktopRgn = WM_NewAutoRgn();
+        if (desktopRgn.rgn) {
             extern void RectRgn(RgnHandle rgn, const Rect* r);
-            RectRgn(desktopRgn, &desktopRect);
-            g_deskHook(desktopRgn);
-            DisposeRgn(desktopRgn);
+            RectRgn(desktopRgn.rgn, &desktopRect);
+            g_deskHook(desktopRgn.rgn);
         }
+        WM_DisposeAutoRgn(&desktopRgn);
     }
 
     /* 3. Draw all visible windows on top of desktop icons */

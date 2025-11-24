@@ -112,12 +112,12 @@ DragWindow() -> EventPumpYield() -> ProcessModernInput() -> updates gCurrentButt
 
 **Resolution**: No changes needed. All region management is correct. WindowRegions.h provides AutoRgnHandle pattern for future code.
 
-**AutoRgnHandle Conversion (2025-01-24)** - **BLOCKED**:
-- **Initial attempt** (commit f723621): Converted all 6 temporary regions but encountered regressions (text rendering outside windows, window dragging broken). Reverted in 62586e7.
-- **Isolated test** (commit 0f8364d, reverted in bacfb06): Converted only PaintOne() and ClipAbove() SetClip regions to isolate the problem. **Same regressions occurred**.
-- **Conclusion**: The AutoRgnHandle pattern itself appears to be fundamentally broken, NOT just specific usages. Even though `SetClip()` copies region data (via `CopyRgn()`), using AutoRgnHandle causes clip region corruption.
-- **Root cause unknown**: Possible issues in WM_NewAutoRgn(), WM_DisposeAutoRgn(), region allocation timing, or compiler behavior with the struct/macro pattern.
-- **Decision**: Do NOT use AutoRgnHandle pattern until root cause is identified and fixed. Manual NewRgn()/DisposeRgn() works correctly.
+**AutoRgnHandle Conversion - FALSE DIAGNOSIS CORRECTED (2025-01-24)**:
+- **Initial attempts** (commits f723621, 0f8364d): Converted temporary regions to AutoRgnHandle but encountered regressions (text rendering outside windows, window dragging broken). Reverted.
+- **False conclusion**: Initially believed AutoRgnHandle pattern was fundamentally broken.
+- **Root cause discovered**: Bugs were **PRE-EXISTING** from commit 4a68085 "Fix window resize and drag coordinate system bugs" which actually BROKE coordinate handling by forcing portRect to LOCAL (0,0,w,h) instead of preserving position offsets.
+- **Resolution** (commit a6964a7): Reverted all WindowManager code to commit 7117509 (last known good state). Both bugs fixed - AutoRgnHandle was never the problem!
+- **Status**: AutoRgnHandle pattern is CORRECT and ready for use. Converting temporary regions to AutoRgnHandle is safe and will improve code clarity.
 
 ---
 

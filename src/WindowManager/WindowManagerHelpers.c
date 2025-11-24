@@ -8,6 +8,7 @@
 #include "SystemTypes.h"
 #include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowManagerInternal.h"
+#include "WindowManager/WindowRegions.h"
 #include "WindowManager/WMLogging.h"
 #include "QuickDraw/QuickDraw.h"
 
@@ -250,30 +251,30 @@ void WM_InvalidateScreenRegion(RgnHandle rgn) {
     while (window) {
         if (window->visible && window->strucRgn) {
             /* Check if window intersects region */
-            RgnHandle tempRgn = NewRgn();
-            if (!tempRgn) {
+            AutoRgnHandle tempRgn = WM_NewAutoRgn();
+            if (!tempRgn.rgn) {
                 /* Out of memory - skip this window */
                 window = window->nextWindow;
                 continue;
             }
 
-            Platform_IntersectRgn(window->strucRgn, rgn, tempRgn);
+            Platform_IntersectRgn(window->strucRgn, rgn, tempRgn.rgn);
 
-            if (!Platform_EmptyRgn(tempRgn)) {
+            if (!Platform_EmptyRgn(tempRgn.rgn)) {
                 /* Add to window's update region */
                 if (!window->updateRgn) {
                     window->updateRgn = NewRgn();
                     if (!window->updateRgn) {
                         /* Out of memory - dispose temp and skip */
-                        DisposeRgn(tempRgn);
+                        WM_DisposeAutoRgn(&tempRgn);
                         window = window->nextWindow;
                         continue;
                     }
                 }
-                Platform_UnionRgn(window->updateRgn, tempRgn, window->updateRgn);
+                Platform_UnionRgn(window->updateRgn, tempRgn.rgn, window->updateRgn);
             }
 
-            DisposeRgn(tempRgn);
+            WM_DisposeAutoRgn(&tempRgn);
         }
         window = window->nextWindow;
     }
