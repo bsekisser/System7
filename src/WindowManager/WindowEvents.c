@@ -631,12 +631,13 @@ void BeginUpdate(WindowPtr theWindow) {
         }
     } else {
 
-        /* CRITICAL FIX: Manually erase for direct framebuffer
+        /* CRITICAL FIX: Manually erase for Global Framebuffer approach
          *
-         * BUG: EraseRgn doesn't work correctly with Direct Framebuffer approach
-         * because updateRgn is in GLOBAL coords but port is set up for LOCAL coords.
+         * ISSUE: Most windows use the Global Framebuffer approach where:
+         * - portBits.baseAddr = start of full framebuffer (not offset to window)
+         * - portBits.bounds = window's GLOBAL position on screen
          *
-         * FIX: Manually fill the framebuffer with white pixels.
+         * We must use portBits.bounds to calculate the correct offset into the framebuffer.
          */
         if (theWindow->port.portBits.baseAddr) {
             extern uint32_t fb_pitch;
@@ -647,11 +648,19 @@ void BeginUpdate(WindowPtr theWindow) {
             SInt16 width = portRect.right - portRect.left;
             SInt16 height = portRect.bottom - portRect.top;
 
+            /* Get GLOBAL position from portBits.bounds */
+            SInt16 globalLeft = theWindow->port.portBits.bounds.left;
+            SInt16 globalTop = theWindow->port.portBits.bounds.top;
+
+            /* Calculate starting position in framebuffer using GLOBAL coords */
+            UInt32* framebuffer = (UInt32*)theWindow->port.portBits.baseAddr;
+            UInt32 pitch_in_pixels = fb_pitch / bytes_per_pixel;
+
             /* Fill with opaque white (0xFFFFFFFF = ARGB white) */
-            UInt32* pixels = (UInt32*)theWindow->port.portBits.baseAddr;
             for (SInt16 y = 0; y < height; y++) {
+                UInt32* row = framebuffer + (globalTop + y) * pitch_in_pixels + globalLeft;
                 for (SInt16 x = 0; x < width; x++) {
-                    pixels[y * (fb_pitch / bytes_per_pixel) + x] = 0xFFFFFFFF;
+                    row[x] = 0xFFFFFFFF;
                 }
             }
         }
