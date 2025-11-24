@@ -37,10 +37,11 @@ static void Local_InitializeResizeState(WindowPtr window, Point startPt, const R
 static void Local_CleanupResizeState(void);
 static void Local_InitializeSnapSizes(WindowPtr window);
 static void Local_AddSnapSize(short width, short height);
-static long Local_CalculateNewSize(Point currentPt);
+/* Future use - resize feedback functions currently unused */
+/* static long Local_CalculateNewSize(Point currentPt); */
 static Point Local_ApplySnapToSize(short width, short height);
 static void Local_StartResizeFeedback(void);
-static void Local_UpdateResizeFeedback(long newSize);
+/* static void Local_UpdateResizeFeedback(long newSize); */
 static void Local_EndResizeFeedback(void);
 WindowStateData* WM_GetWindowStateData(WindowPtr window);
 static WindowStateData* WM_CreateWindowStateData(WindowPtr window);
@@ -706,6 +707,7 @@ static void Local_AddSnapSize(short width, short height) {
  * Size Calculation and Constraints
  * ============================================================================ */
 
+#if 0 /* Future use - resize feedback system currently unused */
 static long Local_CalculateNewSize(Point currentPt) {
     /* Calculate size change from mouse movement */
     short deltaH = currentPt.h - g_resizeState.startPoint.h;
@@ -739,7 +741,9 @@ static long Local_CalculateNewSize(Point currentPt) {
     /* Return size as long (width in high word, height in low word) */
     return ((long)newWidth << 16) | (newHeight & 0xFFFF);
 }
+#endif
 
+#if 0 /* Future use - only used by disabled Local_CalculateNewSize */
 static Point Local_ApplySnapToSize(short width, short height) {
     Point result = {width, height};
 
@@ -760,6 +764,7 @@ static Point Local_ApplySnapToSize(short width, short height) {
 
     return result;
 }
+#endif
 
 /* ============================================================================
  * Resize Feedback
@@ -775,6 +780,7 @@ static void Local_StartResizeFeedback(void) {
     g_resizeState.currentBounds = g_resizeState.originalBounds;
 }
 
+#if 0 /* Future use - resize feedback system currently unused */
 static void Local_UpdateResizeFeedback(long newSize) {
     if (!g_resizeState.showFeedback) return;
 
@@ -790,6 +796,7 @@ static void Local_UpdateResizeFeedback(long newSize) {
     Platform_UpdateSizeFeedback(&oldBounds, &newBounds);
     g_resizeState.currentBounds = newBounds;
 }
+#endif
 
 static void Local_EndResizeFeedback(void) {
     if (!g_resizeState.showFeedback) return;

@@ -30,11 +30,8 @@
 
 /* [WM-019] Forward declarations for file-local Z-order helpers */
 /* Provenance: IM:Windows Vol I pp. 2-54 to 2-58 "Window Ordering" */
-static long Local_CalculateWindowStackLevel(WindowPtr window);
 static Boolean Local_IsFloatingWindow(WindowPtr window);
 static Boolean Local_IsAlertDialog(WindowPtr window);
-static void Local_RecalculateAllVisibleRegions(void);
-static void Local_ClipVisibleRegionsByHigherWindows(WindowPtr baseWindow);
 static void Local_UpdateWindowVisibilityStats(WindowPtr window, RgnHandle visibleRgn);
 static long Local_CalculateRegionArea(RgnHandle rgn);
 static void Local_DisableWindowsBehindModal(WindowPtr modalWindow);
@@ -632,8 +629,8 @@ void WM_InvalidateWindowsBelow(WindowPtr topWindow, const Rect* rect) {
  * Debug and Diagnostic Functions
  * ============================================================================ */
 
+#ifdef DEBUG_WINDOW_MANAGER
 static void WM_DumpWindowLayerInfo(void) {
-    #ifdef DEBUG_WINDOW_MANAGER
     printf("\n=== Window Layer Information ===\n");
 
     WindowManagerState* wmState = GetWindowManagerState();
@@ -660,5 +657,5 @@ static void WM_DumpWindowLayerInfo(void) {
            g_layerState.updateCounter);
 
     printf("===============================\n\n");
-    #endif
 }
+#endif

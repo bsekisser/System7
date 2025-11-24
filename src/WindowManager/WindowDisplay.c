@@ -80,8 +80,10 @@ void CheckWindowsNeedingUpdate(void) {
                 Region* rgn = *(window->updateRgn);
                 WM_LOG_TRACE("CheckWindowsNeedingUpdate:     updateRgn bbox=(%d,%d,%d,%d)\n",
                              rgn->rgnBBox.left, rgn->rgnBBox.top, rgn->rgnBBox.right, rgn->rgnBBox.bottom);
+                (void)rgn; /* Used only in WM_LOG_TRACE (debug builds) */
             }
         }
+        (void)isEmpty; /* Used only in WM_LOG_TRACE (debug builds) */
 
         if (window->visible && window->updateRgn && !EmptyRgn(window->updateRgn)) {
             WM_LOG_TRACE("CheckWindowsNeedingUpdate: Posting update event for window 0x%08x\n", (unsigned int)window);
@@ -1513,11 +1515,6 @@ static int gUpdateThrottle = 0;
 
 void SetDeskHook(DeskHookProc proc) {
     g_deskHook = proc;
-}
-
-/* Mark display as needing update when windows change */
-static void WM_InvalidateDisplay(void) {
-    gDisplayDirty = true;
 }
 
 /* Public function to mark display as dirty (used by AppSwitcher and others) */
