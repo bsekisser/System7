@@ -1953,11 +1953,22 @@ void Delay(UInt32 numTicks, UInt32* finalTicks) {
 
     UInt32 startTicks = TickCount();
     UInt32 targetTicks = startTicks + numTicks;
+    UInt32 iterations = 0;
+    const UInt32 MAX_ITERATIONS = numTicks * 1000;  /* Safety timeout: ~1000 iterations per tick */
 
     /* Wait until target tick count reached */
-    while (TickCount() < targetTicks) {
+    while (TickCount() < targetTicks && iterations < MAX_ITERATIONS) {
         /* Call SystemTask to allow DAs to run during delay */
         SystemTask();
+        iterations++;
+
+        /* If TickCount isn't advancing after many iterations, break out */
+        if (iterations > 100 && TickCount() == startTicks) {
+            /* Timer not working - just exit to prevent hang */
+            extern void serial_printf(const char* fmt, ...);
+            serial_printf("[Delay] WARNING: TickCount not advancing, exiting early (iterations=%u)\n", iterations);
+            break;
+        }
     }
 
     if (finalTicks) {
