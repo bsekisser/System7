@@ -136,7 +136,11 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
      * The application will draw over this white background when handling update events
      *
      * EXCEPTION: Skip filling windows with refCon=0 (desktop background window)
-     * as filling it with white would erase desktop icons */
+     * as filling it with white would erase desktop icons.
+     *
+     * NOTE: The refCon=0 check works because the desktop window is a special singleton
+     * created with NewWindow(nil,...,0), using refCon to distinguish it from regular windows.
+     * This is a standard Mac OS pattern; refCon values are application-specific window identifiers. */
     extern void serial_puts(const char* str);
     static char dbgbuf[128];
     static int fill_log = 0;
@@ -154,6 +158,7 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
             fill_log++;
         }
 
+        /* Don't fill the desktop background window (refCon=0) */
         if (window->refCon != 0) {
             extern void FillRgn(RgnHandle rgn, const Pattern* pat);
             extern QDGlobals qd;
