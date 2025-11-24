@@ -32,6 +32,9 @@
 /* Initialize resource data system */
 OSErr InitResourceData(void);
 
+/* Check if resource data system has been initialized */
+Boolean GetResourceDataInitialized(void);
+
 /* Get resource data by ID */
 const ResourceData* GetResourceData(ResourceDataType type, UInt16 id);
 

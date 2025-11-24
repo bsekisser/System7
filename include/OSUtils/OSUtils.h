@@ -40,6 +40,7 @@ SInt32 Munger(Handle h, SInt32 offset, const void* ptr1, SInt32 len1,
               const void* ptr2, SInt32 len2);
 
 /* Date/Time utilities */
+void InitDateTime(void);
 void GetDateTime(UInt32* secs);
 void SetDateTime(UInt32 secs);
 void ReadDateTime(UInt32* secs);

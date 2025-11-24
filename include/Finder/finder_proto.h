@@ -57,7 +57,7 @@ void EnableMenuItems(void);
 void DisableMenuItems(void);
 
 /* Desktop management */
-void RefreshDesktopRect(Rect* rect);
+void RefreshDesktopRect(const Rect* rect);
 
 #endif /* FINDER_PROTO_H */
 

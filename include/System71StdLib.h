@@ -170,7 +170,7 @@ int vasprintf(char** strp, const char* format, va_list ap)
     __attribute__((format(printf, 2, 0)));
 
 /* Character classification functions */
-/* Note: isalpha, isupper, islower are also defined as static inline in EventManager/KeyboardEvents.c */
+/* Note: isalpha, isupper, islower are defined as static inline in KeyboardEvents.c */
 int isalnum(int c);
 int isdigit(int c);
 int isspace(int c);
@@ -204,11 +204,32 @@ double ldexp(double x, int exponent);
 double modf(double x, double* intpart);
 double hypot(double x, double y);
 
-/* POSIX file I/O functions (declared in unistd.h, included via stdlib.h) */
-/* Note: open, close, read, write, lseek are already declared in system headers */
+/* POSIX file I/O functions */
+int open(const char* pathname, int flags, ...);
+int close(int fd);
+ssize_t read(int fd, void* buf, size_t count);
+ssize_t write(int fd, const void* buf, size_t count);
+/* Note: lseek is declared in unistd.h (included via stdlib.h) */
 
-/* Division functions (div and ldiv prototypes are in stdlib.h) */
-/* Implementation in System71StdLib.c provides bare-metal versions */
+/* Division functions */
+#ifndef _DIV_T
+#define _DIV_T
+typedef struct {
+    int quot;   /* Quotient */
+    int rem;    /* Remainder */
+} div_t;
+#endif
+
+#ifndef _LDIV_T
+#define _LDIV_T
+typedef struct {
+    long quot;  /* Quotient */
+    long rem;   /* Remainder */
+} ldiv_t;
+#endif
+
+div_t div(int numer, int denom);
+ldiv_t ldiv(long numer, long denom);
 
 /* Networking byte order functions */
 uint16_t htons(uint16_t hostshort);

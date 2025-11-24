@@ -159,6 +159,12 @@ void AppSwitcher_StartHideTimeout(UInt32 timeoutMs);
  */
 void AppSwitcher_CancelHideTimeout(void);
 
+/**
+ * Check if hide timeout has elapsed
+ * Called by event loop to determine if switcher should be hidden
+ */
+void AppSwitcher_CheckHideTimeout(void);
+
 /*---------------------------------------------------------------------------
  * Configuration
  *---------------------------------------------------------------------------*/

@@ -1135,6 +1135,15 @@ extern void PPC_Op_VPKPX(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_VUPKHPX(PPCAddressSpace* as, UInt32 insn);
 extern void PPC_Op_VUPKLPX(PPCAddressSpace* as, UInt32 insn);
 
+/* Memory access functions for PPC interpreter */
+UInt32 PPC_Fetch32(PPCAddressSpace* as);
+UInt32 PPC_Read32(PPCAddressSpace* as, UInt32 addr);
+UInt16 PPC_Read16(PPCAddressSpace* as, UInt32 addr);
+UInt8 PPC_Read8(PPCAddressSpace* as, UInt32 addr);
+void PPC_Write32(PPCAddressSpace* as, UInt32 addr, UInt32 value);
+void PPC_Write16(PPCAddressSpace* as, UInt32 addr, UInt16 value);
+void PPC_Write8(PPCAddressSpace* as, UInt32 addr, UInt8 value);
+
 #ifdef __cplusplus
 }
 #endif
