@@ -615,6 +615,27 @@ void BeginUpdate(WindowPtr theWindow) {
              * TODO: Fix NewGWorld() to properly allocate and initialize offscreen buffer.
              */
             PixMapPtr pm = *pmHandle;
+
+            /* SAFETY CHECK: Validate that GWorld baseAddr isn't pointing into window structure */
+            if (pm->baseAddr) {
+                uintptr_t windowStart = (uintptr_t)theWindow;
+                uintptr_t windowEnd = windowStart + sizeof(WindowRecord);
+                uintptr_t gwAddr = (uintptr_t)pm->baseAddr;
+
+                if (gwAddr >= windowStart && gwAddr < windowEnd) {
+                    serial_puts("[CORRUPTION] GWorld baseAddr points into window structure!\n");
+                    extern int sprintf(char* buf, const char* fmt, ...);
+                    char buf[128];
+                    sprintf(buf, "[CORRUPTION] window=0x%08x GWorld baseAddr=0x%08x (offset=0x%x)\n",
+                            (unsigned int)windowStart, (unsigned int)gwAddr,
+                            (unsigned int)(gwAddr - windowStart));
+                    serial_puts(buf);
+                    /* Fall back to EraseRect to avoid corruption */
+                    EraseRect(&gwBounds);
+                    return;
+                }
+            }
+
             if (pm->pixelSize == 32 && pm->baseAddr && false) {  /* DISABLED due to corruption bug */
                 UInt32* pixels = (UInt32*)pm->baseAddr;
                 SInt16 height = gwBounds.bottom - gwBounds.top;
@@ -640,6 +661,23 @@ void BeginUpdate(WindowPtr theWindow) {
          * We must use portBits.bounds to calculate the correct offset into the framebuffer.
          */
         if (theWindow->port.portBits.baseAddr) {
+            /* SAFETY CHECK: Validate that baseAddr isn't pointing into the window structure
+             * This would indicate memory corruption from GWorld or other pointer errors */
+            uintptr_t windowStart = (uintptr_t)theWindow;
+            uintptr_t windowEnd = windowStart + sizeof(WindowRecord);
+            uintptr_t bufferAddr = (uintptr_t)theWindow->port.portBits.baseAddr;
+
+            if (bufferAddr >= windowStart && bufferAddr < windowEnd) {
+                serial_puts("[CORRUPTION] portBits.baseAddr points into window structure!\n");
+                extern int sprintf(char* buf, const char* fmt, ...);
+                char buf[128];
+                sprintf(buf, "[CORRUPTION] window=0x%08x baseAddr=0x%08x (offset=0x%x)\n",
+                        (unsigned int)windowStart, (unsigned int)bufferAddr,
+                        (unsigned int)(bufferAddr - windowStart));
+                serial_puts(buf);
+                return;  /* Abort to prevent memory corruption */
+            }
+
             extern uint32_t fb_pitch;
             uint32_t bytes_per_pixel = 4;
 
