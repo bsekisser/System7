@@ -105,17 +105,6 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
         return;
     }
 
-    /* Debug logging at entry */
-    if (window->refCon == 0x54525348 || window->refCon == 0x4449534b) {
-        extern void serial_printf(const char* fmt, ...);
-        serial_printf("[PAINTONE] ENTRY: window refCon=0x%08x portBits.bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
-                     (unsigned int)window->refCon,
-                     window->port.portBits.bounds.left, window->port.portBits.bounds.top,
-                     window->port.portBits.bounds.right, window->port.portBits.bounds.bottom,
-                     window->port.portRect.left, window->port.portRect.top,
-                     window->port.portRect.right, window->port.portRect.bottom);
-    }
-
     WM_DEBUG("PaintOne: Painting window");
     WM_LOG_TRACE("PaintOne: About to GetPort/SetPort\n");
 
@@ -194,16 +183,6 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
             }
 
             FillRgn(window->contRgn, &qd.white);
-
-            /* Debug logging after FillRgn */
-            if (window->refCon == 0x54525348 || window->refCon == 0x4449534b) {
-                extern void serial_printf(const char* fmt, ...);
-                serial_printf("[PAINTONE] AFTER FillRgn: portBits.bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
-                             window->port.portBits.bounds.left, window->port.portBits.bounds.top,
-                             window->port.portBits.bounds.right, window->port.portBits.bounds.bottom,
-                             window->port.portRect.left, window->port.portRect.top,
-                             window->port.portRect.right, window->port.portRect.bottom);
-            }
         }
     }
 
@@ -220,16 +199,6 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
 
     /* Window Manager draws chrome only - content is application's job */
     /* Application must draw content via BeginUpdate/EndUpdate in update event handler */
-
-    /* Debug logging at exit */
-    if (window->refCon == 0x54525348 || window->refCon == 0x4449534b) {
-        extern void serial_printf(const char* fmt, ...);
-        serial_printf("[PAINTONE] EXIT: portBits.bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
-                     window->port.portBits.bounds.left, window->port.portBits.bounds.top,
-                     window->port.portBits.bounds.right, window->port.portBits.bounds.bottom,
-                     window->port.portRect.left, window->port.portRect.top,
-                     window->port.portRect.right, window->port.portRect.bottom);
-    }
 
     SetPort(savePort);
     WM_LOG_TRACE("PaintOne: EXIT\n");
@@ -301,42 +270,10 @@ paint_windows:
             extern void InvalRgn(RgnHandle badRgn);
             GrafPtr savePort;
             GetPort(&savePort);
-
-            /* Debug logging before SetPort */
-            if (w->refCon == 0x54525348 || w->refCon == 0x4449534b) {
-                extern void serial_printf(const char* fmt, ...);
-                serial_printf("[PAINTBEHIND] BEFORE SetPort: portBits.bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
-                             w->port.portBits.bounds.left, w->port.portBits.bounds.top,
-                             w->port.portBits.bounds.right, w->port.portBits.bounds.bottom,
-                             w->port.portRect.left, w->port.portRect.top,
-                             w->port.portRect.right, w->port.portRect.bottom);
-            }
-
             SetPort((GrafPtr)w);
-
-            /* Debug logging after SetPort */
-            if (w->refCon == 0x54525348 || w->refCon == 0x4449534b) {
-                extern void serial_printf(const char* fmt, ...);
-                serial_printf("[PAINTBEHIND] AFTER SetPort: portBits.bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
-                             w->port.portBits.bounds.left, w->port.portBits.bounds.top,
-                             w->port.portBits.bounds.right, w->port.portBits.bounds.bottom,
-                             w->port.portRect.left, w->port.portRect.top,
-                             w->port.portRect.right, w->port.portRect.bottom);
-            }
 
             /* CRITICAL: Calculate visible region and clip to it to prevent overdraw! */
             CalcVis(w);
-
-            /* Debug logging after CalcVis */
-            if (w->refCon == 0x54525348 || w->refCon == 0x4449534b) {
-                extern void serial_printf(const char* fmt, ...);
-                serial_printf("[PAINTBEHIND] AFTER CalcVis: portBits.bounds=(%d,%d,%d,%d) portRect=(%d,%d,%d,%d)\n",
-                             w->port.portBits.bounds.left, w->port.portBits.bounds.top,
-                             w->port.portBits.bounds.right, w->port.portBits.bounds.bottom,
-                             w->port.portRect.left, w->port.portRect.top,
-                             w->port.portRect.right, w->port.portRect.bottom);
-            }
-
             if (w->visRgn) {
                 w->port.clipRgn = w->visRgn;
             }
