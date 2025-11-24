@@ -4,7 +4,7 @@ This document tracks known issues, workarounds, and technical debt in the System
 
 ## Critical Issues
 
-### ✅ 1. Mouse Button Tracking May Get Stuck (TIMEOUT-001) - FIXED in Hot Mess 6
+### ✅ 1. Mouse Button Tracking May Get Stuck (TIMEOUT-001) - FIXED
 
 **Previously**: The drag loop occasionally got stuck waiting for button release even though the button was released. The drag loop used `StillDown()` to detect when the mouse button is released, but in some cases (particularly with rapid clicks or in QEMU), `StillDown()` continued returning true even after the physical button was released.
 
@@ -39,7 +39,7 @@ Implemented hysteresis-based button state debouncing with two-part strategy:
 
 ---
 
-### ✅ 2. Update Event Flow Broken (UPDATE-001) - FIXED in Hot Mess 5
+### ✅ 2. Update Event Flow Broken (UPDATE-001) - FIXED
 
 **Previously**: After dragging windows, window content did not redraw. Windows showed empty or stale content after being moved.
 
@@ -104,7 +104,7 @@ Implemented hysteresis-based button state debouncing with two-part strategy:
 
 ---
 
-### ✅ 5. EraseRgn Doesn't Work with Direct Framebuffer - FIXED in Hot Mess 6
+### ✅ 5. EraseRgn Doesn't Work with Direct Framebuffer - FIXED
 
 **Previously**: The Direct Framebuffer approach was filling entire windows with white during update, instead of erasing only the dirty region. This caused unnecessary framebuffer traffic and prevented efficient incremental updates.
 
@@ -133,7 +133,7 @@ Implemented proper region-based erasing for Direct Framebuffer:
 
 ## Low Priority / Technical Debt
 
-### ✅ 6. Dead Code: Disabled Drag State System (FIXED in Hot Mess 5)
+### ✅ 6. Dead Code: Disabled Drag State System (FIXED)
 
 **Previously**: 423 lines of unused drag state system code commented out with `#if 0` blocks
 
@@ -156,7 +156,7 @@ Several features are noted as incomplete:
 
 ## Performance Issues
 
-### ✅ 7. Excessive Screen Flushes During Window Drag (FIXED in Hot Mess 5)
+### ✅ 7. Excessive Screen Flushes During Window Drag (FIXED)
 
 **Previously**: `QDPlatform_FlushScreen()` called twice on every mouse move during window drag, causing severe performance degradation
 
@@ -170,7 +170,7 @@ Several features are noted as incomplete:
 
 ---
 
-### ✅ 8. O(n×8) Window Snapping Algorithm - OPTIMIZED in Hot Mess 6
+### ✅ 8. O(n×8) Window Snapping Algorithm - OPTIMIZED
 
 **Previously**: Naive algorithm checked all 8 edge combinations for every visible window on every mouse move, causing O(n×8) operations per pixel movement.
 
@@ -219,7 +219,7 @@ Implemented two-part optimization strategy:
 
 ## Fixed Issues
 
-### ✅ 10. Coordinate System Fragmentation (FIXED in Hot Mess 5)
+### ✅ 10. Coordinate System Fragmentation (FIXED)
 
 **Previously**: Manual synchronization of portRect (LOCAL), portBits.bounds (GLOBAL), and regions (GLOBAL) caused frequent bugs.
 
@@ -233,7 +233,7 @@ Implemented two-part optimization strategy:
 
 ---
 
-### ✅ 11. Region Memory Leaks (FIXED in Hot Mess 5)
+### ✅ 11. Region Memory Leaks (FIXED)
 
 **Previously**: Manual `DisposeRgn()` calls were easily forgotten on error paths.
 
@@ -247,7 +247,7 @@ Implemented two-part optimization strategy:
 
 ---
 
-### ✅ 12. Window Resize Coordinate Bug (FIXED in Hot Mess 4)
+### ✅ 12. Window Resize Coordinate Bug (FIXED)
 
 **Previously**: `portRect` preserved offsets instead of using LOCAL coordinates (0,0,w,h).
 
@@ -257,7 +257,7 @@ Implemented two-part optimization strategy:
 
 ---
 
-### ✅ 13. Window Drag Coordinate Bug (FIXED in Hot Mess 4)
+### ✅ 13. Window Drag Coordinate Bug (FIXED)
 
 **Previously**: Redundant `Platform_CalculateWindowRegions()` call overwrote correct values.
 
@@ -279,4 +279,4 @@ When adding workarounds or discovering new issues:
 
 ---
 
-*Last Updated: 2025-11-24 (Hot Mess 6 - button debouncing, region erasing, and window snapping improvements)*
+*Last Updated: 2025-11-24*
