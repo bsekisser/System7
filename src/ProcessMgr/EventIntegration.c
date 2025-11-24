@@ -285,7 +285,6 @@ static UInt16 GetModifiers(void) {
      * - rightOptionKey (0x4000)
      * - rightControlKey (0x8000)
      */
-    extern UInt16 GetCurrentModifiers(void);
     return GetCurrentModifiers();
 }
 

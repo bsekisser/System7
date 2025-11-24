@@ -174,6 +174,9 @@ Boolean EventAvail(EventMask mask, EventRecord* evt);
 OSErr PostEvent(EventMask evtType, UInt32 evtMessage);
 void FlushEvents(EventMask whichMask, EventMask stopMask);
 
+/* Keyboard modifier state */
+UInt16 GetCurrentModifiers(void);
+
 /* Memory Management Integration */
 OSErr Process_AllocateMemory(ProcessSerialNumber* psn, Size blockSize, Ptr* block);
 OSErr Process_DeallocateMemory(ProcessSerialNumber* psn, Ptr block);
