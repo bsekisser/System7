@@ -6,19 +6,6 @@
 
 #include <stdbool.h>
 
-/* Define off_t for freestanding environment */
-#if !defined(_OFF_T) && !defined(__OFF_T)
-#define _OFF_T
-typedef long off_t;
-#endif
-
-/* Define ssize_t if not already defined */
-#if !defined(_SSIZE_T) && !defined(__ssize_t_defined)
-#define _SSIZE_T
-#define __ssize_t_defined
-typedef long ssize_t;
-#endif
-
 /* Forward declarations for character classification functions */
 int tolower(int c);
 int toupper(int c);
@@ -1535,7 +1522,7 @@ void* bsearch(const void* key, const void* base, size_t nmemb, size_t size,
         } else if (cmp > 0) {
             left = mid + 1;
         } else {
-            return (void*)elem;
+            return (void*)(uintptr_t)elem;
         }
     }
 

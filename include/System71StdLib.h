@@ -5,11 +5,23 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
 
 /* Define POSIX types if not available */
 #ifndef __useconds_t_defined
 #define __useconds_t_defined
 typedef uint32_t useconds_t;
+#endif
+
+#ifndef __ssize_t_defined
+#define __ssize_t_defined
+typedef int32_t ssize_t;
+#endif
+
+#ifndef __off_t_defined
+#define __off_t_defined
+typedef int32_t off_t;
 #endif
 
 /* Logging ------------------------------------------------------------------ */
@@ -76,7 +88,7 @@ int strcmp(const char* s1, const char* s2);
 int strncmp(const char* s1, const char* s2, size_t n);
 char* strcat(char* dest, const char* src);
 char* strchr(const char* s, int c);
-char* sys71_strerror(int errnum);
+const char* sys71_strerror(int errnum);
 void perror(const char* s);
 size_t strspn(const char* s, const char* accept);
 size_t strcspn(const char* s, const char* reject);
@@ -84,8 +96,8 @@ char* strpbrk(const char* s, const char* accept);
 char* strtok(char* s, const char* delim);
 char* strtok_r(char* s, const char* delim, char** saveptr);
 char* strsep(char** stringp, const char* delim);
-char* strlcpy(char* dst, const char* src, size_t siz);
-char* strlcat(char* dst, const char* src, size_t siz);
+size_t strlcpy(char* dst, const char* src, size_t siz);
+size_t strlcat(char* dst, const char* src, size_t siz);
 char* strcasestr(const char* haystack, const char* needle);
 char* index(const char* s, int c);
 char* rindex(const char* s, int c);
@@ -94,14 +106,16 @@ char* strupr(char* s);
 char* strlwr(char* s);
 char* strrev(char* s);
 char* basename(const char* path);
-char* dirname(char* path);
+char* dirname(const char* path);
 void c2pstrcpy(unsigned char* pstr, const char* cstr);
-char* p2cstrcpy(char* cstr, const unsigned char* pstr);
-void CopyCStringToPascal(const char* src, unsigned char* dst);
+void p2cstrcpy(char* cstr, const unsigned char* pstr);
+unsigned char* CopyCStringToPascal(const char* src, unsigned char* dst);
 
 /* Conversion functions */
 int atoi(const char* str);
 long atol(const char* str);
+double atof(const char* str);
+unsigned long strtoul(const char* str, char** endptr, int base);
 
 /* Environment and utility functions */
 int atexit(void (*func)(void));
@@ -117,6 +131,12 @@ int usleep(useconds_t usec);
 /* Math functions */
 int abs(int n);
 long labs(long n);
+int min(int a, int b);
+int max(int a, int b);
+long lmin(long a, long b);
+long lmax(long a, long b);
+double fmin(double a, double b);
+double fmax(double a, double b);
 
 /* Serial output functions */
 void serial_init(void);
@@ -138,6 +158,65 @@ int sprintf(char* str, const char* format, ...)
     __attribute__((format(printf, 2, 3)));
 int snprintf(char* str, size_t size, const char* format, ...)
     __attribute__((format(printf, 3, 4)));
+int printf(const char* format, ...)
+    __attribute__((format(printf, 1, 2)));
+int vprintf(const char* format, va_list ap)
+    __attribute__((format(printf, 1, 0)));
+int vsprintf(char* str, const char* format, va_list ap)
+    __attribute__((format(printf, 2, 0)));
+int asprintf(char** strp, const char* format, ...)
+    __attribute__((format(printf, 2, 3)));
+int vasprintf(char** strp, const char* format, va_list ap)
+    __attribute__((format(printf, 2, 0)));
+
+/* Character classification functions */
+int isalnum(int c);
+int isdigit(int c);
+int isspace(int c);
+int isxdigit(int c);
+int isprint(int c);
+int isgraph(int c);
+int iscntrl(int c);
+int ispunct(int c);
+int isblank(int c);
+int isascii(int c);
+int toascii(int c);
+
+/* Standard I/O functions */
+int putchar(int c);
+int puts(const char* s);
+int getchar(void);
+char* gets(char* s);
+
+/* Utility functions */
+int clamp(int value, int min_val, int max_val);
+void qsort(void* base, size_t nmemb, size_t size,
+           int (*compar)(const void*, const void*));
+void* bsearch(const void* key, const void* base, size_t nmemb, size_t size,
+              int (*compar)(const void*, const void*));
+void srand(unsigned int seed);
+int rand(void);
+
+/* Math functions (extended) */
+double frexp(double x, int* exponent);
+double ldexp(double x, int exponent);
+double modf(double x, double* intpart);
+double hypot(double x, double y);
+
+/* Networking byte order functions */
+uint16_t htons(uint16_t hostshort);
+uint32_t htonl(uint32_t hostlong);
+uint16_t ntohs(uint16_t netshort);
+uint32_t ntohl(uint32_t netlong);
+uint16_t SwapInt16(uint16_t value);
+uint32_t SwapInt32(uint32_t value);
+
+/* Mac Toolbox Pascal string functions */
+char* CopyPascalStringToC(const unsigned char* src, char* dst);
+unsigned char PLstrlen(const unsigned char* str);
+int PLstrcmp(const unsigned char* str1, const unsigned char* str2);
+void PLstrcpy(unsigned char* dst, const unsigned char* src);
+void PLstrcat(unsigned char* dst, const unsigned char* src);
 
 /* Pointer-to-unsigned-long helper to avoid %p format pitfalls */
 #define P2UL(p) ((unsigned long)(uintptr_t)(p))
