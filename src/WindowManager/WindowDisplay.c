@@ -3,7 +3,6 @@
 #include "SystemTypes.h"
 #include "WindowManager/WindowManager.h"
 #include "WindowManager/WindowManagerInternal.h"
-#include "WindowManager/WindowRegions.h"
 #include "QuickDraw/QuickDraw.h"
 #include "ControlManager/ControlTypes.h"
 #include "SystemTheme.h"
@@ -121,13 +120,15 @@ void PaintOne(WindowPtr window, RgnHandle clobberedRgn) {
     WM_LOG_TRACE("PaintOne: Switched to WMgr port for backfill\n");
 
     /* Reset clip in WMgr port */
+    extern RgnHandle NewRgn(void);
     extern void SetRectRgn(RgnHandle rgn, short left, short top, short right, short bottom);
-    WM_WITH_AUTO_RGN(fullClipWMgr);
-    if (fullClipWMgr.rgn) {
-        SetRectRgn(fullClipWMgr.rgn, -32768, -32768, 32767, 32767);
-        SetClip(fullClipWMgr.rgn);  /* SetClip() copies region data, safe to dispose after */
+    extern void DisposeRgn(RgnHandle rgn);
+    RgnHandle fullClipWMgr = NewRgn();
+    if (fullClipWMgr) {
+        SetRectRgn(fullClipWMgr, -32768, -32768, 32767, 32767);
+        SetClip(fullClipWMgr);
+        DisposeRgn(fullClipWMgr);
     }
-    WM_CLEANUP_AUTO_RGN(fullClipWMgr);
 
     /* CRITICAL: Fill content region with white background BEFORE drawing chrome
      * This prevents garbage/dotted patterns from appearing in the window content area
@@ -347,24 +348,24 @@ void ClipAbove(WindowPtr window) {
     WM_DEBUG("ClipAbove: Setting clip region");
 
     /* Create a region that excludes all windows above this one */
-    WM_WITH_AUTO_RGN(clipRgn);
-    if (clipRgn.rgn) {
+    RgnHandle clipRgn = NewRgn();
+    if (clipRgn) {
         /* Start with full screen */
-        SetRectRgn(clipRgn.rgn, 0, 0, 1024, 768);
+        SetRectRgn(clipRgn, 0, 0, 1024, 768);
 
         /* Subtract regions of windows in front */
         WindowPtr frontWindow = FrontWindow();
         while (frontWindow && frontWindow != window) {
             if (frontWindow->visible && frontWindow->strucRgn) {
-                /* Would subtract frontWindow->strucRgn from clipRgn.rgn */
+                /* Would subtract frontWindow->strucRgn from clipRgn */
                 /* For now, simplified implementation */
             }
             frontWindow = frontWindow->nextWindow;
         }
 
-        SetClip(clipRgn.rgn);  /* SetClip() copies region data, safe to dispose after */
+        SetClip(clipRgn);
+        DisposeRgn(clipRgn);
     }
-    WM_CLEANUP_AUTO_RGN(clipRgn);
 }
 
 void SaveOld(WindowPtr window) {
