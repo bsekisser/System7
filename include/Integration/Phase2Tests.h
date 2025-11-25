@@ -48,14 +48,14 @@ void Phase2_FileIO_Cleanup(void);
  */
 
 /* Dialog Manager Integration Tests */
-/* OSErr Phase2_DialogManager_Initialize(void); */
-/* void Phase2_DialogManager_Run(void); */
-/* void Phase2_DialogManager_Cleanup(void); */
+OSErr Phase2_DialogManager_Initialize(void);
+void Phase2_DialogManager_Run(void);
+void Phase2_DialogManager_Cleanup(void);
 
 /* TextEdit Integration Tests */
-/* OSErr Phase2_TextEdit_Initialize(void); */
-/* void Phase2_TextEdit_Run(void); */
-/* void Phase2_TextEdit_Cleanup(void); */
+OSErr Phase2_TextEdit_Initialize(void);
+void Phase2_TextEdit_Run(void);
+void Phase2_TextEdit_Cleanup(void);
 
 /* QuickDraw Integration Tests */
 /* OSErr Phase2_QuickDraw_Initialize(void); */
