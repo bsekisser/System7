@@ -1,7 +1,10 @@
 # System 7 Implementation - Next Priorities
 
-**Analysis Date:** October 26, 2025
+**Last Updated:** November 24, 2025
+**Previous Analysis Date:** October 26, 2025
 **PowerPC Interpreter Status:** ✅ **COMPLETE** (418 instructions, 99.9% coverage)
+
+**⚠️ MAJOR UPDATE:** Three previously critical priorities are now marked COMPLETE. See "Important Discovery" below for details.
 
 ---
 
@@ -15,137 +18,154 @@
 - **Event Manager**: Mouse/keyboard events with modifier support
 - **Window Manager**: Complete with drag, resize, activation, focus
 - **QuickDraw Core**: Drawing primitives, text rendering (Chicago 12), CopyBits with depth conversion
+- **QuickDraw Pictures**: PICT format parser with 25+ opcodes (v1 and v2 supported)
 - **Dialog Manager**: Modal dialogs with focus rings, keyboard navigation, Cmd-. cancel
 - **Control Manager**: Buttons, checkboxes, radio buttons, edit text with focus
 - **Keyboard Navigation**: Tab/Shift-Tab traversal, Return/Escape/Space activation
+- **Resource Manager**: File opening, closing, and resource chain management
+- **File Manager**: Read and write operations with file extension support (with limitations)
 
 ### Apps Currently Running
 - **SimpleText**: Opens, displays text, supports typing with caret
 - **MacPaint**: Launches, displays canvas
 
+### Important Discovery (November 24, 2025)
+The three items listed as "CRITICAL PRIORITY" below are **already substantially implemented**. The codebase is further along than the priorities document indicated:
+
+1. **DrawPicture PICT Opcode Parser** - Fully implemented with 25+ opcodes
+2. **Resource Manager File Opening** - Fully implemented with proper chain management
+3. **File Manager Write Support** - Substantially implemented with one known limitation (pre-allocated extents)
+
+This discovery was made through systematic code investigation of the three priority items. The focus has shifted from implementing these features to completing/testing them.
+
 ---
 
 ## 🔴 CRITICAL PRIORITY (Blocking App Functionality)
 
-### 1. **DrawPicture PICT Opcode Parser**
+### 1. **DrawPicture PICT Opcode Parser** ✅ ALREADY IMPLEMENTED
 **Impact:** HIGH - Many Mac apps use PICT resources for graphics
-**Current State:** `src/QuickDraw/quickdraw_pictures.c:44-96` - Just frames destination rect, doesn't parse opcodes
-**Why Critical:**
-- Icons, splash screens, toolbars all use PICT format
-- Finder desktop patterns stored as PICT
-- Many app UIs broken without this
+**Current State:** `src/QuickDraw/quickdraw_pictures.c:261-584` - **COMPREHENSIVE IMPLEMENTATION**
+**Status:** COMPLETE with 25+ opcodes supported
 
-**Implementation Plan:**
-- Parse PICT v1/v2 header (version, bounds rect)
-- Implement core opcodes:
-  - 0x0001: Clip region
-  - 0x0011-0x001F: Font/text setup
-  - 0x0020-0x0027: Line/rect/oval drawing
-  - 0x0028-0x002B: Same frame/paint/erase
-  - 0x0030-0x0037: Frame/fill arc, polygon
-  - 0x0090-0x0098: BitsRect/BitsRgn (bitmap drawing)
-  - 0x00A1: Short comment (skip)
-  - 0x00FF: End of picture
-- Scale coordinates based on destination rect vs. picture bounds
-- Route drawing calls through existing QuickDraw primitives
+**Already Implemented:**
+- PICT v1/v2 header parsing (version, bounds rect, frame rate)
+- Core opcodes implemented:
+  - 0x00: NOP
+  - 0x01: Clip region
+  - 0x03-0x0D: Font/text setup, pen settings, origin
+  - 0x30-0x34: Frame/paint/erase/invert rect
+  - 0x40-0x53: Round rects and arcs
+  - 0x70-0x71: Polygons
+  - 0x90, 0x98: Bitmap and packed bitmap drawing
+  - 0xA0-0xA1: Comments (parsed and skipped)
+  - 0xFF: End of picture
+- Coordinate scaling based on destination rect vs. picture bounds
+- QuickDraw primitive routing for all drawing operations
 
-**Estimated Effort:** 4-6 hours
-**Files to Modify:**
-- `src/QuickDraw/quickdraw_pictures.c`
+**What's Left:**
+- Testing with actual PICT files from Mac apps
+- Verifying all opcode handlers work correctly in real scenarios
+- Potential edge case handling for malformed PICT data
 
----
-
-### 2. **Resource Manager - File Opening Support**
-**Impact:** HIGH - Apps can't load resources from separate files
-**Current State:** `src/ResourceMgr/ResourceMgr.c:944` - `OpenResFile` is stub
-**Why Critical:**
-- Apps need to open their own resource fork
-- Desk accessories stored in separate resource files
-- Extensions/control panels are resource files
-
-**Implementation Plan:**
-- Implement `OpenResFile(filename)`:
-  - Call HFS to open file's resource fork
-  - Parse resource map header (data offset, map offset, type list, name list)
-  - Build in-memory resource map structure
-  - Add to resource chain (search order)
-- Implement `CloseResFile(refNum)`:
-  - Flush any changes (if write support added)
-  - Remove from chain
-  - Free memory
-- Support resource chain search (current file → app file → system file)
-
-**Related APIs to implement:**
-- `UseResFile(refNum)` - Set current resource file
-- `CurResFile()` - Get current resource file refNum
-- `Count1Resources(type)` - Count in current file only
-- `Get1IndResource(type, index)` - Get indexed resource from current file
-
-**Estimated Effort:** 3-4 hours
-**Files to Modify:**
-- `src/ResourceMgr/ResourceMgr.c`
-- `include/ResourceMgr.h`
+**Files Modified:**
+- `src/QuickDraw/quickdraw_pictures.c` (DrawPicture function)
 
 ---
 
-### 3. **File Manager - Write Support**
-**Impact:** MEDIUM-HIGH - Apps can't save documents
-**Current State:** `src/FS/vfs.c:724` - Write operations are stubs
-**Why Critical:**
-- SimpleText can't save edited files
-- MacPaint can't save drawings
-- Preferences can't be persisted
+### 2. **Resource Manager - File Opening Support** ✅ ALREADY IMPLEMENTED
+**Impact:** HIGH - Apps need to load resources from separate files
+**Current State:** `src/ResourceMgr/ResourceMgr.c:501-512, 1060-1109, 1167-1180` - **FULLY IMPLEMENTED**
+**Status:** COMPLETE
 
-**Implementation Plan:**
-- Implement `FSWrite(refNum, count, buffer)`:
-  - Locate file control block
-  - Write data to current position
-  - Update file position
-  - Update EOF if extended
-  - Mark buffer dirty
-- Implement `SetEOF(refNum, logEOF)`:
-  - Allocate/deallocate extents as needed
-  - Update catalog entry
-- Implement `FlushFile(refNum)`:
-  - Write dirty buffers to disk
-  - Update catalog with new sizes/dates
-- Support extent allocation for growing files
-- Update HFS catalog entries (modify date, data/resource fork sizes)
+**Already Implemented:**
+- `OpenResFile(filename)` - Opens resource fork, reads header, parses resource map
+- `CloseResFile(refNum)` - Closes resource file and updates current context
+- `UseResFile(refNum)` - Sets current resource file for searches
+- `CurResFile()` - Returns current resource file reference
+- Resource chain support with proper search order
+- Full resource map parsing (data offset, map offset, type list, name list)
 
-**Estimated Effort:** 6-8 hours
-**Files to Modify:**
-- `src/FS/vfs.c`
-- `src/FS/hfs_file.c`
-- `src/FileMgr/file_manager.c`
+**What's Left:**
+- Testing with actual application resource files
+- Verifying resource chain search order works correctly
+- Testing with multiple open resource files simultaneously
+- Potential optimization of resource lookup performance
+
+**Files Modified:**
+- `src/ResourceMgr/ResourceMgr.c` (Resource file management)
+
+---
+
+### 3. **File Manager - Write Support** ✅ PARTIALLY IMPLEMENTED
+**Impact:** MEDIUM-HIGH - Apps can save documents
+**Current State:** `src/FileManager.c:208-225, 419-458, 1079-1120` - **SUBSTANTIALLY IMPLEMENTED**
+**Status:** WORKING with limitations
+
+**Already Implemented:**
+- `FSWrite(refNum, count, buffer)` - Delegates to `PBWriteSync()` with proper parameter marshaling
+- `PBWriteSync()` - Calls `IO_WriteFork()` with position handling and count updates
+- `FSSetEOF(refNum, logEOF)` - Calls `Ext_Extend()` and `Ext_Truncate()` for file extension
+- `IO_WriteFork()` - Low-level write implementation with:
+  - Extent/allocation block mapping
+  - Permission checking
+  - Physical block writes to disk
+  - File position tracking and updates
+
+**Known Limitation:**
+- Writes cannot extend files beyond pre-allocated extents
+- File extension code at `src/FileManagerStubs.c:1270-1274` prevents automatic growth
+- Comment states: "Don't extend files - just write up to physical length"
+
+**What's Left:**
+- Enable automatic extent allocation when writing beyond current EOF
+- Implement proper allocation block management for file growth
+- Test end-to-end save functionality with real applications
+- Verify catalog entry updates with modified dates/sizes
+
+**Files Modified:**
+- `src/FileManager.c` (FSWrite, FSSetEOF, PBWriteSync)
+- `src/FileManagerStubs.c` (IO_WriteFork)
 
 ---
 
 ## 🟠 HIGH PRIORITY (Major Feature Gaps)
 
-### 4. **Font Manager - Resource-Driven Font Loading**
-**Impact:** MEDIUM-HIGH - Limited text rendering quality
-**Current State:** `docs/components/FontManager/README.md` - Only Chicago 12 available
-**Why Important:**
-- Geneva, Monaco, Courier not rendering correctly
-- No bold/italic/different sizes
-- Limits UI appearance
+### 4. **Font Manager - Resource-Driven Font Loading** ✅ ALREADY IMPLEMENTED
+**Impact:** MEDIUM-HIGH - Multi-font text rendering
+**Current State:** `src/FontManager/FontManagerCore.c:334-472` - **FULLY IMPLEMENTED**
+**Status:** COMPLETE with comprehensive font resource loading
 
-**Implementation Plan:**
-- Parse FOND resources (font family descriptors):
+**Already Implemented:**
+- `RealFont(fontID, size)` - Checks cache and loads from resources
+- `FM_LoadFontStrike()` - Full pipeline for loading individual font sizes
+- FOND resource parsing (font family descriptors):
   - Family ID, style table, size table
-  - NFNT resource IDs for each size/style
-- Parse NFNT resources (bitmap font strikes):
-  - Font metrics (ascent, descent, width table)
-  - Bitmap table (glyph images)
-  - Kern table (optional)
-- Build font cache keyed by (familyID, size, style)
-- Update `RealFont(fontID, size)` to load from resources
-- Update `GetFontInfo()` to return actual metrics
+  - NFNT resource ID matching for sizes and styles
+- NFNT resource loading (bitmap font strikes):
+  - Font metrics (ascent, descent, leading, widMax)
+  - Offset/Width table (OWT) parsing for character metrics
+  - Bitmap table extraction with row word calculation
+  - Character range support (firstChar, lastChar)
+- Font cache management with LRU eviction
+- Multi-size and multi-style support through resource lookup
+- Proper error handling with cleanup on failure
 
-**Estimated Effort:** 4-5 hours
-**Files to Modify:**
-- `src/FontManager/FontResourceLoader.c`
-- `src/FontManager/FontManagerCore.c`
+**Supported Features:**
+- Font family selection by FOND ID
+- Size matching with best-fit algorithm
+- Style application (normal, bold, italic, etc.)
+- Automatic caching of loaded strikes
+- Memory-efficient bitmap font handling
+
+**What's Left:**
+- Testing with various font resources from System 7
+- Verifying style synthesis for unavailable combinations
+- Testing edge cases with incomplete font families
+- Performance optimization of cache eviction
+
+**Files Modified:**
+- `src/FontManager/FontManagerCore.c` (RealFont, FM_LoadFontStrike, caching)
+- `src/FontManager/FontResourceLoader.c` (FOND/NFNT parsing)
 
 ---
 
@@ -299,29 +319,34 @@
 
 ## Recommended Implementation Order
 
-**Phase 1: Critical App Functionality (12-18 hours)**
-1. DrawPicture PICT parser (4-6 hours) ← **START HERE**
-2. Resource Manager file opening (3-4 hours)
-3. File Manager write support (6-8 hours)
+**⚠️ MAJOR UPDATE (November 24, 2025):**
+The first three "critical" items are already substantially implemented! See details above. Focus has shifted to:
+
+**Phase 1: Complete/Test Existing Functionality (8-12 hours)**
+1. File Manager - Enable file extension in writes (2-3 hours)
+2. Test DrawPicture with real PICT files (2-3 hours)
+3. Test ResourceManager with application files (2-2 hours)
+4. Functional testing of save/load workflows (2-4 hours)
 
 **Phase 2: Major Features (15-19 hours)**
-4. Font Manager resource loading (4-5 hours)
-5. Sound Manager audio playback (6-8 hours)
-6. TextEdit styled text (5-6 hours)
+5. Font Manager resource loading (4-5 hours)
+6. Sound Manager audio playback (6-8 hours)
+7. TextEdit styled text (5-6 hours)
 
 **Phase 3: Polish (7-10 hours)**
-7. Cursor Manager (3-4 hours)
-8. Control Manager font integration (2-3 hours)
-9. List Manager columns (2-3 hours)
+8. Cursor Manager (3-4 hours)
+9. Control Manager font integration (2-3 hours)
+10. List Manager columns (2-3 hours)
 
 ---
 
 ## Success Metrics
 
 After Phase 1 completion:
-- ✅ Apps can display icons and graphics correctly
-- ✅ Apps can open their own resource files
-- ✅ Apps can save documents
+- ✅ File save/load fully functional for all file sizes
+- ✅ PICT graphics rendering verified in real applications
+- ✅ Multi-file resource loading confirmed working
+- ✅ End-to-end workflows tested (SimpleText save/load, etc.)
 
 After Phase 2 completion:
 - ✅ Multiple fonts render correctly at different sizes
@@ -335,15 +360,31 @@ After Phase 3 completion:
 
 ---
 
-## Quick Start: Implement DrawPicture Next
+## Quick Start: Testing Phase 1 Features
 
-**Why:** Highest impact for visual app compatibility. Many Mac apps rely on PICT resources for UI elements.
+**Why:** The critical features are already implemented. Focus now on verifying they work correctly.
 
-**Action Items:**
-1. Read PICT v1/v2 spec (inside Macintosh: Imaging with QuickDraw)
-2. Implement opcode parser loop in `DrawPicture()`
-3. Add handlers for top 10-15 most common opcodes
-4. Test with MacPaint and SimpleText icons
-5. Gradually add more opcodes as needed
+**Immediate Action Items:**
 
-**Expected Outcome:** Apps will display icons, splash screens, and toolbar graphics correctly.
+1. **File Manager Write Support Testing:**
+   - Enable automatic file extension in `src/FileManagerStubs.c:IO_WriteFork()`
+   - Test creating new files with FSWrite
+   - Test extending existing files
+   - Verify SimpleText can save edited documents
+
+2. **DrawPicture Testing:**
+   - Load PICT resources from MacPaint and other apps
+   - Verify all 25+ implemented opcodes work correctly
+   - Test edge cases (empty pictures, malformed data)
+
+3. **ResourceManager Testing:**
+   - Open application-specific resource files
+   - Verify resource chain search works
+   - Test UseResFile() and CurResFile() behavior
+
+4. **Integration Testing:**
+   - Save and reload documents in SimpleText
+   - Verify graphics display correctly in MacPaint
+   - Test multi-app resource loading scenarios
+
+**Expected Outcome:** Confirm the three critical features are production-ready.
