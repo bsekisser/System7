@@ -441,14 +441,41 @@ static OSErr TE_CopyToScrap(TEHandle hTE) {
 
     /* Copy style information if styled */
     if (pTE->hStyles) {
+        /* Define style structures - internal to this file */
+        typedef struct {
+            SInt16 nStyles;
+            TextStyle styles[1];
+        } StyleTable;
+
+        typedef struct {
+            SInt16 nRuns;
+            StyleRun runs[1];
+        } RunArray;
+
+        typedef struct {
+            SInt32 nRuns;
+            SInt32 nStyles;
+            Handle styleTab;
+            Handle runArray;
+        } STRec_Style;
+
+        STRec_Style *stRec;
+        StyleTable *styleTab;
+        RunArray *runArr;
+        SInt16 runIndex;
+        SInt32 currentOffset, nextOffset;
+        SInt32 selStart = (**teRec).selStart;
+        SInt32 selEnd = (**teRec).selEnd;
+
         /* Create style scrap for styled text */
         if (g_TEStyleScrap) {
             DisposeHandle(g_TEStyleScrap);
             g_TEStyleScrap = NULL;
         }
 
-        /* Allocate temporary handle for style runs (worst case: one per character) */
-        styleHandle = NewHandle((selLen + 1) * sizeof(SInt16) * 9);
+        /* Allocate temporary handle for style runs */
+        /* Format: [count][offset, font, size, face, color(3), reserved]×N */
+        styleHandle = NewHandle((selLen + 1) * sizeof(SInt16) * 10);
         if (!styleHandle) {
             HUnlock((Handle)hTE);
             return memFullErr;
@@ -457,41 +484,92 @@ static OSErr TE_CopyToScrap(TEHandle hTE) {
         HLock(styleHandle);
         stylePtr = (SInt16*)*styleHandle;
         styleIndex = 1;  /* Leave room for count */
+        runCount = 0;
 
-        /* Use uniform style (from current TERec) for entire selection */
-        currentStyle.tsFont = (**teRec).txFont;
-        currentStyle.tsSize = (**teRec).txSize;
-        currentStyle.tsFace = (**teRec).txFace;
-        currentStyle.tsColor.red = 0;
-        currentStyle.tsColor.green = 0;
-        currentStyle.tsColor.blue = 0;
-        runCount = 1;
+        /* Lock style data to access run array and style table */
+        HLock(pTE->hStyles);
+        stRec = (STRec_Style*)*pTE->hStyles;
 
-        /* For now, create a single style entry covering the entire paste */
-        /* A full implementation would iterate through style runs, but that requires */
-        /* cross-module calls to TEGetStyle. The current implementation stores uniform */
-        /* style which can be enhanced later when module organization allows it. */
-        if (styleIndex + 8 < (selLen + 1) * 9) {
-            stylePtr[styleIndex++] = 0;  /* Start offset */
-            stylePtr[styleIndex++] = currentStyle.tsFont;
-            stylePtr[styleIndex++] = currentStyle.tsSize;
-            stylePtr[styleIndex++] = currentStyle.tsFace;
-            stylePtr[styleIndex++] = currentStyle.tsColor.red;
-            stylePtr[styleIndex++] = currentStyle.tsColor.green;
-            stylePtr[styleIndex++] = currentStyle.tsColor.blue;
-            stylePtr[styleIndex++] = 0;  /* Reserved */
+        if (stRec->runArray && *stRec->runArray &&
+            stRec->styleTab && *stRec->styleTab) {
+            /* Access run array and style table */
+            HLock(stRec->runArray);
+            HLock(stRec->styleTab);
 
-            /* Emit final style run marker */
-            stylePtr[styleIndex++] = (SInt16)selLen;  /* Run start at end (implicit end marker) */
-            stylePtr[styleIndex++] = currentStyle.tsFont;
-            stylePtr[styleIndex++] = currentStyle.tsSize;
-            stylePtr[styleIndex++] = currentStyle.tsFace;
-            stylePtr[styleIndex++] = currentStyle.tsColor.red;
-            stylePtr[styleIndex++] = currentStyle.tsColor.green;
-            stylePtr[styleIndex++] = currentStyle.tsColor.blue;
-            stylePtr[styleIndex++] = 0;  /* Reserved */
-            runCount = 2;
+            runArr = (RunArray*)*stRec->runArray;
+            styleTab = (StyleTable*)*stRec->styleTab;
+
+            /* Iterate through style runs, finding those that overlap selection */
+            for (runIndex = 0; runIndex < runArr->nRuns &&
+                 runIndex < 1000; runIndex++) {  /* 1000 = safety limit */
+
+                SInt32 runStart = runArr->runs[runIndex].startChar;
+                SInt32 nextRunStart = (runIndex + 1 < runArr->nRuns) ?
+                    runArr->runs[runIndex + 1].startChar : (**teRec).teLength;
+
+                /* Skip runs before selection */
+                if (nextRunStart <= selStart) {
+                    continue;
+                }
+
+                /* Stop after selection ends */
+                if (runStart >= selEnd) {
+                    break;
+                }
+
+                /* Calculate offset relative to selection start */
+                currentOffset = (runStart >= selStart) ? (runStart - selStart) : 0;
+                nextOffset = (nextRunStart > selEnd) ? (selEnd - selStart) : (nextRunStart - selStart);
+
+                /* Get style for this run */
+                SInt16 styleIdx = runArr->runs[runIndex].styleIndex;
+                if (styleIdx >= 0 && styleIdx < styleTab->nStyles) {
+                    TextStyle *pStyle = &styleTab->styles[styleIdx];
+
+                    /* Emit style run */
+                    if (styleIndex + 8 < (selLen + 1) * 10) {
+                        stylePtr[styleIndex++] = (SInt16)currentOffset;
+                        stylePtr[styleIndex++] = pStyle->tsFont;
+                        stylePtr[styleIndex++] = pStyle->tsSize;
+                        stylePtr[styleIndex++] = pStyle->tsFace;
+                        stylePtr[styleIndex++] = pStyle->tsColor.red;
+                        stylePtr[styleIndex++] = pStyle->tsColor.green;
+                        stylePtr[styleIndex++] = pStyle->tsColor.blue;
+                        stylePtr[styleIndex++] = 0;  /* Reserved */
+                        runCount++;
+
+                        TEC_LOG("TE_CopyToScrap: serialized run at offset %ld, style %d (font=%d, size=%d)\n",
+                                currentOffset, styleIdx, pStyle->tsFont, pStyle->tsSize);
+                    }
+                }
+            }
+
+            HUnlock(stRec->styleTab);
+            HUnlock(stRec->runArray);
+        } else {
+            /* Fallback to uniform style if structures invalid */
+            TEC_LOG("TE_CopyToScrap: style structures invalid, using fallback\n");
+            currentStyle.tsFont = (**teRec).txFont;
+            currentStyle.tsSize = (**teRec).txSize;
+            currentStyle.tsFace = (**teRec).txFace;
+            currentStyle.tsColor.red = 0;
+            currentStyle.tsColor.green = 0;
+            currentStyle.tsColor.blue = 0;
+
+            if (styleIndex + 8 < (selLen + 1) * 10) {
+                stylePtr[styleIndex++] = 0;  /* Start offset */
+                stylePtr[styleIndex++] = currentStyle.tsFont;
+                stylePtr[styleIndex++] = currentStyle.tsSize;
+                stylePtr[styleIndex++] = currentStyle.tsFace;
+                stylePtr[styleIndex++] = currentStyle.tsColor.red;
+                stylePtr[styleIndex++] = currentStyle.tsColor.green;
+                stylePtr[styleIndex++] = currentStyle.tsColor.blue;
+                stylePtr[styleIndex++] = 0;  /* Reserved */
+                runCount = 1;
+            }
         }
+
+        HUnlock(pTE->hStyles);
 
         /* Store count at beginning */
         stylePtr[0] = runCount;
