@@ -450,6 +450,14 @@ OSErr SndDoCommand(SndChannelPtr chan, const SndCommand* cmd, Boolean noWait) {
             /* Process the command */
             SndProcessCommand(chan, &qcmd);
         }
+
+        /* Queue is now empty - invoke completion callback if registered */
+        if (chan->callBack && chan->qLength == 0) {
+            SndCallBackProcPtr callback = (SndCallBackProcPtr)chan->callBack;
+            /* callBack parameter can be either the last command or NULL for general completion */
+            SND_LOG_DEBUG("SndDoCommand: Invoking command queue completion callback\n");
+            callback(chan, cmd);  /* Pass the original command that triggered queue processing */
+        }
     }
 
     return noErr;
@@ -476,6 +484,34 @@ OSErr SndDoImmediate(SndChannelPtr chan, const SndCommand* cmd) {
 
     /* Execute command immediately */
     SndProcessCommand(chan, cmd);
+
+    /* Invoke completion callback if registered (immediate execution complete) */
+    if (chan->callBack) {
+        SndCallBackProcPtr callback = (SndCallBackProcPtr)chan->callBack;
+        SND_LOG_DEBUG("SndDoImmediate: Invoking immediate command completion callback\n");
+        callback(chan, (SndCommand*)cmd);
+    }
+
+    return noErr;
+}
+
+/*
+ * SndSetChannelCallback - Set a completion callback for a sound channel
+ *
+ * @param chan - Target channel
+ * @param callback - Callback function to invoke on command completion
+ * @return noErr on success
+ *
+ * Sets the completion callback function that will be invoked when all queued
+ * commands on a channel have been processed.
+ */
+OSErr SndSetChannelCallback(SndChannelPtr chan, SndCallBackProcPtr callback) {
+    if (!chan) {
+        return paramErr;
+    }
+
+    chan->callBack = (void*)callback;
+    SND_LOG_DEBUG("SndSetChannelCallback: Set callback %p on channel %p\n", callback, chan);
 
     return noErr;
 }
@@ -599,12 +635,8 @@ static OSErr SndPlay_Format1(const UInt8* sndData, Size dataSize) {
     return noErr;
 }
 
-/* Main SndPlay implementation */
+/* Main SndPlay implementation with async/callback support */
 OSErr SndPlay(SndChannelPtr chan, SndListHandle sndHandle, Boolean async) {
-    /* For now, ignore channel and async parameters - just play the sound */
-    (void)chan;
-    (void)async;
-
     if (!sndHandle || !*sndHandle) {
         SND_LOG_ERROR("SndPlay: Invalid sound handle\n");
         return paramErr;
@@ -625,7 +657,7 @@ OSErr SndPlay(SndChannelPtr chan, SndListHandle sndHandle, Boolean async) {
     /* Read format */
     UInt16 format = (sndData[0] << 8) | sndData[1];
 
-    SND_LOG_INFO("SndPlay: Playing sound, format=%d, size=%d\n", format, dataSize);
+    SND_LOG_INFO("SndPlay: Playing sound (async=%d), format=%d, size=%d\n", async, format, dataSize);
 
     OSErr result = noErr;
 
@@ -650,6 +682,17 @@ OSErr SndPlay(SndChannelPtr chan, SndListHandle sndHandle, Boolean async) {
     }
 
     HUnlock((Handle)sndHandle);
+
+    /* If channel provided and callback registered, invoke completion callback */
+    if (chan && chan->callBack && result == noErr) {
+        /* In bare-metal environment, we play synchronously but immediately call the callback
+         * for async mode to give applications a chance to handle completion */
+        if (async) {
+            FilePlayCompletionUPP completion = (FilePlayCompletionUPP)chan->callBack;
+            SND_LOG_DEBUG("SndPlay: Invoking async completion callback\n");
+            completion(chan);
+        }
+    }
 
     return result;
 }

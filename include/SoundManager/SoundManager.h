@@ -103,6 +103,9 @@ OSErr SndDoCommand(SndChannelPtr chan,
 
 OSErr SndDoImmediate(SndChannelPtr chan, const SndCommand *cmd);
 
+/* Callback Management */
+OSErr SndSetChannelCallback(SndChannelPtr chan, SndCallBackProcPtr callback);
+
 /* Sound Control */
 OSErr SndControl(SInt16 id, SndCommand *cmd);
 
