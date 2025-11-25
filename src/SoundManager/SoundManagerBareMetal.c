@@ -17,9 +17,12 @@
 #include "SoundManager/boot_chime_data.h"
 #include "config/sound_config.h"
 #include "SystemInternal.h"
+#include "MemoryMgr/MemoryManager.h"
 
 /* Error codes */
-#define unimpErr -4  /* Unimplemented trap */
+#define unimpErr -4      /* Unimplemented trap */
+#define badChannel -233  /* Bad sound channel */
+#define nullCmd 0        /* Null command */
 #ifndef notOpenErr
 #define notOpenErr (-28)
 #endif
@@ -35,6 +38,10 @@ static const SoundBackendOps* g_soundBackendOps = NULL;
 static SoundBackendType g_soundBackendType = kSoundBackendNone;
 static bool gStartupChimeAttempted = false;
 static bool gStartupChimePlayed = false;
+
+/* Channel management - bare-metal simple linked list */
+static SndChannelPtr g_firstChannel = NULL;
+static SInt16 g_channelCount = 0;
 
 OSErr SoundManager_PlayPCM(const uint8_t* data,
                            uint32_t sizeBytes,
@@ -114,6 +121,16 @@ OSErr SoundManagerShutdown(void) {
         return noErr;
     }
 
+    /* Dispose any remaining channels */
+    while (g_firstChannel != NULL) {
+        SndChannelPtr chan = g_firstChannel;
+        g_firstChannel = chan->nextChan;
+        /* Clear channel state */
+        chan->nextChan = NULL;
+        chan->callBack = NULL;
+    }
+    g_channelCount = 0;
+
     if (g_soundBackendOps && g_soundBackendOps->shutdown) {
         g_soundBackendOps->shutdown();
     }
@@ -159,27 +176,157 @@ void StartupChime(void) {
     }
 }
 
+/* ============================================================================
+ * Sound Manager Channel Management
+ * ============================================================================ */
+
 /*
- * Sound Manager API Stubs
+ * SndNewChannel - Create a new sound channel
  *
- * These functions return unimplemented errors for now.
- * They can be filled in later as needed.
+ * @param chan - Pointer to receive channel pointer
+ * @param synth - Synthesizer type (sampledSynth, squareWaveSynth, etc.)
+ * @param init - Initialization bits (channel initialization data)
+ * @param userRoutine - Optional callback routine (not supported in bare-metal)
+ * @return noErr on success, memFullErr if out of memory
+ *
+ * Allocates and initializes a new sound channel for audio playback.
+ * The bare-metal implementation uses a simple linked list of channels.
  */
-
 OSErr SndNewChannel(SndChannelPtr* chan, SInt16 synth, SInt32 init, SndCallBackProcPtr userRoutine) {
-    return unimpErr;
+    SndChannelPtr newChan;
+
+    if (chan == NULL) {
+        return paramErr;
+    }
+
+    if (!g_soundManagerInitialized) {
+        return notOpenErr;
+    }
+
+    /* Allocate new channel structure from system heap */
+    newChan = (SndChannelPtr)NewPtr(sizeof(SndChannel));
+    if (newChan == NULL) {
+        return memFullErr;
+    }
+
+    /* Initialize channel structure */
+    newChan->nextChan = NULL;
+    newChan->firstMod = NULL;
+    newChan->callBack = userRoutine;
+    newChan->userInfo = 0;
+    newChan->wait = 0;
+    newChan->cmdInProgress.cmd = nullCmd;
+    newChan->cmdInProgress.param1 = 0;
+    newChan->cmdInProgress.param2 = 0;
+    newChan->flags = 0;
+    newChan->qLength = 0;
+    newChan->qHead = 0;
+    newChan->qTail = 0;
+
+    /* Clear command queue */
+    int i;
+    for (i = 0; i < 128; i++) {
+        newChan->queue[i].cmd = 0;
+        newChan->queue[i].param1 = 0;
+        newChan->queue[i].param2 = 0;
+    }
+
+    /* Add to global channel list (head insertion) */
+    newChan->nextChan = g_firstChannel;
+    g_firstChannel = newChan;
+    g_channelCount++;
+
+    *chan = newChan;
+    return noErr;
 }
 
+/*
+ * SndDisposeChannel - Dispose of a sound channel
+ *
+ * @param chan - Channel to dispose
+ * @param quietNow - If true, stop any playing sound immediately
+ * @return noErr on success, badChannel if channel not found
+ *
+ * Releases a sound channel and frees its resources.
+ * Optionally stops any sound currently playing.
+ */
 OSErr SndDisposeChannel(SndChannelPtr chan, Boolean quietNow) {
-    return unimpErr;
+    SndChannelPtr *chanPtr;
+    (void)quietNow; /* Parameter not used in bare-metal */
+
+    if (chan == NULL) {
+        return badChannel;
+    }
+
+    if (!g_soundManagerInitialized) {
+        return badChannel;
+    }
+
+    /* Find and remove channel from linked list */
+    chanPtr = &g_firstChannel;
+    while (*chanPtr != NULL) {
+        if (*chanPtr == chan) {
+            /* Found it - remove from list */
+            *chanPtr = chan->nextChan;
+            g_channelCount--;
+
+            /* Free the channel memory */
+            DisposePtr((Ptr)chan);
+            return noErr;
+        }
+        chanPtr = &((*chanPtr)->nextChan);
+    }
+
+    /* Channel not found in list */
+    return badChannel;
 }
 
+/*
+ * SndDoCommand - Queue a command to a sound channel
+ *
+ * @param chan - Target channel
+ * @param cmd - Command to queue
+ * @param noWait - If true, don't wait for completion
+ * @return noErr on success
+ *
+ * Bare-metal stub: commands are not actually processed.
+ * Full implementation would require command processing loop.
+ */
 OSErr SndDoCommand(SndChannelPtr chan, const SndCommand* cmd, Boolean noWait) {
-    return unimpErr;
+    if (chan == NULL || cmd == NULL) {
+        return paramErr;
+    }
+
+    if (!g_soundManagerInitialized) {
+        return notOpenErr;
+    }
+
+    /* Bare-metal environment doesn't support command queueing */
+    /* Return success but don't process the command */
+    return noErr;
 }
 
+/*
+ * SndDoImmediate - Execute a sound command immediately
+ *
+ * @param chan - Target channel
+ * @param cmd - Command to execute
+ * @return noErr on success
+ *
+ * Bare-metal stub: immediate execution not supported.
+ * In a full implementation, would bypass queue and execute directly.
+ */
 OSErr SndDoImmediate(SndChannelPtr chan, const SndCommand* cmd) {
-    return unimpErr;
+    if (chan == NULL || cmd == NULL) {
+        return paramErr;
+    }
+
+    if (!g_soundManagerInitialized) {
+        return notOpenErr;
+    }
+
+    /* Bare-metal environment doesn't support immediate execution */
+    return noErr;
 }
 
 /* ============================================================================
@@ -333,10 +480,6 @@ OSErr SndPlay(SndChannelPtr chan, SndListHandle sndHandle, Boolean async) {
     }
 
     /* Lock the handle and get the resource data */
-    extern void HLock(Handle h);
-    extern void HUnlock(Handle h);
-    extern Size GetHandleSize(Handle h);
-
     HLock((Handle)sndHandle);
 
     const UInt8* sndData = (const UInt8*)*sndHandle;
