@@ -281,6 +281,84 @@ OSErr SndDisposeChannel(SndChannelPtr chan, Boolean quietNow) {
     return badChannel;
 }
 
+/* ============================================================================
+ * Sound Command Definitions
+ * ============================================================================ */
+
+/* Sound command opcodes */
+#define freqCmd         1       /* Set frequency (param2 = frequency in Hz) */
+#define ampCmd          2       /* Set amplitude */
+#define timbreCmd       3       /* Set timbre */
+#define waveCmd         4       /* Set waveform */
+#define quietCmd        5       /* Turn off sound */
+#define restCmd         6       /* Rest for duration (param2 = duration in ms) */
+#define noteCmd         7       /* Play note (param1 = MIDI note, param2 = amplitude) */
+
+/*
+ * Process a single sound command
+ * Internal helper function that executes command logic
+ */
+static void SndProcessCommand(SndChannelPtr chan, const SndCommand* cmd) {
+    if (!cmd) return;
+
+    SND_LOG_DEBUG("SndDoCommand: Processing cmd=%d param1=%d param2=%d\n",
+                  cmd->cmd, cmd->param1, cmd->param2);
+
+    switch (cmd->cmd) {
+        case freqCmd:
+            /* Set frequency for next sound */
+            if (chan) {
+                chan->userInfo = cmd->param2;  /* Store frequency in userInfo */
+            }
+            break;
+
+        case restCmd:
+            /* Play tone with frequency from userInfo and param2 duration */
+            if (chan && chan->userInfo > 0 && cmd->param2 > 0) {
+                PCSpkr_Beep((UInt32)chan->userInfo, (UInt32)cmd->param2);
+                chan->userInfo = 0;  /* Reset after playing */
+            }
+            break;
+
+        case quietCmd:
+            /* Silence */
+            if (chan) {
+                chan->userInfo = 0;
+            }
+            break;
+
+        case noteCmd:
+            /* MIDI note - convert to frequency */
+            if (cmd->param1 >= 0 && cmd->param1 <= 127) {
+                UInt32 noteFreq = 440;  /* A4 as default */
+                if (cmd->param1 >= 57 && cmd->param1 <= 69) {
+                    /* C4 to A4 range */
+                    static const UInt16 freqTable[] = {
+                        262, 277, 294, 311, 330, 349, 370, 392, 415, 440, 466, 494, 523
+                    };
+                    int idx = cmd->param1 - 57;
+                    if (idx >= 0 && idx < 13) {
+                        noteFreq = freqTable[idx];
+                    }
+                }
+                UInt32 duration = cmd->param2 > 0 ? (UInt32)cmd->param2 : 200;
+                PCSpkr_Beep(noteFreq, duration);
+            }
+            break;
+
+        case ampCmd:
+        case timbreCmd:
+        case waveCmd:
+            /* Amplitude/timbre/waveform commands - not implemented for PC speaker */
+            SND_LOG_DEBUG("SndDoCommand: Unsupported command %d (amplitude/timbre/waveform)\n", cmd->cmd);
+            break;
+
+        default:
+            SND_LOG_DEBUG("SndDoCommand: Unknown command %d\n", cmd->cmd);
+            break;
+    }
+}
+
 /*
  * SndDoCommand - Queue a command to a sound channel
  *
@@ -289,8 +367,8 @@ OSErr SndDisposeChannel(SndChannelPtr chan, Boolean quietNow) {
  * @param noWait - If true, don't wait for completion
  * @return noErr on success
  *
- * Bare-metal stub: commands are not actually processed.
- * Full implementation would require command processing loop.
+ * Queues commands to a sound channel. In a bare-metal environment without
+ * threading support, commands are executed immediately.
  */
 OSErr SndDoCommand(SndChannelPtr chan, const SndCommand* cmd, Boolean noWait) {
     if (chan == NULL || cmd == NULL) {
@@ -301,8 +379,40 @@ OSErr SndDoCommand(SndChannelPtr chan, const SndCommand* cmd, Boolean noWait) {
         return notOpenErr;
     }
 
-    /* Bare-metal environment doesn't support command queueing */
-    /* Return success but don't process the command */
+    /* In bare-metal environment without threading, execute immediately */
+    /* Queue management for compatibility, but execution is synchronous */
+
+    /* Add command to queue */
+    if (chan->qLength < 128) {
+        /* Calculate next tail position */
+        SInt16 nextTail = (chan->qTail + 1) % 128;
+
+        /* Queue the command */
+        chan->queue[chan->qTail] = *cmd;
+        chan->qTail = nextTail;
+        chan->qLength++;
+
+        SND_LOG_DEBUG("SndDoCommand: Queued command, qLength=%d\n", chan->qLength);
+    } else {
+        /* Queue overflow */
+        SND_LOG_WARN("SndDoCommand: Command queue full for channel %p\n", chan);
+        return qErr;
+    }
+
+    /* In bare-metal, execute commands immediately */
+    /* This provides synchronous behavior without threading overhead */
+    if (chan->qLength > 0 && chan->qHead != chan->qTail) {
+        /* Process commands from queue */
+        while (chan->qHead != chan->qTail) {
+            SndCommand qcmd = chan->queue[chan->qHead];
+            chan->qHead = (chan->qHead + 1) % 128;
+            chan->qLength--;
+
+            /* Process the command */
+            SndProcessCommand(chan, &qcmd);
+        }
+    }
+
     return noErr;
 }
 
@@ -313,8 +423,8 @@ OSErr SndDoCommand(SndChannelPtr chan, const SndCommand* cmd, Boolean noWait) {
  * @param cmd - Command to execute
  * @return noErr on success
  *
- * Bare-metal stub: immediate execution not supported.
- * In a full implementation, would bypass queue and execute directly.
+ * Executes a sound command immediately without queueing.
+ * Useful for real-time control or when queue synchronization is not needed.
  */
 OSErr SndDoImmediate(SndChannelPtr chan, const SndCommand* cmd) {
     if (chan == NULL || cmd == NULL) {
@@ -325,7 +435,9 @@ OSErr SndDoImmediate(SndChannelPtr chan, const SndCommand* cmd) {
         return notOpenErr;
     }
 
-    /* Bare-metal environment doesn't support immediate execution */
+    /* Execute command immediately */
+    SndProcessCommand(chan, cmd);
+
     return noErr;
 }
 
@@ -339,15 +451,6 @@ typedef struct SndCommand_Res {
     SInt16 param1;     /* Parameter 1 */
     SInt32 param2;     /* Parameter 2 */
 } SndCommand_Res;
-
-/* Sound command opcodes */
-#define freqCmd         1       /* Set frequency (param2 = frequency in Hz) */
-#define ampCmd          2       /* Set amplitude */
-#define timbreCmd       3       /* Set timbre */
-#define waveCmd         4       /* Set waveform */
-#define quietCmd        5       /* Turn off sound */
-#define restCmd         6       /* Rest for duration (param2 = duration in ms) */
-#define noteCmd         7       /* Play note (param1 = MIDI note, param2 = amplitude) */
 
 /* 'snd ' resource header */
 typedef struct SndResourceHeader {
