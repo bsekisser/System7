@@ -328,20 +328,47 @@ static void SndProcessCommand(SndChannelPtr chan, const SndCommand* cmd) {
             break;
 
         case noteCmd:
-            /* MIDI note - convert to frequency */
+            /* MIDI note - convert to frequency using full MIDI range */
+            /* MIDI notes 0-127: 0=C-1 (8.176Hz), 60=C4 (261.63Hz), 69=A4 (440Hz), 127=G9 (12543Hz) */
             if (cmd->param1 >= 0 && cmd->param1 <= 127) {
-                UInt32 noteFreq = 440;  /* A4 as default */
-                if (cmd->param1 >= 57 && cmd->param1 <= 69) {
-                    /* C4 to A4 range */
+                UInt32 noteFreq;
+
+                /* Use extended lookup table for better accuracy across wider range */
+                if (cmd->param1 >= 48 && cmd->param1 <= 84) {
+                    /* C3 to B5 range for better coverage */
                     static const UInt16 freqTable[] = {
-                        262, 277, 294, 311, 330, 349, 370, 392, 415, 440, 466, 494, 523
+                        131, 139, 147, 156, 165, 175, 185, 196, 208, 220,  /* C3-A3 */
+                        233, 247, 262, 277, 294, 311, 330, 349, 370, 392,  /* B3-B4 */
+                        415, 440, 466, 494, 523, 587, 659, 698, 784, 880,  /* C4-A5 */
+                        988, 1047, 1109, 1175, 1245, 1319, 1397, 1480      /* B5-B5 */
                     };
-                    int idx = cmd->param1 - 57;
-                    if (idx >= 0 && idx < 13) {
+                    int idx = cmd->param1 - 48;
+                    if (idx >= 0 && idx < 37) {
                         noteFreq = freqTable[idx];
+                    } else {
+                        noteFreq = 440;  /* Fallback */
+                    }
+                } else if (cmd->param1 < 48) {
+                    /* Lower notes: estimate from C3 */
+                    noteFreq = 131;  /* C3 */
+                    int octaves = (48 - cmd->param1) / 12;
+                    for (int i = 0; i < octaves; i++) {
+                        noteFreq = noteFreq > 16 ? noteFreq / 2 : 16;  /* Clamp to min */
+                    }
+                } else {
+                    /* Higher notes: estimate from B5 */
+                    noteFreq = 1480;  /* B5 */
+                    int octaves = (cmd->param1 - 84) / 12;
+                    for (int i = 0; i < octaves; i++) {
+                        noteFreq = noteFreq < 10000 ? noteFreq * 2 : 10000;  /* Clamp to max */
                     }
                 }
+
                 UInt32 duration = cmd->param2 > 0 ? (UInt32)cmd->param2 : 200;
+
+                SND_LOG_DEBUG("SndProcessCommand: MIDI note %d -> %lu Hz, duration %lu ms\n",
+                              cmd->param1, noteFreq, duration);
+
                 PCSpkr_Beep(noteFreq, duration);
             }
             break;
