@@ -1265,13 +1265,19 @@ OSErr IO_WriteFork(FCB* fcb, UInt32 offset, UInt32 count, const void* buffer, UI
         return wrPermErr;
     }
 
-    /* Check if offset + count exceeds physical length */
+    /* Check if offset + count exceeds physical length and extend if needed */
     if (offset + count > fcb->fcbPLen) {
-        /* Don't extend files - just write up to physical length */
-        if (offset >= fcb->fcbPLen) {
-            return eofErr;
+        UInt32 newSize = offset + count;
+        err = Ext_Extend(vcb, fcb, newSize);
+        if (err != noErr) {
+            FS_LOG_ERROR("IO_WriteFork: Ext_Extend failed for size %u\n", newSize);
+            if (offset >= fcb->fcbPLen) {
+                /* Can't extend and offset is beyond EOF */
+                return err;
+            }
+            /* Partial write possible up to current extent */
+            count = fcb->fcbPLen - offset;
         }
-        count = fcb->fcbPLen - offset;
     }
 
     /* Check if we have device write capability */
