@@ -7,9 +7,15 @@
  * - File I/O operations
  * - Dialog manager workflows
  * - TextEdit functionality
+ * - QuickDraw rendering
+ * - Window manager operations
+ * - Application startup workflows
+ * - Sound manager functionality
+ * - Rendering path validation
  *
  * Phase 2 tests validate interactions between multiple subsystems and
  * exercise end-to-end workflows that depend on proper subsystem integration.
+ * Total: 56+ tests across 9 suites for comprehensive integration coverage.
  *
  * Copyright (c) 2025 System 7.1 Portable Project
  */
@@ -58,29 +64,29 @@ void Phase2_TextEdit_Run(void);
 void Phase2_TextEdit_Cleanup(void);
 
 /* QuickDraw Integration Tests */
-/* OSErr Phase2_QuickDraw_Initialize(void); */
-/* void Phase2_QuickDraw_Run(void); */
-/* void Phase2_QuickDraw_Cleanup(void); */
+OSErr Phase2_QuickDraw_Initialize(void);
+void Phase2_QuickDraw_Run(void);
+void Phase2_QuickDraw_Cleanup(void);
 
 /* Window Manager Integration Tests */
-/* OSErr Phase2_WindowManager_Initialize(void); */
-/* void Phase2_WindowManager_Run(void); */
-/* void Phase2_WindowManager_Cleanup(void); */
+OSErr Phase2_WindowManager_Initialize(void);
+void Phase2_WindowManager_Run(void);
+void Phase2_WindowManager_Cleanup(void);
 
 /* Application Startup Workflow Tests */
-/* OSErr Phase2_AppStartup_Initialize(void); */
-/* void Phase2_AppStartup_Run(void); */
-/* void Phase2_AppStartup_Cleanup(void); */
+OSErr Phase2_AppStartup_Initialize(void);
+void Phase2_AppStartup_Run(void);
+void Phase2_AppStartup_Cleanup(void);
 
 /* Sound Manager Integration Tests */
-/* OSErr Phase2_SoundManager_Initialize(void); */
-/* void Phase2_SoundManager_Run(void); */
-/* void Phase2_SoundManager_Cleanup(void); */
+OSErr Phase2_SoundManager_Initialize(void);
+void Phase2_SoundManager_Run(void);
+void Phase2_SoundManager_Cleanup(void);
 
 /* Rendering Path Integration Tests */
-/* OSErr Phase2_Rendering_Initialize(void); */
-/* void Phase2_Rendering_Run(void); */
-/* void Phase2_Rendering_Cleanup(void); */
+OSErr Phase2_Rendering_Initialize(void);
+void Phase2_Rendering_Run(void);
+void Phase2_Rendering_Cleanup(void);
 
 #ifdef __cplusplus
 }
