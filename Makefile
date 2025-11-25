@@ -476,6 +476,12 @@ C_SOURCES = src/main.c \
             src/Apps/MacPaint/MacPaint_Main.c \
             src/StartupScreen/StartupScreen.c
 
+# Add IntegrationTests if enabled
+ifeq ($(INTEGRATION_TESTS),1)
+C_SOURCES += src/Integration/IntegrationTests.c
+CFLAGS += -DINTEGRATION_TESTS=1
+endif
+
 # Add ResourceMgr sources if enabled
 ifeq ($(ENABLE_RESOURCES),1)
 C_SOURCES += src/ResourceMgr/ResourceMgr.c \

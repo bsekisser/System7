@@ -1061,6 +1061,19 @@ static void init_system71(void) {
     serial_puts("\n");
 #endif
 
+#ifdef INTEGRATION_TESTS
+    /* Phase 1 Integration Test Suite */
+    extern OSErr IntegrationTests_Initialize(void);
+    extern void IntegrationTests_Run(void);
+    extern void IntegrationTests_Cleanup(void);
+    serial_puts("\n");
+    if (IntegrationTests_Initialize() == noErr) {
+        IntegrationTests_Run();
+        IntegrationTests_Cleanup();
+    }
+    serial_puts("\n");
+#endif
+
     /* Initialize Modern Input System for PS/2 devices */
     extern SInt16 InitModernInput(const char* platform);
     if (InitModernInput("PS2") == noErr) {
