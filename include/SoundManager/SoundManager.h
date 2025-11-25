@@ -106,6 +106,15 @@ OSErr SndDoImmediate(SndChannelPtr chan, const SndCommand *cmd);
 /* Callback Management */
 OSErr SndSetChannelCallback(SndChannelPtr chan, SndCallBackProcPtr callback);
 
+/* Channel Routing and Control */
+OSErr SndSetChannelEnabled(SndChannelPtr chan, Boolean enabled);
+OSErr SndGetChannelEnabled(SndChannelPtr chan, Boolean* enabled);
+OSErr SndSetChannelMute(SndChannelPtr chan, Boolean muted);
+OSErr SndGetChannelMute(SndChannelPtr chan, Boolean* muted);
+OSErr SndSetChannelPriority(SndChannelPtr chan, SInt16 priority);
+OSErr SndGetChannelPriority(SndChannelPtr chan, SInt16* priority);
+OSErr SndGetActiveChannel(SndChannelPtr* activeChan);
+
 /* Sound Control */
 OSErr SndControl(SInt16 id, SndCommand *cmd);
 

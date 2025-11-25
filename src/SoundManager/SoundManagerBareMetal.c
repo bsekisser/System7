@@ -218,7 +218,7 @@ OSErr SndNewChannel(SndChannelPtr* chan, SInt16 synth, SInt32 init, SndCallBackP
     newChan->cmdInProgress.cmd = nullCmd;
     newChan->cmdInProgress.param1 = 0;
     newChan->cmdInProgress.param2 = 0;
-    newChan->flags = 0;
+    newChan->flags = 0x0001;  /* Initialize with channel enabled (kChannelEnabled) */
     newChan->qLength = 0;
     newChan->qHead = 0;
     newChan->qTail = 0;
@@ -514,6 +514,196 @@ OSErr SndSetChannelCallback(SndChannelPtr chan, SndCallBackProcPtr callback) {
     SND_LOG_DEBUG("SndSetChannelCallback: Set callback %p on channel %p\n", callback, chan);
 
     return noErr;
+}
+
+/* ============================================================================
+ * Channel Routing - Flags for channel control
+ * ============================================================================ */
+
+/* Channel flags stored in flags field */
+#define kChannelEnabled     0x0001  /* Channel is enabled for playback */
+#define kChannelMuted       0x0002  /* Channel is muted */
+#define kChannelPriorityMask 0x000C /* Priority bits (2 bits) - 0-3 priority levels */
+#define kChannelPriorityShift 2
+
+/*
+ * SndSetChannelEnabled - Enable or disable a channel
+ *
+ * @param chan - Target channel
+ * @param enabled - true to enable, false to disable
+ * @return noErr on success
+ *
+ * Enables or disables a channel for audio output. Disabled channels will not
+ * produce sound even if they have commands queued.
+ */
+OSErr SndSetChannelEnabled(SndChannelPtr chan, Boolean enabled) {
+    if (!chan) {
+        return paramErr;
+    }
+
+    if (enabled) {
+        chan->flags |= kChannelEnabled;
+    } else {
+        chan->flags &= ~kChannelEnabled;
+    }
+
+    SND_LOG_DEBUG("SndSetChannelEnabled: Channel %p enabled=%d\n", chan, enabled);
+    return noErr;
+}
+
+/*
+ * SndGetChannelEnabled - Get enabled status of a channel
+ *
+ * @param chan - Target channel
+ * @param enabled - Pointer to receive enabled status
+ * @return noErr on success
+ *
+ * Returns whether a channel is enabled or disabled.
+ */
+OSErr SndGetChannelEnabled(SndChannelPtr chan, Boolean* enabled) {
+    if (!chan || !enabled) {
+        return paramErr;
+    }
+
+    *enabled = (chan->flags & kChannelEnabled) ? true : false;
+    return noErr;
+}
+
+/*
+ * SndSetChannelMute - Mute or unmute a channel
+ *
+ * @param chan - Target channel
+ * @param muted - true to mute, false to unmute
+ * @return noErr on success
+ *
+ * Mutes or unmutes a channel. Muted channels retain their enabled status
+ * but produce no sound output.
+ */
+OSErr SndSetChannelMute(SndChannelPtr chan, Boolean muted) {
+    if (!chan) {
+        return paramErr;
+    }
+
+    if (muted) {
+        chan->flags |= kChannelMuted;
+    } else {
+        chan->flags &= ~kChannelMuted;
+    }
+
+    SND_LOG_DEBUG("SndSetChannelMute: Channel %p muted=%d\n", chan, muted);
+    return noErr;
+}
+
+/*
+ * SndGetChannelMute - Get mute status of a channel
+ *
+ * @param chan - Target channel
+ * @param muted - Pointer to receive mute status
+ * @return noErr on success
+ *
+ * Returns whether a channel is muted or unmuted.
+ */
+OSErr SndGetChannelMute(SndChannelPtr chan, Boolean* muted) {
+    if (!chan || !muted) {
+        return paramErr;
+    }
+
+    *muted = (chan->flags & kChannelMuted) ? true : false;
+    return noErr;
+}
+
+/*
+ * SndSetChannelPriority - Set channel priority for routing
+ *
+ * @param chan - Target channel
+ * @param priority - Priority level (0-3, where 3 is highest)
+ * @return noErr on success
+ *
+ * Sets the priority level of a channel. When multiple channels have
+ * active playback, higher priority channels take precedence for
+ * hardware output.
+ */
+OSErr SndSetChannelPriority(SndChannelPtr chan, SInt16 priority) {
+    if (!chan) {
+        return paramErr;
+    }
+
+    if (priority < 0 || priority > 3) {
+        return paramErr;  /* Invalid priority */
+    }
+
+    /* Clear old priority bits and set new ones */
+    chan->flags = (chan->flags & ~kChannelPriorityMask) |
+                  ((priority & 0x03) << kChannelPriorityShift);
+
+    SND_LOG_DEBUG("SndSetChannelPriority: Channel %p priority=%d\n", chan, priority);
+    return noErr;
+}
+
+/*
+ * SndGetChannelPriority - Get channel priority for routing
+ *
+ * @param chan - Target channel
+ * @param priority - Pointer to receive priority level
+ * @return noErr on success
+ *
+ * Returns the priority level of a channel.
+ */
+OSErr SndGetChannelPriority(SndChannelPtr chan, SInt16* priority) {
+    if (!chan || !priority) {
+        return paramErr;
+    }
+
+    *priority = (chan->flags & kChannelPriorityMask) >> kChannelPriorityShift;
+    return noErr;
+}
+
+/*
+ * SndGetActiveChannel - Find the active output channel
+ *
+ * @param activeChan - Pointer to receive active channel pointer
+ * @return noErr if channel found, badChannel if none active
+ *
+ * Returns the highest priority enabled and unmuted channel with
+ * pending sound output. This represents the channel currently
+ * (or about to be) using the hardware audio output.
+ */
+OSErr SndGetActiveChannel(SndChannelPtr* activeChan) {
+    if (!activeChan) {
+        return paramErr;
+    }
+
+    SndChannelPtr bestChan = NULL;
+    SInt16 bestPriority = -1;
+
+    /* Scan all channels for highest priority active one */
+    SndChannelPtr chan = g_firstChannel;
+    while (chan) {
+        /* Check if channel is enabled, not muted, and has pending sound */
+        if ((chan->flags & kChannelEnabled) &&
+            !(chan->flags & kChannelMuted) &&
+            (chan->qLength > 0 || chan->userInfo > 0)) {
+
+            SInt16 chanPriority = (chan->flags & kChannelPriorityMask) >> kChannelPriorityShift;
+
+            if (chanPriority > bestPriority) {
+                bestPriority = chanPriority;
+                bestChan = chan;
+            }
+        }
+
+        chan = chan->nextChan;
+    }
+
+    if (bestChan) {
+        *activeChan = bestChan;
+        SND_LOG_DEBUG("SndGetActiveChannel: Found active channel %p (priority %d)\n",
+                      bestChan, bestPriority);
+        return noErr;
+    }
+
+    *activeChan = NULL;
+    return badChannel;  /* No active channel */
 }
 
 /* ============================================================================
