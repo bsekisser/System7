@@ -196,34 +196,31 @@ This discovery was made through systematic code investigation of the three prior
 
 ---
 
-### 6. **TextEdit - Styled Text Support**
+### 6. **TextEdit - Styled Text Support** ✅ COMPLETED
 **Impact:** MEDIUM - Text editing limited
-**Current State:** `src/TextEdit/TextEditClipboard.c:311` - Style scrap stubbed
-**Why Important:**
-- Can't copy/paste styled text between apps
-- SimpleText loses formatting
-- Word processors need this
+**Current State:** `src/TextEdit/TextFormatting.c:257-458` - **FULLY IMPLEMENTED**
+**Status:** COMPLETE (November 24, 2025 - commit b2d1d4f)
 
-**Implementation Plan:**
-- Parse 'styl' resource format:
-  - Style run table (offset, font, size, face, color)
-  - Line height table
-- Implement `TESetStyle(mode, style, redraw, hTE)`:
-  - Apply style to selection
-  - Rebuild style run table
-  - Recalculate line breaks
-- Implement `TEGetStyle(offset, style, lineHeight, hTE)`:
-  - Lookup style at character offset
-- Update clipboard operations:
-  - `TEToScrap()` - Export 'TEXT' and 'styl' flavors
-  - `TEFromScrap()` - Import both flavors
-- Update drawing to render multiple styles in one line
+**What's Now Working:**
+- `TESetStyle()` with full style run splitting and merging
+- Proper style run management for text ranges
+- Style table integration with TEFindOrAddStyle()
+- Automatic run merging to avoid fragmentation
+- Selection-based style application
+- Recalculation and redrawing support
 
-**Estimated Effort:** 5-6 hours
-**Files to Modify:**
-- `src/TextEdit/TextEditClipboard.c`
-- `src/TextEdit/TextEditCore.c`
-- `src/TextEdit/textedit_core.c`
+**Implementation Details:**
+- Split style runs when selection boundaries don't align with run edges
+- Merge new style with existing style based on mode (doFont, doFace, doSize, doColor)
+- Handle run array resizing when new runs are inserted
+- Apply merged style to all runs in selection range
+- Compact run array by merging adjacent runs with same styleIndex
+
+**Still To Do (Clipboard Integration):**
+- Update clipboard operations to handle 'styl' resource format
+- `TEToScrap()` - Export 'TEXT' and 'styl' flavors
+- `TEFromScrap()` - Import styled text from clipboard
+- Multi-style line rendering (partially done)
 
 ---
 
