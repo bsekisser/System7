@@ -257,11 +257,18 @@ pascal void TEGetStyle(short offset, TextStyle *theStyle, short *lineHeight,
 pascal void TESetStyle(short mode, const TextStyle *newStyle, Boolean fRedraw,
                       TEHandle hTE)
 {
+    extern OSErr SetHandleSize(Handle h, Size newSize);
+
     TEExtPtr pTE;
     TERec **teRec;
     TEStyleHandle hStyle;
     TextStyle appliedStyle;
     SInt16 selStart, selEnd;
+    STRec_Internal* stRec;
+    RunArray* runArr;
+    SInt16 newStyleIdx;
+    SInt16 i;
+    SInt16 startRunIdx, endRunIdx;
 
     if (!hTE || !*hTE || !newStyle) return;
 
@@ -272,11 +279,11 @@ pascal void TESetStyle(short mode, const TextStyle *newStyle, Boolean fRedraw,
     /* Ensure we have a style record */
     if (!hStyle) {
         hStyle = TECreateStyleRec(hTE);
-        if (!hStyle) return;  /* Out of memory */
+        if (!hStyle) return;
         pTE->hStyles = hStyle;
     }
 
-    /* Get current style at selection start */
+    /* Get selection boundaries */
     selStart = (**teRec).selStart;
     selEnd = (**teRec).selEnd;
 
@@ -285,7 +292,6 @@ pascal void TESetStyle(short mode, const TextStyle *newStyle, Boolean fRedraw,
         if (mode & doFont) {
             (**teRec).txFont = newStyle->tsFont;
         }
-
         if (mode & doFace) {
             if (mode & doToggle) {
                 (**teRec).txFace ^= newStyle->tsFace;
@@ -293,7 +299,6 @@ pascal void TESetStyle(short mode, const TextStyle *newStyle, Boolean fRedraw,
                 (**teRec).txFace = newStyle->tsFace;
             }
         }
-
         if (mode & doSize) {
             if (mode & addSize) {
                 (**teRec).txSize += newStyle->tsSize;
@@ -303,18 +308,20 @@ pascal void TESetStyle(short mode, const TextStyle *newStyle, Boolean fRedraw,
                 (**teRec).txSize = newStyle->tsSize;
             }
         }
-
-        return;  /* Nothing more to do for empty selection */
+        return;
     }
 
-    /* Apply style to selection */
+    stRec = (STRec_Internal*)*hStyle;
+    if (!stRec->runArray || !*stRec->runArray) return;
+
+    runArr = (RunArray*)*stRec->runArray;
+
+    /* Get style at selection start and merge with new style */
     TEGetStyle(selStart, &appliedStyle, NULL, NULL, hTE);
 
-    /* Merge new style with current style based on mode */
     if (mode & doFont) {
         appliedStyle.tsFont = newStyle->tsFont;
     }
-
     if (mode & doFace) {
         if (mode & doToggle) {
             appliedStyle.tsFace ^= newStyle->tsFace;
@@ -322,7 +329,6 @@ pascal void TESetStyle(short mode, const TextStyle *newStyle, Boolean fRedraw,
             appliedStyle.tsFace = newStyle->tsFace;
         }
     }
-
     if (mode & doSize) {
         if (mode & addSize) {
             appliedStyle.tsSize += newStyle->tsSize;
@@ -332,20 +338,113 @@ pascal void TESetStyle(short mode, const TextStyle *newStyle, Boolean fRedraw,
             appliedStyle.tsSize = newStyle->tsSize;
         }
     }
-
     if (mode & doColor) {
         appliedStyle.tsColor = newStyle->tsColor;
     }
 
-    /* For simplicity, apply uniform style to entire selection */
-    /* Full implementation would split runs, but this covers basic case */
-    SInt16 styleIndex = TEFindOrAddStyle(hStyle, &appliedStyle);
+    /* Find or add the new style to the style table */
+    newStyleIdx = TEFindOrAddStyle(hStyle, &appliedStyle);
 
-    /* Note: In full implementation, would split/merge runs here */
-    /* For now, this applies the style to selection via TERec */
-    (**teRec).txFont = appliedStyle.tsFont;
-    (**teRec).txFace = appliedStyle.tsFace;
-    (**teRec).txSize = appliedStyle.tsSize;
+    /* Re-get runArr pointer in case style table resized */
+    stRec = (STRec_Internal*)*hStyle;
+    if (!stRec->runArray || !*stRec->runArray) return;
+    runArr = (RunArray*)*stRec->runArray;
+
+    /* Find runs that need modification */
+    startRunIdx = -1;
+    endRunIdx = -1;
+
+    for (i = 0; i < runArr->nRuns; i++) {
+        if (startRunIdx < 0 && runArr->runs[i].startChar >= selStart) {
+            startRunIdx = i;
+        }
+        if (runArr->runs[i].startChar < selEnd) {
+            endRunIdx = i;
+        } else if (runArr->runs[i].startChar >= selEnd) {
+            break;
+        }
+    }
+
+    if (startRunIdx < 0) startRunIdx = 0;
+    if (endRunIdx < 0) endRunIdx = runArr->nRuns - 1;
+
+    /* If selection doesn't start at run boundary, split the run */
+    if (startRunIdx < runArr->nRuns && runArr->runs[startRunIdx].startChar < selStart) {
+        Size newSize = sizeof(RunArray) + (runArr->nRuns + 1) * sizeof(StyleRun);
+        if (SetHandleSize(stRec->runArray, newSize) != noErr) return;
+
+        stRec = (STRec_Internal*)*hStyle;
+        runArr = (RunArray*)*stRec->runArray;
+
+        /* Shift runs to make room */
+        for (i = runArr->nRuns; i > startRunIdx + 1; i--) {
+            runArr->runs[i] = runArr->runs[i - 1];
+        }
+
+        /* Create new run at selection start */
+        runArr->runs[startRunIdx + 1].startChar = selStart;
+        runArr->runs[startRunIdx + 1].styleIndex = runArr->runs[startRunIdx].styleIndex;
+        runArr->nRuns++;
+        startRunIdx++;
+        endRunIdx++;
+    }
+
+    /* If selection doesn't end at run boundary, split the run */
+    if (endRunIdx < runArr->nRuns - 1 ||
+        (endRunIdx == runArr->nRuns - 1 &&
+         endRunIdx < runArr->nRuns &&
+         runArr->runs[endRunIdx].startChar < selEnd)) {
+
+        /* Find the run that contains selEnd */
+        for (i = 0; i < runArr->nRuns; i++) {
+            if (i == runArr->nRuns - 1 || runArr->runs[i + 1].startChar > selEnd) {
+                if (runArr->runs[i].startChar < selEnd) {
+                    Size newSize = sizeof(RunArray) + (runArr->nRuns + 1) * sizeof(StyleRun);
+                    if (SetHandleSize(stRec->runArray, newSize) != noErr) return;
+
+                    stRec = (STRec_Internal*)*hStyle;
+                    runArr = (RunArray*)*stRec->runArray;
+
+                    /* Shift runs to make room */
+                    for (SInt16 j = runArr->nRuns; j > i + 1; j--) {
+                        runArr->runs[j] = runArr->runs[j - 1];
+                    }
+
+                    /* Create new run at selection end */
+                    runArr->runs[i + 1].startChar = selEnd;
+                    runArr->runs[i + 1].styleIndex = runArr->runs[i].styleIndex;
+                    runArr->nRuns++;
+                    endRunIdx++;
+                }
+                break;
+            }
+        }
+    }
+
+    /* Apply new style to all runs in selection range */
+    for (i = startRunIdx; i <= endRunIdx && i < runArr->nRuns; i++) {
+        if (runArr->runs[i].startChar >= selStart &&
+            (i == runArr->nRuns - 1 || runArr->runs[i + 1].startChar <= selEnd)) {
+            runArr->runs[i].styleIndex = newStyleIdx;
+        }
+    }
+
+    /* Merge adjacent runs with same style */
+    i = 0;
+    while (i < runArr->nRuns - 1) {
+        if (runArr->runs[i].styleIndex == runArr->runs[i + 1].styleIndex) {
+            /* Remove run i+1 */
+            for (SInt16 j = i + 1; j < runArr->nRuns - 1; j++) {
+                runArr->runs[j] = runArr->runs[j + 1];
+            }
+            runArr->nRuns--;
+            SetHandleSize(stRec->runArray, sizeof(RunArray) + runArr->nRuns * sizeof(StyleRun));
+        } else {
+            i++;
+        }
+    }
+
+    stRec->nRuns = runArr->nRuns;
 
     /* Recalculate text layout */
     TECalText(hTE);
