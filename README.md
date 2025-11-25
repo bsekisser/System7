@@ -59,7 +59,8 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 - **List Manager**: System 7.1-compatible list controls with keyboard navigation
 - **Control Manager**: Standard and scrollbar controls with CDEF implementation
 - **Dialog Manager**: Keyboard navigation, focus rings, keyboard shortcuts
-- **Segment Loader**: Portable ISA-agnostic 68K segment loading system
+- **Segment Loader**: Portable ISA-agnostic 68K segment loading system with relocation
+- **M68K Interpreter**: Full instruction dispatch with 84 opcode handlers, all 14 addressing modes, exception/trap framework
 - **Sound Manager**: Command processing, MIDI conversion, channel management, callbacks
 - **Device Manager**: DCE management, driver installation/removal, and I/O operations
 - **Startup Screen**: Complete boot UI with progress tracking, phase management, and splash screen
@@ -67,9 +68,10 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Partially Implemented ⚠️
 
-- **Application Execution**: Segment loader complete, M68K interpreter execution loop stubbed
+- **Application Integration**: M68K interpreter and segment loader complete; integration testing needed to verify real applications execute
 - **Window Definition Procedures (WDEF)**: Core structure in place, partial dispatch
 - **Speech Manager**: API framework and audio passthrough only; speech synthesis engine not implemented
+- **Exception Handling (RTE)**: Return from exception partially implemented (currently halts instead of restoring context)
 
 ### Not Yet Implemented ❌
 
