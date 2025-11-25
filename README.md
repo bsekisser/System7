@@ -61,12 +61,15 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 - **Dialog Manager**: Keyboard navigation, focus rings, keyboard shortcuts
 - **Segment Loader**: Portable ISA-agnostic 68K segment loading system
 - **Sound Manager**: Command processing, MIDI conversion, channel management, callbacks
+- **Device Manager**: DCE management, driver installation/removal, and I/O operations
+- **Startup Screen**: Complete boot UI with progress tracking, phase management, and splash screen
+- **Color Manager**: Color state management with QuickDraw integration
 
 ### Partially Implemented ⚠️
 
 - **Application Execution**: Segment loader complete, M68K interpreter execution loop stubbed
 - **Window Definition Procedures (WDEF)**: Core structure in place, partial dispatch
-- **Color Manager**: Minimal support
+- **Speech Manager**: API framework and audio passthrough only; speech synthesis engine not implemented
 
 ### Not Yet Implemented ❌
 
@@ -77,13 +80,9 @@ An open-source reimplementation of Apple Macintosh System 7 for modern x86 hardw
 
 ### Subsystems Not Compiled 🔧
 
-The following have source code but aren't integrated:
-- **AppleEventManager** (8 files): Inter-application messaging
-- **DeviceManager** (8 files): Device driver infrastructure
-- **FontResources** (8 files): Font resource management
-- **GestaltManager** (2 files): Extended capability detection
-- **SpeechManager** (8 files): Text-to-speech synthesis
-- **StartupScreen** (1 file): Boot splash screen
+The following have source code but aren't integrated into the kernel:
+- **AppleEventManager** (8 files): Inter-application messaging; deliberately excluded due to pthread dependencies incompatible with freestanding environment
+- **FontResources** (header only): Font resource type definitions; actual font support provided by compiled FontResourceLoader.c
 
 ## 🏗️ Architecture
 
