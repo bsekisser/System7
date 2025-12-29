@@ -473,6 +473,10 @@ static OSErr M68K_Relocate(CPUAddressSpace as, CPUCodeHandle code,
     }
 
     codeData = (UInt8*)mhandle->hostMemory;
+    if (!codeData) {
+        serial_printf("[RELOC] ERROR: hostMemory is NULL\n");
+        return paramErr;
+    }
 
     serial_printf("[RELOC] Applying %d relocations to segment at 0x%08X\n",
                   relocs->count, segBase);
@@ -519,7 +523,15 @@ static OSErr M68K_Relocate(CPUAddressSpace as, CPUCodeHandle code,
             case kRelocJTImport:
                 /* Patch jump table import */
                 kindName = "JT_IMPORT";
-                value = jtBase + (reloc->jtIndex * 8); /* 8 bytes per JT entry */
+                /* Check for overflow: jtIndex * 8 + jtBase */
+                {
+                    UInt32 jtOffset = (UInt32)reloc->jtIndex * 8;
+                    if (jtOffset > UINT32_MAX - jtBase) {
+                        serial_printf("[RELOC] ERROR: JT index overflow at entry %d\n", i);
+                        return segmentRelocErr;
+                    }
+                    value = jtBase + jtOffset;
+                }
                 codeData[offset + 0] = (value >> 24) & 0xFF;
                 codeData[offset + 1] = (value >> 16) & 0xFF;
                 codeData[offset + 2] = (value >> 8) & 0xFF;

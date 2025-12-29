@@ -77,6 +77,13 @@ SInt16 UnitTable_Initialize(SInt16 initialSize)
     memset(g_unitTable->entries, 0, sizeof(UnitTableEntryPtr) * initialSize);
 
     /* Initialize hash table */
+    /* Check for integer overflow before multiplication */
+    if (initialSize > SIZE_MAX / 2 || initialSize > SIZE_MAX / sizeof(UnitTableEntryPtr) / 2) {
+        DisposePtr((Ptr)g_unitTable->entries);
+        DisposePtr((Ptr)g_unitTable);
+        g_unitTable = NULL;
+        return paramErr;  /* Size too large */
+    }
     g_unitTable->hashSize = initialSize * 2; /* Hash table twice the size for better distribution */
     g_unitTable->hashTable = (UnitTableEntryPtr*)NewPtr(sizeof(UnitTableEntryPtr) * g_unitTable->hashSize);
     if (g_unitTable->hashTable == NULL) {
