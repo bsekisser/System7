@@ -195,9 +195,14 @@ bool HFS_BD_Read(const HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t
             return false;
         }
 
-        /* Calculate sector alignment (cast to avoid 64-bit division) */
-        uint32_t start_sector = (uint32_t)offset / bd->sectorSize;
-        uint32_t end_sector = ((uint32_t)offset + length + bd->sectorSize - 1) / bd->sectorSize;
+        /* Reject offsets that would overflow 32-bit sector math */
+        if (offset + length > (uint64_t)UINT32_MAX * bd->sectorSize) {
+            return false;  /* Offset too large */
+        }
+
+        /* Calculate sector alignment using 64-bit math, then truncate */
+        uint32_t start_sector = (uint32_t)(offset / bd->sectorSize);
+        uint32_t end_sector = (uint32_t)((offset + length + bd->sectorSize - 1) / bd->sectorSize);
         uint32_t sector_count = end_sector - start_sector;
 
         /* Allocate temporary buffer for sector-aligned read */
@@ -233,9 +238,14 @@ bool HFS_BD_Read(const HFS_BlockDev* bd, uint64_t offset, void* buffer, uint32_t
             return false;
         }
 
-        /* Calculate block alignment */
-        uint32_t start_block = (uint32_t)offset / bd->sectorSize;
-        uint32_t end_block = ((uint32_t)offset + length + bd->sectorSize - 1) / bd->sectorSize;
+        /* Reject offsets that would overflow 32-bit block math */
+        if (offset + length > (uint64_t)UINT32_MAX * bd->sectorSize) {
+            return false;  /* Offset too large */
+        }
+
+        /* Calculate block alignment using 64-bit math, then truncate */
+        uint32_t start_block = (uint32_t)(offset / bd->sectorSize);
+        uint32_t end_block = (uint32_t)((offset + length + bd->sectorSize - 1) / bd->sectorSize);
         uint32_t block_count = end_block - start_block;
 
         /* Allocate temporary buffer for block-aligned read */
@@ -287,11 +297,16 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
             return false;
         }
 
-        /* Calculate sector alignment (cast to avoid 64-bit division) */
-        uint32_t start_sector = (uint32_t)offset / bd->sectorSize;
-        uint32_t end_sector = ((uint32_t)offset + length + bd->sectorSize - 1) / bd->sectorSize;
+        /* Reject offsets that would overflow 32-bit sector math */
+        if (offset + length > (uint64_t)UINT32_MAX * bd->sectorSize) {
+            return false;  /* Offset too large */
+        }
+
+        /* Calculate sector alignment using 64-bit math, then truncate */
+        uint32_t start_sector = (uint32_t)(offset / bd->sectorSize);
+        uint32_t end_sector = (uint32_t)((offset + length + bd->sectorSize - 1) / bd->sectorSize);
         uint32_t sector_count = end_sector - start_sector;
-        uint32_t offset_in_sector = (uint32_t)offset % bd->sectorSize;
+        uint32_t offset_in_sector = (uint32_t)(offset % bd->sectorSize);
 
         /* Allocate temporary buffer for sector-aligned write */
         /* Check for integer overflow in multiplication */
@@ -331,11 +346,16 @@ bool HFS_BD_Write(HFS_BlockDev* bd, uint64_t offset, const void* buffer, uint32_
             return false;
         }
 
-        /* Calculate block alignment */
-        uint32_t start_block = (uint32_t)offset / bd->sectorSize;
-        uint32_t end_block = ((uint32_t)offset + length + bd->sectorSize - 1) / bd->sectorSize;
+        /* Reject offsets that would overflow 32-bit block math */
+        if (offset + length > (uint64_t)UINT32_MAX * bd->sectorSize) {
+            return false;  /* Offset too large */
+        }
+
+        /* Calculate block alignment using 64-bit math, then truncate */
+        uint32_t start_block = (uint32_t)(offset / bd->sectorSize);
+        uint32_t end_block = (uint32_t)((offset + length + bd->sectorSize - 1) / bd->sectorSize);
         uint32_t block_count = end_block - start_block;
-        uint32_t offset_in_block = (uint32_t)offset % bd->sectorSize;
+        uint32_t offset_in_block = (uint32_t)(offset % bd->sectorSize);
 
         /* Allocate temporary buffer for block-aligned write */
         /* Check for integer overflow in multiplication */

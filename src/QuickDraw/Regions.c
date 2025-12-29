@@ -245,6 +245,11 @@ void RectRgn(RgnHandle rgn, const Rect *r) {
 }
 
 void CopyRgn(RgnHandle srcRgn, RgnHandle dstRgn) {
+    /* Runtime NULL checks (asserts may be disabled in release builds) */
+    if (!srcRgn || !*srcRgn || !dstRgn || !*dstRgn) {
+        g_lastRegionError = rgnOverflowErr;
+        return;
+    }
     assert(srcRgn != NULL && *srcRgn != NULL);
     assert(dstRgn != NULL && *dstRgn != NULL);
 
@@ -716,6 +721,9 @@ SInt16 GetRegionComplexity(RgnHandle rgn) {
         if (dataPtr + sizeof(SInt16) > endPtr) break;
 
         SInt16 count = *(SInt16 *)dataPtr;
+
+        /* Reject negative counts to prevent signed-to-unsigned overflow */
+        if (count < 0) break;
 
         /* Bounds check: ensure count won't cause buffer overflow */
         UInt32 advance = sizeof(SInt16) + (UInt32)count * sizeof(SInt16);

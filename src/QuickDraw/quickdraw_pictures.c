@@ -263,8 +263,19 @@ void DrawPicture(PicHandle myPicture, const Rect* dstRect) {
         return;
     }
 
+    /* Validate picture handle size before reading header */
+    Size handleSize = GetHandleSize((Handle)myPicture);
+    if (handleSize < 10) {
+        return;  /* Picture too small to contain valid header */
+    }
+
     const UInt8* raw = (const UInt8*)(*myPicture);
     SInt16 picSize = (SInt16)((raw[0] << 8) | raw[1]);
+
+    /* Validate picSize against actual handle size */
+    if (picSize < 10 || picSize > handleSize) {
+        return;  /* Invalid picture size */
+    }
     Rect picFrame;
     picFrame.top = (raw[2] << 8) | raw[3];
     picFrame.left = (raw[4] << 8) | raw[5];
