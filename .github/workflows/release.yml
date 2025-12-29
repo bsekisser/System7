@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-release:
+    name: Build Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            gcc-multilib \
+            grub-pc-bin \
+            xorriso \
+            python3 \
+            vim-common
+
+      - name: Build kernel
+        run: make PLATFORM=x86
+
+      - name: Build ISO
+        run: make iso
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: System7 ${{ steps.version.outputs.VERSION }}
+          draft: false
+          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+          files: |
+            system71.iso
+            kernel.elf
+          body: |
+            ## System7 ${{ steps.version.outputs.VERSION }}
+
+            ### Downloads
+            - `system71.iso` - Bootable ISO image for x86
+            - `kernel.elf` - Kernel binary
+
+            ### Running
+            ```bash
+            qemu-system-i386 -cdrom system71.iso -serial stdio -display sdl -m 256M
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
