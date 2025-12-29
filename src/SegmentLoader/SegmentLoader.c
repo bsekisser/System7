@@ -256,9 +256,17 @@ OSErr LoadSegment(SegmentLoaderContext* ctx, SInt16 segID)
         return err;
     }
 
-    /* Skip header and prologue */
-    const UInt8* executableCode = codeData + CODEN_HEADER_SIZE + info.prologueSkip;
-    Size executableSize = codeSize - CODEN_HEADER_SIZE - info.prologueSkip;
+    /* Skip header and prologue - validate size to prevent underflow */
+    Size headerAndPrologue = CODEN_HEADER_SIZE + info.prologueSkip;
+    if (codeSize < headerAndPrologue) {
+        SEG_LOG_ERROR("CODE %d too small: size=%lu, header+prologue=%lu",
+                      segID, (unsigned long)codeSize, (unsigned long)headerAndPrologue);
+        HUnlock(codeHandle);
+        ReleaseResource(codeHandle);
+        return segmentBadFormat;
+    }
+    const UInt8* executableCode = codeData + headerAndPrologue;
+    Size executableSize = codeSize - headerAndPrologue;
 
     /* Map into CPU address space */
     err = ctx->cpuBackend->MapExecutable(ctx->cpuAS, executableCode,
