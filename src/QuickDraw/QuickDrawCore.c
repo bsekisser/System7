@@ -820,8 +820,10 @@ void OffsetPoly(PolyHandle poly, SInt16 dh, SInt16 dv) {
     /* Offset bounding box */
     OffsetRect(&polyPtr->polyBBox, dh, dv);
 
-    /* Calculate number of points from polySize */
-    SInt16 numPoints = (polyPtr->polySize - sizeof(SInt16) - sizeof(Rect)) / sizeof(Point);
+    /* Calculate number of points from polySize (with underflow protection) */
+    SInt16 headerSize = sizeof(SInt16) + sizeof(Rect);
+    if (polyPtr->polySize < headerSize) return;
+    SInt16 numPoints = (polyPtr->polySize - headerSize) / sizeof(Point);
 
     /* Offset all points */
     for (SInt16 i = 0; i < numPoints; i++) {
@@ -834,7 +836,10 @@ void FramePoly(PolyHandle poly) {
     if (!g_currentPort || !poly || !*poly) return;
 
     Polygon *polyPtr = *poly;
-    SInt16 numPoints = (polyPtr->polySize - sizeof(SInt16) - sizeof(Rect)) / sizeof(Point);
+    /* Calculate number of points from polySize (with underflow protection) */
+    SInt16 headerSize = sizeof(SInt16) + sizeof(Rect);
+    if (polyPtr->polySize < headerSize) return;
+    SInt16 numPoints = (polyPtr->polySize - headerSize) / sizeof(Point);
 
     if (numPoints < 2) return;
 

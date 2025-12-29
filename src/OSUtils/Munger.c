@@ -97,6 +97,7 @@ SInt32 Munger(Handle h, SInt32 offset, const void* ptr1, SInt32 len1,
 
     if (searching) {
         /* Search for pattern */
+        /* searchLimit = last valid start position for pattern of length len1 */
         searchLimit = handleSize - len1;
 
         for (i = offset; i <= searchLimit; i++) {

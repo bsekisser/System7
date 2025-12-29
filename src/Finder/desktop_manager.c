@@ -502,7 +502,7 @@ static void Finder_DeskHook(RgnHandle invalidRgn)
 void ArrangeDesktopIcons(void)
 {
     extern void serial_puts(const char* str);
-    static char dbg[128];
+    static char dbg[256];
 
     const int gridSpacing = 80;  /* Spacing between icons */
     const int startX = 700;       /* Start from right side */
@@ -510,20 +510,20 @@ void ArrangeDesktopIcons(void)
     int currentX = startX;
     int currentY = startY;
 
-    sprintf(dbg, "[ARRANGE] ArrangeDesktopIcons called, count=%d\n", gDesktopIconCount);
+    snprintf(dbg, sizeof(dbg), "[ARRANGE] ArrangeDesktopIcons called, count=%d\n", gDesktopIconCount);
     serial_puts(dbg);
-    sprintf(dbg, "[ARRANGE] gDesktopIcons pointer = 0x%08X\n", (unsigned int)(uintptr_t)gDesktopIcons);
+    snprintf(dbg, sizeof(dbg), "[ARRANGE] gDesktopIcons pointer = 0x%08X\n", (unsigned int)(uintptr_t)gDesktopIcons);
     serial_puts(dbg);
-    sprintf(dbg, "[ARRANGE] gDesktopIconStatic pointer = 0x%08X\n", (unsigned int)(uintptr_t)gDesktopIconStatic);
+    snprintf(dbg, sizeof(dbg), "[ARRANGE] gDesktopIconStatic pointer = 0x%08X\n", (unsigned int)(uintptr_t)gDesktopIconStatic);
     serial_puts(dbg);
-    sprintf(dbg, "[ARRANGE] Using static storage? %d\n", gDesktopIconStaticInUse);
+    snprintf(dbg, sizeof(dbg), "[ARRANGE] Using static storage? %d\n", gDesktopIconStaticInUse);
     serial_puts(dbg);
 
     /* Memory dump of icon 0 to check for corruption */
     serial_puts("[ARRANGE] Icon 0 memory dump (first 96 bytes):\n");
     unsigned char* ptr = (unsigned char*)&gDesktopIcons[0];
     for (int i = 0; i < 96; i++) {
-        sprintf(dbg, "%02X ", ptr[i]);
+        snprintf(dbg, sizeof(dbg), "%02X ", ptr[i]);
         serial_puts(dbg);
         if ((i + 1) % 16 == 0) serial_puts("\n");
     }
@@ -534,18 +534,18 @@ void ArrangeDesktopIcons(void)
     /* Arrange icons in a vertical column from top-right */
     for (int i = 0; i < gDesktopIconCount; i++) {
         /* Safe logging - validate name field first */
-        sprintf(dbg, "[ARRANGE] Icon %d: type=%d iconID=0x%08X\n",
-               i, (int)gDesktopIcons[i].type, (unsigned int)gDesktopIcons[i].iconID);
+        snprintf(dbg, sizeof(dbg), "[ARRANGE] Icon %d: type=%d iconID=0x%08X\n",
+                 i, (int)gDesktopIcons[i].type, (unsigned int)gDesktopIcons[i].iconID);
         serial_puts(dbg);
 
-        sprintf(dbg, "[ARRANGE] Icon %d: BEFORE pos=(%d,%d)\n",
-               i, gDesktopIcons[i].position.h, gDesktopIcons[i].position.v);
+        snprintf(dbg, sizeof(dbg), "[ARRANGE] Icon %d: BEFORE pos=(%d,%d)\n",
+                 i, gDesktopIcons[i].position.h, gDesktopIcons[i].position.v);
         serial_puts(dbg);
 
         /* Print name byte-by-byte to debug corruption */
         serial_puts("[ARRANGE] Icon name bytes: ");
         for (int j = 0; j < 16 && gDesktopIcons[i].name[j] != '\0'; j++) {
-            sprintf(dbg, "%02X ", (unsigned char)gDesktopIcons[i].name[j]);
+            snprintf(dbg, sizeof(dbg), "%02X ", (unsigned char)gDesktopIcons[i].name[j]);
             serial_puts(dbg);
         }
         serial_puts("\n");
@@ -555,15 +555,15 @@ void ArrangeDesktopIcons(void)
             char nameBuf[65];
             memcpy(nameBuf, gDesktopIcons[i].name, 64);
             nameBuf[64] = '\0';
-            sprintf(dbg, "[ARRANGE] Icon %d: name='%s' (first 64 chars)\n", i, nameBuf);
+            snprintf(dbg, sizeof(dbg), "[ARRANGE] Icon %d: name='%s' (first 64 chars)\n", i, nameBuf);
             serial_puts(dbg);
         }
 
         gDesktopIcons[i].position.h = currentX;
         gDesktopIcons[i].position.v = currentY;
 
-        sprintf(dbg, "[ARRANGE] Icon %d: AFTER arrange pos=(%d,%d)\n",
-               i, currentX, currentY);
+        snprintf(dbg, sizeof(dbg), "[ARRANGE] Icon %d: AFTER arrange pos=(%d,%d)\n",
+                 i, currentX, currentY);
         serial_puts(dbg);
 
         currentY += gridSpacing;
@@ -872,10 +872,10 @@ static OSErr AllocateDesktopIcons(void)
 
     {
         extern void serial_puts(const char* str);
-        static char dbg[128];
-        sprintf(dbg, "[DESKTOP_INIT] gDesktopIcons allocated at 0x%08X\n", (unsigned int)(uintptr_t)gDesktopIcons);
+        static char dbg[256];
+        snprintf(dbg, sizeof(dbg), "[DESKTOP_INIT] gDesktopIcons allocated at 0x%08X\n", (unsigned int)(uintptr_t)gDesktopIcons);
         serial_puts(dbg);
-        sprintf(dbg, "[DESKTOP_INIT] Created Trash icon: name='%s' pos=(%d,%d)\n",
+        snprintf(dbg, sizeof(dbg), "[DESKTOP_INIT] Created Trash icon: name='%s' pos=(%d,%d)\n",
                gDesktopIcons[0].name, gDesktopIcons[0].position.h, gDesktopIcons[0].position.v);
         serial_puts(dbg);
 
@@ -883,7 +883,7 @@ static OSErr AllocateDesktopIcons(void)
         serial_puts("[DESKTOP_INIT] Icon 0 memory dump (first 96 bytes):\n");
         unsigned char* ptr = (unsigned char*)&gDesktopIcons[0];
         for (int i = 0; i < 96; i++) {
-            sprintf(dbg, "%02X ", ptr[i]);
+            snprintf(dbg, sizeof(dbg), "%02X ", ptr[i]);
             serial_puts(dbg);
             if ((i + 1) % 16 == 0) serial_puts("\n");
         }
@@ -892,7 +892,7 @@ static OSErr AllocateDesktopIcons(void)
 
     {
         char msg[96];
-        sprintf(msg, "Desktop: AllocateDesktopIcons success, count=%d\n", gDesktopIconCount);
+        snprintf(msg, sizeof(msg), "Desktop: AllocateDesktopIcons success, count=%d\n", gDesktopIconCount);
         serial_puts(msg);
     }
 
@@ -1649,8 +1649,8 @@ OSErr InitializeVolumeIcon(void)
 
         {
             extern void serial_puts(const char* str);
-            static char dbg[128];
-            sprintf(dbg, "[DESKTOP_INIT] Added boot volume icon: name='%s' pos=(%d,%d) index=%d\n",
+            static char dbg[256];
+            snprintf(dbg, sizeof(dbg), "[DESKTOP_INIT] Added boot volume icon: name='%s' pos=(%d,%d) index=%d\n",
                    gDesktopIcons[gDesktopIconCount].name,
                    gDesktopIcons[gDesktopIconCount].position.h,
                    gDesktopIcons[gDesktopIconCount].position.v,
@@ -1715,8 +1715,8 @@ OSErr Desktop_AddVolumeIcon(const char* name, VRefNum vref) {
 
     {
         extern void serial_puts(const char* str);
-        static char dbg[128];
-        sprintf(dbg, "[DESKTOP_INIT] Added volume icon: name='%s' pos=(%d,%d) index=%d\n",
+        static char dbg[256];
+        snprintf(dbg, sizeof(dbg), "[DESKTOP_INIT] Added volume icon: name='%s' pos=(%d,%d) index=%d\n",
                item->name, item->position.h, item->position.v, gDesktopIconCount);
         serial_puts(dbg);
     }

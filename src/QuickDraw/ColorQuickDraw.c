@@ -599,11 +599,14 @@ void SetDeviceAttribute(GDHandle gdh, SInt16 attribute, Boolean value) {
  * ================================================================ */
 
 CTabHandle GetCTable(SInt16 ctID) {
+    /* Validate ctID to prevent underflow in size calculation */
+    if (ctID < 1) return NULL;
+
     CTabHandle cTable = (CTabHandle)NewPtrClear(sizeof(CTabPtr));
     if (!cTable) return NULL;
 
     /* Calculate size needed - check for integer overflow */
-    if (ctID > 1 && (SIZE_MAX - sizeof(ColorTable)) / sizeof(ColorSpec) < (ctID - 1)) {
+    if (ctID > 1 && (SIZE_MAX - sizeof(ColorTable)) / sizeof(ColorSpec) < (size_t)(ctID - 1)) {
         DisposePtr((Ptr)cTable);
         return NULL;  /* Would overflow */
     }
