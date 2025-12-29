@@ -146,6 +146,10 @@ void IUDateString(UInt32 dateTime, DateForm longFlag, char *result) {
     /* Break down the date/time */
     BreakdownDateTime(dateTime, &year, &month, &day, &hour, &minute, &second, &dayOfWeek);
 
+    /* Validate month and dayOfWeek to prevent array out-of-bounds */
+    if (month < 1 || month > 12) month = 1;
+    if (dayOfWeek < 0 || dayOfWeek > 6) dayOfWeek = 0;
+
     /* Format based on longFlag */
     switch (longFlag) {
         case shortDate:

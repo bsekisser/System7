@@ -129,6 +129,10 @@ static Boolean is_leap_year(int year)
 static int days_in_month(int year, int month)
 {
     static const int baseDays[12] = {31,28,31,30,31,30,31,31,30,31,30,31};
+    /* Validate month to prevent array out-of-bounds */
+    if (month < 1 || month > 12) {
+        return 31;  /* Default to 31 for invalid months */
+    }
     int days = baseDays[month - 1];
     if (month == 2 && is_leap_year(year)) {
         days = 29;
@@ -171,6 +175,8 @@ static void mac_time_to_parts(UInt32 macTime, DateTimeParts *parts)
         days -= (UInt32)dim;
         month++;
     }
+    /* Clamp month to valid range [1-12] to prevent out-of-bounds access */
+    if (month > 12) month = 12;
     parts->month = month;
     parts->day = (int)days + 1;
 
