@@ -97,7 +97,7 @@ jobs:
           tag_name: ${{ steps.version.outputs.VERSION }}
           name: System7 ${{ steps.version.outputs.VERSION }}
           draft: false
-          prerelease: ${{ steps.get_sha.outputs.IS_TAG != 'true' }}
+          prerelease: false
           files: |
             system71.iso
             kernel.elf
