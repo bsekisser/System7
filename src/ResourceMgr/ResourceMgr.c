@@ -126,7 +126,7 @@ static SInt32 FindTypeIndex(ResType type) {
     SInt32 left = 0, right = gTypeIdxCount - 1;
 
     while (left <= right) {
-        SInt32 mid = (left + right) / 2;
+        SInt32 mid = left + (right - left) / 2;  /* Avoid integer overflow */
         if (gTypeIdx[mid].type == type) {
             return mid;
         } else if (gTypeIdx[mid].type < type) {
@@ -143,7 +143,7 @@ static SInt32 FindRefIndex(ResType type, ResID id) {
     SInt32 left = 0, right = gRefIdxCount - 1;
 
     while (left <= right) {
-        SInt32 mid = (left + right) / 2;
+        SInt32 mid = left + (right - left) / 2;  /* Avoid integer overflow */
         if (gRefIdx[mid].type < type ||
             (gRefIdx[mid].type == type && gRefIdx[mid].id < id)) {
             left = mid + 1;
@@ -919,9 +919,16 @@ Handle GetNamedResource(ResType theType, ConstStr255Param name) {
                 UInt16 nameListOffset = read_be16((UInt8*)&map->nameListOffset);
                 if (nameListOffset == 0xFFFF) continue;
 
+                /* Bounds check: ensure name is within map */
+                UInt32 namePos = (UInt32)nameListOffset + (UInt32)nameOffset;
+                if (namePos >= file->mapSize) continue;  /* Name offset out of bounds */
+
                 /* Get the resource name */
-                UInt8* resName = mapData + nameListOffset + nameOffset;
+                UInt8* resName = mapData + namePos;
                 UInt8 nameLen = resName[0];
+
+                /* Validate name length fits within map */
+                if (namePos + 1 + nameLen > file->mapSize) continue;
 
                 /* Compare names (Pascal string comparison) */
                 if (nameLen == name[0]) {

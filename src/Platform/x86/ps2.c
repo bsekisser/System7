@@ -51,12 +51,6 @@
 #define PS2_CMD_ENABLE_PORT1    0xAE
 #define PS2_CMD_WRITE_PORT2     0xD4
 
-/* PIC ports */
-#define PIC1_COMMAND    0x20
-#define PIC1_DATA       0x21
-#define PIC2_COMMAND    0xA0
-#define PIC2_DATA       0xA1
-
 /* PS/2 Device commands */
 #define PS2_DEV_RESET           0xFF
 #define PS2_DEV_ENABLE_SCAN     0xF4
@@ -399,8 +393,8 @@ static void process_mouse_packet(void) {
     uint8_t new_buttons = status & 0x07;
     if (new_buttons != g_mouseState.buttons) {
         /* Log button state changes */
-        sprintf(msg, "[PS2-PKT] Button change: 0x%02x -> 0x%02x (packet[0]=0x%02x)\n",
-                g_mouseState.buttons, new_buttons, status);
+        snprintf(msg, sizeof(msg), "[PS2-PKT] Button change: 0x%02x -> 0x%02x (packet[0]=0x%02x)\n",
+                 g_mouseState.buttons, new_buttons, status);
         serial_puts(msg);
         /* Update button state only - let ModernInput handle event posting */
         g_mouseState.buttons = new_buttons;

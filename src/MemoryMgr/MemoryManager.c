@@ -1473,9 +1473,8 @@ void* realloc(void* ptr, size_t size) {
         return NULL;
     }
 
-    /* Get old size */
-    BlockHeader* b = (BlockHeader*)((u8*)ptr - BLKHDR_SZ);
-    u32 oldSize = b->size - BLKHDR_SZ;
+    /* Get old size - use GetPtrSize to account for canary bytes */
+    u32 oldSize = GetPtrSize(ptr);
 
     /* Allocate new block */
     void* newPtr = malloc(size);

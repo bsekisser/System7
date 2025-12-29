@@ -570,22 +570,29 @@ size_t strlcat(char* dst, const char* src, size_t size) {
 }
 
 char* strchr(const char* s, int c) {
+    char ch = (char)c;
     while (*s) {
-        if (*s == c) {
+        if (*s == ch) {
             return (char*)(uintptr_t)s;
         }
         s++;
     }
-    return NULL;
+    /* Per C standard, strchr(s, '\0') returns pointer to terminating NUL */
+    return (ch == '\0') ? (char*)(uintptr_t)s : NULL;
 }
 
 char* strrchr(const char* s, int c) {
+    char ch = (char)c;
     const char* last = NULL;
     while (*s) {
-        if (*s == c) {
+        if (*s == ch) {
             last = s;
         }
         s++;
+    }
+    /* Per C standard, strrchr(s, '\0') returns pointer to terminating NUL */
+    if (ch == '\0') {
+        return (char*)(uintptr_t)s;
     }
     return (char*)(uintptr_t)last;
 }
@@ -2319,9 +2326,10 @@ static int vsnprintf(char* str, size_t size, const char* format, va_list args) {
 int vsprintf(char* str, const char* format, va_list args) {
     if (!str || !format) return 0;
 
-    /* Use a large buffer size for sprintf-style formatting (no bounds checking)
-     * Caller must ensure buffer is large enough */
-    return vsnprintf(str, 4096, format, args);
+    /* WARNING: vsprintf is inherently unsafe - no buffer size limit.
+     * Caller MUST ensure buffer is large enough for formatted output.
+     * Use SIZE_MAX to avoid artificial truncation. */
+    return vsnprintf(str, SIZE_MAX, format, args);
 }
 
 int sprintf(char* str, const char* format, ...) {
