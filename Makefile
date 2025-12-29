@@ -283,8 +283,9 @@ C_SOURCES = src/main.c \
               src/Platform/arm/usb_controller.c \
               src/Platform/arm/hid_input.c \
               src/Platform/arm/input_stubs.c \
-              src/Platform/arm64/uart_qemu.c \
-              src/Platform/arm64/hal_boot.c, \
+              $(if $(filter arm64,$(PLATFORM)), \
+                src/Platform/arm64/uart_qemu.c \
+                src/Platform/arm64/hal_boot.c,), \
               $(if $(filter ppc,$(PLATFORM)), \
                 src/Platform/ppc/hal_boot.c \
                 src/Platform/ppc/io.c \
