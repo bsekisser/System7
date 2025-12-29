@@ -2,8 +2,10 @@ name: Release
 
 on:
   push:
+    branches: [ main ]
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
   build-release:
@@ -13,6 +15,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for version calculation
 
       - name: Install dependencies
         run: |
@@ -31,21 +35,36 @@ jobs:
       - name: Build ISO
         run: make iso
 
-      - name: Get version from tag
+      - name: Generate version
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            # Use the tag version if triggered by a tag
+            VERSION="${GITHUB_REF#refs/tags/}"
+          else
+            # Auto-generate version: v0.1.{commit_count}-{short_sha}
+            COMMIT_COUNT=$(git rev-list --count HEAD)
+            SHORT_SHA=$(git rev-parse --short HEAD)
+            VERSION="v0.1.${COMMIT_COUNT}-${SHORT_SHA}"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Generated version: $VERSION"
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ steps.version.outputs.VERSION }}
           name: System7 ${{ steps.version.outputs.VERSION }}
           draft: false
-          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+          prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') }}
           files: |
             system71.iso
             kernel.elf
           body: |
             ## System7 ${{ steps.version.outputs.VERSION }}
+
+            **Commit:** ${{ github.sha }}
+            **Branch:** ${{ github.ref_name }}
 
             ### Downloads
             - `system71.iso` - Bootable ISO image for x86
