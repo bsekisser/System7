@@ -92,7 +92,14 @@ void DrawDialogButton(DialogPtr theDialog, const Rect* bounds, const unsigned ch
 
         textWidth = StringWidth(title);
         textH = btnRect.left + ((btnRect.right - btnRect.left - textWidth) / 2);
-        textV = btnRect.bottom - 5;
+
+        /* Calculate vertical position using font metrics for proper centering */
+        /* Font ascent is ~9 for 12pt system font, descent is ~2 */
+        SInt16 fontAscent = 9;  /* System font 12pt ascent */
+        SInt16 fontDescent = 2; /* System font 12pt descent */
+        SInt16 textHeight = fontAscent + fontDescent;
+        SInt16 btnHeight = btnRect.bottom - btnRect.top;
+        textV = btnRect.top + ((btnHeight - textHeight) / 2) + fontAscent;
 
         MoveTo(textH, textV);
         if (isPressed) {
@@ -154,7 +161,13 @@ void DrawDialogCheckBox(const Rect* bounds, const unsigned char* title,
         textRect.right = bounds->right;
         textRect.bottom = bounds->bottom;
 
-        textV = textRect.bottom - 4;
+        /* Center text vertically with the checkbox box using font metrics */
+        SInt16 fontAscent = 9;   /* System font 12pt ascent */
+        SInt16 fontDescent = 2;  /* System font 12pt descent */
+        SInt16 textHeight = fontAscent + fontDescent;
+        SInt16 boxHeight = boxRect.bottom - boxRect.top;
+        /* Align text baseline with center of checkbox */
+        textV = boxRect.top + ((boxHeight - textHeight) / 2) + fontAscent;
         MoveTo(textRect.left, textV);
         DrawString(title);
     }
@@ -201,7 +214,13 @@ void DrawDialogRadioButton(const Rect* bounds, const unsigned char* title,
         TextSize(12);
         TextFace(isEnabled ? 0 : 0x80);
 
-        textV = circleRect.bottom - 3;
+        /* Center text vertically with the radio button circle using font metrics */
+        SInt16 fontAscent = 9;   /* System font 12pt ascent */
+        SInt16 fontDescent = 2;  /* System font 12pt descent */
+        SInt16 textHeight = fontAscent + fontDescent;
+        SInt16 circleHeight = circleRect.bottom - circleRect.top;
+        /* Align text baseline with center of radio button */
+        textV = circleRect.top + ((circleHeight - textHeight) / 2) + fontAscent;
         MoveTo(circleRect.right + 6, textV);
         DrawString(title);
     }

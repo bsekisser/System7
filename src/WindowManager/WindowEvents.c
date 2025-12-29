@@ -622,18 +622,17 @@ void BeginUpdate(WindowPtr theWindow) {
          * because updateRgn is in GLOBAL coords but port is set up for LOCAL coords.
          *
          * FIX: Iterate updateRgn to find rectangles and erase only those regions.
-         * updateRgn is in GLOBAL coordinates, so we need to translate to LOCAL
-         * and clamp to window bounds before filling framebuffer pixels.
+         * updateRgn is in GLOBAL coordinates. Since baseAddr points to the start
+         * of the entire framebuffer, we must use global coordinates when writing.
          */
         if (theWindow->port.portBits.baseAddr && theWindow->updateRgn) {
             extern uint32_t fb_pitch;
+            extern uint32_t fb_width;
+            extern uint32_t fb_height;
             uint32_t bytes_per_pixel = 4;
 
             /* Get window position and bounds */
             Rect globalBounds = theWindow->port.portBits.bounds;  /* GLOBAL coords */
-            Rect portRect = theWindow->port.portRect;  /* LOCAL coords, typically (0,0,w,h) */
-            SInt16 windowWidth = portRect.right - portRect.left;
-            SInt16 windowHeight = portRect.bottom - portRect.top;
 
             /* Erase rectangles from updateRgn */
             RgnHandle updateRgn = theWindow->updateRgn;
@@ -641,48 +640,54 @@ void BeginUpdate(WindowPtr theWindow) {
             /* For simple rectangular regions, we can access the bounding box */
             Rect updateBounds = (*updateRgn)->rgnBBox;
 
-            /* Intersect with window's global bounds to stay within framebuffer */
+            /* Intersect with window's global bounds to stay within window area */
             if (updateBounds.left < globalBounds.left) updateBounds.left = globalBounds.left;
             if (updateBounds.top < globalBounds.top) updateBounds.top = globalBounds.top;
             if (updateBounds.right > globalBounds.right) updateBounds.right = globalBounds.right;
             if (updateBounds.bottom > globalBounds.bottom) updateBounds.bottom = globalBounds.bottom;
 
-            /* Convert from GLOBAL to LOCAL coordinates */
-            SInt16 localLeft = updateBounds.left - globalBounds.left;
-            SInt16 localTop = updateBounds.top - globalBounds.top;
-            SInt16 localRight = updateBounds.right - globalBounds.left;
-            SInt16 localBottom = updateBounds.bottom - globalBounds.top;
+            /* Clamp to screen dimensions for safety */
+            if (updateBounds.left < 0) updateBounds.left = 0;
+            if (updateBounds.top < 0) updateBounds.top = 0;
+            if (updateBounds.right > (SInt16)fb_width) updateBounds.right = (SInt16)fb_width;
+            if (updateBounds.bottom > (SInt16)fb_height) updateBounds.bottom = (SInt16)fb_height;
 
-            /* Clamp to window dimensions */
-            if (localLeft < 0) localLeft = 0;
-            if (localTop < 0) localTop = 0;
-            if (localRight > windowWidth) localRight = windowWidth;
-            if (localBottom > windowHeight) localBottom = windowHeight;
-
-            /* Fill only the update region with white */
+            /* Fill only the update region with white using GLOBAL coordinates
+             * since baseAddr points to start of entire framebuffer */
             UInt32* pixels = (UInt32*)theWindow->port.portBits.baseAddr;
             UInt32 pixelsPerRow = fb_pitch / bytes_per_pixel;
 
-            for (SInt16 y = localTop; y < localBottom; y++) {
-                for (SInt16 x = localLeft; x < localRight; x++) {
-                    if (y >= 0 && y < windowHeight && x >= 0 && x < windowWidth) {
-                        pixels[y * pixelsPerRow + x] = 0xFFFFFFFF;
-                    }
+            for (SInt16 screenY = updateBounds.top; screenY < updateBounds.bottom; screenY++) {
+                for (SInt16 screenX = updateBounds.left; screenX < updateBounds.right; screenX++) {
+                    pixels[screenY * pixelsPerRow + screenX] = 0xFFFFFFFF;
                 }
             }
         } else if (theWindow->port.portBits.baseAddr) {
-            /* No updateRgn - erase entire window as fallback */
+            /* No updateRgn - erase entire window content area as fallback */
             extern uint32_t fb_pitch;
+            extern uint32_t fb_width;
+            extern uint32_t fb_height;
             uint32_t bytes_per_pixel = 4;
 
-            Rect portRect = theWindow->port.portRect;
-            SInt16 width = portRect.right - portRect.left;
-            SInt16 height = portRect.bottom - portRect.top;
+            /* Get window's global position */
+            Rect globalBounds = theWindow->port.portBits.bounds;
+            SInt16 windowLeft = globalBounds.left;
+            SInt16 windowTop = globalBounds.top;
+            SInt16 windowRight = globalBounds.right;
+            SInt16 windowBottom = globalBounds.bottom;
+
+            /* Clamp to screen dimensions */
+            if (windowLeft < 0) windowLeft = 0;
+            if (windowTop < 0) windowTop = 0;
+            if (windowRight > (SInt16)fb_width) windowRight = (SInt16)fb_width;
+            if (windowBottom > (SInt16)fb_height) windowBottom = (SInt16)fb_height;
 
             UInt32* pixels = (UInt32*)theWindow->port.portBits.baseAddr;
-            for (SInt16 y = 0; y < height; y++) {
-                for (SInt16 x = 0; x < width; x++) {
-                    pixels[y * (fb_pitch / bytes_per_pixel) + x] = 0xFFFFFFFF;
+            UInt32 pixelsPerRow = fb_pitch / bytes_per_pixel;
+
+            for (SInt16 screenY = windowTop; screenY < windowBottom; screenY++) {
+                for (SInt16 screenX = windowLeft; screenX < windowRight; screenX++) {
+                    pixels[screenY * pixelsPerRow + screenX] = 0xFFFFFFFF;
                 }
             }
         }

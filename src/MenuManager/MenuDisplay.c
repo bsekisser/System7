@@ -1178,7 +1178,14 @@ static void DrawMenuItemTextInternal(const Rect* itemRect, ConstStr255Param item
     /* Calculate text position (left-aligned with padding) */
     /* Always add 4 pixels for left padding - matches DrawMenuBar's MoveTo(x + 4, ...) */
     short textX = itemRect->left + 4;
-    short textY = itemRect->top + ((itemRect->bottom - itemRect->top) + 9) / 2; /* Vertically centered */
+
+    /* Calculate vertical position using font metrics for proper centering */
+    /* Chicago 12pt: ascent=9, descent=2, textHeight=11 */
+    short fontAscent = 9;
+    short fontDescent = 2;
+    short textHeight = fontAscent + fontDescent;
+    short itemHeight = itemRect->bottom - itemRect->top;
+    short textY = itemRect->top + ((itemHeight - textHeight) / 2) + fontAscent;
 
     /* Move to drawing position */
     if (selected) {
