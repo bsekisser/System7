@@ -428,6 +428,10 @@ OSErr Process_Cleanup(ProcessSerialNumber* psn)
     process->processState = kProcessTerminated;
 
     /* Remove from scheduler queue */
+    if (!gProcessQueue) {
+        return noErr;  /* No queue to remove from */
+    }
+
     ProcessControlBlock* prev = NULL;
     ProcessControlBlock* curr = gProcessQueue->queueHead;
 

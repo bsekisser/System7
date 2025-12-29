@@ -143,6 +143,14 @@ void PlotIcon(const Rect* theRect, Handle theIcon) {
         return;
     }
 
+    /* Verify icon data size (32x32 pixels, 1 bit per pixel = 128 bytes) */
+    Size iconSize = GetHandleSize(theIcon);
+    if (iconSize < 128) {
+        ICON_LOG("PlotIcon: icon data too small (%ld bytes, need 128)\n", (long)iconSize);
+        HUnlock(theIcon);
+        return;
+    }
+
     /* Draw icon as bitmap (32x32 pixels, 1 bit per pixel, 128 bytes)
      * Icon data format: 4 bytes per row, 32 rows
      */
@@ -357,6 +365,13 @@ void PlotIconHandle(const Rect* theRect, IconAlignmentType align, IconTransformT
         unsigned char* iconData = (unsigned char*)*theIcon;
 
         if (iconData == NULL) {
+            HUnlock(theIcon);
+            return;
+        }
+
+        /* Verify icon data size (32x32 pixels, 1 bit per pixel = 128 bytes) */
+        Size iconSize = GetHandleSize(theIcon);
+        if (iconSize < 128) {
             HUnlock(theIcon);
             return;
         }
