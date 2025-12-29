@@ -68,7 +68,8 @@ void InitDialogResources(void)
     gResourceState.cachingEnabled = false;
     gResourceState.resourceFile = 0; /* Use current resource file */
     gResourceState.resourcePath[0] = '\0';
-    strcpy(gResourceState.languageCode, "en");
+    strncpy(gResourceState.languageCode, "en", sizeof(gResourceState.languageCode) - 1);
+    gResourceState.languageCode[sizeof(gResourceState.languageCode) - 1] = '\0';
 
     // printf("Dialog resource subsystem initialized\n");
 }

@@ -54,9 +54,13 @@ DialogPtr TrapNewDialog(void* wStorage, const Rect* boundsRect,
     /* Handle title string conversion - evidence from implementation c2pstr/p2cstr */
     if (title) {
         size_t len = strlen((const char*)title);
+        /* Check for integer overflow and max Pascal string length */
+        if (len > 255 || len > SIZE_MAX - 2) {
+            return NULL;  /* String too long */
+        }
         titleCopy = NewPtr(len + 2);  /* Extra space for length byte and null */
         if (titleCopy) {
-            strcpy(titleCopy, (const char*)title);
+            memcpy(titleCopy, title, len + 1);  /* Safe copy with known length */
             TrapC2PStr(titleCopy);  /* Convert to Pascal string */
         }
     }
@@ -88,9 +92,13 @@ DialogPtr TrapNewColorDialog(void* wStorage, const Rect* boundsRect,
     /* Same string handling as NewDialog - evidence from implementation */
     if (title) {
         size_t len = strlen((const char*)title);
+        /* Check for integer overflow and max Pascal string length */
+        if (len > 255 || len > SIZE_MAX - 2) {
+            return NULL;  /* String too long */
+        }
         titleCopy = NewPtr(len + 2);
         if (titleCopy) {
-            strcpy(titleCopy, (const char*)title);
+            memcpy(titleCopy, title, len + 1);  /* Safe copy with known length */
             TrapC2PStr(titleCopy);
         }
     }
@@ -121,9 +129,13 @@ void TrapParamText(const unsigned char* param0, const unsigned char* param1,
     for (int i = 0; i < 4; i++) {
         if (params[i]) {
             size_t len = strlen((const char*)params[i]);
+            /* Check for integer overflow and max Pascal string length */
+            if (len > 255 || len > SIZE_MAX - 2) {
+                continue;  /* Skip strings that are too long */
+            }
             paramCopies[i] = NewPtr(len + 2);
             if (paramCopies[i]) {
-                strcpy(paramCopies[i], (const char*)params[i]);
+                memcpy(paramCopies[i], params[i], len + 1);  /* Safe copy with known length */
                 TrapC2PStr(paramCopies[i]);
             }
         }
@@ -167,7 +179,11 @@ void TrapSetDialogItemText(Handle item, const Str255 text) {
 
     /* Convert text to Pascal string - evidence from implementation c2pstr */
     if (text) {
-        strcpy((char*)textCopy, (const char*)text);
+        size_t len = strlen((const char*)text);
+        if (len >= sizeof(textCopy)) {
+            return;  /* String too long for Str255 buffer */
+        }
+        memcpy(textCopy, text, len + 1);  /* Safe copy with bounds check */
         TrapC2PStr((char*)textCopy);
     }
 

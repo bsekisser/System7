@@ -214,7 +214,7 @@ SInt16 FindDialogItem(DialogPtr theDialog, Point thePt)
     }
 
     cache = GetDialogItemCache(theDialog);
-    if (!cache) {
+    if (!cache || !cache->items) {
         return 0;
     }
 
@@ -781,7 +781,7 @@ static OSErr ParseDialogItemList(Handle itemList, DialogItemEx** items, SInt16* 
 static DialogItemEx* GetDialogItemEx(DialogPtr theDialog, SInt16 itemNo)
 {
     DialogItemCache* cache = GetDialogItemCache(theDialog);
-    if (!cache || itemNo < 1 || itemNo > cache->itemCount) {
+    if (!cache || !cache->items || itemNo < 1 || itemNo > cache->itemCount) {
         return NULL;
     }
 

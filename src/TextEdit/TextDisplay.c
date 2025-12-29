@@ -130,6 +130,9 @@ static Point TECalculateTextPosition(TEHandle hTE, long offset)
 
     if (!textHandle || offset <= 0) return position;
 
+    /* Validate nLines to prevent underflow in loop bounds */
+    if ((**teRec).nLines <= 0) return position;
+
     TEGetFontMetrics(hTE, &fontInfo);
 
     HLock(textHandle);
