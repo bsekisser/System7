@@ -242,7 +242,10 @@ OSErr RegisterScrapProcess(const ProcessSerialNumber *psn, ConstStr255Param proc
         entry->isActive = true;
         entry->lastAccess = time(NULL);
         if (processName && processName[0] > 0) {
-            memcpy(entry->processName, processName, processName[0] + 1);
+            /* Validate Pascal string length to prevent buffer overflow */
+            size_t len = processName[0];
+            if (len > 255) len = 255;
+            memcpy(entry->processName, processName, len + 1);
         }
         return noErr;
     }
@@ -300,7 +303,10 @@ OSErr EnumerateScrapProcesses(ProcessSerialNumber *processes, Str255 *names,
                 processes[actualCount] = entry->psn;
             }
             if (names) {
-                memcpy(names[actualCount], entry->processName, entry->processName[0] + 1);
+                /* Validate Pascal string length to prevent buffer overflow */
+                size_t len = entry->processName[0];
+                if (len > 255) len = 255;
+                memcpy(names[actualCount], entry->processName, len + 1);
             }
             actualCount++;
         }

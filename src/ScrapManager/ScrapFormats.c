@@ -183,7 +183,10 @@ void GetFormatDescription(ResType type, Str255 description)
 
     info = FindFormatInfo(type);
     if (info) {
-        memcpy(description, info->description, info->description[0] + 1);
+        /* Validate Pascal string length to prevent buffer overflow */
+        size_t len = info->description[0];
+        if (len > 255) len = 255;
+        memcpy(description, info->description, len + 1);
         return;
     }
 
@@ -483,10 +486,15 @@ OSErr RegisterScrapFormat(ResType type, ConstStr255Param description,
     if (info) {
         /* Update existing registration */
         if (description) {
-            memcpy(info->description, description, description[0] + 1);
+            /* Validate Pascal string length to prevent buffer overflow */
+            size_t len = description[0];
+            if (len > 255) len = 255;
+            memcpy(info->description, description, len + 1);
         }
         if (fileExtension) {
-            memcpy(info->fileExtension, fileExtension, fileExtension[0] + 1);
+            size_t len = fileExtension[0];
+            if (len > 255) len = 255;
+            memcpy(info->fileExtension, fileExtension, len + 1);
         }
         info->formatFlags = formatFlags;
         return noErr;
@@ -497,13 +505,17 @@ OSErr RegisterScrapFormat(ResType type, ConstStr255Param description,
     info->type = type;
 
     if (description) {
-        memcpy(info->description, description, description[0] + 1);
+        size_t len = description[0];
+        if (len > 255) len = 255;
+        memcpy(info->description, description, len + 1);
     } else {
         info->description[0] = 0;
     }
 
     if (fileExtension) {
-        memcpy(info->fileExtension, fileExtension, fileExtension[0] + 1);
+        size_t len = fileExtension[0];
+        if (len > 255) len = 255;
+        memcpy(info->fileExtension, fileExtension, len + 1);
     } else {
         info->fileExtension[0] = 0;
     }

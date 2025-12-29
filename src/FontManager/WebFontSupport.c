@@ -457,7 +457,15 @@ static size_t WriteCallback(void *contents, size_t size, size_t nmemb, WebFontDo
 
     if (download->size + realsize > download->capacity) {
         Size oldCapacity = download->capacity;
-        download->capacity = (download->size + realsize) * 2;
+        /* Check for integer overflow before capacity calculation */
+        size_t newSize = download->size + realsize;
+        if (newSize > SIZE_MAX / 2) {
+            /* Would overflow - fail gracefully */
+            if (download->data) DisposePtr((Ptr)download->data);
+            download->data = NULL;
+            return 0;
+        }
+        download->capacity = newSize * 2;
         void *newData = NewPtr(download->capacity);
         if (newData == NULL) {
             if (download->data) DisposePtr((Ptr)download->data);

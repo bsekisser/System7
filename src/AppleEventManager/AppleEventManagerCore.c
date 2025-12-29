@@ -362,22 +362,33 @@ OSErr AEPutPtr(const AEDescList* theAEDescList, SInt32 index, DescType typeCode,
     /* Refresh header pointer after resize */
     header = (AEListHeader*)AEGetHandleData(theAEDescList->dataHandle);
 
+    /* Validate header->dataSize to prevent underflow */
+    if (header->dataSize < sizeof(AEListHeader)) {
+        return errAECorruptData;
+    }
+
     /* Find insertion point */
     char* dataPtr_base = (char*)header + sizeof(AEListHeader);
-    char* insertPoint = dataPtr_base + header->dataSize - sizeof(AEListHeader);
+    Size dataRegionSize = header->dataSize - sizeof(AEListHeader);
+    char* dataEnd = dataPtr_base + dataRegionSize;
+    char* insertPoint = dataEnd;
 
     if (index <= header->count) {
         /* Find the correct position */
         char* currentPos = dataPtr_base;
         for (SInt32 i = 0; i < index && i < header->count; i++) {
             AEListItem* item = (AEListItem*)currentPos;
+            /* Validate item->dataSize to prevent out-of-bounds access */
+            if (item->dataSize > (size_t)(dataEnd - currentPos - sizeof(AEListItem))) {
+                return errAECorruptData;
+            }
             currentPos += sizeof(AEListItem) + item->dataSize;
         }
         insertPoint = currentPos;
 
         /* Move existing data if inserting in middle */
-        if (index < header->count) {
-            Size moveSize = (dataPtr_base + header->dataSize - sizeof(AEListHeader)) - insertPoint;
+        if (index < header->count && insertPoint < dataEnd) {
+            Size moveSize = dataEnd - insertPoint;
             memmove(insertPoint + itemSize, insertPoint, moveSize);
         }
     }
