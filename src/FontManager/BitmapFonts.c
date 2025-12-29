@@ -251,8 +251,32 @@ OSErr GetCharacterBitmap(BitmapFontData *fontData, char character,
         return fontOutOfMemoryErr;
     }
 
-    /* Extract bitmap from font data */
-    sourceBitmap = fontData->bitmapData + (info.offset * (fontData)->fRectHeight * (fontData)->rowWords * 2);
+    /* Extract bitmap from font data - check for integer overflow */
+    {
+        UInt32 offset32 = (UInt32)info.offset;
+        UInt32 height32 = (UInt32)(fontData)->fRectHeight;
+        UInt32 rowWords32 = (UInt32)(fontData)->rowWords;
+
+        /* Check each multiplication for overflow */
+        if (height32 > 0 && offset32 > UINT32_MAX / height32) {
+            DisposePtr(*bitmap);
+            *bitmap = NULL;
+            return paramErr;  /* Overflow */
+        }
+        UInt32 temp = offset32 * height32;
+        if (rowWords32 > 0 && temp > UINT32_MAX / rowWords32) {
+            DisposePtr(*bitmap);
+            *bitmap = NULL;
+            return paramErr;  /* Overflow */
+        }
+        temp *= rowWords32;
+        if (temp > UINT32_MAX / 2) {
+            DisposePtr(*bitmap);
+            *bitmap = NULL;
+            return paramErr;  /* Overflow */
+        }
+        sourceBitmap = fontData->bitmapData + (temp * 2);
+    }
     BlockMoveData(sourceBitmap, *bitmap, bitmapSize);
 
     return noErr;

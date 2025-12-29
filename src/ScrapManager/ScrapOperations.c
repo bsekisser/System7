@@ -357,6 +357,13 @@ OSErr PasteBatchFromScrap(void ***dataItems, SInt32 **dataSizes,
         return scrapNoScrap;
     }
 
+    /* Check for integer overflow in allocation sizes */
+    if (actualCount > SIZE_MAX / sizeof(void *) ||
+        actualCount > SIZE_MAX / sizeof(SInt32) ||
+        actualCount > SIZE_MAX / sizeof(ResType)) {
+        return memFullErr;  /* Overflow would occur */
+    }
+
     /* Allocate arrays with proper cleanup on partial failure */
     *dataItems = (void **)NewPtrClear(actualCount * sizeof(void *));
     if (!*dataItems) {
@@ -487,8 +494,14 @@ OSErr WriteScrapStream(SInt32 streamID, const void *data, SInt32 size)
     }
 
     /* Resize handle if necessary */
-    if (stream->currentOffset + size > GetHandleSize(stream->dataHandle)) {
-        SetHandleSize(stream->dataHandle, stream->currentOffset + size + 1024);
+    Size currentHandleSize = GetHandleSize(stream->dataHandle);
+    /* Check for integer overflow before resizing */
+    if (size > UINT32_MAX - stream->currentOffset - 1024) {
+        return memFullErr;  /* Overflow would occur */
+    }
+    if (stream->currentOffset + size > currentHandleSize) {
+        Size newSize = stream->currentOffset + size + 1024;
+        SetHandleSize(stream->dataHandle, newSize);
         if (MemError() != noErr) {
             /* Clean up stream on fatal resize failure */
             if (stream->dataHandle) {

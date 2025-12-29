@@ -199,7 +199,10 @@ long BeginTrackMenu(short menuID, Point *startPt) {
     g_menuTrackState.menuLeft = left;
     g_menuTrackState.menuTop = top;
     g_menuTrackState.menuWidth = menuWidth;
-    g_menuTrackState.menuHeight = itemCount * lineHeight + 4;
+    /* Use SInt32 to prevent overflow in height calculation */
+    SInt32 calcHeight = (SInt32)itemCount * (SInt32)lineHeight + 4;
+    if (calcHeight > 32767) calcHeight = 32767;  /* Clamp to max short */
+    g_menuTrackState.menuHeight = (short)calcHeight;
     g_menuTrackState.itemCount = itemCount;
     g_menuTrackState.highlightedItem = 0;
     g_menuTrackState.lineHeight = lineHeight;
@@ -551,7 +554,10 @@ long TrackMenu(short menuID, Point *startPt) {
         lineHeight = 16;
     }
 
-    short menuHeight = itemCount * lineHeight + 4;
+    /* Use SInt32 to prevent overflow in height calculation */
+    SInt32 calcHeight = (SInt32)itemCount * (SInt32)lineHeight + 4;
+    if (calcHeight > 32767) calcHeight = 32767;  /* Clamp to max short */
+    short menuHeight = (short)calcHeight;
 
     /* Get coordinates from startPt (already validated non-NULL earlier) */
     short left = startPt->h;
