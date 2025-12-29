@@ -114,10 +114,10 @@ void platform_format_memory_kb(uint32_t bytes, char *buf, size_t buf_size) {
 
     uint32_t kb = bytes / 1024;
     if (kb < 1000) {
-        sprintf(buf, "%uK", kb);
+        snprintf(buf, buf_size, "%uK", kb);
     } else {
         uint32_t thousands = kb / 1000;
         uint32_t remainder = kb % 1000;
-        sprintf(buf, "%u,%03uK", thousands, remainder);
+        snprintf(buf, buf_size, "%u,%03uK", thousands, remainder);
     }
 }

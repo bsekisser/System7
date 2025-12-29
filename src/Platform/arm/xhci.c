@@ -102,11 +102,12 @@ int xhci_reset_controller(void) {
 
     /* Wait for halt (HCH bit in status) */
     uint32_t timeout = 10000;
-    while (timeout--) {
+    while (timeout > 0) {
         uint32_t sts = mmio_read32(op_base + XHCI_OP_USBSTS);
         if (sts & XHCI_STS_HCH) {
             break;
         }
+        timeout--;
     }
 
     if (timeout == 0) {
@@ -120,11 +121,12 @@ int xhci_reset_controller(void) {
 
     /* Wait for reset to complete (CNR = Controller Not Ready bit clears) */
     timeout = 10000;
-    while (timeout--) {
+    while (timeout > 0) {
         uint32_t sts = mmio_read32(op_base + XHCI_OP_USBSTS);
         if (!(sts & XHCI_STS_CNR)) {
             break;
         }
+        timeout--;
     }
 
     if (timeout == 0) {
@@ -147,11 +149,12 @@ int xhci_wait_ready(void) {
     uint32_t op_base = xhci_base + xhci_capability_length;
 
     uint32_t timeout = 10000;
-    while (timeout--) {
+    while (timeout > 0) {
         uint32_t sts = mmio_read32(op_base + XHCI_OP_USBSTS);
         if (!(sts & XHCI_STS_CNR)) {
             return 0;
         }
+        timeout--;
     }
 
     return -1;

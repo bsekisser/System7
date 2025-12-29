@@ -131,11 +131,12 @@ int sdhci_init(void) {
 
     /* Wait for reset to complete */
     uint32_t timeout = 10000;
-    while (timeout--) {
+    while (timeout > 0) {
         reset = mmio_read8(sdhci_base + SDHCI_SOFTWARE_RESET);
         if ((reset & 0x01) == 0) {
             break;
         }
+        timeout--;
     }
 
     if (timeout == 0) {
@@ -177,7 +178,7 @@ int sdhci_init(void) {
 static uint32_t sdhci_wait_interrupt(uint32_t timeout_ms) {
     uint32_t timeout = timeout_ms * 1000;  /* Convert to iterations */
 
-    while (timeout--) {
+    while (timeout > 0) {
         uint32_t status = mmio_read32(sdhci_base + SDHCI_INT_STATUS);
 
         /* Check for data complete or error */
@@ -189,6 +190,7 @@ static uint32_t sdhci_wait_interrupt(uint32_t timeout_ms) {
 
         /* Small delay */
         __asm__ __volatile__("nop");
+        timeout--;
     }
 
     return 0;  /* Timeout */

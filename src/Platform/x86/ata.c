@@ -366,9 +366,11 @@ OSErr ATA_ReadSectors(ATADevice* device, uint32_t lba, uint8_t count, void* buff
     hal_outb(base_io + ATA_REG_DRIVE_HEAD, drive_head);
     ata_io_delay(control_io);
 
-    /* Set sector count and LBA */
+    /* Set sector count and LBA (all three LBA registers required for 28-bit LBA) */
     hal_outb(base_io + ATA_REG_SECCOUNT, count);
     hal_outb(base_io + ATA_REG_LBA_LOW, lba & 0xFF);
+    hal_outb(base_io + ATA_REG_LBA_MID, (lba >> 8) & 0xFF);
+    hal_outb(base_io + ATA_REG_LBA_HIGH, (lba >> 16) & 0xFF);
     hal_outb(base_io + ATA_REG_COMMAND, ATA_CMD_READ_SECTORS);
     ata_io_delay(control_io);
 
