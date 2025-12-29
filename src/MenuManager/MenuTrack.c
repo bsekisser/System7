@@ -136,8 +136,9 @@ static void DrawMenuOld(MenuHandle theMenu, short left, short top, short itemCou
     DrawMenuRect(left, top, left + 1, top + itemCount * lineHeight + 4, 0xFF000000);
     DrawMenuRect(left + menuWidth - 1, top, left + menuWidth, top + itemCount * lineHeight + 4, 0xFF000000);
 
-    /* Items */
-    for (short i = 1; i <= itemCount; i++) {
+    /* Items - clamp iteration to prevent runaway loops */
+    short maxItems = itemCount > 64 ? 64 : itemCount;
+    for (short i = 1; i <= maxItems; i++) {
         char itemText[64];
         GetItemText(theMenu, i, itemText);
         if (itemText[0] == 0) continue;

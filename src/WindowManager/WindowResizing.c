@@ -129,12 +129,21 @@ void SizeWindow(WindowPtr theWindow, short w, short h, Boolean fUpdate) {
     extern int sprintf(char* buf, const char* fmt, ...);
     char dbgbuf[256];
     unsigned long refCon = (unsigned long)theWindow->refCon;
-    char refconStr[8];
-    refconStr[0] = (refCon >> 24) & 0xFF;
-    refconStr[1] = (refCon >> 16) & 0xFF;
-    refconStr[2] = (refCon >> 8) & 0xFF;
-    refconStr[3] = refCon & 0xFF;
-    refconStr[4] = 0;
+    /* Format refCon as printable ASCII or hex to avoid null byte truncation */
+    char refconStr[16];
+    unsigned char b0 = (refCon >> 24) & 0xFF;
+    unsigned char b1 = (refCon >> 16) & 0xFF;
+    unsigned char b2 = (refCon >> 8) & 0xFF;
+    unsigned char b3 = refCon & 0xFF;
+    /* Check if all bytes are printable ASCII */
+    if (b0 >= 32 && b0 < 127 && b1 >= 32 && b1 < 127 &&
+        b2 >= 32 && b2 < 127 && b3 >= 32 && b3 < 127) {
+        refconStr[0] = b0; refconStr[1] = b1;
+        refconStr[2] = b2; refconStr[3] = b3;
+        refconStr[4] = 0;
+    } else {
+        snprintf(refconStr, sizeof(refconStr), "%02X%02X%02X%02X", b0, b1, b2, b3);
+    }
     snprintf(dbgbuf, sizeof(dbgbuf), "[SIZEWND] refCon=0x%08x (%s) current=%dx%d new=%dx%d\n",
             (unsigned int)refCon, refconStr, currentWidth, currentHeight, w, h);
     serial_puts(dbgbuf);

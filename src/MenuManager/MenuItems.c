@@ -130,8 +130,9 @@ static char ParseItemText(Str255 itemText) {
     len = itemText[0];
 
     /* Check for /X suffix (minimum length 2: "X/Y") */
-    if (len >= 2 && itemText[len - 1] != '/' && itemText[len - 2] == '/') {
-        /* Extract command key */
+    /* In Pascal strings: itemText[len] is last char, itemText[len-1] is second-to-last */
+    if (len >= 2 && itemText[len] != '/' && itemText[len - 1] == '/') {
+        /* Extract command key (last character after the slash) */
         cmdKey = itemText[len];
 
         /* Convert to lowercase */
