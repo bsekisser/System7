@@ -2,20 +2,45 @@ name: Release
 
 on:
   push:
-    branches: [ main ]
     tags:
       - 'v*'
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build-release:
     name: Build Release
     runs-on: ubuntu-latest
+    # Only run if: tag push, manual trigger, or CI succeeded
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
 
     steps:
+      - name: Get commit SHA
+        id: get_sha
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            echo "SHA=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+            echo "IS_TAG=false" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "SHA=${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "IS_TAG=true" >> $GITHUB_OUTPUT
+            echo "TAG_NAME=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "SHA=${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "IS_TAG=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          ref: ${{ steps.get_sha.outputs.SHA }}
           fetch-depth: 0  # Full history for version calculation
 
       - name: Install dependencies
@@ -38,9 +63,9 @@ jobs:
       - name: Generate version
         id: version
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          if [[ "${{ steps.get_sha.outputs.IS_TAG }}" == "true" ]]; then
             # Use the tag version if triggered by a tag
-            VERSION="${GITHUB_REF#refs/tags/}"
+            VERSION="${{ steps.get_sha.outputs.TAG_NAME }}"
           else
             # Auto-generate version: v0.1.{commit_count}-{short_sha}
             COMMIT_COUNT=$(git rev-list --count HEAD)
@@ -50,21 +75,33 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Generated version: $VERSION"
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+      - name: Check if release exists
+        id: check_release
+        run: |
+          if gh release view "${{ steps.version.outputs.VERSION }}" &>/dev/null; then
+            echo "EXISTS=true" >> $GITHUB_OUTPUT
+            echo "Release ${{ steps.version.outputs.VERSION }} already exists, will update it"
+          else
+            echo "EXISTS=false" >> $GITHUB_OUTPUT
+            echo "Will create new release ${{ steps.version.outputs.VERSION }}"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create or Update Release
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.VERSION }}
           name: System7 ${{ steps.version.outputs.VERSION }}
           draft: false
-          prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+          prerelease: ${{ steps.get_sha.outputs.IS_TAG != 'true' }}
           files: |
             system71.iso
             kernel.elf
           body: |
             ## System7 ${{ steps.version.outputs.VERSION }}
 
-            **Commit:** ${{ github.sha }}
-            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ steps.get_sha.outputs.SHA }}
 
             ### Downloads
             - `system71.iso` - Bootable ISO image for x86
