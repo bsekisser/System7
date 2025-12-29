@@ -586,7 +586,21 @@ static int virt_framebuffer_init(void) {
         return -1;
     }
 
+    /* Check for integer overflow before multiplication */
+    if (width > UINT32_MAX / height ||
+        (uint32_t)width * height > UINT32_MAX / VIRT_GPU_BYTES_PER_PIXEL) {
+        Serial_WriteString("[FB] Framebuffer size calculation overflow\n");
+        return -1;
+    }
+
     uint32_t fb_bytes = width * height * VIRT_GPU_BYTES_PER_PIXEL;
+
+    /* Verify result fits in allocated storage */
+    if (fb_bytes > VIRT_GPU_MAX_FB_SIZE) {
+        Serial_WriteString("[FB] Framebuffer size exceeds storage limit\n");
+        return -1;
+    }
+
     memset(g_framebuffer_storage, 0, fb_bytes);
 
     if (virtio_gpu_configure_scanout(base, width, height, fb_bytes) != 0) {

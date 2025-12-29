@@ -358,7 +358,7 @@ void StandardFile_HAL_RunDialog(DialogPtr dialog, short *itemHit) {
 
                                 case 0x1F:  /* Down arrow key */
                                     /* Move selection down */
-                                    if (gSelectedIndex < gFileListCount - 1) {
+                                    if (gFileListCount > 0 && gSelectedIndex < gFileListCount - 1) {
                                         gSelectedIndex++;
                                         Cell cell = {0, gSelectedIndex};
                                         LSetSelect(gFileListHandle, true, cell);
@@ -473,8 +473,8 @@ void StandardFile_HAL_AddFileToList(DialogPtr dialog, const FSSpec *spec, OSType
 
     /* Add row to list display */
     if (gFileListHandle) {
-        /* Add a new row after the last row */
-        LAddRow(gFileListHandle, 1, gFileListCount - 1);
+        /* Add a new row at the end of the list */
+        LAddRow(gFileListHandle, 1, gFileListCount);
 
         /* Build display string: "[folder] Name" or "Name (TYPE)" */
         Str255 displayStr;

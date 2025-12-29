@@ -437,7 +437,12 @@ void CustomGetFile(FileFilterYDProcPtr fileFilter,
             return;
         }
         gSFState.typeList = (OSType*)NewPtr(numTypes * sizeof(OSType));
-        memcpy(gSFState.typeList, typeList, numTypes * sizeof(OSType));
+        if (gSFState.typeList) {
+            memcpy(gSFState.typeList, typeList, numTypes * sizeof(OSType));
+        } else {
+            /* Allocation failed - reset numTypes to prevent NULL dereference later */
+            gSFState.numTypes = 0;
+        }
     }
 
     /* Initialize HAL */
